@@ -1,0 +1,10 @@
+{
+  "name": "@owlmeans/common-root",
+  "scripts": {
+    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' run dev"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "packageManager": "yarn@4.3.0"
+}

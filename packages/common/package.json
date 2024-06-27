@@ -1,0 +1,15 @@
+{
+  "name": "@owlmeans/common",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "typings": "build/index.d.ts",
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "yarn@4.3.0"
+}
