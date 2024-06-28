@@ -1,0 +1,1 @@
+# OwlMeans Static Resource — Server and client library plugin

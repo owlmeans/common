@@ -5,9 +5,312 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@owlmeans/api-config-client@workspace:packages/api-config-client":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-config-client@workspace:packages/api-config-client"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api-config-server@workspace:packages/api-config-server":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-config-server@workspace:packages/api-config-server"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api-config@workspace:packages/api-config":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-config@workspace:packages/api-config"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api-resource-client@workspace:packages/api-resource-client":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-resource-client@workspace:packages/api-resource-client"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api-resource-server@workspace:packages/api-resource-server":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-resource-server@workspace:packages/api-resource-server"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api-resource@workspace:packages/api-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api-resource@workspace:packages/api-resource"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/api@workspace:packages/api":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/api@workspace:packages/api"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/auth@workspace:packages/auth":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/auth@workspace:packages/auth"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/basic-did@workspace:packages/basic-did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/basic-did@workspace:packages/basic-did"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/basic-keys@workspace:packages/basic-keys":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/basic-keys@workspace:packages/basic-keys"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-api@workspace:packages/client-api":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-api@workspace:packages/client-api"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-auth@workspace:packages/client-auth":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-auth@workspace:packages/client-auth"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-config@workspace:packages/client-config":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-config@workspace:packages/client-config"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-context@workspace:packages/client-context":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-context@workspace:packages/client-context"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-module@workspace:packages/client-module":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-module@workspace:packages/client-module"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-panel@workspace:packages/client-panel":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-panel@workspace:packages/client-panel"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-payment@workspace:packages/client-payment":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-payment@workspace:packages/client-payment"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-resource@workspace:packages/client-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-resource@workspace:packages/client-resource"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/client-route@workspace:packages/client-route":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-route@workspace:packages/client-route"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/common-root@workspace:.":
   version: 0.0.0-use.local
   resolution: "@owlmeans/common-root@workspace:."
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/config@workspace:packages/config":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/config@workspace:packages/config"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/context@workspace:packages/context":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/context@workspace:packages/context"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/module@workspace:packages/module":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/module@workspace:packages/module"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/mongo-resource@workspace:packages/mongo-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/mongo-resource@workspace:packages/mongo-resource"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/package-name@workspace:packages/_tpl":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/package-name@workspace:packages/_tpl"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/panel@workspace:packages/panel":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/panel@workspace:packages/panel"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/payment@workspace:packages/payment":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/payment@workspace:packages/payment"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/queue@workspace:packages/queue":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/queue@workspace:packages/queue"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/redis-resource@workspace:packages/redis-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/redis-resource@workspace:packages/redis-resource"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/redis@workspace:packages/redis":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/redis@workspace:packages/redis"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/resource@workspace:packages/resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/resource@workspace:packages/resource"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/route@workspace:packages/route":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/route@workspace:packages/route"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-api@workspace:packages/server-api":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-api@workspace:packages/server-api"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-auth@workspace:packages/server-auth":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-auth@workspace:packages/server-auth"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
@@ -20,12 +323,181 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/server-context@workspace:packages/server-context":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-context@workspace:packages/server-context"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-module@workspace:packages/server-module":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-module@workspace:packages/server-module"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-panel@workspace:packages/server-panel":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-panel@workspace:packages/server-panel"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-payment@workspace:packages/server-payment":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-payment@workspace:packages/server-payment"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-resource@workspace:packages/server-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-resource@workspace:packages/server-resource"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-route@workspace:packages/server-route":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-route@workspace:packages/server-route"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/static-resource@workspace:packages/static-resource":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/static-resource@workspace:packages/static-resource"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/types@workspace:packages/types":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/types@workspace:packages/types"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/web-auth@workspace:packages/web-auth":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-auth@workspace:packages/web-auth"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/web-panel@workspace:packages/web-panel":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-panel@workspace:packages/web-panel"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/web-payment@workspace:packages/web-payment":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-payment@workspace:packages/web-payment"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/web-route@workspace:packages/web-route":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-route@workspace:packages/web-route"
+  dependencies:
+    "@types/react": "npm:^18.3.3"
+    react: "npm:^18.3.1"
+    typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
 "@types/node@npm:^20.14.9":
   version: 20.14.9
   resolution: "@types/node@npm:20.14.9"
   dependencies:
     undici-types: "npm:~5.26.4"
   checksum: 10c0/911ffa444dc032897f4a23ed580c67903bd38ea1c5ec99b1d00fa10b83537a3adddef8e1f29710cbdd8e556a61407ed008e06537d834e48caf449ce59f87d387
+  languageName: node
+  linkType: hard
+
+"@types/prop-types@npm:*":
+  version: 15.7.12
+  resolution: "@types/prop-types@npm:15.7.12"
+  checksum: 10c0/1babcc7db6a1177779f8fde0ccc78d64d459906e6ef69a4ed4dd6339c920c2e05b074ee5a92120fe4e9d9f1a01c952f843ebd550bee2332fc2ef81d1706878f8
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:^18.3.3":
+  version: 18.3.3
+  resolution: "@types/react@npm:18.3.3"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    csstype: "npm:^3.0.2"
+  checksum: 10c0/fe455f805c5da13b89964c3d68060cebd43e73ec15001a68b34634604a78140e6fc202f3f61679b9d809dde6d7a7c2cb3ed51e0fd1462557911db09879b55114
+  languageName: node
+  linkType: hard
+
+"csstype@npm:^3.0.2":
+  version: 3.1.3
+  resolution: "csstype@npm:3.1.3"
+  checksum: 10c0/80c089d6f7e0c5b2bd83cf0539ab41474198579584fa10d86d0cafe0642202343cbc119e076a0b1aece191989477081415d66c9fefbf3c957fc2fc4b7009f248
+  languageName: node
+  linkType: hard
+
+"js-tokens@npm:^3.0.0 || ^4.0.0":
+  version: 4.0.0
+  resolution: "js-tokens@npm:4.0.0"
+  checksum: 10c0/e248708d377aa058eacf2037b07ded847790e6de892bbad3dac0abba2e759cb9f121b00099a65195616badcb6eca8d14d975cb3e89eb1cfda644756402c8aeed
+  languageName: node
+  linkType: hard
+
+"loose-envify@npm:^1.1.0":
+  version: 1.4.0
+  resolution: "loose-envify@npm:1.4.0"
+  dependencies:
+    js-tokens: "npm:^3.0.0 || ^4.0.0"
+  bin:
+    loose-envify: cli.js
+  checksum: 10c0/655d110220983c1a4b9c0c679a2e8016d4b67f6e9c7b5435ff5979ecdb20d0813f4dec0a08674fcbdd4846a3f07edbb50a36811fd37930b94aaa0d9daceb017e
+  languageName: node
+  linkType: hard
+
+"react@npm:^18.3.1":
+  version: 18.3.1
+  resolution: "react@npm:18.3.1"
+  dependencies:
+    loose-envify: "npm:^1.1.0"
+  checksum: 10c0/283e8c5efcf37802c9d1ce767f302dd569dd97a70d9bb8c7be79a789b9902451e0d16334b05d73299b20f048cbc3c7d288bbbde10b701fa194e2089c237dbea3
   languageName: node
   linkType: hard
 

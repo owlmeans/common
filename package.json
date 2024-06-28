@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/common-root",
   "scripts": {
-    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' run dev"
+    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run dev"
   },
   "workspaces": [
     "packages/*"

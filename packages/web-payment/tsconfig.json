@@ -1,0 +1,15 @@
+{
+  "extends": [
+    "../tsconfig.default.json",
+    "../tsconfig.react.json",
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/", /* Specify the root folder within your source files. */
+    "outDir": "./build/", /* Specify an output folder for all emitted files. */
+  },
+  "exclude": [
+    "./dist/**/*",
+    "./build/**/*",
+    "./*.ts"
+  ]
+}
