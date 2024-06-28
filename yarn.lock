@@ -11,17 +11,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/common@workspace:packages/common":
+"@owlmeans/server-config@workspace:packages/server-config":
   version: 0.0.0-use.local
-  resolution: "@owlmeans/common@workspace:packages/common"
-  dependencies:
-    typescript: "npm:^5.4.5"
-  languageName: unknown
-  linkType: soft
-
-"@owlmeans/server-common@workspace:packages/server-common":
-  version: 0.0.0-use.local
-  resolution: "@owlmeans/server-common@workspace:packages/server-common"
+  resolution: "@owlmeans/server-config@workspace:packages/server-config"
   dependencies:
     "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
