@@ -207,6 +207,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/kluster@workspace:packages/kluster":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/kluster@workspace:packages/kluster"
+  dependencies:
+    "@types/node": "npm:^20.14.9"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/module@workspace:packages/module":
   version: 0.0.0-use.local
   resolution: "@owlmeans/module@workspace:packages/module"

@@ -1,5 +1,5 @@
 {
-  "name": "@owlmeans/client-route",
+  "name": "@owlmeans/kluster",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,10 +17,8 @@
       "types": "./build/index.d.ts"
     }
   },
-  "peerDependencies": {
-    "react": "*"
-  },
   "devDependencies": {
+    "@types/node": "^20.14.9",
     "typescript": "^5.4.5"
   }
 }

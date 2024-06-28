@@ -24,6 +24,5 @@
     "@types/react": "^18.3.3",
     "react": "^18.3.1",
     "typescript": "^5.4.5"
-  },
-  "packageManager": "yarn@4.3.0"
+  }
 }
