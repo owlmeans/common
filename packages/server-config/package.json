@@ -1,5 +1,5 @@
 {
-  "name": "@owlmeans/common",
+  "name": "@owlmeans/server-config",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -7,8 +7,9 @@
   },
   "main": "build/index.js",
   "module": "build/index.js",
-  "typings": "build/index.d.ts",
+  "types": "build/index.d.ts",
   "devDependencies": {
+    "@types/node": "^20.14.9",
     "typescript": "^5.4.5"
   },
   "packageManager": "yarn@4.3.0"
