@@ -5,6 +5,22 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@noble/curves@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "@noble/curves@npm:1.4.0"
+  dependencies:
+    "@noble/hashes": "npm:1.4.0"
+  checksum: 10c0/31fbc370df91bcc5a920ca3f2ce69c8cf26dc94775a36124ed8a5a3faf0453badafd2ee4337061ffea1b43c623a90ee8b286a5a81604aaf9563bdad7ff795d18
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:1.4.0, @noble/hashes@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "@noble/hashes@npm:1.4.0"
+  checksum: 10c0/8c3f005ee72e7b8f9cff756dfae1241485187254e3f743873e22073d63906863df5d4f13d441b7530ea614b7a093f0d889309f28b59850f33b66cb26a779a4a5
+  languageName: node
+  linkType: hard
+
 "@owlmeans/api-config-client@workspace:packages/api-config-client":
   version: 0.0.0-use.local
   resolution: "@owlmeans/api-config-client@workspace:packages/api-config-client"
@@ -75,19 +91,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/basic-did@workspace:packages/basic-did":
-  version: 0.0.0-use.local
-  resolution: "@owlmeans/basic-did@workspace:packages/basic-did"
-  dependencies:
-    typescript: "npm:^5.4.5"
-  languageName: unknown
-  linkType: soft
-
 "@owlmeans/basic-keys@workspace:packages/basic-keys":
   version: 0.0.0-use.local
   resolution: "@owlmeans/basic-keys@workspace:packages/basic-keys"
   dependencies:
+    "@noble/curves": "npm:^1.4.0"
+    "@noble/hashes": "npm:^1.4.0"
+    "@scure/base": "npm:^1.1.7"
     typescript: "npm:^5.4.5"
+  bin:
+    owlkeys: ./build/bin.js
   languageName: unknown
   linkType: soft
 
@@ -449,6 +462,13 @@ __metadata:
     react: "*"
   languageName: unknown
   linkType: soft
+
+"@scure/base@npm:^1.1.7":
+  version: 1.1.7
+  resolution: "@scure/base@npm:1.1.7"
+  checksum: 10c0/2d06aaf39e6de4b9640eb40d2e5419176ebfe911597856dcbf3bc6209277ddb83f4b4b02cb1fd1208f819654268ec083da68111d3530bbde07bae913e2fc2e5d
+  languageName: node
+  linkType: hard
 
 "@types/node@npm:^20.14.9":
   version: 20.14.9

@@ -1,9 +1,13 @@
 {
   "name": "@owlmeans/basic-keys",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -w --preserveWatchOutput --pretty"
+  },
+  "bin": {
+    "owlkeys": "./build/bin.js"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -19,5 +23,10 @@
   },
   "devDependencies": {
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.4.0",
+    "@noble/hashes": "^1.4.0",
+    "@scure/base": "^1.1.7"
   }
 }

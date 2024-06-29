@@ -1,5 +1,5 @@
 {
-  "name": "@owlmeans/basic-did",
+  "name": "@owlmeans/error",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -16,6 +16,8 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "peerDependencies": {
   },
   "devDependencies": {
     "typescript": "^5.4.5"
