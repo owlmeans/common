@@ -17,8 +17,6 @@
       "types": "./build/index.d.ts"
     }
   },
-  "peerDependencies": {
-  },
   "devDependencies": {
     "typescript": "^5.4.5"
   }

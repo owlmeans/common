@@ -87,6 +87,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/auth@workspace:packages/auth"
   dependencies:
+    "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
@@ -215,6 +216,14 @@ __metadata:
 "@owlmeans/context@workspace:packages/context":
   version: 0.0.0-use.local
   resolution: "@owlmeans/context@workspace:packages/context"
+  dependencies:
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/error@workspace:packages/error":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/error@workspace:packages/error"
   dependencies:
     typescript: "npm:^5.4.5"
   languageName: unknown
