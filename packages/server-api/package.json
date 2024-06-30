@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/server-api",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -16,6 +17,15 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/api": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0",
+    "@owlmeans/server-module": "^0.1.0",
+    "@owlmeans/server-route": "^0.1.0",
+    "fastify": "^4.28.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

@@ -32,7 +32,6 @@ export interface Authorization {
   denormalized?: boolean
 }
 
-
 export interface Profile extends ProfilePayload {
   id: string
   name: string

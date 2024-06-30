@@ -42,18 +42,34 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
       )
     },
 
-    export: pub => {
-      pub = pub ?? false
+    export: () => {
       assertType(_model.keyPair?.type)
 
       if (_model.keyPair == null) {
         throw new Error('basic.keys:missing-keypair')
       }
 
-      if (pub) {
-        return `${_model.keyPair.type}:${_model.keyPair.publicKey}`  
-      }
       return `${_model.keyPair.type}:${_model.keyPair.privateKey}`
+    },
+
+    exportPublic: () => {
+      assertType(_model.keyPair?.type)
+
+      if (_model.keyPair == null) {
+        throw new Error('basic.keys:missing-keypair')
+      }
+
+      return `${_model.keyPair.type}:${_model.keyPair.publicKey}`  
+    },
+
+    exportAddress: () => {
+      assertType(_model.keyPair?.type)
+
+      if (_model.keyPair == null) {
+        throw new Error('basic.keys:missing-keypair')
+      }
+
+      return `${_model.keyPair.type}:${_model.keyPair.address}`
     }
   }
 

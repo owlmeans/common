@@ -10,7 +10,9 @@ export interface KeyPairModel {
   keyPair?: KeyPair
   sign: (data: unknown) => Promise<string>
   verify: (data: unknown, signature: string) => Promise<boolean>
-  export: (pub?: boolean) => string
+  export: () => string
+  exportPublic: () => string
+  exportAddress: () => string
 }
 
 export interface KeyPairModelMaker {

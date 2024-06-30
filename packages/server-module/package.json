@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/server-module",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -16,6 +17,12 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/module": "^0.1.0",
+    "@owlmeans/server-route": "^0.1.0",
+    "ajv": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

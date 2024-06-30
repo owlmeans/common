@@ -1,6 +1,7 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
+  "version": "0.1.0",
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -w --preserveWatchOutput --pretty"
@@ -16,6 +17,11 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

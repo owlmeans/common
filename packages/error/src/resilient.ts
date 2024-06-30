@@ -22,6 +22,11 @@ export class ResilientError extends Error {
       return err
     }
 
+    // We don't proceed SyntaxError - system should crash in this case
+    if (err instanceof SyntaxError) {
+      throw err
+    }
+
     // Umarshal marhalled error that is wrapepd to ordinary error
     const unmarhaller = this.converters.toReversed().find(converter => converter.isMarshaled(err))
     if (unmarhaller != null) {
