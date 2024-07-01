@@ -6,6 +6,7 @@ export interface Config {
   layer: Layer
   type: AppType
   layerId?: string
+  services?: Record<string, Object>
   [CONFIG_RECORD]?: ConfigRecord[]
 }
 

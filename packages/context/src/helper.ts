@@ -1,4 +1,4 @@
-import { Contextual, Context } from './types.js'
+import { Contextual, Context, Config } from './types.js'
 
 export const appendContextual = <T extends Contextual>(alias: string, contextual: Partial<T>): T => {
   contextual.alias = alias
@@ -22,14 +22,14 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
 
 export type UpdContextType<T extends Context, ExtraType> = T & ExtraType
 
+export type UpdConfigType<T extends Config, ExtraType> = T & ExtraType
 
-
-  /**
-   * @throws {SyntaxError}
-   */
-  export const assertContext = <T extends Context>(ctx: T | undefined, location: string): T => {
-    if (ctx == null) {
-      throw new SyntaxError(`Context not found in ${location}`)
-    }
-    return ctx
+/**
+ * @throws {SyntaxError}
+ */
+export const assertContext = <T extends Context>(ctx: T | undefined, location: string): T => {
+  if (ctx == null) {
+    throw new SyntaxError(`Context not found in ${location}`)
   }
+  return ctx
+}

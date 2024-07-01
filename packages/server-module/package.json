@@ -21,8 +21,8 @@
   "dependencies": {
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
-    "@owlmeans/server-route": "^0.1.0",
-    "ajv": "^8.16.0"
+    "@owlmeans/route": "^0.1.0",
+    "@owlmeans/server-route": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

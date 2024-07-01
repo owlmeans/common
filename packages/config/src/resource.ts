@@ -81,7 +81,6 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
   return resource
 }
 
-
 export const appendConfigResource = <C extends Context>(
   ctx: C, alias: string = DEFAULT_ALIAS, key: string = CONFIG_RECORD
 ): UpdContextType<C, ConfigResourceAppend> => {

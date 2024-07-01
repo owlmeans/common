@@ -16,12 +16,19 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./utils": {
+      "default": "./build/utils/index.js",
+      "types": "./build/utils/index.js",
+      "import": "./build/utils/index.js",
+      "require": "./build/utils/index.js",
+      "module": "./build/utils/index.js"
     }
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.0",
-    "@owlmeans/module": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
+    "@owlmeans/route": "^0.1.0",
+    "ajv": "^8.16.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

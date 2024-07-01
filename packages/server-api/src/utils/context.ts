@@ -8,6 +8,7 @@ import type { Context } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
 import { handleError } from './error.js'
+import { executeResponse, provideRequest, provideResponse } from './payload.js'
 
 export const createServerHandler = (module: Module<FastifyRequest>, location: string) =>
   async (request: FastifyRequest, reply: FastifyReply) => {
@@ -17,27 +18,35 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
         let guard: GuardService | undefined = undefined
         for (const alias in module.guards) {
           const _guard: GuardService = context.service(alias)
-          if (await _guard.match(request, reply, context)) {
+          const response = provideResponse()
+          if (await _guard.match(provideRequest(module.alias, request), response, context)) {
             guard = _guard
             break
           }
+          executeResponse(response, reply, true)
         }
 
         if (guard == null) {
           throw new AuthFailedError()
         }
 
-        if (!await guard.hanlder(request, reply, context)) {
+        const response = provideResponse()
+        if (!await guard.hanlder(provideRequest(module.alias, request), response, context)) {
           throw new AuthFailedError(guard.alias)
         }
+        executeResponse(response, reply, true)
       }
 
       if (module.gate != null) {
         let gate: GateService = context.service(module.gate)
-        await gate.assert(request, reply, context)
+        const response = provideResponse()
+        await gate.assert(provideRequest(module.alias, request), response, context)
+        executeResponse(response, reply, true)
       }
 
-      await module.handler(request, reply, context)
+      const response = provideResponse()
+      await module.handler(provideRequest(module.alias, request), response, context)
+      executeResponse(response, reply, true)
       if (!reply.sent) {
         reply.code(OK).send()
       }

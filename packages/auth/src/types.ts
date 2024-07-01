@@ -2,7 +2,7 @@ import type { AuthRole } from './consts.js'
 
 export interface AuthCredentials extends AuthPayload {
   challenge: string
-  credType: string
+  credential: string
 }
 
 export interface AuthPayload extends ProfilePayload {
@@ -11,7 +11,7 @@ export interface AuthPayload extends ProfilePayload {
   source?: string
   userId?: string
   profileId?: string
-  expiresAt?: Date
+  expiresAt?: string
 }
 
 export interface Group extends Authorization {
@@ -28,20 +28,23 @@ export interface Authorization {
   scopes: string[]
   permissions?: Permission[]
   attributes?: Attribute[]
-  permissioned?: boolean
-  denormalized?: boolean
+  // Whether authorization provides all necessary permissions
+  permissioned?: boolean 
+  // Wheter all permissions resolved
+  denormalized?: boolean 
 }
 
 export interface Profile extends ProfilePayload {
   id: string
   name: string
+  extras?: string
 }
 
 export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
-  createdAt: Date
-  expiresAt: Date
+  createdAt: string
+  expiresAt: string
 }
 
 export interface Permission {

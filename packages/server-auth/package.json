@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/server-auth",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -15,7 +16,22 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./manager": {
+      "import": "./build/manager/index.js",
+      "require": "./build/manager/index.js",
+      "default": "./build/manager/index.js",
+      "module": "./build/manager/index.js",
+      "types": "./build/manager/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/basic-keys": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@owlmeans/server-api": "^0.1.0",
+    "@owlmeans/server-module": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

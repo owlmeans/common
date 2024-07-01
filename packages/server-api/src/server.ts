@@ -1,9 +1,10 @@
 import type { Context } from '@owlmeans/server-context'
-import type { ApiServer } from './types.js'
+import type { ApiServer, ApiServerAppend } from './types.js'
 import { Layer, createService } from '@owlmeans/context'
-import { basicAssertContext } from './utils/index.js'
+import type { UpdContextType } from '@owlmeans/context'
+import { basicAssertContext, canServeModule, executeResponse, provideRequest, provideResponse } from './utils/index.js'
 import Fastify, { type FastifyRequest } from 'fastify'
-import { HOST, PORT } from './consts.js'
+import { DEFAULT_ALIAS, HOST, PORT } from './consts.js'
 import type { Module } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler } from './utils/context.js'
@@ -23,22 +24,30 @@ export const createApiServer = (alias: string): ApiServer => {
 
     server.addHook('preHandler', async (request, reply) => {
       let context = assertContext(service.ctx as Context)
-      await context.modules<Module<FastifyRequest>>().reduce(async (promise, module) => {
+      await context.modules<Module<FastifyRequest>>().filter(
+        module => module.route.isIntermediate() && canServeModule(context, module)
+      ).reduce(async (promise, module) => {
         if (reply.sent) {
           return
         }
         await promise
-        if (module.route.isIntermediate() && module.route.match(request)) {
-          const result = await module.handler(request, reply, context)
+        await module.route.resolve(context)
+        // Actually intermediate module can be created without handler by elevate function
+        if (module.route.match(request) && module.handler != null) {
+          const response = provideResponse()
+          const result = await module.handler(provideRequest(module.alias, request, true), response, context)
           if (result != null) {
             context = result
           }
+          executeResponse(response, reply)
         }
       }, Promise.resolve());
       (request as any)._ctx = context
     })
 
-    context.modules<Module<FastifyRequest>>().filter(module => !module.route.isIntermediate()).forEach(
+    context.modules<Module<FastifyRequest>>().filter(
+      module => !module.route.isIntermediate() && canServeModule(context, module)
+    ).forEach(
       module => server.route({
         method: module.route.route.method ?? RouteMethod.GET,
         schema: {
@@ -57,4 +66,17 @@ export const createApiServer = (alias: string): ApiServer => {
   })
 
   return server
+}
+
+export const appendApiServer = <C extends Context>(
+  ctx: C, alias: string = DEFAULT_ALIAS
+): UpdContextType<C, ApiServerAppend> => {
+  const service = createApiServer(alias)
+
+  const _ctx = ctx as UpdContextType<C, ApiServerAppend>
+
+  _ctx.registerService(service)
+  _ctx.getApiServer = () => ctx.service(service.alias)
+
+  return _ctx
 }

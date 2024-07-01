@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/server-config",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -16,6 +17,9 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/config": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

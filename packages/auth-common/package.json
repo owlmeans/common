@@ -1,0 +1,28 @@
+{
+  "name": "@owlmeans/auth-common",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/module": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

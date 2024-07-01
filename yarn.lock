@@ -42,11 +42,11 @@ __metadata:
   linkType: hard
 
 "@noble/curves@npm:^1.4.0":
-  version: 1.4.0
-  resolution: "@noble/curves@npm:1.4.0"
+  version: 1.4.2
+  resolution: "@noble/curves@npm:1.4.2"
   dependencies:
     "@noble/hashes": "npm:1.4.0"
-  checksum: 10c0/31fbc370df91bcc5a920ca3f2ce69c8cf26dc94775a36124ed8a5a3faf0453badafd2ee4337061ffea1b43c623a90ee8b286a5a81604aaf9563bdad7ff795d18
+  checksum: 10c0/65620c895b15d46e8087939db6657b46a1a15cd4e0e4de5cd84b97a0dfe0af85f33a431bb21ac88267e3dc508618245d4cb564213959d66a84d690fe18a63419
   languageName: node
   linkType: hard
 
@@ -120,16 +120,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/auth@workspace:packages/auth":
+"@owlmeans/auth-common@npm:^0.1.0, @owlmeans/auth-common@workspace:packages/auth-common":
   version: 0.0.0-use.local
-  resolution: "@owlmeans/auth@workspace:packages/auth"
+  resolution: "@owlmeans/auth-common@workspace:packages/auth-common"
   dependencies:
-    "@types/node": "npm:^20.14.9"
+    "@owlmeans/auth": "npm:^0.1.0"
+    "@owlmeans/module": "npm:^0.1.0"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
-"@owlmeans/basic-keys@workspace:packages/basic-keys":
+"@owlmeans/auth@npm:^0.1.0, @owlmeans/auth@workspace:packages/auth":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/auth@workspace:packages/auth"
+  dependencies:
+    "@noble/hashes": "npm:^1.4.0"
+    "@scure/base": "npm:^1.1.7"
+    ajv: "npm:^8.16.0"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/basic-keys@npm:^0.1.0, @owlmeans/basic-keys@workspace:packages/basic-keys":
   version: 0.0.0-use.local
   resolution: "@owlmeans/basic-keys@workspace:packages/basic-keys"
   dependencies:
@@ -246,6 +258,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/config@workspace:packages/config"
   dependencies:
+    "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
     "@owlmeans/resource": "npm:^0.1.0"
@@ -283,8 +296,8 @@ __metadata:
   resolution: "@owlmeans/module@workspace:packages/module"
   dependencies:
     "@owlmeans/context": "npm:^0.1.0"
-    "@owlmeans/module": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
+    ajv: "npm:^8.16.0"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
@@ -373,13 +386,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/server-api@workspace:packages/server-api":
+"@owlmeans/server-api@npm:^0.1.0, @owlmeans/server-api@workspace:packages/server-api":
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-api@workspace:packages/server-api"
   dependencies:
     "@owlmeans/api": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
+    "@owlmeans/module": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
     "@owlmeans/server-module": "npm:^0.1.0"
     "@owlmeans/server-route": "npm:^0.1.0"
@@ -393,15 +407,22 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-auth@workspace:packages/server-auth"
   dependencies:
+    "@owlmeans/auth": "npm:^0.1.0"
+    "@owlmeans/auth-common": "npm:^0.1.0"
+    "@owlmeans/basic-keys": "npm:^0.1.0"
+    "@owlmeans/error": "npm:^0.1.0"
+    "@owlmeans/server-api": "npm:^0.1.0"
+    "@owlmeans/server-module": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
-"@owlmeans/server-config@workspace:packages/server-config":
+"@owlmeans/server-config@npm:^0.1.0, @owlmeans/server-config@workspace:packages/server-config":
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-config@workspace:packages/server-config"
   dependencies:
+    "@owlmeans/config": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -414,6 +435,7 @@ __metadata:
     "@owlmeans/config": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
+    "@owlmeans/server-config": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -425,9 +447,9 @@ __metadata:
   dependencies:
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/module": "npm:^0.1.0"
+    "@owlmeans/route": "npm:^0.1.0"
     "@owlmeans/server-route": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
-    ajv: "npm:^8.16.0"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
@@ -464,6 +486,7 @@ __metadata:
   resolution: "@owlmeans/server-route@workspace:packages/server-route"
   dependencies:
     "@owlmeans/route": "npm:^0.1.0"
+    "@owlmeans/server-context": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1081,22 +1104,22 @@ __metadata:
   linkType: hard
 
 "typescript@npm:^5.4.5":
-  version: 5.5.2
-  resolution: "typescript@npm:5.5.2"
+  version: 5.5.3
+  resolution: "typescript@npm:5.5.3"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/8ca39b27b5f9bd7f32db795045933ab5247897660627251e8254180b792a395bf061ea7231947d5d7ffa5cb4cc771970fd4ef543275f9b559f08c9325cccfce3
+  checksum: 10c0/f52c71ccbc7080b034b9d3b72051d563601a4815bf3e39ded188e6ce60813f75dbedf11ad15dd4d32a12996a9ed8c7155b46c93a9b9c9bad1049766fe614bbdd
   languageName: node
   linkType: hard
 
 "typescript@patch:typescript@npm%3A^5.4.5#optional!builtin<compat/typescript>":
-  version: 5.5.2
-  resolution: "typescript@patch:typescript@npm%3A5.5.2#optional!builtin<compat/typescript>::version=5.5.2&hash=379a07"
+  version: 5.5.3
+  resolution: "typescript@patch:typescript@npm%3A5.5.3#optional!builtin<compat/typescript>::version=5.5.3&hash=379a07"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/a7b7ede75dc7fc32a76d0d0af6b91f5fbd8620890d84c906f663d8783bf3de6d7bd50f0430b8bb55eac88a38934af847ff709e7156e5138b95ae94cbd5f73e5b
+  checksum: 10c0/911c7811d61f57f07df79c4a35f56a0f426a65426a020e5fcd792f66559f399017205f5f10255329ab5a3d8c2d1f1d19530aeceffda70758a521fae1d469432e
   languageName: node
   linkType: hard
 
