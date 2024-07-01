@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/client-route",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,8 +18,9 @@
       "types": "./build/index.d.ts"
     }
   },
-  "peerDependencies": {
-    "react": "*"
+  "dependencies": {
+    "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/route": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

@@ -1,5 +1,5 @@
-import { SEP, normalizePath } from '@owlmeans/route'
-import { PARAM, WILDCARD } from '../consts.js'
+import { PARAM, SEP, normalizePath } from '@owlmeans/route'
+import { WILDCARD } from '../consts.js'
 
 export const matchToPathes = (
   template: string, path: string

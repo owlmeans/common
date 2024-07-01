@@ -29,7 +29,7 @@ export interface ModuleAssert {
 export interface AbstractRequest {
   alias: string
   params: Record<string, string | number | undefined | null>
-  body: Record<string, any>
+  body?: Record<string, any>
   headers: Record<string, string[] | string | undefined>
   query: Record<string, string | number | undefined | null>
   path: string
@@ -59,4 +59,10 @@ export interface Filter {
   body?: JSONSchemaType<any>
   response?: JSONSchemaType<any>
   headers?: JSONSchemaType<any>
+}
+
+export interface ResponseHandler<T> extends AbstractResponse<T> {
+  value?: T,
+  outcome?: ModuleOutcome
+  error?: Error
 }

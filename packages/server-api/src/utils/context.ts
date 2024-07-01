@@ -3,12 +3,13 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import { assertContext } from '@owlmeans/context'
 import type { FixerService, Module } from '@owlmeans/server-module'
 import type { GateService, GuardService } from '@owlmeans/module'
+import { provideResponse } from '@owlmeans/module'
 import { AuthFailedError } from '../errors.js'
 import type { Context } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
 import { handleError } from './error.js'
-import { executeResponse, provideRequest, provideResponse } from './payload.js'
+import { executeResponse, provideRequest } from './payload.js'
 
 export const createServerHandler = (module: Module<FastifyRequest>, location: string) =>
   async (request: FastifyRequest, reply: FastifyReply) => {

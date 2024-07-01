@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/client-context",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -15,10 +16,34 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./utils": {
+      "import": "./build/utils/index.js",
+      "require": "./build/utils/index.js",
+      "default": "./build/utils/index.js",
+      "module": "./build/utils/index.js",
+      "types": "./build/utils/index.d.ts"
+    },
+    "./react": {
+      "import": "./build/react/index.js",
+      "require": "./build/react/index.js",
+      "default": "./build/react/index.js",
+      "module": "./build/react/index.js",
+      "types": "./build/react/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/client-config": "0.1.0",
+    "@owlmeans/context": "0.1.0",
+    "@owlmeans/route": "0.1.0"
   },
   "peerDependencies": {
     "react": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

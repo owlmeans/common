@@ -3,7 +3,7 @@ import type { InitializedService, Layer } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { BasicModuleHandler } from './utils/types.js'
 import type { Context } from './helper.js'
-import type { AbstractRequest, AbstractResponse, ModuleOutcome } from '@owlmeans/module'
+import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 
 export interface ApiServer extends InitializedService {
   layers: [Layer.System]
@@ -23,10 +23,4 @@ export interface ModuleHandler<
 
 export interface ApiServerAppend {
   getApiServer: () => ApiServer
-}
-
-export interface ResponseHandler<T> extends AbstractResponse<T> {
-  value?: T,
-  outcome?: ModuleOutcome
-  error?: Error
 }

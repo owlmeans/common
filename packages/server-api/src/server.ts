@@ -2,12 +2,13 @@ import type { Context } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
 import { Layer, createService } from '@owlmeans/context'
 import type { UpdContextType } from '@owlmeans/context'
-import { basicAssertContext, canServeModule, executeResponse, provideRequest, provideResponse } from './utils/index.js'
+import { basicAssertContext, canServeModule, executeResponse, provideRequest } from './utils/index.js'
 import Fastify, { type FastifyRequest } from 'fastify'
 import { DEFAULT_ALIAS, HOST, PORT } from './consts.js'
 import type { Module } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler } from './utils/context.js'
+import { provideResponse } from '@owlmeans/module'
 
 export const createApiServer = (alias: string): ApiServer => {
   const location = `service:${alias}`
@@ -45,22 +46,25 @@ export const createApiServer = (alias: string): ApiServer => {
       (request as any)._ctx = context
     })
 
-    context.modules<Module<FastifyRequest>>().filter(
+    await Promise.all(context.modules<Module<FastifyRequest>>().filter(
       module => !module.route.isIntermediate() && canServeModule(context, module)
-    ).forEach(
-      module => server.route({
-        method: module.route.route.method ?? RouteMethod.GET,
-        schema: {
-          querystring: module.filter?.query,
-          body: module.filter?.body,
-          params: module.filter?.params,
-          response: module.filter?.response,
-          headers: module.filter?.headers
-        },
-        url: module.route.route.path,
-        handler: createServerHandler(module, location)
-      })
-    )
+    ).map(
+      async module => {
+        await module.route.resolve(context)
+        server.route({
+          url: module.route.route.path,
+          method: module.route.route.method ?? RouteMethod.GET,
+          schema: {
+            querystring: module.filter?.query,
+            body: module.filter?.body,
+            params: module.filter?.params,
+            response: module.filter?.response,
+            headers: module.filter?.headers
+          },
+          handler: createServerHandler(module, location)
+        })
+      }
+    ))
 
     server.listen({ port: config.port ?? PORT, host: config.host ?? HOST })
   })

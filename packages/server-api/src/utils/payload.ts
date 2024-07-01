@@ -1,5 +1,6 @@
-import { ModuleOutcome, type AbstractRequest } from '@owlmeans/module'
-import type { Request, Response, ResponseHandler } from '../types.js'
+import { ModuleOutcome } from '@owlmeans/module'
+import type { ResponseHandler, AbstractRequest } from '@owlmeans/module'
+import type { Request, Response } from '../types.js'
 import { ACCEPTED, CREATED, OK, SERVER_ERROR } from '@owlmeans/api'
 
 export const provideRequest = (alias: string, req: Request, provision?: boolean): AbstractRequest => {
@@ -13,21 +14,6 @@ export const provideRequest = (alias: string, req: Request, provision?: boolean)
     path: req.url,
     original: provision ? req : undefined
   }
-}
-
-export const provideResponse = <T>(): ResponseHandler<T> => {
-  const hanlder: ResponseHandler<T> = {
-    resolve: (value, outcome) => {
-      hanlder.value = value
-      hanlder.outcome = outcome
-    },
-
-    reject: (error) => {
-      hanlder.error = error
-    }
-  }
-
-  return hanlder
 }
 
 /**

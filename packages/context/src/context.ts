@@ -1,6 +1,6 @@
 import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
 import type { Config, Context, Middleware, Module, Resource, Service } from './types.js'
-import { createMiddlewareKey, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
+import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
 import { DEFAULT, InLayer, Services, initializeLayer } from './utils/layer.js'
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
@@ -212,27 +212,3 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 
   return context
 }
-
-const getAllServices = (services: InLayer<Services>, layer: Layer, id: string) => {
-  const repeated = new Set<Service>()
-  return Object.values(services[layer][id])
-    .flatMap(services => Object.values(services)).filter(service => {
-      if (repeated.has(service)) {
-        return false
-      }
-      repeated.add(service)
-
-      return true
-    })
-}
-
-const applyMiddlewares = (
-  context: Context,
-  middlewares: Record<string, Middleware[]>,
-  type: MiddlewareType,
-  stage: MiddlewareStage,
-  args?: Record<string, string | undefined>
-) => Promise.all(
-  middlewares[createMiddlewareKey(type, stage)]?.map(middleware => middleware.apply(context, args))
-)
-

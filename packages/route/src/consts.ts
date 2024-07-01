@@ -5,3 +5,5 @@ export enum RouteMethod {
 }
 
 export const SEP = '/'
+
+export const PARAM = ':'
