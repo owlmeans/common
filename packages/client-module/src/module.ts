@@ -1,65 +1,64 @@
 import type { RouteModel } from '@owlmeans/client-route'
-import type { Module, ModuleCall, ModuleOptions } from './types.js'
+import type { Module, ModuleOptions } from './types.js'
 import type { BasicModule, BasicRouteModel } from './utils/types.js'
-import type { AbstractRequest } from '@owlmeans/module'
-import { ModuleOutcome, provideResponse } from '@owlmeans/module'
-import { isModule, makeBasicModule } from './utils/module.js'
+import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
+import { isModule, makeBasicModule, normalizeHelperParams, validate } from './utils/module.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
-import { handler } from './utils/handler.js'
+import { apiCall, apiHandler, urlCall } from './utils/handler.js'
+import { AppType, appendContextual } from '@owlmeans/context'
+import { normalizePath } from '@owlmeans/route'
 
 export const module = <T, R extends AbstractRequest = AbstractRequest>(
   module: BasicModule | RouteModel | BasicRouteModel,
-  opts?: ModuleOptions
+  handler?: ModuleHandler | ModuleOptions | boolean,
+  opts?: ModuleOptions | boolean
 ): Module<T, R> => {
-
   let _module: Module<T, R>
 
-  const call: ModuleCall<T, R> = async (ctx, req, res) => {
-    const request: AbstractRequest = {
-      alias: _module.alias,
-      params: req?.params ?? {},
-      body: req?.body,
-      headers: req?.headers ?? {},
-      query: req?.query ?? {},
-      path: _module.route.route.path,
-    }
-    if (res != null) {
-      await handler(request, res, ctx!)
-      return
-    }
-    const reply = provideResponse<T>()
-    if (ctx == null && _module.ctx == null) {
-      throw new SyntaxError(`Use module ${_module.alias} wihtout context`)
-    }
-    await handler(request, reply, ctx ?? _module.ctx!)
-    if (reply.error != null) {
-      throw reply.error
-    }
+  [handler, opts] = normalizeHelperParams(handler, opts)
 
-    return [reply.value ?? null, reply.outcome ?? ModuleOutcome.Ok]
-  }
+  const _handler = handler ??
+    // There are server modules (api) and client modules. 
+    //Last ones do not need to stab handler with api call.
+    (('route' in module.route ? module.route.route.type : module.route.type)
+      === AppType.Backend ? apiHandler : undefined)
+
+  const getPath = (partial?: boolean) =>
+    partial === true ? normalizePath(_module.route.route.partialPath) : _module.route.route.path
+
+  // We expect that if we provided a handler, than this is a frontend module, so we get
+  // routes for navigation instead of calling APIs.
+  const call = () => handler != null ? urlCall(_module, opts) : apiCall(_module, opts)
 
   if (isModule(module)) {
+    assertExplicitHandler(module.route.route.type, handler)
     const rotueModel = route(module.route, opts?.routeOptions)
-    _module = {
-      ...module, route: rotueModel, handler, call,
+    _module = appendContextual<Module<T, R>>(module.alias, {
+      ...module, route: rotueModel, handler: _handler, call: call(), validate,
       guards: opts?.guards ?? module.guards,
       filter: opts?.filter ?? module.filter,
-      gate: opts?.gate ?? module.gate,
-    }
-
+      gate: opts?.gate ?? module.gate, getPath
+    })
   } else if (isClientRouteModel(module)) {
+    assertExplicitHandler(module.route.type, handler)
     _module = {
       ...makeBasicModule(module, { ...opts }),
-      route: module, handler, call
+      route: module, handler: _handler, call: call(), validate, getPath
     }
   } else {
+    assertExplicitHandler(module.route.type, handler)
     const _route = route(module, opts?.routeOptions)
     _module = {
       ...makeBasicModule(_route, { ...opts }),
-      route: _route, handler, call
+      route: _route, handler: _handler, call: call(), validate, getPath
     }
   }
 
   return _module
+}
+
+const assertExplicitHandler = (type: AppType, handler: ModuleHandler | undefined) => {
+  if (type === AppType.Backend && handler != null) {
+    throw new SyntaxError('We can\'t provide explicit handler to backend client module')
+  }
 }

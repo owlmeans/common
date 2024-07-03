@@ -6,10 +6,10 @@ export const getMiddlerwareKey = (middleware: Middleware) => createMiddlewareKey
 
 export const createMiddlewareKey = (type: MiddlewareType, stage: MiddlewareStage) => `${type}:${stage}`
 
-export const isLayerIherited = (current: Layer, parent: Layer): boolean => 
+export const isLayerIherited = (current: Layer, parent: Layer): boolean =>
   current === parent || layersOrder.indexOf(current) > layersOrder.indexOf(parent)
 
-export const isResourceAvailable = (resource: Resource, layer: Layer) => 
+export const isResourceAvailable = (resource: Resource, layer: Layer) =>
   resource.layer == null || isLayerIherited(resource.layer, layer)
 
 export const layersOrder = [
@@ -22,7 +22,7 @@ export const layersOrder = [
 
 export const getAllServices = (services: InLayer<Services>, layer: Layer, id: string) => {
   const repeated = new Set<Service>()
-  return Object.values(services[layer][id])
+  return services?.[layer]?.[id] != null ? Object.values(services[layer][id])
     .flatMap(services => Object.values(services)).filter(service => {
       if (repeated.has(service)) {
         return false
@@ -30,7 +30,7 @@ export const getAllServices = (services: InLayer<Services>, layer: Layer, id: st
       repeated.add(service)
 
       return true
-    })
+    }) : []
 }
 
 export const applyMiddlewares = (
@@ -40,5 +40,5 @@ export const applyMiddlewares = (
   stage: MiddlewareStage,
   args?: Record<string, string | undefined>
 ) => Promise.all(
-  middlewares[createMiddlewareKey(type, stage)]?.map(middleware => middleware.apply(context, args))
+  middlewares[createMiddlewareKey(type, stage)]?.map(middleware => middleware.apply(context, args)) ?? []
 )

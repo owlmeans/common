@@ -1,0 +1,31 @@
+{
+  "name": "@owlmeans/i18n",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./utils": {
+      "import": "./build/utils/index.js",
+      "require": "./build/utils/index.js",
+      "default": "./build/utils/index.js",
+      "module": "./build/utils/index.js",
+      "types": "./build/utils/index.d.ts"
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

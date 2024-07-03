@@ -6,6 +6,7 @@ export interface Route extends BasicRoute {
   alias: string
   path: string
   parent?: string
+  default?: boolean
   method?: RouteMethod
 }
 

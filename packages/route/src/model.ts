@@ -20,6 +20,9 @@ export const makeRouteModel = (route: Route): RouteModel => {
       if (!isServiceRoute(service)) {
         throw new SyntaxError('Service is not a valid service route')
       }
+      if (!service.resolved && service.host != null) {
+        service.resolved = true
+      }
       if (!isServiceRouteResolved(service)) {
         throw new SyntaxError('Service route is not resolved')
       }
@@ -28,8 +31,11 @@ export const makeRouteModel = (route: Route): RouteModel => {
 
       const parent = await getParentRoute(context, route)
       if (parent != null) {
-        route.path = normalizePath(parent.path) + SEP + normalizePath(route.path)
+        route.path = (parent.path.startsWith(SEP) ? SEP : '')
+          + normalizePath(parent.path) + SEP + normalizePath(route.path)
       }
+
+      console.log(`Route resolves: ${route.alias} to ${route.path}`)
 
       return route
     }

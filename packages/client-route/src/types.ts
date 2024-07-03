@@ -1,10 +1,12 @@
 import type { BasicRoute, BasicRouteModel } from './utils'
 
 export interface Route extends BasicRoute {
+  partialPath: string
   params?: string[]
 }
 
 export interface RouteModel extends BasicRouteModel {
+  route: Route
   _client: true
 }
 

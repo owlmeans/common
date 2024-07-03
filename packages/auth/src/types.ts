@@ -37,7 +37,7 @@ export interface Authorization {
 export interface Profile extends ProfilePayload {
   id: string
   name: string
-  extras?: string
+  credential?: string
 }
 
 export interface Auth extends AuthPayload {

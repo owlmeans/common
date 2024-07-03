@@ -1,12 +1,12 @@
-import { Filter, ModuleOptions, ResponseHandler } from './types.js'
+import { Filter, ModuleOptions, AbstractResponse } from './types.js'
 
 export const filter = (filter: Filter, opts?: ModuleOptions): ModuleOptions => ({ filter, ...opts })
 
 export const guard = (guard: string, opts?: ModuleOptions): ModuleOptions =>
   ({ ...opts, guards: [guard, ...(opts?.guards ?? [])] })
 
-export const provideResponse = <T>(): ResponseHandler<T> => {
-  const hanlder: ResponseHandler<T> = {
+export const provideResponse = <T>(): AbstractResponse<T> => {
+  const hanlder: AbstractResponse<T> = {
     resolve: (value, outcome) => {
       hanlder.value = value
       hanlder.outcome = outcome

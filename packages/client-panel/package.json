@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/client-panel",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,10 +18,25 @@
       "types": "./build/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/client": "^0.1.0"
+  },
   "peerDependencies": {
+    "@emotion/react": "*",
+    "@emotion/styled": "*",
+    "@mui/material": "*",
+    "react-dom": "*",
     "react": "*"
   },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@mui/material": "^5.15.21",
     "@types/react": "^18.3.3",
     "react": "^18.3.1",
     "typescript": "^5.4.5"

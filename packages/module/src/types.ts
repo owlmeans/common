@@ -10,16 +10,24 @@ export interface Module extends BasicModule {
   guards?: string[]
   gate?: string
   handler?: ModuleHandler
+  getAlias: () => string
+  getPath: () => string
+  getParentAlias: () => string | null
+  hasParent: () => boolean
 }
 
-export interface ModuleOptions extends Partial<Module> {}
+export interface ModuleOptions extends Partial<Module> { }
 
 export interface ModuleMatch {
   <R extends AbstractRequest, P extends AbstractResponse<any>, C extends Context>(req: R, res: P, ctx: C): Promise<boolean>
 }
 
 export interface ModuleHandler {
-  <R extends AbstractRequest, P extends AbstractResponse<any>, C extends Context>(req: R, res: P, ctx: C): Promise<C | void>
+  <
+    T, R extends AbstractRequest = AbstractRequest,
+    P extends AbstractResponse<any> = AbstractResponse<any>,
+    C extends Context = Context
+  >(req: R, res: P, ctx: C): T | Promise<T>
 }
 
 export interface ModuleAssert {
@@ -37,6 +45,9 @@ export interface AbstractRequest {
 }
 
 export interface AbstractResponse<T> {
+  value?: T,
+  outcome?: ModuleOutcome
+  error?: Error
   resolve: (value: T, outcome?: ModuleOutcome) => void
   reject: (error: Error) => void
 }
@@ -59,10 +70,4 @@ export interface Filter {
   body?: JSONSchemaType<any>
   response?: JSONSchemaType<any>
   headers?: JSONSchemaType<any>
-}
-
-export interface ResponseHandler<T> extends AbstractResponse<T> {
-  value?: T,
-  outcome?: ModuleOutcome
-  error?: Error
 }

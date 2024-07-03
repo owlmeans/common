@@ -99,6 +99,11 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
       return context
     },
 
+    registerModules: modules => {
+      modules.forEach(module => context.registerModule(module))
+      return context
+    },
+
     registerResource: resource => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
       resource = resource.registerContext(context)

@@ -6,7 +6,7 @@ import axios from 'axios'
 import type { Module } from '@owlmeans/module'
 import { SEP, normalizePath } from '@owlmeans/route'
 import { DEFAULT_ALIAS } from './consts.js'
-import { processError } from './utils/handler.js'
+import { processResponse } from './utils/handler.js'
 import type { Config } from '@owlmeans/client-config'
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
@@ -34,9 +34,9 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         validateStatus: () => true
       })
 
-      processError(response, reply)
+      processResponse(response, reply)
 
-      return ctx
+      return [reply.error ?? reply.value, reply.outcome] as any
     }
   })
 

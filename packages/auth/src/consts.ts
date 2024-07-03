@@ -25,9 +25,20 @@ export enum AuthroizationType {
   Ed25519BasicSignature = 'ed25519-basic-signature'
 }
 
+export enum AuthenticationStage {
+  Init = 'init',
+  Allowence = 'allowence',
+  Authenticate = 'authenticate',
+  Authentication = 'auhtentication',
+  Auhtenticated = 'authenticated'
+}
+
 export const AUTHEN = 'authentication'
 export const AUTHEN_INIT = `${AUTHEN}:init`
 export const AUTHEN_AUTHEN = `${AUTHEN}:authenticate`
+
+export const CAUTHEN = `cleint-${AUTHEN}`
+export const CAUTHEN_AUTHEN = `${CAUTHEN}:authentication`
 
 export const ScopeValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 32 }
 

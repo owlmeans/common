@@ -27,11 +27,11 @@ export const basicEd25519 = (context: Context): AuthPlugin => {
         throw new AuthenFailed()
       }
 
-      if (systemUser.extras == null) {
+      if (systemUser.credential == null) {
         throw new SyntaxError('System user missconfigured')
       }
 
-      const key = fromPubKey(systemUser.extras)
+      const key = fromPubKey(systemUser.credential)
 
       if (!await key.verify(credential.challenge, credential.credential)) {
         throw new AuthenFailed()

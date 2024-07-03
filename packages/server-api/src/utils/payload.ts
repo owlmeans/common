@@ -1,5 +1,5 @@
 import { ModuleOutcome } from '@owlmeans/module'
-import type { ResponseHandler, AbstractRequest } from '@owlmeans/module'
+import type { AbstractResponse, AbstractRequest } from '@owlmeans/module'
 import type { Request, Response } from '../types.js'
 import { ACCEPTED, CREATED, OK, SERVER_ERROR } from '@owlmeans/api'
 
@@ -19,7 +19,7 @@ export const provideRequest = (alias: string, req: Request, provision?: boolean)
 /**
  * @throws {Error} 
  */
-export const executeResponse = <T>(response: ResponseHandler<T>, reply: Response, throwOnError?: boolean) => {
+export const executeResponse = <T>(response: AbstractResponse<T>, reply: Response, throwOnError?: boolean) => {
   if (response.error != null) {
     if (throwOnError ?? false) {
       throw response.error

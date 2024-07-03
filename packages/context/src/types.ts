@@ -43,6 +43,7 @@ export interface LazyService extends Service {
 }
 
 export interface Module extends Contextual {
+  _module: true
 }
 
 export interface Resource extends Contextual {
@@ -66,6 +67,7 @@ export interface Context<C extends Config = Config> {
   updateContext: <T extends Context<C>>(id?: string) => T
   registerService: <T extends Context<C>>(service: Service) => T
   registerModule: <T extends Context<C>>(module: Module) => T
+  registerModules: <T extends Context<C>>(module: Module[]) => T
   registerResource: <T extends Context<C>>(resource: Resource) => T
   registerMiddleware: <T extends Context<C>>(middleware: Middleware) => T
 

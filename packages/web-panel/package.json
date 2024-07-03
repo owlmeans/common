@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/web-panel",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,12 +18,19 @@
       "types": "./build/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/client-panel": "0.1.0",
+    "@owlmeans/web-client": "0.1.0"
+  },
   "peerDependencies": {
-    "react": "*"
+    "react": "*",
+    "react-dom": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
+    "@types/react-dom": "^18",
     "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.4.5"
   }
 }

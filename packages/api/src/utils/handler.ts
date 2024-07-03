@@ -5,7 +5,7 @@ import { ACCEPTED, CREATED, FORBIDDEN_ERROR, OK, SERVER_ERROR, UNAUTHORIZED_ERRO
 import { ResilientError } from '@owlmeans/error'
 import { ApiClientError, ServerAuthError, ServerCrashedError } from '../errors.js'
 
-export const processError = (response: AxiosResponse, reply: AbstractResponse<any>) => {
+export const processResponse = (response: AxiosResponse, reply: AbstractResponse<any>) => {
   switch (response.status) {
     case OK:
       reply.resolve(response.data, ModuleOutcome.Ok)

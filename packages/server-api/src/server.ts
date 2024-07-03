@@ -36,7 +36,7 @@ export const createApiServer = (alias: string): ApiServer => {
         // Actually intermediate module can be created without handler by elevate function
         if (module.route.match(request) && module.handler != null) {
           const response = provideResponse()
-          const result = await module.handler(provideRequest(module.alias, request, true), response, context)
+          const result: Context = await module.handler(provideRequest(module.alias, request, true), response, context)
           if (result != null) {
             context = result
           }

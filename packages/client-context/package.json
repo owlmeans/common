@@ -23,13 +23,6 @@
       "default": "./build/utils/index.js",
       "module": "./build/utils/index.js",
       "types": "./build/utils/index.d.ts"
-    },
-    "./react": {
-      "import": "./build/react/index.js",
-      "require": "./build/react/index.js",
-      "default": "./build/react/index.js",
-      "module": "./build/react/index.js",
-      "types": "./build/react/index.d.ts"
     }
   },
   "dependencies": {
@@ -37,17 +30,7 @@
     "@owlmeans/context": "0.1.0",
     "@owlmeans/route": "0.1.0"
   },
-  "peerDependencies": {
-    "react": "*"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "react": "^18.3.1",
     "typescript": "^5.4.5"
   }
 }

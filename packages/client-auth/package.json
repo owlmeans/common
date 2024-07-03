@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/client-auth",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -15,12 +16,28 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./plugins": {
+      "import": "./build/plugins/exports.js",
+      "require": "./build/plugins/exports.js",
+      "default": "./build/plugins/exports.js",
+      "module": "./build/plugins/exports.js",
+      "types": "./build/plugins/exports.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/client-route": "^0.1.0"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
+    "@types/react": "^18.3.3",
+    "react": "^18.3.1",
     "typescript": "^5.4.5"
   }
 }
