@@ -20,8 +20,8 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
 
       return base64.encode(
         plugins[_model.keyPair.type].sign(
-          prepareKey(_model.keyPair.privateKey),
-          data as Uint8Array
+          data as Uint8Array,
+          prepareKey(_model.keyPair.privateKey)
         )
       )
     },

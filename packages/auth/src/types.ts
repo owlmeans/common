@@ -38,6 +38,8 @@ export interface Profile extends ProfilePayload {
   id: string
   name: string
   credential?: string
+  secret?: string
+  locked?: boolean
 }
 
 export interface Auth extends AuthPayload {
