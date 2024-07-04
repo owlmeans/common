@@ -1,2 +1,2 @@
 
-export { config, service, addWebService } from '@owlmeans/client'
+export { config, service, addWebService } from '@owlmeans/client-api'

@@ -20,4 +20,4 @@ export const ClientContext = createContext<ContextType>(makeContext({
 
 export const Context = ClientContext.Provider
 
-export const useContext = () => useCtx(ClientContext)
+export const useContext = <C extends Config>() => useCtx(ClientContext) as BasicContext & BasicClientContext<C>

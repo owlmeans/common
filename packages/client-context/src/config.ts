@@ -13,4 +13,8 @@ export const makeConfig = <C extends Config>(type: AppType, service: string, cfg
 }
 
 export const service = <C extends Config>(service: Omit<ServiceRoute, "resolved">, cfg?: Partial<C>): C =>
-  ({ ...cfg, services: { ...cfg?.services, [service.service]: { ...service, resolved: service.host != null } } } as C)
+({
+  ...cfg, services: {
+    ...cfg?.services, [service.service]: { ...service, resolved: service.host != null }
+  }
+} as C)

@@ -315,6 +315,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fastify/cors@npm:^9.0.1":
+  version: 9.0.1
+  resolution: "@fastify/cors@npm:9.0.1"
+  dependencies:
+    fastify-plugin: "npm:^4.0.0"
+    mnemonist: "npm:0.39.6"
+  checksum: 10c0/4db9d3d02edbca741c8ed053819bf3b235ecd70e07c640ed91ba0fc1ee2dc8abedbbffeb79ae1a38ccbf59832e414cad90a554ee44227d0811d5a2d062940611
+  languageName: node
+  linkType: hard
+
 "@fastify/error@npm:^3.3.0, @fastify/error@npm:^3.4.0":
   version: 3.4.1
   resolution: "@fastify/error@npm:3.4.1"
@@ -696,10 +706,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/client-api@workspace:packages/client-api":
+"@owlmeans/client-api@npm:^0.1.0, @owlmeans/client-api@workspace:packages/client-api":
   version: 0.0.0-use.local
   resolution: "@owlmeans/client-api@workspace:packages/client-api"
   dependencies:
+    "@owlmeans/api": "npm:^0.1.0"
+    "@owlmeans/client": "npm:^0.1.0"
+    "@owlmeans/client-context": "npm:^0.1.0"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
@@ -774,7 +787,10 @@ __metadata:
     "@emotion/react": "npm:^11.11.4"
     "@emotion/styled": "npm:^11.11.5"
     "@mui/material": "npm:^5.15.21"
+    "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
+    "@owlmeans/client-auth": "npm:^0.1.0"
+    "@owlmeans/client-module": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
     react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
@@ -782,7 +798,17 @@ __metadata:
     "@emotion/react": "*"
     "@emotion/styled": "*"
     "@mui/material": "*"
+    "@owlmeans/auth": "*"
+    "@owlmeans/client-auth": "*"
     react: "*"
+    react-dom: "*"
+  peerDependenciesMeta:
+    "@owlmeans/auth":
+      optional: true
+    "@owlmeans/client-auth":
+      optional: true
+    react-dom:
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -818,7 +844,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/client@npm:0.1.0, @owlmeans/client@npm:^0.1.0, @owlmeans/client@workspace:packages/client":
+"@owlmeans/client@npm:^0.1.0, @owlmeans/client@workspace:packages/client":
   version: 0.0.0-use.local
   resolution: "@owlmeans/client@workspace:packages/client"
   dependencies:
@@ -986,6 +1012,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-api@workspace:packages/server-api"
   dependencies:
+    "@fastify/cors": "npm:^9.0.1"
     "@owlmeans/api": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
@@ -1028,6 +1055,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-context@workspace:packages/server-context"
   dependencies:
+    "@owlmeans/client-config": "npm:^0.1.0"
     "@owlmeans/config": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
@@ -1122,7 +1150,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-client@workspace:packages/web-client"
   dependencies:
-    "@owlmeans/client": "npm:0.1.0"
+    "@owlmeans/client": "npm:^0.1.0"
+    "@owlmeans/client-api": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18"
     react: "npm:^18.3.1"
@@ -1633,6 +1662,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fastify-plugin@npm:^4.0.0":
+  version: 4.5.1
+  resolution: "fastify-plugin@npm:4.5.1"
+  checksum: 10c0/f58f79cd9d3c88fd7f79a3270276c6339fc57bbe72ef14d20b73779193c404e317ac18e8eae2c5071b3909ebee45d7eb6871da4e65464ac64ed0d9746b4e9b9f
+  languageName: node
+  linkType: hard
+
 "fastify@npm:^4.28.1":
   version: 4.28.1
   resolution: "fastify@npm:4.28.1"
@@ -1920,6 +1956,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"mnemonist@npm:0.39.6":
+  version: 0.39.6
+  resolution: "mnemonist@npm:0.39.6"
+  dependencies:
+    obliterator: "npm:^2.0.1"
+  checksum: 10c0/a538945ea547976136ee6e16f224c0a50983143619941f6c4d2c82159e36eb6f8ee93d69d3a1267038fc5b16f88e2d43390023de10dfb145fa15c5e2befa1cdf
+  languageName: node
+  linkType: hard
+
 "ms@npm:2.1.2":
   version: 2.1.2
   resolution: "ms@npm:2.1.2"
@@ -1938,6 +1983,13 @@ __metadata:
   version: 1.13.2
   resolution: "object-inspect@npm:1.13.2"
   checksum: 10c0/b97835b4c91ec37b5fd71add84f21c3f1047d1d155d00c0fcd6699516c256d4fcc6ff17a1aced873197fe447f91a3964178fd2a67a1ee2120cdaf60e81a050b4
+  languageName: node
+  linkType: hard
+
+"obliterator@npm:^2.0.1":
+  version: 2.0.4
+  resolution: "obliterator@npm:2.0.4"
+  checksum: 10c0/ff2c10d4de7d62cd1d588b4d18dfc42f246c9e3a259f60d5716f7f88e5b3a3f79856b3207db96ec9a836a01d0958a21c15afa62a3f4e73a1e0b75f2c2f6bab40
   languageName: node
   linkType: hard
 

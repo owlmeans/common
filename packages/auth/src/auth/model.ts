@@ -46,5 +46,5 @@ export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
     },
     ProfilePayloadSchema
   ],
-  required: ['scopes', 'role', 'scopes']
+  required: ['scopes', 'role']
 }

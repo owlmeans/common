@@ -16,6 +16,13 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./auth": {
+      "import": "./build/auth/index.js",
+      "require": "./build/auth/index.js",
+      "default": "./build/auth/index.js",
+      "module": "./build/auth/index.js",
+      "types": "./build/auth/index.d.ts"
     }
   },
   "dependencies": {

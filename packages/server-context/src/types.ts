@@ -1,4 +1,4 @@
-import type { ServiceRoute } from '@owlmeans/route'
+import type { ServiceRoute } from '@owlmeans/server-route'
 import type { BasicConfig, BasicContext } from './utils/types.js'
 
 export interface Config extends BasicConfig {

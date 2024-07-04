@@ -27,7 +27,7 @@ const _createService = <S extends Service>(type: TypeToMethod): CreateService<S>
   service.initialized = false
 
   service[type] = async () => {
-    await init?.(service as S)
+    await init?.(service as S)()
     initialize(true)
   }
 

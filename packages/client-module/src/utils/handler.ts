@@ -4,11 +4,12 @@ import { DEFAULT_KEY } from '@owlmeans/client-config'
 import type { ClientContext } from '@owlmeans/client-context'
 import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
 import { ModuleOutcome, provideResponse } from '@owlmeans/module'
-import { Module, ModuleCall, ModuleOptions } from '../types.js'
+import type { Module, ModuleCall, ModuleOptions } from '../types.js'
 import { validate } from './module.js'
 import { extractParams } from '@owlmeans/client-route'
 import { PARAM } from '@owlmeans/route'
 import { stringify } from 'qs'
+import type { ModuleRef } from './types.js'
 
 export const apiHandler: ModuleHandler = async (req, res, ctx) => {
   const _ctx: ClientContext<Config> = ctx as unknown as ClientContext<Config>
@@ -39,8 +40,12 @@ export const apiHandler: ModuleHandler = async (req, res, ctx) => {
 
 export const apiCall: <
   T, R extends AbstractRequest = AbstractRequest
->(module: Module<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
-  (module, opts) => (async (ctx, req, res) => {
+>(ref: ModuleRef<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
+  (ref, opts) => (async (ctx, req, res) => {
+    const module = ref.ref
+    if (module == null) {
+      throw new SyntaxError('Try to make API call before the module is created')
+    }
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
     }
@@ -74,8 +79,12 @@ export const apiCall: <
 
 export const urlCall: <
   T, R extends AbstractRequest = AbstractRequest
->(module: Module<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
-  (module) => async (ctx, req) => {
+>(ref: ModuleRef<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
+  (ref) => async (ctx, req) => {
+    const module = ref.ref
+    if (module == null) {
+      throw new SyntaxError('Try to make API call before the module is created')
+    }
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
     }

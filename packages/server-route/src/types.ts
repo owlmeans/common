@@ -1,4 +1,4 @@
-import type { BasicRoute, BasicRouteModel, BasicServiceRoute } from './uitls/types.js'
+import type { BasicRoute, BasicRouteModel, BasicServiceRoute } from './utils/types.js'
 
 export interface Route extends BasicRoute, RouteExtras {
 }
@@ -14,7 +14,7 @@ export interface RouteModel<R> extends BasicRouteModel {
 
 export interface RouteExtras {
   internalHost?: string
-  internalPort?: string
+  internalPort?: number
 }
 
 export interface RouteOptions<R> {

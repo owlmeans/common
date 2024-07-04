@@ -24,10 +24,11 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       if (route.host == null) {
         throw new SyntaxError(`No host provided in ${module.alias} route`)
       }
+      // @TODO Fix https
+      const url = 'http://' + normalizePath(route.host)
+      + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
       const response = await axios.request({
-        method: route.method,
-        url: normalizePath(route.host)
-          + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path),
+        url, method: route.method,
         params: request.query,
         data: request.body,
         headers: request.headers,
@@ -38,6 +39,9 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       return [reply.error ?? reply.value, reply.outcome] as any
     }
+  }, service => async () => {
+    console.log(`service:${alias}: API client service is initialized`)
+    service.initialized = true
   })
 
   return client

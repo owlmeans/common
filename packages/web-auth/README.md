@@ -1,2 +1,4 @@
 # OwlMeans Auth — Web client library
-It's just a template to create a package fast
+This module is required to override authentication components with custom sytels.
+To get authentication components with material UI based renderers, use ```@owlmeans/client-panel```
+exporting ```auth``` export.

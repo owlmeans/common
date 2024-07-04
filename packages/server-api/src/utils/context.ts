@@ -15,11 +15,13 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
   async (request: FastifyRequest, reply: FastifyReply) => {
     const context = assertContext<Context>((request as any)._ctx, location)
     try {
+      const response = provideResponse(reply)
+
       if (module.guards != null) {
         let guard: GuardService | undefined = undefined
         for (const alias in module.guards) {
           const _guard: GuardService = context.service(alias)
-          const response = provideResponse()
+          
           if (await _guard.match(provideRequest(module.alias, request), response, context)) {
             guard = _guard
             break
@@ -31,7 +33,6 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
           throw new AuthFailedError()
         }
 
-        const response = provideResponse()
         if (!await guard.hanlder(provideRequest(module.alias, request), response, context)) {
           throw new AuthFailedError(guard.alias)
         }
@@ -40,16 +41,15 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
 
       if (module.gate != null) {
         let gate: GateService = context.service(module.gate)
-        const response = provideResponse()
         await gate.assert(provideRequest(module.alias, request), response, context)
         executeResponse(response, reply, true)
       }
 
-      const response = provideResponse()
       await module.handler(provideRequest(module.alias, request), response, context)
       executeResponse(response, reply, true)
       if (!reply.sent) {
-        reply.code(OK).send()
+        console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
+        reply.code(OK).send(response.value)
       }
     } catch (error) {
       if (module.fixer != null) {

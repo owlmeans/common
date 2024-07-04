@@ -21,18 +21,18 @@ export const module = <R>(
 
     return _module
   } else if (isServerRouteModel(module)) {
-    const _module: Module<R> = {
+    const _module: Module<R> = appendContextual(module.route.alias, {
       ...makeBasicModule(module, { ...opts }),
       route: module, handler, fixer: opts?.fixer
-    }
+    })
 
     return _module
   }
   const _route = route(module, opts?.intermediate ?? false, opts?.routeOptions)
-  const _module: Module<R> = {
+  const _module: Module<R> = appendContextual(module.route.alias, {
     ...makeBasicModule(_route, { ...opts }),
     route: _route, handler, fixer: opts?.fixer
-  }
+  })
 
   return _module
 }

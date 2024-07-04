@@ -45,7 +45,7 @@ export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
         challenge: { type: 'string', minLength: 16, maxLength: 128 },
         credential: { type: 'string', minLength: 16, maxLength: 256 },
       },
-      required: ['type', 'challenge', 'credential']
+      required: ['challenge', 'credential']
     },
     AuthPayloadSchema
   ],

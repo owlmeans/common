@@ -47,8 +47,10 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 
         await Promise.all(
           getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).map(async service => {
+            console.log(`Initializing service ${service.alias}...`)
             if (!service.initialized) {
               if (service.init != null) {
+                console.log(`... call init for ${service.alias}`)
                 await service.init()
               }
               if (service.init == null && service.lazyInit == null) {

@@ -19,7 +19,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "0.1.0"
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-api": "^0.1.0"
   },
   "peerDependencies": {
     "react": "*",

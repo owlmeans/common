@@ -9,6 +9,10 @@ export const makeAuthModel = (context: Context): AuthModel => {
       const plugin = getPlugin(request.type, context)
       const response = await plugin.init(request)
 
+      console.log("----")
+      console.log(request)
+      console.log(response)
+
       store.set(response.challenge, response.allow)
 
       return response

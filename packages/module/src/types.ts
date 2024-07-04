@@ -45,6 +45,7 @@ export interface AbstractRequest {
 }
 
 export interface AbstractResponse<T> {
+  responseProvider?: unknown
   value?: T,
   outcome?: ModuleOutcome
   error?: Error

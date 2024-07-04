@@ -1,6 +1,6 @@
 import type { RouteModel } from '@owlmeans/client-route'
 import type { Module, ModuleOptions } from './types.js'
-import type { BasicModule, BasicRouteModel } from './utils/types.js'
+import type { BasicModule, BasicRouteModel, ModuleRef } from './utils/types.js'
 import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
 import { isModule, makeBasicModule, normalizeHelperParams, validate } from './utils/module.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
@@ -13,6 +13,8 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   handler?: ModuleHandler | ModuleOptions | boolean,
   opts?: ModuleOptions | boolean
 ): Module<T, R> => {
+  const moduleHanlde: ModuleRef<T, R> = { ref: undefined }
+
   let _module: Module<T, R>
 
   [handler, opts] = normalizeHelperParams(handler, opts)
@@ -26,15 +28,15 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   const getPath = (partial?: boolean) =>
     partial === true ? normalizePath(_module.route.route.partialPath) : _module.route.route.path
 
-  // We expect that if we provided a handler, than this is a frontend module, so we get
-  // routes for navigation instead of calling APIs.
-  const call = () => handler != null ? urlCall(_module, opts) : apiCall(_module, opts)
+  // @TODO. Right now - we expect that if we provided a handler, than this is a frontend module, 
+  // so we get routes for navigation instead of calling APIs.
+  const call = handler != null ? urlCall(moduleHanlde, opts) : apiCall(moduleHanlde, opts)
 
   if (isModule(module)) {
     assertExplicitHandler(module.route.route.type, handler)
     const rotueModel = route(module.route, opts?.routeOptions)
     _module = appendContextual<Module<T, R>>(module.alias, {
-      ...module, route: rotueModel, handler: _handler, call: call(), validate,
+      ...module, route: rotueModel, handler: _handler, call, validate,
       guards: opts?.guards ?? module.guards,
       filter: opts?.filter ?? module.filter,
       gate: opts?.gate ?? module.gate, getPath
@@ -43,16 +45,18 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     assertExplicitHandler(module.route.type, handler)
     _module = {
       ...makeBasicModule(module, { ...opts }),
-      route: module, handler: _handler, call: call(), validate, getPath
+      route: module, handler: _handler, call, validate, getPath
     }
   } else {
     assertExplicitHandler(module.route.type, handler)
     const _route = route(module, opts?.routeOptions)
     _module = {
       ...makeBasicModule(_route, { ...opts }),
-      route: _route, handler: _handler, call: call(), validate, getPath
+      route: _route, handler: _handler, call, validate, getPath
     }
   }
+
+  moduleHanlde.ref = _module
 
   return _module
 }

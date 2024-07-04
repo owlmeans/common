@@ -16,19 +16,35 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./auth": {
+      "import": "./build/auth/index.js",
+      "require": "./build/auth/index.js",
+      "default": "./build/auth/index.js",
+      "module": "./build/auth/index.js",
+      "types": "./build/auth/index.d.ts"
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.0"
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0"
   },
   "peerDependencies": {
     "@emotion/react": "*",
     "@emotion/styled": "*",
     "@mui/material": "*",
-    "react-dom": "*",
-    "react": "*"
+    "@owlmeans/auth": "*",
+    "@owlmeans/client-auth": "*",
+    "react": "*",
+    "react-dom": "*"
   },
   "peerDependenciesMeta": {
+    "@owlmeans/auth": {
+      "optional": true
+    },
+    "@owlmeans/client-auth": {
+      "optional": true
+    },
     "react-dom": {
       "optional": true
     }
@@ -37,6 +53,8 @@
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@mui/material": "^5.15.21",
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/client-auth": "^0.1.0",
     "@types/react": "^18.3.3",
     "react": "^18.3.1",
     "typescript": "^5.4.5"
