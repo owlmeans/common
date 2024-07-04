@@ -1,7 +1,7 @@
-import type { AllowenceRequest, AllowenceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
+import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
 
 export interface AuthModel {
-  init: (request: AllowenceRequest) => Promise<AllowenceResponse>
+  init: (request: AllowanceRequest) => Promise<AllowanceResponse>
 
   authenticate: (credential: AuthCredentials) => Promise<AuthToken>
 }

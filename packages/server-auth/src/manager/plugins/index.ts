@@ -1,4 +1,3 @@
-export * from './errors.js'
 import { AuthenticationType } from '@owlmeans/auth'
 import type { AuthPlugin } from './types.js'
 import { basicEd25519 } from './basic-ed25519.js'

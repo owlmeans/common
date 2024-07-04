@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import type { AllowenceRequest, AuthCredentials, AuthPayload } from '../types'
+import type { AllowanceRequest, AuthCredentials, AuthPayload } from '../types'
 import { AuthRoleSchema, EntityValueSchema, GroupValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema } from '../consts'
 import { AuthPayloadSchema } from '../auth'
 import { AttributeSchema, PermissionSchema } from '../permission'
@@ -22,7 +22,7 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
   }
 }
 
-export const AllowanceRequestSchema: JSONSchemaType<AllowenceRequest> = {
+export const AllowanceRequestSchema: JSONSchemaType<AllowanceRequest> = {
   type: 'object',
   allOf: [
     {

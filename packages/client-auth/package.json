@@ -28,9 +28,13 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/basic-keys": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/client-route": "^0.1.0"
+    "@owlmeans/client-route": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@scure/base": "^1.1.7"
   },
   "peerDependencies": {
     "react": "*"

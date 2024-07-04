@@ -29,3 +29,12 @@ OwlMeans Common libraries that simplifies projects development
 * module - bring together route and related handlers, adding all implmenetation specific middlewares, hidrate routes with all necessary services (it's like a model for a route)
 * context - in fact this can be treated as an application instance. The only difference there can be multiple contexts
   in one application with different capabilities depending on the complexity of operation and its dependencies.
+* config - configuration of context
+
+## Configuration helper function
+### config (makeFunction)
+Destruct function to build a final config object. It makes sure that you get a new object.
+### service
+Added an infrastructure service config to a config
+### addWebService
+Register an internal application service that is capable to make API requests 

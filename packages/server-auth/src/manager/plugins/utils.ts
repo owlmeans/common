@@ -1,6 +1,5 @@
 import type { Context } from '@owlmeans/server-context'
-import { AuthUnknown } from '../../errors.js'
-import { TypeMissmatchError } from './errors.js'
+import { AuthUnknown, TypeMissmatchError } from '@owlmeans/auth'
 import type { AuthPlugin } from './types.js'
 import { plugins } from './index.js'
 

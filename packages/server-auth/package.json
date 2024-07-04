@@ -31,7 +31,8 @@
     "@owlmeans/basic-keys": "^0.1.0",
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0"
+    "@owlmeans/server-module": "^0.1.0",
+    "@scure/base": "^1.1.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

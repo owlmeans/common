@@ -5,6 +5,8 @@ export const EXCLUDE = '-'
 export const WILDCARD = '*'
 export const DELIMITER = ':'
 
+export const ALL_SCOPES = '*'
+
 export enum AuthRole {
   User = 'user',
   Guest = 'guest',
@@ -30,7 +32,7 @@ export enum AuthenticationStage {
   Allowence = 'allowence',
   Authenticate = 'authenticate',
   Authentication = 'auhtentication',
-  Auhtenticated = 'authenticated'
+  Authenticated = 'authenticated'
 }
 
 export const AUTHEN = 'authentication'

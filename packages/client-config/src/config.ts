@@ -13,14 +13,23 @@ export const makeConfig = <C extends Config>(type: AppType, service: string, cfg
 }
 
 export const addWebService = <C extends Config>(service: string, alias?: string, cfg?: Partial<C>): C => {
-  const webServices = alias == null
-    ? service : cfg?.webService == null
-      ? { [DEFAULT_KEY]: service, [alias]: service }
-      : typeof cfg.webService === 'string'
-        ? { [DEFAULT_KEY]: cfg.webService, [alias]: service }
-        : { ...(cfg.webService as Object), [alias]: service }
+  const _cfg: C = (cfg ?? {}) as C
 
-  const config = { ...cfg, webService: webServices }
+  if (alias == null) {
+    if (typeof _cfg.webService === 'string' || _cfg.webService == null) {
+      _cfg.webService = service
+    } else {
+      _cfg.webService[DEFAULT_KEY] = service
+    }
+  } else {
+    if (_cfg.webService == null) {
+      _cfg.webService = { [DEFAULT_KEY]: service, [alias]: service }
+    } else if (typeof _cfg.webService === 'string') {
+      _cfg.webService = { [DEFAULT_KEY]: _cfg.webService, [alias]: service }
+    } else {
+      _cfg.webService[alias] = service
+    }
+  }
 
-  return config as C
+  return _cfg
 }

@@ -1,4 +1,4 @@
-// import { StrictMode } from 'react'
+import { StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { DEFAULT_ROOT } from './consts.js'
@@ -14,8 +14,7 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
     if (root == null) {
       throw new Error(`Root element not found with id: ${key}`)
     }
-    // createRoot(root).render(<StrictMode>{node}</StrictMode>)
-    createRoot(root).render(node)
+    createRoot(root).render(<StrictMode>{node}</StrictMode>)
   }
 
   opts?.onReady ?? true ? window.addEventListener('DOMContentLoaded', _callback) : _callback()

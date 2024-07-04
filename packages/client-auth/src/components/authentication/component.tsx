@@ -1,13 +1,18 @@
 import type { AuthenticationControl, TAuthenticationHOC } from './types.js'
 import { plugins } from '../../plugins/index.js'
 import { AuthenticationStage, AuthenticationType } from '@owlmeans/auth'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef } from 'react'
+import { useContext } from '@owlmeans/client'
+import { makeControl } from './control.js'
 
 export const AuthenticationHOC: TAuthenticationHOC = (Renderer) => ({ type }) => {
+  const context = useContext()
+
   type = type ?? AuthenticationType.BasicEd25519
+
   const Implementation = useMemo(() => {
-    console.log('Cast component implementation in AuthenticationHOC')
-    
+    console.log('SAFE: Cast component implementation in AuthenticationHOC')
+
     const Com = plugins[type]?.Implementation(Renderer)
     if (Com == null) {
       throw new SyntaxError(`Implementation for ${type} is not defined in AuthenticationHOC`)
@@ -17,19 +22,11 @@ export const AuthenticationHOC: TAuthenticationHOC = (Renderer) => ({ type }) =>
 
   const [stage, setStage] = useState<AuthenticationStage>(AuthenticationStage.Init)
 
-  const manager = useMemo<AuthenticationControl>(() => {
-    console.log('Initialize authentication manager in AuthenticationHOC')
+  const { current: control } = useRef<AuthenticationControl>((() => {
+    console.log('SAFE: Initialize authentication control in AuthenticationHOC')
 
-    return {
-      stage, type: AuthenticationType.BasicEd25519,
-      requestAllowence: () => {
-        setStage(AuthenticationStage.Allowence)
-      },
+    return makeControl(context, setStage)
+  })())
 
-      authenticate: () => {
-      }
-    }
-  }, [type])
-
-  return <Implementation type={type} stage={stage} control={manager} />
+  return <Implementation type={type} stage={stage} control={control} />
 }

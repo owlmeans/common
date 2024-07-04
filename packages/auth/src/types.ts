@@ -8,8 +8,8 @@ export interface AuthCredentials extends AuthPayload {
 export interface AuthPayload extends ProfilePayload {
   type: string
   role: AuthRole
+  userId: string
   source?: string
-  userId?: string
   profileId?: string
   expiresAt?: string
 }
@@ -58,16 +58,21 @@ export interface Attribute {
   attributes: string[]
 }
 
-export interface AllowenceRequest extends Partial<AuthPayload> {
+export interface AllowanceRequest extends Partial<AuthPayload> {
   type: string
 }
 
-export interface AllowenceResponse {
-  allow: boolean
+export interface AllowanceResponse {
   challenge: string
-  scopes: string[]
 }
 
 export interface AuthToken {
   token: string
+}
+
+export interface AllowanceEnvelope {
+  t: string,
+  msg: string,
+  dt: string,
+  sig?: string
 }
