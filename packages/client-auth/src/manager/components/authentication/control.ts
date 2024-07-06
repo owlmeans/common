@@ -30,7 +30,7 @@ export const makeControl = (
       control.type = control.request.type as string
 
       const [allowance] = await context.module<Module<AllowanceResponse>>(AUTHEN_INIT)
-        .call(context, { body: control.request })
+        .call({ body: control.request })
 
       control.allowance = allowance
 
@@ -68,10 +68,10 @@ export const makeControl = (
         credentials.challenge = control.allowance?.challenge
 
         const [token] = await context.module<Module<AuthToken>>(AUTHEN_AUTHEN)
-          .call(context, { body: credentials })
+          .call({ body: credentials })
 
         const [redirectUtl, outcome] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
-          .call(context, { query: token })
+          .call({ query: token })
 
         console.log(redirectUtl)
         if (outcome != ModuleOutcome.Ok) {

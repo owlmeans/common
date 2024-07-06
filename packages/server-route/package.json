@@ -19,8 +19,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/route": "^0.1.0",
-    "@owlmeans/context": "^0.1.0"
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/route": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

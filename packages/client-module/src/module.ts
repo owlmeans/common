@@ -1,7 +1,7 @@
 import type { RouteModel } from '@owlmeans/client-route'
-import type { Module, ModuleOptions } from './types.js'
-import type { BasicModule, BasicRouteModel, ModuleRef } from './utils/types.js'
-import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
+import type { Module, ModuleOptions, ModuleRef, RefedModuleHandler } from './types.js'
+import type { BasicModule, BasicRouteModel } from './utils/types.js'
+import type { AbstractRequest } from '@owlmeans/module'
 import { isModule, makeBasicModule, normalizeHelperParams, validate } from './utils/module.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
 import { apiCall, apiHandler, urlCall } from './utils/handler.js'
@@ -10,7 +10,7 @@ import { normalizePath } from '@owlmeans/route'
 
 export const module = <T, R extends AbstractRequest = AbstractRequest>(
   module: BasicModule | RouteModel | BasicRouteModel,
-  handler?: ModuleHandler | ModuleOptions | boolean,
+  handler?: RefedModuleHandler<T, R> | ModuleOptions | boolean,
   opts?: ModuleOptions | boolean
 ): Module<T, R> => {
   const moduleHanlde: ModuleRef<T, R> = { ref: undefined }
@@ -19,9 +19,9 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
 
   [handler, opts] = normalizeHelperParams(handler, opts)
 
-  const _handler = handler ??
+  const _handler = handler as RefedModuleHandler<T, R> | undefined ??
     // There are server modules (api) and client modules. 
-    //Last ones do not need to stab handler with api call.
+    // Last ones do not need to stab handler with api call.
     (('route' in module.route ? module.route.route.type : module.route.type)
       === AppType.Backend ? apiHandler : undefined)
 
@@ -30,29 +30,29 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
 
   // @TODO. Right now - we expect that if we provided a handler, than this is a frontend module, 
   // so we get routes for navigation instead of calling APIs.
-  const call = handler != null ? urlCall(moduleHanlde, opts) : apiCall(moduleHanlde, opts)
+  const call = handler != null ? urlCall<T, R>(moduleHanlde, opts) : apiCall<T, R>(moduleHanlde, opts)
 
   if (isModule(module)) {
-    assertExplicitHandler(module.route.route.type, handler)
+    assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
     const rotueModel = route(module.route, opts?.routeOptions)
     _module = appendContextual<Module<T, R>>(module.alias, {
-      ...module, route: rotueModel, handler: _handler, call, validate,
+      ...module, route: rotueModel, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde),
       guards: opts?.guards ?? module.guards,
       filter: opts?.filter ?? module.filter,
       gate: opts?.gate ?? module.gate, getPath
     })
   } else if (isClientRouteModel(module)) {
-    assertExplicitHandler(module.route.type, handler)
+    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     _module = {
       ...makeBasicModule(module, { ...opts }),
-      route: module, handler: _handler, call, validate, getPath
+      route: module, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
     }
   } else {
-    assertExplicitHandler(module.route.type, handler)
+    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     const _route = route(module, opts?.routeOptions)
     _module = {
       ...makeBasicModule(_route, { ...opts }),
-      route: _route, handler: _handler, call, validate, getPath
+      route: _route, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
     }
   }
 
@@ -61,7 +61,9 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   return _module
 }
 
-const assertExplicitHandler = (type: AppType, handler: ModuleHandler | undefined) => {
+const assertExplicitHandler = <T, R extends AbstractRequest = AbstractRequest>(
+  type: AppType, handler: RefedModuleHandler<T, R> | undefined
+) => {
   if (type === AppType.Backend && handler != null) {
     throw new SyntaxError('We can\'t provide explicit handler to backend client module')
   }

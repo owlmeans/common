@@ -1,15 +1,24 @@
-import type { AbstractRequest, AbstractResponse, ModuleHandler } from '@owlmeans/module'
-import type { ContextType, ModuleContextParams, RoutedComponent } from './types.js'
+import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
+import type { ModuleContextParams, RoutedComponent } from './types.js'
+import type { RefedModuleHandler } from '@owlmeans/client-module'
 import { HandledRenderer } from './utils/route.js'
 import { isValidElement } from 'react'
 import type { PropsWithChildren } from 'react'
 import { ModuleContext } from './utils/module.js'
 
-export const handler = <T extends {}>(Component: HandledRenderer<T>, preprender?: boolean): ModuleHandler => <
+export const handler = <T extends {}>(
+  Component: HandledRenderer<T>, preprender?: boolean
+): RefedModuleHandler<T> => ref => <
   R extends AbstractRequest = AbstractRequest,
-  P extends AbstractResponse<HandledRenderer<T>> = AbstractResponse<HandledRenderer<T>>,
-  C extends ContextType = ContextType
->(req: R, res: P, ctx: C): any => {
+  P extends AbstractResponse<HandledRenderer<T>> = AbstractResponse<HandledRenderer<T>>
+>(req: R, res: P): any => {
+  if (ref.ref == null) {
+    throw new SyntaxError('Module reference is not provided')
+  }
+  const ctx = ref.ref.ctx
+  if (ctx == null) {
+    throw new SyntaxError('Module context is not provided')
+  }
   if (isValidElement(Component)) {
     res.resolve(Component)
     return Component

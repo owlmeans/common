@@ -18,7 +18,7 @@ export interface ModuleHandler<
   Rep extends AbstractResponse<any> = AbstractResponse<any>,
   Ctx extends Context = Context
 > extends BasicModuleHandler {
-  (req: Req, res: Rep, ctx: Ctx): Promise<Ctx | void>
+  (req: Req, res: Rep): Promise<Ctx | void>
 }
 
 export interface ApiServerAppend {

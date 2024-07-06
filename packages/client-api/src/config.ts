@@ -1,4 +1,4 @@
-import type { Config } from '@owlmeans/client'
+import type { Config } from '@owlmeans/client-context'
 import { config as makeConfig } from '@owlmeans/client'
 
 export const config = <C extends Config>(

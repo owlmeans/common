@@ -6,7 +6,7 @@ import type { Service } from '@owlmeans/context'
 export interface Module<R> extends BasicModule {
   route: RouteModel<R>
   fixer?: string
-  handler: ModuleHandler
+  handle: ModuleHandler
 }
 
 export interface ModuleOptions<R> extends BasicModuleOptions {
@@ -17,4 +17,12 @@ export interface ModuleOptions<R> extends BasicModuleOptions {
 
 export interface FixerService extends Service {
   handle: <R>(reply: R, error: Error) => void
+}
+
+export interface ModuleRef<R> { 
+  ref?: Module<R>
+}
+
+export interface RefedModuleHandler<R> {
+  (ref: ModuleRef<R>): ModuleHandler
 }

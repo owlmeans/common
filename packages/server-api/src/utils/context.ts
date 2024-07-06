@@ -16,13 +16,14 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
     const context = assertContext<Context>((request as any)._ctx, location)
     try {
       const response = provideResponse(reply)
+      const req = provideRequest(module.alias, request)
 
       if (module.guards != null) {
         let guard: GuardService | undefined = undefined
         for (const alias in module.guards) {
           const _guard: GuardService = context.service(alias)
           
-          if (await _guard.match(provideRequest(module.alias, request), response, context)) {
+          if (await _guard.match(req, response)) {
             guard = _guard
             break
           }
@@ -33,7 +34,7 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
           throw new AuthFailedError()
         }
 
-        if (!await guard.hanlder(provideRequest(module.alias, request), response, context)) {
+        if (!await guard.hanlder(req, response)) {
           throw new AuthFailedError(guard.alias)
         }
         executeResponse(response, reply, true)
@@ -41,11 +42,11 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
 
       if (module.gate != null) {
         let gate: GateService = context.service(module.gate)
-        await gate.assert(provideRequest(module.alias, request), response, context)
+        await gate.assert(req, response)
         executeResponse(response, reply, true)
       }
 
-      await module.handler(provideRequest(module.alias, request), response, context)
+      await module.handle(req, response)
       executeResponse(response, reply, true)
       if (!reply.sent) {
         console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)

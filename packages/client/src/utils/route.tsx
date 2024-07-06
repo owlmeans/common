@@ -5,14 +5,14 @@ import type { Module } from '@owlmeans/client-module'
 import { provideResponse } from '@owlmeans/module'
 import { Outlet, useParams } from 'react-router'
 
-export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
+export const createRouteRenderer: (params: RendererParams) => FC = ({ module, hasChildren }) => () => {
   console.log(`SAFE: Rendering route component ${module.alias}`)
   const params = useParams()
   const reply = provideResponse()
-  let Renderer: HandledRenderer<{}> = module.handler?.({
+  let Renderer: HandledRenderer<{}> = module.handle?.({
     alias: module.alias, path: module.getPath(),
     params, body: {}, headers: {}, query: {},
-  }, reply, context) as HandledRenderer<{}>
+  }, reply) as HandledRenderer<{}>
   
   if (reply.error != null) {
     throw reply.error

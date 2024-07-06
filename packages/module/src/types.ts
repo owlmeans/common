@@ -1,5 +1,5 @@
 import type { RouteModel } from '@owlmeans/route'
-import type { Context, InitializedService, LazyService } from '@owlmeans/context'
+import type { InitializedService, LazyService } from '@owlmeans/context'
 import type { BasicModule } from './utils/types.js'
 import type { JSONSchemaType } from 'ajv'
 import type { ModuleOutcome } from './consts.js'
@@ -14,7 +14,7 @@ export interface Module extends BasicModule {
   filter?: Filter
   guards?: string[]
   gate?: string
-  handler?: ModuleHandler
+  handle?: ModuleHandler
   getAlias: () => string
   getPath: () => string
   getParentAlias: () => string | null
@@ -25,19 +25,18 @@ export interface Module extends BasicModule {
 export interface ModuleOptions extends Partial<Module> { }
 
 export interface ModuleMatch {
-  <R extends AbstractRequest, P extends AbstractResponse<any>, C extends Context>(req: R, res: P, ctx: C): Promise<boolean>
+  <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P): Promise<boolean>
 }
 
 export interface ModuleHandler {
   <
     T, R extends AbstractRequest = AbstractRequest,
     P extends AbstractResponse<any> = AbstractResponse<any>,
-    C extends Context = Context
-  >(req: R, res: P, ctx: C): T | Promise<T>
+  >(req: R, res: P): T | Promise<T>
 }
 
 export interface ModuleAssert {
-  <R extends AbstractRequest, P extends AbstractResponse<any>, C extends Context>(req: R, res: P, ctx: C): Promise<void>
+  <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P): Promise<void>
 }
 
 export interface AbstractRequest {

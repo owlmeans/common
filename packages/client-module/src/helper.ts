@@ -1,14 +1,14 @@
-import type { Module, ModuleOptions } from './types.js'
+import type { Module, ModuleOptions, RefedModuleHandler } from './types.js'
 import type { BasicModule } from './utils/types.js'
 import { module } from './module.js'
 import { isClientRouteModel } from '@owlmeans/client-route'
-import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/module'
 import { normalizeHelperParams } from './utils/module.js'
 
 export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
   modules: (BasicModule | Module<T, R>)[],
   alias: string,
-  handler?: ModuleHandler | ModuleOptions | boolean,
+  handler?: RefedModuleHandler<T, R> | ModuleOptions | boolean,
   opts?: ModuleOptions | boolean
 ): Module<T, R>[] => {
   [handler, opts] = normalizeHelperParams(handler, opts)
@@ -25,6 +25,6 @@ export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
   return modules as Module<T, R>[]
 }
 
-export const stab: ModuleHandler = <T>(): T | Promise<T> => {
-  return undefined as unknown as T
+export const stab: RefedModuleHandler<unknown> = () => () => {
+  return void 0 as any
 }

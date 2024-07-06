@@ -11,8 +11,11 @@ import type { Config } from '@owlmeans/client-config'
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const client: ApiClient = createService<ApiClient>(alias, {
-    handler: async (request, reply, ctx) => {
-      const module = ctx.module<Module>(request.alias)
+    handler: async (request, reply) => {
+      if (client.ctx == null) {
+        throw new SyntaxError('No context provided')
+      }
+      const module = client.ctx.module<Module>(request.alias)
       const route = module.route.route
       const params = extractParams(route.path)
       const path = params.reduce((path, param) => {
