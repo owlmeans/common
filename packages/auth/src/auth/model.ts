@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import type { AuthPayload, Authorization, ProfilePayload } from '../types.js'
+import type { AuthPayload, AuthToken, Authorization, ProfilePayload } from '../types.js'
 import { EntityValueSchema, EnumValueSchema, GroupValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema } from '../consts.js'
 import { AttributeSchema, PermissionSchema } from '../permission/model.js'
 
@@ -47,4 +47,12 @@ export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
     ProfilePayloadSchema
   ],
   required: ['scopes', 'role']
+}
+
+export const AuthTokenSchema: JSONSchemaType<AuthToken> = {
+  type: 'object',
+  properties: {
+    token: { type: 'string', minLength: 32, maxLength: 1024 },
+  },
+  required: ['token']
 }

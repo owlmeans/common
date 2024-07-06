@@ -71,10 +71,3 @@ export interface AllowanceResponse {
 export interface AuthToken {
   token: string
 }
-
-export interface AllowanceEnvelope {
-  t: string,
-  msg: string,
-  dt: string,
-  sig?: string
-}

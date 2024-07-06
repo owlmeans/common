@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsc -w --preserveWatchOutput --pretty"
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -27,6 +27,7 @@
     "axios": "^1.7.2"
   },
   "devDependencies": {
+    "nodemon": "^3.1.4",
     "typescript": "^5.4.5"
   }
 }

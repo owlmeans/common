@@ -3,7 +3,7 @@ import type { Context } from '@owlmeans/server-context'
 import type { AuthPlugin } from './types.js'
 import { assertType } from './utils.js'
 import { randomBytes } from '@noble/hashes/utils'
-import { base64, base64urlnopad } from '@scure/base'
+import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
 
 export const basicEd25519 = (context: Context): AuthPlugin => {
@@ -37,7 +37,7 @@ export const basicEd25519 = (context: Context): AuthPlugin => {
         throw new AuthenFailed()
       }
 
-      const token = base64urlnopad.encode(randomBytes(64))
+      const token = base64.encode(randomBytes(64))
       return { token }
     }
   }

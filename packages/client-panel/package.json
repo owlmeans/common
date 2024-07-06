@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsc -w --preserveWatchOutput --pretty"
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -27,7 +27,9 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.7.0",
-    "@owlmeans/client": "^0.1.0"
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/context": "^0.1.0"
   },
   "peerDependencies": {
     "@emotion/react": "*",
@@ -59,6 +61,7 @@
     "@owlmeans/client-auth": "^0.1.0",
     "@types/react": "^18.3.3",
     "ajv": "^8.16.0",
+    "nodemon": "^3.1.4",
     "react": "^18.3.1",
     "react-hook-form": "^7.52.1",
     "typescript": "^5.4.5"

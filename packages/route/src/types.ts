@@ -13,6 +13,7 @@ export interface Route extends BasicRoute {
 export interface ServiceRoute extends BasicRoute {
   type: AppType
   service: string
+  default?: boolean
 }
 
 export interface BasicRoute {

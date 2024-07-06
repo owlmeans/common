@@ -4,11 +4,25 @@ import type { CreateModuleSignature } from './utils/types.js'
 
 export const module: CreateModuleSignature<Module> = (route, opts) => {
   const module: Module = appendContextual<Module>(route.route.alias, {
-    _module: true, ...opts, route,
+    _module: true, 
+    
+    sticky: false,
+    
+    route,
+
     getAlias: () => module.route.route.alias,
     getPath: () =>  module.route.route.path,
     getParentAlias: () => module.route.route.parent ?? null,
-    hasParent: () => module.getParentAlias() != null
+    hasParent: () => module.getParentAlias() != null,
+
+    setService: service => {
+      if (module.route.route.resolved) {
+        throw new SyntaxError('Cannot update a resolved module')
+      }
+      module.route.route.service = service
+    },
+
+    ...opts
   })
 
   return module

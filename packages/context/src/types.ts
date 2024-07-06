@@ -14,7 +14,7 @@ export interface ConfigRecord extends ConfigRecordItem {
   id: string
 }
 
-interface ConfigRecordItem extends Record<string, ConfigRecordItem | string | number | undefined > {
+interface ConfigRecordItem extends Record<string, ConfigRecordItem | string | number | undefined> {
 }
 
 export interface Contextual {

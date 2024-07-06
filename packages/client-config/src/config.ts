@@ -12,10 +12,10 @@ export const makeConfig = <C extends Config>(type: AppType, service: string, cfg
   return config
 }
 
-export const addWebService = <C extends Config>(service: string, alias?: string, cfg?: Partial<C>): C => {
-  const _cfg: C = (cfg ?? {}) as C
+export const addWebService = <C extends Config>(service: string, alias?: string | Partial<C>, cfg?: Partial<C>): C => {
+  const _cfg: C = (cfg ?? (typeof alias === 'object' ? alias : undefined ) ?? {}) as C
 
-  if (alias == null) {
+  if (alias == null || typeof alias === 'object') {
     if (typeof _cfg.webService === 'string' || _cfg.webService == null) {
       _cfg.webService = service
     } else {

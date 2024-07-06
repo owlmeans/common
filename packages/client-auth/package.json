@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsc -w --preserveWatchOutput --pretty"
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -17,17 +17,25 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     },
-    "./plugins": {
-      "import": "./build/plugins/exports.js",
-      "require": "./build/plugins/exports.js",
-      "default": "./build/plugins/exports.js",
-      "module": "./build/plugins/exports.js",
-      "types": "./build/plugins/exports.d.ts"
+    "./manager": {
+      "import": "./build/manager/index.js",
+      "require": "./build/manager/index.js",
+      "default": "./build/manager/index.js",
+      "module": "./build/manager/index.js",
+      "types": "./build/manager/index.d.ts"
+    },
+    "./manager/plugins": {
+      "import": "./build/manager/plugins/exports.js",
+      "require": "./build/manager/plugins/exports.js",
+      "default": "./build/manager/plugins/exports.js",
+      "module": "./build/manager/plugins/exports.js",
+      "types": "./build/manager/plugins/exports.d.ts"
     }
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/basic-keys": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",
@@ -41,6 +49,7 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
+    "nodemon": "^3.1.4",
     "react": "^18.3.1",
     "typescript": "^5.4.5"
   }

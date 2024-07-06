@@ -1,2 +1,2 @@
 
-export * from './authentication/index.js'
+export * from './dispatcher/index.js'

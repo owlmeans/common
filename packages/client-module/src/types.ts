@@ -23,6 +23,7 @@ export interface ModuleFilter<Req extends AbstractRequest = AbstractRequest> {
 }
 
 export interface ModuleOptions extends BasicModuleOptions {
+  force?: boolean
   routeOptions?: RouteOptions
   validateOnCall?: boolean
 }

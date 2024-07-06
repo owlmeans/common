@@ -6,6 +6,11 @@ import type { ModuleOutcome } from './consts.js'
 
 export interface Module extends BasicModule {
   route: RouteModel
+  /**
+   * @property {boolean} - if true — router attaches this module unconditionaly 
+   * @default false
+   */
+  sticky: boolean
   filter?: Filter
   guards?: string[]
   gate?: string
@@ -14,6 +19,7 @@ export interface Module extends BasicModule {
   getPath: () => string
   getParentAlias: () => string | null
   hasParent: () => boolean
+  setService: (service: string) => void
 }
 
 export interface ModuleOptions extends Partial<Module> { }
@@ -39,7 +45,7 @@ export interface AbstractRequest {
   params: Record<string, string | number | undefined | null>
   body?: Record<string, any>
   headers: Record<string, string[] | string | undefined>
-  query: Record<string, string | number | undefined | null>
+  query: Record<string, string | number | undefined | null> | Object
   path: string
   original?: any
 }

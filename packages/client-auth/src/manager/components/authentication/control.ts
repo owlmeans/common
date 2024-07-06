@@ -1,11 +1,17 @@
 import type { AuthenticationControl } from './types.js'
-import { ALL_SCOPES, AUTHEN_AUTHEN, AUTHEN_INIT, AuthRole, AuthenticationStage, AuthenticationType } from '@owlmeans/auth'
-import type { AllowanceResponse, AllowanceRequest, AuthToken, AllowanceEnvelope } from '@owlmeans/auth'
+import {
+  ALL_SCOPES, AUTHEN_AUTHEN, AUTHEN_INIT, AuthRole, AuthenFailed, AuthenticationStage, AuthenticationType,
+  DISPATCHER
+} from '@owlmeans/auth'
+import type { AllowanceResponse, AllowanceRequest, AuthToken } from '@owlmeans/auth'
 import type { Context } from '@owlmeans/client-context'
 import type { Module } from '@owlmeans/client-module'
-import { base64, utf8 } from '@scure/base'
 import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
+import { EnvelopeKind, makeEnveopeModel } from '@owlmeans/basic-envelope'
+import type { EnvelopeModel } from '@owlmeans/basic-envelope'
+import type { AuthRequest } from '@owlmeans/auth-common'
+import { ModuleOutcome } from '@owlmeans/module'
 
 export const makeControl = (
   context: Context,
@@ -28,8 +34,6 @@ export const makeControl = (
 
       control.allowance = allowance
 
-      console.log('>>>>>>>>>>>>>>>', allowance)
-
       setStage?.(control.stage = AuthenticationStage.Authenticate)
     },
 
@@ -40,9 +44,9 @@ export const makeControl = (
         if (control.allowance?.challenge == null) {
           throw new AuthenCredError('allowance')
         }
-        const envelope: AllowanceEnvelope = JSON.parse(utf8.encode(base64.decode(control.allowance?.challenge)))
-        
-        credentials.challenge = envelope.msg
+        const envelope: EnvelopeModel = makeEnveopeModel(control.allowance?.challenge, EnvelopeKind.Wrap)
+
+        credentials.challenge = envelope.message()
         credentials.scopes = credentials.scopes ?? [ALL_SCOPES]
         credentials.role = credentials.role ?? AuthRole.User
 
@@ -58,14 +62,27 @@ export const makeControl = (
           throw new AuthenCredError('challenge')
         }
 
+        // We sign unwrapped challenge
         await plugins[control.type].authenticate(credentials)
+        // We return back unwrapped challenge
+        credentials.challenge = control.allowance?.challenge
 
         const [token] = await context.module<Module<AuthToken>>(AUTHEN_AUTHEN)
           .call(context, { body: credentials })
 
-        console.log(token)
+        const [redirectUtl, outcome] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
+          .call(context, { query: token })
+
+        console.log(redirectUtl)
+        if (outcome != ModuleOutcome.Ok) {
+          throw new AuthenFailed('redirect')
+        }
 
         setStage?.(control.stage = AuthenticationStage.Authenticated)
+        // Give some time - that is really not cenessary - actually we need 
+        // to do it on the layout finished its stuff.
+        // @TODO fix it for react native (we need some other solution for redirects context indepedent)
+        setTimeout(() => window.location.href = redirectUtl, 100)
       } catch (error) {
         setStage?.(control.stage = AuthenticationStage.Authenticate)
         throw error

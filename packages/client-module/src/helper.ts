@@ -12,15 +12,19 @@ export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
   opts?: ModuleOptions | boolean
 ): Module<T, R>[] => {
   [handler, opts] = normalizeHelperParams(handler, opts)
-  
+
   const idx = modules.findIndex(({ route }) => route.route.alias === alias)
   if (idx === -1) {
     throw new SyntaxError(`Module with alias ${alias} not present`)
   }
-  if (isClientRouteModel(modules[idx].route)) {
+  if (isClientRouteModel(modules[idx].route) && opts?.force !== true) {
     throw new SyntaxError(`Module with alias ${alias} is elready elevated`)
   }
   modules[idx] = module(modules[idx], handler, opts)
 
   return modules as Module<T, R>[]
+}
+
+export const stab: ModuleHandler = <T>(): T | Promise<T> => {
+  return undefined as unknown as T
 }

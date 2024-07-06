@@ -50,7 +50,7 @@ export const ResourceValueSchema: JSONSchemaType<string> = { type: 'string', min
 
 export const AttributeValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 8, maxLength: 128 }
 
-export const EntityValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 20, maxLength: 128 }
+export const EntityValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 3, maxLength: 32 }
 
 export const GroupValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 128 }
 
@@ -64,3 +64,5 @@ export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
   type: 'string',
   enum: ['admin', 'user', 'guest', 'service', 'system', 'blocked', 'superuser']
 }
+
+export const DISPATCHER = 'dispatcher'

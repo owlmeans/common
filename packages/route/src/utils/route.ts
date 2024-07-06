@@ -1,5 +1,5 @@
 import type { Context, Contextual } from '@owlmeans/context'
-import type { Route, RouteModel } from '../types.js'
+import type { Route, RouteModel, ServiceRoute } from '../types.js'
 import { isServiceRoute, isServiceRouteResolved } from './service.js'
 import { normalizePath } from '../helper.js'
 import { SEP } from '../consts.js'
@@ -36,7 +36,23 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
     throw new SyntaxError('Services aren\'t configured to resolve routes')
   }
 
-  const service = context.cfg.services[route.service ?? context.cfg.service]
+  const firstGuessService = context.cfg.services[route.service ?? context.cfg.service]
+  if (firstGuessService != null && !isServiceRoute(firstGuessService)) {
+    throw new SyntaxError('Service is not a valid service route')
+  }
+  const service = firstGuessService?.type === route.type
+    ? firstGuessService
+    : Object.values(context.cfg.services).find<ServiceRoute>(
+      (service): service is ServiceRoute => {
+        const _service = service as ServiceRoute
+        return _service.default === true && _service.type === route.type
+      }
+    ) ?? Object.values(context.cfg.services).find<ServiceRoute>(
+      (service): service is ServiceRoute => {
+        const _service = service as ServiceRoute
+        return _service.type === route.type
+      }
+    )
   if (!isServiceRoute(service)) {
     throw new SyntaxError('Service is not a valid service route')
   }

@@ -1,6 +1,6 @@
 
 import { AuthenticationStage } from '@owlmeans/auth'
-import type { AuthenticationRenderer } from '@owlmeans/client-auth'
+import type { AuthenticationRenderer } from '@owlmeans/client-auth/manager'
 import { Form } from '../../components/form/index.js'
 import { Text } from '../../components/form/text/index.js'
 import { SubmitButton } from '../../components/form/button/index.js'

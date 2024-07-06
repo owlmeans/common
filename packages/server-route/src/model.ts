@@ -1,4 +1,4 @@
-import type { Context } from '@owlmeans/server-context'
+import type { Context } from '@owlmeans/context'
 import type { RouteModel, RouteOptions, ServiceRoute } from './types.js'
 import type { BasicRouteModel } from './utils/types.js'
 import { DEFAULT_FIELD } from './consts.js'
@@ -17,8 +17,8 @@ export const route = <R>(route: BasicRouteModel, intermediate: boolean, opts?: R
       }
       const ctx = context as Context
       await resolve(model.route)(ctx)
-      const service = ctx.cfg.services[route.route.service ?? ctx.cfg.service] as ServiceRoute
-      if (service.internalHost != null) {
+      const service = ctx.cfg.services?.[route.route.service ?? ctx.cfg.service] as ServiceRoute | undefined
+      if (service?.internalHost != null) {
         model.route.internalHost = service.internalHost
         model.route.internalPort = model.route.internalPort ?? service.internalPort
       }

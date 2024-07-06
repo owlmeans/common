@@ -6,7 +6,7 @@ import { makeRouterModel } from '../router.js'
 export const buildModuleTree = <T>(context: ContextType): ModuleTree<T> => {
   const modules = context.modules<Module<T>>().filter(
     module => module.route.route.type === AppType.Frontend
-      && (module.route.route.service == null
+      && (module.sticky || module.route.route.service == null
         || module.route.route.service === context.cfg.service)
   )
 

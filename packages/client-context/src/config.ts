@@ -1,4 +1,3 @@
-export { service } from '@owlmeans/config'
 
 import { AppType } from '@owlmeans/context'
 import type { Config } from './types.js'

@@ -83,16 +83,21 @@ export const urlCall: <
   (ref) => async (ctx, req) => {
     const module = ref.ref
     if (module == null) {
-      throw new SyntaxError('Try to make API call before the module is created')
+      throw new SyntaxError('Try to make URL before the module is created')
     }
     if (ctx == null) {
-      throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
+      throw new SyntaxError(`No context provided in urlCall for ${module.alias} module`)
     }
     await module.route.resolve(ctx)
     const params = extractParams(module.getPath())
-    const path = params.reduce((path, param) => {
+    let path = params.reduce((path, param) => {
       return path.replace(`${PARAM}${param}`, `${req?.params?.[param]}`)
-    }, module.getPath()) + req?.query != null ? `?${stringify(req?.query)}` : ''
+    }, module.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
+
+    if (module.route.route.service !== null && ctx.cfg.service !== module.route.route.service) {
+      // @TODO Fix https 
+      path = 'http://' + module.route.route.host + path
+    }
 
     return [path as any, ModuleOutcome.Ok]
   }

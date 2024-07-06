@@ -1,4 +1,4 @@
-import { AuthCredentials, AuthenticationStage, AuthenticationType } from '@owlmeans/auth'
+import { AuthenticationStage, AuthenticationType } from '@owlmeans/auth'
 import type { AuthenticationPlugin } from './types.js'
 import { useEffect } from 'react'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
@@ -34,9 +34,6 @@ export const ed25519BasicUIPlugin: AuthenticationPlugin = {
       throw new AuthenCredError('credentials-missmatch')
     }
 
-    const payload: Partial<AuthCredentials> = { ...credentials }
-    delete payload.credential
-
-    credentials.credential = await key.sign(payload)
+    credentials.credential = await key.sign(credentials.challenge)
   }
 }

@@ -5,7 +5,6 @@ import { resolve, overrideParams } from '@owlmeans/route/utils'
 
 export const route = (route: BasicRouteModel, opts?: RouteOptions): RouteModel => {
   const unresolvedPath = route.route.path
-  console.log(`${route.route.alias} unresolved path: ${unresolvedPath}`)
 
   const model: RouteModel = {
     ...(route as RouteModel),

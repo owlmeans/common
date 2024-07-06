@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsc -w --preserveWatchOutput --pretty"
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -28,14 +28,17 @@
   "dependencies": {
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/basic-keys": "^0.1.0",
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",
     "@scure/base": "^1.1.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
+    "nodemon": "^3.1.4",
     "typescript": "^5.4.5"
   }
 }

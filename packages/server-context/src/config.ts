@@ -1,4 +1,3 @@
-export { service } from '@owlmeans/config'
 
 import { AppType, makeConfig as makeBasicConfig } from '@owlmeans/context'
 import { makeConfig as makeBasicClientConfig } from '@owlmeans/client-config'

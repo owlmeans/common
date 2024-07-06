@@ -36,7 +36,7 @@ export const validate: ModuleFilter = async (ctx, req) => {
       }
     }))
   if (results.some((result) => result !== true)) {
-    const errors = results.find(result => result !== true && result == null)! as ErrorObject[]
+    const errors = results.find(result => result !== true && result != null)! as ErrorObject[]
 
     /**
      * @TODO We need to add additional property into client validation error
@@ -45,7 +45,7 @@ export const validate: ModuleFilter = async (ctx, req) => {
      * Also we need to figure out which part of request is really affected
      * We need to package all errors (it's cool)
      */
-    throw new ClientValidationError(`${errors[0].propertyName}|${errors[0].message}`)
+    throw new ClientValidationError(`${errors[0].instancePath}|${errors[0].message}`)
   }
 
   return true

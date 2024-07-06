@@ -6,4 +6,5 @@ export interface Config extends BasicConfig {
 }
 
 export interface ClientContext<C extends BasicConfig> extends BasicContext<C> {
+  serviceRoute: (alias: string, makeDefault?: boolean) => ServiceRoute
 }

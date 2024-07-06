@@ -1,4 +1,3 @@
-export { route } from '@owlmeans/route'
 
 export * from './types.js'
 export * from './module.js'
