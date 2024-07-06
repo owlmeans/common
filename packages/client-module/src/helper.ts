@@ -28,3 +28,13 @@ export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
 export const stab: RefedModuleHandler<unknown> = () => () => {
   return void 0 as any
 }
+
+export const provideRequest = (alias: string, path: string): AbstractRequest => {
+  return {
+    alias,
+    params: {},
+    headers: {},
+    query: {},
+    path
+  }
+}

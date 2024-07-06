@@ -46,7 +46,7 @@ export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
   createdAt: string
-  expiresAt: string
+  expiresAt?: string
 }
 
 export interface Permission {

@@ -3,6 +3,7 @@ import type { InitializedService, LazyService } from '@owlmeans/context'
 import type { BasicModule } from './utils/types.js'
 import type { JSONSchemaType } from 'ajv'
 import type { ModuleOutcome } from './consts.js'
+import type { Auth } from '@owlmeans/auth'
 
 export interface Module extends BasicModule {
   route: RouteModel
@@ -41,6 +42,7 @@ export interface ModuleAssert {
 
 export interface AbstractRequest {
   alias: string
+  auth?: Auth
   params: Record<string, string | number | undefined | null>
   body?: Record<string, any>
   headers: Record<string, string[] | string | undefined>
@@ -60,7 +62,7 @@ export interface AbstractResponse<T> {
 
 export interface GuardService extends InitializedService {
   match: ModuleMatch
-  hanlder: ModuleMatch
+  handle: ModuleHandler
 }
 
 export interface GateService extends LazyService {

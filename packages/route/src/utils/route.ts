@@ -69,7 +69,7 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
   const parent = await getParentRoute(context, route)
   if (parent != null) {
     route.path = (parent.path.startsWith(SEP) ? SEP : '')
-      + normalizePath(parent.path) + SEP + normalizePath(route.path)
+      + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
   }
 
   console.log(`Route resolves: ${route.alias} to ${route.path}`)

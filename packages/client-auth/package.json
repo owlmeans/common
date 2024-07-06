@@ -41,16 +41,19 @@
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/client-route": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
     "@owlmeans/error": "^0.1.0",
     "@scure/base": "^1.1.7"
   },
   "peerDependencies": {
-    "react": "*"
+    "react": "*",
+    "react-router": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "nodemon": "^3.1.4",
     "react": "^18.3.1",
+    "react-router": "^6.24.1",
     "typescript": "^5.4.5"
   }
 }

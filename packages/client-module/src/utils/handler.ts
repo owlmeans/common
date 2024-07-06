@@ -98,6 +98,7 @@ export const urlCall: <
       throw new SyntaxError(`No context provided in urlCall for ${module.alias} module`)
     }
     await module.route.resolve(ctx)
+
     const params = extractParams(module.getPath())
     let path = params.reduce((path, param) => {
       return path.replace(`${PARAM}${param}`, `${req?.params?.[param]}`)

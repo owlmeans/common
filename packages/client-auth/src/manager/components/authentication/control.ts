@@ -8,7 +8,7 @@ import type { Context } from '@owlmeans/client-context'
 import type { Module } from '@owlmeans/client-module'
 import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
-import { EnvelopeKind, makeEnveopeModel } from '@owlmeans/basic-envelope'
+import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthRequest } from '@owlmeans/auth-common'
 import { ModuleOutcome } from '@owlmeans/module'
@@ -44,7 +44,7 @@ export const makeControl = (
         if (control.allowance?.challenge == null) {
           throw new AuthenCredError('allowance')
         }
-        const envelope: EnvelopeModel = makeEnveopeModel(control.allowance?.challenge, EnvelopeKind.Wrap)
+        const envelope: EnvelopeModel = makeEnvelopeModel(control.allowance?.challenge, EnvelopeKind.Wrap)
 
         credentials.challenge = envelope.message()
         credentials.scopes = credentials.scopes ?? [ALL_SCOPES]
@@ -70,10 +70,10 @@ export const makeControl = (
         const [token] = await context.module<Module<AuthToken>>(AUTHEN_AUTHEN)
           .call({ body: credentials })
 
-        const [redirectUtl, outcome] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
+        const [url, outcome] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
           .call({ query: token })
 
-        console.log(redirectUtl)
+        console.log(url)
         if (outcome != ModuleOutcome.Ok) {
           throw new AuthenFailed('redirect')
         }
@@ -82,7 +82,7 @@ export const makeControl = (
         // Give some time - that is really not cenessary - actually we need 
         // to do it on the layout finished its stuff.
         // @TODO fix it for react native (we need some other solution for redirects context indepedent)
-        setTimeout(() => window.location.href = redirectUtl, 100)
+        setTimeout(() => window.location.href = url, 100)
       } catch (error) {
         setStage?.(control.stage = AuthenticationStage.Authenticate)
         throw error

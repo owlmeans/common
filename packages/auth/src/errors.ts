@@ -48,6 +48,7 @@ export class AuthPluginError extends AuthManagerError {
     super(`plugin:${message}`)
   }
 }
+
 export class TypeMissmatchError extends AuthPluginError {
   public static override typeName: string = `${AuthPluginError.typeName}TypeMissmatch`
 
@@ -56,6 +57,13 @@ export class TypeMissmatchError extends AuthPluginError {
   }
 }
 
+export class AuthorizationError extends AuthError {
+  public static override typeName: string = 'AuthorizationError'
+
+  constructor(message: string = 'error') {
+    super(`authorization:${message}`)
+  }
+}
 
 ResilientError.registerErrorClass(AuthError)
 ResilientError.registerErrorClass(AuthUnknown)
@@ -64,3 +72,4 @@ ResilientError.registerErrorClass(AuthenFailed)
 ResilientError.registerErrorClass(AuthenPayloadError)
 ResilientError.registerErrorClass(AuthPluginError)
 ResilientError.registerErrorClass(TypeMissmatchError)
+ResilientError.registerErrorClass(AuthorizationError)

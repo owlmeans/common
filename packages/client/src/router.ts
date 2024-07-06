@@ -42,8 +42,8 @@ export const makeRouterModel = (): RouterModel => {
         await module.route.resolve(module.ctx ?? context)
 
         const route: RouteObject = {
-          path: module.getPath(module.hasParent()), 
-          children,
+          ...(module.route.route.default ? { index: true } as any : undefined),
+          ...(!module.route.route.default ? { path: module.getPath(module.hasParent()), children } : undefined),
           Component: createRouteRenderer({ context, module, hasChildren: children.length > 0 })
         }
 

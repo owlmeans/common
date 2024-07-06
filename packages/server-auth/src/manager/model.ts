@@ -2,15 +2,10 @@ import type { Context } from '@owlmeans/server-context'
 import type { AuthModel } from './types.js'
 import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthenticationType, AuthRole } from '@owlmeans/auth'
 import { getPlugin } from './plugins/utils.js'
-import { AUTHEN_TIMEFRAME } from '../consts.js'
+import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
-import { EnvelopeKind, makeEnveopeModel } from '@owlmeans/basic-envelope'
+import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
-import { AUTH_SRV_KEY } from './consts.js'
-
-// @TODO Use some keypair from configuration to 
-// make it possible to scale this service
-const _keyPair = makeKeyPairModel()
 
 export const makeAuthModel = (context: Context): AuthModel => {
   const trustedUser = context.cfg.trusted.find(trusted => trusted.name === AUTH_SRV_KEY)
@@ -18,12 +13,14 @@ export const makeAuthModel = (context: Context): AuthModel => {
     throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
   }
 
+  const _keyPair = makeKeyPairModel(trustedUser.secret)
+
   const model: AuthModel = {
     init: async (request) => {
       const plugin = getPlugin(request.type, context)
       const response = await plugin.init(request)
 
-      const envelope = makeEnveopeModel(plugin.type)
+      const envelope = makeEnvelopeModel(plugin.type)
 
       const challenge = await envelope.send(response.challenge, AUTHEN_TIMEFRAME).sign(_keyPair, EnvelopeKind.Wrap)
 
@@ -31,7 +28,7 @@ export const makeAuthModel = (context: Context): AuthModel => {
     },
 
     authenticate: async (credential) => {
-      const envelope: EnvelopeModel = makeEnveopeModel(credential.challenge, EnvelopeKind.Wrap)
+      const envelope: EnvelopeModel = makeEnvelopeModel(credential.challenge, EnvelopeKind.Wrap)
       if (!await envelope.verify(_keyPair)) {
         throw new AuthenFailed('challenge')
       }
@@ -48,7 +45,7 @@ export const makeAuthModel = (context: Context): AuthModel => {
       setTimeout(() => {
         store.delete(msg)
 
-        console.log('Clean up challenge: ' + credential.challenge)
+        console.log('Clean up challenge lock: ' + credential.challenge)
       }, AUTHEN_TIMEFRAME) // @TODO It lives longer than it's lifetime
 
       if (credential.userId == null) {
@@ -72,11 +69,8 @@ export const makeAuthModel = (context: Context): AuthModel => {
       credential.role = AuthRole.Superuser
 
       return {
-        token: await makeEnveopeModel(AuthenticationType.OneTimeToken).send(
-          credential, AUTHEN_TIMEFRAME
-        ).sign(
-          makeKeyPairModel(trustedUser.secret), EnvelopeKind.Token
-        )
+        token: await makeEnvelopeModel(AuthenticationType.OneTimeToken).send(credential, AUTHEN_TIMEFRAME)
+          .sign(_keyPair, EnvelopeKind.Token)
       }
     }
   }

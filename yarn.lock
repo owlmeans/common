@@ -801,11 +801,13 @@ __metadata:
     "@owlmeans/client-context": "npm:^0.1.0"
     "@owlmeans/client-module": "npm:^0.1.0"
     "@owlmeans/client-route": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
     "@scure/base": "npm:^1.1.7"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
     react: "npm:^18.3.1"
+    react-router: "npm:^6.24.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1017,6 +1019,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/module@workspace:packages/module"
   dependencies:
+    "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
     ajv: "npm:^8.16.0"
@@ -1141,16 +1144,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-app@workspace:packages/server-app"
   dependencies:
-    "@owlmeans/auth": "npm:^0.1.0"
-    "@owlmeans/auth-common": "npm:^0.1.0"
-    "@owlmeans/basic-envelope": "npm:^0.1.0"
-    "@owlmeans/basic-keys": "npm:^0.1.0"
-    "@owlmeans/error": "npm:^0.1.0"
+    "@owlmeans/client-config": "npm:^0.1.0"
+    "@owlmeans/config": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/server-api": "npm:^0.1.0"
     "@owlmeans/server-auth": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
     "@owlmeans/server-module": "npm:^0.1.0"
-    "@scure/base": "npm:^1.1.7"
     "@types/node": "npm:^20.14.9"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
@@ -1165,6 +1165,7 @@ __metadata:
     "@owlmeans/auth-common": "npm:^0.1.0"
     "@owlmeans/basic-envelope": "npm:^0.1.0"
     "@owlmeans/basic-keys": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
     "@owlmeans/server-api": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
@@ -1250,8 +1251,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-route@workspace:packages/server-route"
   dependencies:
+    "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
-    "@owlmeans/server-context": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
@@ -1295,8 +1296,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-client@workspace:packages/web-client"
   dependencies:
+    "@owlmeans/auth": "npm:^0.1.0"
+    "@owlmeans/auth-common": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-api": "npm:^0.1.0"
+    "@owlmeans/client-auth": "npm:^0.1.0"
+    "@owlmeans/client-module": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18"
     nodemon: "npm:^3.1.4"
@@ -1378,6 +1383,13 @@ __metadata:
   version: 1.17.0
   resolution: "@remix-run/router@npm:1.17.0"
   checksum: 10c0/6f39cb81c5dec3d3cb901cfc05ef1c745d23192def7d83e6d1a53c43cbb5d7ff488055fd1418ac72f904ff41b3d3ca339d223677994150f276c648123ce166f7
+  languageName: node
+  linkType: hard
+
+"@remix-run/router@npm:1.17.1":
+  version: 1.17.1
+  resolution: "@remix-run/router@npm:1.17.1"
+  checksum: 10c0/bee1631feb03975b64e1c7b574da432a05095dda2ff0f164c737e4952841a58d7b9861de87bd13a977fd970c74dcf8c558fc2d26c6ec01a9ae9041b1b4430869
   languageName: node
   linkType: hard
 
@@ -3117,6 +3129,17 @@ __metadata:
   peerDependencies:
     react: ">=16.8"
   checksum: 10c0/ad9c924d16dc4f5c90dff588e9a69d37488d2ad537de1ddbdf3b68561658c6e3fd1b8b12d16d50f19177f6547748c54e948d477e921f9230799ac71acfec24cf
+  languageName: node
+  linkType: hard
+
+"react-router@npm:^6.24.1":
+  version: 6.24.1
+  resolution: "react-router@npm:6.24.1"
+  dependencies:
+    "@remix-run/router": "npm:1.17.1"
+  peerDependencies:
+    react: ">=16.8"
+  checksum: 10c0/f50c78ca52c5154ab933c17708125e8bf71ccf2072993a80302526a0a23db9ceac6e36d5c891d62ccd16f13e60cd1b6533a2036523d1b09e0148ac49e34b2e83
   languageName: node
   linkType: hard
 

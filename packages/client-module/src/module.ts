@@ -43,17 +43,17 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     })
   } else if (isClientRouteModel(module)) {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    _module = {
+    _module = appendContextual<Module<T, R>>(module.route.alias, {
       ...makeBasicModule(module, { ...opts }),
       route: module, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
-    }
+    })
   } else {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     const _route = route(module, opts?.routeOptions)
-    _module = {
+    _module = appendContextual<Module<T, R>>(_route.route.alias, {
       ...makeBasicModule(_route, { ...opts }),
       route: _route, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
-    }
+    })
   }
 
   moduleHanlde.ref = _module

@@ -171,9 +171,9 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 
     modules: () => Object.values(modules),
 
-    updateContext: id => {
+    updateContext: (id, layer) => {
       const index = layersOrder.indexOf(context.cfg.layer)
-      const layer: Layer | undefined = layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined
+      layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
       if (layer == null) {
         throw new SyntaxError("There is no next layer to switch to")
       }

@@ -8,4 +8,3 @@ export const config = <C extends Config>(service: string, cfg?: Partial<C>): C =
 
   return config
 }
-

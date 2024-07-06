@@ -24,6 +24,7 @@ export enum AuthenticationType {
 
 export enum AuthroizationType {
   AuthToken = 'auth-token',
+  Ed25519BasicToken = 'ed25519-basic-token',
   Ed25519BasicSignature = 'ed25519-basic-signature'
 }
 
@@ -66,3 +67,4 @@ export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
 }
 
 export const DISPATCHER = 'dispatcher'
+export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`

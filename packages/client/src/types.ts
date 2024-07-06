@@ -24,7 +24,7 @@ export interface AppProps extends PropsWithChildren {
   provide?: RouterProvider
 }
 
-export interface RoutedComponent extends FC<PropsWithChildren<ModuleContextParams>> {
+export interface RoutedComponent<ExtraPropse = {}> extends FC<PropsWithChildren<ModuleContextParams & ExtraPropse>> {
 }
 
 export interface ModuleContextParams {

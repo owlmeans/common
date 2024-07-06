@@ -1,7 +1,7 @@
 
 
-import type { Context } from '@owlmeans/server-api'
-import { Module } from '@owlmeans/server-module'
+import type { Module } from '@owlmeans/server-module'
+import type { Context } from './types.js'
 
 export const main = async <R>(ctx: Context, modules: Module<R>[]) => {
   ctx.registerModules(modules)

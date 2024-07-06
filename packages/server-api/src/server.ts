@@ -6,7 +6,7 @@ import { basicAssertContext, canServeModule, executeResponse, provideRequest } f
 import { DEFAULT_ALIAS, HOST, PORT } from './consts.js'
 import type { Module } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
-import { createServerHandler } from './utils/context.js'
+import { createServerHandler } from './utils/server.js'
 import { provideResponse } from '@owlmeans/module'
 
 import Fastify from 'fastify'
@@ -53,25 +53,25 @@ export const createApiServer = (alias: string): ApiServer => {
       (request as any)._ctx = context
     })
 
-    await Promise.all(context.modules<Module<FastifyRequest>>().filter(
-      module => canServeModule(context, module) && !module.route.isIntermediate()
-    ).map(
-      async module => {
-        await module.route.resolve(context)
-        server.route({
-          url: module.route.route.path,
-          method: module.route.route.method ?? RouteMethod.GET,
-          schema: {
-            querystring: module.filter?.query ?? {},
-            body: module.filter?.body,
-            params: module.filter?.params ?? {},
-            response: module.filter?.response,
-            headers: module.filter?.headers ?? {}
-          },
-          handler: createServerHandler(module, location)
+    await Promise.all(
+      context.modules<Module<FastifyRequest>>()
+        .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
+        .map(async module => {
+          await module.route.resolve(context)
+          server.route({
+            url: module.route.route.path,
+            method: module.route.route.method ?? RouteMethod.GET,
+            schema: {
+              querystring: module.filter?.query ?? {},
+              body: module.filter?.body,
+              params: module.filter?.params ?? {},
+              response: module.filter?.response,
+              headers: module.filter?.headers ?? {}
+            },
+            handler: createServerHandler(module, location)
+          })
         })
-      }
-    ))
+    )
 
     let host = config.internalHost ?? config.host ?? HOST
     const port = config.internalPort ?? config.port ?? PORT

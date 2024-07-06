@@ -1,4 +1,5 @@
-import { Contextual, Context, Config } from './types.js'
+import { Layer } from './consts.js'
+import type { Contextual, Context, Config } from './types.js'
 
 export const appendContextual = <T extends Contextual>(alias: string, contextual: Partial<T>): T => {
   contextual.alias = alias
@@ -33,3 +34,6 @@ export const assertContext = <T extends Context>(ctx: T | undefined, location: s
   }
   return ctx
 }
+
+export const isContextWithoutIds = (context: Context): boolean =>
+  [Layer.System, Layer.Global, Layer.Service].includes(context.cfg.layer)
