@@ -30,11 +30,15 @@ export const stab: RefedModuleHandler<unknown> = () => () => {
 }
 
 export const provideRequest = (alias: string, path: string): AbstractRequest => {
-  return {
+  const request = {
     alias,
     params: {},
     headers: {},
     query: {},
-    path
+    path,
+    canceled: false,
+    cancel: () => request.canceled = true
   }
+
+  return request
 }

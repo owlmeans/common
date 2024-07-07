@@ -7,6 +7,7 @@ export interface Module<T, R extends AbstractRequest = AbstractRequest> extends 
   call: ModuleCall<T, R>
   validate: ModuleFilter<R>
   getPath: (partial?: boolean) => string
+  request: (request?: Partial<R>) => R
 }
 
 export interface ModuleCall<T, Req extends AbstractRequest = AbstractRequest> {

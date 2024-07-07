@@ -63,7 +63,6 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
     throw new SyntaxError('Service route is not resolved')
   }
 
-
   overrideParams(route, service, ['host', 'port', 'service', 'base'])
 
   const parent = await getParentRoute(context, route)

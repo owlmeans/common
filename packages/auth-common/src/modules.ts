@@ -4,8 +4,7 @@ import {
   AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, DISPATCHER, DISPATCHER_AUTHEN
 } from '@owlmeans/auth'
 import { body, filter, module, query } from '@owlmeans/module'
-import { route } from '@owlmeans/route'
-import { RouteMethod, frontend } from '@owlmeans/route'
+import { route, RouteMethod, frontend } from '@owlmeans/route'
 
 export const modules = [
   module(route(AUTHEN, '/authentication')),

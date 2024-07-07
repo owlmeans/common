@@ -13,12 +13,23 @@ export const route = (route: BasicRouteModel, opts?: RouteOptions): RouteModel =
 
     resolve: async <C>(context: C) => {
       if (model.route.resolved) {
+        if (model._resolved == null) {
+          throw new SyntaxError('Cannot reach resolved state twice without resolving promise')
+        }
+        await model._resolved
+
         return model.route
       }
+
+      const resolver: { resolve?: () => void } = {}
+      model._resolved = new Promise(resolve => resolver.resolve = resolve)
+
       const ctx = context as Context
       await resolve(model.route)(ctx)
 
       model.route.partialPath = unresolvedPath
+
+      resolver.resolve?.()
 
       return model.route
     }

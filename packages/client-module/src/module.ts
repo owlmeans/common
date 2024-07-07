@@ -7,6 +7,7 @@ import { isClientRouteModel, route } from '@owlmeans/client-route'
 import { apiCall, apiHandler, urlCall } from './utils/handler.js'
 import { AppType, appendContextual } from '@owlmeans/context'
 import { normalizePath } from '@owlmeans/route'
+import { provideRequest } from './helper.js'
 
 export const module = <T, R extends AbstractRequest = AbstractRequest>(
   module: BasicModule | RouteModel | BasicRouteModel,
@@ -32,27 +33,49 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   // so we get routes for navigation instead of calling APIs.
   const call = handler != null ? urlCall<T, R>(moduleHanlde, opts) : apiCall<T, R>(moduleHanlde, opts)
 
+  const _request = (request: R): R => {
+    if (moduleHanlde.ref == null) {
+      throw SyntaxError(`Try to request uninitialized module ${JSON.stringify(module)}`)
+    }
+    const _request = provideRequest(moduleHanlde.ref.getAlias(), moduleHanlde.ref.getPath()) as R
+
+    request != null && Object.entries(request).forEach(([key, value]) => {
+      _request[key as keyof R] = value
+    })
+
+    return _request
+  }
+
   if (isModule(module)) {
     assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
     const rotueModel = route(module.route, opts?.routeOptions)
     _module = appendContextual<Module<T, R>>(module.alias, {
-      ...module, route: rotueModel, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde),
+      ...module, route: rotueModel,
       guards: opts?.guards ?? module.guards,
       filter: opts?.filter ?? module.filter,
-      gate: opts?.gate ?? module.gate, getPath
+      gate: opts?.gate ?? module.gate,
+      getPath, call, request: _request as any,
+      handle: _handler?.(moduleHanlde),
+      validate: validate(moduleHanlde),
     })
   } else if (isClientRouteModel(module)) {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     _module = appendContextual<Module<T, R>>(module.route.alias, {
       ...makeBasicModule(module, { ...opts }),
-      route: module, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
+      route: module,
+      getPath, call, request: _request as any,
+      handle: _handler?.(moduleHanlde),
+      validate: validate(moduleHanlde),
     })
   } else {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     const _route = route(module, opts?.routeOptions)
     _module = appendContextual<Module<T, R>>(_route.route.alias, {
       ...makeBasicModule(_route, { ...opts }),
-      route: _route, handle: _handler?.(moduleHanlde), call, validate: validate(moduleHanlde), getPath
+      route: _route,
+      getPath, call, request: _request as any,
+      handle: _handler?.(moduleHanlde),
+      validate: validate(moduleHanlde),
     })
   }
 

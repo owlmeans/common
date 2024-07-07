@@ -68,3 +68,5 @@ export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
 
 export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`
+
+export const AUTH_HEADER = 'authorization'

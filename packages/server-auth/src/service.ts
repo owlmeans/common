@@ -8,6 +8,7 @@ import { fromPubKey, makeKeyPairModel } from '@owlmeans/basic-keys'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthroizationType } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '../../module/build/types.js'
+import { AUTH_HEADER } from '@owlmeans/auth'
 
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const _keyPair = (context: Context) => {
@@ -21,7 +22,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
   const service: AuthService = createService<AuthService>(alias, {
     match: async (req) => {
-      let authorization = req.headers.authorization
+      let authorization = req.headers[AUTH_HEADER]
       authorization = Array.isArray(authorization) ? authorization[0] : authorization
 
       return authorization?.startsWith(AuthroizationType.Ed25519BasicToken.toUpperCase())
@@ -29,7 +30,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     handle: async <T>(req: AbstractRequest, res: AbstractResponse<Auth>) => {
-      let authorization = req.headers.authorization
+      let authorization = req.headers[AUTH_HEADER]
       authorization = Array.isArray(authorization) ? authorization[0] : authorization
       if (typeof authorization !== 'string') {
         return false as T

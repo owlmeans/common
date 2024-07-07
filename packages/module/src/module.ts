@@ -14,10 +14,32 @@ export const module: CreateModuleSignature<Module> = (route, opts) => {
     getPath: () =>  module.route.route.path,
     getParentAlias: () => module.route.route.parent ?? null,
     hasParent: () => module.getParentAlias() != null,
+    
+    resolve: async <M extends Module>() => {
+      if (module.ctx == null) {
+        throw new SyntaxError(`Module has no context yet - ${module.getAlias()}`)
+      }
+
+      await module.route.resolve(module.ctx)
+
+      return module as M
+    },
+
+    getParent: () => {
+      const parent = module.getParentAlias()
+      if (parent == null) {
+        throw new SyntaxError(`Module has no parent - ${module.getAlias()}`)
+      }
+      if (module.ctx == null) {
+        throw new SyntaxError(`Module has no context yet - ${module.getAlias()}`)
+      }
+      
+      return module.ctx.module(parent)
+    },
 
     setService: service => {
       if (module.route.route.resolved) {
-        throw new SyntaxError('Cannot update a resolved module')
+        throw new SyntaxError(`Cannot update a resolved module - ${module.getAlias()}`)
       }
       module.route.route.service = service
     },

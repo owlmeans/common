@@ -6,6 +6,7 @@ export interface Route extends BasicRoute {
 
 export interface RouteModel extends BasicRouteModel {
   route: Route
+  _resolved?: Promise<void>
   _client: true
 }
 

@@ -12,21 +12,26 @@ import type { Config } from '@owlmeans/client-config'
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const client: ApiClient = createService<ApiClient>(alias, {
     handler: async (request, reply) => {
+      if (request.canceled === true) {
+        return
+      }
       if (client.ctx == null) {
         throw new SyntaxError('No context provided')
       }
       const module = client.ctx.module<Module>(request.alias)
       const route = module.route.route
-      const params = extractParams(route.path)
-      const path = params.reduce((path, param) => {
+      let path = module.getPath()
+      const params = extractParams(path)
+      path = params.reduce((path, param) => {
         if (request.params[param] == null) {
           throw new SyntaxError(`No value for param ${param}`)
         }
         return path.replace(`:${param}`, `${request.params[param]}`)
-      }, route.path)
+      }, path)
       if (route.host == null) {
         throw new SyntaxError(`No host provided in ${module.alias} route`)
       }
+
       // @TODO Fix https
       const url = 'http://' + normalizePath(route.host)
       + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)

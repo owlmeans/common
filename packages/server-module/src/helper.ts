@@ -2,6 +2,7 @@ import type { Module, ModuleOptions, RefedModuleHandler } from './types.js'
 import type { BasicModule } from './utils/types.js'
 import { module } from './module.js'
 import { isServerRouteModel } from '@owlmeans/server-route'
+import { basicGuard } from './utils/helper.js'
 
 export const elevate = <R>(
   modules: (BasicModule | Module<R>)[],
@@ -32,3 +33,6 @@ export const elevate = <R>(
 
   return modules as Module<R>[]
 }
+
+export const guard = <R>(guard: string, opts?: ModuleOptions<R>): ModuleOptions<R> =>
+  ({ ...basicGuard(guard, opts) })

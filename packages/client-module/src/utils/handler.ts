@@ -37,7 +37,7 @@ export const apiHandler: <
 
   const service: ApiClient = _ctx.service(alias)
 
-  req.path = route.path
+  req.path = module.getPath()
 
   return service.handler(req, res)
 }
@@ -54,14 +54,27 @@ export const apiCall: <
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
     }
+    
     await module.route.resolve(ctx)
+
+    if (req?.canceled) {
+      return
+    }
+
     const request: AbstractRequest = {
       alias: module.alias,
       params: req?.params ?? {},
       body: req?.body,
       headers: req?.headers ?? {},
       query: req?.query ?? {},
-      path: module.route.route.path,
+      path: module.getPath(),
+    }
+    if (req?.cancel != null) {
+      const cancel = req.cancel
+      req.cancel = () => {
+        cancel()
+        request.canceled = true
+      }
     }
     if (opts?.validateOnCall) {
       await validate(ref)(request)

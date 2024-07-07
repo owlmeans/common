@@ -18,7 +18,7 @@ export const createRoute: CreateRouteSignature<Route> = (alias, path, opts?) => 
     type: AppType.Backend,
     path,
     resolved: false,
-    ...(typeof opts === 'string' ? { paren: opts } : opts)
+    ...(typeof opts === 'string' ? { parent: opts } : opts)
   }
 
   return route

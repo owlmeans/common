@@ -20,6 +20,8 @@ export interface Module extends BasicModule {
   getPath: () => string
   getParentAlias: () => string | null
   hasParent: () => boolean
+  resolve: <M extends Module>() => Promise<M>
+  getParent: <M extends Module>() => M
   setService: (service: string) => void
 }
 
@@ -49,6 +51,8 @@ export interface AbstractRequest {
   query: Record<string, string | number | undefined | null> | Object
   path: string
   original?: any
+  canceled?: boolean
+  cancel?: () => void
 }
 
 export interface AbstractResponse<T> {
