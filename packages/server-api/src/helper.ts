@@ -1,10 +1,11 @@
 
 import { ModuleOutcome } from '@owlmeans/module'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
-import type { makeContext } from './context.js'
+import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { RefedModuleHandler } from '@owlmeans/server-module'
 
-export type Context = ReturnType<typeof makeContext>
+type Config = ServerConfig
+type Context = ServerContext<Config>
 
 export const handleBody: (
   handler: (payload: any, ctx: Context) => Promise<any>

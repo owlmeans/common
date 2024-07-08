@@ -1,5 +1,5 @@
-import { BasicConfig } from './utils/types.js'
+import type { Config } from '@owlmeans/config'
 
-export interface Config extends BasicConfig {
+export interface BasicServerConfig extends Config {
   secrets: Record<string, string>
 }

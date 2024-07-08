@@ -1,3 +1,3 @@
-import { Module } from '../types.js'
+import { CommonModule } from '../types.js'
 
-export const isModule = (module: Object): module is Module => '_module' in module
+export const isModule = (module: Object): module is CommonModule => '_module' in module

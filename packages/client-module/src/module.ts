@@ -1,22 +1,22 @@
-import type { RouteModel } from '@owlmeans/client-route'
-import type { Module, ModuleOptions, ModuleRef, RefedModuleHandler } from './types.js'
-import type { BasicModule, BasicRouteModel } from './utils/types.js'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { ClientRouteModel } from '@owlmeans/client-route'
+import type { ClientModule, ClientModuleOptions, ModuleRef, RefedModuleHandler } from './types.js'
+import type { AbstractRequest, CommonModule } from '@owlmeans/module'
 import { isModule, makeBasicModule, normalizeHelperParams, validate } from './utils/module.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
 import { apiCall, apiHandler, urlCall } from './utils/handler.js'
 import { AppType, appendContextual } from '@owlmeans/context'
 import { normalizePath } from '@owlmeans/route'
+import type { CommonRouteModel } from '@owlmeans/route'
 import { provideRequest } from './helper.js'
 
 export const module = <T, R extends AbstractRequest = AbstractRequest>(
-  module: BasicModule | RouteModel | BasicRouteModel,
-  handler?: RefedModuleHandler<T, R> | ModuleOptions | boolean,
-  opts?: ModuleOptions | boolean
-): Module<T, R> => {
+  module: CommonModule | ClientRouteModel | CommonRouteModel,
+  handler?: RefedModuleHandler<T, R> | ClientModuleOptions | boolean,
+  opts?: ClientModuleOptions | boolean
+): ClientModule<T, R> => {
   const moduleHanlde: ModuleRef<T, R> = { ref: undefined }
 
-  let _module: Module<T, R>
+  let _module: ClientModule<T, R>
 
   [handler, opts] = normalizeHelperParams(handler, opts)
 
@@ -49,7 +49,7 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   if (isModule(module)) {
     assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
     const rotueModel = route(module.route, opts?.routeOptions)
-    _module = appendContextual<Module<T, R>>(module.alias, {
+    _module = appendContextual<ClientModule<T, R>>(module.alias, {
       ...module, route: rotueModel,
       guards: opts?.guards ?? module.guards,
       filter: opts?.filter ?? module.filter,
@@ -60,7 +60,7 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     })
   } else if (isClientRouteModel(module)) {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    _module = appendContextual<Module<T, R>>(module.route.alias, {
+    _module = appendContextual<ClientModule<T, R>>(module.route.alias, {
       ...makeBasicModule(module, { ...opts }),
       route: module,
       getPath, call, request: _request as any,
@@ -70,7 +70,7 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   } else {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
     const _route = route(module, opts?.routeOptions)
-    _module = appendContextual<Module<T, R>>(_route.route.alias, {
+    _module = appendContextual<ClientModule<T, R>>(_route.route.alias, {
       ...makeBasicModule(_route, { ...opts }),
       route: _route,
       getPath, call, request: _request as any,

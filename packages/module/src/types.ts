@@ -1,12 +1,11 @@
-import type { RouteModel } from '@owlmeans/route'
-import type { InitializedService, LazyService } from '@owlmeans/context'
-import type { BasicModule } from './utils/types.js'
+import type { CommonRouteModel } from '@owlmeans/route'
+import type { InitializedService, LazyService, BasicModule } from '@owlmeans/context'
 import type { JSONSchemaType } from 'ajv'
 import type { ModuleOutcome } from './consts.js'
 import type { Auth } from '@owlmeans/auth'
 
-export interface Module extends BasicModule {
-  route: RouteModel
+export interface CommonModule extends BasicModule {
+  route: CommonRouteModel
   /**
    * @property {boolean} - if true — router attaches this module unconditionaly 
    * @default false
@@ -20,12 +19,12 @@ export interface Module extends BasicModule {
   getPath: () => string
   getParentAlias: () => string | null
   hasParent: () => boolean
-  resolve: <M extends Module>() => Promise<M>
-  getParent: <M extends Module>() => M
+  resolve: <M extends CommonModule>() => Promise<M>
+  getParent: <M extends CommonModule>() => M
   setService: (service: string) => void
 }
 
-export interface ModuleOptions extends Partial<Module> { }
+export interface CommonModuleOptions extends Partial<CommonModule> { }
 
 export interface ModuleMatch {
   <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P): Promise<boolean>

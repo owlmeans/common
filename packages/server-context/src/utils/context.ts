@@ -1,4 +1,3 @@
-export { makeContext as makeBasicContext } from '@owlmeans/context'
 
 import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
 import type { Middleware } from '@owlmeans/context'
@@ -13,6 +12,7 @@ export const fileConfigReader: Middleware = {
   }
 }
 
+// @TODO Move to server config
 const visitConfigLeafs = (tree: Tree) =>
   Object.entries(tree).forEach(([key, value]) => {
     if (typeof value === 'string') {

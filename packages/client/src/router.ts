@@ -7,6 +7,12 @@ import { createRouteRenderer } from './utils/route.js'
 import { RouterProvider } from 'react-router'
 import type { Router as RemixRouter } from '@remix-run/router'
 import { useContext } from './context.js'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import { assertContext } from '@owlmeans/context'
+import type { BasicConfig, BasicContext } from '@owlmeans/context'
+
+type Config = ClientConfig
+interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const Router: FC<RouterProps> = ({ provide }) => {
   const progress = useRef(false)
@@ -20,7 +26,7 @@ export const Router: FC<RouterProps> = ({ provide }) => {
       progress.current = true
 
       console.log('Initialize router')
-      initializeRouter(context).then(router => setRouter(provide(router)))
+      initializeRouter(context as any).then(router => setRouter(provide(router)))
     }
   }, [])
 
@@ -33,13 +39,18 @@ export const Router: FC<RouterProps> = ({ provide }) => {
 }
 
 export const makeRouterModel = (): RouterModel => {
+  const location = `client-router`
   const model: RouterModel = {
     routes: [],
-    resolve: async (context) => {
-      const moduleTree = buildModuleTree(context)
+    resolve: async (ctx) => {
+      const context = assertContext<Config, Context>(ctx as Context, location)
+      const moduleTree = buildModuleTree(context as Context)
 
       const reactRoutes: RouteObject[] = await visitModuleTree(moduleTree, async (module, children) => {
-        await module.route.resolve(module.ctx ?? context)
+        const ctx = assertContext<BasicConfig, BasicContext<BasicConfig>>(
+          (module.ctx ?? context) as BasicContext<BasicConfig>, location
+        )
+        await module.route.resolve(ctx)
 
         const route: RouteObject = {
           ...(module.route.route.default ? { index: true } as any : undefined),

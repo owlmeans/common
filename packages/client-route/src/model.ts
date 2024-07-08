@@ -1,13 +1,13 @@
-import type { Context } from '@owlmeans/client-context'
-import type { RouteModel, RouteOptions } from './types.js'
-import type { BasicRouteModel } from './utils/types.js'
+import type { CommonRouteModel } from '@owlmeans/route'
+import type { ClientRouteModel, ClientRouteOptions } from './types.js'
 import { resolve, overrideParams } from '@owlmeans/route/utils'
+import type { BasicConfig, BasicContext } from '../../context/build/types.js'
 
-export const route = (route: BasicRouteModel, opts?: RouteOptions): RouteModel => {
+export const route = (route: CommonRouteModel, opts?: ClientRouteOptions): ClientRouteModel => {
   const unresolvedPath = route.route.path
 
-  const model: RouteModel = {
-    ...(route as RouteModel),
+  const model: ClientRouteModel = {
+    ...(route as ClientRouteModel),
 
     _client: true,
 
@@ -24,8 +24,7 @@ export const route = (route: BasicRouteModel, opts?: RouteOptions): RouteModel =
       const resolver: { resolve?: () => void } = {}
       model._resolved = new Promise(resolve => resolver.resolve = resolve)
 
-      const ctx = context as Context
-      await resolve(model.route)(ctx)
+      await resolve(model.route)(context as BasicContext<BasicConfig>)
 
       model.route.partialPath = unresolvedPath
 

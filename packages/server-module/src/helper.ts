@@ -1,15 +1,15 @@
-import type { Module, ModuleOptions, RefedModuleHandler } from './types.js'
-import type { BasicModule } from './utils/types.js'
+import type { ServerModule, ModuleOptions, RefedModuleHandler } from './types.js'
 import { module } from './module.js'
 import { isServerRouteModel } from '@owlmeans/server-route'
-import { basicGuard } from './utils/helper.js'
+import { createBasicGuard } from './utils/helper.js'
+import type { CommonModule } from '@owlmeans/module'
 
 export const elevate = <R>(
-  modules: (BasicModule | Module<R>)[],
+  modules: (CommonModule | ServerModule<R>)[],
   alias: string,
   handler?: RefedModuleHandler<R> | boolean | ModuleOptions<R>,
   opts?: boolean | ModuleOptions<R>
-): Module<R>[] => {
+): ServerModule<R>[] => {
   const idx = modules.findIndex(({ route }) => route.route.alias === alias)
   if (idx === -1) {
     throw new SyntaxError(`Module with alias ${alias} not present`)
@@ -31,8 +31,8 @@ export const elevate = <R>(
     modules[idx], handler, typeof opts === 'boolean' ? { intermediate: opts } : opts
   )
 
-  return modules as Module<R>[]
+  return modules as ServerModule<R>[]
 }
 
 export const guard = <R>(guard: string, opts?: ModuleOptions<R>): ModuleOptions<R> =>
-  ({ ...basicGuard(guard, opts) })
+  ({ ...createBasicGuard(guard, opts) })

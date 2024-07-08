@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren, ReactElement } from 'react'
-import type { ContextType, ModuleContextParams, RoutedComponent } from '../types.js'
+import type { ModuleContextParams, RoutedComponent } from '../types.js'
 import { isValidElement, memo, useEffect } from 'react'
 import type { Module } from '@owlmeans/client-module'
 import { provideRequest } from '@owlmeans/client-module'
@@ -7,6 +7,10 @@ import { provideResponse } from '@owlmeans/module'
 import type { GuardService } from '@owlmeans/module'
 import { Outlet, useParams } from 'react-router'
 import { AuthorizationError } from '@owlmeans/auth'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+
+type Config = ClientConfig
+interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
   console.log(`SAFE: Rendering route component ${module.alias}`)
@@ -71,7 +75,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
 export type HandledRenderer<T extends {}> = FC<PropsWithChildren<T> | T> | ReactElement
 
 interface RendererParams {
-  context: ContextType,
+  context: Context,
   module: Module<unknown>
   hasChildren: boolean
 }

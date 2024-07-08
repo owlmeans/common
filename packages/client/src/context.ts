@@ -1,14 +1,11 @@
 
 import { createContext, useContext as useCtx } from 'react'
-import type { Context as BasicContext, Config, ClientContext as BasicClientContext } from '@owlmeans/client-context'
-import { makeContext as makeBasicContext } from '@owlmeans/client-context'
+import type { Context as ReactContext } from 'react'
+import { makeClientContext } from '@owlmeans/client-context'
+import type { ClientConfig, ClientContext as ContextType } from '@owlmeans/client-context'
 import { AppType, CONFIG_RECORD, Layer } from '@owlmeans/context'
-import type { ContextType } from './types.js'
 
-export const makeContext = <C extends Config>(cfg: C): BasicContext & BasicClientContext<C> =>
-  makeBasicContext(cfg)
-
-export const ClientContext = createContext<ContextType>(makeContext({
+const defaultCfg: ClientConfig = {
   services: {},
   layer: Layer.Service,
   trusted: [],
@@ -16,8 +13,12 @@ export const ClientContext = createContext<ContextType>(makeContext({
   ready: false,
   service: '',
   type: AppType.Frontend,
-}))
+}
+
+export const ClientContext = createContext(makeClientContext(defaultCfg))
 
 export const Context = ClientContext.Provider
 
-export const useContext = <C extends Config>() => useCtx(ClientContext) as BasicContext & BasicClientContext<C>
+export const useContext = <C extends ClientConfig, T extends ContextType<C>>() => useCtx<T>(
+  ClientContext as unknown as ReactContext<T>
+) 

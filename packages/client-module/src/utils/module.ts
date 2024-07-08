@@ -1,6 +1,6 @@
 import Ajv from 'ajv'
 import type { ErrorObject } from 'ajv'
-import type { ModuleFilter, ModuleOptions } from '../types.js'
+import type { ModuleFilter, ClientModuleOptions } from '../types.js'
 import { ClientValidationError } from '../errors.js'
 import type { AbstractRequest } from '@owlmeans/module'
 import type { ModuleRef, RefedModuleHandler } from '../types.js'
@@ -55,11 +55,11 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Mod
   }
 
 export const normalizeHelperParams = <T, R extends AbstractRequest = AbstractRequest>(
-  handler?: RefedModuleHandler<T, R> | ModuleOptions | boolean,
-  opts?: ModuleOptions | boolean
-): [RefedModuleHandler<T, R> | undefined, ModuleOptions | undefined] => {
+  handler?: RefedModuleHandler<T, R> | ClientModuleOptions | boolean,
+  opts?: ClientModuleOptions | boolean
+): [RefedModuleHandler<T, R> | undefined, ClientModuleOptions | undefined] => {
   if (typeof handler !== 'function' && handler != null) {
-    opts = handler as ModuleOptions | boolean
+    opts = handler as ClientModuleOptions | boolean
     handler = undefined
   }
 

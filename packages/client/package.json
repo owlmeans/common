@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -32,7 +33,7 @@
     "@types/react": "^18.3.3",
     "nodemon": "^3.1.4",
     "react": "^18.3.1",
-    "react-router": "^6.24.0",
+    "react-router": "^6.24.1",
     "typescript": "^5.4.5"
   }
 }

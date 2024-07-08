@@ -1,0 +1,1 @@
+# OwlMeans Auth Manager App - Basic application for auth service (manager)

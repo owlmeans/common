@@ -1,6 +1,6 @@
 import type { AbstractResponse } from '@owlmeans/module'
 import { ModuleOutcome } from '@owlmeans/module'
-import { AxiosResponse } from 'axios'
+import type { AxiosResponse } from 'axios'
 import { ACCEPTED, CREATED, FORBIDDEN_ERROR, OK, SERVER_ERROR, UNAUTHORIZED_ERROR } from '../consts.js'
 import { ResilientError } from '@owlmeans/error'
 import { ApiClientError, ServerAuthError, ServerCrashedError } from '../errors.js'

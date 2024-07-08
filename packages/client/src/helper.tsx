@@ -5,6 +5,11 @@ import { HandledRenderer } from './utils/route.js'
 import { isValidElement } from 'react'
 import type { PropsWithChildren } from 'react'
 import { ModuleContext } from './utils/module.js'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import { assertContext } from '@owlmeans/context'
+
+type Config = ClientConfig
+interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const handler = <T extends {}>(
   Component: HandledRenderer<T>, preprender?: boolean
@@ -12,10 +17,11 @@ export const handler = <T extends {}>(
   R extends AbstractRequest = AbstractRequest,
   P extends AbstractResponse<HandledRenderer<T>> = AbstractResponse<HandledRenderer<T>>
 >(req: R, res: P): any => {
+  const location = `client-handler:${ref.ref?.getAlias() ?? 'unknown'}`
   if (ref.ref == null) {
     throw new SyntaxError('Module reference is not provided')
   }
-  const ctx = ref.ref.ctx
+  const ctx = assertContext<Config, Context>(ref.ref.ctx as Context, location)
   if (ctx == null) {
     throw new SyntaxError('Module context is not provided')
   }

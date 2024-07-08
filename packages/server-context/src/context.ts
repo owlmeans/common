@@ -1,11 +1,14 @@
 import { appendConfigResource } from '@owlmeans/config'
-import { Config, ServerContext } from './types.js'
-import { fileConfigReader, makeBasicContext } from './utils/context.js'
+import { ServerConfig, ServerContext } from './types.js'
+import { fileConfigReader } from './utils/context.js'
+import { makeBasicContext } from '@owlmeans/context'
 
-export const makeContext = <C extends Config>(cfg: C) => {
-  const context: ServerContext<C> = makeBasicContext(cfg)
+export const makeServerContext = <C extends ServerConfig, T extends ServerContext<C>>(cfg: C): T => {
+  const context = makeBasicContext(cfg) as T
 
   context.registerMiddleware(fileConfigReader)
 
-  return appendConfigResource(context)
+  context.makeContext = makeServerContext as typeof context.makeContext
+
+  return appendConfigResource<C, T>(context)
 }

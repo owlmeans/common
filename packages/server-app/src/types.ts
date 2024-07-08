@@ -1,8 +1,13 @@
-import type { BasicContext } from './utils/types.js'
-import type { makeContext } from './context.js'
+import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { AuthServiceAppend } from '@owlmeans/server-auth'
+import type { KlusterConfig } from '@owlmeans/kluster'
+import type { ServiceRoute } from '@owlmeans/server-route'
+import type { ApiServerAppend } from '@owlmeans/server-api'
 
-export interface ContextType extends BasicContext, AuthServiceAppend {
+export interface AppConfig extends ServerConfig, KlusterConfig {
+  services: Record<string, ServiceRoute>
 }
 
-export type Context = ReturnType<typeof makeContext>
+export interface AppContext<C extends AppConfig> extends ServerContext<C>,
+  AuthServiceAppend,
+  ApiServerAppend { }

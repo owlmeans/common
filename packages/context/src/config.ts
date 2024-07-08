@@ -1,7 +1,7 @@
 import { AppType, Layer } from './consts.js'
-import type { Config } from './types.js'
+import type { BasicConfig } from './types.js'
 
-export const makeConfig = <C extends Config>(type: AppType, service: string, cfg?: Partial<C>): C => {
+export const makeBasicConfig = <C extends BasicConfig>(type: AppType, service: string, cfg?: Partial<C>): C => {
   const config = {
     ready: false,
     service,
@@ -10,7 +10,7 @@ export const makeConfig = <C extends Config>(type: AppType, service: string, cfg
     services: {},
     records: [],
     ...cfg
-  }
+  } as C
 
-  return config as unknown as C
+  return config
 }

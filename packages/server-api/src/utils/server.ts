@@ -1,20 +1,22 @@
 import { AppType, isContextWithoutIds, Layer } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { assertContext } from '@owlmeans/context'
-import type { FixerService, Module } from '@owlmeans/server-module'
-import type { Module as BasicModule } from '@owlmeans/module'
+import type { FixerService, ServerModule } from '@owlmeans/server-module'
+import type { CommonModule } from '@owlmeans/module'
 import type { GateService, GuardService } from '@owlmeans/module'
 import { provideResponse } from '@owlmeans/module'
 import { AuthFailedError } from '../errors.js'
-import type { Context } from '@owlmeans/server-context'
+import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
 import { handleError } from './error.js'
 import { executeResponse, provideRequest } from './payload.js'
 import type { Auth } from '@owlmeans/auth'
-export { makeContext as makeBasicContext } from '@owlmeans/server-context'
 
-export const canServeModule = (context: Context, module: BasicModule): module is Module<unknown> => {
+type Config = ServerConfig
+type Context = ServerContext<Config>
+
+export const canServeModule = (context: Context, module: CommonModule): module is ServerModule<unknown> => {
   if (module.route.route.type !== AppType.Backend) {
     return false
   }
@@ -25,9 +27,9 @@ export const canServeModule = (context: Context, module: BasicModule): module is
   return 'isIntermediate' in module.route
 }
 
-export const createServerHandler = (module: Module<FastifyRequest>, location: string) =>
+export const createServerHandler = (module: ServerModule<FastifyRequest>, location: string) =>
   async (_request: FastifyRequest, reply: FastifyReply) => {
-    let context = assertContext<Context>((_request as any)._ctx, location)
+    let context = assertContext<Config, Context>((_request as any)._ctx, location)
     try {
       const response = provideResponse(reply)
       const request = provideRequest(module.alias, _request)
@@ -60,11 +62,11 @@ export const createServerHandler = (module: Module<FastifyRequest>, location: st
 
         if (request.auth.entityId != null) {
           // @TODO Probably we need to downgrade context in this case
-          if (!isContextWithoutIds(context)) {
+          if (!isContextWithoutIds(context as any)) {
             throw SyntaxError(`Context should be without ids during authorization ${context.cfg.layer}:${context.cfg.layerId}`)
           }
 
-          if (isContextWithoutIds(context) && context.cfg.layer !== Layer.Service) {
+          if (isContextWithoutIds(context as any) && context.cfg.layer !== Layer.Service) {
             context = context.updateContext(undefined, Layer.Service)
             await context.waitForInitialized()
           }

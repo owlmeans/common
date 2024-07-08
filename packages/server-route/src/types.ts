@@ -1,24 +1,24 @@
-import type { BasicRoute, BasicRouteModel, BasicServiceRoute } from './utils/types.js'
+import type { CommonRoute, CommonRouteModel, CommonServiceRoute } from '@owlmeans/route'
 
-export interface Route extends BasicRoute, RouteExtras {
+export interface ServerRoute extends CommonRoute, ServerRouteExtras {
 }
 
-export interface ServiceRoute extends BasicServiceRoute, RouteExtras {
+export interface ServiceRoute extends CommonServiceRoute, ServerRouteExtras {
 }
 
-export interface RouteModel<R> extends BasicRouteModel {
-  route: Route
+export interface ServerRouteModel<R> extends CommonRouteModel {
+  route: ServerRoute
   match: <Request extends R>(request: Request) => boolean
   isIntermediate: () => boolean
 }
 
-export interface RouteExtras {
+export interface ServerRouteExtras {
   internalHost?: string
   internalPort?: number
 }
 
-export interface RouteOptions<R> {
-  overrides?: Partial<Route>
+export interface ServerRouteOptions<R> {
+  overrides?: Partial<ServerRoute>
   pathField?: string
   match?: <Request extends R>(request: Request) => boolean
 }

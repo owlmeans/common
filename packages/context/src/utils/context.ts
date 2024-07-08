@@ -1,5 +1,5 @@
 import { Layer, MiddlewareStage, MiddlewareType } from '../consts.js'
-import type { Context, Middleware, Resource, Service } from '../types.js'
+import type { BasicConfig, BasicContext, Middleware, Resource, Service } from '../types.js'
 import type { InLayer, Services } from './layer.js'
 
 export const getMiddlerwareKey = (middleware: Middleware) => createMiddlewareKey(middleware.type, middleware.stage)
@@ -33,12 +33,12 @@ export const getAllServices = (services: InLayer<Services>, layer: Layer, id: st
     }) : []
 }
 
-export const applyMiddlewares = (
-  context: Context,
+export const applyMiddlewares = <C extends BasicConfig>(
+  context: BasicContext<C>,
   middlewares: Record<string, Middleware[]>,
   type: MiddlewareType,
   stage: MiddlewareStage,
   args?: Record<string, string | undefined>
 ) => Promise.all(
-  middlewares[createMiddlewareKey(type, stage)]?.map(middleware => middleware.apply(context, args)) ?? []
+  middlewares[createMiddlewareKey(type, stage)]?.map(async middleware => middleware.apply(context, args)) ?? []
 )

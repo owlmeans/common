@@ -1,10 +1,9 @@
-import type { Context } from '@owlmeans/server-context'
+import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
-import { Layer, createService } from '@owlmeans/context'
-import type { UpdContextType } from '@owlmeans/context'
-import { basicAssertContext, canServeModule, executeResponse, provideRequest } from './utils/index.js'
+import { Layer, assertContext, createService } from '@owlmeans/context'
+import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
 import { DEFAULT_ALIAS, HOST, PORT } from './consts.js'
-import type { Module } from '@owlmeans/server-module'
+import type { ServerModule } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler } from './utils/server.js'
 import { provideResponse } from '@owlmeans/module'
@@ -13,16 +12,19 @@ import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 
+type Config = ServerConfig
+type Context = ServerContext<Config>
+
 export const createApiServer = (alias: string): ApiServer => {
   const location = `service:${alias}`
-  const assertContext = (context: Context | undefined): Context => basicAssertContext(context, location)
+  const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
 
   const server = createService<ApiServer>(alias, {
     layers: [Layer.System]
   }, service => async () => {
     console.log(`${location}: ready to init api server`)
 
-    const context = assertContext(service.ctx as Context)
+    const context = _assertContext(service.ctx as Context)
 
     const config = context.cfg.services[context.cfg.service]
 
@@ -31,15 +33,15 @@ export const createApiServer = (alias: string): ApiServer => {
     await server.register(cors, { origin: '*' })
 
     server.addHook('preHandler', async (request, reply) => {
-      let context = assertContext(service.ctx as Context)
-      await context.modules<Module<FastifyRequest>>().filter(
+      let context = _assertContext(service.ctx as Context)
+      await context.modules<ServerModule<FastifyRequest>>().filter(
         module => canServeModule(context, module) && module.route.isIntermediate()
       ).reduce(async (promise, module) => {
         if (reply.sent) {
           return
         }
         await promise
-        await module.route.resolve(context)
+        await module.route.resolve(context as any)
         // Actually intermediate module can be created without handler by elevate function
         if (module.route.match(request) && module.handle != null) {
           const response = provideResponse()
@@ -54,16 +56,16 @@ export const createApiServer = (alias: string): ApiServer => {
     })
 
     await Promise.all(
-      context.modules<Module<FastifyRequest>>()
+      context.modules<ServerModule<FastifyRequest>>()
         .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
         .map(async module => {
-          await module.route.resolve(context)
+          await module.route.resolve(context as any)
+          const method = module.route.route.method ?? RouteMethod.GET
           server.route({
-            url: module.route.route.path,
-            method: module.route.route.method ?? RouteMethod.GET,
+            url: module.getPath(), method,
             schema: {
               querystring: module.filter?.query ?? {},
-              body: module.filter?.body,
+              ...(method !== RouteMethod.GET ? { body: module.filter?.body } : {}),
               params: module.filter?.params ?? {},
               response: module.filter?.response,
               headers: module.filter?.headers ?? {}
@@ -91,15 +93,16 @@ export const createApiServer = (alias: string): ApiServer => {
   return server
 }
 
-export const appendApiServer = <C extends Context>(
-  ctx: C, alias: string = DEFAULT_ALIAS
-): UpdContextType<C, ApiServerAppend> => {
+export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
+  ctx: T, alias: string = DEFAULT_ALIAS
+): T & ApiServerAppend => {
   const service = createApiServer(alias)
   console.log('Append api server')
-  const _ctx = ctx as UpdContextType<C, ApiServerAppend>
+  const context = ctx as T & ApiServerAppend
 
-  _ctx.registerService(service)
-  _ctx.getApiServer = () => ctx.service(service.alias)
+  context.registerService(service)
 
-  return _ctx
+  context.getApiServer = () => ctx.service(service.alias)
+
+  return context
 }

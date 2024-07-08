@@ -1,19 +1,19 @@
-import type { Route, RouteModel } from './types.js'
+import type { CommonRoute, CommonRouteModel } from './types.js'
 import type { CreateRouteSignature } from './utils/types.js'
 import { resolve } from './utils/route.js'
-import { AppType } from '@owlmeans/context'
+import { AppType, BasicConfig, BasicContext } from '@owlmeans/context'
 
-export const makeRouteModel = (route: Route): RouteModel => {
-  const model: RouteModel = {
+export const makeRouteModel = (route: CommonRoute): CommonRouteModel => {
+  const model: CommonRouteModel = {
     route,
-    resolve: resolve(route)
+    resolve: ctx => resolve(route)(ctx as unknown as BasicContext<BasicConfig>)
   }
 
   return model
 }
 
-export const createRoute: CreateRouteSignature<Route> = (alias, path, opts?) => {
-  const route: Route = {
+export const createRoute: CreateRouteSignature<CommonRoute> = (alias, path, opts?) => {
+  const route: CommonRoute = {
     alias,
     type: AppType.Backend,
     path,

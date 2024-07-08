@@ -1,11 +1,17 @@
 import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { AuthToken } from '@owlmeans/auth'
 import { handleBody } from '@owlmeans/server-api'
-import type { ContextType } from '../utils/types.js'
+import { AuthServiceAppend } from '../types.js'
+import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { assertContext } from '@owlmeans/context'
+
+type Config = ServerConfig
+type Context = ServerContext<Config> & AuthServiceAppend
 
 export const authenticate: RefedModuleHandler<AuthToken> = handleBody(
   async (payload: AuthToken, ctx) => {
-    const context = ctx as unknown as ContextType
+    const context = assertContext<Config, Context>(ctx as Context, 'authenticate')
+    console.log(ctx.cfg)
     return await context.auth().authenticate(payload)
   }
 )

@@ -1,6 +1,6 @@
 import type { AppType, ContextStage, Layer, MiddlewareStage, MiddlewareType, CONFIG_RECORD } from './consts.js'
 
-export interface Config {
+export interface BasicConfig {
   ready: boolean
   service: string
   layer: Layer
@@ -18,10 +18,10 @@ interface ConfigRecordItem extends Record<string, ConfigRecordItem | string | nu
 }
 
 export interface Contextual {
-  ctx?: Context
+  ctx?: BasicContext<any>
   alias: string
   reinitializeContext?: <T extends Contextual>() => T // This method is a fix to replace context inside closed scope
-  registerContext: <T extends Contextual>(context: Context) => T
+  registerContext: <T extends Contextual, C extends BasicConfig>(context: BasicContext<C>) => T
 }
 
 export interface Service extends Contextual {
@@ -42,7 +42,7 @@ export interface LazyService extends Service {
   ready: () => Promise<boolean>
 }
 
-export interface Module extends Contextual {
+export interface BasicModule extends Contextual {
   _module: true
 }
 
@@ -54,27 +54,29 @@ export interface Resource extends Contextual {
 export interface Middleware {
   type: MiddlewareType
   stage: MiddlewareStage
-  apply: (context: Context, args?: Record<string, string | undefined>) => Promise<void>
+  apply: <C extends BasicConfig>(context: BasicContext<C>, args?: Record<string, string | undefined>) => Promise<void>
 }
 
-export interface Context<C extends Config = Config> {
+export interface BasicContext<C extends BasicConfig> {
   cfg: C
   stage: ContextStage
   waitForConfigured: () => Promise<boolean>
   waitForInitialized: () => Promise<boolean>
-  configure: <T extends Context<C>>() => T
-  init: <T extends Context<C>>() => T
-  updateContext: <T extends Context<C>>(id?: string, to?: Layer) => T
-  registerService: <T extends Context<C>>(service: Service) => T
-  registerModule: <T extends Context<C>>(module: Module) => T
-  registerModules: <T extends Context<C>>(module: Module[]) => T
-  registerResource: <T extends Context<C>>(resource: Resource) => T
-  registerMiddleware: <T extends Context<C>>(middleware: Middleware) => T
+  configure: <T extends BasicContext<C>>() => T
+  init: <T extends BasicContext<C>>() => T
+  updateContext: <T extends BasicContext<C>>(id?: string, to?: Layer) => T
+  registerService: <T extends BasicContext<C>>(service: Service) => T
+  registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
+  registerModules: <T extends BasicContext<C>>(module: BasicModule[]) => T
+  registerResource: <T extends BasicContext<C>>(resource: Resource) => T
+  registerMiddleware: <T extends BasicContext<C>>(middleware: Middleware) => T
 
   get config(): Promise<C>
   service: <T extends Service>(alias: string) => T
-  module: <T extends Module>(alias: string) => T
+  module: <T extends BasicModule>(alias: string) => T
   resource: <T extends Resource>(alias: string) => T
 
-  modules: <T extends Module>() => T[]
+  modules: <T extends BasicModule>() => T[]
+
+  makeContext?: <T extends BasicContext<C>>(cfg: C) => T
 }

@@ -1,5 +1,4 @@
-import type { Context } from '@owlmeans/context'
-import { createService } from '@owlmeans/context'
+import { BasicContext, createService } from '@owlmeans/context'
 import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios from 'axios'
@@ -7,7 +6,10 @@ import type { Module } from '@owlmeans/module'
 import { SEP, normalizePath } from '@owlmeans/route'
 import { DEFAULT_ALIAS } from './consts.js'
 import { processResponse } from './utils/handler.js'
-import type { Config } from '@owlmeans/client-config'
+import { BasicClientConfig } from '@owlmeans/client-config'
+
+type Config = BasicClientConfig
+interface Context<C extends Config = Config> extends BasicContext<C> {}
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const client: ApiClient = createService<ApiClient>(alias, {
@@ -55,7 +57,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   return client
 }
 
-export const appendApiClient = <C extends Context<Config>>(ctx: C, alias: string = DEFAULT_ALIAS): C => {
+export const appendApiClient = <C extends Config, T extends Context<C>>(ctx: T, alias: string = DEFAULT_ALIAS): T => {
   const service = createApiService(alias)
 
   ctx.registerService(service)

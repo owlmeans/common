@@ -1,2 +1,2 @@
 
-export { guard as basicGuard } from '@owlmeans/module'
+export { guard as createBasicGuard } from '@owlmeans/module'

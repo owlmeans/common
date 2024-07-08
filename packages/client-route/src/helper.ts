@@ -1,7 +1,7 @@
 import { PARAM, SEP, normalizePath } from '@owlmeans/route'
-import { RouteModel } from './types.js'
+import { ClientRouteModel } from './types.js'
 
-export const isClientRouteModel = (route: Object): route is RouteModel => 
+export const isClientRouteModel = (route: Object): route is ClientRouteModel => 
   '_client' in route
 
 export const extractParams = (path: string): string[] => {

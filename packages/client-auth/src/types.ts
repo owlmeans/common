@@ -1,13 +1,5 @@
-import type { Config } from '@owlmeans/client-context'
-import type { BasicContext } from './utils/types.js'
-import type { makeContext } from './context.js'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import type {  GuardService } from '@owlmeans/module'
-
-export interface ContextType<C extends Config> extends BasicContext<C>, AuthServiceAppend {
-}
-
-export type Context = ReturnType<typeof makeContext>
+import type { GuardService } from '@owlmeans/module'
 
 export interface AuthService extends GuardService {
   auth?: Auth

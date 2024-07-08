@@ -1,10 +1,11 @@
-import type { ServiceRoute } from '@owlmeans/route'
-import type { BasicConfig, BasicContext } from './utils/types.js'
+import type { BasicClientConfig } from '@owlmeans/client-config'
+import type { BasicContext } from '@owlmeans/context'
+import type { CommonServiceRoute } from '@owlmeans/route'
 
-export interface Config extends BasicConfig {
-  services: Record<string, ServiceRoute>
+export interface ClientConfig extends BasicClientConfig {
+  services: Record<string, CommonServiceRoute>
 }
 
-export interface ClientContext<C extends BasicConfig> extends BasicContext<C> {
-  serviceRoute: (alias: string, makeDefault?: boolean) => ServiceRoute
+export interface ClientContext<C extends ClientConfig> extends BasicContext<C> {
+  serviceRoute: (alias: string, makeDefault?: boolean) => CommonServiceRoute
 }

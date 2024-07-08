@@ -1,9 +1,9 @@
 import { Layer } from './consts.js'
-import type { Contextual, Context, Config } from './types.js'
+import type { Contextual, BasicContext, BasicConfig } from './types.js'
 
 export const appendContextual = <T extends Contextual>(alias: string, contextual: Partial<T>): T => {
   contextual.alias = alias
-  contextual.registerContext = <T>(context: Context): T => {
+  contextual.registerContext = <T, C extends BasicConfig>(context: BasicContext<C>) => {
     const _contextual = contextual.ctx == null
       ? contextual
       : contextual.reinitializeContext != null
@@ -21,19 +21,19 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
   return contextual as T
 }
 
-export type UpdContextType<T extends Context, ExtraType> = T & ExtraType
+// export type UpdContextType<C extends Config, T extends Context<C>, ExtraType> = T & ExtraType
 
-export type UpdConfigType<T extends Config, ExtraType> = T & ExtraType
+// export type UpdConfigType<T extends Config, ExtraType> = T & ExtraType
 
 /**
  * @throws {SyntaxError}
  */
-export const assertContext = <T extends Context>(ctx: T | undefined, location: string): T => {
+export const assertContext = <C extends BasicConfig, T extends BasicContext<C>>(ctx: T | undefined, location: string): T => {
   if (ctx == null) {
     throw new SyntaxError(`Context not found in ${location}`)
   }
   return ctx
 }
 
-export const isContextWithoutIds = (context: Context): boolean =>
+export const isContextWithoutIds = <C extends BasicConfig, T extends BasicContext<C>>(context: T): boolean =>
   [Layer.System, Layer.Global, Layer.Service].includes(context.cfg.layer)

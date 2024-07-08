@@ -1,15 +1,15 @@
-import type { BasicRoute, BasicRouteModel } from './utils'
+import type { CommonRoute, CommonRouteModel } from '@owlmeans/route'
 
-export interface Route extends BasicRoute {
+export interface ClientRoute extends CommonRoute {
   partialPath: string
 }
 
-export interface RouteModel extends BasicRouteModel {
-  route: Route
+export interface ClientRouteModel extends CommonRouteModel {
+  route: ClientRoute
   _resolved?: Promise<void>
   _client: true
 }
 
-export interface RouteOptions {
-  overrides?: Partial<Route>
+export interface ClientRouteOptions {
+  overrides?: Partial<ClientRoute>
 }

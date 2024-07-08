@@ -4,7 +4,7 @@ import {
   DISPATCHER
 } from '@owlmeans/auth'
 import type { AllowanceResponse, AllowanceRequest, AuthToken } from '@owlmeans/auth'
-import type { Context } from '@owlmeans/client-context'
+import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 import type { Module } from '@owlmeans/client-module'
 import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
@@ -14,7 +14,7 @@ import type { AuthRequest } from '@owlmeans/auth-common'
 import { ModuleOutcome } from '@owlmeans/module'
 
 export const makeControl = (
-  context: Context,
+  context: ClientContext<ClientConfig>,
   setStage?: (stage: AuthenticationStage) => void): AuthenticationControl => {
 
   // @TODO: This control should deal with scopes someway

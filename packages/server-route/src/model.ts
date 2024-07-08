@@ -1,27 +1,28 @@
-import type { Context } from '@owlmeans/context'
-import type { RouteModel, RouteOptions, ServiceRoute } from './types.js'
-import type { BasicRouteModel } from './utils/types.js'
+import type { ServerRouteModel, ServerRouteOptions, ServiceRoute } from './types.js'
 import { DEFAULT_FIELD } from './consts.js'
 import { matchToPathes } from './utils/route.js'
 import { resolve, overrideParams } from '@owlmeans/route/utils'
+import type { CommonRouteModel } from '@owlmeans/route'
 
-export const route = <R>(route: BasicRouteModel, intermediate: boolean, opts?: RouteOptions<R>) => {
-  const model: RouteModel<R> = {
+export const route = <R>(route: CommonRouteModel, intermediate: boolean, opts?: ServerRouteOptions<R>) => {
+  const model: ServerRouteModel<R> = {
     ...route,
 
     isIntermediate: () => intermediate,
 
-    resolve: async <C>(context: C) => {
+    resolve: async context => {
       if (model.route.resolved) {
         return model.route
       }
-      const ctx = context as Context
-      await resolve(model.route)(ctx)
+      const ctx = context
+
+      await resolve<typeof ctx["cfg"], typeof ctx>(model.route)(ctx)
       const service = ctx.cfg.services?.[route.route.service ?? ctx.cfg.service] as ServiceRoute | undefined
       if (service?.internalHost != null) {
         model.route.internalHost = service.internalHost
         model.route.internalPort = model.route.internalPort ?? service.internalPort
       }
+
       return model.route
     },
 

@@ -1,8 +1,7 @@
-import type { Context } from '@owlmeans/server-context'
+import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService } from './types.js'
-import { createService, UpdContextType } from '@owlmeans/context'
-import type { ContextType } from './utils/types.js'
+import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { fromPubKey, makeKeyPairModel } from '@owlmeans/basic-keys'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
@@ -10,7 +9,12 @@ import { AuthenFailed, AuthroizationType } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '../../module/build/types.js'
 import { AUTH_HEADER } from '@owlmeans/auth'
 
+type Config = ServerConfig
+type Context = ServerContext<Config>
+
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
+  const location = `server-auth:${alias}`
+
   const _keyPair = (context: Context) => {
     const trustedUser = context.cfg.trusted.find(trusted => trusted.name === context.cfg.service)
     if (trustedUser == null || trustedUser.secret == null) {
@@ -49,7 +53,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     authenticate: async (token) => {
-      const context = service.ctx as ContextType
+      const context = assertContext<Config, Context>(service.ctx as Context, location)
       const trustedUser = context.cfg.trusted.find(trusted => trusted.name === AUTH_SRV_KEY)
       if (trustedUser == null || trustedUser.credential == null) {
         throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
@@ -105,15 +109,17 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   return service
 }
 
-export const appendAuthService = <C extends Context>(ctx: C, alias: string = DEFAULT_ALIAS): UpdContextType<C, AuthServiceAppend> => {
+export const appendAuthService = <C extends Config, T extends ServerContext<C>>(
+  ctx: T, alias: string = DEFAULT_ALIAS
+): T & AuthServiceAppend => {
   const service = makeAuthService(alias)
   console.log('Append auth service')
-  const _ctx = ctx as UpdContextType<C, AuthServiceAppend>
+  const context = ctx as T & AuthServiceAppend
 
-  _ctx.registerService(service)
-  _ctx.auth = () => ctx.service(service.alias)
+  context.registerService(service)
+  context.auth = () => ctx.service(service.alias)
 
-  return _ctx
+  return context
 }
 
 const store = new Set<string>()

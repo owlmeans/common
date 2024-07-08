@@ -1,18 +1,17 @@
-import type { RouteModel, RouteOptions } from '@owlmeans/server-route'
-import type { BasicModule, BasicModuleOptions } from './utils/types.js'
-import type { ModuleHandler } from '@owlmeans/module'
+import type { ServerRouteModel, ServerRouteOptions } from '@owlmeans/server-route'
+import type { CommonModule, ModuleHandler, CommonModuleOptions } from '@owlmeans/module'
 import type { Service } from '@owlmeans/context'
 
-export interface Module<R> extends BasicModule {
-  route: RouteModel<R>
+export interface ServerModule<R> extends CommonModule {
+  route: ServerRouteModel<R>
   fixer?: string
   handle: ModuleHandler
 }
 
-export interface ModuleOptions<R> extends BasicModuleOptions {
+export interface ModuleOptions<R> extends CommonModuleOptions {
   fixer?: string
   intermediate?: boolean
-  routeOptions?: RouteOptions<R>
+  routeOptions?: ServerRouteOptions<R>
 }
 
 export interface FixerService extends Service {
@@ -20,7 +19,7 @@ export interface FixerService extends Service {
 }
 
 export interface ModuleRef<R> { 
-  ref?: Module<R>
+  ref?: ServerModule<R>
 }
 
 export interface RefedModuleHandler<R> {

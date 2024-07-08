@@ -1,9 +1,11 @@
 {
   "name": "@owlmeans/kluster",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\""
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -16,6 +18,13 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^0.21.0",
+    "@owlmeans/config": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/server-config": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

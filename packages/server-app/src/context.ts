@@ -1,10 +1,15 @@
-import type { Config } from '@owlmeans/server-context'
-import { makeBasicContext } from './utils/context.js'
-import type { BasicContext } from './utils/types.js'
 import { appendAuthService } from '@owlmeans/server-auth'
+import { makeServerContext } from '@owlmeans/server-context'
+import type { AppConfig, AppContext } from './types.js'
+import { appendApiServer } from '@owlmeans/server-api'
 
-export const makeContext = <C extends Config>(cfg: C) => {
-  const context: BasicContext = makeBasicContext(cfg)
+export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C) => {
+  const context = makeServerContext(cfg) as T
 
-  return appendAuthService(context)
+  appendApiServer<C, T>(context)
+  appendAuthService<C, T>(context)
+
+  context.makeContext = makeContext as any
+
+  return context
 }

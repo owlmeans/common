@@ -1,5 +1,4 @@
-import type { Context } from '@owlmeans/server-context'
-import type { AuthModel } from './types.js'
+import type { AuthModel, AppConfig, AppContext } from './types.js'
 import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthenticationType, AuthRole } from '@owlmeans/auth'
 import { getPlugin } from './plugins/utils.js'
 import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
@@ -7,7 +6,8 @@ import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 
-export const makeAuthModel = (context: Context): AuthModel => {
+
+export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
   const trustedUser = context.cfg.trusted.find(trusted => trusted.name === AUTH_SRV_KEY)
   if (trustedUser == null || trustedUser.secret == null) {
     throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)

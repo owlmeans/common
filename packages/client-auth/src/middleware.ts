@@ -1,9 +1,9 @@
-import type { Middleware } from '@owlmeans/context'
+import type { BasicConfig, BasicContext, Middleware } from '@owlmeans/context'
 import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
 import { provideRequest, type Module } from '@owlmeans/client-module'
 import type { AuthService } from './types.js'
 import { AUTH_HEADER } from '@owlmeans/auth'
-import { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/module'
 
 export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
@@ -28,7 +28,7 @@ export const authMiddleware: Middleware = {
           const call = module.call
           module.call = async (req, res) => {
             if (auth.authenticated()) {
-              await module.route.resolve(module.ctx ?? context)
+              await module.route.resolve((module.ctx ?? context) as BasicContext<BasicConfig>)
               const _req: Partial<AbstractRequest> = req ?? provideRequest(module.getAlias(), module.getPath())
               // @TODO Authorization header may already present
               const headers = (_req.headers ?? {}) as Record<string, string | undefined>

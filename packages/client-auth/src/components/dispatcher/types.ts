@@ -1,10 +1,10 @@
 import type { FC, PropsWithChildren } from 'react'
 import type { RoutedComponent } from '@owlmeans/client'
 import type { AuthToken } from '@owlmeans/auth'
-import type { Context } from '../../types.js'
+import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 
 export interface DispatcherProps {
-  context: Context
+  context: ClientContext<ClientConfig>
 }
 
 export interface TDispatcherHOC {

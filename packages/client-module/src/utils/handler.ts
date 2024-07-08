@@ -1,41 +1,42 @@
 import type { ApiClient } from '@owlmeans/api'
-import type { Config } from '@owlmeans/client-config'
 import { DEFAULT_KEY } from '@owlmeans/client-config'
-import type { ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
 import { ModuleOutcome, provideResponse } from '@owlmeans/module'
-import type { Module, ModuleCall, ModuleOptions, ModuleRef } from '../types.js'
+import type { ClientModule, ModuleCall, ClientModuleOptions, ModuleRef } from '../types.js'
 import { validate } from './module.js'
 import { extractParams } from '@owlmeans/client-route'
 import { PARAM } from '@owlmeans/route'
 import { stringify } from 'qs'
+import { assertContext } from '@owlmeans/context'
+
+type Config = ClientConfig
+interface Context<C extends Config = Config> extends ClientContext<C> {}
 
 export const apiHandler: <
   T, R extends AbstractRequest = AbstractRequest
 >(ref: ModuleRef<T, R>) => ModuleHandler = (ref) => async (req, res) => {
-  const _ctx: ClientContext<Config> | undefined = ref.ref?.ctx as ClientContext<Config> | undefined
+  const location = `client-module:api-handler:${ref.ref?.alias}`
+  const context = assertContext<Config, Context>(ref.ref?.ctx as Context, location)
 
-  if (_ctx == null) {
-    throw new SyntaxError('No context provided')
-  }
-  if (_ctx.cfg.webService == null) {
+  if (context.cfg.webService == null) {
     throw new SyntaxError('No webService provided')
   }
 
-  const module = _ctx.module<Module<any, any>>(req.alias)
-  const route = await module.route.resolve(_ctx)
+  const module = context.module<ClientModule<unknown>>(req.alias)
+  const route = await module.route.resolve<Config, Context>(context)
 
-  let alias: string | undefined = typeof _ctx.cfg.webService === 'string'
-    ? _ctx.cfg.webService
+  let alias: string | undefined = typeof context.cfg.webService === 'string'
+    ? context.cfg.webService
     : (route.service != null
-      ? _ctx.cfg.webService[route.service] ?? _ctx.cfg.webService[DEFAULT_KEY]
-      : _ctx.cfg.webService[DEFAULT_KEY])
+      ? context.cfg.webService[route.service] ?? context.cfg.webService[DEFAULT_KEY]
+      : context.cfg.webService[DEFAULT_KEY])
 
   if (alias == null) {
     throw new SyntaxError(`Can't cast web service alias for ${module.alias} module`)
   }
 
-  const service: ApiClient = _ctx.service(alias)
+  const service: ApiClient = context.service(alias)
 
   req.path = module.getPath()
 
@@ -44,7 +45,7 @@ export const apiHandler: <
 
 export const apiCall: <
   T, R extends AbstractRequest = AbstractRequest
->(ref: ModuleRef<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
+>(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> =
   (ref, opts) => (async (req, res) => {
     const module = ref.ref
     if (module == null) {
@@ -97,7 +98,7 @@ export const apiCall: <
 
 export const urlCall: <
   T, R extends AbstractRequest = AbstractRequest
->(ref: ModuleRef<T, R>, opts?: ModuleOptions) => ModuleCall<T, R> =
+>(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> =
   (ref) => async (req, res) => {
     const module = ref.ref
     if (module == null) {

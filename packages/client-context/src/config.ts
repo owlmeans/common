@@ -1,13 +1,9 @@
 
-import { AppType } from '@owlmeans/context'
-import type { Config } from './types.js'
-import { makeConfig as makeBasicConfig } from '@owlmeans/client-config'
+import { AppType, makeBasicConfig } from '@owlmeans/context'
+import type { ClientConfig } from './types.js'
 
-export const makeConfig = <C extends Config>(type: AppType, service: string, cfg?: Partial<C>): C => {
-  const config: C = {
-    ...makeBasicConfig(type, service),
-    ...cfg
-  }
+export const config = <C extends ClientConfig>(service: string, cfg?: Partial<C>): C => {
+  const config: C = makeBasicConfig(AppType.Frontend, service, cfg)
 
   return config
 }

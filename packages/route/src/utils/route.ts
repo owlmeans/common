@@ -1,17 +1,19 @@
-import type { Context, Contextual } from '@owlmeans/context'
-import type { Route, RouteModel, ServiceRoute } from '../types.js'
+import type { BasicConfig, BasicContext, Contextual } from '@owlmeans/context'
+import type { CommonRoute, CommonRouteModel, CommonServiceRoute } from '../types.js'
 import { isServiceRoute, isServiceRouteResolved } from './service.js'
 import { normalizePath } from '../helper.js'
 import { SEP } from '../consts.js'
 
-export const getParentRoute = async (context: Context, route: Route): Promise<Route | null> => {
+type Config = BasicConfig
+
+export const getParentRoute = async <C extends Config, T extends BasicContext<C>>(context: T, route: CommonRoute): Promise<CommonRoute | null> => {
   if (route.parent != null) {
-    const parent = context.module<Contextual & { _module: true, route: RouteModel }>(route.parent)
-    assertCycle(context, route, parent.route.route)
+    const parent = context.module<Contextual & { _module: true, route: CommonRouteModel }>(route.parent)
+    assertCycle<C, T>(context, route, parent.route.route)
     if (parent.route == null) {
       throw new SyntaxError('Parent module doesn\'t provide a route')
     }
-    await parent.route.resolve(context)
+    await parent.route.resolve<C, T>(context)
 
     return parent.route.route
   }
@@ -19,16 +21,16 @@ export const getParentRoute = async (context: Context, route: Route): Promise<Ro
   return null
 }
 
-export const overrideParams = (route: Route, overrides?: Partial<Route>, filter?: string[]) => {
+export const overrideParams = (route: CommonRoute, overrides?: Partial<CommonRoute>, filter?: string[]) => {
   Object.entries(overrides ?? {}).forEach(([key, value]) => {
-    if (route[key as keyof Route] == null
+    if (route[key as keyof CommonRoute] == null
       && (filter == null || filter.includes(key))) {
-      (route[key as keyof Route] as Route[keyof Route]) = value
+      (route[key as keyof CommonRoute] as CommonRoute[keyof CommonRoute]) = value
     }
   })
 }
 
-export const resolve = (route: Route) => async <C extends Context>(context: C) => {
+export const resolve = <C extends Config, T extends BasicContext<C>>(route: CommonRoute) => async (context: T) => {
   if (route.resolved) return route
   route.resolved = true
 
@@ -42,14 +44,14 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
   }
   const service = firstGuessService?.type === route.type
     ? firstGuessService
-    : Object.values(context.cfg.services).find<ServiceRoute>(
-      (service): service is ServiceRoute => {
-        const _service = service as ServiceRoute
+    : Object.values(context.cfg.services).find<CommonServiceRoute>(
+      (service): service is CommonServiceRoute => {
+        const _service = service as CommonServiceRoute
         return _service.default === true && _service.type === route.type
       }
-    ) ?? Object.values(context.cfg.services).find<ServiceRoute>(
-      (service): service is ServiceRoute => {
-        const _service = service as ServiceRoute
+    ) ?? Object.values(context.cfg.services).find<CommonServiceRoute>(
+      (service): service is CommonServiceRoute => {
+        const _service = service as CommonServiceRoute
         return _service.type === route.type
       }
     )
@@ -65,7 +67,7 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
 
   overrideParams(route, service, ['host', 'port', 'service', 'base'])
 
-  const parent = await getParentRoute(context, route)
+  const parent = await getParentRoute<C, T>(context, route)
   if (parent != null) {
     route.path = (parent.path.startsWith(SEP) ? SEP : '')
       + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
@@ -79,11 +81,11 @@ export const resolve = (route: Route) => async <C extends Context>(context: C) =
 /**
  * @throws {SyntaxError}
  */
-const assertCycle = (context: Context, route: Route, parent: Route) => {
+const assertCycle = <C extends BasicConfig, T extends BasicContext<C>>(context: T, route: CommonRoute, parent: CommonRoute) => {
   while (parent.parent != null) {
     if (parent.parent === route.alias) {
       throw new SyntaxError(`Route parentship cycle detected. Parent: ${parent.alias} has his child as ancestor ${route.alias}`)
     }
-    parent = context.module<Contextual & { _module: true, route: RouteModel }>(parent.parent).route.route
+    parent = context.module<Contextual & { _module: true, route: CommonRouteModel }>(parent.parent).route.route
   }
 }

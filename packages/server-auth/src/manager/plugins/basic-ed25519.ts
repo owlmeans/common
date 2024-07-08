@@ -1,12 +1,12 @@
 import { AuthenticationType, AuthenFailed } from '@owlmeans/auth'
-import type { Context } from '@owlmeans/server-context'
 import type { AuthPlugin } from './types.js'
 import { assertType } from './utils.js'
 import { randomBytes } from '@noble/hashes/utils'
 import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
+import type { AppContext, AppConfig } from '../types.js'
 
-export const basicEd25519 = (context: Context): AuthPlugin => {
+export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: AuthenticationType.BasicEd25519,
     init: async request => {

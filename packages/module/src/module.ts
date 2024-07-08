@@ -1,9 +1,9 @@
-import type { Module } from './types.js'
+import type { CommonModule } from './types.js'
 import { appendContextual } from '@owlmeans/context'
 import type { CreateModuleSignature } from './utils/types.js'
 
-export const module: CreateModuleSignature<Module> = (route, opts) => {
-  const module: Module = appendContextual<Module>(route.route.alias, {
+export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
+  const module: CommonModule = appendContextual<CommonModule>(route.route.alias, {
     _module: true, 
     
     sticky: false,
@@ -15,7 +15,7 @@ export const module: CreateModuleSignature<Module> = (route, opts) => {
     getParentAlias: () => module.route.route.parent ?? null,
     hasParent: () => module.getParentAlias() != null,
     
-    resolve: async <M extends Module>() => {
+    resolve: async <M extends CommonModule>() => {
       if (module.ctx == null) {
         throw new SyntaxError(`Module has no context yet - ${module.getAlias()}`)
       }
@@ -50,7 +50,7 @@ export const module: CreateModuleSignature<Module> = (route, opts) => {
   return module
 }
 
-export const parent = <T extends Module | Module[]>(module: T, aliasOrParent: string, _parent?: string): T => {
+export const parent = <T extends CommonModule | CommonModule[]>(module: T, aliasOrParent: string, _parent?: string): T => {
   if (Array.isArray(module)) {
     if (_parent == null) {
       throw SyntaxError('Elevating parent requires parent name to be specified')

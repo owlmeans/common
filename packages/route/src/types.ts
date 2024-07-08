@@ -1,7 +1,7 @@
-import type { AppType, Context } from '@owlmeans/context'
+import type { AppType, BasicContext, BasicConfig } from '@owlmeans/context'
 import type { RouteMethod } from './consts'
 
-export interface Route extends BasicRoute {
+export interface CommonRoute extends BasicRoute {
   type: AppType
   alias: string
   path: string
@@ -10,7 +10,7 @@ export interface Route extends BasicRoute {
   method?: RouteMethod
 }
 
-export interface ServiceRoute extends BasicRoute {
+export interface CommonServiceRoute extends BasicRoute {
   type: AppType
   service: string
   default?: boolean
@@ -25,15 +25,15 @@ export interface BasicRoute {
   resolved: boolean
 }
 
-export interface ResolvedServiceRoute extends ServiceRoute {
+export interface ResolvedServiceRoute extends CommonServiceRoute {
   host: string
   resolved: true
 }
 
-export interface RouteModel {
-  route: Route
-  resolve: <C extends Context>(context: C) => Promise<Route>
+export interface CommonRouteModel {
+  route: CommonRoute
+  resolve: <C extends BasicConfig, T extends BasicContext<C>>(context: T) => Promise<CommonRoute>
 }
 
-export interface RouteOptions extends Partial<Route> {
+export interface RouteOptions extends Partial<CommonRoute> {
 }

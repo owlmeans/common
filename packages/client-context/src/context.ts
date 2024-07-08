@@ -1,8 +1,9 @@
-import { Config, ClientContext } from './types.js'
-import { makeBasicContext } from './utils/context.js'
+import { makeBasicContext } from '@owlmeans/context'
+import type { ClientConfig, ClientContext } from './types.js'
+import { appendApiClient } from '@owlmeans/api'
 
-export const makeContext = <C extends Config>(cfg: C): ClientContext<C> => {
-  const context: ClientContext<C> = makeBasicContext(cfg)
+export const makeClientContext = <C extends ClientConfig, T extends ClientContext<C>>(cfg: C): T => {
+  const context = makeBasicContext(cfg) as T
 
   context.serviceRoute = (alias, makeDefault) => {
     const service = context.cfg.services[alias]
@@ -16,6 +17,10 @@ export const makeContext = <C extends Config>(cfg: C): ClientContext<C> => {
 
     return service
   }
+
+  appendApiClient<C, T>(context)
+
+  context.makeContext = makeClientContext as typeof context.makeContext
 
   return context
 }

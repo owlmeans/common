@@ -1,9 +1,8 @@
-import type { RouteModel, RouteOptions } from '@owlmeans/client-route'
-import type { BasicModule, BasicModuleOptions } from './utils/types.js'
-import type { AbstractRequest, AbstractResponse, ModuleHandler, ModuleOutcome } from '@owlmeans/module'
+import type { ClientRouteModel, ClientRouteOptions } from '@owlmeans/client-route'
+import type { AbstractRequest, AbstractResponse, CommonModule, CommonModuleOptions, ModuleHandler, ModuleOutcome } from '@owlmeans/module'
 
-export interface Module<T, R extends AbstractRequest = AbstractRequest> extends BasicModule {
-  route: RouteModel
+export interface ClientModule<T, R extends AbstractRequest = AbstractRequest> extends CommonModule {
+  route: ClientRouteModel
   call: ModuleCall<T, R>
   validate: ModuleFilter<R>
   getPath: (partial?: boolean) => string
@@ -20,14 +19,14 @@ export interface ModuleFilter<Req extends AbstractRequest = AbstractRequest> {
   <R extends Req>(req?: Partial<R>): Promise<boolean>
 }
 
-export interface ModuleOptions extends BasicModuleOptions {
+export interface ClientModuleOptions extends CommonModuleOptions {
   force?: boolean
-  routeOptions?: RouteOptions
+  routeOptions?: ClientRouteOptions
   validateOnCall?: boolean
 }
 
 export interface ModuleRef<T, R extends AbstractRequest = AbstractRequest> { 
-  ref?: Module<T, R>
+  ref?: ClientModule<T, R>
 }
 
 export interface RefedModuleHandler<T, R extends AbstractRequest = AbstractRequest> {

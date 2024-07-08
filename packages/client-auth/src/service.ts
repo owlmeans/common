@@ -1,14 +1,14 @@
-import type { AuthService, AuthServiceAppend, Context, ContextType } from './types.js'
+import type { AuthService, AuthServiceAppend } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
-import { createService } from '@owlmeans/context'
-import type { UpdContextType } from '@owlmeans/context'
-import type { Config } from '@owlmeans/client-context'
+import { assertContext, createService } from '@owlmeans/context'
+import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 import { AuthorizationError, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
 import { Module } from '@owlmeans/client-module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
+  const location = `auth-service:${alias}`
   const service: AuthService = createService<AuthService>(alias, {
     match: async () => service.authenticated(),
 
@@ -17,8 +17,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     authenticate: async token => {
-      const ctx = service.ctx as Context
-      const [authToken] = await ctx.module<Module<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+      const ctx = assertContext(service.ctx, location)
+
+      const [authToken] = await ctx!.module<Module<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
 
       const [, authorization] = authToken.token.split(' ')
 
@@ -43,14 +44,16 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   return service
 }
 
-export const appendAuthService = <C extends ContextType<Config>>(
-  ctx: C, alias: string = DEFAULT_ALIAS
-): UpdContextType<C, AuthServiceAppend> => {
+export const appendAuthService = <C extends ClientConfig, T extends ClientContext<C>>(
+  ctx: T, alias: string = DEFAULT_ALIAS
+): T & AuthServiceAppend => {
   const service = makeAuthService(alias)
   console.log('Append auth service')
-  const context = ctx as UpdContextType<C, AuthServiceAppend>
+
+  const context = ctx as T & AuthServiceAppend
 
   context.registerService(service)
+  
   context.auth = () => ctx.service(service.alias)
 
   return context

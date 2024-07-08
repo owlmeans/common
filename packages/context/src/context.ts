@@ -1,9 +1,11 @@
 import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
-import type { Config, Context, Middleware, Module, Resource, Service } from './types.js'
+import type { BasicConfig, BasicContext, Middleware, BasicModule, Resource, Service } from './types.js'
 import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
 import { DEFAULT, InLayer, Services, initializeLayer } from './utils/layer.js'
 
-export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
+type Module = BasicModule
+
+export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C> => {
   const services = {} as InLayer<Services>
   const modules = {} as Record<string, Module>
   const resources = {} as InLayer<Record<string, Resource>>
@@ -15,11 +17,11 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   const configured = new Promise<boolean>(resolve => { configure = resolve })
   const initialized = new Promise<boolean>(resolve => { initialize = resolve })
 
-  const contexts: Record<string, Context> = {}
+  const contexts: Record<string, BasicContext<C>> = {}
 
   const inLazyInit = new Set<Service>()
 
-  const context: T = {
+  const context: BasicContext<C> = {
     cfg,
 
     stage: ContextStage.Configuration,
@@ -28,7 +30,7 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 
     waitForInitialized: () => initialized,
 
-    configure: () => {
+    configure: <T>() => {
       void (async () => {
         await applyMiddlewares(context, middlewares, MiddlewareType.Config, MiddlewareStage.Configuration)
 
@@ -36,10 +38,10 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
         configure(true)
       })()
 
-      return context
+      return context as T
     },
 
-    init: () => {
+    init: <T>() => {
       void (async () => {
         await configured
 
@@ -71,12 +73,14 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
         context.stage = ContextStage.Ready
         context.cfg.ready = true
         initialize(true)
+
+        void applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
       })()
 
-      return context
+      return context as T
     },
 
-    registerService: service => {
+    registerService: <T>(service: Service) => {
       const id = initializeLayer(services, context.cfg.layer, context.cfg.layerId)
       service = service.registerContext(context)
 
@@ -91,44 +95,44 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
         services[context.cfg.layer][id][service.alias][DEFAULT] = service
       }
 
-      return context
+      return context as T
     },
 
-    registerModule: module => {
+    registerModule: <T>(module: Module) => {
       module = module.registerContext(context)
       modules[module.alias] = module
 
-      return context
+      return context as T
     },
 
-    registerModules: modules => {
+    registerModules: <T>(modules: Module[]) => {
       modules.forEach(module => context.registerModule(module))
-      return context
+      return context as T
     },
 
-    registerResource: resource => {
+    registerResource: <T>(resource: Resource) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
       resource = resource.registerContext(context)
       resources[context.cfg.layer][id][resource.alias] = resource
 
-      return context
+      return context as T
     },
 
-    registerMiddleware: middleware => {
+    registerMiddleware: <T>(middleware: Middleware) => {
       const key = getMiddlerwareKey(middleware)
       if (!(key in middlewares)) {
         middlewares[key] = []
       }
       middlewares[key].push(middleware)
 
-      return context
+      return context as T
     },
 
     get config() {
       return configured.then(() => context.cfg)
     },
 
-    service: alias => {
+    service: <T>(alias: string) => {
       const id = initializeLayer(services, context.cfg.layer, context.cfg.layerId)
 
       let _service: Service
@@ -151,27 +155,27 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
           throw new SyntaxError(`Service ${alias} is not initialized`)
         }
       }
-      return _service
+      return _service as T
     },
 
-    module: alias => {
+    module: <T>(alias: string) => {
       if (modules[alias] != null) {
-        return modules[alias]
+        return modules[alias] as T
       }
       throw new SyntaxError(`Module ${alias} not found`)
     },
 
-    resource: alias => {
+    resource: <T>(alias: string) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
       if (resources[context.cfg.layer][id][alias] != null) {
-        return resources[context.cfg.layer][id][alias]
+        return resources[context.cfg.layer][id][alias] as T
       }
       throw new SyntaxError(`Resource ${alias} not found`)
     },
 
-    modules: () => Object.values(modules),
+    modules: <T>() => Object.values(modules) as T[],
 
-    updateContext: (id, layer) => {
+    updateContext: <T>(id?: string, layer?: Layer) => {
       const index = layersOrder.indexOf(context.cfg.layer)
       layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
       if (layer == null) {
@@ -187,19 +191,19 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
       // Cache initalized context layers
       const key = `${layer}:${id}`
       if (key in contexts) {
-        return contexts[key]
+        return contexts[key] as T
       }
 
       const _config: C = JSON.parse(JSON.stringify(context.cfg))
       _config.layer = layer
       _config.ready = false
       _config.layerId = id
-      const _context = makeContext(_config)
+      // @TODO we need to make a rule to store all makeContext methods after they are applied
+      const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
 
       id = initializeLayer(resources, layer, id)
 
       applyMiddlewares(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
-        .then(() => _context.configure().init())
 
       getAllServices(services, layer, id).forEach(service => _context.registerService(service))
 
@@ -213,9 +217,9 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
       applyMiddlewares(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
         .then(() => _context.configure().init())
 
-      return contexts[key] = _context
+      return (contexts[key] = _context) as T
     }
-  } as T
+  }
 
   return context
 }
