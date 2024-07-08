@@ -1,6 +1,6 @@
 import { Layer, MiddlewareStage, MiddlewareType } from '../consts.js'
 import type { BasicConfig, BasicContext, Middleware, Resource, Service } from '../types.js'
-import type { InLayer, Services } from './layer.js'
+import type { InLayer } from './layer.js'
 
 export const getMiddlerwareKey = (middleware: Middleware) => createMiddlewareKey(middleware.type, middleware.stage)
 
@@ -20,18 +20,8 @@ export const layersOrder = [
   Layer.User
 ]
 
-export const getAllServices = (services: InLayer<Services>, layer: Layer, id: string) => {
-  const repeated = new Set<Service>()
-  return services?.[layer]?.[id] != null ? Object.values(services[layer][id])
-    .flatMap(services => Object.values(services)).filter(service => {
-      if (repeated.has(service)) {
-        return false
-      }
-      repeated.add(service)
-
-      return true
-    }) : []
-}
+export const getAllServices = (services: InLayer<Record<string, Service>>, layer: Layer, id: string) => 
+  services?.[layer]?.[id] != null ? Object.values(services[layer][id]) : []
 
 export const applyMiddlewares = <C extends BasicConfig>(
   context: BasicContext<C>,

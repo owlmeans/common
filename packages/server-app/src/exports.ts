@@ -9,7 +9,7 @@ export type { ServerModule as Module } from '@owlmeans/server-module'
 export { route as broute } from '@owlmeans/server-route'
 export { handleRequest } from '@owlmeans/server-api'
 export { route } from '@owlmeans/route'
-export { DEFAULT_ALIAS as DAUTH_GUARD, intermediate as auth } from '@owlmeans/server-auth'
+export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/server-auth'
 export { klusterize } from '@owlmeans/kluster'
 
 export { modules } from '@owlmeans/server-auth'

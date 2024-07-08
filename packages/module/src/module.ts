@@ -3,18 +3,19 @@ import { appendContextual } from '@owlmeans/context'
 import type { CreateModuleSignature } from './utils/types.js'
 
 export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
+  let guards: string[] | null = null
   const module: CommonModule = appendContextual<CommonModule>(route.route.alias, {
-    _module: true, 
-    
+    _module: true,
+
     sticky: false,
-    
+
     route,
 
     getAlias: () => module.route.route.alias,
-    getPath: () =>  module.route.route.path,
+    getPath: () => module.route.route.path,
     getParentAlias: () => module.route.route.parent ?? null,
     hasParent: () => module.getParentAlias() != null,
-    
+
     resolve: async <M extends CommonModule>() => {
       if (module.ctx == null) {
         throw new SyntaxError(`Module has no context yet - ${module.getAlias()}`)
@@ -33,7 +34,7 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
       if (module.ctx == null) {
         throw new SyntaxError(`Module has no context yet - ${module.getAlias()}`)
       }
-      
+
       return module.ctx.module(parent)
     },
 
@@ -42,6 +43,19 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
         throw new SyntaxError(`Cannot update a resolved module - ${module.getAlias()}`)
       }
       module.route.route.service = service
+    },
+
+    getGuards: () => {
+      if (guards != null) {
+        return guards
+      }
+      guards = module.guards ?? []
+
+      if (module.hasParent()) {
+        guards.push(...module.getParent().getGuards())
+      }
+
+      return guards
     },
 
     ...opts

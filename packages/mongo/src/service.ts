@@ -1,30 +1,104 @@
-import { assertContext, createLazyService } from '@owlmeans/context'
+import { assertContext, createLazyService, Layer } from '@owlmeans/context'
 import type { MongoService } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { MongoClient } from 'mongodb'
 import { prepareConfig } from './utils/config.js'
 import { setUpCluster } from './utils/cluster.js'
+import type { DbConfig } from '@owlmeans/config'
+import { dbName } from './utils/name.js'
 
 type Config = ServerConfig
 interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService => {
   const location = `mongo:${alias}`
+
+  const cachedAliases = new Set<string>()
+  const cachedConfigs = new Map<string, DbConfig>()
+  const cachedNames = new Map<string, string>()
+
   const service: MongoService = createLazyService<MongoService>(alias, {
     clients: {},
 
-    initialize: async alias => {
-      alias = alias ?? service.alias
+    ensureConfigAlias: configAlias => {
+      let config: DbConfig | undefined = typeof configAlias === 'object' ? configAlias : undefined
+      configAlias = typeof configAlias === 'string' ? configAlias : config?.alias ?? service.alias
+
+      if (cachedAliases.has(configAlias)) {
+        return configAlias
+      }
+
+      if (configAlias === service.alias) {
+        const context = assertContext<Config, Context>(service.ctx as Context, location)
+        config = context.cfg.dbs?.find(db => db.alias === service.alias)
+        if (config == null) {
+          config = context.cfg.dbs?.find(db => db.alias == null)  
+          if (config != null) {
+            config.alias = service.alias
+          }
+        }
+        if (config == null) {
+          throw new SyntaxError(`No config for mongo initialization ${configAlias} in ${service.alias}`)
+        }
+      }
+
+      cachedAliases.add(configAlias)
+
+      return configAlias
+    },
+
+    config: configAlias => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
-      let config = context.cfg.dbs?.find(db => db.alias === alias)
-      if (config == null) {
-        config = context.cfg.dbs?.find(db => db.alias == null)
+      configAlias = service.ensureConfigAlias(configAlias)
+
+      const cached = cachedConfigs.get(configAlias)
+      if (cached != null) {
+        return cached
       }
+
+      const config = context.cfg.dbs?.find(db => db.alias === configAlias)
+      
       if (config == null) {
-        throw new SyntaxError(`No config for mongo initialization ${alias} in ${service.alias}`)
+        throw new SyntaxError(`No config for mongo initialization ${configAlias} in ${service.alias}`)
       }
-      config.alias = alias
+
+      cachedConfigs.set(configAlias, config)
+
+      return config
+    },
+
+    name: configAlias => {
+      configAlias = service.ensureConfigAlias(configAlias)
+      const chached = cachedNames.get(configAlias)
+      if (chached != null) {
+        console.log('RETURN CHACHED NAME', chached)
+        return chached
+      }
+
+      const context = assertContext<Config, Context>(service.ctx as Context, location)
+      const config = service.config(configAlias)
+
+      const name = dbName(context, service, config)
+
+      cachedNames.set(configAlias, name)
+
+      return name
+    },
+
+    initialize: async configAlias => {
+      configAlias = service.ensureConfigAlias(configAlias)
+      const config = service.config(configAlias)
+
+      if (service.clients[configAlias] != null) {
+        return
+      }
+
+      if (config.entitySensitive) {
+        if (service.layers == null) {
+          service.layers = [Layer.Global, Layer.Entity]
+        }
+      }
 
       let [url, options] = prepareConfig(config)
 
@@ -37,26 +111,28 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
         client = new MongoClient(url, options)
       }
 
-      if (service.clients[alias] != null) {
-        throw new SyntaxError(`Cannot replace existing mongo client: ${alias} - ${service.alias}`)
+      if (service.clients[configAlias] != null) {
+        throw new SyntaxError(`Cannot replace existing mongo client: ${configAlias} - ${service.alias}`)
       }
 
-      service.clients[alias] = client
-
+      service.clients[configAlias] = client
     },
 
     reinitializeContext: <T>() => {
-      const service = makeMongoService(alias)
+      const _service = makeMongoService(alias)
 
-      service.clients = service.clients
+      _service.layers = service.layers
 
-      return service as T
+      return _service as T
     }
   }, service => async () => {
     const context = assertContext<Config, Context>(service.ctx as Context, location)
-    if (context == null) {
-      throw new SyntaxError('No context in during mongo initialization')
-    }
+
+    // Try to initialize all connections
+    console.log(`INITIALIZE DB IN ANOTHER LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
+    await Promise.all(context.cfg.dbs?.map(async dbConfig => {
+      await service.initialize(dbConfig.alias)
+    }) ?? [])
 
     service.initialized = true
   })

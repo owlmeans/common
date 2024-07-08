@@ -1,7 +1,4 @@
 import { Layer } from '../consts'
-import type { Service } from '../types'
-
-export interface Services extends Record<string, Record<string, Service>> {}
 
 export interface InLayer<T> extends Record<Layer, Record<string, T>> { }
 

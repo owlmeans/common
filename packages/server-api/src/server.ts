@@ -49,9 +49,10 @@ export const createApiServer = (alias: string): ApiServer => {
           if (result != null) {
             context = result
           }
-          executeResponse(response, reply)
+          executeResponse(response, reply, true)
         }
       }, Promise.resolve());
+      // We pass context further using fastify request object
       (request as any)._ctx = context
     })
 
@@ -61,6 +62,7 @@ export const createApiServer = (alias: string): ApiServer => {
         .map(async module => {
           await module.route.resolve(context as any)
           const method = module.route.route.method ?? RouteMethod.GET
+          console.log('register module: ', module.getPath(), module.getAlias())
           server.route({
             url: module.getPath(), method,
             schema: {

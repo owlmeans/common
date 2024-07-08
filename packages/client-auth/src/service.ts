@@ -4,8 +4,9 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 import { AuthorizationError, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import { Module } from '@owlmeans/client-module'
+import { ClientModule } from '@owlmeans/client-module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
+import { authMiddleware } from './middleware.js'
 
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const location = `auth-service:${alias}`
@@ -19,7 +20,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     authenticate: async token => {
       const ctx = assertContext(service.ctx, location)
 
-      const [authToken] = await ctx!.module<Module<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+      const [authToken] = await ctx!.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
 
       const [, authorization] = authToken.token.split(' ')
 
@@ -53,6 +54,8 @@ export const appendAuthService = <C extends ClientConfig, T extends ClientContex
   const context = ctx as T & AuthServiceAppend
 
   context.registerService(service)
+
+  context.registerMiddleware(authMiddleware)
   
   context.auth = () => ctx.service(service.alias)
 

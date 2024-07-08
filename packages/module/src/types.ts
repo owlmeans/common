@@ -22,6 +22,7 @@ export interface CommonModule extends BasicModule {
   resolve: <M extends CommonModule>() => Promise<M>
   getParent: <M extends CommonModule>() => M
   setService: (service: string) => void
+  getGuards: () => string[]
 }
 
 export interface CommonModuleOptions extends Partial<CommonModule> { }

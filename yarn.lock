@@ -1096,8 +1096,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/mongo@workspace:packages/mongo"
   dependencies:
+    "@noble/hashes": "npm:^1.4.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
+    "@scure/base": "npm:^1.1.7"
     "@types/node": "npm:^20.14.9"
     mongodb: "npm:^6.8.0"
     nodemon: "npm:^3.1.4"

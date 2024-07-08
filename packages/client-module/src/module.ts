@@ -4,7 +4,7 @@ import type { AbstractRequest, CommonModule } from '@owlmeans/module'
 import { isModule, makeBasicModule, normalizeHelperParams, validate } from './utils/module.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
 import { apiCall, apiHandler, urlCall } from './utils/handler.js'
-import { AppType, appendContextual } from '@owlmeans/context'
+import { AppType } from '@owlmeans/context'
 import { normalizePath } from '@owlmeans/route'
 import type { CommonRouteModel } from '@owlmeans/route'
 import { provideRequest } from './helper.js'
@@ -26,14 +26,35 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     (('route' in module.route ? module.route.route.type : module.route.type)
       === AppType.Backend ? apiHandler : undefined)
 
-  const getPath = (partial?: boolean) =>
+  if (isModule(module)) {
+    assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
+    const rotueModel = route(module.route, opts?.routeOptions)
+    _module = module as ClientModule<T, R>
+    _module.route = rotueModel
+    _module.guards = opts?.guards ?? module.guards,
+      _module.filter = opts?.filter ?? module.filter,
+      _module.gate = opts?.gate ?? module.gate
+
+  } else if (isClientRouteModel(module)) {
+    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
+    _module = makeBasicModule(module, { ...opts }) as ClientModule<T, R>
+    _module.route = module
+
+  } else {
+    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
+    const _route = route(module, opts?.routeOptions)
+    _module = makeBasicModule(_route, { ...opts }) as ClientModule<T, R>
+    _module.route = _route
+  }
+
+  _module.getPath = (partial?: boolean) =>
     partial === true ? normalizePath(_module.route.route.partialPath) : _module.route.route.path
 
   // @TODO. Right now - we expect that if we provided a handler, than this is a frontend module, 
   // so we get routes for navigation instead of calling APIs.
-  const call = handler != null ? urlCall<T, R>(moduleHanlde, opts) : apiCall<T, R>(moduleHanlde, opts)
+  _module.call = handler != null ? urlCall<T, R>(moduleHanlde, opts) : apiCall<T, R>(moduleHanlde, opts)
 
-  const _request = (request: R): R => {
+  _module.request = ((request: R): R => {
     if (moduleHanlde.ref == null) {
       throw SyntaxError(`Try to request uninitialized module ${JSON.stringify(module)}`)
     }
@@ -44,40 +65,11 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     })
 
     return _request
-  }
+  }) as any
 
-  if (isModule(module)) {
-    assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
-    const rotueModel = route(module.route, opts?.routeOptions)
-    _module = appendContextual<ClientModule<T, R>>(module.alias, {
-      ...module, route: rotueModel,
-      guards: opts?.guards ?? module.guards,
-      filter: opts?.filter ?? module.filter,
-      gate: opts?.gate ?? module.gate,
-      getPath, call, request: _request as any,
-      handle: _handler?.(moduleHanlde),
-      validate: validate(moduleHanlde),
-    })
-  } else if (isClientRouteModel(module)) {
-    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    _module = appendContextual<ClientModule<T, R>>(module.route.alias, {
-      ...makeBasicModule(module, { ...opts }),
-      route: module,
-      getPath, call, request: _request as any,
-      handle: _handler?.(moduleHanlde),
-      validate: validate(moduleHanlde),
-    })
-  } else {
-    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    const _route = route(module, opts?.routeOptions)
-    _module = appendContextual<ClientModule<T, R>>(_route.route.alias, {
-      ...makeBasicModule(_route, { ...opts }),
-      route: _route,
-      getPath, call, request: _request as any,
-      handle: _handler?.(moduleHanlde),
-      validate: validate(moduleHanlde),
-    })
-  }
+  _module.handle = _handler?.(moduleHanlde)
+
+  _module.validate = validate(moduleHanlde)
 
   moduleHanlde.ref = _module
 

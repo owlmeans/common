@@ -11,7 +11,6 @@ type Context = ServerContext<Config> & AuthServiceAppend
 export const authenticate: RefedModuleHandler<AuthToken> = handleBody(
   async (payload: AuthToken, ctx) => {
     const context = assertContext<Config, Context>(ctx as Context, 'authenticate')
-    console.log(ctx.cfg)
     return await context.auth().authenticate(payload)
   }
 )

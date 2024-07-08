@@ -5,7 +5,7 @@ import {
 } from '@owlmeans/auth'
 import type { AllowanceResponse, AllowanceRequest, AuthToken } from '@owlmeans/auth'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
-import type { Module } from '@owlmeans/client-module'
+import type { ClientModule } from '@owlmeans/client-module'
 import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -29,7 +29,7 @@ export const makeControl = (
       control.request = (request ?? { type: control.type }) as AllowanceRequest
       control.type = control.request.type as string
 
-      const [allowance] = await context.module<Module<AllowanceResponse>>(AUTHEN_INIT)
+      const [allowance] = await context.module<ClientModule<AllowanceResponse>>(AUTHEN_INIT)
         .call({ body: control.request })
 
       control.allowance = allowance
@@ -67,10 +67,10 @@ export const makeControl = (
         // We return back unwrapped challenge
         credentials.challenge = control.allowance?.challenge
 
-        const [token] = await context.module<Module<AuthToken>>(AUTHEN_AUTHEN)
+        const [token] = await context.module<ClientModule<AuthToken>>(AUTHEN_AUTHEN)
           .call({ body: credentials })
 
-        const [url, outcome] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
+        const [url, outcome] = await context.module<ClientModule<string, AuthRequest>>(DISPATCHER)
           .call({ query: token })
 
         console.log(url)

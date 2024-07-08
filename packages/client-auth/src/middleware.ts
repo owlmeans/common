@@ -1,6 +1,7 @@
 import type { BasicConfig, BasicContext, Middleware } from '@owlmeans/context'
 import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
-import { provideRequest, type Module } from '@owlmeans/client-module'
+import { provideRequest } from '@owlmeans/client-module'
+import type { ClientModule } from '@owlmeans/client-module'
 import type { AuthService } from './types.js'
 import { AUTH_HEADER } from '@owlmeans/auth'
 import type { AbstractRequest } from '@owlmeans/module'
@@ -9,14 +10,14 @@ export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
   stage: MiddlewareStage.Loading,
   apply: async (context) => {
-    context.modules<Module<unknown>>().map(module => {
+    context.modules<ClientModule<unknown>>().map(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards: string[] = []
-        let _module: Module<unknown> | null = module
+        let _module: ClientModule<unknown> | null = module
         do {
           guards.push(...(_module.guards ?? []))
           if (_module.hasParent()) {
-            _module = context.module<Module<unknown>>(_module.getParentAlias() as string)
+            _module = context.module<ClientModule<unknown>>(_module.getParentAlias() as string)
           } else {
             _module = null
           }

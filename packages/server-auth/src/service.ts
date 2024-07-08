@@ -26,6 +26,10 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
   const service: AuthService = createService<AuthService>(alias, {
     match: async (req) => {
+      console.log('MATCH AUTH SERVICE')
+      const tmp = {...req}
+      delete tmp.original
+      console.log(tmp)
       let authorization = req.headers[AUTH_HEADER]
       authorization = Array.isArray(authorization) ? authorization[0] : authorization
 
