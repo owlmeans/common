@@ -3,16 +3,38 @@ import { useFormContext, Controller } from 'react-hook-form'
 import { TextProps } from './types'
 
 import TextField from '@mui/material/TextField'
+import { useFormError, useFormI18n } from '../utils.js'
 
-export const Text: FC<TextProps> = ({ name, label, placeholder, hint }) => {
+export const Text: FC<TextProps> = ({ name, label, placeholder, hint, def }) => {
   const { control } = useFormContext()
+  const t = useFormI18n()
+  const key = name
+  if (typeof label === 'boolean' && label) {
+    label = t(`${key}.label`)
+  } else {
+    label = undefined
+  }
+  if (typeof placeholder === 'boolean' && placeholder) {
+    placeholder = t(`${key}.placeholder`)
+  } else {
+    placeholder = undefined
+  }
+  if (typeof hint === 'boolean' && hint) {
+    hint = t(`${key}.hint`)
+  } else {
+    hint = undefined
+  }
 
-  return <Controller control={control} name={name} render={
-    ({ field, fieldState }) => <TextField {...field}
-      error={fieldState.error != null}
-      label={label}
-      placeholder={placeholder}
-      helperText={fieldState.error?.message ?? hint}
-    />
+  return <Controller control={control} name={name} defaultValue={def} render={
+    ({ field, fieldState }) => {
+      const error = useFormError(name, fieldState.error)
+
+      return <TextField {...field}
+        error={fieldState.error != null}
+        label={label}
+        placeholder={placeholder}
+        helperText={error ?? hint}
+      />
+    }
   } />
 }

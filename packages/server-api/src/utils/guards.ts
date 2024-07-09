@@ -45,7 +45,6 @@ export const authorize = async <C extends Config, T extends Context<C>>(
       console.log('guard failed', guard.alias)
       throw new AuthFailedError(guard.alias)
     }
-    console.log('guard passed', authResponse.value)
     executeResponse(authResponse, reply, true)
     if (authResponse.value == null) {
       throw SyntaxError(`Guard that returns true and does not provide an error, should provide authorization`)

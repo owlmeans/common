@@ -46,7 +46,7 @@ export interface BasicModule extends Contextual {
   _module: true
 }
 
-export interface Resource extends Contextual {
+export interface BasicResource extends Contextual {
   layer?: Layer
   init?: () => Promise<void> // After context switch the resource should be able to reinitialize
 }
@@ -68,13 +68,13 @@ export interface BasicContext<C extends BasicConfig> {
   registerService: <T extends BasicContext<C>>(service: Service) => T
   registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
   registerModules: <T extends BasicContext<C>>(module: BasicModule[]) => T
-  registerResource: <T extends BasicContext<C>>(resource: Resource) => T
+  registerResource: <T extends BasicContext<C>>(resource: BasicResource) => T
   registerMiddleware: <T extends BasicContext<C>>(middleware: Middleware) => T
 
   get config(): Promise<C>
   service: <T extends Service>(alias: string) => T
   module: <T extends BasicModule>(alias: string) => T
-  resource: <T extends Resource>(alias: string) => T
+  resource: <T extends BasicResource>(alias: string) => T
 
   modules: <T extends BasicModule>() => T[]
 

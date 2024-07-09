@@ -1,7 +1,8 @@
+import type { FormFieldProps } from '../types.js'
 
-export interface TextProps {
+export interface TextProps extends FormFieldProps {
   name: string
-  label?: string
-  placeholder?: string
-  hint?: string
+  label?: string | boolean
+  placeholder?: string | boolean
+  hint?: string | boolean
 }

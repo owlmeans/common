@@ -1,4 +1,5 @@
-import type { BasicResource, ListCriteriaParams } from './utils/types.js'
+import type { BasicResource } from '@owlmeans/context'
+import type { ListCriteriaParams } from './utils/types.js'
 
 export interface Resource<T extends ResourceRecord> extends BasicResource {
   /**
@@ -21,7 +22,7 @@ export interface Resource<T extends ResourceRecord> extends BasicResource {
 }
 
 export interface ResourceRecord {
-  id: string
+  id?: string
 }
 
 export interface ListCriteria extends Record<string, ListCriteria | number | string | undefined> { }

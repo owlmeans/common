@@ -1,5 +1,5 @@
 import { Layer, MiddlewareStage, MiddlewareType } from '../consts.js'
-import type { BasicConfig, BasicContext, Middleware, Resource, Service } from '../types.js'
+import type { BasicConfig, BasicContext, Middleware, BasicResource, Service } from '../types.js'
 import type { InLayer } from './layer.js'
 
 export const getMiddlerwareKey = (middleware: Middleware) => createMiddlewareKey(middleware.type, middleware.stage)
@@ -9,7 +9,7 @@ export const createMiddlewareKey = (type: MiddlewareType, stage: MiddlewareStage
 export const isLayerIherited = (current: Layer, parent: Layer): boolean =>
   current === parent || layersOrder.indexOf(current) > layersOrder.indexOf(parent)
 
-export const isResourceAvailable = (resource: Resource, layer: Layer) =>
+export const isResourceAvailable = (resource: BasicResource, layer: Layer) =>
   resource.layer == null || isLayerIherited(resource.layer, layer)
 
 export const layersOrder = [

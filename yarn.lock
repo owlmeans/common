@@ -109,7 +109,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.18.3, @babel/runtime@npm:^7.23.9, @babel/runtime@npm:^7.5.5, @babel/runtime@npm:^7.8.7":
+"@babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.18.3, @babel/runtime@npm:^7.23.2, @babel/runtime@npm:^7.23.9, @babel/runtime@npm:^7.5.5, @babel/runtime@npm:^7.8.7":
   version: 7.24.7
   resolution: "@babel/runtime@npm:7.24.7"
   dependencies:
@@ -388,7 +388,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hookform/resolvers@npm:^3.7.0":
+"@hookform/resolvers@npm:^3.9.0":
   version: 3.9.0
   resolution: "@hookform/resolvers@npm:3.9.0"
   peerDependencies:
@@ -847,6 +847,7 @@ __metadata:
     "@owlmeans/client-api": "npm:^0.1.0"
     "@owlmeans/client-context": "npm:^0.1.0"
     "@owlmeans/client-module": "npm:^0.1.0"
+    "@owlmeans/client-resource": "npm:^0.1.0"
     "@owlmeans/client-route": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/error": "npm:^0.1.0"
@@ -880,18 +881,28 @@ __metadata:
     "@owlmeans/client-config": "npm:0.1.0"
     "@owlmeans/config": "npm:0.1.0"
     "@owlmeans/context": "npm:0.1.0"
+    "@owlmeans/i18n": "npm:0.1.0"
     "@owlmeans/route": "npm:0.1.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
-"@owlmeans/client-i18n@workspace:packages/client-i18n":
+"@owlmeans/client-i18n@npm:^0.1.0, @owlmeans/client-i18n@workspace:packages/client-i18n":
   version: 0.0.0-use.local
   resolution: "@owlmeans/client-i18n@workspace:packages/client-i18n"
   dependencies:
+    "@owlmeans/client": "npm:^0.1.0"
+    "@owlmeans/client-context": "npm:^0.1.0"
+    "@owlmeans/i18n": "npm:^0.1.0"
+    "@types/react": "npm:^18.3.3"
+    i18next: "npm:^23.11.5"
     nodemon: "npm:^3.1.4"
+    react: "npm:^18.3.1"
+    react-i18next: "npm:^14.1.2"
     typescript: "npm:^5.4.5"
+  peerDependencies:
+    react: "*"
   languageName: unknown
   linkType: soft
 
@@ -920,11 +931,12 @@ __metadata:
   dependencies:
     "@emotion/react": "npm:^11.11.4"
     "@emotion/styled": "npm:^11.11.5"
-    "@hookform/resolvers": "npm:^3.7.0"
+    "@hookform/resolvers": "npm:^3.9.0"
     "@mui/material": "npm:^5.15.21"
     "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-auth": "npm:^0.1.0"
+    "@owlmeans/client-i18n": "npm:^0.1.0"
     "@owlmeans/client-module": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
@@ -966,14 +978,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/client-resource@workspace:packages/client-resource":
+"@owlmeans/client-resource@npm:^0.1.0, @owlmeans/client-resource@workspace:packages/client-resource":
   version: 0.0.0-use.local
   resolution: "@owlmeans/client-resource@workspace:packages/client-resource"
   dependencies:
+    "@noble/hashes": "npm:^1.4.0"
+    "@owlmeans/client-context": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
+    "@owlmeans/resource": "npm:^0.1.0"
+    "@scure/base": "npm:^1.1.7"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
-  peerDependencies:
-    react: "*"
   languageName: unknown
   linkType: soft
 
@@ -1045,7 +1060,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/i18n@workspace:packages/i18n":
+"@owlmeans/i18n@npm:0.1.0, @owlmeans/i18n@npm:^0.1.0, @owlmeans/i18n@workspace:packages/i18n":
   version: 0.0.0-use.local
   resolution: "@owlmeans/i18n@workspace:packages/i18n"
   dependencies:
@@ -1389,6 +1404,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/web-db@npm:^0.1.0, @owlmeans/web-db@workspace:packages/web-db":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-db@workspace:packages/web-db"
+  dependencies:
+    "@owlmeans/client-context": "npm:^0.1.0"
+    "@owlmeans/client-resource": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
+    idb-keyval: "npm:^6.2.1"
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/web-panel@workspace:packages/web-panel":
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-panel@workspace:packages/web-panel"
@@ -1398,12 +1426,17 @@ __metadata:
     "@owlmeans/client-auth": "npm:^0.1.0"
     "@owlmeans/client-config": "npm:^0.1.0"
     "@owlmeans/client-context": "npm:^0.1.0"
+    "@owlmeans/client-i18n": "npm:^0.1.0"
     "@owlmeans/client-panel": "npm:^0.1.0"
+    "@owlmeans/client-resource": "npm:^0.1.0"
     "@owlmeans/config": "npm:^0.1.0"
+    "@owlmeans/i18n": "npm:^0.1.0"
     "@owlmeans/module": "npm:^0.1.0"
     "@owlmeans/web-client": "npm:^0.1.0"
+    "@owlmeans/web-db": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18"
+    i18next-browser-languagedetector: "npm:^8.0.0"
     nodemon: "npm:^3.1.4"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
@@ -2660,6 +2693,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"html-parse-stringify@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "html-parse-stringify@npm:3.0.1"
+  dependencies:
+    void-elements: "npm:3.1.0"
+  checksum: 10c0/159292753d48b84d216d61121054ae5a33466b3db5b446e2ffc093ac077a411a99ce6cbe0d18e55b87cf25fa3c5a86c4d8b130b9719ec9b66623259000c72c15
+  languageName: node
+  linkType: hard
+
 "http-cache-semantics@npm:^4.1.1":
   version: 4.1.1
   resolution: "http-cache-semantics@npm:4.1.1"
@@ -2698,12 +2740,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"i18next-browser-languagedetector@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "i18next-browser-languagedetector@npm:8.0.0"
+  dependencies:
+    "@babel/runtime": "npm:^7.23.2"
+  checksum: 10c0/08a7c747ec18a0743b54390a0b42836d814b15fb49c92b90c259298e6a6e7e001ff9df99d0fd308283a34fceea53b4d9053aa1695a37f696bc04160017bbb524
+  languageName: node
+  linkType: hard
+
+"i18next@npm:^23.11.5":
+  version: 23.11.5
+  resolution: "i18next@npm:23.11.5"
+  dependencies:
+    "@babel/runtime": "npm:^7.23.2"
+  checksum: 10c0/b0bec64250a3e529d4c51e2fc511406a85c5dde3d005d3aabe919551ca31dfc0a8f5490bf6e44649822e895a1fa91a58092d112367669cd11b2eb89e6ba90d1a
+  languageName: node
+  linkType: hard
+
 "iconv-lite@npm:^0.6.2":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
   dependencies:
     safer-buffer: "npm:>= 2.1.2 < 3.0.0"
   checksum: 10c0/98102bc66b33fcf5ac044099d1257ba0b7ad5e3ccd3221f34dd508ab4070edff183276221684e1e0555b145fce0850c9f7d2b60a9fcac50fbb4ea0d6e845a3b1
+  languageName: node
+  linkType: hard
+
+"idb-keyval@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "idb-keyval@npm:6.2.1"
+  checksum: 10c0/9f0c83703a365e00bd0b4ed6380ce509a06dedfc6ec39b2ba5740085069fd2f2ff5c14ba19356488e3612a2f9c49985971982d836460a982a5d0b4019eeba48a
   languageName: node
   linkType: hard
 
@@ -3650,6 +3717,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-i18next@npm:^14.1.2":
+  version: 14.1.2
+  resolution: "react-i18next@npm:14.1.2"
+  dependencies:
+    "@babel/runtime": "npm:^7.23.9"
+    html-parse-stringify: "npm:^3.0.1"
+  peerDependencies:
+    i18next: ">= 23.2.3"
+    react: ">= 16.8.0"
+  peerDependenciesMeta:
+    react-dom:
+      optional: true
+    react-native:
+      optional: true
+  checksum: 10c0/cb8a83b3696639f083dc9f770d9d9e0681c0fe56f6b5fe24cd6facce08d363c37bd3440078e9d63abacabd7037b783e6b4e4d0c935de9c8dda7820bd4ef7e329
+  languageName: node
+  linkType: hard
+
 "react-is@npm:^16.13.1, react-is@npm:^16.7.0":
   version: 16.13.1
   resolution: "react-is@npm:16.13.1"
@@ -4347,6 +4432,13 @@ __metadata:
     core-util-is: "npm:1.0.2"
     extsprintf: "npm:^1.2.0"
   checksum: 10c0/37ccdf8542b5863c525128908ac80f2b476eed36a32cb944de930ca1e2e78584cc435c4b9b4c68d0fc13a47b45ff364b4be43aa74f8804f9050140f660fb660d
+  languageName: node
+  linkType: hard
+
+"void-elements@npm:3.1.0":
+  version: 3.1.0
+  resolution: "void-elements@npm:3.1.0"
+  checksum: 10c0/0b8686f9f9aa44012e9bd5eabf287ae0cde409b9a2854c5a2335cb83920c957668ac5876e3f0d158dd424744ac411a7270e64128556b451ed3bec875ef18534d
   languageName: node
   linkType: hard
 

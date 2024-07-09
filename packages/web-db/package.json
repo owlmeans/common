@@ -1,0 +1,32 @@
+{
+  "name": "@owlmeans/web-db",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-resource": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "idb-keyval": "^6.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "typescript": "^5.4.5"
+  }
+}

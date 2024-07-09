@@ -1,5 +1,7 @@
 import type { Auth, AuthToken } from '@owlmeans/auth'
+import type { ClientResource } from '@owlmeans/client-resource'
 import type { GuardService } from '@owlmeans/module'
+import type { ResourceRecord } from '@owlmeans/resource'
 
 export interface AuthService extends GuardService {
   auth?: Auth
@@ -8,10 +10,17 @@ export interface AuthService extends GuardService {
    * @throws {AuthenFailed}
    */
   authenticate: (token: AuthToken) => Promise<void>
-  authenticated: () => boolean
+  authenticated: () => Promise<boolean>
   user: () => Auth
 }
 
 export interface AuthServiceAppend {
   auth: () => AuthService
+}
+
+export interface ClientAuthRecord extends ResourceRecord {
+  token: string
+}
+
+export interface ClientAuthResource extends ClientResource<ClientAuthRecord> {
 }

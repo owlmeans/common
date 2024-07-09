@@ -32,10 +32,15 @@
     "@owlmeans/client-auth": "^0.1.0",
     "@owlmeans/client-config": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-i18n": "^0.1.0",
     "@owlmeans/client-panel": "^0.1.0",
+    "@owlmeans/client-resource": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
+    "@owlmeans/i18n": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
-    "@owlmeans/web-client": "^0.1.0"
+    "@owlmeans/web-client": "^0.1.0",
+    "@owlmeans/web-db": "^0.1.0",
+    "i18next-browser-languagedetector": "^8.0.0"
   },
   "peerDependencies": {
     "react": "*",

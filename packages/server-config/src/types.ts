@@ -1,5 +1,5 @@
-import type { Config } from '@owlmeans/config'
+import type { CommonConfig } from '@owlmeans/config'
 
-export interface BasicServerConfig extends Config {
+export interface BasicServerConfig extends CommonConfig {
   secrets: Record<string, string>
 }

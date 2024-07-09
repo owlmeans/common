@@ -15,6 +15,10 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context }) => {
       const auth = context.service<AuthService>(DEFAULT_ALIAS)
       auth.authenticate(token)
         .then(async () => {
+          // @TODO different clients can store in different places
+          // @TODO client auth shouldn't depend on local storage
+          localStorage.setItem('owlmeans-debug-auth-tokne', auth.token as string)
+
           const [url] = await context.module<ClientModule<string>>(HOME).call()
           navigate(url)
         }).catch((e: Error) => {

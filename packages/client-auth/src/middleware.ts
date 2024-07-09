@@ -12,23 +12,14 @@ export const authMiddleware: Middleware = {
   apply: async (context) => {
     context.modules<ClientModule<unknown>>().map(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
-        const guards: string[] = []
-        let _module: ClientModule<unknown> | null = module
-        do {
-          guards.push(...(_module.guards ?? []))
-          if (_module.hasParent()) {
-            _module = context.module<ClientModule<unknown>>(_module.getParentAlias() as string)
-          } else {
-            _module = null
-          }
-        } while (_module != null)
+        const guards = module.getGuards()
         const [service] = guards
         if (service != null) {
           // @TODO guards may have not compatible type with AuthService
           const auth = context.service<AuthService>(service)
           const call = module.call
           module.call = async (req, res) => {
-            if (auth.authenticated()) {
+            if (await auth.authenticated()) {
               await module.route.resolve((module.ctx ?? context) as BasicContext<BasicConfig>)
               const _req: Partial<AbstractRequest> = req ?? provideRequest(module.getAlias(), module.getPath())
               // @TODO Authorization header may already present

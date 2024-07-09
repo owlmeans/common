@@ -1,10 +1,10 @@
-import type { AuthService, AuthServiceAppend } from './types.js'
-import { DEFAULT_ALIAS } from './consts.js'
+import type { AuthService, AuthServiceAppend, ClientAuthResource } from './types.js'
+import { AUTH_RESOURCE, DEFAULT_ALIAS, USER_ID } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 import { AuthorizationError, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import { ClientModule } from '@owlmeans/client-module'
+import type { ClientModule } from '@owlmeans/client-module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { authMiddleware } from './middleware.js'
 
@@ -18,9 +18,12 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     authenticate: async token => {
-      const ctx = assertContext(service.ctx, location)
+      const context = assertContext(service.ctx, location)
 
-      const [authToken] = await ctx!.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+      const [authToken] = await context!.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+
+      const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
+      await authResource.save({ id: USER_ID, token: authToken.token })
 
       const [, authorization] = authToken.token.split(' ')
 
@@ -31,7 +34,28 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       service.token = authToken.token
     },
 
-    authenticated: () => service.token != null,
+    authenticated: async () => {
+      // @TODO different clients require different implementations
+      // @TODO client auth shouldn't depend on local storage
+      if (service.token == null) {
+        const context = assertContext(service.ctx, location)
+        const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
+        const record = await authResource.load(USER_ID)
+
+        if (record != null) {
+          const token = record.token
+          service.token = token
+
+          const [, authorization] = token.split(' ')
+
+          const envelope = makeEnvelopeModel(authorization, EnvelopeKind.Token)
+
+          service.auth = envelope.message<Auth>()
+        }
+      }
+
+      return service.token != null
+    },
 
     user: () => {
       if (service.auth == null) {
@@ -56,7 +80,7 @@ export const appendAuthService = <C extends ClientConfig, T extends ClientContex
   context.registerService(service)
 
   context.registerMiddleware(authMiddleware)
-  
+
   context.auth = () => ctx.service(service.alias)
 
   return context

@@ -1,5 +1,5 @@
 import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
-import type { BasicConfig, BasicContext, Middleware, BasicModule, Resource, Service } from './types.js'
+import type { BasicConfig, BasicContext, Middleware, BasicModule, BasicResource, Service } from './types.js'
 import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
 import { DEFAULT, InLayer, initializeLayer } from './utils/layer.js'
 
@@ -8,11 +8,11 @@ type Module = BasicModule
 export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C> => {
   const services = {} as InLayer<Record<string, Service>>
   const modules = {} as InLayer<Record<string, Module>>
-  const resources = {} as InLayer<Record<string, Resource>>
+  const resources = {} as InLayer<Record<string, BasicResource>>
   const middlewares: Record<string, Middleware[]> = {}
   const allServices: Record<string, Service> = {}
   const allModules: Record<string, Module> = {}
-  const allResources: Record<string, Resource> = {}
+  const allResources: Record<string, BasicResource> = {}
 
   let configure: (res: boolean) => void
   let initialize: (resv: boolean) => void
@@ -46,38 +46,43 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
     init: async <T>() => {
       // void (async () => {
-        await configured
+      await configured
 
-        await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
+      await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
 
-        await Promise.all(
-          getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).map(async service => {
-            console.log(`Initializing service ${service.alias}...`)
-            if (!service.initialized) {
-              if (service.init != null) {
-                console.log(`... call init for ${service.alias}`)
-                await service.init()
-              }
-              if (service.init == null && service.lazyInit == null) {
-                service.initialized = true
-              }
+      await Promise.all(
+        getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).map(async service => {
+          console.log(`Initializing service ${service.alias}...`)
+          if (!service.initialized) {
+            if (service.init != null) {
+              console.log(`... call init for ${service.alias}`)
+              await service.init()
             }
-          })
-        )
+            if (service.init == null && service.lazyInit == null) {
+              service.initialized = true
+            }
+          }
+        })
+      )
 
-        await applyMiddlewares(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
+      await applyMiddlewares(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
 
-        await Promise.all(
-          Object.values(resources).map(resource => isResourceAvailable(resource, context.cfg.layer) && resource.init?.())
-        )
+      const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId ?? DEFAULT)
+      await Promise.all(
+        Object.values(resources[context.cfg.layer][id]).map(async resource => {
+          if (isResourceAvailable(resource, context.cfg.layer)) {
+            await resource.init?.()
+          }
+        })
+      )
 
-        await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
+      await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
 
-        context.stage = ContextStage.Ready
-        context.cfg.ready = true
-        initialize(true)
+      context.stage = ContextStage.Ready
+      context.cfg.ready = true
+      initialize(true)
 
-        void applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
+      void applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
       // })()
 
       return context as T
@@ -115,7 +120,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return context as T
     },
 
-    registerResource: <T>(resource: Resource) => {
+    registerResource: <T>(resource: BasicResource) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
       resource = resource.registerContext(context)
       if (allResources[resource.alias] == null) {
@@ -176,10 +181,12 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       throw new SyntaxError(`Module ${alias} not found`)
     },
 
-    resource: <T>(alias: string) => {
+    resource: <T extends BasicResource>(alias: string) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
       if (resources[context.cfg.layer][id][alias] != null) {
-        return resources[context.cfg.layer][id][alias] as T
+        const resource = resources[context.cfg.layer][id][alias] as T
+
+        return resource
       }
       throw new SyntaxError(`Resource ${alias} not found`)
     },
@@ -215,24 +222,20 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       // @TODO we need to make a rule to store all makeContext methods after they are applied
       const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
 
-      // void (async () => {
-        Object.values(middlewares).flatMap(middlewares => middlewares)
-          .forEach(middleware => _context.registerMiddleware(middleware))
+      Object.values(middlewares).flatMap(middlewares => middlewares)
+        .forEach(middleware => _context.registerMiddleware(middleware))
 
-        await applyMiddlewares(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
+      await applyMiddlewares(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
 
-        Object.values(allServices).map(async service => {
-          _context.registerService(service)
-        })
+      Object.values(allServices).forEach(service => _context.registerService(service))
 
-        Object.values(allModules).forEach(module => _context.registerModule(module))
+      Object.values(allModules).forEach(module => _context.registerModule(module))
 
-        Object.values(allResources).forEach(resource => _context.registerResource(resource))
+      Object.values(allResources).forEach(resource => _context.registerResource(resource))
 
-        await applyMiddlewares(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
+      await applyMiddlewares(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
 
-        await _context.configure().init()
-      // })()
+      await _context.configure().init()
 
       return (contexts[key] = _context) as T
     }
