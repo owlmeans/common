@@ -8,5 +8,6 @@ export const main = async <R, C extends AppConfig, T extends AppContext<C>>(
   ctx: T, modules: (CommonModule | ServerModule<R>)[]
 ) => {
   ctx.registerModules(modules)
-  await ctx.configure().init().waitForInitialized()
+  await ctx.configure().init()
+  await ctx.waitForInitialized()
 }

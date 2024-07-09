@@ -1,4 +1,5 @@
 import { assertContext, createLazyService, Layer } from '@owlmeans/context'
+import type { BasicContext } from '@owlmeans/context'
 import type { MongoService } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
@@ -86,6 +87,21 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
       return name
     },
 
+    client: async configAlias => {
+      await service.initialize(configAlias)
+      configAlias = service.ensureConfigAlias(configAlias)
+
+      return service.clients[configAlias]
+    },
+
+    db: async configAlias => {
+      const client = await service.client(configAlias)
+
+      const name = await service.name(configAlias)
+
+      return client.db(name)
+    },
+
     initialize: async configAlias => {
       configAlias = service.ensureConfigAlias(configAlias)
       const config = service.config(configAlias)
@@ -118,8 +134,10 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
       service.clients[configAlias] = client
     },
 
-    reinitializeContext: <T>() => {
+    reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
       const _service = makeMongoService(alias)
+
+      _service.ctx = context
 
       _service.layers = service.layers
 
@@ -130,9 +148,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
 
     // Try to initialize all connections
     console.log(`INITIALIZE DB IN ANOTHER LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
-    await Promise.all(context.cfg.dbs?.map(async dbConfig => {
-      await service.initialize(dbConfig.alias)
-    }) ?? [])
+    context.cfg.dbs?.map(async dbConfig => service.config(dbConfig.alias))
 
     service.initialized = true
   })

@@ -35,13 +35,17 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
       const response = provideResponse(reply)
       const request = provideRequest(module.alias, req)
 
-      module = await authorize(context, module, req, reply)
+      const authorized = await authorize(context, module, req, reply)
+      context = authorized[0]
+      module = authorized[1]
 
       if (module.gate != null) {
         let gate: GateService = context.service(module.gate)
         await gate.assert(request, response)
         executeResponse(response, reply, true)
       }
+
+      console.log('context : ', module.ctx?.cfg.layer, module.ctx?.cfg.layerId)
 
       await module.handle(request, response)
       executeResponse(response, reply, true)

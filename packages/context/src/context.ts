@@ -44,8 +44,8 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return context as T
     },
 
-    init: <T>() => {
-      void (async () => {
+    init: async <T>() => {
+      // void (async () => {
         await configured
 
         await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
@@ -78,7 +78,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
         initialize(true)
 
         void applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
-      })()
+      // })()
 
       return context as T
     },
@@ -189,7 +189,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return Object.values(modules[context.cfg.layer][id]) as T[]
     },
 
-    updateContext: <T>(id?: string, layer?: Layer) => {
+    updateContext: async <T>(id?: string, layer?: Layer) => {
       const index = layersOrder.indexOf(context.cfg.layer)
       layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
       if (layer == null) {
@@ -215,7 +215,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       // @TODO we need to make a rule to store all makeContext methods after they are applied
       const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
 
-      void (async () => {
+      // void (async () => {
         Object.values(middlewares).flatMap(middlewares => middlewares)
           .forEach(middleware => _context.registerMiddleware(middleware))
 
@@ -231,8 +231,8 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
         await applyMiddlewares(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
 
-        _context.configure().init()
-      })()
+        await _context.configure().init()
+      // })()
 
       return (contexts[key] = _context) as T
     }

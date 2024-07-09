@@ -4,6 +4,7 @@ import { isModule, makeCommonModule } from './utils/module.js'
 import { isServerRouteModel, route } from '@owlmeans/server-route'
 import type { CommonModule } from '@owlmeans/module'
 import type { CommonRouteModel } from '@owlmeans/route'
+import type { BasicContext } from '@owlmeans/context'
 
 export const module = <R>(
   arg: CommonModule | ServerRouteModel<R> | CommonRouteModel, handler?: RefedModuleHandler<R>, opts?: ModuleOptions<R>
@@ -33,8 +34,11 @@ export const module = <R>(
     _module.handle = handler(moduleHandle)
   }
 
-  _module.reinitializeContext = <T>() => {
-    return module(arg, handler, opts) as T
+  _module.reinitializeContext = <T>(context: BasicContext<any>) => {
+    const _module = module(arg, handler, opts)
+    _module.ctx = context
+
+    return _module  as T
   }
 
   moduleHandle.ref = _module

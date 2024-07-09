@@ -20,7 +20,7 @@ interface ConfigRecordItem extends Record<string, ConfigRecordItem | string | nu
 export interface Contextual {
   ctx?: BasicContext<any>
   alias: string
-  reinitializeContext?: <T extends Contextual>() => T // This method is a fix to replace context inside closed scope
+  reinitializeContext?: <T extends Contextual>(context: BasicContext<any>) => T // This method is a fix to replace context inside closed scope
   registerContext: <T extends Contextual, C extends BasicConfig>(context: BasicContext<C>) => T
 }
 
@@ -63,8 +63,8 @@ export interface BasicContext<C extends BasicConfig> {
   waitForConfigured: () => Promise<boolean>
   waitForInitialized: () => Promise<boolean>
   configure: <T extends BasicContext<C>>() => T
-  init: <T extends BasicContext<C>>() => T
-  updateContext: <T extends BasicContext<C>>(id?: string, to?: Layer) => T
+  init: <T extends BasicContext<C>>() => Promise<T>
+  updateContext: <T extends BasicContext<C>>(id?: string, to?: Layer) => Promise<T>
   registerService: <T extends BasicContext<C>>(service: Service) => T
   registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
   registerModules: <T extends BasicContext<C>>(module: BasicModule[]) => T

@@ -22,7 +22,7 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
       }
 
       await module.route.resolve(module.ctx)
-
+      
       return module as M
     },
 

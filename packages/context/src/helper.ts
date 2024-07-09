@@ -7,7 +7,7 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
     const _contextual = contextual.ctx == null
       ? contextual
       : contextual.reinitializeContext != null
-        ? contextual.reinitializeContext() : contextual
+        ? contextual.reinitializeContext(context) : contextual
 
     // We do NOT update context when it's the same contextual with already set context
     // Actuall we just do not need to switch context in many on the level of context consumer

@@ -14,7 +14,7 @@ interface Context<C extends Config = Config> extends ServerContext<C> { }
 export const authorize = async <C extends Config, T extends Context<C>>(
   context: T, module: ServerModule<FastifyRequest>,
   req: FastifyRequest, reply: FastifyReply
-): Promise<ServerModule<FastifyRequest>> => {
+): Promise<[T, ServerModule<FastifyRequest>]> => {
   const guards = module.getGuards()
   if (guards.length > 0) {
     const response = provideResponse(reply)
@@ -61,12 +61,12 @@ export const authorize = async <C extends Config, T extends Context<C>>(
 
       if (isContextWithoutIds(context as any) && context.cfg.layer !== Layer.Service) {
         console.log('align context with service layer, waiting for initialization...')
-        context = context.updateContext(undefined, Layer.Service)
+        context = await context.updateContext(undefined, Layer.Service)
         await context.waitForInitialized()
         console.log('context intialized after update')
       }
       console.log(`align context with entity id ${request.auth.entityId} layer, waiting for initialization...`)
-      context = context.updateContext(request.auth.entityId, Layer.Entity)
+      context = await context.updateContext(request.auth.entityId, Layer.Entity)
       await context.waitForInitialized()
       console.log('context intialized after update')
 
@@ -76,5 +76,5 @@ export const authorize = async <C extends Config, T extends Context<C>>(
     }
   }
 
-  return module
+  return [context, module]
 }
