@@ -6,12 +6,12 @@ export interface Envelope {
   msg: string
   sig?: string
   dt: number
-  ttl: number
+  ttl: number | null
 }
 
 export interface EnvelopeModel {
   envelope: Envelope
-  send: (msg: unknown, ttl?: number) => EnvelopeModel
+  send: (msg: unknown, ttl?: number | null) => EnvelopeModel
   wrap: () => string
   tokenize: () => string
   message: <T>() => T

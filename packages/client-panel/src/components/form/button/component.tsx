@@ -4,12 +4,14 @@ import { memo } from 'react'
 import type { ButtonProps, SubmitProps } from './types'
 
 import MUIButton from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+
 import { useFormContext } from 'react-hook-form'
 import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
 import { useFormI18n } from '../utils.js'
 
-export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n }) => {
+export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size }) => {
   const context = useContext()
   const t = useCommonI18n(i18n?.resource ?? context.cfg.service, i18n?.ns, i18n?.prefix)
   const appT = useI18nApp(context.cfg.service, 'buttons')
@@ -18,7 +20,15 @@ export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n }) => {
     defaultValue: appT(label, { defaultValue: libT(label) })
   }), [i18n?.suppress, label])
 
-  return <MUIButton variant="contained" onClick={onClick}>{label}</MUIButton>
+  size = size ?? 'medium'
+  const progressSize = size === 'large'
+    ? 20
+    : size === 'medium' ? 16 : 14
+
+  return <MUIButton variant="contained" size={size}
+    startIcon={loader != null && loader.opened === true ? <CircularProgress size={progressSize} /> : undefined}
+    disabled={loader != null && loader.opened === true}
+    onClick={onClick}>{label}</MUIButton>
 })
 
 export const SubmitButton: FC<SubmitProps> = memo((props) => {

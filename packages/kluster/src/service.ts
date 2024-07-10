@@ -1,4 +1,4 @@
-import { ACT_HOST, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
+import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
 import type { KlusterConfig, KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { KubeConfig, CoreV1Api, HttpError } from '@kubernetes/client-node'
@@ -30,10 +30,34 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
       }
     },
 
+    getServiceHostname: async selector => {
+      try {
+        const ctx = assertContext<Config, Context>(service.ctx as Context, location)
+        const namespace = ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
+
+        const { body } = await service.api!.listNamespacedService(namespace, undefined, undefined, undefined, undefined, selector)
+
+        if (body.items[0] == null) {
+          return selector
+        }
+
+        return body.items[0].metadata?.name ?? selector
+      } catch (e) {
+        if (e instanceof HttpError) {
+          console.error(e.name, e.cause, e.message, e.body)
+        } else {
+          throw e
+        }
+        return selector
+      }
+    },
+
     dispatch: async <T>(action: string, query: string) => {
       switch (action) {
         case ACT_HOST:
           return service.getHostnames(query) as T
+        case ACT_SERVICE:
+          return service.getServiceHostname(query) as T
       }
       throw new SyntaxError(`Unknown kluster directive: ${action}`)
     }

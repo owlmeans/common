@@ -20,7 +20,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.0"
+    "@owlmeans/config": "^0.1.0",
+    "@owlmeans/server-route": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

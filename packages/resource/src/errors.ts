@@ -23,6 +23,30 @@ export class UnknownRecordError extends ResourceError {
   }
 }
 
+export class MisshapedRecord extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}MisshapedRecord`
+
+  constructor(msg: string) {
+    super(`misshaped-record:${msg}`)
+  }
+}
+
+export class RecordExists extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}RecordExists`
+
+  constructor(msg: string) {
+    super(`record-exists:${msg}`)
+  }
+}
+
+export class RecordUpdateFailed extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}RecordUpdateFailed`
+
+  constructor(msg: string) {
+    super(`record-update-failed:${msg}`)
+  }
+}
+
 export class UnsupportedArgumentError extends ResourceError {
   public static override typeName = `${ResourceError.typeName}UnsupportedArgumentError`
 
@@ -41,5 +65,8 @@ export class UnsupportedMethodError extends ResourceError {
 
 ResilientError.registerErrorClass(ResourceError)
 ResilientError.registerErrorClass(UnknownRecordError)
+ResilientError.registerErrorClass(MisshapedRecord)
+ResilientError.registerErrorClass(RecordExists)
+ResilientError.registerErrorClass(RecordUpdateFailed)
 ResilientError.registerErrorClass(UnsupportedArgumentError)
 ResilientError.registerErrorClass(UnsupportedMethodError)

@@ -1,0 +1,4 @@
+{
+  "minLength": "The value is too short",
+  "maxLength": "The value is too long"
+}

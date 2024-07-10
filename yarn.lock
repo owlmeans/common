@@ -1055,6 +1055,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/error@workspace:packages/error"
   dependencies:
+    "@owlmeans/i18n": "npm:^0.1.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1097,13 +1098,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/mongo-resource@workspace:packages/mongo-resource":
+"@owlmeans/mongo-resource@npm:^0.1.0, @owlmeans/mongo-resource@workspace:packages/mongo-resource":
   version: 0.0.0-use.local
   resolution: "@owlmeans/mongo-resource@workspace:packages/mongo-resource"
   dependencies:
+    "@owlmeans/context": "npm:^0.1.0"
+    "@owlmeans/resource": "npm:^0.1.0"
+    "@owlmeans/server-context": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
+    ajv: "npm:^8.16.0"
+    mongodb: "npm:^6.8.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
+  peerDependencies:
+    mongodb: "*"
   languageName: unknown
   linkType: soft
 
@@ -1113,6 +1121,7 @@ __metadata:
   dependencies:
     "@noble/hashes": "npm:^1.4.0"
     "@owlmeans/context": "npm:^0.1.0"
+    "@owlmeans/mongo-resource": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
     "@scure/base": "npm:^1.1.7"
     "@types/node": "npm:^20.14.9"

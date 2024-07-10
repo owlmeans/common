@@ -8,6 +8,8 @@ export interface KlusterService extends LazyService {
 
   getHostnames: (selector: string) => Promise<string[]>
 
+  getServiceHostname: (selector: string) => Promise<string>
+
   dispatch: <T>(action: string, query: string) => Promise<T>
 }
 

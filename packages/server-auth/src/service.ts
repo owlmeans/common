@@ -100,7 +100,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       }
 
       const authorization = await makeEnvelopeModel(AuthroizationType.Ed25519BasicToken)
-        .send(auth).sign(_keyPair(service.ctx as Context), EnvelopeKind.Token)
+        .send(auth, null).sign(_keyPair(service.ctx as Context), EnvelopeKind.Token)
 
       return { token: `${AuthroizationType.Ed25519BasicToken.toUpperCase()} ${authorization}` }
     }

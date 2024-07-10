@@ -19,6 +19,9 @@
       "types": "./build/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/i18n": "^0.1.0"
+  },
   "devDependencies": {
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"

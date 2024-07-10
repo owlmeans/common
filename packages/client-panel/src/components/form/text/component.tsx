@@ -4,6 +4,7 @@ import { TextProps } from './types'
 
 import TextField from '@mui/material/TextField'
 import { useFormError, useFormI18n } from '../utils.js'
+import { useClientFormContext } from '../context'
 
 export const Text: FC<TextProps> = ({ name, label, placeholder, hint, def }) => {
   const { control } = useFormContext()
@@ -28,9 +29,11 @@ export const Text: FC<TextProps> = ({ name, label, placeholder, hint, def }) => 
   return <Controller control={control} name={name} defaultValue={def} render={
     ({ field, fieldState }) => {
       const error = useFormError(name, fieldState.error)
+      const { loader } = useClientFormContext()
 
-      return <TextField {...field}
+      return <TextField fullWidth {...field}
         error={fieldState.error != null}
+        disabled={loader != null && loader.opened === true}
         label={label}
         placeholder={placeholder}
         helperText={error ?? hint}

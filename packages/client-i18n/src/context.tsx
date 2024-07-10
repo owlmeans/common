@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react'
+import { memo } from 'react'
 import type { FC } from 'react'
 import type { I18nContextProps } from './types.js'
 import { I18nextProvider, useTranslation } from 'react-i18next'
@@ -12,6 +12,8 @@ export const I18nContext: FC<I18nContextProps> = memo(({ config, children }) => 
   return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
 })
 
+const i18nLoadingCache = new Set<string>()
+
 export const useCommonI18n = (resourceName: string, ns?: string, prefix?: string): TFunction => {
   const { i18n } = useTranslation()
 
@@ -19,7 +21,9 @@ export const useCommonI18n = (resourceName: string, ns?: string, prefix?: string
     ? i18n.options.defaultNS?.[0] : i18n.options.defaultNS)
     ?? DEFAULT_NAMESPACE
 
-  useEffect(() => {
+  const key = `${i18n.language}:${resourceName}:${ns}`
+  if (!i18nLoadingCache.has(key)) {
+    i18nLoadingCache.add(key)
     const resources = initI18nResource(i18n.language, resourceName, ns)
     if (resources != null) {
       resources.forEach(
@@ -32,7 +36,7 @@ export const useCommonI18n = (resourceName: string, ns?: string, prefix?: string
         resource => i18n.addResourceBundle(i18n.language, ns ?? DEFAULT_NAMESPACE, { [resourceName]: resource.data }, true, true)
       )
     }
-  }, [resourceName, ns])
+  }
 
   const { t } = useTranslation(ns, { keyPrefix: `${resourceName}${prefix != null ? `.${prefix}` : ''}` })
 

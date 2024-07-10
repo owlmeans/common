@@ -23,6 +23,7 @@ export interface DbConfig<P extends {} = {}> {
   user?: string
   secret?: string
   schema?: string
+  resourcePrefix?: string
   entitySensitive?: boolean
   meta?: P
 }

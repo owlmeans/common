@@ -62,7 +62,11 @@ export const createApiServer = (alias: string): ApiServer => {
         .map(async module => {
           await module.route.resolve(context as any)
           const method = module.route.route.method ?? RouteMethod.GET
-          console.log('register module: ', module.getPath(), module.getAlias())
+          if (module.handle == null) {
+            console.log('!!! no handler for module: ', module.getPath(), module.getAlias())
+            return 
+          }
+          console.log('))) listen module: ', module.getPath(), module.getAlias())
           server.route({
             url: module.getPath(), method,
             schema: {
@@ -87,6 +91,14 @@ export const createApiServer = (alias: string): ApiServer => {
     }
     server.listen({ port, host }).then(() => {
       console.info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`)
+    })
+
+    process.on('SIGTERM', () => {
+      console.log(`Closing http server: ${alias}`)
+      server.close().then(() => {
+        console.log(`Http server closed: ${alias}`)
+        process.exit(0)
+      })
     })
 
     service.initialized = true

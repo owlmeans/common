@@ -7,7 +7,7 @@ export const getMiddlerwareKey = (middleware: Middleware) => createMiddlewareKey
 export const createMiddlewareKey = (type: MiddlewareType, stage: MiddlewareStage) => `${type}:${stage}`
 
 export const isLayerIherited = (current: Layer, parent: Layer): boolean =>
-  current === parent || layersOrder.indexOf(current) > layersOrder.indexOf(parent)
+  (current === parent) || (layersOrder.indexOf(parent) > layersOrder.indexOf(current))
 
 export const isResourceAvailable = (resource: BasicResource, layer: Layer) =>
   resource.layer == null || isLayerIherited(resource.layer, layer)

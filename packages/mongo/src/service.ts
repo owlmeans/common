@@ -34,7 +34,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
         const context = assertContext<Config, Context>(service.ctx as Context, location)
         config = context.cfg.dbs?.find(db => db.alias === service.alias)
         if (config == null) {
-          config = context.cfg.dbs?.find(db => db.alias == null)  
+          config = context.cfg.dbs?.find(db => db.alias == null)
           if (config != null) {
             config.alias = service.alias
           }
@@ -59,7 +59,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
       }
 
       const config = context.cfg.dbs?.find(db => db.alias === configAlias)
-      
+
       if (config == null) {
         throw new SyntaxError(`No config for mongo initialization ${configAlias} in ${service.alias}`)
       }
@@ -126,6 +126,14 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
         let [url, options] = prepareConfig(config, false)
         client = new MongoClient(url, options)
       }
+
+      process.on('SIGTERM', () => {
+        console.log(`Exit mongo client ${configAlias}`)
+        client.close().then(() => {
+          console.log(`Exit mongo client: ${configAlias}`)
+          process.exit(0)
+        })
+      })
 
       if (service.clients[configAlias] != null) {
         throw new SyntaxError(`Cannot replace existing mongo client: ${configAlias} - ${service.alias}`)

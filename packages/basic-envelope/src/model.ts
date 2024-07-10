@@ -15,7 +15,7 @@ export const makeEnvelopeModel = (type: string, kind?: EnvelopeKind): EnvelopeMo
 
     send: (msg, ttl) => {
       model.envelope.msg = typeof msg == 'string' ? msg : base64.encode(utf8.decode(JSON.stringify(msg)))
-      if (ttl != null && ttl > 0) {
+      if (typeof ttl !== 'undefined') {
         model.envelope.ttl = ttl
       }
 

@@ -71,6 +71,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       await Promise.all(
         Object.values(resources[context.cfg.layer][id]).map(async resource => {
           if (isResourceAvailable(resource, context.cfg.layer)) {
+            console.log(`+ Initialize resource: ${resource.alias}:${resource.layer} in layer ${context.cfg.layer} with id ${context.cfg.layerId}...`)
             await resource.init?.()
           }
         })

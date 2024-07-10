@@ -11,7 +11,7 @@ export interface ClientModule<T, R extends AbstractRequest = AbstractRequest> ex
 
 export interface ModuleCall<T, Req extends AbstractRequest = AbstractRequest> {
   <
-    Type extends T, R extends Req, P extends AbstractResponse<Type>
+    Type extends T, R extends Req = Req, P extends AbstractResponse<Type> = AbstractResponse<Type>
   >(req?: Partial<R>, res?: P): Promise<[T, ModuleOutcome]>
 }
 
