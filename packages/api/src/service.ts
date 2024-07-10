@@ -9,7 +9,7 @@ import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
 
 type Config = BasicClientConfig
-interface Context<C extends Config = Config> extends BasicContext<C> {}
+interface Context<C extends Config = Config> extends BasicContext<C> { }
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const client: ApiClient = createService<ApiClient>(alias, {
@@ -36,7 +36,8 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       // @TODO Fix https
       const url = 'http://' + normalizePath(route.host)
-      + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+        + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+
       const response = await axios.request({
         url, method: route.method,
         params: request.query,

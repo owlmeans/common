@@ -8,7 +8,13 @@ export const sservice = <C extends BasicServerConfig>(service: Omit<ServiceRoute
   if (_cfg.services == null) {
     _cfg.services = {}
   }
-  _cfg.services[service.service] = { type: AppType.Backend, ..._cfg.services[service.service], ...service, resolved: service.host != null }
+  _cfg.services[service.service] = { 
+    type: AppType.Backend, 
+    ..._cfg.services[service.service], 
+    ...service, 
+    resolved: service.host != null || service.internalHost != null,
+    host: service.host ?? service.internalHost
+  }
 
   return _cfg
 }

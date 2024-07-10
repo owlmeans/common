@@ -27,7 +27,6 @@ export const createMiddleware: (alias?: string) => Middleware = (alias = DEFAULT
         const service = context.service<KlusterService>(alias)
         await service.ready?.()
         const [, directive, query] = value.split(SEP, 3)
-
         value = await service.dispatch(directive, query)
       }
 

@@ -9,5 +9,5 @@ export const main = async <R, C extends AppConfig, T extends AppContext<C>>(
 ) => {
   ctx.registerModules(modules)
   await ctx.configure().init()
-  await ctx.waitForInitialized()
+  await ctx.getApiServer().listen()
 }

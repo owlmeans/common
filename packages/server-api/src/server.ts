@@ -2,7 +2,7 @@ import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
 import { Layer, assertContext, createService } from '@owlmeans/context'
 import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
-import { DEFAULT_ALIAS, HOST, PORT } from './consts.js'
+import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerModule } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler } from './utils/server.js'
@@ -19,14 +19,32 @@ export const createApiServer = (alias: string): ApiServer => {
   const location = `service:${alias}`
   const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
 
-  const server = createService<ApiServer>(alias, {
-    layers: [Layer.System]
+  const service = createService<ApiServer>(alias, {
+    layers: [Layer.System],
+
+    listen: async () => {
+      const context = _assertContext(service.ctx as Context)
+
+      const config = context.cfg.services[context.cfg.service]
+
+      const port = config?.internalPort ?? config?.port ?? PORT
+      const host = config.opened === true ? OPENED_HOST : CLOSED_HOST
+      console.log('Try to listen on: ', host, port)
+      await service.server.listen({ port, host })
+      console.info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`)
+
+      process.on('SIGTERM', () => {
+        console.log(`Closing http server: ${alias}`)
+        service.server.close().then(() => {
+          console.log(`Http server closed: ${alias}`)
+          process.exit(0)
+        })
+      })
+    }
   }, service => async () => {
     console.log(`${location}: ready to init api server`)
 
     const context = _assertContext(service.ctx as Context)
-
-    const config = context.cfg.services[context.cfg.service]
 
     const server = Fastify({ logger: true })
     // @TODO It's quite unsafe and should be properly configured
@@ -64,7 +82,7 @@ export const createApiServer = (alias: string): ApiServer => {
           const method = module.route.route.method ?? RouteMethod.GET
           if (module.handle == null) {
             console.log('!!! no handler for module: ', module.getPath(), module.getAlias())
-            return 
+            return
           }
           console.log('))) listen module: ', module.getPath(), module.getAlias())
           server.route({
@@ -81,30 +99,12 @@ export const createApiServer = (alias: string): ApiServer => {
         })
     )
 
-    let host = config.internalHost ?? config.host ?? HOST
-    const port = config.internalPort ?? config.port ?? PORT
-    if (config.internalHost == null && (config.service == null
-      || config.service === context.cfg.service)) {
-      // @TODO This solution can be insecure outside kubernetes or any other
-      // internal network - the best way is to fix it with "kluster" config service.
-      host = '0.0.0.0'
-    }
-    server.listen({ port, host }).then(() => {
-      console.info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`)
-    })
-
-    process.on('SIGTERM', () => {
-      console.log(`Closing http server: ${alias}`)
-      server.close().then(() => {
-        console.log(`Http server closed: ${alias}`)
-        process.exit(0)
-      })
-    })
+    service.server = server
 
     service.initialized = true
   })
 
-  return server
+  return service
 }
 
 export const appendApiServer = <C extends Config, T extends ServerContext<C>>(

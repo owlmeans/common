@@ -15,6 +15,7 @@ export interface ServerRouteModel<R> extends CommonRouteModel {
 export interface ServerRouteExtras {
   internalHost?: string
   internalPort?: number
+  opened?: boolean
 }
 
 export interface ServerRouteOptions<R> {

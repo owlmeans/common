@@ -42,8 +42,7 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
   if (firstGuessService != null && !isServiceRoute(firstGuessService)) {
     throw new SyntaxError('Service is not a valid service route')
   }
-  const service = firstGuessService?.type === route.type
-    ? firstGuessService
+  const service = firstGuessService?.type === route.type ? firstGuessService
     : Object.values(context.cfg.services).find<CommonServiceRoute>(
       (service): service is CommonServiceRoute => {
         const _service = service as CommonServiceRoute
@@ -73,7 +72,7 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
       + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
   }
 
-  console.log(`Route resolves: ${route.alias} to ${route.path}`)
+  console.log(`Route resolves: ${route.alias} to ${route.path} : ${route.host}`)
 
   return route
 }

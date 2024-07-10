@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@owlmeans/client-config": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/kluster": "^0.1.0",
