@@ -5,7 +5,7 @@ export class ResourceError extends ResilientError {
   public static override typeName = 'ResourceError'
 
   constructor(message: string = 'error') {
-    super(ResilientError.typeName, `resource:${message}`)
+    super(ResourceError.typeName, `resource:${message}`)
   }
 }
 

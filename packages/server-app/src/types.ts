@@ -8,6 +8,6 @@ export interface AppConfig extends ServerConfig, KlusterConfig {
   services: Record<string, ServiceRoute>
 }
 
-export interface AppContext<C extends AppConfig> extends ServerContext<C>,
+export interface AppContext<C extends AppConfig = AppConfig> extends ServerContext<C>,
   AuthServiceAppend,
   ApiServerAppend { }

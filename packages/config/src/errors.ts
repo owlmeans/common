@@ -5,7 +5,7 @@ export class ConfigError extends ResilientError {
   public static override typeName = 'ConfigError'
 
   constructor(message: string = 'error') {
-    super(ResilientError.typeName, `config:${message}`)
+    super(ConfigError.typeName, `config:${message}`)
   }
 }
 

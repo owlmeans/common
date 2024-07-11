@@ -5,7 +5,7 @@ export class AuthError extends ResilientError {
   public static override typeName: string = 'AuthError'
 
   constructor(message: string = 'error') {
-    super(ResilientError.typeName, `auth:${message}`)
+    super(AuthError.typeName, `auth:${message}`)
   }
 }
 

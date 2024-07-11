@@ -4,7 +4,7 @@ export class ApiError extends ResilientError {
   public static override typeName = 'ApiError'
 
   constructor(message: string = 'error') {
-    super(ResilientError.typeName, `api:${message}`)
+    super(ApiError.typeName, `api:${message}`)
   }
 }
 
