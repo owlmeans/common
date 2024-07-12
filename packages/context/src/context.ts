@@ -34,6 +34,10 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     waitForInitialized: () => initialized,
 
     configure: <T>() => {
+      if (context.stage !== ContextStage.Configuration) {
+        return context as T
+      }
+
       void (async () => {
         await applyMiddlewares(context, middlewares, MiddlewareType.Config, MiddlewareStage.Configuration)
 
@@ -45,8 +49,11 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     },
 
     init: async <T>() => {
-      // void (async () => {
       await configured
+
+      if (context.stage !== ContextStage.Loading) {
+        return context as T
+      }
 
       await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
 
@@ -84,7 +91,6 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       initialize(true)
 
       void applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Ready)
-      // })()
 
       return context as T
     },

@@ -121,7 +121,13 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
       let client = new MongoClient(url, options)
 
       if (Array.isArray(config.host)) {
-        await setUpCluster(client, config)
+        // @TODO Number of tries can be configurable
+        for (let i = 0; i < 3; ++i) {
+          console.log(`Try to initialize cluster: ${i}`)
+          if (await setUpCluster(client, config)) {
+            break
+          }
+        }
         await client.close()
         let [url, options] = prepareConfig(config, false)
         client = new MongoClient(url, options)

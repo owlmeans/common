@@ -13,6 +13,9 @@ export { modules } from '@owlmeans/web-client'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
+export { makeContext } from '@owlmeans/web-client'
+export type { AppConfig, AppContext } from '@owlmeans/web-client'
+
 export { DISPATCHER } from '@owlmeans/auth'
 
 export { useCommonI18n, useI18nApp } from '@owlmeans/client-i18n'

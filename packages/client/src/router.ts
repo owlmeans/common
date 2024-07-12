@@ -18,7 +18,9 @@ export const Router: FC<RouterProps> = ({ provide }) => {
   const progress = useRef(false)
   const context = useContext()
 
-  const [router, setRouter] = useState<RemixRouter>()
+  const [router, setRouter] = useState<RemixRouter>(
+    (typeof provide === 'function' ? undefined : provide) as RemixRouter
+  )
   // @TODO We expect that this use memo will do the trick and we don't need to useEffect
   // @TODO Show debug only in debug mode
   useEffect(() => {
@@ -26,7 +28,10 @@ export const Router: FC<RouterProps> = ({ provide }) => {
       progress.current = true
 
       console.log('Initialize router')
-      initializeRouter(context as any).then(router => setRouter(provide(router)))
+      if (typeof provide === 'function') {
+        initializeRouter(context as any).then(router => provide(router))
+          .then(routes => setRouter(routes))
+      }
     }
   }, [])
 
@@ -34,6 +39,7 @@ export const Router: FC<RouterProps> = ({ provide }) => {
   if (router == null) {
     return undefined
   }
+  
 
   return createElement(RouterProvider, { router: router })
 }

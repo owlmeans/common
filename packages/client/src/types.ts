@@ -13,16 +13,16 @@ export interface RouterModel {
 }
 
 export interface RouterProvider {
-  (routes: RouteObject[]): RemixRouter
+  (routes: RouteObject[]): RemixRouter | Promise<RemixRouter>
 }
 
 export interface RouterProps {
-  provide: RouterProvider
+  provide: RouterProvider | RemixRouter
 }
 
 export interface AppProps extends PropsWithChildren {
   context: Context<any>
-  provide?: RouterProvider
+  provide?: RouterProvider | RemixRouter
 }
 
 export interface RoutedComponent<ExtraPropse = {}> extends FC<PropsWithChildren<ModuleContextParams & ExtraPropse>> {

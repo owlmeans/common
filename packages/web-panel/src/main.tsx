@@ -1,7 +1,6 @@
 import { PanelApp } from '@owlmeans/client-panel'
-import type { RenderOptions } from '@owlmeans/web-client'
+import type { RenderOptions, AppConfig, AppContext } from '@owlmeans/web-client'
 import { render as basicRender, provide } from '@owlmeans/web-client'
-import { AppConfig, AppContext } from './types'
 import type { FC } from 'react'
 import { useI18nInstance } from '@owlmeans/client-i18n/utils'
 import detector from 'i18next-browser-languagedetector'

@@ -854,8 +854,6 @@ __metadata:
     "@scure/base": "npm:^1.1.7"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
-    react-router: "npm:^6.24.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -898,7 +896,6 @@ __metadata:
     "@types/react": "npm:^18.3.3"
     i18next: "npm:^23.11.5"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     react-i18next: "npm:^14.1.2"
     typescript: "npm:^5.4.5"
   peerDependencies:
@@ -942,7 +939,6 @@ __metadata:
     "@types/react": "npm:^18.3.3"
     ajv: "npm:^8.16.0"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     react-hook-form: "npm:^7.52.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
@@ -971,7 +967,6 @@ __metadata:
   dependencies:
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1013,12 +1008,15 @@ __metadata:
     "@owlmeans/module": "npm:0.1.0"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     react-router: "npm:^6.24.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
     react-router: "*"
+    react-router-dom: "*"
+  peerDependenciesMeta:
+    react-router-dom:
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -1102,6 +1100,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/mongo-resource@workspace:packages/mongo-resource"
   dependencies:
+    "@owlmeans/config": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/resource": "npm:^0.1.0"
     "@owlmeans/server-context": "npm:^0.1.0"
@@ -1111,6 +1110,7 @@ __metadata:
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   peerDependencies:
+    ajv: "*"
     mongodb: "*"
   languageName: unknown
   linkType: soft
@@ -1138,7 +1138,6 @@ __metadata:
     "@types/node": "npm:^20.14.9"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1238,6 +1237,7 @@ __metadata:
   resolution: "@owlmeans/server-app@workspace:packages/server-app"
   dependencies:
     "@owlmeans/client-config": "npm:^0.1.0"
+    "@owlmeans/client-module": "npm:^0.1.0"
     "@owlmeans/config": "npm:^0.1.0"
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/kluster": "npm:^0.1.0"
@@ -1279,6 +1279,7 @@ __metadata:
   resolution: "@owlmeans/server-config@workspace:packages/server-config"
   dependencies:
     "@owlmeans/config": "npm:^0.1.0"
+    "@owlmeans/server-route": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
@@ -1382,7 +1383,6 @@ __metadata:
     "@owlmeans/client-auth": "npm:^0.1.0"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1402,9 +1402,7 @@ __metadata:
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    react-router-dom: "npm:^6.24.0"
+    react-router-dom: "npm:^6.24.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1447,8 +1445,6 @@ __metadata:
     "@types/react-dom": "npm:^18"
     i18next-browser-languagedetector: "npm:^8.0.0"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1462,7 +1458,6 @@ __metadata:
   dependencies:
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -1475,7 +1470,6 @@ __metadata:
   dependencies:
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
-    react: "npm:^18.3.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
@@ -3082,7 +3076,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"loose-envify@npm:^1.1.0, loose-envify@npm:^1.4.0":
+"loose-envify@npm:^1.4.0":
   version: 1.4.0
   resolution: "loose-envify@npm:1.4.0"
   dependencies:
@@ -3705,18 +3699,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.3.1":
-  version: 18.3.1
-  resolution: "react-dom@npm:18.3.1"
-  dependencies:
-    loose-envify: "npm:^1.1.0"
-    scheduler: "npm:^0.23.2"
-  peerDependencies:
-    react: ^18.3.1
-  checksum: 10c0/a752496c1941f958f2e8ac56239172296fcddce1365ce45222d04a1947e0cc5547df3e8447f855a81d6d39f008d7c32eab43db3712077f09e3f67c4874973e85
-  languageName: node
-  linkType: hard
-
 "react-hook-form@npm:^7.52.1":
   version: 7.52.1
   resolution: "react-hook-form@npm:7.52.1"
@@ -3758,7 +3740,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:^6.24.0":
+"react-router-dom@npm:^6.24.1":
   version: 6.24.1
   resolution: "react-router-dom@npm:6.24.1"
   dependencies:
@@ -3794,15 +3776,6 @@ __metadata:
     react: ">=16.6.0"
     react-dom: ">=16.6.0"
   checksum: 10c0/2ba754ba748faefa15f87c96dfa700d5525054a0141de8c75763aae6734af0740e77e11261a1e8f4ffc08fd9ab78510122e05c21c2d79066c38bb6861a886c82
-  languageName: node
-  linkType: hard
-
-"react@npm:^18.3.1":
-  version: 18.3.1
-  resolution: "react@npm:18.3.1"
-  dependencies:
-    loose-envify: "npm:^1.1.0"
-  checksum: 10c0/283e8c5efcf37802c9d1ce767f302dd569dd97a70d9bb8c7be79a789b9902451e0d16334b05d73299b20f048cbc3c7d288bbbde10b701fa194e2089c237dbea3
   languageName: node
   linkType: hard
 
@@ -3983,15 +3956,6 @@ __metadata:
   version: 2.1.2
   resolution: "safer-buffer@npm:2.1.2"
   checksum: 10c0/7e3c8b2e88a1841c9671094bbaeebd94448111dd90a81a1f606f3f67708a6ec57763b3b47f06da09fc6054193e0e6709e77325415dc8422b04497a8070fa02d4
-  languageName: node
-  linkType: hard
-
-"scheduler@npm:^0.23.2":
-  version: 0.23.2
-  resolution: "scheduler@npm:0.23.2"
-  dependencies:
-    loose-envify: "npm:^1.1.0"
-  checksum: 10c0/26383305e249651d4c58e6705d5f8425f153211aef95f15161c151f7b8de885f24751b377e4a0b3dd42cce09aad3f87a61dab7636859c0d89b7daf1a1e2a5c78
   languageName: node
   linkType: hard
 

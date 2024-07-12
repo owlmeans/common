@@ -2,9 +2,8 @@ import type { ConfigRecord, BasicContext as Context } from '@owlmeans/context'
 import { CONFIG_RECORD, appendContextual, assertContext } from '@owlmeans/context'
 import type { CommonConfig, ConfigResource, ConfigResourceAppend } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
-import type { GetterOptions, ListOptions, ListResult, LivecycleOptions } from '@owlmeans/resource'
+import type { GetterOptions, ListOptions, ListResult, LifecycleOptions, ListCriteria } from '@owlmeans/resource'
 import { UnknownRecordError, UnsupportedArgumentError, UnsupportedMethodError } from '@owlmeans/resource'
-import { ListCriteriaParams } from '@owlmeans/resource/build/utils/types.js'
 
 type Getter = string | GetterOptions
 
@@ -26,7 +25,7 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
 
 
   const resource: ConfigResource = appendContextual<ConfigResource>(alias, {
-    get: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LivecycleOptions) => {
+    get: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
       const record = await resource.load<T>(id, field, opts)
       if (record == null) {
         throw new UnknownRecordError(id)
@@ -35,7 +34,7 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
       return record
     },
 
-    load: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LivecycleOptions) => {
+    load: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
       if (field != null) {
         throw new UnsupportedArgumentError('config:get:filed')
       }
@@ -53,7 +52,7 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
       return record
     },
 
-    list: async <T extends ConfigRecord>(criteria?: ListCriteriaParams, opts?: ListOptions) => {
+    list: async <T extends ConfigRecord>(criteria?: ListOptions | ListCriteria, opts?: ListOptions) => {
       if (criteria != null) {
         throw new UnsupportedArgumentError('config:list:criteria')
       }
