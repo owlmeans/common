@@ -807,6 +807,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/basic-ids@workspace:packages/basic-ids":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/basic-ids@workspace:packages/basic-ids"
+  dependencies:
+    "@noble/hashes": "npm:^1.4.0"
+    "@scure/base": "npm:^1.1.7"
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/basic-keys@npm:^0.1.0, @owlmeans/basic-keys@workspace:packages/basic-keys":
   version: 0.0.0-use.local
   resolution: "@owlmeans/basic-keys@workspace:packages/basic-keys"
