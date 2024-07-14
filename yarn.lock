@@ -1377,15 +1377,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/types@workspace:packages/types":
-  version: 0.0.0-use.local
-  resolution: "@owlmeans/types@workspace:packages/types"
-  dependencies:
-    nodemon: "npm:^3.1.4"
-    typescript: "npm:^5.4.5"
-  languageName: unknown
-  linkType: soft
-
 "@owlmeans/web-auth@workspace:packages/web-auth":
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-auth@workspace:packages/web-auth"

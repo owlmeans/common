@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 9 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",

@@ -1,1 +1,0 @@
-# OwlMeans Shared Types

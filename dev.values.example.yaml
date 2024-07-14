@@ -1,0 +1,4 @@
+
+environment:
+  sourcesPath: <PATH-TO-CURRENT-FOLDER>
+  subFolder:  /libraries/common
