@@ -39,7 +39,6 @@ export const Router: FC<RouterProps> = ({ provide }) => {
   if (router == null) {
     return undefined
   }
-  
 
   return createElement(RouterProvider, { router: router })
 }
@@ -58,10 +57,14 @@ export const makeRouterModel = (): RouterModel => {
         )
         await module.route.resolve(ctx)
 
+        const renderer = module.handle != null
+          ? { Component: createRouteRenderer({ context, module, hasChildren: children.length > 0 }) }
+          : undefined
+
         const route: RouteObject = {
           ...(module.route.route.default ? { index: true } as any : undefined),
           ...(!module.route.route.default ? { path: module.getPath(module.hasParent()), children } : undefined),
-          Component: createRouteRenderer({ context, module, hasChildren: children.length > 0 })
+          ...renderer
         }
 
         return route
