@@ -63,7 +63,7 @@ export const makeRouterModel = (): RouterModel => {
 
         const route: RouteObject = {
           ...(module.route.route.default ? { index: true } as any : undefined),
-          ...(!module.route.route.default ? { path: module.getPath(module.hasParent()), children } : undefined),
+          ...(!module.route.route.default ? { path: module.getPath(true), children } : undefined),
           ...renderer
         }
 
