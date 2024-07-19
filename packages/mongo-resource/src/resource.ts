@@ -113,6 +113,9 @@ export const makeMongoResource = <
     },
 
     create: async (record, opts) => {
+      if ("id" in record && record.id == null) {
+        delete record.id
+      } 
       if (record.id != null) {
         throw new RecordExists('id-present')
       }
@@ -219,7 +222,15 @@ export const makeMongoResource = <
 
       const items = await cursor.toArray()
 
-      return { items, pager }
+      return {
+        pager, items: items.map(item => {
+          const _item: R = { ...item } as any
+          _item.id = item._id.toString()
+          delete (_item as any)._id
+
+          return _item
+        })
+      }
     },
 
     index: (name, index, options) => {

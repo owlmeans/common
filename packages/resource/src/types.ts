@@ -48,7 +48,7 @@ export interface ListResult<T extends ResourceRecord> {
   pager?: ListPager
 }
 
-  type Getter = string | GetterOptions
+type Getter = string | GetterOptions
 
 export interface GetterOptions extends LifecycleOptions {
   field?: string

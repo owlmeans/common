@@ -23,6 +23,22 @@ export const handleBody: <T>(
   return res.value
 }
 
+export const handleParams: <T>(
+  handler: (payload: T, ctx: Context) => Promise<any>
+) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
+  if (ref.ref?.ctx == null) {
+    console.log(new SyntaxError('Module context is not provided'))
+    throw new SyntaxError('Module context is not provided')
+  }
+  try {
+    res.resolve(await handler(req.params as any, ref.ref.ctx as Context), ModuleOutcome.Ok)
+  } catch (e) {
+    res.reject(e as Error)
+  }
+
+  return res.value
+}
+
 export const handleRequest: (
   handler: (payload: AbstractRequest, ctx: Context) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
