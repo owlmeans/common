@@ -14,7 +14,7 @@ export const useToggle = (opened?: boolean): Toggleable => {
       },
       open: () => { _handler.set(true) },
       close: () => { _handler.set(false) },
-      toggle: () => { _handler.set(false) }
+      toggle: () => { _handler.set(!_handler.opened) }
     }
 
     return _handler

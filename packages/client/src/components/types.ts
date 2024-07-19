@@ -4,5 +4,5 @@ export interface Toggleable {
   open: () => void
   close: () => void
   set: (opened: boolean) => void
-  toggle: (opened: boolean) => void
+  toggle: () => void
 }
