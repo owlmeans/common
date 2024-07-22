@@ -1,5 +1,5 @@
 
-export { handler, useContext } from '@owlmeans/client'
+export { handler } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'

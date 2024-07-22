@@ -4,6 +4,7 @@ import { AppConfig, AppContext } from './types.js'
 import { appendAuthService, AUTH_RESOURCE } from '@owlmeans/client-auth'
 import { appendWebDbService } from '@owlmeans/web-db'
 import { appendClientResource } from '@owlmeans/client-resource'
+import { useContext as useCtx } from '@owlmeans/client'
 
 export const makeContext = <C extends AppConfig = AppConfig, T extends AppContext<C> = AppContext<C>>(
   cfg: C
@@ -18,3 +19,6 @@ export const makeContext = <C extends AppConfig = AppConfig, T extends AppContex
 
   return context
 }
+
+export const useContext = <C extends AppConfig = AppConfig,T extends AppContext<C> = AppContext<C>>() =>
+  useCtx<C,T>()
