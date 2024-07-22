@@ -38,3 +38,8 @@ Destruct function to build a final config object. It makes sure that you get a n
 Added an infrastructure service config to a config
 ### addWebService
 Register an internal application service that is capable to make API requests 
+
+### Counters (for monorepo maintenance)
+We use delayes on dev command for the whole repository to not overwhelme processors.
+* Even counter: 60, 14 (got through once)
+* Odd counter: 59, (got through once)

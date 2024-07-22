@@ -1,0 +1,1 @@
+# OwlMeans Did - common library for decentralized id

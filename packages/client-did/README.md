@@ -1,0 +1,1 @@
+# OwlMeans Did - client library for decentralized id

@@ -897,6 +897,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/client-did@workspace:packages/client-did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/client-did@workspace:packages/client-did"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/client-i18n@npm:^0.1.0, @owlmeans/client-i18n@workspace:packages/client-i18n":
   version: 0.0.0-use.local
   resolution: "@owlmeans/client-i18n@workspace:packages/client-i18n"
@@ -1060,6 +1069,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/did@workspace:packages/did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/did@workspace:packages/did"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/error@npm:^0.1.0, @owlmeans/error@workspace:packages/error":
   version: 0.0.0-use.local
   resolution: "@owlmeans/error@workspace:packages/error"
@@ -1137,6 +1155,51 @@ __metadata:
     "@scure/base": "npm:^1.1.7"
     "@types/node": "npm:^20.14.9"
     mongodb: "npm:^6.8.0"
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/native-client@workspace:packages/native-client":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/native-client@workspace:packages/native-client"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/native-db@workspace:packages/native-db":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/native-db@workspace:packages/native-db"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/native-did@workspace:packages/native-did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/native-did@workspace:packages/native-did"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/native-panel@workspace:packages/native-panel":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/native-panel@workspace:packages/native-panel"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/native-socket@workspace:packages/native-socket":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/native-socket@workspace:packages/native-socket"
+  dependencies:
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1313,6 +1376,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/server-did@workspace:packages/server-did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-did@workspace:packages/server-did"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/server-module@npm:^0.1.0, @owlmeans/server-module@workspace:packages/server-module":
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-module@workspace:packages/server-module"
@@ -1364,6 +1436,33 @@ __metadata:
     "@owlmeans/context": "npm:^0.1.0"
     "@owlmeans/route": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/server-socket@workspace:packages/server-socket":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/server-socket@workspace:packages/server-socket"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/socket@workspace:packages/socket":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/socket@workspace:packages/socket"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/state@workspace:packages/state":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/state@workspace:packages/state"
+  dependencies:
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1427,6 +1526,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@owlmeans/web-did@workspace:packages/web-did":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-did@workspace:packages/web-did"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@owlmeans/web-panel@workspace:packages/web-panel":
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-panel@workspace:packages/web-panel"
@@ -1476,6 +1584,15 @@ __metadata:
     typescript: "npm:^5.4.5"
   peerDependencies:
     react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@owlmeans/web-socket@workspace:packages/web-socket":
+  version: 0.0.0-use.local
+  resolution: "@owlmeans/web-socket@workspace:packages/web-socket"
+  dependencies:
+    nodemon: "npm:^3.1.4"
+    typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
