@@ -705,31 +705,39 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@owlmeans/api-config-client@workspace:packages/api-config-client":
+"@owlmeans/api-config-client@npm:^0.1.0, @owlmeans/api-config-client@workspace:packages/api-config-client":
   version: 0.0.0-use.local
   resolution: "@owlmeans/api-config-client@workspace:packages/api-config-client"
   dependencies:
+    "@owlmeans/api-config": "npm:^0.1.0"
+    "@owlmeans/client-context": "npm:^0.1.0"
+    "@owlmeans/client-module": "npm:^0.1.0"
+    "@owlmeans/context": "npm:^0.1.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
-  peerDependencies:
-    react: "*"
   languageName: unknown
   linkType: soft
 
-"@owlmeans/api-config-server@workspace:packages/api-config-server":
+"@owlmeans/api-config-server@npm:^0.1.0, @owlmeans/api-config-server@workspace:packages/api-config-server":
   version: 0.0.0-use.local
   resolution: "@owlmeans/api-config-server@workspace:packages/api-config-server"
   dependencies:
+    "@owlmeans/api-config": "npm:^0.1.0"
+    "@owlmeans/server-api": "npm:^0.1.0"
+    "@owlmeans/server-module": "npm:^0.1.0"
     "@types/node": "npm:^20.14.9"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
   linkType: soft
 
-"@owlmeans/api-config@workspace:packages/api-config":
+"@owlmeans/api-config@npm:^0.1.0, @owlmeans/api-config@workspace:packages/api-config":
   version: 0.0.0-use.local
   resolution: "@owlmeans/api-config@workspace:packages/api-config"
   dependencies:
+    "@owlmeans/config": "npm:^0.1.0"
+    "@owlmeans/module": "npm:^0.1.0"
+    "@owlmeans/route": "npm:^0.1.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1177,11 +1185,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/native-client@workspace:packages/native-client"
   dependencies:
+    "@owlmeans/api-config-client": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-auth": "npm:^0.1.0"
     "@owlmeans/client-context": "npm:^0.1.0"
     "@owlmeans/client-resource": "npm:^0.1.0"
+    "@owlmeans/route": "npm:^0.1.0"
     nodemon: "npm:^3.1.4"
+    react-native-dotenv: "npm:^3.4.11"
     react-router-native: "npm:^6.25.1"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1375,6 +1386,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/server-auth@workspace:packages/server-auth"
   dependencies:
+    "@owlmeans/api-config-server": "npm:^0.1.0"
     "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/auth-common": "npm:^0.1.0"
     "@owlmeans/basic-envelope": "npm:^0.1.0"
@@ -1581,6 +1593,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-panel@workspace:packages/web-panel"
   dependencies:
+    "@owlmeans/api-config-client": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-api": "npm:^0.1.0"
     "@owlmeans/client-auth": "npm:^0.1.0"
@@ -2409,6 +2422,13 @@ __metadata:
     "@babel/runtime": "npm:^7.8.7"
     csstype: "npm:^3.0.2"
   checksum: 10c0/f735074d66dd759b36b158fa26e9d00c9388ee0e8c9b16af941c38f014a37fc80782de83afefd621681b19ac0501034b4f1c4a3bff5caa1b8667f0212b5e124c
+  languageName: node
+  linkType: hard
+
+"dotenv@npm:^16.4.5":
+  version: 16.4.5
+  resolution: "dotenv@npm:16.4.5"
+  checksum: 10c0/48d92870076832af0418b13acd6e5a5a3e83bb00df690d9812e94b24aff62b88ade955ac99a05501305b8dc8f1b0ee7638b18493deb6fe93d680e5220936292f
   languageName: node
   linkType: hard
 
@@ -4011,6 +4031,17 @@ __metadata:
   version: 18.3.1
   resolution: "react-is@npm:18.3.1"
   checksum: 10c0/f2f1e60010c683479e74c63f96b09fb41603527cd131a9959e2aee1e5a8b0caf270b365e5ca77d4a6b18aae659b60a86150bb3979073528877029b35aecd2072
+  languageName: node
+  linkType: hard
+
+"react-native-dotenv@npm:^3.4.11":
+  version: 3.4.11
+  resolution: "react-native-dotenv@npm:3.4.11"
+  dependencies:
+    dotenv: "npm:^16.4.5"
+  peerDependencies:
+    "@babel/runtime": ^7.20.6
+  checksum: 10c0/9ed4a37fb59030706d17a1cc49d05af9d8fc57dcb2ef97e122b844f3ab6f6331ebc089afac559fe5bddf37806aa282b4118005f1b27aae5e37fdc3fc8bd7625c
   languageName: node
   linkType: hard
 

@@ -1,6 +1,7 @@
 
 import { AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT } from '@owlmeans/auth'
 import { modules as list } from '@owlmeans/auth-common'
+import { modules as apiConfig } from '@owlmeans/api-config-server'
 import { elevate } from '@owlmeans/server-module'
 import { authenticate, authenticationInit } from './actions/manager'
 
@@ -9,3 +10,4 @@ elevate(list, AUTHEN_INIT, authenticationInit)
 elevate(list, AUTHEN_AUTHEN, authenticate)
 
 export const modules = list
+list.push(...apiConfig)

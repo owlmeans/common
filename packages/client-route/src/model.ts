@@ -6,6 +6,8 @@ import type { BasicConfig, BasicContext } from '../../context/build/types.js'
 export const route = (route: CommonRouteModel, opts?: ClientRouteOptions): ClientRouteModel => {
   const unresolvedPath = route.route.path
 
+  console.log('Clientize route: ', route.route.alias)
+
   const model: ClientRouteModel = {
     ...(route as ClientRouteModel),
 

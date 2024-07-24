@@ -1,12 +1,13 @@
 import { PanelApp } from '@owlmeans/client-panel'
-import type { RenderOptions, AppConfig, AppContext } from '@owlmeans/web-client'
+import type { RenderOptions, AppContext } from '@owlmeans/web-client'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { render as basicRender, provide } from '@owlmeans/web-client'
 import type { FC } from 'react'
 import { useI18nInstance } from '@owlmeans/client-i18n/utils'
 import detector from 'i18next-browser-languagedetector'
 
-export const render = <C extends AppConfig, T extends AppContext<C>>(context: T, opts?: RenderOptions) => {
-  basicRender(<App context={context as T} />, opts)
+export const render = <C extends ClientConfig, T extends ClientContext<C>>(context: T, opts?: RenderOptions) => {
+  basicRender(<App context={context as unknown as AppContext} />, opts)
 }
 
 const App: FC<{ context: AppContext<any>}> = ({ context }) => {

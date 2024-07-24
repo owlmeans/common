@@ -9,12 +9,11 @@ export type { ClientModule as Module } from '@owlmeans/client-module'
 export { route as croute } from '@owlmeans/client-route'
 export { route, frontend } from '@owlmeans/route'
 export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/client-auth'
-export { modules } from '@owlmeans/client-auth'
 export { Context } from '@owlmeans/client'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
-export { makeContext } from '@owlmeans/native-client'
+export { makeContext, ENV_DEFAULT, ENV_DEV, ENV_TEST, ENV_PROD, ENV_STAGE } from '@owlmeans/native-client'
 export type { AppConfig, AppContext } from '@owlmeans/native-client'
 
 export { DISPATCHER } from '@owlmeans/auth'

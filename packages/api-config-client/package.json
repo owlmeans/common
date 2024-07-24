@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/api-config-client",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -18,8 +19,11 @@
       "types": "./build/index.d.ts"
     }
   },
-  "peerDependencies": {
-    "react": "*"
+  "dependencies": {
+    "@owlmeans/api-config": "^0.1.0",
+    "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/context": "^0.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4",

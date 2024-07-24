@@ -9,10 +9,10 @@ export type { ClientModule as Module } from '@owlmeans/client-module'
 export { route as croute } from '@owlmeans/client-route'
 export { route, frontend } from '@owlmeans/route'
 export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/client-auth'
-export { modules } from '@owlmeans/client-auth/manager'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
 export * from '@owlmeans/client-panel/auth'
+export { render } from '../main'
 
 export { DISPATCHER } from '@owlmeans/auth'

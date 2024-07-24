@@ -15,7 +15,7 @@ export const modules = [
   module(
     route(DISPATCHER, '/dispatcher', frontend({ service: DISPATCHER })),
     // This module is sticky - it means it's always attach to client router.
-    // It's requred here cause every web app needs dispatcher route to authorize
+    // It's required here cause every web app needs dispatcher route to authorize
     // rediected users.
     filter(query(AuthTokenSchema), { sticky: true })
   ),

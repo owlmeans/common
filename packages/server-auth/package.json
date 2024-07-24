@@ -27,6 +27,7 @@
     }
   },
   "dependencies": {
+    "@owlmeans/api-config-server": "^0.1.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/auth-common": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",

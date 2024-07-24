@@ -24,9 +24,17 @@
       "default": "./build/auth/index.js",
       "module": "./build/auth/index.js",
       "types": "./build/auth/index.d.ts"
+    },
+    "./auth/modules": {
+      "import": "./build/auth/modules.js",
+      "require": "./build/auth/modules.js",
+      "default": "./build/auth/modules.js",
+      "module": "./build/auth/modules.js",
+      "types": "./build/auth/modules.d.ts"
     }
   },
   "dependencies": {
+    "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-api": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",

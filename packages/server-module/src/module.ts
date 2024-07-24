@@ -14,6 +14,7 @@ export const module = <R>(
   let _module: ServerModule<R>
 
   if (isModule(arg)) {
+    console.log('serverise module 1: ', arg.route.route.alias)
     const routeModel = route(arg.route, opts?.intermediate ?? false, opts?.routeOptions)
     _module = arg as ServerModule<R>
     _module.route = routeModel
@@ -21,9 +22,11 @@ export const module = <R>(
     _module.filter = opts?.filter ?? arg.filter
     _module.gate = opts?.gate ?? arg.gate
   } else if (isServerRouteModel(arg)) {
+    console.log('serverise module 2: ', arg.route.alias)
     _module = makeCommonModule(arg, { ...opts }) as ServerModule<R>
     _module.route = arg
   } else {
+    console.log('serverise module 3: ', arg.route.alias)
     const _route = route(arg, opts?.intermediate ?? false, opts?.routeOptions)
     _module = makeCommonModule(_route, { ...opts }) as ServerModule<R>
     _module.route = _route

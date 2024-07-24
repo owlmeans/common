@@ -5,11 +5,15 @@ import { appendAuthService, AUTH_RESOURCE } from '@owlmeans/client-auth'
 import { appendClientResource } from '@owlmeans/client-resource'
 import { appendNativeDbService } from '@owlmeans/native-db'
 import { useContext as useCtx } from '@owlmeans/client'
+import { apiConfigMiddleware } from '@owlmeans/api-config-client'
+import { extractPrimaryHost } from './utils/env.js'
 
 export const makeContext = <C extends AppConfig = AppConfig, T extends AppContext<C> = AppContext<C>>(
   cfg: C
 ): T => {
   const context = makeClientContext(cfg) as T
+  extractPrimaryHost<C, T>(context)
+  context.registerMiddleware(apiConfigMiddleware)
 
   appendAuthService<C, T>(context)
   appendNativeDbService<C, T>(context)
