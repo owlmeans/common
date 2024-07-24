@@ -38,7 +38,7 @@ export const useCommonI18n = (resourceName: string, ns?: string, prefix?: string
     }
   }
 
-  const { t } = useTranslation(ns, { keyPrefix: `${resourceName}${prefix != null ? `.${prefix}` : ''}` })
+  const { t } = useTranslation(ns, { keyPrefix: `${resourceName}${prefix != null && prefix != '' ? `.${prefix}` : ''}` })
 
   return t
 }

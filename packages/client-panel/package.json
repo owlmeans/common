@@ -39,6 +39,7 @@
     "@mui/material": "*",
     "@owlmeans/auth": "*",
     "@owlmeans/client-auth": "*",
+    "@owlmeans/i18n": "*",
     "ajv": "*",
     "react": "*",
     "react-dom": "*",

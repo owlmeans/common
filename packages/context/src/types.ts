@@ -8,6 +8,10 @@ export interface BasicConfig {
   layerId?: string
   services?: Record<string, Object>
   [CONFIG_RECORD]?: ConfigRecord[]
+  debug?: { 
+    all?: boolean
+    [section: string]: boolean | undefined
+  }
 }
 
 export interface ConfigRecord extends ConfigRecordItem {

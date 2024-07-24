@@ -17,9 +17,10 @@ export const useI18nInstance = (config: ClientConfig): i18n => {
     console.log('Initialzie i18n instance')
 
     const instance = createInstance({
+      compatibilityJSON: 'v3',
       defaultNS: config.i18n?.defaultNs ?? DEFAULT_NAMESPACE,
       fallbackLng: config.i18n?.defaultLng ?? DEFAULT_LNG,
-      debug: true
+      debug: config.debug?.all ?? config.debug?.i18n ?? false,
     })
 
     instance.use(initReactI18next).init()

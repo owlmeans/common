@@ -12,6 +12,7 @@ const defaultCfg: ClientConfig = {
   [CONFIG_RECORD]: [],
   ready: false,
   service: '',
+  debug: {},
   type: AppType.Frontend,
 }
 

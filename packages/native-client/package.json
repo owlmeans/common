@@ -19,6 +19,13 @@
       "types": "./build/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-auth": "^0.1.0",
+    "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-resource": "^0.1.0",
+    "react-router-native": "^6.25.1"
+  },
   "devDependencies": {
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"

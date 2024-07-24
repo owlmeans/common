@@ -1,0 +1,14 @@
+{
+  "basic-ed25519": {
+    "entityId": {
+      "label": "Organization id"
+    },
+    "address": {
+      "label": "User DID"
+    },
+    "privateKey": {
+      "label": "Private key"
+    },
+    "submit": "Authenticate"
+  }
+}
