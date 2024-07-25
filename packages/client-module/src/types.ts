@@ -1,7 +1,7 @@
 import type { ClientRouteModel, ClientRouteOptions } from '@owlmeans/client-route'
 import type { AbstractRequest, AbstractResponse, CommonModule, CommonModuleOptions, ModuleHandler, ModuleOutcome } from '@owlmeans/module'
 
-export interface ClientModule<T, R extends AbstractRequest = AbstractRequest> extends CommonModule {
+export interface ClientModule<T = {}, R extends AbstractRequest = AbstractRequest> extends CommonModule {
   route: ClientRouteModel
   call: ModuleCall<T, R>
   validate: ModuleFilter<R>

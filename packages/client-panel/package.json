@@ -46,7 +46,8 @@
     "@owlmeans/i18n": "*",
     "ajv": "*",
     "react": "*",
-    "react-hook-form": "*"
+    "react-hook-form": "*",
+    "react-router": "*"
   },
   "peerDependenciesMeta": {
     "@owlmeans/auth": {

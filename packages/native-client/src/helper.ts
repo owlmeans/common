@@ -14,7 +14,7 @@ export const useNavigate = (): Navigator => {
         const [url, ok] = await module.call(request)
         console.log('Navigate to', url, ok)
         if (ok === ModuleOutcome.Ok) {
-          navigate(url)
+          navigate(url, { state: module.route.route })
         }
       },
 

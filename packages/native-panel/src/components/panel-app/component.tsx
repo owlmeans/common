@@ -6,7 +6,7 @@ import { I18nContext } from '@owlmeans/client-i18n'
 
 import { PaperProvider, MD3LightTheme, configureFonts } from 'react-native-paper'
 import type { MD3Theme } from 'react-native-paper'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { provide as nativeProvide } from '@owlmeans/native-client'
 import { pathchFonts } from './utils/font.js'
 import { PanelContext } from '@owlmeans/client-panel'
@@ -26,11 +26,9 @@ export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts,
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
         <PanelContext resource={name ?? DEFAULT_NAME}>
-          <SafeAreaView>
             <App context={context} provide={provide ?? nativeProvide}>
               {children}
             </App >
-          </SafeAreaView>
         </PanelContext>
       </PaperProvider>
     </SafeAreaProvider>

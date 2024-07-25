@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/common-root",
   "scripts": {
-    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run dev",
-    "watch": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run watch"
+    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run dev",
+    "watch": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run watch"
   },
   "workspaces": [
     "packages/*"

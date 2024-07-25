@@ -17,6 +17,9 @@ export { makeContext, ENV_DEFAULT, ENV_DEV, ENV_TEST, ENV_PROD, ENV_STAGE, useNa
 export type { AppConfig, AppContext } from '@owlmeans/native-client'
 
 export { DISPATCHER } from '@owlmeans/auth'
+export * from '@owlmeans/client-panel'
+
+export type { AbstractRequest } from '@owlmeans/module'
 
 export { useCommonI18n, useI18nApp } from '@owlmeans/client-i18n'
 export { addCommonI18n, addI18nApp } from '@owlmeans/i18n'
