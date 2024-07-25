@@ -1,5 +1,6 @@
 import type { AuthServiceAppend } from '@owlmeans/client-auth'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig } from '@owlmeans/client-context'
+import type { ClientContext } from '@owlmeans/client'
 
 export interface RenderOptions {
   domId?: string

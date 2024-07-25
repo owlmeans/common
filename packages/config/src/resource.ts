@@ -23,7 +23,6 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
     return context.cfg[key as Key] as ConfigRecord[]
   }
 
-
   const resource: ConfigResource = appendContextual<ConfigResource>(alias, {
     get: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
       const record = await resource.load<T>(id, field, opts)
@@ -90,7 +89,9 @@ export const appendConfigResource = <C extends CommonConfig, T extends Context<C
   const _ctx = ctx as T & ConfigResourceAppend
 
   _ctx.registerResource(resource)
-  _ctx.getConfigResource = () => ctx.resource(resource.alias)
+  if (_ctx.getConfigResource == null) {
+    _ctx.getConfigResource = alias => ctx.resource(alias ?? resource.alias)
+  }
 
   return _ctx
 }

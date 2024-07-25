@@ -1,5 +1,5 @@
 
-import { makeClientContext } from '@owlmeans/client-context'
+import { makeClientContext } from '@owlmeans/client'
 import { AppConfig, AppContext } from './types.js'
 import { appendAuthService, AUTH_RESOURCE } from '@owlmeans/client-auth'
 import { appendWebDbService } from '@owlmeans/web-db'

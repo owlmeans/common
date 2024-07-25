@@ -115,7 +115,7 @@ export const makeMongoResource = <
     create: async (record, opts) => {
       if ("id" in record && record.id == null) {
         delete record.id
-      } 
+      }
       if (record.id != null) {
         throw new RecordExists('id-present')
       }

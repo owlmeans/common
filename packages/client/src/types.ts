@@ -2,14 +2,12 @@ import type { RouteObject } from 'react-router'
 import type { Router as RemixRouter } from '@remix-run/router'
 import type { PropsWithChildren, FC } from 'react'
 import type { AbstractRequest } from '@owlmeans/module'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
+import type { ClientConfig, ClientContext as BasicClientContext } from '@owlmeans/client-context'
+import type { StateResourceAppend } from '@owlmeans/state'
 
 export interface RouterModel {
   routes: RouteObject[]
-  resolve: <C extends Config, T extends Context<C>>(context: T) => Promise<RouteObject[]>
+  resolve: <C extends ClientConfig, T extends ClientContext<C>>(context: T) => Promise<RouteObject[]>
 }
 
 export interface RouterProvider {
@@ -21,7 +19,7 @@ export interface RouterProps {
 }
 
 export interface AppProps extends PropsWithChildren {
-  context: Context<any>
+  context: ClientContext<any>
   provide?: RouterProvider | RemixRouter
 }
 
@@ -32,5 +30,8 @@ export interface ModuleContextParams {
   alias: string
   params: AbstractRequest['params']
   path: string
-  context: Context
+  context: ClientContext
+}
+
+export interface ClientContext<C extends ClientConfig = ClientConfig> extends BasicClientContext<C>, StateResourceAppend {
 }

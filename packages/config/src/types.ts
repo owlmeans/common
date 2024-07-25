@@ -2,7 +2,7 @@ import type { BasicConfig, CONFIG_RECORD, ConfigRecord } from '@owlmeans/context
 import type { Resource } from '@owlmeans/resource'
 import type { Profile } from '@owlmeans/auth'
 
-export interface ConfigResource extends Resource<ConfigRecord> {
+export interface ConfigResource<T extends ConfigRecord = ConfigRecord> extends Resource<T> {
 }
 
 export interface CommonConfig extends BasicConfig {
@@ -15,7 +15,7 @@ export interface CommonConfig extends BasicConfig {
 }
 
 export interface ConfigResourceAppend {
-  getConfigResource: () => ConfigResource
+  getConfigResource: <T extends ConfigRecord>(alias?: string) => ConfigResource<T>
 }
 
 export interface DbConfig<P extends {} = {}> {

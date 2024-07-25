@@ -1,4 +1,4 @@
-import { makeClientContext } from '@owlmeans/client-context'
+import { makeClientContext } from '@owlmeans/client'
 import { appendWebDbService } from '@owlmeans/web-db'
 import { apiConfigMiddleware } from '@owlmeans/api-config-client'
 import { extractPrimaryHost } from '@owlmeans/web-client'

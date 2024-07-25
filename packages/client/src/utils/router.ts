@@ -1,7 +1,8 @@
 import type { ClientModule } from '@owlmeans/client-module'
 import { AppType } from '@owlmeans/context'
 import { makeRouterModel } from '../router.js'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig } from '@owlmeans/client-context'
+import type { ClientContext } from '../types.js'
 
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }

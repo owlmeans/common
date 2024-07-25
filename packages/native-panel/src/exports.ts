@@ -13,7 +13,7 @@ export { Context } from '@owlmeans/client'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
-export { makeContext, ENV_DEFAULT, ENV_DEV, ENV_TEST, ENV_PROD, ENV_STAGE } from '@owlmeans/native-client'
+export { makeContext, ENV_DEFAULT, ENV_DEV, ENV_TEST, ENV_PROD, ENV_STAGE, useNavigate } from '@owlmeans/native-client'
 export type { AppConfig, AppContext } from '@owlmeans/native-client'
 
 export { DISPATCHER } from '@owlmeans/auth'

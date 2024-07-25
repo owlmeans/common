@@ -1,11 +1,11 @@
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
-import type { ModuleContextParams, RoutedComponent } from './types.js'
+import type { ModuleContextParams, RoutedComponent, ClientContext } from './types.js'
 import type { RefedModuleHandler } from '@owlmeans/client-module'
 import { HandledRenderer } from './utils/route.js'
 import { isValidElement } from 'react'
 import type { PropsWithChildren } from 'react'
 import { ModuleContext } from './utils/module.js'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig } from '@owlmeans/client-context'
 import { assertContext } from '@owlmeans/context'
 
 type Config = ClientConfig
