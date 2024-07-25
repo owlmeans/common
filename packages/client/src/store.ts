@@ -40,7 +40,7 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
   const [unsubscribe, _initialModels] = useMemo(() => resource.subscribe({
     id: params.id,
     listener: models => {
-      setModels(models)
+      params.listen && setModels(models)
     },
     default: params.default,
     query: params.query,

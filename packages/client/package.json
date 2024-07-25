@@ -30,8 +30,8 @@
     "@owlmeans/client-context": "0.1.0",
     "@owlmeans/client-module": "0.1.0",
     "@owlmeans/context": "0.1.0",
-    "@owlmeans/state": "0.1.0",
-    "@owlmeans/module": "0.1.0"
+    "@owlmeans/module": "0.1.0",
+    "@owlmeans/state": "0.1.0"
   },
   "peerDependencies": {
     "react": "*",

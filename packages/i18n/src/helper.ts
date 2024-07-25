@@ -49,7 +49,8 @@ export const initI18nResource = (lng: string, resource: string, ns?: string): nu
   if (translation.lngInitialized.includes(lng)) {
     return null
   }
-  const result = translation.resources.toSorted((a, b) => {
+
+  const result = [...translation.resources].sort((a, b) => {
     const aLev = levelCost[a.level]
     const bLev = levelCost[b.level]
     if (aLev !== bLev) {

@@ -1,11 +1,10 @@
-
+import type { Ed22519BasicAuthUIPluginForm as FormData } from '@owlmeans/client-panel/auth/plugins'
+import  { Ed22519BasicAuthUIPluginFormSchema as Schema } from '@owlmeans/client-panel/auth/plugins'
 import { AuthenticationStage } from '@owlmeans/auth'
 import type { AuthenticationRenderer } from '@owlmeans/client-auth/manager'
 import { Form } from '../../components/form/index.js'
 import { Text } from '../../components/form/text/index.js'
 import { useCallback } from 'react'
-import type { Ed22519BasicAuthUIPluginForm as FormData } from './types.js'
-import { Ed22519BasicAuthUIPluginFormSchema as Schema } from './consts.js'
 
 export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, control }) => {
   const submit = useCallback(async (data: FormData) => {

@@ -9,8 +9,10 @@ import type { MD3Theme } from 'react-native-paper'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { provide as nativeProvide } from '@owlmeans/native-client'
 import { pathchFonts } from './utils/font.js'
+import { PanelContext } from '@owlmeans/client-panel'
+import { DEFAULT_NAME } from '../../consts.js'
 
-export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors }) => {
+export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors, name }) => {
   console.log(colors)
   const theme: MD3Theme = {
     ...MD3LightTheme,
@@ -23,11 +25,13 @@ export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts,
   return <I18nContext config={context.cfg}>
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
-        <SafeAreaView>
-          <App context={context} provide={provide ?? nativeProvide}>
-            {children}
-          </App >
-        </SafeAreaView>
+        <PanelContext resource={name ?? DEFAULT_NAME}>
+          <SafeAreaView>
+            <App context={context} provide={provide ?? nativeProvide}>
+              {children}
+            </App >
+          </SafeAreaView>
+        </PanelContext>
       </PaperProvider>
     </SafeAreaProvider>
   </I18nContext>

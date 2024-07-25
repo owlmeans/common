@@ -966,10 +966,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/client-panel@workspace:packages/client-panel"
   dependencies:
-    "@emotion/react": "npm:^11.11.4"
-    "@emotion/styled": "npm:^11.11.5"
     "@hookform/resolvers": "npm:^3.9.0"
-    "@mui/material": "npm:^5.15.21"
     "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-auth": "npm:^0.1.0"
@@ -982,22 +979,16 @@ __metadata:
     react-hook-form: "npm:^7.52.1"
     typescript: "npm:^5.4.5"
   peerDependencies:
-    "@emotion/react": "*"
-    "@emotion/styled": "*"
-    "@mui/material": "*"
     "@owlmeans/auth": "*"
     "@owlmeans/client-auth": "*"
     "@owlmeans/i18n": "*"
     ajv: "*"
     react: "*"
-    react-dom: "*"
     react-hook-form: "*"
   peerDependenciesMeta:
     "@owlmeans/auth":
       optional: true
     "@owlmeans/client-auth":
-      optional: true
-    react-dom:
       optional: true
   languageName: unknown
   linkType: soft
@@ -1047,6 +1038,7 @@ __metadata:
     "@owlmeans/client-module": "npm:0.1.0"
     "@owlmeans/context": "npm:0.1.0"
     "@owlmeans/module": "npm:0.1.0"
+    "@owlmeans/state": "npm:0.1.0"
     "@types/react": "npm:^18.3.3"
     nodemon: "npm:^3.1.4"
     react-router: "npm:^6.25.1"
@@ -1224,6 +1216,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/native-panel@workspace:packages/native-panel"
   dependencies:
+    "@owlmeans/api-config-client": "npm:^0.1.0"
     "@owlmeans/auth": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-auth": "npm:^0.1.0"
@@ -1513,10 +1506,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@owlmeans/state@workspace:packages/state":
+"@owlmeans/state@npm:0.1.0, @owlmeans/state@workspace:packages/state":
   version: 0.0.0-use.local
   resolution: "@owlmeans/state@workspace:packages/state"
   dependencies:
+    "@owlmeans/context": "npm:^0.1.0"
+    "@owlmeans/resource": "npm:^0.1.0"
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   languageName: unknown
@@ -1593,6 +1588,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@owlmeans/web-panel@workspace:packages/web-panel"
   dependencies:
+    "@emotion/react": "npm:^11.11.4"
+    "@emotion/styled": "npm:^11.11.5"
+    "@mui/material": "npm:^5.15.21"
     "@owlmeans/api-config-client": "npm:^0.1.0"
     "@owlmeans/client": "npm:^0.1.0"
     "@owlmeans/client-api": "npm:^0.1.0"
@@ -1613,6 +1611,9 @@ __metadata:
     nodemon: "npm:^3.1.4"
     typescript: "npm:^5.4.5"
   peerDependencies:
+    "@emotion/react": "*"
+    "@emotion/styled": "*"
+    "@mui/material": "*"
     react: "*"
     react-dom: "*"
   languageName: unknown

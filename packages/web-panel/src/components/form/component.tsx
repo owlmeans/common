@@ -1,6 +1,6 @@
 import type { FC } from 'react'
 import { useCallback, useMemo } from 'react'
-import type { FormProps } from './types.js'
+import type { FormProps } from '@owlmeans/client-panel'
 import { FormProvider, useForm } from 'react-hook-form'
 import { ajvResolver } from '@hookform/resolvers/ajv'
 
@@ -8,14 +8,11 @@ import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardActions from '@mui/material/CardActions'
-import { FormContext } from './context.js'
+import { FormContext, schemaToFormDefault, FormScaling  } from '@owlmeans/client-panel'
 import type { JSONSchemaType } from 'ajv'
-import { schemaToFormDefault } from '../../helper/form.js'
-import { FormScaling } from './consts.js'
 import type { SxProps } from '@mui/material'
 import { SubmitButton } from './button/component.js'
 import { useToggle } from '@owlmeans/client'
-
 
 export const Form: FC<FormProps> = (props) => {
   const { defaults, children, formRef, validation, name, horizontal, decorate,

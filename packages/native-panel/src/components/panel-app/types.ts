@@ -4,6 +4,7 @@ import type { MD3Theme } from 'react-native-paper'
 export interface PanelAppProps extends AppProps {
   fonts?: PanelAppFont[]
   colors?: MD3Theme["colors"]
+  name?: string
 }
 
 export interface PanelAppFont {

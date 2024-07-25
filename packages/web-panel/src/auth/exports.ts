@@ -13,6 +13,7 @@ export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/client-auth'
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
 export * from '@owlmeans/client-panel/auth'
+export { AuthenticationHOC } from '@owlmeans/client-auth/manager'
 export { render } from '../main'
 
 export { DISPATCHER } from '@owlmeans/auth'

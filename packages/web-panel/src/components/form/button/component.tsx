@@ -9,7 +9,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useFormContext } from 'react-hook-form'
 import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
-import { useFormI18n } from '../utils.js'
+import { useFormI18n } from '@owlmeans/client-panel'
 
 export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size }) => {
   const context = useContext()

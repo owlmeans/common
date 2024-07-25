@@ -28,14 +28,15 @@
     "react-native": "*"
   },
   "dependencies": {
+    "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
-    "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/client-config": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-i18n": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/client-panel": "^0.1.0",
     "@owlmeans/client-route": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",

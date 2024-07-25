@@ -24,6 +24,13 @@
       "default": "./build/auth/index.js",
       "module": "./build/auth/index.js",
       "types": "./build/auth/index.d.ts"
+    },
+    "./auth/plugins": {
+      "import": "./build/auth/plugins/exports.js",
+      "require": "./build/auth/plugins/exports.js",
+      "default": "./build/auth/plugins/exports.js",
+      "module": "./build/auth/plugins/exports.js",
+      "types": "./build/auth/plugins/exports.d.ts"
     }
   },
   "dependencies": {
@@ -34,15 +41,11 @@
     "@owlmeans/context": "^0.1.0"
   },
   "peerDependencies": {
-    "@emotion/react": "*",
-    "@emotion/styled": "*",
-    "@mui/material": "*",
     "@owlmeans/auth": "*",
     "@owlmeans/client-auth": "*",
     "@owlmeans/i18n": "*",
     "ajv": "*",
     "react": "*",
-    "react-dom": "*",
     "react-hook-form": "*"
   },
   "peerDependenciesMeta": {
@@ -51,15 +54,9 @@
     },
     "@owlmeans/client-auth": {
       "optional": true
-    },
-    "react-dom": {
-      "optional": true
     }
   },
   "devDependencies": {
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
-    "@mui/material": "^5.15.21",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
     "@types/react": "^18.3.3",
