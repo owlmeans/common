@@ -7,6 +7,7 @@ export class AuthFailedError extends ApiError {
 
   constructor(message: string = 'error') {
     super(`auth:${message}`)
+    this.type = AuthFailedError.typeName
   }
 }
 
@@ -15,6 +16,7 @@ export class AccessError extends ApiError {
 
   constructor(message: string = 'error') {
     super(`access:${message}`)
+    this.type = AccessError.typeName
   }
 }
 

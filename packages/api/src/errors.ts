@@ -13,6 +13,7 @@ export class ApiClientError extends ApiError {
 
   constructor(message: string = 'error') {
     super(`client:${message}`)
+    this.type = ApiClientError.typeName
   }
 }
 
@@ -21,6 +22,7 @@ export class ServerCrashedError extends ApiClientError {
 
   constructor(message: string = 'error') {
     super(`crashe:${message}`)
+    this.type = ServerCrashedError.typeName
   }
 }
 
@@ -29,6 +31,7 @@ export class ServerAuthError extends ApiClientError {
 
   constructor(message: string = 'error') {
     super(`auth:${message}`)
+    this.type = ServerAuthError.typeName
   }
 }
 

@@ -7,7 +7,6 @@ import { StateListenerError } from './errors.js'
 import { createStateModel } from './utils/model.js'
 import type { BasicContext as Context, BasicConfig as Config } from '@owlmeans/context'
 
-
 export const createStateResource = <R extends ResourceRecord>(alias: string = DEFAULT_ALIAS): StateResource<R> => {
   const location = `state-resource:${alias}`
 
@@ -15,8 +14,15 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
   const listeners: StateListener<R>[] = []
   const recordToListener = new Map<string, Set<StateListener<R>>>()
   const listenerToRecord = new Map<StateListener<R>, string[]>()
+  const globalListeners: StateListener<R>[] = []
 
   type StoreKey = keyof typeof store
+
+  const notifyGlobalListenrs = (records: R[]) => {
+    globalListeners.forEach(listener => listener(
+      records.map(record => createStateModel(record, resource))
+    ))
+  }
 
   const resource: StateResource<R> = appendContextual<StateResource<R>>(alias, {
     get: async (id, field, opts) => {
@@ -80,6 +86,8 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       store[record.id as StoreKey] = record as unknown as R
 
+      notifyGlobalListenrs([store[record.id as StoreKey]])
+
       return record as any
     },
 
@@ -99,6 +107,8 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       recordToListener.get(record.id)?.forEach(
         listener => listener([createStateModel(reference, resource)])
       )
+
+      notifyGlobalListenrs([reference])
 
       return reference as any
     },
@@ -135,6 +145,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         listeners.clear()
         recordToListener.delete(_id)
       }
+      notifyGlobalListenrs([record])
 
       return record as any
     },
@@ -190,6 +201,17 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
           })
         }
       }, records]
+    },
+
+    listen: listener => {
+      globalListeners.push(listener)
+
+      return () => {
+        const index = globalListeners.indexOf(listener)
+        if (index >= 0) {
+          globalListeners.splice(index, 1)
+        }
+      }
     }
   })
 

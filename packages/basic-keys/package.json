@@ -20,6 +20,20 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./plugins": {
+      "import": "./build/plugins/export.js",
+      "require": "./build/plugins/export.js",
+      "default": "./build/plugins/export.js",
+      "module": "./build/plugins/export.js",
+      "types": "./build/plugins/export.d.ts"
+    },
+    "./utils": {
+      "import": "./build/utils.js",
+      "require": "./build/utils.js",
+      "default": "./build/utils.js",
+      "module": "./build/utils.js",
+      "types": "./build/utils.d.ts"
     }
   },
   "devDependencies": {

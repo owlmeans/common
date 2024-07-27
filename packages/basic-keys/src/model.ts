@@ -18,6 +18,10 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
         throw new Error('basic.keys:missing-keypair')
       }
 
+      if (_model.keyPair.privateKey == null) {
+        throw new Error('basic.keys:missing-pk')
+      }
+
       return base64.encode(
         plugins[_model.keyPair.type].sign(
           data as Uint8Array,

@@ -6,6 +6,7 @@ export class StateToolingError extends ResourceError {
 
   constructor(msg: string) {
     super(`tooling:${msg}`)
+    this.type = StateToolingError.typeName
   }
 }
 
@@ -14,6 +15,7 @@ export class StateListenerError extends StateToolingError {
 
   constructor(msg: string) {
     super(`listener:${msg}`)
+    this.type = StateListenerError.typeName
   }
 }
 

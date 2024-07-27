@@ -14,6 +14,7 @@ export class AuthUnknown extends AuthError {
   
   constructor(message: string = 'error') {
     super(`unknown:${message}`)
+    this.type = AuthUnknown.typeName
   }
 }
 
@@ -22,6 +23,7 @@ export class AuthManagerError extends AuthError {
 
   constructor(message: string = 'error') {
     super(`manager:${message}`)
+    this.type = AuthManagerError.typeName
   }
 }
 
@@ -30,6 +32,7 @@ export class AuthenFailed extends AuthManagerError {
 
   constructor(message: string = 'error') {
     super(`authen:${message}`)
+    this.type = AuthenFailed.typeName
   }
 }
 
@@ -38,6 +41,7 @@ export class AuthenPayloadError extends AuthenFailed {
 
   constructor(message: string = 'error') {
     super(`payload:${message}`)
+    this.type = AuthenPayloadError.typeName
   }
 }
 
@@ -46,6 +50,7 @@ export class AuthPluginError extends AuthManagerError {
 
   constructor(message: string = 'error') {
     super(`plugin:${message}`)
+    this.type = AuthPluginError.typeName
   }
 }
 
@@ -54,6 +59,7 @@ export class TypeMissmatchError extends AuthPluginError {
 
   constructor(message: string = 'error') {
     super(`missmatch:${message}`)
+    this.type = TypeMissmatchError.typeName
   }
 }
 
@@ -62,6 +68,7 @@ export class AuthorizationError extends AuthError {
 
   constructor(message: string = 'error') {
     super(`authorization:${message}`)
+    this.type = AuthorizationError.typeName
   }
 }
 

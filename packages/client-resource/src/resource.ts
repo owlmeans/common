@@ -1,8 +1,8 @@
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { appendContextual, assertContext } from '@owlmeans/context'
-import { ResourceError, UnknownRecordError } from '@owlmeans/resource'
-import type { ResourceRecord } from '@owlmeans/resource'
-import { DEFAULT_DB_ALIAS } from './consts'
+import { RecordExists, ResourceError, UnknownRecordError } from '@owlmeans/resource'
+import type { ListCriteria, ListPager, ResourceRecord } from '@owlmeans/resource'
+import { DEFAULT_DB_ALIAS } from './consts.js'
 import type { ClientDb, ClientDbService, ClientResource } from './types.js'
 import { base58 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
@@ -30,34 +30,154 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
       resource.db = await dbService.initialize(config.schema ?? alias)
     },
 
-    get: async <T extends ResourceRecord>(id: string) => {
-      const record = await resource.load<T>(id)
+    get: async id => {
+      const record = await resource.load(id)
 
       if (record == null) {
         throw new UnknownRecordError(id)
       }
 
-      return record as T
+      return record as any
     },
 
 
-    load: async <T extends ResourceRecord>(id: string) => {
+    load: async id => {
       const db = assert()
 
-      return await db.get(id) as T | null
+      return await db.get(id) as any | null
     },
 
-    save: async <T extends ResourceRecord>(record: Partial<T>) => {
+    list: async (criteria, opts) => {
+      if (criteria == null) {
+        criteria = {}
+        opts = { pager: { page: 0, size: 10 } }
+      }
+      if ("pager" in criteria) {
+        opts = criteria
+        criteria = criteria.criteria as ListCriteria
+      }
+      const db = assert()
+      const list = await db.get<string[]>('_list')
+
+      const pager: ListPager = opts?.pager ?? { page: 0, size: 10 }
+      const conditions = Object.entries(criteria as ListCriteria ?? {})
+      pager.page = pager.page ?? 0
+      pager.size = pager.size ?? 10
+
+      const result: ResourceRecord[] = []
+      let skip = pager.page * pager.size
+      let total = 0
+      let added = 0
+      for (const id of list) {
+        const record = await db.get<ResourceRecord>(id)
+        if (record != null) {
+          if (!(conditions.length === 0 || conditions.every(
+            ([key, value]) => record[key as keyof typeof record] === value
+          ))) {
+            continue
+          }
+          if (skip-- <= 0 && added < pager.size) {
+            added++
+            result.push(record)
+          }
+          ++total
+        }
+      }
+
+      return { items: result as any[], pager: { ...pager, total } }
+    },
+
+    create: async record => {
       const db = assert()
 
       record.id = record.id ?? base58.encode(randomBytes(32))
 
-      await db.set(record.id, record as T)
+      if (await db.has(record.id)) {
+        throw new RecordExists(record.id)
+      }
 
       const list: string[] = await db.get('_list') ?? []
+      if (list.includes(record.id)) {
+        throw new RecordExists(record.id)
+      }
       list.push(record.id)
+      await db.set('_list', list)
+      await db.set(record.id, record)
 
-      return record as T
+      return record as any
+    },
+
+    update: async record => {
+      const db = assert()
+
+      if (record.id == null) {
+        throw new UnknownRecordError('update')
+      }
+
+      await db.set(record.id, record)
+
+      return record as any
+    },
+
+    delete: async id => {
+      if (typeof id === 'object') {
+        if (id.id == null) {
+          throw new UnknownRecordError('delete')
+        }
+        return resource.delete(id.id)
+      }
+
+      const db = assert()
+      if (!await db.has(id)) {
+        return null
+      }
+
+      const record = await db.get(id)
+      if (record == null) {
+        throw new SyntaxError('We should not try to delete record that we know that not exists')
+      }
+      await db.del(id)
+      const list: string[] = await db.get('_list') ?? []
+      const idx = list.indexOf(id)
+      if (idx > -1) {
+        list.splice(idx, 1)
+        await db.set('_list', list)
+      }
+
+      return record as any
+    },
+
+    pick: async id => {
+      if (typeof id === 'object') {
+        if (id.id == null) {
+          throw new UnknownRecordError('pick')
+        }
+        return resource.pick(id.id)
+      }
+
+      const db = assert()
+      const record = await db.get(id)
+      if (record != null) {
+        await db.del(id)
+      } else {
+        throw new UnknownRecordError(id)
+      }
+      const list: string[] = await db.get('_list') ?? []
+      const idx = list.indexOf(id)
+      if (idx > -1) {
+        list.splice(idx, 1)
+        await db.set('_list', list)
+      }
+
+      return record as any
+    },
+
+    save: async record => {
+      if (record.id == null) {
+        return resource.create(record)
+      }
+
+      return resource.update(record)
     }
   })
 
@@ -65,12 +185,3 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
 
   return context
 }
-
-/**
-  list: <Type extends T>(criteria?: ListCriteriaParams, opts?: ListOptions) => Promise<ListResult<Type>>
-  create: <Type extends T>(record: Partial<Type>, opts?: LivecycleOptions) => Promise<Type>
-  update: <Type extends T>(record: Type, opts?: Getter) => Promise<Type>
-  delete: <Type extends T>(id: string | T, opts?: Getter) => Promise<Type | null>
-  pick: <Type extends T>(id: string | T, opts?: Getter) => Promise<Type>
-}
- */

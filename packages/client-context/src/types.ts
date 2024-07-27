@@ -8,6 +8,6 @@ export interface ClientConfig extends BasicClientConfig {
   i18n?: I18nConfig
 }
 
-export interface ClientContext<C extends ClientConfig> extends BasicContext<C> {
+export interface ClientContext<C extends ClientConfig = ClientConfig> extends BasicContext<C> {
   serviceRoute: (alias: string, makeDefault?: boolean) => CommonServiceRoute
 }

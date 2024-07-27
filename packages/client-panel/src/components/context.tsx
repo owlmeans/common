@@ -20,11 +20,11 @@ export const usePanelHelper = () => useReactContext<TPanelContext>(PanelContext_
 export const usePanelI18n = (name?: string) => {
   const context = useContext()
   const i18n = usePanelHelper()
-  const prefix = (i18n?.prefix != null ? i18n.prefix + '.' : '') + (name ?? '')
+  const prefix = (i18n?.prefix ?? '') + (name != null && i18n?.prefix != null ? '.' : '') + (name ?? '')
 
   return useCommonI18n(
     i18n?.resource ?? context.cfg.service,
-    i18n?.ns ?? i18n?.resource ?? context.cfg.service,
+    i18n?.ns ?? context.cfg.service ?? i18n?.resource,
     prefix
   )
 }

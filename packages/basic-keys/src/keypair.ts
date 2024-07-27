@@ -2,7 +2,7 @@ import type { KeyPair } from './types.js'
 import { base64 } from '@scure/base'
 import { KeyType } from './consts.js'
 import { plugins } from './plugins/index.js'
-import { assertType, createAddress } from './utils.js'
+import { assertType } from './utils.js'
 
 export const inputToKeyPair = (input?: KeyPair | string): KeyPair => {
   let type: string = KeyType.ED25519
@@ -35,7 +35,7 @@ export const inputToKeyPair = (input?: KeyPair | string): KeyPair => {
     keyPair = {
       privateKey: base64.encode(primaryKey),
       publicKey: base64.encode(publicKey),
-      address: createAddress(publicKey),
+      address: plugins[type].toAdress(publicKey),
       type,
     }
   }

@@ -14,6 +14,7 @@ export class ConfigResourceError extends ConfigError {
 
   constructor(message: string = 'error') {
     super(`resource:${message}`)
+    this.type = ConfigResourceError.typeName
   }
 }
 

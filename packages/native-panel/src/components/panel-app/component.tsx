@@ -11,8 +11,9 @@ import { provide as nativeProvide } from '@owlmeans/native-client'
 import { pathchFonts } from './utils/font.js'
 import { PanelContext } from '@owlmeans/client-panel'
 import { DEFAULT_NAME } from '../../consts.js'
+import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 
-export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors, name }) => {
+export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors, name, icons }) => {
   console.log(colors)
   const theme: MD3Theme = {
     ...MD3LightTheme,
@@ -24,11 +25,15 @@ export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts,
 
   return <I18nContext config={context.cfg}>
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
+      <PaperProvider theme={theme} settings={{
+        icon: (props) => icons != null && icons[props.name] != null
+          ? icons[props.name]({ ...props })
+          : <MaterialIcons {...props} />
+      }}>
         <PanelContext resource={name ?? DEFAULT_NAME}>
-            <App context={context} provide={provide ?? nativeProvide}>
-              {children}
-            </App >
+          <App context={context} provide={provide ?? nativeProvide}>
+            {children}
+          </App >
         </PanelContext>
       </PaperProvider>
     </SafeAreaProvider>

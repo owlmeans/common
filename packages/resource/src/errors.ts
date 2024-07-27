@@ -16,6 +16,7 @@ export class UnknownRecordError extends ResourceError {
 
   constructor(id: string) {
     super(`unknown-record${UnknownRecordError.idSeparator}${id}`)
+    this.type = UnknownRecordError.typeName
   }
 
   get id(): string {
@@ -28,6 +29,7 @@ export class MisshapedRecord extends ResourceError {
 
   constructor(msg: string) {
     super(`misshaped-record:${msg}`)
+    this.type = MisshapedRecord.typeName
   }
 }
 
@@ -36,6 +38,7 @@ export class RecordExists extends ResourceError {
 
   constructor(msg: string) {
     super(`record-exists:${msg}`)
+    this.type = RecordExists.typeName
   }
 }
 
@@ -44,6 +47,7 @@ export class RecordUpdateFailed extends ResourceError {
 
   constructor(msg: string) {
     super(`record-update-failed:${msg}`)
+    this.type = RecordUpdateFailed.typeName
   }
 }
 
@@ -52,6 +56,7 @@ export class UnsupportedArgumentError extends ResourceError {
 
   constructor(argument: string) {
     super(`unsupported-argument:${argument}`)
+    this.type = UnsupportedArgumentError.typeName
   }
 }
 
@@ -60,6 +65,7 @@ export class UnsupportedMethodError extends ResourceError {
 
   constructor(method: string) {
     super(`unsupported-method:${method}`)
+    this.type = UnsupportedMethodError.typeName
   }
 }
 

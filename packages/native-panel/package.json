@@ -27,6 +27,7 @@
     "react": "*",
     "react-native": "*",
     "react-native-paper": "*",
+    "react-native-reanimated": "*",
     "react-native-safe-area-context": "*"
   },
   "dependencies": {

@@ -7,6 +7,7 @@ export class AuthenCredError extends AuthManagerError {
 
   constructor(message: string = 'error') {
     super(`cred:${message}`)
+    this.type = AuthenCredError.typeName
   }
 }
 

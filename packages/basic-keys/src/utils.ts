@@ -1,15 +1,9 @@
 import { keccak_256 } from '@noble/hashes/sha3'
-import { base58, base64, utf8 } from '@scure/base'
+import { base64, utf8 } from '@scure/base'
 import { plugins } from './plugins/index.js'
 
 export const toAddress = (publicKey: Uint8Array): Uint8Array =>
   keccak_256(publicKey.slice(4)).slice(-20)
-
-export const encodeAddress = (address: Uint8Array): string =>
-  base58.encode(address)
-
-export const createAddress = (publicKey: Uint8Array): string =>
-  encodeAddress(toAddress(publicKey))
 
 export const prepareKey = (key: string): Uint8Array =>
   base64.decode(key)

@@ -12,6 +12,7 @@ export const makeNativeDbService = (alias: string = DEFAULT_ALIAS): NativeDbServ
   const stores: Record<string, ClientDb> = {}
   const service = createService<NativeDbService>(alias, {
     initialize: async alias => {
+      console.log('Intialize NativeDbService:', alias)
       alias = alias ?? DEFAULT_ALIAS
 
       if (stores[alias] != null) {

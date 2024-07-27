@@ -1,0 +1,8 @@
+{
+  "address": {
+    "hint": "DID address"
+  },
+  "master": {
+    "title": "Master key"
+  }
+}

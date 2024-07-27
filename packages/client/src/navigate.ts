@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigate as useNav } from 'react-router-native'
+import { useLocation, useNavigate as useNav } from 'react-router'
 import type { Navigator } from './types.js'
 import { ModuleOutcome } from '@owlmeans/module'
 import { useContext } from './context.js'
@@ -8,13 +8,20 @@ import type { ClientModule } from '@owlmeans/client-module'
 export const useNavigate = (): Navigator => {
   const context = useContext()
   const navigate = useNav()
+  const location = useLocation()
   const navigator: Navigator = useMemo(() => {
     const navigator: Navigator = {
       navigate: async (module, request) => {
         const [url, ok] = await module.call(request)
         console.log('Navigate to', url, ok)
+
         if (ok === ModuleOutcome.Ok) {
-          navigate(url, { state: module.route.route })
+          navigate(url, {
+            state: {
+              ...module.route.route, silent: request?.silent
+            },
+            replace: request?.replace ?? false
+          })
         }
       },
 
@@ -23,7 +30,9 @@ export const useNavigate = (): Navigator => {
 
       press: (alias, request) => () => {
         void navigator.go(alias, request)
-      }
+      },
+
+      location: () => location
     }
 
     return navigator

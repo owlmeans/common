@@ -5,6 +5,7 @@ export interface StateResource<T extends ResourceRecord> extends Resource<T> {
    * @returns unsubscribe function
    */
   subscribe: (params: StateSubscriptionOption<T>) => [() => void, StateModel<T>[]]
+  listen: (listener: StateListener<T>) => () => void
 }
 
 export interface StateSubscriptionOption<T extends ResourceRecord> {

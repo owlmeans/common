@@ -14,6 +14,7 @@ export class ClientValidationError extends ClientModuleError {
 
   constructor(message: string) {
     super(`validation:${message}`)
+    this.type = ClientValidationError.typeName
   }
 }
 
