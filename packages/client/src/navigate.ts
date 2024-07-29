@@ -11,6 +11,8 @@ export const useNavigate = (): Navigator => {
   const location = useLocation()
   const navigator: Navigator = useMemo(() => {
     const navigator: Navigator = {
+      _navigate: navigate,
+      
       navigate: async (module, request) => {
         const [url, ok] = await module.call(request)
         console.log('Navigate to', url, ok)
@@ -30,6 +32,14 @@ export const useNavigate = (): Navigator => {
 
       press: (alias, request) => () => {
         void navigator.go(alias, request)
+      },
+
+      back: async () => {
+        navigate(-1)
+      },
+
+      pressBack: () => () => {  
+        void navigator.back()
       },
 
       location: () => location

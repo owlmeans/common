@@ -9,7 +9,7 @@ export interface CommonConfig extends BasicConfig {
   dbs?: DbConfig[]
   trusted: Profile[]
   [CONFIG_RECORD]: ConfigRecord[]
-  debug: {[section: string]: boolean | undefined} & {
+  debug: BasicConfig["debug"] & {
     i18n?: boolean
   }
 }

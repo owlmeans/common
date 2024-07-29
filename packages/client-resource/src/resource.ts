@@ -114,7 +114,14 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
         throw new UnknownRecordError('update')
       }
 
-      await db.set(record.id, record)
+      const update = await resource.load(record.id)
+      if (update == null) {
+        throw new UnknownRecordError(record.id)
+      }
+
+      Object.assign(update, record)
+
+      await db.set(record.id, update)
 
       return record as any
     },
@@ -173,11 +180,19 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
     },
 
     save: async record => {
-      if (record.id == null) {
+      if (record.id == null || (await resource.load(record.id) == null)) {
         return resource.create(record)
       }
 
       return resource.update(record)
+    },
+
+    erase: async () => {
+      console.log('Erasing all records', location)
+      const db = assert()
+      const list: string[] = await db.get('_list') ?? []
+      const count = await Promise.all(list.map(id => resource.delete(id)))
+      console.log('erased', count.length)
     }
   })
 

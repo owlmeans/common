@@ -8,7 +8,7 @@ export interface BasicConfig {
   layerId?: string
   services?: Record<string, Object>
   [CONFIG_RECORD]?: ConfigRecord[]
-  debug?: { 
+  debug?: {
     all?: boolean
     [section: string]: boolean | undefined
   }
@@ -18,7 +18,11 @@ export interface ConfigRecord extends ConfigRecordItem {
   id: string
 }
 
-interface ConfigRecordItem extends Record<string, ConfigRecordItem | string | number | undefined> {
+type MaybeArray<T> = T | T[]
+
+interface ConfigRecordItem extends Record<
+  string,
+  MaybeArray<ConfigRecordItem | string | number | undefined>> {
 }
 
 export interface Contextual {

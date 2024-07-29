@@ -29,6 +29,10 @@
     "react-native-dotenv": "^3.4.11",
     "react-router-native": "^6.25.1"
   },
+  "peerDependencies": {
+    "react-native": "*",
+    "react-native-permissions": "*"
+  },
   "devDependencies": {
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"

@@ -6,6 +6,7 @@ export interface StateResource<T extends ResourceRecord> extends Resource<T> {
    */
   subscribe: (params: StateSubscriptionOption<T>) => [() => void, StateModel<T>[]]
   listen: (listener: StateListener<T>) => () => void
+  erase: () => Promise<void>
 }
 
 export interface StateSubscriptionOption<T extends ResourceRecord> {

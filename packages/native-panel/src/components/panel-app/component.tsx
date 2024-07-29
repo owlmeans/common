@@ -12,6 +12,7 @@ import { pathchFonts } from './utils/font.js'
 import { PanelContext } from '@owlmeans/client-panel'
 import { DEFAULT_NAME } from '../../consts.js'
 import MaterialIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { Modal } from '../modal.js'
 
 export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors, name, icons }) => {
   console.log(colors)
@@ -32,6 +33,7 @@ export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts,
       }}>
         <PanelContext resource={name ?? DEFAULT_NAME}>
           <App context={context} provide={provide ?? nativeProvide}>
+            <Modal />
             {children}
           </App >
         </PanelContext>

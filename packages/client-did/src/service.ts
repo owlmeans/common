@@ -1,10 +1,12 @@
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { DEFAULT_ALIAS, defDeps } from './consts.js'
 import type { DIDService, DIDServiceAppend, DIDServiceDeps } from './types.js'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig } from '@owlmeans/client-context'
 import type { KeyMetaResource, KeyPairResource, MasterResource } from '@owlmeans/did'
 import { DIDInitializationError, makeWallet, MASTER } from '@owlmeans/did'
 import { appendClientResource } from '@owlmeans/client-resource'
+import { appendStateDebug } from '@owlmeans/client'
+import type { ClientContext } from '@owlmeans/client'
 
 export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServiceDeps): DIDService => {
   const location = `did-service:${alias}`
@@ -73,6 +75,7 @@ export const appendDidService = <
 
   if (context.getDidService == null) {
     context.getDidService = (_alias?: string) => context.service<DIDService>(_alias ?? alias)
+    Object.values(deps).forEach(dep => appendStateDebug<C, T>(ctx, dep))
   }
 
   return context

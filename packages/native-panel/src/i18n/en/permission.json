@@ -1,0 +1,10 @@
+{
+  "camera": {
+    "reason": "On the next step you will be asked for access to your camera. Please, confirm it to enable QR code scanning.",
+    "title": "Device Camera Permission",
+    "description": "We allow to login in different services using QR codes. It combines simplicity of single-click authentication with the secrutity of two-factor.",
+    "proceed": {
+      "label": "Grant permission"
+    }
+  }
+}

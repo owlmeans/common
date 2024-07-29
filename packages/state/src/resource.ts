@@ -131,19 +131,19 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       if (listeners != null) {
         listeners.forEach(listener => {
           listener([createStateModel(record, resource)])
-          const listeners = listenerToRecord.get(listener)
-          if (listeners != null) {
-            const idx = listeners.indexOf(_id)
-            if (idx > 0) {
-              listeners.splice(idx, 1)
-            }
-            if (listeners.length < 1) {
-              listenerToRecord.delete(listener)
-            }
-          }
+          // const listeners = listenerToRecord.get(listener)
+          // if (listeners != null) {
+          //   const idx = listeners.indexOf(_id)
+          //   if (idx > 0) {
+          //     listeners.splice(idx, 1)
+          //   }
+          //   if (listeners.length < 1) {
+          //     listenerToRecord.delete(listener)
+          //   }
+          // }
         })
-        listeners.clear()
-        recordToListener.delete(_id)
+        // listeners.clear()
+        // recordToListener.delete(_id)
       }
       notifyGlobalListenrs([record])
 
@@ -212,6 +212,10 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
           globalListeners.splice(index, 1)
         }
       }
+    },
+    
+    erase: async () => {
+      await Promise.all(Object.keys(store).map(key => resource.delete(key)))
     }
   })
 

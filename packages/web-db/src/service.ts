@@ -2,7 +2,7 @@ import { createService } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { WebDbService } from './types.js'
 import type { ClientDb } from '@owlmeans/client-resource'
-import { get, set, del } from 'idb-keyval'
+import { get, set, del, clear } from 'idb-keyval'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 
 type Config = ClientConfig
@@ -44,6 +44,10 @@ export const makeWebDbService = (alias: string = DEFAULT_ALIAS): WebDbService =>
       }
 
       return stores[alias] = db
+    },
+
+    erase: async () => {
+      clear()
     }
   }, service => async () => {
     service.initialized = true

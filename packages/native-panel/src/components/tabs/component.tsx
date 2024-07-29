@@ -1,6 +1,6 @@
 import type { FC } from 'react'
 import { useMemo } from 'react'
-import { TabsProps } from './types.js'
+import { TabParams, TabsProps } from './types.js'
 
 import { BottomNavigation } from 'react-native-paper'
 import type { BottomNavigationRoute } from 'react-native-paper'
@@ -12,16 +12,18 @@ export const Tabs: FC<TabsProps> = ({ name, children, modules, settings }) => {
   const layout = usePanelLayout()
   const t = usePanelI18n(name)
 
-  const routes = useMemo<BottomNavigationRoute[]>(() => modules.map(alias => ({
+  const routes = useMemo<TabParams[]>(() => modules.map(alias => ({
     key: alias,
     title: t(prepareLayoutTitle(alias)),
     ...settings?.[alias]
   })), [])
-  console.log(routes)
   const index = useMemo(() => modules.indexOf(layout.alias), [layout.alias])
 
   return <BottomNavigation
     renderScene={() => children}
-    navigationState={{ index, routes }}
-    onIndexChange={index => navigation.go(routes[index].key, { replace: true, silent: true })} />
+    navigationState={{ index, routes: routes as BottomNavigationRoute[] }}
+    onIndexChange={index => navigation.go(routes[index].key!, {
+      replace: routes[index].outer === true ? false : true,
+      silent: routes[index].outer === true ? false : true
+    })} />
 }

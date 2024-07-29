@@ -7,6 +7,7 @@ import { appendNativeDbService } from '@owlmeans/native-db'
 import { useContext as useCtx } from '@owlmeans/client'
 import { apiConfigMiddleware } from '@owlmeans/api-config-client'
 import { extractPrimaryHost } from './utils/env.js'
+import { makePermissionService } from './permissions.js'
 
 export const makeContext = <C extends AppConfig = AppConfig, T extends AppContext<C> = AppContext<C>>(
   cfg: C
@@ -18,6 +19,7 @@ export const makeContext = <C extends AppConfig = AppConfig, T extends AppContex
   appendAuthService<C, T>(context)
   appendNativeDbService<C, T>(context)
   appendClientResource<C, T>(context, AUTH_RESOURCE)
+  context.registerService(makePermissionService())
 
   context.makeContext = makeContext as typeof context.makeContext
 

@@ -50,7 +50,9 @@ export const makeNativeDbService = (alias: string = DEFAULT_ALIAS): NativeDbServ
       }
 
       return stores[alias] = db
-    }
+    },
+
+    erase: async () => AsyncStorage.clear()
   }, service => async () => {
     service.initialized = true
   })

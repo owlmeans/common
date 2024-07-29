@@ -7,6 +7,7 @@ export interface ButtonProps {
   name: string
   color?: string
   textColor?: string
+  textVariant?: string
   dark?: boolean
 }
 
@@ -16,4 +17,5 @@ export interface TextProps extends PropsWithChildren {
   color?: string
   style?: TextStyle
   cut?: boolean
+  center?: boolean
 }

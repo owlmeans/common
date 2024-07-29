@@ -3,6 +3,7 @@ import type { Resource, ResourceRecord } from '@owlmeans/resource'
 
 export interface ClientDbService extends InitializedService {
   initialize: (alias?: string) => Promise<ClientDb>
+  erase: () => Promise<void>
 }
 
 export interface ClientDb {
@@ -12,6 +13,7 @@ export interface ClientDb {
   del: (id: string) => Promise<boolean>
 }
 
-export interface ClientResource<T extends ResourceRecord> extends Resource<T> {
+export interface ClientResource<T extends ResourceRecord = ResourceRecord> extends Resource<T> {
   db?: ClientDb
+  erase: () => Promise<void>
 }

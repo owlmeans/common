@@ -6,6 +6,9 @@ import type { ClientConfig } from '@owlmeans/client-context'
 import { AppType, CONFIG_RECORD, Layer } from '@owlmeans/context'
 import type { ClientContext } from './types.js'
 import { appendStateResource } from '@owlmeans/state'
+import { appendModalService } from './components/modal.js'
+import { appendDebugService } from './components/debug.js'
+import { appendConfigResource } from '@owlmeans/config'
 
 const defaultCfg: ClientConfig = {
   services: {},
@@ -21,6 +24,26 @@ const defaultCfg: ClientConfig = {
 export const makeClientContext = <C extends ClientConfig, T extends ClientContext<C> = ClientContext<C>>(cfg: C): T => {
   const context = makeBasicContext(cfg) as T
   appendStateResource<C, T>(context)
+  appendModalService<C, T>(context)
+  appendDebugService<C, T>(context)
+  appendConfigResource<C, T>(context)
+
+  if (context.registerRerenderer == null) {
+    const rerenderers: CallableFunction[] = []
+    
+    context.registerRerenderer = listener => {
+      rerenderers.push(listener)
+      return () => {
+        const index = rerenderers.indexOf(listener)
+        if (index >= 0) {
+          rerenderers.splice(index, 1)
+        }
+      }
+    }
+    context.rerender = () => {
+      rerenderers.forEach(callback => callback())
+    }
+  }
 
   context.makeContext = makeClientContext as typeof context.makeContext
 
