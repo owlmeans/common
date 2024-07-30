@@ -25,9 +25,11 @@
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "qs": "^6.12.3"
   },
   "devDependencies": {
+    "@types/qs": "^6",
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"
   }

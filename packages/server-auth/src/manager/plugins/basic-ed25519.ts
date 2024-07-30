@@ -1,4 +1,4 @@
-import { AuthenticationType, AuthenFailed } from '@owlmeans/auth'
+import { AuthenticationType, AuthenFailed, ALL_SCOPES, AuthRole } from '@owlmeans/auth'
 import type { AuthPlugin } from './types.js'
 import { assertType } from './utils.js'
 import { randomBytes } from '@noble/hashes/utils'
@@ -38,6 +38,12 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       }
 
       const token = base64.encode(randomBytes(64))
+
+      // @TODO we need to do something with scopes - it's not secure
+      credential.scopes = [ALL_SCOPES]
+      credential.role = AuthRole.Superuser
+      credential.challenge = token
+
       return { token }
     }
   }

@@ -18,18 +18,20 @@ export const rtype = (type: AppType, opts?: RouteOptions | string): Partial<Rout
   { type, ...(typeof opts === 'string' ? { parent: opts } : opts) }
 )
 
-export const backend = (opts?: RouteOptions | string, method?: RouteOptions | RouteMethod): Partial<RouteOptions> => {
+export const backend = (opts?: RouteOptions | string | null, method?: RouteOptions | RouteMethod): Partial<RouteOptions> => {
   if (typeof method === 'string') {
-    opts = typeof opts === 'string' ? { parent: opts, method } : { method, ...opts }
+    opts = typeof opts === 'string' ? { parent: opts, method } : { method, ...(opts ?? {}) }
   }
 
-  return rtype(AppType.Backend, opts)
+  return rtype(AppType.Backend, opts as RouteOptions)
 }
 
-export const frontend = (opts?: RouteOptions | string, def?: RouteOptions | boolean): Partial<RouteOptions> => {
+export const frontend = (opts?: RouteOptions | string | null, def?: RouteOptions | boolean): Partial<RouteOptions> => {
   if (typeof def === 'boolean') {
-    opts = typeof opts === 'string' ? { parent: opts, default: def } : { default: def, ...opts }
+    opts = typeof opts === 'string' ? { parent: opts, default: def } : { default: def, ...(opts ?? {}) }
+  } else if (typeof def === 'object') {
+    opts = typeof opts === 'object' ? { ...opts, ...def } : { parent: opts, ...def }
   }
 
-  return rtype(AppType.Frontend, opts)
+  return rtype(AppType.Frontend, opts as RouteOptions)
 }

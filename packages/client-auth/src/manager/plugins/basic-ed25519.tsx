@@ -35,5 +35,8 @@ export const ed25519BasicUIPlugin: AuthenticationPlugin = {
     }
 
     credentials.credential = await key.sign(credentials.challenge)
+
+    // We don't use it - just type compatibility
+    return { token: '' }
   }
 }

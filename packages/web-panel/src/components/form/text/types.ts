@@ -1,6 +1,6 @@
 import type { FormFieldProps } from '@owlmeans/client-panel'
 
-export interface TextProps extends FormFieldProps {
+export interface TextInputProps extends FormFieldProps {
   name: string
   label?: string | boolean
   placeholder?: string | boolean

@@ -4,9 +4,10 @@ import type { ApiClient } from './types.js'
 import axios from 'axios'
 import type { CommonModule } from '@owlmeans/module'
 import { SEP, normalizePath } from '@owlmeans/route'
-import { DEFAULT_ALIAS } from './consts.js'
+import { DEFAULT_ALIAS, protocols } from './consts.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
+import qs from 'qs'
 
 type Config = BasicClientConfig
 interface Context<C extends Config = Config> extends BasicContext<C> { }
@@ -25,23 +26,34 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       let path = module.getPath()
       const params = extractParams(path)
       path = params.reduce((path, param) => {
-        if (request.params[param] == null) {
+        type Key = keyof typeof request.params
+        if (request.params[param as Key] == null) {
           throw new SyntaxError(`No value for param ${param}`)
         }
-        return path.replace(`:${param}`, `${request.params[param]}`)
+        return path.replace(`:${param}`, `${request.params[param as Key]}`)
       }, path)
       if (route.host == null) {
         throw new SyntaxError(`No host provided in ${module.alias} route`)
       }
 
-      // @TODO Fix https
-      const url = 'http://' + normalizePath(route.host)
+      let url = normalizePath(route.host)
         + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+
+      const [prefix] = url.split('://')
+      if (!protocols.includes(prefix)) {
+        // @TODO Fix https
+        url = `http://${url}`
+      }
+
+      const body = request.body != null && Object.entries((request.headers ?? {})).find(
+        ([key, value]) =>
+          key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
+      ) ? qs.stringify(request.body) : request.body
 
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
-        data: request.body,
+        data: body,
         headers: request.headers,
         validateStatus: () => true
       })

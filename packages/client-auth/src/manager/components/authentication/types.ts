@@ -1,10 +1,15 @@
-import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthenticationStage, AuthenticationType } from '@owlmeans/auth'
+import type { 
+  AllowanceRequest, AllowanceResponse, AuthCredentials, AuthenticationStage, AuthenticationType, 
+  AuthToken
+} from '@owlmeans/auth'
+import type { ModuleContextParams } from '@owlmeans/client'
 import type { FC } from 'react'
 
 export type ClientAuthType = AuthenticationType | string
 
-export interface AuthenticationProps {
+export interface AuthenticationProps extends ModuleContextParams {
   type?: ClientAuthType
+  callback?: (token: AuthToken) => Promise<boolean>
 }
 
 export interface TAuthenticationHOC {
@@ -28,6 +33,7 @@ export interface AuthenticationControlState {
 }
 
 export interface AuthenticationControl extends AuthenticationControlState {
+  setStage?: (stage: AuthenticationStage) => void
   requestAllowence: (request?: Partial<AllowanceRequest>) => Promise<void>
-  authenticate: (credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">) => Promise<void>
+  authenticate: (credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">) => Promise<AuthToken>
 }

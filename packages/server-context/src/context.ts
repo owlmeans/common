@@ -1,8 +1,8 @@
-import { appendConfigResource } from '@owlmeans/config'
+import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
 import { ServerConfig, ServerContext } from './types.js'
 import { fileConfigReader } from './utils/context.js'
 import { makeBasicContext } from '@owlmeans/context'
-import { TRUSTED } from './consts.js'
+import { PLUGINS, TRUSTED } from './consts.js'
 
 export const makeServerContext = <C extends ServerConfig, T extends ServerContext<C>>(cfg: C): T => {
   const context = makeBasicContext(cfg) as T
@@ -13,6 +13,7 @@ export const makeServerContext = <C extends ServerConfig, T extends ServerContex
 
   appendConfigResource<C, T>(context)
   appendConfigResource<C, T>(context, TRUSTED, TRUSTED)
+  appendConfigResource<C, T>(context, PLUGINS, PLUGIN_RECORD)
 
   return context
 }

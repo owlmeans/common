@@ -245,7 +245,11 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       await _context.configure().init()
 
       return (contexts[key] = _context) as T
-    }
+    },
+
+    hasResource: alias => allResources[alias] != null,
+
+    hasService: alias => allServices[alias] != null
   }
 
   return context

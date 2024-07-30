@@ -20,6 +20,9 @@ export interface ModuleFilter<Req extends AbstractRequest = AbstractRequest> {
 }
 
 export interface ClientModuleOptions extends CommonModuleOptions {
+  /**
+   * Force module to be elevated even if it is already elevated
+   */
   force?: boolean
   routeOptions?: ClientRouteOptions
   validateOnCall?: boolean

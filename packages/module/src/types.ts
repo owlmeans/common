@@ -42,11 +42,11 @@ export interface ModuleAssert {
   <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P): Promise<void>
 }
 
-export interface AbstractRequest<T extends Record<string, any> = Record<string, any>> {
+export interface AbstractRequest<T extends {} = {}> {
   alias: string
   auth?: Auth
   params: Record<string, string | number | undefined | null> | Partial<T>
-  body?: Record<string, any>
+  body?: Record<string, any> | T
   headers: Record<string, string[] | string | undefined>
   query: Record<string, string | number | undefined | null> | Partial<T> | Object
   path: string

@@ -18,5 +18,15 @@ export class ConfigResourceError extends ConfigError {
   }
 }
 
+export class PluginMissconfigured extends ConfigResourceError {
+  public static override typeName = 'PluginMissconfigured'
+
+  constructor(message: string = 'error') {
+    super(`plugin-config:${message}`)
+    this.type = PluginMissconfigured.typeName
+  }
+}
+
 ResilientError.registerErrorClass(ConfigError)
 ResilientError.registerErrorClass(ConfigResourceError)
+ResilientError.registerErrorClass(PluginMissconfigured)

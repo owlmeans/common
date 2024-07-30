@@ -23,7 +23,7 @@ export const apiHandler: <
     throw new SyntaxError('No webService provided')
   }
 
-  const module = context.module<ClientModule<unknown>>(req.alias)
+  const module = context.module<ClientModule>(req.alias)
   const route = await module.route.resolve<Config, Context>(context)
 
   let alias: string | undefined = typeof context.cfg.webService === 'string'
@@ -115,7 +115,7 @@ export const urlCall: <
 
     const params = extractParams(module.getPath())
     let path = params.reduce((path, param) => {
-      return path.replace(`${PARAM}${param}`, `${req?.params?.[param]}`)
+      return path.replace(`${PARAM}${param}`, `${req?.params?.[param as keyof typeof req.params]}`)
     }, module.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
 
     if (module.route.route.service !== null && ctx.cfg.service !== module.route.route.service) {

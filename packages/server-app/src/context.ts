@@ -2,7 +2,7 @@ import { appendAuthService } from '@owlmeans/server-auth'
 import { makeServerContext } from '@owlmeans/server-context'
 import type { AppConfig, AppContext } from './types.js'
 import { appendApiServer } from '@owlmeans/server-api'
-import { appendApiClient } from '../../api/build/service.js'
+import { appendApiClient } from '@owlmeans/api'
 
 export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C) => {
   const context = makeServerContext(cfg) as T

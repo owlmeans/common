@@ -2,6 +2,8 @@ import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { ApiConfig } from '@owlmeans/api-config'
 import { notAvertizedConfigKeys } from '@owlmeans/api-config'
 import { handleRequest } from '@owlmeans/server-api'
+import { PLUGINS } from '@owlmeans/server-context'
+import { AppType } from '@owlmeans/context'
 
 export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, ctx) => {
   const apiConfig: ApiConfig = {
@@ -17,10 +19,11 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
         }
       ])
     ),
+    plugins: (ctx.cfg[PLUGINS] ?? []).filter(plugin => plugin.type === AppType.Frontend),
     ...(
       Object.fromEntries(
         Object.entries(ctx.cfg).filter(([key]) => ![
-          'debug', 'services', ...notAvertizedConfigKeys
+          'debug', 'services', PLUGINS , ...notAvertizedConfigKeys
         ].includes(key))
       )
     )

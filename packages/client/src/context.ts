@@ -1,14 +1,14 @@
 
 import { createContext, useContext as useCtx } from 'react'
 import type { Context as ReactContext } from 'react'
-import { makeClientContext as makeBasicContext } from '@owlmeans/client-context'
+import { makeClientContext as makeBasicContext, PLUGINS } from '@owlmeans/client-context'
 import type { ClientConfig } from '@owlmeans/client-context'
 import { AppType, CONFIG_RECORD, Layer } from '@owlmeans/context'
 import type { ClientContext } from './types.js'
 import { appendStateResource } from '@owlmeans/state'
 import { appendModalService } from './components/modal.js'
 import { appendDebugService } from './components/debug.js'
-import { appendConfigResource } from '@owlmeans/config'
+import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
 
 const defaultCfg: ClientConfig = {
   services: {},
@@ -25,8 +25,9 @@ export const makeClientContext = <C extends ClientConfig, T extends ClientContex
   const context = makeBasicContext(cfg) as T
   appendStateResource<C, T>(context)
   appendModalService<C, T>(context)
-  appendDebugService<C, T>(context)
   appendConfigResource<C, T>(context)
+  appendConfigResource<C, T>(context, PLUGINS, PLUGIN_RECORD)
+  appendDebugService<C, T>(context)
 
   if (context.registerRerenderer == null) {
     const rerenderers: CallableFunction[] = []

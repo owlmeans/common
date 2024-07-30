@@ -6,6 +6,7 @@ export const WILDCARD = '*'
 export const DELIMITER = ':'
 
 export const ALL_SCOPES = '*'
+export const AUTH_SCOPE = '__auth'
 
 export enum AuthRole {
   User = 'user',
@@ -19,7 +20,8 @@ export enum AuthRole {
 
 export enum AuthenticationType {
   BasicEd25519 = 'basic-ed25519',
-  OneTimeToken = 'one-time-token'
+  OneTimeToken = 'one-time-token',
+  ReCaptcha = 're-captcha'
 }
 
 export enum AuthroizationType {
@@ -42,6 +44,8 @@ export const AUTHEN_AUTHEN = `${AUTHEN}:authenticate`
 
 export const CAUTHEN = `cleint-${AUTHEN}`
 export const CAUTHEN_AUTHEN = `${CAUTHEN}:authentication`
+export const CAUTHEN_AUTHEN_DEFAULT = `${CAUTHEN}:authentication:default`
+export const CAUTHEN_AUTHEN_TYPED = `${CAUTHEN}:authentication:typed`
 
 export const ScopeValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 32 }
 
@@ -63,10 +67,15 @@ export const IdValueSchema: JSONSchemaType<string> = { type: 'string', minLength
 
 export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
   type: 'string',
-  enum: ['admin', 'user', 'guest', 'service', 'system', 'blocked', 'superuser']
+  enum: Object.values(AuthRole)
 }
 
 export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`
 
 export const AUTH_HEADER = 'authorization'
+
+export const MOD_RECAPTCHA = '_external:re-captcha'
+export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`
+
+export const GUEST_ID = '__guest'

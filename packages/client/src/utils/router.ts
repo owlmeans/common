@@ -37,9 +37,11 @@ export const buildModuleTree = <R, C extends Config = Config, T extends Context<
 }
 
 export const visitModuleTree = async <T, R>(tree: ModuleTree<T>, visitor: ModuleTreeVisitor<T, R>): Promise<R[]> =>
-  Promise.all(Array.from(tree.entries()).map(
-    async ([module, tree], _, source) => visitor(module, await visitModuleTree(tree, visitor), source.length === 1)
-  ))
+  Array.from(tree.entries()).reduce<Promise<R[]>>(
+    async (result, [module, tree], _, source) => [
+      ...(await result),
+      await visitor(module, await visitModuleTree(tree, visitor), source.length === 1)
+    ], Promise.resolve([]))
 
 export const initializeRouter = async (context: Context) => {
   if (!context.cfg.ready) {

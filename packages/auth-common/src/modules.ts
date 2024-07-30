@@ -1,7 +1,8 @@
 
 import {
   AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AllowanceRequestSchema, AuthCredentialsSchema,
-  AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, DISPATCHER, DISPATCHER_AUTHEN
+  AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER,
+  DISPATCHER_AUTHEN
 } from '@owlmeans/auth'
 import { AppType } from '@owlmeans/context'
 import { body, filter, module, query } from '@owlmeans/module'
@@ -13,6 +14,8 @@ export const modules = [
   module(route(AUTHEN_AUTHEN, '/authenticate', backend(AUTHEN, RouteMethod.POST)), filter(body(AuthCredentialsSchema))),
   module(route(CAUTHEN, '/authentication', frontend())),
   module(route(CAUTHEN_AUTHEN, '/login', frontend(CAUTHEN))),
+  module(route(CAUTHEN_AUTHEN_DEFAULT, '/', frontend(CAUTHEN_AUTHEN, true))),
+  module(route(CAUTHEN_AUTHEN_TYPED, '/:type', frontend(CAUTHEN_AUTHEN))),
   module(
     route(DISPATCHER, '/dispatcher', frontend({ service: DISPATCHER })),
     // This module is sticky - it means it's always attach to client router.
@@ -20,7 +23,7 @@ export const modules = [
     // rediected users.
     filter(query(AuthTokenSchema), { sticky: true })
   ),
-  module(route(DISPATCHER_AUTHEN, '/authentication', backend(undefined, RouteMethod.POST)), filter(body(AuthTokenSchema)))
+  module(route(DISPATCHER_AUTHEN, '/authentication', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema)))
 ]
 
 const skipModules = [DISPATCHER]

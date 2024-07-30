@@ -1,11 +1,10 @@
 import type { AuthModel, AppConfig, AppContext } from './types.js'
-import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthenticationType, AuthRole } from '@owlmeans/auth'
+import { AuthenFailed, AuthenPayloadError, AuthenticationType } from '@owlmeans/auth'
 import { getPlugin } from './plugins/utils.js'
 import { AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
-
 
 export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
   const trustedUser = context.cfg.trusted.find(trusted => trusted.name === AUTH_SRV_KEY)
@@ -59,17 +58,13 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       // or permission hasn't changed.
       // Alternative solution is to have permissions cached and cleaned 
       // when some broadcast message is sent from authentication system.
-      const { token } = await plugin.authenticate({ ...credential, challenge: msg })
+      await plugin.authenticate(Object.assign(credential, { challenge: msg }))
 
-      credential.challenge = token
       credential.credential = trustedUser.id
 
-      // @TODO we need to do something with scopes - it's not secure
-      credential.scopes = [ALL_SCOPES]
-      credential.role = AuthRole.Superuser
-
       return {
-        token: await makeEnvelopeModel(AuthenticationType.OneTimeToken).send(credential, AUTHEN_TIMEFRAME)
+        token: await makeEnvelopeModel(AuthenticationType.OneTimeToken)
+          .send(credential, AUTHEN_TIMEFRAME)
           .sign(_keyPair, EnvelopeKind.Token)
       }
     }
@@ -78,4 +73,5 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
   return model
 }
 
+// @TODO It doesn't scale - use redis or sticky sessions
 const store = new Set<string>()

@@ -8,6 +8,9 @@ import type { PermissionServicePlugin } from './permissions/types.js'
 export interface AppConfig extends ClientConfig {
   environments?: { [env: string]: Partial<CommonServiceRoute> }
   defaultEnv?: string
+  debug: ClientConfig['debug'] & {
+    webView?: boolean
+  }
 }
 
 export interface AppContext<C extends AppConfig = AppConfig> extends ClientContext<C>,

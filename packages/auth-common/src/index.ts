@@ -1,3 +1,3 @@
 
 export * from './modules.js'
-export * from './types.js'
+export type * from './types.js'

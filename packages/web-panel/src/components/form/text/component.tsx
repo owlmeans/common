@@ -1,12 +1,12 @@
 import type { FC } from 'react'
 import { useFormContext, Controller } from 'react-hook-form'
-import { TextProps } from './types.js'
+import { TextInputProps } from './types.js'
 
 import TextField from '@mui/material/TextField'
 import { useFormError, useFormI18n } from '@owlmeans/client-panel'
 import { useClientFormContext } from '@owlmeans/client-panel'
 
-export const Text: FC<TextProps> = ({ name, label, placeholder, hint, def }) => {
+export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, def }) => {
   const { control } = useFormContext()
   const t = useFormI18n()
   const key = name

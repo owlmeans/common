@@ -4,7 +4,7 @@ import { isClientRouteModel } from '@owlmeans/client-route'
 import type { AbstractRequest, CommonModule } from '@owlmeans/module'
 import { normalizeHelperParams } from './utils/module.js'
 
-export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
+export const elevate = <T = {}, R extends AbstractRequest = AbstractRequest>(
   modules: (CommonModule | ClientModule<T, R>)[],
   alias: string,
   handler?: RefedModuleHandler<T, R> | ClientModuleOptions | boolean,
@@ -24,11 +24,11 @@ export const elevate = <T, R extends AbstractRequest = AbstractRequest>(
   return modules as ClientModule<T, R>[]
 }
 
-export const stab: RefedModuleHandler<unknown> = () => () => {
+export const stab: RefedModuleHandler<{}> = () => () => {
   return void 0 as any
 }
 
-export const provideRequest = (alias: string, path: string): AbstractRequest => {
+export const provideRequest = <T extends {} = {}>(alias: string, path: string): AbstractRequest<T> => {
   const request = {
     alias,
     params: {},

@@ -25,7 +25,7 @@ export const apiConfigMiddleware: Middleware = {
         const [config] = await module.call()
         const target: CommonConfig = context.cfg as unknown as CommonConfig
         mergeConfig(target, config as CommonConfig)
-        console.log(target)
+        console.log(JSON.stringify(target, null, 2))
       } catch (e) { 
         console.error(e)
       }

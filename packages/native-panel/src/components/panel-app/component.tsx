@@ -16,7 +16,6 @@ import Octicons from 'react-native-vector-icons/Octicons'
 import { Modal } from '../modal.js'
 
 export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts, colors, name, icons }) => {
-  console.log(colors)
   const theme: MD3Theme = {
     ...MD3LightTheme,
     ...(fonts != null ? { fonts: configureFonts({ config: pathchFonts(fonts) }) } : {}),

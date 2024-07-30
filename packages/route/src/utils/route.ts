@@ -8,13 +8,18 @@ type Config = BasicConfig
 
 export const getParentRoute = async <C extends Config, T extends BasicContext<C>>(context: T, route: CommonRoute): Promise<CommonRoute | null> => {
   if (route.parent != null) {
-    const parent = context.module<Contextual & { _module: true, route: CommonRouteModel }>(route.parent)
+    const parent = context.module<Contextual & { _module: true, route: CommonRouteModel, resolve?: () => Promise<void> }>(route.parent)
     assertCycle<C, T>(context, route, parent.route.route)
     if (parent.route == null) {
       throw new SyntaxError('Parent module doesn\'t provide a route')
     }
-    await parent.route.resolve<C, T>(context)
-
+    if (!parent.route.route.resolved) {
+      if (parent.resolve != null) {
+        await parent.resolve()
+      } else {
+        return await parent.route.resolve<C, T>(context)
+      }
+    }
     return parent.route.route
   }
 
@@ -73,7 +78,7 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
   }
 
   if (parent == null && route.base != null) {
-    route.path = normalizePath(route.base) + SEP + route.path
+    route.path = normalizePath(route.base) + SEP + normalizePath(route.path)
     route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
   }
 

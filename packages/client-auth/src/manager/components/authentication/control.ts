@@ -1,7 +1,6 @@
 import type { AuthenticationControl } from './types.js'
 import {
-  ALL_SCOPES, AUTHEN_AUTHEN, AUTHEN_INIT, AuthRole, AuthenFailed, AuthenticationStage, AuthenticationType,
-  DISPATCHER
+  ALL_SCOPES, AUTHEN_AUTHEN, AUTHEN_INIT, AuthRole, AuthenticationStage, AuthenticationType,
 } from '@owlmeans/auth'
 import type { AllowanceResponse, AllowanceRequest, AuthToken } from '@owlmeans/auth'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
@@ -10,15 +9,17 @@ import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
-import type { AuthRequest } from '@owlmeans/auth-common'
-import { ModuleOutcome } from '@owlmeans/module'
 
 export const makeControl = (
   context: ClientContext<ClientConfig>,
-  setStage?: (stage: AuthenticationStage) => void): AuthenticationControl => {
+  setStage?: (stage: AuthenticationStage) => void,
+  callback?: (token: AuthToken) => Promise<boolean>
+): AuthenticationControl => {
 
   // @TODO: This control should deal with scopes someway
   const control: AuthenticationControl = {
+    setStage,
+
     stage: AuthenticationStage.Init,
 
     type: AuthenticationType.BasicEd25519,
@@ -70,19 +71,13 @@ export const makeControl = (
         const [token] = await context.module<ClientModule<AuthToken>>(AUTHEN_AUTHEN)
           .call({ body: credentials })
 
-        const [url, outcome] = await context.module<ClientModule<string, AuthRequest>>(DISPATCHER)
-          .call({ query: token })
-
-        console.log(url)
-        if (outcome != ModuleOutcome.Ok) {
-          throw new AuthenFailed('redirect')
+        if (callback != null) {
+          if (await callback(token)) {
+            return { token: '' }
+          }
         }
 
-        setStage?.(control.stage = AuthenticationStage.Authenticated)
-        // Give some time - that is really not cenessary - actually we need 
-        // to do it on the layout finished its stuff.
-        // @TODO fix it for react native (we need some other solution for redirects context indepedent)
-        setTimeout(() => window.location.href = url, 100)
+        return token
       } catch (error) {
         setStage?.(control.stage = AuthenticationStage.Authenticate)
         throw error

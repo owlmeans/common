@@ -8,11 +8,12 @@ import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardActions from '@mui/material/CardActions'
-import { FormContext, schemaToFormDefault, FormScaling  } from '@owlmeans/client-panel'
+import { FormContext, schemaToFormDefault } from '@owlmeans/client-panel'
 import type { JSONSchemaType } from 'ajv'
 import type { SxProps } from '@mui/material'
 import { SubmitButton } from './button/component.js'
 import { useToggle } from '@owlmeans/client'
+import { scalingToStyles } from '../helper.js'
 
 export const Form: FC<FormProps> = (props) => {
   const { defaults, children, formRef, validation, name, horizontal, decorate,
@@ -43,10 +44,7 @@ export const Form: FC<FormProps> = (props) => {
     formRef.current = { form, update, loader }
   }
 
-  const style: SxProps = useMemo(() => ({
-    ...(horizontal === FormScaling.Half ? { maxWidth: '50%' } : {}),
-    ...(horizontal === FormScaling.Wide ? { mx: '10%' } : {})
-  }), [horizontal])
+  const style: SxProps = useMemo(() => scalingToStyles(horizontal), [horizontal])
 
   const content = () =>
     <Grid container direction="column" justifyContent="flex-start" alignItems="stretch"

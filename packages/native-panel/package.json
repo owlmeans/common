@@ -34,6 +34,7 @@
     "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
     "@owlmeans/client-config": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",

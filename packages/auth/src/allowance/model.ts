@@ -43,7 +43,7 @@ export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
       type: 'object',
       properties: {
         challenge: { type: 'string', minLength: 32, maxLength: 1024 },
-        credential: { type: 'string', minLength: 16, maxLength: 256 },
+        credential: { type: 'string', minLength: 16, maxLength: 4096 },
       },
       required: ['challenge', 'credential']
     },

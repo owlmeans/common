@@ -10,5 +10,8 @@
       "label": "Private key"
     },
     "submit": "Authenticate"
+  },
+  "re-captcha": {
+    "guideline": "We need to make sure that you are not a robot. Please click in the white box below to prove that you are a human."
   }
 }

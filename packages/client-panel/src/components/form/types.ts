@@ -2,8 +2,8 @@ import type { AnySchema } from 'ajv'
 import type { PropsWithChildren, MutableRefObject } from 'react'
 import type { UseFormReturn, FieldValues } from 'react-hook-form'
 import type { I18nProps } from '@owlmeans/client-i18n'
-import type { FormScaling } from './consts.js'
-import { Toggleable } from '@owlmeans/client'
+import type { Toggleable } from '@owlmeans/client'
+import type { BlockScaling } from '../consts.js'
 
 export interface FormProps extends PropsWithChildren<I18nProps> {
   name?: string
@@ -11,7 +11,7 @@ export interface FormProps extends PropsWithChildren<I18nProps> {
   defaults?: Record<string, any>
   validation?: AnySchema
   decorate?: boolean
-  horizontal?: FormScaling 
+  horizontal?: BlockScaling 
   onSubmit?: FormOnSubmit<any>
 }
 
