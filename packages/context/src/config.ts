@@ -7,6 +7,7 @@ export const makeBasicConfig = <C extends BasicConfig>(type: AppType, service: s
     service,
     layer: type === AppType.Frontend ? Layer.Service : Layer.System,
     type,
+    debug: {},
     services: {},
     records: [],
     ...cfg

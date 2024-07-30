@@ -1,7 +1,7 @@
 import { appendContextual } from '@owlmeans/context'
 import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError } from '@owlmeans/resource'
 import type { LifecycleOptions, ListResult, ResourceRecord } from '@owlmeans/resource'
-import type { StateListener, StateResource, StateResourceAppend } from './types.js'
+import type { StateListener, StateResource, StateResourceAppend, StateSubscriptionOption } from './types.js'
 import { DEFAULT_ALIAS, DEFAULT_ID } from './consts'
 import { StateListenerError } from './errors.js'
 import { createStateModel } from './utils/model.js'
@@ -15,6 +15,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
   const recordToListener = new Map<string, Set<StateListener<R>>>()
   const listenerToRecord = new Map<StateListener<R>, string[]>()
   const globalListeners: StateListener<R>[] = []
+  const systemToListeners: Record<string, StateListener<R>> = {}
 
   type StoreKey = keyof typeof store
 
@@ -22,6 +23,33 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
     globalListeners.forEach(listener => listener(
       records.map(record => createStateModel(record, resource))
     ))
+  }
+
+  const _usubscribe = (params: StateSubscriptionOption<R>) => () => {
+    console.log('Unsubscription called for ', params.id)
+    const index = listeners.indexOf(params.listener)
+    if (index >= 0) {
+      const ids = listenerToRecord.get(params.listener)
+      listeners.splice(index, 1)
+      listenerToRecord.delete(params.listener)
+      ids?.forEach(id => {
+        const listeners = recordToListener.get(id)
+        if (listeners != null) {
+          listeners.delete(params.listener)
+          if (listeners.size === 0) {
+            recordToListener.delete(id)
+          }
+        }
+      })
+    }
+    Object.entries(systemToListeners).some(([key, listener]) => {
+      if (listener === params.listener) {
+        delete systemToListeners[key]
+        return true
+      }
+
+      return false
+    })
   }
 
   const resource: StateResource<R> = appendContextual<StateResource<R>>(alias, {
@@ -104,6 +132,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       Object.assign(reference, record)
 
+      console.log('Number of listneres to notify: ', recordToListener.get(record.id)?.size)
       recordToListener.get(record.id)?.forEach(
         listener => listener([createStateModel(reference, resource)])
       )
@@ -172,8 +201,15 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         }
         return createStateModel(store[id], resource)
       })
-      if (null != listeners.includes(params.listener)) {
-        throw new StateListenerError('exists')
+      if (params._systemId != null) {
+        if (systemToListeners[params._systemId] != null) {
+          return [_usubscribe(params), records]
+        }
+
+        systemToListeners[params._systemId] = params.listener
+      }
+      if (listeners.includes(params.listener)) {
+        throw new StateListenerError('subscribed')
       }
       listeners.push(params.listener)
       listenerToRecord.set(params.listener, ids)
@@ -184,23 +220,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         recordToListener.get(id)?.add(params.listener)
       })
 
-      return [() => {
-        const index = listeners.indexOf(params.listener)
-        if (index >= 0) {
-          const ids = listenerToRecord.get(params.listener)
-          listeners.splice(index, 1)
-          listenerToRecord.delete(params.listener)
-          ids?.forEach(id => {
-            const listeners = recordToListener.get(id)
-            if (listeners != null) {
-              listeners.delete(params.listener)
-              if (listeners.size === 0) {
-                recordToListener.delete(id)
-              }
-            }
-          })
-        }
-      }, records]
+      return [_usubscribe(params), records]
     },
 
     listen: listener => {
@@ -213,7 +233,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         }
       }
     },
-    
+
     erase: async () => {
       await Promise.all(Object.keys(store).map(key => resource.delete(key)))
     }

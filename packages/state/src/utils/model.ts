@@ -24,6 +24,11 @@ export const createStateModel = <T extends ResourceRecord>(
       })
     },
 
+    update: data => {
+      Object.assign(model.record, data)
+      model.commit()
+    },
+
     clear: () => {
       void resource.delete(record)
     }

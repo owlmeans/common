@@ -11,6 +11,7 @@ export interface StateResource<T extends ResourceRecord> extends Resource<T> {
 
 export interface StateSubscriptionOption<T extends ResourceRecord> {
   id?: string | string[]
+  _systemId?: string
   query?: ListCriteria
   default?: Partial<T>
   listener: StateListener<T>
@@ -24,6 +25,8 @@ export interface StateModel<T extends ResourceRecord> {
   record: T,
 
   commit: (force?: boolean) => void
+
+  update: (data?: Partial<T>) => void
 
   clear: () => void
 }

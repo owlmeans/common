@@ -1,7 +1,7 @@
 
 export {
   handler, useContext, Context, useNavigate, useValue, useSetupModalNavigator,
-  useToggle
+  useToggle, useStoreModel, useStoreList
 } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
@@ -25,6 +25,7 @@ export { DISPATCHER } from '@owlmeans/auth'
 export * from '@owlmeans/client-panel'
 
 export type { AbstractRequest } from '@owlmeans/module'
+export type { ResourceRecord } from '@owlmeans/resource'
 
 export { useCommonI18n, useI18nApp } from '@owlmeans/client-i18n'
 export { addCommonI18n, addI18nApp } from '@owlmeans/i18n'

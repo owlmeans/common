@@ -30,6 +30,7 @@
     "react-router-native": "^6.25.1"
   },
   "peerDependencies": {
+    "react": "*",
     "react-native": "*",
     "react-native-permissions": "*"
   },

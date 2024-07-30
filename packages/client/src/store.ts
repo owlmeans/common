@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { StateModel, UseStoreHelper, UseStoreHelperOptions, UseStoreListHelper } from '@owlmeans/state'
 import { useContext } from './context.js'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -37,14 +37,18 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
     JSON.stringify(params.default),
     params.listen
   ]
-  const [unsubscribe, _initialModels] = useMemo(() => resource.subscribe({
-    id: params.id,
-    listener: models => {
-      params.listen && setModels(models)
-    },
-    default: params.default,
-    query: params.query,
-  }), deps)
+  const id = useId()
+  const [unsubscribe, _initialModels] = useMemo(() => {
+    return resource.subscribe({
+      _systemId: id,
+      id: params.id,
+      listener: models => {
+        params.listen && setModels(models)
+      },
+      default: params.default,
+      query: params.query,
+    })
+  }, deps)
   const [models, setModels] = useState(_initialModels)
 
   useEffect(() => unsubscribe, deps)

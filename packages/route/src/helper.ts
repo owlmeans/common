@@ -1,5 +1,5 @@
 import { AppType } from '@owlmeans/context'
-import { SEP } from './consts.js'
+import { RouteMethod, SEP } from './consts.js'
 import { createRoute, makeRouteModel } from './model.js'
 import type { CommonRouteModel, RouteOptions } from './types.js'
 import type { CreateRouteSignature } from './utils/types.js'
@@ -18,8 +18,18 @@ export const rtype = (type: AppType, opts?: RouteOptions | string): Partial<Rout
   { type, ...(typeof opts === 'string' ? { parent: opts } : opts) }
 )
 
-export const backend = (opts?: RouteOptions | string): Partial<RouteOptions> => 
-  rtype(AppType.Backend, opts)
+export const backend = (opts?: RouteOptions | string, method?: RouteOptions | RouteMethod): Partial<RouteOptions> => {
+  if (typeof method === 'string') {
+    opts = typeof opts === 'string' ? { parent: opts, method } : { method, ...opts }
+  }
 
-export const frontend = (opts?: RouteOptions | string): Partial<RouteOptions> =>
-  rtype(AppType.Frontend, opts)
+  return rtype(AppType.Backend, opts)
+}
+
+export const frontend = (opts?: RouteOptions | string, def?: RouteOptions | boolean): Partial<RouteOptions> => {
+  if (typeof def === 'boolean') {
+    opts = typeof opts === 'string' ? { parent: opts, default: def } : { default: def, ...opts }
+  }
+
+  return rtype(AppType.Frontend, opts)
+}
