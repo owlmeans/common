@@ -2,7 +2,7 @@ import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import { RecordExists, ResourceError, UnknownRecordError } from '@owlmeans/resource'
 import type { ListCriteria, ListPager, ResourceRecord } from '@owlmeans/resource'
-import { DEFAULT_DB_ALIAS } from './consts.js'
+import { DEFAULT_DB_ALIAS, LIST_KEY } from './consts.js'
 import type { ClientDb, ClientDbService, ClientResource } from './types.js'
 import { base58 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
@@ -57,7 +57,7 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
         criteria = criteria.criteria as ListCriteria
       }
       const db = assert()
-      const list = await db.get<string[]>('_list')
+      const list = await db.get<string[]>(LIST_KEY)
 
       const pager: ListPager = opts?.pager ?? { page: 0, size: 10 }
       const conditions = Object.entries(criteria as ListCriteria ?? {})
@@ -96,12 +96,12 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
         throw new RecordExists(record.id)
       }
 
-      const list: string[] = await db.get('_list') ?? []
+      const list: string[] = await db.get(LIST_KEY) ?? []
       if (list.includes(record.id)) {
         throw new RecordExists(record.id)
       }
       list.push(record.id)
-      await db.set('_list', list)
+      await db.set(LIST_KEY, list)
       await db.set(record.id, record)
 
       return record as any
@@ -144,11 +144,11 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
         throw new SyntaxError('We should not try to delete record that we know that not exists')
       }
       await db.del(id)
-      const list: string[] = await db.get('_list') ?? []
+      const list: string[] = await db.get(LIST_KEY) ?? []
       const idx = list.indexOf(id)
       if (idx > -1) {
         list.splice(idx, 1)
-        await db.set('_list', list)
+        await db.set(LIST_KEY, list)
       }
 
       return record as any
@@ -169,11 +169,11 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
       } else {
         throw new UnknownRecordError(id)
       }
-      const list: string[] = await db.get('_list') ?? []
+      const list: string[] = await db.get(LIST_KEY) ?? []
       const idx = list.indexOf(id)
       if (idx > -1) {
         list.splice(idx, 1)
-        await db.set('_list', list)
+        await db.set(LIST_KEY, list)
       }
 
       return record as any
@@ -190,7 +190,7 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
     erase: async () => {
       console.log('Erasing all records', location)
       const db = assert()
-      const list: string[] = await db.get('_list') ?? []
+      const list: string[] = await db.get(LIST_KEY) ?? []
       const count = await Promise.all(list.map(id => resource.delete(id)))
       console.log('erased', count.length)
     }

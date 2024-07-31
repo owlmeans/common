@@ -59,16 +59,16 @@ export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServi
 
 export const appendDidService = <
   C extends ClientConfig, T extends ClientContext<C>
->(ctx: T, alias: string = DEFAULT_ALIAS): T & DIDServiceAppend => {
+>(ctx: T, alias: string = DEFAULT_ALIAS, customDeps?: Partial<DIDServiceDeps>): T & DIDServiceAppend => {
   const context = ctx as T & DIDServiceAppend
 
   const deps: DIDServiceDeps = {
-    keys: `${alias}-keys`,
-    meta: `${alias}-meta`,
-    master: `${alias}-master`
+    keys: customDeps?.keys ?? `${alias}-keys`,
+    meta: customDeps?.meta ?? `${alias}-meta`,
+    master: customDeps?.master ?? `${alias}-master`
   }
 
-  Object.values(deps).forEach(dep => appendClientResource<C, T>(context, dep))
+  Object.values(deps).forEach(dep => !context.hasResource(dep) && appendClientResource<C, T>(context, dep))
 
   const service = makeWalletService(alias, deps)
   context.registerService(service)

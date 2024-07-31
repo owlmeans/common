@@ -18,8 +18,8 @@ export const createDebugService = (alias: string = DEF_DEBUG_ALIAS): DebugServic
         action: async (modal) => modal.cancel()
       },
       {
-        alias: 'Cleanup',
-        title: 'Cleanup',
+        alias: 'reset',
+        title: 'Reset app',
         action: async (modal, context) => {
           const service = context.service<ClientDbService>(DEFAULT_DB_ALIAS)
           await service.erase()
