@@ -34,15 +34,13 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
     },
 
     load: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
-      if (field != null) {
-        throw new UnsupportedArgumentError('config:get:filed')
-      }
+      field = field ?? 'id'
       if (opts != null) {
         throw new UnsupportedArgumentError('config:get:opts')
       }
       const context = _assertContext(resource.ctx)
       const store = getStore(context)
-      const record = store.find(record => record.id === id) as T | undefined
+      const record = store.find(record => record[field as keyof typeof record] === id) as T | undefined
 
       if (record == null) {
         return null

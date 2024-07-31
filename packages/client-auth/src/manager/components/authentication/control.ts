@@ -12,20 +12,17 @@ import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 
 export const makeControl = (
   context: ClientContext<ClientConfig>,
-  setStage?: (stage: AuthenticationStage) => void,
   callback?: (token: AuthToken) => Promise<boolean>
 ): AuthenticationControl => {
 
   // @TODO: This control should deal with scopes someway
   const control: AuthenticationControl = {
-    setStage,
-
     stage: AuthenticationStage.Init,
 
     type: AuthenticationType.BasicEd25519,
 
     requestAllowence: async request => {
-      setStage?.(control.stage = AuthenticationStage.Allowence)
+      control.setStage?.(control.stage = AuthenticationStage.Allowence)
 
       control.request = (request ?? { type: control.type }) as AllowanceRequest
       control.type = control.request.type as string
@@ -35,11 +32,11 @@ export const makeControl = (
 
       control.allowance = allowance
 
-      setStage?.(control.stage = AuthenticationStage.Authenticate)
+      control.setStage?.(control.stage = AuthenticationStage.Authenticate)
     },
 
     authenticate: async credentials => {
-      setStage?.(control.stage = AuthenticationStage.Authentication)
+      control.setStage?.(control.stage = AuthenticationStage.Authentication)
       try {
         credentials.type = control.type
         if (control.allowance?.challenge == null) {
@@ -79,7 +76,7 @@ export const makeControl = (
 
         return token
       } catch (error) {
-        setStage?.(control.stage = AuthenticationStage.Authenticate)
+        control.setStage?.(control.stage = AuthenticationStage.Authenticate)
         throw error
       }
     }

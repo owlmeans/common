@@ -12,7 +12,7 @@ export const reCaptchaPlugin: AuthenticationPlugin = {
     // (no input or additional challenges required)
     useEffect(() => {
       if (control.stage === AuthenticationStage.Init) {
-        void control.requestAllowence({ type })
+        void control.requestAllowence({ type, source: control.source })
       }
     }, [type])
 

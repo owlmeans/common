@@ -24,6 +24,13 @@
       "default": "./build/manager/index.js",
       "module": "./build/manager/index.js",
       "types": "./build/manager/index.d.ts"
+    },
+    "./manager/plugins": {
+      "import": "./build/manager/plugins/export.js",
+      "require": "./build/manager/plugins/export.js",
+      "default": "./build/manager/plugins/export.js",
+      "module": "./build/manager/plugins/export.js",
+      "types": "./build/manager/plugins/export.d.ts"
     }
   },
   "dependencies": {

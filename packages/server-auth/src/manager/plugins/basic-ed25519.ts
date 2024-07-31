@@ -5,6 +5,8 @@ import { randomBytes } from '@noble/hashes/utils'
 import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
 import type { AppContext, AppConfig } from '../types.js'
+import { TRUSTED } from '@owlmeans/server-context'
+import type { TrustedRecord } from '@owlmeans/server-context'
 
 export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
   const plugin: AuthPlugin = {
@@ -21,7 +23,7 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       /**
        * @TODO We need to find users in some db not just in static
        */
-      const systemUser = context.cfg.trusted.find(trusted => trusted.id === credential.userId)
+      const systemUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(credential.userId)
 
       if (systemUser == null) {
         throw new AuthenFailed()
@@ -34,7 +36,7 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       const key = fromPubKey(systemUser.credential)
 
       if (!await key.verify(credential.challenge, credential.credential)) {
-        throw new AuthenFailed()
+        throw new AuthenFailed(`challenge:${plugin.type}`)
       }
 
       const token = base64.encode(randomBytes(64))
@@ -43,8 +45,9 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       credential.scopes = [ALL_SCOPES]
       credential.role = AuthRole.Superuser
       credential.challenge = token
+      credential.type = AuthenticationType.OneTimeToken
 
-      return { token }
+      return { token: '' }
     }
   }
 

@@ -10,6 +10,7 @@ export type ClientAuthType = AuthenticationType | string
 export interface AuthenticationProps extends ModuleContextParams {
   type?: ClientAuthType
   callback?: (token: AuthToken) => Promise<boolean>
+  source?: string
 }
 
 export interface TAuthenticationHOC {
@@ -33,6 +34,7 @@ export interface AuthenticationControlState {
 }
 
 export interface AuthenticationControl extends AuthenticationControlState {
+  source?: string
   setStage?: (stage: AuthenticationStage) => void
   requestAllowence: (request?: Partial<AllowanceRequest>) => Promise<void>
   authenticate: (credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">) => Promise<AuthToken>

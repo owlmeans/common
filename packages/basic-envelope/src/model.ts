@@ -1,7 +1,7 @@
 import { base64, utf8 } from '@scure/base'
 import { DEFAULT_TTL, EnvelopeKind } from './consts.js'
 import type { EnvelopeModel } from './types.js'
-import { tokenize, untkonize, unwrap, wrap } from './utils/model.js'
+import { tokenize, untokenize, unwrap, wrap } from './utils/model.js'
 
 export const makeEnvelopeModel = (type: string, kind?: EnvelopeKind): EnvelopeModel => {
   const model: EnvelopeModel = {
@@ -11,7 +11,7 @@ export const makeEnvelopeModel = (type: string, kind?: EnvelopeKind): EnvelopeMo
       dt: new Date().getTime(),
       ttl: DEFAULT_TTL
     } : kind === EnvelopeKind.Wrap
-      ? unwrap(type) : untkonize(type),
+      ? unwrap(type) : untokenize(type),
 
     send: (msg, ttl) => {
       model.envelope.msg = typeof msg == 'string' ? msg : base64.encode(utf8.decode(JSON.stringify(msg)))

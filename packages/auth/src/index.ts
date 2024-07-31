@@ -1,5 +1,5 @@
 
-export * from './types.js'
+export type * from './types.js'
 export * from './errors.js'
 export * from './consts.js'
 export * from './allowance/index.js'

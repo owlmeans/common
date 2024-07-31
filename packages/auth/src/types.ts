@@ -3,6 +3,7 @@ import type { AuthRole } from './consts.js'
 export interface AuthCredentials extends AuthPayload {
   challenge: string
   credential: string
+  publicKey?: string
 }
 
 export interface AuthPayload extends ProfilePayload {

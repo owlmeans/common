@@ -7,7 +7,7 @@ export const wrap = (object: Envelope): string =>
 export const tokenize = (object: Envelope): string =>
   base64urlnopad.encode(utf8.decode(JSON.stringify(object)))
 
-export const untkonize = (token: string): Envelope =>
+export const untokenize = (token: string): Envelope =>
   JSON.parse(utf8.encode(base64urlnopad.decode(token)))
 
 export const unwrap = (envelope: string): Envelope =>

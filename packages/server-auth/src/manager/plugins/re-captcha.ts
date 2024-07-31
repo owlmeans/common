@@ -9,7 +9,7 @@ import { ModuleOutcome } from '@owlmeans/module'
 import { base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { assertType } from './utils.js'
-import { AUTHEN_TIMEFRAME } from '../../consts.js'
+import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 
 export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
   const plugin: AuthPlugin = {
@@ -18,18 +18,12 @@ export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
     init: async request => {
       assertType(request.type, plugin)
 
-      const challenge = base64.encode(randomBytes(64))
-
-      store.add(challenge)
-      setTimeout(() => store.delete(challenge), AUTHEN_TIMEFRAME / 2)
+      const challenge = base64.encode(randomBytes(32))
 
       return { challenge }
     },
 
     authenticate: async credential => {
-      if (!store.delete(credential.challenge)) {
-        throw new AuthenFailed('timeout')
-      }
       const cfg = context.getConfigResource(PLUGINS)
       const config = await cfg.get<PluginConfig>(MOD_RECAPTCHA)
       if (config.value == null) {
@@ -50,18 +44,20 @@ export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
         throw new AuthenFailed('recaptcha:' + result['error-codes']?.join(',') ?? 'unknown')
       }
 
-      const token = base64.encode(randomBytes(64))
-
       credential.scopes = [AUTH_SCOPE]
       credential.role = AuthRole.Guest
-      credential.challenge = token
+      credential.type = AuthenticationType.ReCaptcha
 
-      return { token }
+      const token = makeEnvelopeModel(credential.challenge, EnvelopeKind.Wrap)
+      const msg = token.message<string>()
+      const [previous, challenge] = msg.split(':') as [string, string | undefined]
+      if (challenge != null) {
+        credential.challenge = previous
+      }
+
+      return { token: '' }
     }
   }
 
   return plugin
 }
-
-// @TODO It doesn't scale - use redis or sticky sessions
-const store = new Set<string>()
