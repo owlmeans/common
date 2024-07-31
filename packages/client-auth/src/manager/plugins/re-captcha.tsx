@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 export const reCaptchaPlugin: AuthenticationPlugin = {
   type: AuthenticationType.ReCaptcha,
 
-  Implementation: (Renderer) => ({ type, stage, control }) => {
+  Implementation: Renderer => ({ type, stage, control }) => {
     Renderer = Renderer ?? reCaptchaPlugin.Renderer
 
     // ReCaptcha authentication requests allowance unconditionally 

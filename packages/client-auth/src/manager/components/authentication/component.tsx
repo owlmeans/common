@@ -6,10 +6,10 @@ import { useMemo, useState, useRef } from 'react'
 import { makeControl } from './control.js'
 import { useContext } from '@owlmeans/client'
 
-export const AuthenticationHOC: TAuthenticationHOC = Renderer => ({ type, params, callback, source }) => {
+export const AuthenticationHOC: TAuthenticationHOC = (Renderer, rendererType) => ({ type, params, callback, source }) => {
   const context = useContext()
   const _params: AuthUIParams = params
-  type = type ?? _params.type ?? AuthenticationType.BasicEd25519
+  type = type ?? _params.type ?? rendererType ?? AuthenticationType.BasicEd25519
 
   const Implementation = useMemo(() => {
     console.log('SAFE: Cast component implementation in AuthenticationHOC')
@@ -27,6 +27,7 @@ export const AuthenticationHOC: TAuthenticationHOC = Renderer => ({ type, params
     console.log('SAFE: Initialize authentication control in AuthenticationHOC')
 
     const control = makeControl(context, callback)
+    control.type = type
     control.setStage = setStage
     control.source = source
 

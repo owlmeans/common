@@ -7,7 +7,7 @@ import { AuthenCredError } from '../errors.js'
 export const ed25519BasicUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.BasicEd25519,
 
-  Implementation: (Renderer) => ({ type, stage, control }) => {
+  Implementation: Renderer => ({ type, stage, control }) => {
 
     type = type ?? AuthenticationType.BasicEd25519
     Renderer = Renderer ?? ed25519BasicUIPlugin.Renderer

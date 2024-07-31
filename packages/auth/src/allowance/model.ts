@@ -8,7 +8,7 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
   type: 'object',
   properties: {
     role: { ...AuthRoleSchema, nullable: true },
-    source: { type: 'string', minLength: 1, maxLength: 255, nullable: true },
+    source: { type: 'string', minLength: 1, maxLength: 1024, nullable: true },
     userId: { ...IdValueSchema, nullable: true },
     profileId: { ...IdValueSchema, nullable: true },
     expiresAt: { type: 'string', nullable: true },

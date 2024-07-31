@@ -9,7 +9,6 @@ import { ModuleOutcome } from '@owlmeans/module'
 import { base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { assertType } from './utils.js'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 
 export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
   const plugin: AuthPlugin = {
@@ -48,11 +47,11 @@ export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
       credential.role = AuthRole.Guest
       credential.type = AuthenticationType.ReCaptcha
 
-      const token = makeEnvelopeModel(credential.challenge, EnvelopeKind.Wrap)
-      const msg = token.message<string>()
-      const [previous, challenge] = msg.split(':') as [string, string | undefined]
+      const [previous, challenge] = credential.challenge.split(':') as [string, string | undefined]
       if (challenge != null) {
         credential.challenge = previous
+
+        return { token: previous }
       }
 
       return { token: '' }

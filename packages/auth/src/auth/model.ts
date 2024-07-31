@@ -38,7 +38,7 @@ export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
       properties: {
         type: TypeNameSchema,
         role: EnumValueSchema,
-        source: { type: 'string', minLength: 1, maxLength: 255, nullable: true },
+        source: { type: 'string', minLength: 1, maxLength: 1024, nullable: true },
         userId: { ...IdValueSchema, nullable: true },
         profileId: { ...IdValueSchema, nullable: true },
         expiresAt: { type: 'string', nullable: true }

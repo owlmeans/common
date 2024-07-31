@@ -76,7 +76,10 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       // or permission hasn't changed.
       // Alternative solution is to have permissions cached and cleaned 
       // when some broadcast message is sent from authentication system.
-      await plugin.authenticate(credential)
+
+      const challenge = credential.challenge
+      const { token } = await plugin.authenticate(Object.assign(credential, { challenge: msg }))
+      credential.challenge = token === '' ? challenge : token
 
       credential.credential = trustedUser.id
 

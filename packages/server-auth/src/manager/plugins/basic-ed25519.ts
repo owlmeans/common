@@ -47,7 +47,7 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       credential.challenge = token
       credential.type = AuthenticationType.OneTimeToken
 
-      return { token: '' }
+      return { token: token }
     }
   }
 
