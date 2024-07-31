@@ -38,6 +38,8 @@ export interface AuthenticationControl extends AuthenticationControlState {
   source?: string
   setStage?: (stage: AuthenticationStage) => void
   requestAllowence: (request?: Partial<AllowanceRequest>) => Promise<void>
+  beforeAuthenticate?: (clientToken: AuthToken, context?: ClientContext) => Promise<void>
+  afterAuthenticate?: (credential: AuthCredentials, context?: ClientContext) => Promise<void>
   authenticate: (
     credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">,
     context?: ClientContext

@@ -3,7 +3,9 @@ import type {
   AuthenticationControl, AuthenticationRenderer, AuthenticationRendererProps
 } from '../components/authentication/types.js'
 
-export interface AuthenticationPlugin extends Pick<AuthenticationControl, "authenticate"> {
+export interface AuthenticationPlugin extends Pick<
+  AuthenticationControl, "authenticate" | "beforeAuthenticate" | "afterAuthenticate"
+> {
   type: string
   Implementation: PluginImplemnetation
   Renderer?: AuthenticationRenderer
