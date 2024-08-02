@@ -1,8 +1,7 @@
-import type { ResourceRecord } from '@owlmeans/resource'
+import type { DbConfig, ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '../types.js'
 import type { Db, Collection } from 'mongodb'
 import { mongoCollectionName } from './name.js'
-import type { DbConfig } from '@owlmeans/config'
 import { schemaToMongoSchema } from './schema.js'
 import { updateIndexes } from './indexes.js'
 

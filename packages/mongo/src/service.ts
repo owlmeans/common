@@ -1,99 +1,21 @@
-import { assertContext, createLazyService, Layer } from '@owlmeans/context'
+import { assertContext, Layer } from '@owlmeans/context'
 import type { BasicContext } from '@owlmeans/context'
-import type { MongoService } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { MongoClient } from 'mongodb'
+import type { Db } from 'mongodb'
 import { prepareConfig } from './utils/config.js'
 import { setUpCluster } from './utils/cluster.js'
-import type { DbConfig } from '@owlmeans/config'
-import { dbName } from './utils/name.js'
+import type { MongoDbService } from '@owlmeans/mongo-resource'
+import { createDbService } from '@owlmeans/resource'
 
 type Config = ServerConfig
 interface Context<C extends Config = Config> extends ServerContext<C> { }
 
-export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService => {
+export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbService => {
   const location = `mongo:${alias}`
 
-  const cachedAliases = new Set<string>()
-  const cachedConfigs = new Map<string, DbConfig>()
-  const cachedNames = new Map<string, string>()
-
-  const service: MongoService = createLazyService<MongoService>(alias, {
-    clients: {},
-
-    ensureConfigAlias: configAlias => {
-      let config: DbConfig | undefined = typeof configAlias === 'object' ? configAlias : undefined
-      configAlias = typeof configAlias === 'string' ? configAlias : config?.alias ?? service.alias
-
-      if (cachedAliases.has(configAlias)) {
-        return configAlias
-      }
-
-      if (configAlias === service.alias) {
-        const context = assertContext<Config, Context>(service.ctx as Context, location)
-        config = context.cfg.dbs?.find(db => db.alias === service.alias)
-        if (config == null) {
-          config = context.cfg.dbs?.find(db => db.alias == null)
-          if (config != null) {
-            config.alias = service.alias
-          }
-        }
-        if (config == null) {
-          throw new SyntaxError(`No config for mongo initialization ${configAlias} in ${service.alias}`)
-        }
-      }
-
-      cachedAliases.add(configAlias)
-
-      return configAlias
-    },
-
-    config: configAlias => {
-      const context = assertContext<Config, Context>(service.ctx as Context, location)
-      configAlias = service.ensureConfigAlias(configAlias)
-
-      const cached = cachedConfigs.get(configAlias)
-      if (cached != null) {
-        return cached
-      }
-
-      const config = context.cfg.dbs?.find(db => db.alias === configAlias)
-
-      if (config == null) {
-        throw new SyntaxError(`No config for mongo initialization ${configAlias} in ${service.alias}`)
-      }
-
-      cachedConfigs.set(configAlias, config)
-
-      return config
-    },
-
-    name: configAlias => {
-      configAlias = service.ensureConfigAlias(configAlias)
-      const chached = cachedNames.get(configAlias)
-      if (chached != null) {
-        console.log('RETURN CHACHED NAME', chached)
-        return chached
-      }
-
-      const context = assertContext<Config, Context>(service.ctx as Context, location)
-      const config = service.config(configAlias)
-
-      const name = dbName(context, service, config)
-
-      cachedNames.set(configAlias, name)
-
-      return name
-    },
-
-    client: async configAlias => {
-      await service.initialize(configAlias)
-      configAlias = service.ensureConfigAlias(configAlias)
-
-      return service.clients[configAlias]
-    },
-
+  const service: MongoDbService = createDbService<Db, MongoClient, MongoDbService>(alias, {
     db: async configAlias => {
       const client = await service.client(configAlias)
 
@@ -112,12 +34,12 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
 
       if (service.layers == null) {
         service.layers = [Layer.Global]
-        if (config.serviceSensitive) {
-          service.layers.push(Layer.Service)
-        }
-        if (config.entitySensitive) {
-          service.layers.push(Layer.Entity)
-        }
+      }
+      if (config.serviceSensitive && service.layers.includes(Layer.Service)) {
+        service.layers.push(Layer.Service)
+      }
+      if (config.entitySensitive && service.layers.includes(Layer.Entity)) {
+        service.layers.push(Layer.Entity)
       }
 
       let [url, options] = prepareConfig(config)
@@ -139,10 +61,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
 
       process.on('SIGTERM', () => {
         console.log(`Exit mongo client ${configAlias}`)
-        client.close().then(() => {
-          console.log(`Exit mongo client: ${configAlias}`)
-          process.exit(0)
-        })
+        client.close()
       })
 
       if (service.clients[configAlias] != null) {
@@ -153,7 +72,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
     },
 
     reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
-      const _service = makeMongoService(alias)
+      const _service = makeMongoDbService(alias)
 
       _service.ctx = context
 
@@ -165,8 +84,9 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
     const context = assertContext<Config, Context>(service.ctx as Context, location)
 
     // Try to initialize all connections
-    console.log(`INITIALIZE DB IN LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
+    console.log(`INITIALIZE MONGO IN LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
     await context.cfg.dbs?.filter(dbConfig => dbConfig.service === alias).reduce(async (prev, dbConfig) => {
+      console.log('... initializ spcicific config', dbConfig.service, dbConfig.alias)
       await prev
       await service.config(dbConfig.alias)
     }, Promise.resolve())
@@ -180,7 +100,7 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
 export const appendMongo = <C extends Config, T extends Context<C> = Context<C>>(
   context: T, alias: string = DEFAULT_ALIAS
 ): T => {
-  const service = makeMongoService(alias)
+  const service = makeMongoDbService(alias)
 
   context.registerService(service)
 

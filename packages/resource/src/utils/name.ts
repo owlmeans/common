@@ -1,11 +1,10 @@
-import type { DbConfig } from '@owlmeans/config'
-import type { MongoService } from '../types.js'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { Layer } from '@owlmeans/context'
+import type {Context, Config, ResourceDbService, DbConfig} from '../types.js'
+
 import { sha256 } from '@noble/hashes/sha256'
 import { hex } from '@scure/base'
 
-export const dbName = (context: ServerContext<ServerConfig>, service: MongoService, config: DbConfig) => {
+export const dbName = <C extends Config, T extends Context<C> = Context<C>>(context: T, service: ResourceDbService<any,any>, config: DbConfig) => {
   let name = config.schema ?? config.alias ?? service.alias
 
   if (context.cfg.layerId != null 

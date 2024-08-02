@@ -1,6 +1,7 @@
-import type { DbConfig } from '@owlmeans/config'
 import type { MongoClientOptions } from 'mongodb'
 import type { MongoMeta } from '../types.js'
+import type { DbConfig } from '@owlmeans/resource'
+
 import { DEF_REPLSET } from '../consts'
 
 export const prepareConfig = (config: DbConfig, single: boolean = true): [string, MongoClientOptions] => {

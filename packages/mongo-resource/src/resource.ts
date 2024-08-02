@@ -1,12 +1,12 @@
 import { appendContextual, assertContext } from '@owlmeans/context'
 import type { BasicContext, Contextual } from '@owlmeans/context'
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE } from './consts.js'
-import type { ListCriteria, ListPager, ResourceRecord } from '@owlmeans/resource'
+import type { ListCriteria, ResourceMaker, ResourceRecord } from '@owlmeans/resource'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { MongoDbService, MongoResource, ResourceMaker } from './types.js'
+import type { MongoDbService, MongoResource } from './types.js'
 import { initializeCollection } from './utils/life-cycle.js'
 import { ObjectId } from 'mongodb'
-import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed } from '@owlmeans/resource'
+import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed, prepareListOptions } from '@owlmeans/resource'
 import { JSONSchemaType } from 'ajv'
 
 type Config = ServerConfig
@@ -67,7 +67,7 @@ export const makeMongoResource = <
         throw new MisshapedRecord('id')
       }
 
-      await resource.get(id, opts)
+      await resource.get(id, field)
 
       const criteria = '_id' === field ? new ObjectId(id) : id
 
@@ -181,26 +181,14 @@ export const makeMongoResource = <
     },
 
     list: async (criteria, opts) => {
-      if (opts == null) {
-        if (criteria == null) {
-          criteria = {}
-          opts = {}
-        } else if ('criteria' in criteria) {
-          criteria = criteria.criteria as ListCriteria
-          opts = { pager: criteria.pager as ListPager | undefined }
-        } else if ('pager' in criteria) {
-          opts = { pager: criteria.pager as ListPager | undefined }
-          criteria = {}
-        }
-      }
+      const options = prepareListOptions(DEFAULT_PAGE_SIZE, criteria, opts)
 
-      const size = (opts?.pager?.size ?? DEFAULT_PAGE_SIZE)
+      criteria = options.criteria
+      const pager = options.pager ?? {}
+
+      const size = pager?.size ?? DEFAULT_PAGE_SIZE
       const total = await resource.collection.countDocuments(criteria as ListCriteria)
-      const pager: ListPager = {
-        sort: opts?.pager?.sort,
-        page: opts?.pager?.page ?? 0,
-        size, total
-      }
+      pager.total = total
 
       const skip = (pager.page ?? 0) * size
       if (total === 0 && skip >= total) {

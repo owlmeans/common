@@ -1,5 +1,5 @@
 import type { AppType, BasicConfig, CONFIG_RECORD, ConfigRecord } from '@owlmeans/context'
-import type { Resource } from '@owlmeans/resource'
+import type { Resource, DbConfig } from '@owlmeans/resource'
 import type { Profile } from '@owlmeans/auth'
 import type { PLUGIN_RECORD } from './consts.js'
 
@@ -22,18 +22,4 @@ export interface PluginConfig extends ConfigRecord {
 
 export interface ConfigResourceAppend {
   getConfigResource: <T extends ConfigRecord>(alias?: string) => ConfigResource<T>
-}
-
-export interface DbConfig<P extends {} = {}> {
-  service: string
-  alias?: string
-  host: string | string[]
-  port?: number
-  user?: string
-  secret?: string
-  schema?: string
-  resourcePrefix?: string
-  entitySensitive?: boolean
-  serviceSensitive?: boolean
-  meta?: P
 }

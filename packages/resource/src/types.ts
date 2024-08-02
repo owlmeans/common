@@ -1,4 +1,4 @@
-import type { BasicResource } from '@owlmeans/context'
+import type { BasicConfig, BasicContext, BasicResource, LazyService } from '@owlmeans/context'
 
 export interface Resource<T extends ResourceRecord> extends BasicResource {
   /**
@@ -56,4 +56,62 @@ export interface GetterOptions extends LifecycleOptions {
 
 export interface LifecycleOptions {
   ttl?: number | Date | string
+}
+
+export interface ResourceMaker<R extends ResourceRecord, T extends Resource<R> = Resource<R>> {
+  (dbAlias?: string, serviceAlias?: string): T
+}
+
+export interface ResourceDbService<Db, Client> extends LazyService {
+  clients: Record<string, Client>
+  /**
+   * @abstract
+   */
+  db: (alias?: string) => Promise<Db>
+
+  /**
+   * @final
+   */
+  config: (alias?: string) => DbConfig
+
+  /**
+   * @abstract
+   */
+  initialize: (alias?: string) => Promise<void>
+
+  /**
+   * @final
+   */
+  ensureConfigAlias: (alias?: string | DbConfig) => string
+
+  /**
+   * @final
+   */
+  name: (alias?: string | DbConfig) => string
+
+  /**
+   * @final
+   */
+  client: (alias?: string) => Promise<Client>
+}
+
+export interface DbConfig<P extends {} = {}> {
+  service: string
+  alias?: string
+  host: string | string[]
+  port?: number
+  user?: string
+  secret?: string
+  schema?: string
+  resourcePrefix?: string
+  entitySensitive?: boolean
+  serviceSensitive?: boolean
+  meta?: P
+}
+
+export interface Config extends BasicConfig {
+  dbs?: DbConfig[]
+}
+
+export interface Context<C extends Config = Config> extends BasicContext<C> {
 }

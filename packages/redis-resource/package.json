@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/redis-resource",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,6 +18,16 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "peerDependencies": {
+    "ajv": "*",
+    "ioredis": "*"
+  },
+  "dependencies": {
+    "@owlmeans/config": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

@@ -6,7 +6,7 @@ enum TypeToMethod {
   Initialized = 'init'
 }
 
-interface InitMethod<S extends Service> {
+export interface InitMethod<S extends Service> {
   (service: S): () => Promise<void>
 }
 

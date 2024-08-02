@@ -1,8 +1,6 @@
-import type { LazyService } from '@owlmeans/context'
-import type { Resource, ResourceRecord } from '@owlmeans/resource'
-import type { Collection, CreateIndexesOptions, Db, IndexSpecification } from 'mongodb'
+import type { Resource, ResourceRecord, ResourceDbService } from '@owlmeans/resource'
+import type { Collection, CreateIndexesOptions, Db, IndexSpecification, MongoClient } from 'mongodb'
 import type { AnySchema } from 'ajv'
-import type { DbConfig } from '@owlmeans/config'
 
 export interface MongoResource<T extends ResourceRecord> extends Resource<T> {
   name?: string
@@ -13,11 +11,5 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T> {
   getDefaults: () => Partial<T>
 }
 
-export interface MongoDbService extends LazyService {
-  db: (alias?: string) => Promise<Db>
-  config: (alias?: string) => DbConfig
-}
-
-export interface ResourceMaker<R extends ResourceRecord, T extends MongoResource<R> = MongoResource<R>> {
-  (dbAlias?: string, serviceAlias?: string): T
+export interface MongoDbService extends ResourceDbService<Db, MongoClient> {
 }

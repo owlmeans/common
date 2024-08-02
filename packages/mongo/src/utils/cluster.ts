@@ -1,7 +1,8 @@
-import type { DbConfig } from '@owlmeans/config'
-import { MongoServerError } from 'mongodb'
 import type { MongoClient } from 'mongodb'
 import type { MongoMeta } from '../types.js'
+import type { DbConfig } from '@owlmeans/resource'
+
+import { MongoServerError } from 'mongodb'
 import { DEF_REPLSET } from '../consts.js'
 import { port } from './config.js'
 
