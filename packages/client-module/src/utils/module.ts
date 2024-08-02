@@ -4,6 +4,7 @@ import type { ModuleFilter, ClientModuleOptions } from '../types.js'
 import { ClientValidationError } from '../errors.js'
 import type { AbstractRequest } from '@owlmeans/module'
 import type { ModuleRef, RefedModuleHandler } from '../types.js'
+import formatsPlugin from 'ajv-formats'
 
 export { module as makeBasicModule } from '@owlmeans/module'
 export { isModule } from '@owlmeans/module/utils'
@@ -30,6 +31,8 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Mod
           throw new SyntaxError(`Request has no required section ${key}`)
         }
         const ajv = new Ajv()
+        formatsPlugin(ajv)
+        
         const validate = ajv.compile(filter)
         validate(req[key as keyof typeof req])
         if (validate.errors == null) {

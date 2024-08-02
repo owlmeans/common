@@ -4,6 +4,24 @@ export interface AuthCredentials extends AuthPayload {
   challenge: string
   credential: string
   publicKey?: string
+  /**
+    AuthPayload:
+      type: string
+      role: AuthRole
+      userId: string
+      source?: string
+      profileId?: string
+      expiresAt?: Date
+    ProfilePayload:
+      groups?: string[]
+    Authorization:
+      entityId?: string
+      scopes: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface AuthPayload extends ProfilePayload {
@@ -12,7 +30,18 @@ export interface AuthPayload extends ProfilePayload {
   userId: string
   source?: string
   profileId?: string
-  expiresAt?: string
+  expiresAt?: Date
+  /**
+    ProfilePayload:
+      groups?: string[]
+    Authorization:
+      entityId?: string
+      scopes: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface Group extends Authorization {
@@ -22,6 +51,15 @@ export interface Group extends Authorization {
 
 export interface ProfilePayload extends Authorization {
   groups?: string[]
+  /**
+    Authorization:
+      entityId?: string
+      scopes: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface Authorization {
@@ -29,10 +67,14 @@ export interface Authorization {
   scopes: string[]
   permissions?: Permission[]
   attributes?: Attribute[]
-  // Whether authorization provides all necessary permissions
-  permissioned?: boolean 
-  // Wheter all permissions resolved
-  denormalized?: boolean 
+  /**
+   * Whether authorization provides all necessary permissions
+   */
+  permissioned?: boolean
+  /**
+   * Whether all permissions resolved
+   */
+  denormalized?: boolean
 }
 
 export interface Profile extends ProfilePayload {
@@ -40,14 +82,42 @@ export interface Profile extends ProfilePayload {
   name: string
   credential?: string
   secret?: string
-  locked?: boolean
+  /**
+    ProfilePayload:
+      groups?: string[]
+    Authorization:
+      entityId?: string
+      scopes: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
   createdAt: string
-  expiresAt?: string
+  expiresAt?: Date
+  /**
+    AuthPayload:
+      type: string
+      role: AuthRole
+      userId: string
+      source?: string
+      profileId?: string
+      expiresAt?: Date
+    ProfilePayload:
+      groups?: string[]
+    Authorization:
+      entityId?: string
+      scopes: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface Permission {
@@ -63,6 +133,24 @@ export interface Attribute {
 
 export interface AllowanceRequest extends Partial<AuthPayload> {
   type: string
+  /**
+    AuthPayload:
+      type?: string
+      role?: AuthRole
+      userId?: string
+      source?: string
+      profileId?: string
+      expiresAt?: Date
+    ProfilePayload:
+      groups?: string[]
+    Authorization:
+      entityId?: string
+      scopes?: string[]
+      permissions?: Permission[]
+      attributes?: Attribute[]
+      permissioned?: boolean 
+      denormalized?: boolean 
+   */
 }
 
 export interface AllowanceResponse {

@@ -14,10 +14,6 @@ export const elevate = <R>(
   if (idx === -1) {
     throw new SyntaxError(`Module with alias ${alias} not present`)
   }
-  if (isServerRouteModel(modules[idx].route)) {
-    throw new SyntaxError(`Module with alias ${alias} is elready elevated`)
-  }
-
   if (typeof handler === 'boolean') {
     opts = handler
     handler = undefined
@@ -25,6 +21,10 @@ export const elevate = <R>(
   if (typeof handler === 'object' && typeof handler !== 'function') {
     opts = handler
     handler = undefined
+  }
+  const force = typeof opts === 'object' && opts.force
+  if (isServerRouteModel(modules[idx].route) && !force) {
+    throw new SyntaxError(`Module with alias ${alias} is elready elevated`)
   }
 
   modules[idx] = module(

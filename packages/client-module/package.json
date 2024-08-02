@@ -28,6 +28,7 @@
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
     "ajv": "^8.16.0",
+    "ajv-formats": "^3.0.1",
     "qs": "^6.12.2"
   },
   "devDependencies": {

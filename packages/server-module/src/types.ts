@@ -9,6 +9,10 @@ export interface ServerModule<R> extends CommonModule {
 }
 
 export interface ModuleOptions<R> extends CommonModuleOptions {
+  /**
+   * Force module to be elevated even if it is already elevated
+   */
+  force?: boolean
   fixer?: string
   intermediate?: boolean
   routeOptions?: ServerRouteOptions<R>

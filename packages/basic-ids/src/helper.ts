@@ -11,3 +11,7 @@ export const createRandomPrefix = (length: number = 6, format: IdStyle = IdStyle
       return base58.encode(rand)
   }
 }
+
+export const createIdOfLength = (length: number = 6, format: IdStyle = IdStyle.Base58): string => {
+  return createRandomPrefix(length * 2, format).slice(0, length)
+}

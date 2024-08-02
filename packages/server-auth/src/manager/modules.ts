@@ -6,9 +6,12 @@ import { elevate } from '@owlmeans/server-module'
 import { authenticate, authenticationInit } from './actions/manager'
 import { module } from '@owlmeans/client-module'
 import { backend, route, RouteMethod } from '@owlmeans/route'
+import { handleIntermediate } from '@owlmeans/server-api'
 
 
-elevate(list, AUTHEN)
+elevate(list, AUTHEN, handleIntermediate(
+  async (_, context) => await context.updateContext() as typeof context
+), { intermediate: true })
 elevate(list, AUTHEN_INIT, authenticationInit)
 elevate(list, AUTHEN_AUTHEN, authenticate)
 

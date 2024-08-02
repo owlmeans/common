@@ -243,6 +243,7 @@ export const makeMongoResource = <
   resource.init = async () => {
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
+    await mongo.ready()
     const db = await mongo.db(dbAlias)
     const config = mongo.config(dbAlias)
     resource.collection = await initializeCollection(db, config, resource as unknown as MongoResource<ResourceRecord>)

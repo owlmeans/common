@@ -1,4 +1,5 @@
 
+import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { ModuleOutcome } from '@owlmeans/module'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
@@ -6,6 +7,10 @@ import type { RefedModuleHandler } from '@owlmeans/server-module'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
+
+const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
+  return req.original._ctx ?? def
+}
 
 export const handleBody: <T>(
   handler: (payload: T, ctx: Context) => Promise<any>
@@ -15,7 +20,10 @@ export const handleBody: <T>(
     throw new SyntaxError('Module context is not provided')
   }
   try {
-    res.resolve(await handler(req.body as any, ref.ref.ctx as Context), ModuleOutcome.Ok)
+    res.resolve(await handler(
+      req.body as any,
+      _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+    ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -31,7 +39,10 @@ export const handleParams: <T>(
     throw new SyntaxError('Module context is not provided')
   }
   try {
-    res.resolve(await handler(req.params as any, ref.ref.ctx as Context), ModuleOutcome.Ok)
+    res.resolve(await handler(
+      req.params as any,
+      _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+    ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -47,7 +58,9 @@ export const handleRequest: (
     throw new SyntaxError('Module context is not provided')
   }
   try {
-    res.resolve(await handler(req, ref.ref.ctx as Context), ModuleOutcome.Ok)
+    res.resolve(await handler(
+      req, _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+    ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -63,7 +76,7 @@ export const handleIntermediate: (
     throw new SyntaxError('Module context is not provided')
   }
   try {
-    const result = await handler(req, ref.ref.ctx as Context)
+    const result = await handler(req, _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context))
     if (result != null) {
       res.resolve(result)
     }

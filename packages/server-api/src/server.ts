@@ -51,34 +51,40 @@ export const createApiServer = (alias: string): ApiServer => {
     await server.register(cors, { origin: '*' })
 
     server.addHook('preHandler', async (request, reply) => {
-      let context = _assertContext(service.ctx as Context)
-      await context.modules<ServerModule<FastifyRequest>>().filter(
+      const context = _assertContext(service.ctx as Context)
+      console.log('======== we are in context: ', context.cfg.layer, context.cfg.layerId);
+      // We pass context further using fastify request object
+      (request as any)._ctx = await context.modules<ServerModule<FastifyRequest>>().filter(
         module => canServeModule(context, module) && module.route.isIntermediate()
-      ).reduce(async (promise, module) => {
+      ).reduce<Promise<Context>>(async (promise, module) => {
+        let context = await promise
         if (reply.sent) {
-          return
+          return context
         }
-        await promise
-        await module.route.resolve(context as any)
+
+        // await module.route.resolve(context as any)
+        await module.resolve()
         // Actually intermediate module can be created without handler by elevate function
         if (module.route.match(request) && module.handle != null) {
           const response = provideResponse()
-          const result: Context = await module.handle(provideRequest(module.alias, request, true), response)
+          const currentRequest = provideRequest(module.alias, request, true)
+          currentRequest.original._ctx = context
+          const result: Context = await module.handle(currentRequest, response)
           if (result != null) {
             context = result
           }
           executeResponse(response, reply, true)
         }
-      }, Promise.resolve());
-      // We pass context further using fastify request object
-      (request as any)._ctx = context
+        return context
+      }, Promise.resolve(context))
     })
 
     await Promise.all(
       context.modules<ServerModule<FastifyRequest>>()
         .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
         .map(async module => {
-          await module.route.resolve(context as any)
+          // await module.route.resolve(context as any)
+          await module.resolve()
           const method = module.route.route.method ?? RouteMethod.GET
           if (module.handle == null) {
             console.log('!!! no handler for module: ', module.getPath(), module.getAlias())

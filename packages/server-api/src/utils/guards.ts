@@ -74,6 +74,8 @@ export const authorize = async <C extends Config, T extends Context<C>>(
       await module.resolve()
     }
   }
+  // Update context in request object
+  (req as any)._ctx = context
 
   return [context, module]
 }

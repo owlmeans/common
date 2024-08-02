@@ -110,9 +110,13 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
         return
       }
 
-      if (config.entitySensitive) {
-        if (service.layers == null) {
-          service.layers = [Layer.Global, Layer.Entity]
+      if (service.layers == null) {
+        service.layers = [Layer.Global]
+        if (config.serviceSensitive) {
+          service.layers.push(Layer.Service)
+        }
+        if (config.entitySensitive) {
+          service.layers.push(Layer.Entity)
         }
       }
 
@@ -161,8 +165,11 @@ export const makeMongoService = (alias: string = DEFAULT_ALIAS): MongoService =>
     const context = assertContext<Config, Context>(service.ctx as Context, location)
 
     // Try to initialize all connections
-    console.log(`INITIALIZE DB IN ANOTHER LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
-    context.cfg.dbs?.map(async dbConfig => service.config(dbConfig.alias))
+    console.log(`INITIALIZE DB IN LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
+    await context.cfg.dbs?.filter(dbConfig => dbConfig.service === alias).reduce(async (prev, dbConfig) => {
+      await prev
+      await service.config(dbConfig.alias)
+    }, Promise.resolve())
 
     service.initialized = true
   })

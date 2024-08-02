@@ -34,5 +34,6 @@ export interface DbConfig<P extends {} = {}> {
   schema?: string
   resourcePrefix?: string
   entitySensitive?: boolean
+  serviceSensitive?: boolean
   meta?: P
 }

@@ -5,9 +5,11 @@ import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { AppContext, AppConfig } from '../types'
 
 export const authenticationInit: RefedModuleHandler<AllowanceRequest> = handleBody(
-  async (payload: AllowanceRequest, ctx) => await makeAuthModel(ctx as AppContext<AppConfig>).init(payload)
+  async (payload: AllowanceRequest, ctx) =>
+    await makeAuthModel(ctx as AppContext<AppConfig>).init(payload)
 )
 
 export const authenticate: RefedModuleHandler<AuthCredentials> = handleBody(
-  async (payload: AuthCredentials, ctx) => await makeAuthModel(ctx as AppContext<AppConfig>).authenticate(payload)
+  async (payload: AuthCredentials, ctx) =>
+    await makeAuthModel(ctx as AppContext<AppConfig>).authenticate(payload)
 )

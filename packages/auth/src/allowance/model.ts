@@ -1,8 +1,11 @@
 import type { JSONSchemaType } from 'ajv'
-import type { AllowanceRequest, AuthCredentials, AuthPayload } from '../types'
-import { AuthRoleSchema, EntityValueSchema, GroupValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema } from '../consts'
-import { AuthPayloadSchema } from '../auth'
-import { AttributeSchema, PermissionSchema } from '../permission'
+import type { AllowanceRequest, AuthCredentials, AuthPayload } from '../types.js'
+import {
+  AuthRoleSchema, EntityValueSchema, GroupValueSchema, IdValueSchema, DateSchema,
+  ScopeValueSchema, TypeNameSchema
+} from '../consts.js'
+import { AuthPayloadSchema } from '../auth/model.js'
+import { AttributeSchema, PermissionSchema } from '../permission/.'
 
 export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>, "type">> = {
   type: 'object',
@@ -11,7 +14,7 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
     source: { type: 'string', minLength: 1, maxLength: 1024, nullable: true },
     userId: { ...IdValueSchema, nullable: true },
     profileId: { ...IdValueSchema, nullable: true },
-    expiresAt: { type: 'string', nullable: true },
+    expiresAt: { ...DateSchema, nullable: true },
     groups: { type: 'array', items: GroupValueSchema, nullable: true },
     entityId: { ...EntityValueSchema, nullable: true },
     scopes: { type: 'array', items: ScopeValueSchema, nullable: true },

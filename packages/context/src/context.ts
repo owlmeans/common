@@ -57,6 +57,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
       await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
 
+      /*
       await Promise.all(
         getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).map(async service => {
           console.log(`Initializing service ${service.alias}...`)
@@ -71,10 +72,28 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
           }
         })
       )
+      */
+
+      await getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).reduce(
+        async (previous, service) => {
+          await previous
+          console.log(`Initializing service ${service.alias}...`)
+          if (!service.initialized) {
+            if (service.init != null) {
+              console.log(`... call init for ${service.alias}`)
+              await service.init()
+            }
+            if (service.init == null && service.lazyInit == null) {
+              service.initialized = true
+            }
+          }
+        }
+        , Promise.resolve())
 
       await applyMiddlewares(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
 
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId ?? DEFAULT)
+      /*
       await Promise.all(
         Object.values(resources[context.cfg.layer][id]).map(async resource => {
           if (isResourceAvailable(resource, context.cfg.layer)) {
@@ -83,6 +102,14 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
           }
         })
       )
+      */
+      await Object.values(resources[context.cfg.layer][id]).reduce(async (previous, resource) => {
+        await previous
+        if (isResourceAvailable(resource, context.cfg.layer)) {
+          console.log(`+ Initialize resource: ${resource.alias}:${resource.layer} in layer ${context.cfg.layer} with id ${context.cfg.layerId}...`)
+          await resource.init?.()
+        }
+      }, Promise.resolve())
 
       await applyMiddlewares(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
 

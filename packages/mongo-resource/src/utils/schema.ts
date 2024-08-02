@@ -27,8 +27,10 @@ const convertProperties = (properties: Record<string, AnySchema>): Document =>
     const _value = value as JSONSchemaType<unknown>
     return [key,
       _value.type === 'object'
-        ? schemaToMongoSchema(_value)
-        : { bsonType: _value.type }
+        ? _value.format === 'date-time' ?
+          { bsonType: 'date' }
+          : schemaToMongoSchema(_value)
+        : { bsonType: _value.type === 'boolean' ? 'bool' : _value.type }
     ]
   }))
 

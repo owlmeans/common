@@ -36,6 +36,15 @@ export class AuthenFailed extends AuthManagerError {
   }
 }
 
+export class AuthenExists extends AuthenFailed {
+  public static override typeName: string = `${AuthenFailed.typeName}Exists`
+
+  constructor(message: string = 'error') {
+    super(`exists:${message}`)
+    this.type = AuthenExists.typeName
+  }
+}
+
 export class AuthenPayloadError extends AuthenFailed {
   public static override typeName: string = `${AuthenFailed.typeName}Payload`
 
@@ -76,6 +85,7 @@ ResilientError.registerErrorClass(AuthError)
 ResilientError.registerErrorClass(AuthUnknown)
 ResilientError.registerErrorClass(AuthManagerError)
 ResilientError.registerErrorClass(AuthenFailed)
+ResilientError.registerErrorClass(AuthenExists)
 ResilientError.registerErrorClass(AuthenPayloadError)
 ResilientError.registerErrorClass(AuthPluginError)
 ResilientError.registerErrorClass(TypeMissmatchError)

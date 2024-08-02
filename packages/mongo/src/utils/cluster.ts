@@ -7,6 +7,7 @@ import { port } from './config.js'
 
 export const setUpCluster = async (client: MongoClient, config: DbConfig): Promise<boolean> => {
   const meta: MongoMeta | undefined = config.meta
+  const hosts = config.host as string[]
 
   console.log('mongo: try to set up cluster...')
   await client.connect()
@@ -17,13 +18,31 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
     const result = await admin.replSetGetStatus()
     console.log('replicaset status: ', result.ok)
 
+    // Replicaset can be missconfigured after server restarts
+    const { config: currentConfig } = await admin.command({ replSetGetConfig: 1 })
+
+    console.log('REPLICASET CONFIG', JSON.stringify(currentConfig, null, 2))
+
+    if (hosts.some(host => {
+      const _host = port(host, { ...config, port: config.port ?? 27017 })
+      if (currentConfig.members.some((member: { host: string }) => member.host === _host)) {
+        return false
+      }
+      console.log('NO MATCHING HOST', _host)
+      
+      return true
+    })) {
+      console.log('Some host is missconfigured...')
+      const error = new MongoServerError({})
+      error.codeName = 'InvalidReplicaSetConfig'
+      throw error
+    }
+
     return true
   } catch (e) {
     try {
       if (e instanceof MongoServerError && 'NotYetInitialized' === e.codeName) {
         // INITIALIZE REPLICASET
-        const hosts = config.host as string[]
-
         const outcome = await admin.command({
           replSetInitiate: {
             _id: meta?.replicaSet ?? DEF_REPLSET,
@@ -33,9 +52,8 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
         console.log('replicaset intialization outcome: ', outcome.ok)
       } else if (e instanceof MongoServerError && e.codeName === 'InvalidReplicaSetConfig') {
         // FIX REPLICASET IF NODES CHANGED THEIR ADDRESSES
-        const hosts = config.host as string[]
 
-        const { config: currentConfig } = await admin.command({ replSetGetConfig: 1 });
+        const { config: currentConfig } = await admin.command({ replSetGetConfig: 1 })
         currentConfig.version++
 
         currentConfig.members = hosts.map((host, index) => ({
