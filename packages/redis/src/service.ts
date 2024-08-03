@@ -86,3 +86,13 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
 
   return service
 }
+
+export const appendRedis = <C extends Config, T extends Context<C> = Context<C>>(
+  context: T, alias: string = DEFAULT_ALIAS
+): T => {
+  const service = makeRedisService(alias)
+
+  context.registerService(service)
+
+  return context
+}

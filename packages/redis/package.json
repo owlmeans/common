@@ -27,9 +27,9 @@
   "dependencies": {
     "@noble/hashes": "^1.4.0",
     "@owlmeans/context": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/resource": "^0.1.0",
     "@owlmeans/redis-resource": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0",
     "@scure/base": "^1.1.7",
     "ioredis": "^5.4.1"
   }

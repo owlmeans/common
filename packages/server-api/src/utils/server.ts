@@ -11,6 +11,7 @@ import { OK } from '@owlmeans/api'
 import { handleError } from './error.js'
 import { executeResponse, provideRequest } from './payload.js'
 import { authorize } from './guards.js'
+import { RouteProtocols } from '@owlmeans/route'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -20,6 +21,9 @@ export const canServeModule = (context: Context, module: CommonModule): module i
     return false
   }
   if (module.route.route.service != null && module.route.route.service !== context.cfg.service) {
+    return false
+  }
+  if (module.route.route.protocol === RouteProtocols.SOCKET) {
     return false
   }
 

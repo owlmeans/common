@@ -1,5 +1,5 @@
 import type { AppType, BasicContext, BasicConfig } from '@owlmeans/context'
-import type { RouteMethod } from './consts'
+import type { RouteProtocols, RouteMethod } from './consts'
 
 export interface CommonRoute extends BasicRoute {
   alias: string
@@ -21,6 +21,8 @@ export interface BasicRoute {
   port?: number
   base?: string
   resolved: boolean
+  protocol?: RouteProtocols
+  secure?: boolean
 }
 
 export interface ResolvedServiceRoute extends CommonServiceRoute {

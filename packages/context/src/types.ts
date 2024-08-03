@@ -62,7 +62,7 @@ export interface BasicResource extends Contextual {
 export interface Middleware {
   type: MiddlewareType
   stage: MiddlewareStage
-  apply: <C extends BasicConfig>(context: BasicContext<C>, args?: Record<string, string | undefined>) => Promise<void>
+  apply: <C extends BasicConfig, T extends BasicContext<C>>(context: T, args?: Record<string, string | undefined>) => Promise<void>
 }
 
 export interface BasicContext<C extends BasicConfig> {

@@ -19,6 +19,12 @@
       "types": "./build/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/basic-ids": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@owlmeans/module": "^0.1.0"
+  },
   "devDependencies": {
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"

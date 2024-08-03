@@ -18,7 +18,7 @@ export const makeRedisResource = <
   const location = `redis-resource:${alias}`
 
   const resource: T = appendContextual<T>(alias, {
-    key: key => `${resource.db.prefix}:${key ?? ''}`,
+    key: key => `${resource.db.prefix}:${key ?? '*'}`,
 
     get: async (id, field, opts) => {
       const record = await resource.load(id, field, opts)

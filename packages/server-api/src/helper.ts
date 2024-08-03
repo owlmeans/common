@@ -1,12 +1,11 @@
 
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { assertContext } from '@owlmeans/context'
 import { ModuleOutcome } from '@owlmeans/module'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { RefedModuleHandler } from '@owlmeans/server-module'
+import type { Config, Context } from './types.js'
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
 
 const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
   return req.original._ctx ?? def
@@ -15,14 +14,11 @@ const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<
 export const handleBody: <T>(
   handler: (payload: T, ctx: Context) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
-  if (ref.ref?.ctx == null) {
-    console.log(new SyntaxError('Module context is not provided'))
-    throw new SyntaxError('Module context is not provided')
-  }
+  const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.body as any,
-      _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+      _castContextFromOriginal<Config, Context>(req, ctx)
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -34,14 +30,11 @@ export const handleBody: <T>(
 export const handleParams: <T>(
   handler: (payload: T, ctx: Context) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
-  if (ref.ref?.ctx == null) {
-    console.log(new SyntaxError('Module context is not provided'))
-    throw new SyntaxError('Module context is not provided')
-  }
+  const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.params as any,
-      _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+      _castContextFromOriginal<Config, Context>(req, ctx)
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -53,13 +46,10 @@ export const handleParams: <T>(
 export const handleRequest: (
   handler: (payload: AbstractRequest, ctx: Context) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
-  if (ref.ref?.ctx == null) {
-    console.log(new SyntaxError('Module context is not provided'))
-    throw new SyntaxError('Module context is not provided')
-  }
+  const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
-      req, _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context)
+      req, _castContextFromOriginal<Config, Context>(req, ctx)
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -71,12 +61,11 @@ export const handleRequest: (
 export const handleIntermediate: (
   handler: (payload: AbstractRequest, ctx: Context) => Promise<Context | null>
 ) => RefedModuleHandler<AbstractResponse<Context | null>> = handler => ref => async (req, res) => {
-  if (ref.ref?.ctx == null) {
-    console.log(new SyntaxError('Module context is not provided'))
-    throw new SyntaxError('Module context is not provided')
-  }
+  const ctx = assertContext(ref.ref?.ctx) as Context
   try {
-    const result = await handler(req, _castContextFromOriginal<Config, Context>(req, ref.ref.ctx as Context))
+    const result = await handler(
+      req, _castContextFromOriginal<Config, Context>(req, ctx)
+    )
     if (result != null) {
       res.resolve(result)
     }

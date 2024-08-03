@@ -20,6 +20,8 @@ export const createApiServer = (alias: string): ApiServer => {
   const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
 
   const service = createService<ApiServer>(alias, {
+    server: Fastify({ logger: true }),
+
     layers: [Layer.System],
 
     listen: async () => {
@@ -44,15 +46,19 @@ export const createApiServer = (alias: string): ApiServer => {
   }, service => async () => {
     console.log(`${location}: ready to init api server`)
 
+    if (service.server.server.listening) {
+      await service.server.close()
+      service.server = Fastify({ logger: true })
+    }
+
     const context = _assertContext(service.ctx as Context)
 
-    const server = Fastify({ logger: true })
+    const server = service.server
     // @TODO It's quite unsafe and should be properly configured
-    await server.register(cors, { origin: '*' })
+    server.register(cors, { origin: '*' })
 
     server.addHook('preHandler', async (request, reply) => {
-      const context = _assertContext(service.ctx as Context)
-      console.log('======== we are in context: ', context.cfg.layer, context.cfg.layerId);
+      const context = _assertContext(service.ctx as Context);
       // We pass context further using fastify request object
       (request as any)._ctx = await context.modules<ServerModule<FastifyRequest>>().filter(
         module => canServeModule(context, module) && module.route.isIntermediate()
@@ -105,8 +111,6 @@ export const createApiServer = (alias: string): ApiServer => {
         })
     )
 
-    service.server = server
-
     service.initialized = true
   })
 
@@ -122,7 +126,9 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
 
   context.registerService(service)
 
-  context.getApiServer = () => ctx.service(service.alias)
+  if (context.getApiServer != null) {
+    context.getApiServer = () => ctx.service(service.alias)
+  }
 
   return context
 }

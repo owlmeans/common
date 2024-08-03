@@ -23,12 +23,12 @@ export const layersOrder = [
 export const getAllServices = (services: InLayer<Record<string, Service>>, layer: Layer, id: string) => 
   services?.[layer]?.[id] != null ? Object.values(services[layer][id]) : []
 
-export const applyMiddlewares = <C extends BasicConfig>(
-  context: BasicContext<C>,
+export const applyMiddlewares = <C extends BasicConfig, T extends BasicContext<C>>(
+  context: T,
   middlewares: Record<string, Middleware[]>,
   type: MiddlewareType,
   stage: MiddlewareStage,
   args?: Record<string, string | undefined>
 ) => Promise.all(
-  middlewares[createMiddlewareKey(type, stage)]?.map(async middleware => middleware.apply(context, args)) ?? []
+  middlewares[createMiddlewareKey(type, stage)]?.map(async middleware => middleware.apply<C, T>(context, args)) ?? []
 )

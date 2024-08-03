@@ -9,7 +9,7 @@ import type { AbstractRequest } from '@owlmeans/module'
 export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
   stage: MiddlewareStage.Loading,
-  apply: async (context) => {
+  apply: async context => {
     context.modules<ClientModule<unknown>>().map(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards = module.getGuards()
@@ -20,6 +20,7 @@ export const authMiddleware: Middleware = {
           const call = module.call
           module.call = async (req, res) => {
             if (await auth.authenticated()) {
+              // @TODO Just use await module.resolve() - cause the following construction can lead to wrong module resolution
               await module.route.resolve((module.ctx ?? context) as BasicContext<BasicConfig>)
               const _req: Partial<AbstractRequest> = req ?? provideRequest(module.getAlias(), module.getPath())
               // @TODO Authorization header may already present

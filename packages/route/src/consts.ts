@@ -7,3 +7,8 @@ export enum RouteMethod {
 export const SEP = '/'
 
 export const PARAM = ':'
+
+export enum RouteProtocols {
+  WEB = 'http',
+  SOCKET = 'ws'
+}
