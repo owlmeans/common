@@ -33,7 +33,7 @@ export interface ModuleMatch {
 
 export interface ModuleHandler {
   <
-    T, R extends AbstractRequest = AbstractRequest,
+    T, R extends AbstractRequest<any> = AbstractRequest<any>,
     P extends AbstractResponse<any> = AbstractResponse<any>,
   >(req: R, res: P): T | Promise<T>
 }
@@ -48,7 +48,7 @@ export interface AbstractRequest<T extends {} = {}> {
   params: Record<string, string | number | undefined | null> | Partial<T>
   body?: Record<string, any> | T
   headers: Record<string, string[] | string | undefined>
-  query: Record<string, string | number | undefined | null> | Partial<T> | Object
+  query: Record<string, string | number | undefined | null> | Partial<T>
   path: string
   original?: any
   canceled?: boolean

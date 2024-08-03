@@ -1,10 +1,10 @@
 {
-  "name": "@owlmeans/server-socket",
+  "name": "@owlmeans/client-socket",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "sleep 10 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 16 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
@@ -19,23 +19,23 @@
       "types": "./build/index.d.ts"
     }
   },
+  "peerDependencies": {
+    "react": "*"
+  },
   "devDependencies": {
+    "@types/react": "^18.3.3",
     "nodemon": "^3.1.4",
     "typescript": "^5.4.5"
   },
-  "peerDependencies": {
-    "fastify": "*"
-  },
   "dependencies": {
-    "@fastify/websocket": "^10.0.1",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-auth": "^0.1.0",
+    "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-auth": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0",
     "@owlmeans/socket": "^0.1.0"
   }
 }

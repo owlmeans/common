@@ -76,6 +76,7 @@ export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`
 
 export const AUTH_HEADER = 'authorization'
+export const AUTH_QUERY = 'token'
 
 export const MOD_RECAPTCHA = '_external:re-captcha'
 export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`

@@ -44,7 +44,7 @@ export interface Connection {
   /**
    * @abstract
    */
-  authenticate: <T, R>(stage: AuthenticationStage, payload: T) => Promise<R>
+  authenticate: <T, R>(stage: AuthenticationStage, payload: T) => Promise<[AuthenticationStage, R]>
 
   /**
    * Utility methods
@@ -56,6 +56,8 @@ export interface Connection {
   _receiveResponse: (message: Message<any>) => Promise<void>
   _receiveEvent: (message: EventMessage<any>) => Promise<void>
   _receiveMessage: (message: Message<any>) => Promise<void>
+
+  getListeners: () => ConnectionListener[]
 }
 
 export interface ConnectionListener {
@@ -86,7 +88,7 @@ export interface CallMessage<T extends any[]> extends Message<T> {
 }
 
 export interface EventMessage<T> extends Message<T> {
-  type: MessageType.Event
+  type: MessageType.Event | MessageType.System
   event: string
 }
 

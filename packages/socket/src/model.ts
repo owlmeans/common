@@ -7,7 +7,7 @@ import type {
 } from './types.js'
 import { uuid } from '@owlmeans/basic-ids'
 
-export const makeBasicConnection = (): Connection => {
+export const createBasicConnection = (): Connection => {
   const listeners: ConnectionListener[] = []
 
   const callPerformers: { [method: string]: CallHendler<any, any[]> } = {}
@@ -222,7 +222,12 @@ export const makeBasicConnection = (): Connection => {
                 break
               }
               case MessageType.Auth: {
-                await conn.authenticate(msg.payload.stage, msg.payload.payload)
+                try {
+                  const [stage, response] = await conn.authenticate(msg.payload.stage, msg.payload.payload)
+                  await conn.auth(stage, response)
+                } catch (e) {
+                  await conn.auth(msg.payload.stage, e)
+                }
                 break
               }
             }
@@ -331,7 +336,9 @@ export const makeBasicConnection = (): Connection => {
 
     _receiveMessage: async msg => {
       queue.push(msg)
-    }
+    },
+
+    getListeners: () => listeners
   }
 
   return conn

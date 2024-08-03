@@ -3,7 +3,7 @@ import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios from 'axios'
 import type { CommonModule } from '@owlmeans/module'
-import { SEP, normalizePath } from '@owlmeans/route'
+import { RouteProtocols, SEP, normalizePath } from '@owlmeans/route'
 import { DEFAULT_ALIAS, protocols } from './consts.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
@@ -41,8 +41,12 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       const [prefix] = url.split('://')
       if (!protocols.includes(prefix)) {
-        // @TODO Fix https
-        url = `http://${url}`
+        // @TODO fix security
+        if (route.protocol !== RouteProtocols.SOCKET) {
+          url = `http://${url}`
+        } else {
+          url = `ws://${url}`
+        }
       }
 
       const body = request.body != null && Object.entries((request.headers ?? {})).find(

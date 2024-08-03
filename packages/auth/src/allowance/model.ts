@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import type { AllowanceRequest, AuthCredentials, AuthPayload } from '../types.js'
+import type { AllowanceRequest, Auth, AuthCredentials, AuthPayload } from '../types.js'
 import {
   AuthRoleSchema, EntityValueSchema, GroupValueSchema, IdValueSchema, DateSchema,
   ScopeValueSchema, TypeNameSchema
@@ -52,5 +52,19 @@ export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
     },
     AuthPayloadSchema
   ],
-  required: ['type', 'challenge', 'credential']
+  required: ['type', 'challenge', 'credential', ...AuthPayloadSchema.required]
+}
+
+export const AuthSchema: JSONSchemaType<Auth> = {
+  type: 'object',
+  properties: {
+    token: { type: 'string', minLength: 32, maxLength: 1024 },
+    isUser: { type: 'boolean' },
+    createdAt: DateSchema,
+    expiresAt: { ...DateSchema, nullable: true },
+    ...AuthPayloadSchema.properties,
+  },
+  required: [
+    'token', 'isUser', 'createdAt', 'type', 'role', 'userId'
+  ]
 }

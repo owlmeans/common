@@ -8,6 +8,42 @@ export class SocketError extends ResilientError {
   }
 }
 
+export class SocketInitializationError extends SocketError {
+  public static override typeName: string = `${SocketError.typeName}Initialization`
+  
+  constructor(message: string = 'error') {
+    super(`initialization:${message}`)
+    this.type = SocketInitializationError.typeName
+  }
+}
+
+export class SocketConnectionError extends SocketError {
+  public static override typeName: string = `${SocketError.typeName}Connection`
+  
+  constructor(message: string = 'error') {
+    super(`connection:${message}`)
+    this.type = SocketConnectionError.typeName
+  }
+}
+
+export class SocketUnauthorized extends SocketConnectionError {
+  public static override typeName: string = `${SocketConnectionError.typeName}Unauthorized`
+  
+  constructor(message: string = 'error') {
+    super(`unauthorized:${message}`)
+    this.type = SocketUnauthorized.typeName
+  }
+}
+
+export class SocketUnsupported extends SocketConnectionError {
+  public static override typeName: string = `${SocketConnectionError.typeName}Unsupported`
+  
+  constructor(message: string = 'error') {
+    super(`unsupported:${message}`)
+    this.type = SocketUnsupported.typeName
+  }
+}
+
 export class SocketTimeout extends SocketError {
   public static override typeName: string = `${SocketError.typeName}Timeout`
   
@@ -36,6 +72,10 @@ export class SocketMessageMalformed extends SocketMessageError {
 }
 
 ResilientError.registerErrorClass(SocketError)
+ResilientError.registerErrorClass(SocketInitializationError)
+ResilientError.registerErrorClass(SocketConnectionError)
+ResilientError.registerErrorClass(SocketUnauthorized)
+ResilientError.registerErrorClass(SocketUnsupported)
 ResilientError.registerErrorClass(SocketTimeout)
 ResilientError.registerErrorClass(SocketMessageError)
 ResilientError.registerErrorClass(SocketMessageMalformed)

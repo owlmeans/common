@@ -12,13 +12,13 @@ const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<
 }
 
 export const handleBody: <T>(
-  handler: (payload: T, ctx: Context) => Promise<any>
+  handler: (payload: T, ctx: BasicContext<BasicConfig>) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.body as any,
-      _castContextFromOriginal<Config, Context>(req, ctx)
+      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -28,13 +28,13 @@ export const handleBody: <T>(
 }
 
 export const handleParams: <T>(
-  handler: (payload: T, ctx: Context) => Promise<any>
+  handler: (payload: T, ctx: BasicContext<BasicConfig>) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.params as any,
-      _castContextFromOriginal<Config, Context>(req, ctx)
+      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -44,12 +44,12 @@ export const handleParams: <T>(
 }
 
 export const handleRequest: (
-  handler: (payload: AbstractRequest, ctx: Context) => Promise<any>
+  handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
-      req, _castContextFromOriginal<Config, Context>(req, ctx)
+      req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -59,13 +59,13 @@ export const handleRequest: (
 }
 
 export const handleIntermediate: (
-  handler: (payload: AbstractRequest, ctx: Context) => Promise<Context | null>
+  handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>) => Promise<BasicContext<BasicConfig> | null>
 ) => RefedModuleHandler<AbstractResponse<Context | null>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     const result = await handler(
-      req, _castContextFromOriginal<Config, Context>(req, ctx)
-    )
+      req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
+    ) 
     if (result != null) {
       res.resolve(result)
     }

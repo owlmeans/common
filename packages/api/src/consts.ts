@@ -13,4 +13,4 @@ export const ACCEPTED = 202
 
 export const DEFAULT_ALIAS = 'web-client'
 
-export const protocols = ['http', 'https']
+export const protocols = ['http', 'https', 'wss', 'ws']
