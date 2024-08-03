@@ -34,6 +34,12 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
       const envelope = makeEnvelopeModel(plugin.type)
 
+      /**
+       * @TODO It looks like we don't validate sourced challenge by any means
+       * So we need to:
+       * 1. Remove it  cause we process it as a separate property anyway
+       * 2. Fix it because it looks like this separate property isn't validated
+       */
       const challengeToken = request.source != null
         ? `${request.source}:${response.challenge}` : response.challenge
 
@@ -87,6 +93,30 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
         token: await makeEnvelopeModel(credential.type)
           .send(credential, AUTHEN_TIMEFRAME)
           .sign(keyPair, EnvelopeKind.Token)
+      }
+    },
+
+    rely: async (conn, _source) => {
+      // const authenticate = conn.authenticate
+      
+      conn.authenticate = async (stage, payload) => {
+        // 1. There is a difference between privileged (provider)
+        //    and non-privileged (consumer) request 
+        // 2. Source allows to distinguish between provider and consumer
+        //    but probably it needs to be universalized some way
+        //    cause potentially wallet can also be consumer
+        //    (right now consumer will request authentication type)
+        // 3. General idea is that: when you are connected, the auth
+        //    process can be started from scratch following same stages
+        //    and using the same plugins but via socket
+        // We start implemnetation of ProviderHandshake / ConsumerHandshake here:
+        // 4. Our firs objective right now is to just establish one request
+        //    connection betwee provider and consumer: ProviderHandshake / ConsumerHandshake
+        // 5. It should lead to WalletProvider / WalletConsumer authentication,
+        //    that will be used by consumer for one time signature
+        // 6. So as outcome is transformation of this connection to one-time
+        //    signature / action provider schema.
+        return [stage, payload as any]
       }
     }
   }

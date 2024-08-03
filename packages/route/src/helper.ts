@@ -1,5 +1,5 @@
 import { AppType } from '@owlmeans/context'
-import { RouteMethod, SEP } from './consts.js'
+import { RouteMethod, RouteProtocols, SEP } from './consts.js'
 import { createRoute, makeRouteModel } from './model.js'
 import type { CommonRouteModel, RouteOptions } from './types.js'
 import type { CreateRouteSignature } from './utils/types.js'
@@ -24,6 +24,14 @@ export const backend = (opts?: RouteOptions | string | null, method?: RouteOptio
   }
 
   return rtype(AppType.Backend, opts as RouteOptions)
+}
+
+export const socket = (opts?: RouteOptions | string | null, secondary?: RouteOptions): Partial<RouteOptions> => {
+  const route = backend(opts, secondary)
+
+  route.protocol = RouteProtocols.SOCKET
+
+  return route
 }
 
 export const frontend = (opts?: RouteOptions | string | null, def?: RouteOptions | boolean): Partial<RouteOptions> => {

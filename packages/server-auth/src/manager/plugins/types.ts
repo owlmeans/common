@@ -1,7 +1,7 @@
 import type { AuthModel } from '../types.js'
 import type { AbstractRequest } from '@owlmeans/module'
 
-export interface AuthPlugin extends AuthModel {
+export interface AuthPlugin extends Omit<AuthModel, "rely"> {
   type: string
 }
 

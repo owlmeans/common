@@ -7,6 +7,8 @@ export interface CommonRoute extends BasicRoute {
   parent?: string
   default?: boolean
   method?: RouteMethod
+  protocol?: RouteProtocols
+  secure?: boolean
 }
 
 export interface CommonServiceRoute extends BasicRoute {
@@ -21,8 +23,6 @@ export interface BasicRoute {
   port?: number
   base?: string
   resolved: boolean
-  protocol?: RouteProtocols
-  secure?: boolean
 }
 
 export interface ResolvedServiceRoute extends CommonServiceRoute {

@@ -59,4 +59,3 @@ export const AuthTokenSchema: JSONSchemaType<AuthToken> = {
   },
   required: ['token']
 }
-

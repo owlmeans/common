@@ -1,17 +1,18 @@
 
 import {
-  AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AllowanceRequestSchema, AuthCredentialsSchema,
+  AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, AllowanceRequestSchema, AuthCredentialsSchema,
   AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER,
   DISPATCHER_AUTHEN
 } from '@owlmeans/auth'
 import { AppType } from '@owlmeans/context'
 import { body, filter, module, query } from '@owlmeans/module'
-import { route, RouteMethod, frontend, backend } from '@owlmeans/route'
+import { route, RouteMethod, frontend, backend, socket } from '@owlmeans/route'
 
 export const modules = [
   module(route(AUTHEN, '/authentication', backend())),
   module(route(AUTHEN_INIT, '/init', backend(AUTHEN, RouteMethod.POST)), filter(body(AllowanceRequestSchema))),
   module(route(AUTHEN_AUTHEN, '/authenticate', backend(AUTHEN, RouteMethod.POST)), filter(body(AuthCredentialsSchema))),
+  module(route(AUTHEN_RELY, '/rely', socket(AUTHEN)), filter(query(AuthTokenSchema))),
   module(route(CAUTHEN, '/authentication', frontend())),
   module(route(CAUTHEN_AUTHEN, '/login', frontend(CAUTHEN))),
   module(route(CAUTHEN_AUTHEN_DEFAULT, '/', frontend(CAUTHEN_AUTHEN, true))),
@@ -23,7 +24,7 @@ export const modules = [
     // rediected users.
     filter(query(AuthTokenSchema), { sticky: true })
   ),
-  module(route(DISPATCHER_AUTHEN, '/authentication', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema)))
+  module(route(DISPATCHER_AUTHEN, '/authentication', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema))),
 ]
 
 const skipModules = [DISPATCHER]

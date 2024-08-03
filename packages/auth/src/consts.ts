@@ -21,13 +21,21 @@ export enum AuthRole {
 export enum AuthenticationType {
   BasicEd25519 = 'basic-ed25519',
   OneTimeToken = 'one-time-token',
-  ReCaptcha = 're-captcha'
+  ReCaptcha = 're-captcha',
+  // OwlMeans
+  WalletDid = 'wallet-did',
+  ProviderHandshake = 'provider-handshake',
+  ConsumerHandshake = 'consumer-handshake',
+  WalletProvider = 'wallet-provider',
+  WalletConsumer = 'wallet-consumer'
 }
 
 export enum AuthroizationType {
   AuthToken = 'auth-token',
   Ed25519BasicToken = 'ed25519-basic-token',
-  Ed25519BasicSignature = 'ed25519-basic-signature'
+  Ed25519BasicSignature = 'ed25519-basic-signature',
+  // OwlMeans
+  Wallet = 'wallet'
 }
 
 export enum AuthenticationStage {
@@ -42,7 +50,7 @@ export const AUTHEN = 'authentication'
 export const AUTHEN_INIT = `${AUTHEN}:init`
 export const AUTHEN_AUTHEN = `${AUTHEN}:authenticate`
 
-export const CAUTHEN = `cleint-${AUTHEN}`
+export const CAUTHEN = `client-${AUTHEN}`
 export const CAUTHEN_AUTHEN = `${CAUTHEN}:authentication`
 export const CAUTHEN_AUTHEN_DEFAULT = `${CAUTHEN}:authentication:default`
 export const CAUTHEN_AUTHEN_TYPED = `${CAUTHEN}:authentication:typed`
@@ -74,6 +82,8 @@ export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
 
 export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`
+
+export const AUTHEN_RELY = `${AUTHEN}-rely`
 
 export const AUTH_HEADER = 'authorization'
 export const AUTH_QUERY = 'token'

@@ -1,5 +1,6 @@
+import type { AuthCredentials } from '@owlmeans/auth'
 import type { LazyService } from '@owlmeans/context'
-import type { DIDWallet, MakeDIDWalletOptions } from '@owlmeans/did'
+import type { DIDKeyModel, DIDWallet, MakeDIDWalletOptions } from '@owlmeans/did'
 
 export interface DIDService extends LazyService {
   wallet: DIDWallet
@@ -17,4 +18,9 @@ export interface DIDServiceDeps {
   keys: string
   meta: string
   master: string
+}
+
+export interface DIDAccountModel {
+  did: DIDKeyModel
+  authenticate: <T extends Partial<AuthCredentials>>(auth: T) => Promise<T>
 }

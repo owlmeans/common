@@ -126,7 +126,7 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
 
   context.registerService(service)
 
-  if (context.getApiServer != null) {
+  if (context.getApiServer == null) {
     context.getApiServer = () => ctx.service(service.alias)
   }
 
