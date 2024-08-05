@@ -1,10 +1,11 @@
 import type { ResourceMaker, ResourceRecord } from '@owlmeans/resource'
 import { MisshapedRecord, prepareListOptions, RecordExists, UnknownRecordError, UnsupportedArgumentError } from '@owlmeans/resource'
-import type { RedisDbService, RedisResource } from './types.js'
+import type { RedisClient, RedisDbService, RedisResource } from './types.js'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE } from './consts.js'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import type { BasicContext, Contextual } from '@owlmeans/context'
+import { prepareSubOptions } from './utils/options.js'
 
 type Config = ServerConfig
 type Context<C extends Config = Config> = ServerContext<C>
@@ -196,6 +197,53 @@ export const makeRedisResource = <
           val => JSON.parse(val as string)
         )
       }
+    },
+
+    subscribe: async (handler, opts) => {
+      opts = prepareSubOptions(opts)
+
+      const unsusbscibe = () => {
+        subscriber.punsubscribe(resource.key(opts.key)).then(() => subscriber.quit())
+      }
+
+      const listener = (value: R) => {
+        handler(value as any)
+        if (opts.once === true) {
+          unsusbscibe()
+        }
+      }
+
+      const subscriber = (resource.db.client as RedisClient).duplicate()
+      if (opts.key != null && null != await resource.load(opts.key)) {
+        await subscriber.psubscribe(`__keyspace@0__:${resource.key(opts.key)}`)
+        subscriber.on('pmessage', async (_, channel) => {
+          const [, , key] = channel.split(':')
+          const record = await resource.load(key)
+          listener(record ?? { id: key, __null: true } as any as R)
+        })
+      } else {
+        await subscriber.psubscribe(resource.key(opts.key))
+        subscriber.on('pmessage', (_, __, message) => listener(JSON.parse(message)))
+      }
+
+
+      if (opts.ttl != null) {
+        const ttl = opts.ttl instanceof Date
+          ? opts.ttl.getTime() - Date.now()
+          : typeof opts.ttl === 'number'
+            ? opts.ttl * 1000
+            : null
+        if (ttl == null) {
+          throw new UnsupportedArgumentError(`subscribe:ttl:${typeof opts.ttl}`)
+        }
+        setTimeout(unsusbscibe, ttl)
+      }
+
+      return unsusbscibe
+    },
+
+    publish: async (record, key) => {
+      await resource.db.client.publish(resource.key(key), JSON.stringify(record))
     }
   } as Partial<T>)
 

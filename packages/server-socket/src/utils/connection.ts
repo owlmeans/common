@@ -44,8 +44,8 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
         if (_auth == null) {
           throw new SocketUnauthorized(stage)
         }
-        const model = makeEnvelopeModel(_auth.token, EnvelopeKind.Token)
-        auth = model.message<Auth>()
+        const model = makeEnvelopeModel<Auth>(_auth.token, EnvelopeKind.Token)
+        auth = model.message()
 
         return [AuthenticationStage.Authenticated, _auth as any]
       }
@@ -70,8 +70,8 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       try {
         let authorization = (request.query as any)?.[AUTH_QUERY]
         if (authorization != null) {
-          const envelope = makeEnvelopeModel(authorization, EnvelopeKind.Token)
-          const _auth = envelope.message<Auth | AuthCredentials>()
+          const envelope = makeEnvelopeModel<Auth | AuthCredentials>(authorization, EnvelopeKind.Token)
+          const _auth = envelope.message()
           if (isAuth(_auth) || isAuthCredentials(_auth)) {
             auth = _auth
           }

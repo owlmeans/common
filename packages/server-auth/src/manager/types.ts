@@ -1,5 +1,6 @@
-import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
+import type { AllowanceRequest, AllowanceResponse, Auth, AuthCredentials, AuthToken, RelyChallenge } from '@owlmeans/auth'
 import type { KlusterConfig } from '@owlmeans/kluster'
+import type { GuardService } from '@owlmeans/module'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { ServiceRoute } from '@owlmeans/server-route'
@@ -14,8 +15,25 @@ export interface AuthModel {
 
   authenticate: (credential: AuthCredentials) => Promise<AuthToken>
 
-  rely: (conn: Connection, source?: string | null) => Promise<void>
+  rely: (conn: Connection, source?: Auth | null) => Promise<void>
 }
 
-export interface AppContext<C extends AppConfig> extends ServerContext<C>
+export interface AppContext<C extends AppConfig = AppConfig> extends ServerContext<C>
   , ApiServerAppend { }
+
+export interface RelyService extends GuardService {
+}
+
+export interface RelyAllowanceRequest extends AllowanceRequest {
+  auth?: Auth
+  provideRely?: RelyLinker
+}
+
+export interface RelyLinker {
+  (rely: RelyChallenge, source: RelyChallenge): Promise<void>
+}
+
+export interface RelyToken {
+  source: RelyChallenge,
+  rely: RelyChallenge
+}

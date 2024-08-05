@@ -3,7 +3,9 @@ import { DEFAULT_TTL, EnvelopeKind } from './consts.js'
 import type { EnvelopeModel } from './types.js'
 import { tokenize, untokenize, unwrap, wrap } from './utils/model.js'
 
-export const makeEnvelopeModel = (type: string, kind?: EnvelopeKind): EnvelopeModel => {
+export const makeEnvelopeModel = <T extends {} | string = string>(
+  type: string, kind?: EnvelopeKind
+): EnvelopeModel<T> => {
   const model: EnvelopeModel = {
     envelope: kind == null ? {
       t: type,

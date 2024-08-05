@@ -9,12 +9,12 @@ export interface Envelope {
   ttl: number | null
 }
 
-export interface EnvelopeModel {
+export interface EnvelopeModel<T extends {} | string = string> {
   envelope: Envelope
-  send: (msg: unknown, ttl?: number | null) => EnvelopeModel
+  send: <M extends T>(msg: M, ttl?: number | null) => EnvelopeModel
   wrap: () => string
   tokenize: () => string
-  message: <T>() => T
+  message: <M extends T>() => M
   type: () => string
   sign: (key: KeyPairModel, kind?: EnvelopeKind) => Promise<string>
   verify: (key: KeyPairModel) => Promise<boolean>

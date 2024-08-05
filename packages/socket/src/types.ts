@@ -44,7 +44,7 @@ export interface Connection {
   /**
    * @abstract
    */
-  authenticate: <T, R>(stage: AuthenticationStage, payload: T) => Promise<[AuthenticationStage, R]>
+  authenticate: AuthenticateMethod
 
   /**
    * Utility methods
@@ -79,6 +79,10 @@ export interface Message<T> {
   sender?: string
   recipient?: string
   payload: T
+}
+
+export interface AuthenticateMethod {
+   <T, R>(stage: AuthenticationStage, payload: T): Promise<[AuthenticationStage, R]>
 }
 
 export interface CallMessage<T extends any[]> extends Message<T> {

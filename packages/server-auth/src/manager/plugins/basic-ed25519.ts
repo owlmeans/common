@@ -4,11 +4,11 @@ import { assertType } from './utils.js'
 import { randomBytes } from '@noble/hashes/utils'
 import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
-import type { AppContext, AppConfig } from '../types.js'
+import type { AppContext } from '../types.js'
 import { TRUSTED } from '@owlmeans/server-context'
 import type { TrustedRecord } from '@owlmeans/server-context'
 
-export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
+export const basicEd25519 = (context: AppContext): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: AuthenticationType.BasicEd25519,
     init: async request => {
@@ -23,7 +23,8 @@ export const basicEd25519 = (context: AppContext<AppConfig>): AuthPlugin => {
       /**
        * @TODO We need to find users in some db not just in static
        */
-      const systemUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(credential.userId)
+      const systemUser = await context.getConfigResource(TRUSTED)
+        .load<TrustedRecord>(credential.userId)
 
       if (systemUser == null) {
         throw new AuthenFailed()

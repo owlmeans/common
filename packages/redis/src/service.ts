@@ -57,7 +57,7 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
         client.quit()
       })
 
-      service.clients[configAlias] = client 
+      service.clients[configAlias] = client
     },
 
     reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
@@ -81,8 +81,7 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
     }, Promise.resolve())
 
     service.initialized = true
-  }
-  )
+  })
 
   return service
 }

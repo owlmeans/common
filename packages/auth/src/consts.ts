@@ -24,8 +24,7 @@ export enum AuthenticationType {
   ReCaptcha = 're-captcha',
   // OwlMeans
   WalletDid = 'wallet-did',
-  ProviderHandshake = 'provider-handshake',
-  ConsumerHandshake = 'consumer-handshake',
+  RelyHandshake = 'rely-handshake',
   WalletProvider = 'wallet-provider',
   WalletConsumer = 'wallet-consumer'
 }
@@ -92,3 +91,4 @@ export const MOD_RECAPTCHA = '_external:re-captcha'
 export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`
 
 export const GUEST_ID = '__guest'
+export const RELY_3RD = 'rely'

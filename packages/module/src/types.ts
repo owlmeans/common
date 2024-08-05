@@ -46,7 +46,7 @@ export interface AbstractRequest<T extends {} = {}> {
   alias: string
   auth?: Auth
   params: Record<string, string | number | undefined | null> | Partial<T>
-  body?: Record<string, any> | T
+  body?: Record<string, any> | Partial<T>
   headers: Record<string, string[] | string | undefined>
   query: Record<string, string | number | undefined | null> | Partial<T>
   path: string

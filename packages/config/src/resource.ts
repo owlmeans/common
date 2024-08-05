@@ -69,11 +69,11 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
 
     create: () => { throw new UnsupportedMethodError('config:create') },
 
-    update: () => { throw new UnsupportedMethodError('config:create') },
+    update: () => { throw new UnsupportedMethodError('config:update') },
 
-    delete: () => { throw new UnsupportedMethodError('config:create') },
+    delete: () => { throw new UnsupportedMethodError('config:delete') },
 
-    pick: () => { throw new UnsupportedMethodError('config:create') }
+    pick: () => { throw new UnsupportedMethodError('config:pick') }
   })
 
   return resource

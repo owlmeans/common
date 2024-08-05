@@ -16,8 +16,8 @@ export const authenticate: RefedModuleHandler<AuthCredentials> = handleBody(
 )
 
 export const rely: RefedModuleHandler<void> = handleConnection(
-   // @TODO Request will contain information is there requrest 
-   // privileged or not (privileged request implies auth provider)
-  async (conn, ctx, _, _req) =>
-    await makeAuthModel(ctx as AppContext<AppConfig>).rely(conn)
+  // @TODO Request will contain information is there requrest 
+  // privileged or not (privileged request implies auth provider)
+  async (conn, ctx, req) =>
+    await makeAuthModel(ctx as AppContext<AppConfig>).rely(conn, req.auth)
 )

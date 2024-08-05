@@ -41,6 +41,8 @@
     "@owlmeans/auth-common": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/basic-keys": "^0.1.0",
+    "@owlmeans/socket": "^0.1.0",
+    "@owlmeans/basic-ids": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
@@ -50,6 +52,8 @@
     "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",
     "@owlmeans/server-socket": "^0.1.0",
+    "@owlmeans/static-resource": "^0.1.0",
+    "@owlmeans/redis-resource": "^0.1.0",
     "@scure/base": "^1.1.7",
     "ajv": "^8.17.1"
   },
