@@ -20,7 +20,6 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
         throw new SyntaxError('Cluster node must have a host property after cluster options initialization')
       }
       const client = await createClient({ ...config, host: node.host }) as Redis
-      await client.connect()
 
       return client
     }
@@ -42,9 +41,8 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
     }
 
     for (const client of clients) {
-      const nodesInfo: string = await client.cluster('NODES') as string
-      const nodes = parseClusterNodeInfo(nodesInfo)
-      console.log('Analyse redis cluster node: ', nodes)
+      let nodesInfo: string = await client.cluster('NODES') as string
+      let nodes = parseClusterNodeInfo(nodesInfo)
       // Remove nodes that we don't nkow
       for (const node of nodes) {
         // We do not remove ourselves
@@ -62,6 +60,9 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
           await client.cluster('MEET', host, config.port ?? 6379)
         }
       }
+      client.disconnect(true)
+      nodesInfo = await client.cluster('NODES') as string
+      nodes = parseClusterNodeInfo(nodesInfo)
       const myself = nodes.find(node => node.flags.includes('myself')) as NodeInfo
       if (myself == null) {
         throw new SyntaxError('Cluster node does not contain information about itself')
@@ -72,6 +73,9 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
         slaves.push({ info: myself, node: client })
       }
     }
+
+    await Promise.all(clients.map(client => client.disconnect(true)))
+
     const realMasters = masters.filter(master => master.info.slots != null)
     const newcommers = masters.filter(master => master.info.slots == null)
 
@@ -83,7 +87,7 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
       await node.node.cluster('RESET')
       node.info.slots = null
       node.info.master = '-'
-      
+
       newcommers.push(node)
     }
 
@@ -105,11 +109,12 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
         await resetNode(slave)
       }
     }
+
     if (realMasters.length === 0) {
       for (let i = 0; i < masterQty; ++i) {
         const newcommer = newcommers.shift()
         if (newcommer == null) {
-          throw new SyntaxError('Not enough nodes to add to redis cluster')
+          throw new SyntaxError('(clean) Not enough nodes to add to redis cluster as master')
         }
         await configureMaster(newcommer, i)
         realMasters.push(newcommer)
@@ -130,7 +135,7 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
       while (realMasters.length < masterQty) {
         const newcommer = newcommers.shift()
         if (newcommer == null) {
-          throw new SyntaxError('Not enough nodes to add to redis cluster')
+          throw new SyntaxError('(dirty) Not enough nodes to add to redis cluster as master')
         }
         realMasters.push(newcommer)
       }
@@ -152,10 +157,12 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
         while (masterSlaves.length < slaveQty) {
           const newcommer = newcommers.shift()
           if (newcommer == null) {
-            throw new SyntaxError('Not enough nodes to add to redis cluster')
+            throw new SyntaxError('Not enough slaves to add to redis cluster')
           }
           newcommer.info.master = master.info.nodeId
+
           await newcommer.node.cluster('REPLICATE', master.info.nodeId)
+          masterSlaves.push(newcommer)
           slaves.push(newcommer)
         }
       }
@@ -184,19 +191,19 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
 }
 
 const parseClusterNodeInfo = (clusterNodes: string) => {
-  const nodesInfo = clusterNodes.split('\n').filter(line => line.trim() !== '');
+  const nodesInfo = clusterNodes.split('\n').filter(line => line.trim() !== '')
   return nodesInfo.map(line => {
-    const [nodeId, addr, flags, master, , , state, ...slots] = line.split(' ');
+    const [nodeId, addr, flags, master, , , , state, ...slots] = line.split(' ')
     return {
       nodeId,
       addr: addr.trim().split(':')[0],
       flags: flags.trim().split(','),
       master,
       state,
-      slots: slots != null
-        ? slots.map(slot => slot.includes('-') ? slot.split('_', 2).map(parseInt) : [slot, slot].map(parseInt))
-        : null
-    };
+      slots: slots != null && slots.length > 0 ? slots.map(
+        slot => (slot.includes('-') ? slot.split('-', 2) : [slot, slot]).map(v => parseInt(v))
+      ) : null
+    }
   })
 }
 

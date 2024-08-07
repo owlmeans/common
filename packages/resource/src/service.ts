@@ -27,7 +27,7 @@ export const createDbService = <
         const context = assertContext<Config, Context>(service.ctx as Context, location)
         config = context.cfg.dbs?.find(db => db.alias === service.alias)
         if (config == null) {
-          config = context.cfg.dbs?.find(db => db.alias == null)
+          config = context.cfg.dbs?.find(db => db.service === service.alias)
           if (config != null) {
             config.alias = service.alias
           }

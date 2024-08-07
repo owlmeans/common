@@ -25,7 +25,7 @@ export const makeControl = (
     type: AuthenticationType.BasicEd25519,
 
     requestAllowence: async request => {
-      control.setStage?.(control.stage = AuthenticationStage.Allowence)
+      control.updateStage(AuthenticationStage.Allowence)
 
       control.request = (request ?? { type: control.type }) as AllowanceRequest
       control.type = control.request.type as string
@@ -38,11 +38,11 @@ export const makeControl = (
 
       control.allowance = allowance
 
-      control.setStage?.(control.stage = AuthenticationStage.Authenticate)
+      control.updateStage(AuthenticationStage.Authenticate)
     },
 
     authenticate: async credentials => {
-      control.setStage?.(control.stage = AuthenticationStage.Authentication)
+      control.updateStage(AuthenticationStage.Authentication)
       try {
         credentials.type = control.type
         if (control.allowance?.challenge == null) {
@@ -80,7 +80,7 @@ export const makeControl = (
 
         if (status === ModuleOutcome.Ok && token.token != null
           && token.token !== '' && control.afterAuthenticate != null) {
-          const resultingCred = makeEnvelopeModel(token.token, EnvelopeKind.Token).message<AuthCredentials>()
+          const resultingCred = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token).message()
           await control.afterAuthenticate(resultingCred, context)
         }
 
@@ -92,9 +92,15 @@ export const makeControl = (
 
         return token
       } catch (error) {
-        control.setStage?.(control.stage = AuthenticationStage.Authenticate)
+        // @TODO we need to move this processing to all respective UI implementations
+        // control.setStage?.(control.stage = AuthenticationStage.Authenticate)
         throw error
       }
+    },
+
+    updateStage: stage => {
+      control.stage = stage
+      control.setStage?.(stage)
     }
   }
 

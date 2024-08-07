@@ -52,8 +52,12 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       // @TODO This operation is not atomic in case of redis store usage and scaling
       try {
         cache(context).create({id: msg}, {ttl: AUTHEN_TIMEFRAME / 1000})
-      } catch {
-        throw new AuthenFailed('challenge')
+      } catch (e) {
+        const error = new AuthenFailed('challenge')
+        if (e instanceof Error) {
+          error.oiriginalStack = `${e} : ${e.stack}`
+        }
+        throw error
       }
 
       if (credential.userId == null) {
@@ -82,6 +86,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
     },
 
     rely: async (conn, auth) => {
+      console.log('Starting rely flow...')
       conn.authenticate = createRelyFlow(context, conn, auth)
     }
   }

@@ -2,20 +2,15 @@ import type { DbConfig } from '@owlmeans/resource'
 import type { RedisOptions, ClusterNode, ClusterOptions } from 'ioredis'
 import type { RedisMeta } from '../types.js'
 
-export const redisHost = (host: string, config: DbConfig): string => {
-  if (!host.includes('://')) {
-    host = `redis://${host}`
-  }
-  return `${host}:${config.port ?? 6379}`
-}
-
 export const prepareSingleRedisOptions = (config: DbConfig<RedisMeta>, host?: string): RedisOptions => {
   host = (host != null ? host : config.host) as string
   if (typeof host !== 'string') {
     throw new SyntaxError('Single redis options can be created only from config referencing single host')
   }
   return {
-    host: redisHost(host, config),
+    host: host,
+    port: config.port ?? 6379,
+    password: config.secret,
     ...config.meta
   }
 }
@@ -27,11 +22,13 @@ export const prepareClusterRedisOptions = (config: DbConfig<RedisMeta>): { nodes
   return {
     nodes: config.host.map(host => ({ host, port: config.port })), options: {
       dnsLookup: (address, callback) => {
+        console.log('DNS lookup', address)
         callback(null, address)
       },
       slotsRefreshTimeout: 20000,
       redisOptions: {
-        tls: { rejectUnauthorized: false }, // @TODO check if it's working
+        // tls: { rejectUnauthorized: false }, // @TODO check if it's working
+        password: config.secret,
         ...config.meta
       }
     }

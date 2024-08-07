@@ -222,11 +222,21 @@ export const createBasicConnection = (): Connection => {
                 break
               }
               case MessageType.Auth: {
-                try {
-                  const [stage, response] = await conn.authenticate(msg.payload.stage, msg.payload.payload)
-                  await conn.auth(stage, response)
-                } catch (e) {
-                  await conn.auth(msg.payload.stage, e)
+                if (conn._authSequence != null) {
+                  if (msg.payload.stage == null) {
+                    conn._authSequence.reject(ResilientError.ensure(msg.payload.payload))
+                  } else {
+                    conn._authSequence.resolve(msg.payload.payload)
+                  }
+                } else {
+                  try {
+                    const [stage, response] = await conn.authenticate(msg.payload.stage, msg.payload.payload)
+                    conn.auth(stage, response)
+                  } catch (e) {
+                    conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error)))
+                  } finally {
+                    conn._authSequence = undefined
+                  }
                 }
                 break
               }

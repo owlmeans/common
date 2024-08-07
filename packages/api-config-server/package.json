@@ -22,6 +22,7 @@
   "dependencies": {
     "@owlmeans/api-config": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { ServiceRoute } from '@owlmeans/server-route'
 import type { Connection } from '@owlmeans/socket'
+import type { StaticResourceAppend } from '@owlmeans/static-resource'
 
 export interface AppConfig extends ServerConfig, KlusterConfig {
   services: Record<string, ServiceRoute>
@@ -19,7 +20,8 @@ export interface AuthModel {
 }
 
 export interface AppContext<C extends AppConfig = AppConfig> extends ServerContext<C>
-  , ApiServerAppend { }
+  , ApiServerAppend
+  , StaticResourceAppend { }
 
 export interface RelyService extends GuardService {
 }

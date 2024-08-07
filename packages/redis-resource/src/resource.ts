@@ -249,10 +249,13 @@ export const makeRedisResource = <
 
   resource.init = async () => {
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
-    const redit = context.service<RedisDbService>(serviceAlias ?? dbAlias)
-    await redit.ready()
-    const db = await redit.db(dbAlias)
+    const redis = context.service<RedisDbService>(serviceAlias ?? dbAlias)
+    await redis.ready()
+    const db = await redis.db(dbAlias)
     const _pref = (val: string) => val.replaceAll(/\W+/g, '_')
+
+    console.log('DB Config', db.prefix, resource.name, alias)
+
     resource.db = {
       client: db.client,
       prefix: `${_pref(db.prefix)}-${_pref(resource.name ?? alias)}`

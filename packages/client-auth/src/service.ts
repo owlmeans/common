@@ -27,9 +27,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       const [, authorization] = authToken.token.split(' ')
 
-      const envelope = makeEnvelopeModel(authorization, EnvelopeKind.Token)
+      const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      service.auth = envelope.message<Auth>()
+      service.auth = envelope.message()
 
       service.token = authToken.token
     },
@@ -48,9 +48,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
           const [, authorization] = token.split(' ')
 
-          const envelope = makeEnvelopeModel(authorization, EnvelopeKind.Token)
+          const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-          service.auth = envelope.message<Auth>()
+          service.auth = envelope.message()
         }
       }
 

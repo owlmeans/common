@@ -23,7 +23,7 @@ export const authorize = async <C extends Config, T extends Context<C>>(
     let guard: GuardService | undefined = undefined
     for (const alias of guards) {
       const _guard: GuardService = context.service(alias)
-
+      console.log('Guard to consider: ', _guard.alias, 'on', module.alias)
       if (await _guard.match(request, response)) {
         guard = _guard
       }

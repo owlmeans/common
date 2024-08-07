@@ -11,7 +11,7 @@ import { stringify } from 'qs'
 import { assertContext } from '@owlmeans/context'
 
 type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> {}
+interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const apiHandler: <
   T, R extends AbstractRequest = AbstractRequest
@@ -55,7 +55,7 @@ export const apiCall: <
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
     }
-    
+
     await module.route.resolve(ctx)
 
     if (req?.canceled) {
@@ -98,32 +98,31 @@ export const apiCall: <
 
 export const urlCall: <
   T, R extends AbstractRequest = AbstractRequest
->(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> =
-  (ref) => async (req, res) => {
-    const module = ref.ref
-    if (module == null) {
-      throw new SyntaxError('Try to make URL before the module is created')
-    }
-    const ctx = module.ctx
-    if (ctx == null) {
-      throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
-    }
-    if (ctx == null) {
-      throw new SyntaxError(`No context provided in urlCall for ${module.alias} module`)
-    }
-    await module.route.resolve(ctx)
-
-    const params = extractParams(module.getPath())
-    let path = params.reduce((path, param) => {
-      return path.replace(`${PARAM}${param}`, `${req?.params?.[param as keyof typeof req.params]}`)
-    }, module.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
-
-    if (module.route.route.service !== null && ctx.cfg.service !== module.route.route.service) {
-      // @TODO Fix https 
-      path = 'http://' + module.route.route.host + path
-    }
-
-    res?.resolve(path as any, ModuleOutcome.Ok)
-
-    return [path as any, ModuleOutcome.Ok]
+>(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> = ref => async (req, res) => {
+  const module = ref.ref
+  if (module == null) {
+    throw new SyntaxError('Try to make URL before the module is created')
   }
+  const ctx = module.ctx
+  if (ctx == null) {
+    throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
+  }
+  if (ctx == null) {
+    throw new SyntaxError(`No context provided in urlCall for ${module.alias} module`)
+  }
+  await module.route.resolve(ctx)
+
+  const params = extractParams(module.getPath())
+  let path = params.reduce((path, param) => {
+    return path.replace(`${PARAM}${param}`, `${req?.params?.[param as keyof typeof req.params]}`)
+  }, module.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
+
+  if (module.route.route.service !== null && ctx.cfg.service !== module.route.route.service) {
+    // @TODO Fix https 
+    path = 'http://' + module.route.route.host + path
+  }
+
+  res?.resolve(path as any, ModuleOutcome.Ok)
+
+  return [path as any, ModuleOutcome.Ok]
+}

@@ -8,6 +8,9 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
   const model = createBasicConnection()
 
   model.send = async message => {
+    if (typeof message === 'object') {
+      console.log('Sending message: ', message.type)
+    }
     if (typeof message !== 'string') {
       model.prepare?.(message)
     }
@@ -43,7 +46,7 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
       model.prepare(msg)
     }
     await Promise.all(model.getListeners().map(async listener => listener(msg)))
-    conn.removeEventListener ('message', messageHandler)
+    conn.removeEventListener('message', messageHandler)
     conn.removeEventListener('close', closeHandler)
   }
   conn.addEventListener('message', messageHandler)

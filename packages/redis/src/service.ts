@@ -15,6 +15,7 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
   const service: RedisDbService = createDbService<RedisDb, RedisClient, RedisDbService>(
     alias, {
     db: async configAlias => {
+      console.log('CALL DB FROM FROM REDIS')
       const client = await service.client(configAlias)
 
       const name = await service.name(configAlias)

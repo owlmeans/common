@@ -17,6 +17,13 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./utils": {
+      "import": "./build/utils/index.js",
+      "require": "./build/utils/index.js",
+      "default": "./build/utils/index.js",
+      "module": "./build/utils/index.js",
+      "types": "./build/utils/index.d.ts"
     }
   },
   "dependencies": {

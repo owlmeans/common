@@ -22,8 +22,6 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
     // Replicaset can be missconfigured after server restarts
     const { config: currentConfig } = await admin.command({ replSetGetConfig: 1 })
 
-    console.log('REPLICASET CONFIG', JSON.stringify(currentConfig, null, 2))
-
     if (hosts.some(host => {
       const _host = port(host, { ...config, port: config.port ?? 27017 })
       if (currentConfig.members.some((member: { host: string }) => member.host === _host)) {

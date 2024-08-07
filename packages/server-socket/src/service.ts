@@ -14,77 +14,86 @@ import { ResilientError } from '@owlmeans/error'
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
     update: async api => {
+      console.log('Updating API service: ', alias, api.alias)
       const closeListeners: CallableFunction[] = []
       const ctx = assertContext<Config, Context>(service.ctx as Context, alias)
       api.server.register(fastifyWebsocket, {
         preClose: () => closeListeners.forEach(listener => listener())
       })
 
-      api.server.addHook('preHandler', async (req, reply) => {
-        const context = extractContext(req, service.ctx as Context, alias)
-        await context?.modules<ServerModule<Request>>()
-          .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
-          .reduce<Promise<Context>>(async (ctx, module) => {
-            let context = await ctx
-            if (reply.sent) {
-              return context
-            }
-
-            try {
-              const response = provideResponse(reply)
-              const request = provideRequest(module.alias, req, true)
-
+      api.server.register(async (server) => {
+        server.addHook('preHandler', async (req, reply) => {
+          const context = extractContext(req, service.ctx as Context, alias)
+          await context?.modules<ServerModule<Request>>()
+            .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
+            .reduce<Promise<Context>>(async (ctx, module) => {
+              let context = await ctx
               await module.resolve()
 
-              const authorized = await authorize(context, module, req, reply)
-              context = authorized[0]
-              module = authorized[1]
-
-              populateContext(req, context)
-
-              if (module.gate != null) {
-                let gate: GateService = context.service(module.gate)
-                await gate.assert(request, response)
-                executeResponse(response, reply, true)
+              if (!module.route.match(req)) {
+                return context
               }
 
-              console.log('context : ', module.ctx?.cfg.layer, module.ctx?.cfg.layerId)
-            } catch (error) {
-              console.log('SENDS ERROR RESPONSE: ')
-              console.error(error)
-              if (module.fixer != null) {
-                const fixer: FixerService = context.service(module.fixer)
-                fixer.handle(reply, ResilientError.ensure(error as Error))
-              } else {
-                handleError(error as Error, reply)
+              if (reply.sent) {
+                return context
               }
-            }
 
-            return context
-          }, Promise.resolve(context))
-      })
+              try {
+                const response = provideResponse(reply)
+                const request = provideRequest(module.alias, req, true)
 
-      await Promise.all(ctx.modules<ServerModule<Request>>().filter(
-        module => canServerModule(ctx, module) && !module.route.isIntermediate()
-      ).map(async module => {
-        await module.resolve()
-        if (module.handle == null) {
-          console.log('!!! no handler for websocket module: ', module.getPath(), module.getAlias())
-          return
-        }
+                const authorized = await authorize(context, module, req, reply)
+                context = authorized[0]
+                module = authorized[1]
 
-        api.server.get(module.getPath(), {
-          schema: {
-            querystring: module.filter?.query ?? {},
-            params: module.filter?.params ?? {},
-            response: module.filter?.response,
-            headers: module.filter?.headers ?? {}
-          }, websocket: true
-        }, (conn, req) => {
-          const request = provideRequest(module.alias, req, true)
-          request.body = conn
+                populateContext(req, context)
 
-          conn.on('open', () => {
+                if (module.gate != null) {
+                  let gate: GateService = context.service(module.gate)
+                  await gate.assert(request, response)
+                  executeResponse(response, reply, true)
+                }
+
+                console.log('context : ', module.ctx?.cfg.layer, module.ctx?.cfg.layerId)
+              } catch (error) {
+                console.log('SENDS ERROR RESPONSE: ')
+                console.error(error)
+                if (module.fixer != null) {
+                  const fixer: FixerService = context.service(module.fixer)
+                  fixer.handle(reply, ResilientError.ensure(error as Error))
+                } else {
+                  handleError(error as Error, reply)
+                }
+              }
+
+              return context
+            }, Promise.resolve(context))
+        })
+
+        await Promise.all(ctx.modules<ServerModule<Request>>().filter(
+          module => canServerModule(ctx, module) && !module.route.isIntermediate()
+        ).map(async module => {
+          await module.resolve()
+          if (module.handle == null) {
+            console.log('!!! no handler for websocket module: ', module.getPath(), module.getAlias())
+            return
+          }
+
+          server.get(module.getPath(), {
+            schema: {
+              querystring: module.filter?.query ?? {},
+              params: module.filter?.params ?? {},
+              response: module.filter?.response,
+              headers: module.filter?.headers ?? {}
+            }, websocket: true
+          }, (conn, req) => {
+            const request = provideRequest(module.alias, req, true)
+            request.body = conn
+
+            conn.on('open', () => {
+              console.log('Connection opened...')
+            })
+
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
                 conn.send(typeof value === 'string' ? value : JSON.stringify(value))
@@ -93,21 +102,22 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                 }
               },
               reject: error => {
+                console.error('Connection rejected: ', error)
                 conn.close(1011, ResilientError.ensure(error).marshal().message)
               }
             })
-          })
 
-          const close = () => conn.close(1001)
-          closeListeners.push(close)
-          conn.on('close', () => {
-            const index = closeListeners.indexOf(close)
-            if (index !== -1) {
-              closeListeners.splice(index, 1)
-            }
+            const close = () => conn.close(1001)
+            closeListeners.push(close)
+            conn.on('close', () => {
+              const index = closeListeners.indexOf(close)
+              if (index !== -1) {
+                closeListeners.splice(index, 1)
+              }
+            })
           })
-        })
-      }))
+        }))
+      })
     }
   }, _service => async () => {
     service.initialized = true
