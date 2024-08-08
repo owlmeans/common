@@ -102,14 +102,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       if (allServices[service.alias] == null) {
         allServices[service.alias] = service
       }
-      if (
-        services[context.cfg.layer][id][service.alias] == null
-        // service.layers == null
-        // || service.layers.includes(context.cfg.layer)
-        // || service.layers.includes(Layer.Global)
-      ) {
-        services[context.cfg.layer][id][service.alias] = service
-      }
+      services[context.cfg.layer][id][service.alias] = service
 
       return context as T
     },

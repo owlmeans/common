@@ -110,8 +110,7 @@ export interface Profile extends ProfilePayload {
 export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
-  createdAt: string
-  expiresAt?: Date
+  createdAt: Date
   /**
     AuthPayload:
       type: string

@@ -22,19 +22,22 @@ export enum AuthenticationType {
   BasicEd25519 = 'basic-ed25519',
   OneTimeToken = 'one-time-token',
   ReCaptcha = 're-captcha',
-  // OwlMeans
+  // @TODO think if it should be moved from here 
+  // - it's too implementation specific
+  // OwlMeans specific partial WalletProvider authentication type
   WalletDid = 'wallet-did',
+  // Doesn't have explicity plugin - is internal part of rely based plugins
   RelyHandshake = 'rely-handshake',
+  WalletConsumer = 'wallet-consumer',
+  // Right now this authentication type is ephemeral cause there is no support of
+  // abstract non-owlmenas-backend-bound wallets
   WalletProvider = 'wallet-provider',
-  WalletConsumer = 'wallet-consumer'
 }
 
 export enum AuthroizationType {
   AuthToken = 'auth-token',
   Ed25519BasicToken = 'ed25519-basic-token',
-  Ed25519BasicSignature = 'ed25519-basic-signature',
-  // OwlMeans
-  Wallet = 'wallet'
+  Ed25519BasicSignature = 'ed25519-basic-signature'
 }
 
 export enum AuthenticationStage {

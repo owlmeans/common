@@ -19,7 +19,7 @@ export const createSocketMiddleware = (web: string = WEB_ALIAS, socket = DEFAULT
       
       if (!ctx.cfg.records?.find(record => record.id === '__socketServiceAdded')) {
         console.log('createSocketMiddleware: Middleware triggered for update...', ctx.cfg.records)
-        await socketService.update(webService);
+        await socketService.update(webService)
         if (ctx.cfg.records == null) {
           ctx.cfg.records = []
         }

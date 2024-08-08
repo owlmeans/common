@@ -2,7 +2,7 @@ import type { AllowanceRequest, Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenticationStage, AuthenticationType, AuthPluginError } from '@owlmeans/auth'
 import type { AuthenticateMethod, Connection, Message } from '@owlmeans/socket'
 import { isEventMessage, isMessage } from '@owlmeans/socket'
-import type { AppContext, RelyAllowanceRequest, RelyLinker, RelyToken } from '../types.js'
+import type { AppContext, RelyAllowanceRequest, RelyLinker, RelyCarrier } from '../types.js'
 import { makeAuthModel } from '../model.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trusted } from '../utils/trusted.js'
@@ -19,11 +19,11 @@ import type { RedisResource } from '@owlmeans/redis-resource'
 //    process can be started from scratch following same stages
 //    and using the same plugins but via socket
 // We start implemnetation of ProviderHandshake / ConsumerHandshake here:
-// 4. Our firs objective right now is to just establish one request
+// 1. ✅ Our firs objective right now is to just establish one request
 //    connection betwee provider and consumer: ProviderHandshake / ConsumerHandshake
-// 5. It should lead to WalletProvider / WalletConsumer authentication,
+// 2. It should lead to WalletProvider / WalletConsumer authentication,
 //    that will be used by consumer for one time signature
-// 6. So as outcome is transformation of this connection to one-time
+// 3. So as outcome is transformation of this connection to one-time
 //    signature / action provider schema.
 
 export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Auth | null): AuthenticateMethod => {
@@ -33,6 +33,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   let internalAuth: Auth | null = auth ?? null
 
   const linker: RelyLinker = async (rely, source) => {
+    console.log('Linker executed!!!')
     const tunnel = context.resource<RedisResource<Message<any>>>(RELY_TUNNEL)
     const closeReceiver = await tunnel.subscribe(async message => {
       if (isMessage(message, true)) {
@@ -83,7 +84,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
           }
           internalAuth = envelope.message()
 
-          const token = makeEnvelopeModel<RelyToken>(internalAuth.token, EnvelopeKind.Token).message()
+          const token = makeEnvelopeModel<RelyCarrier>(internalAuth.token, EnvelopeKind.Token).message()
 
           await linker(token.rely, token.source)
 

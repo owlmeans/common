@@ -1,6 +1,6 @@
 import type { AuthModel, AppConfig, AppContext } from './types.js'
 import { AuthenFailed, AuthenPayloadError } from '@owlmeans/auth'
-import type { Auth, AuthCredentials } from '@owlmeans/auth'
+import type { AuthCredentials } from '@owlmeans/auth'
 import { getPlugin } from './plugins/utils.js'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -47,11 +47,11 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
         throw new AuthenFailed('challenge')
       }
 
-      const msg: string = envelope.message()
+      const msg: string = envelope.message(true)
 
       // @TODO This operation is not atomic in case of redis store usage and scaling
       try {
-        cache(context).create({id: msg}, {ttl: AUTHEN_TIMEFRAME / 1000})
+        cache(context).create({ id: msg }, { ttl: AUTHEN_TIMEFRAME / 1000 })
       } catch (e) {
         const error = new AuthenFailed('challenge')
         if (e instanceof Error) {
@@ -79,7 +79,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       credential.credential = trustedUser.id
 
       return {
-        token: await makeEnvelopeModel<Auth | AuthCredentials>(credential.type)
+        token: await makeEnvelopeModel<AuthCredentials>(credential.type)
           .send(credential, AUTHEN_TIMEFRAME)
           .sign(keyPair, EnvelopeKind.Token)
       }

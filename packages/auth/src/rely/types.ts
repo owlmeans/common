@@ -1,5 +1,5 @@
 
-export interface RelyChallenge {
+export interface RelyToken {
   pin?: string
   token?: string
   check?: string

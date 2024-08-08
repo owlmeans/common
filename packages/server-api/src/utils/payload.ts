@@ -7,6 +7,7 @@ export const provideRequest = (alias: string, req: Request, provision?: boolean)
   provision = provision ?? false
   return {
     alias,
+    auth: (req as any)._auth ?? undefined,
     params: req.params as Record<string, string | number | undefined | null>,
     body: req.body as Record<string, any>,
     headers: req.headers,

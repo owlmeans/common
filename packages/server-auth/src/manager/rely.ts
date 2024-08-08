@@ -1,4 +1,4 @@
-import { createService } from '@owlmeans/context'
+import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_RELY } from './consts.js'
 import type { RelyService } from './types.js'
 import { AUTH_QUERY, AuthenticationType } from '@owlmeans/auth'
@@ -29,7 +29,10 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
         ? `${req.query[AUTH_QUERY]}` : null
 
       if (authorization == null) {
-        return false
+        // This is optional Guard. So it can not match only on provided authorization
+        // that is not valid. In other cases it's passed and need to be handled 
+        // to provide or null authentication object.
+        return true
       }
 
       const token = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
@@ -39,14 +42,22 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
     },
 
     handle: async <T>(req: AbstractRequest<AuthToken>, res: AbstractResponse<Auth>) => {
+      const context = assertContext<Config, Context>(service.ctx as Context)
       const authorization = req.query[AUTH_QUERY]
+      // We authorize in cases when there is no authorization or it's valid one
+      if (authorization == null) {
+        return true as T
+      }
+
+      // @TODO it's likely something is wrong with AbstractRequest types - so it should be fixed there
       if (typeof authorization !== 'string') {
         return false as T
       }
 
+      // @TODO we need to burn one time token here
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      if (!await envelope.verify(await _keyPair(service.ctx as Context))) {
+      if (!await envelope.verify(await _keyPair(context))) {
         return false as T
       }
 

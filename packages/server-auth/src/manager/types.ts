@@ -1,4 +1,4 @@
-import type { AllowanceRequest, AllowanceResponse, Auth, AuthCredentials, AuthToken, RelyChallenge } from '@owlmeans/auth'
+import type { AllowanceRequest, AllowanceResponse, Auth, AuthCredentials, AuthToken, RelyToken } from '@owlmeans/auth'
 import type { KlusterConfig } from '@owlmeans/kluster'
 import type { GuardService } from '@owlmeans/module'
 import type { ApiServerAppend } from '@owlmeans/server-api'
@@ -32,10 +32,10 @@ export interface RelyAllowanceRequest extends AllowanceRequest {
 }
 
 export interface RelyLinker {
-  (rely: RelyChallenge, source: RelyChallenge): Promise<void>
+  (rely: RelyToken, source: RelyToken): Promise<void>
 }
 
-export interface RelyToken {
-  source: RelyChallenge,
-  rely: RelyChallenge
+export interface RelyCarrier {
+  source: RelyToken,
+  rely: RelyToken
 }

@@ -15,10 +15,6 @@ import { useEffect, useMemo } from 'react'
 export const ws = async (module: ClientModule<string>, request?: AbstractRequest<{ token?: string }>): Promise<Connection> => {
   const ctx = assertContext<Config, Context>(module.ctx as Context, 'client-ws')
   request = request ?? provideRequest(module.getAlias(), module.getPath())
-  const auth = ctx.auth().token
-  if (request.query[AUTH_QUERY] == null && auth != null) {
-    request.query[AUTH_QUERY] = auth
-  }
   const [url, state] = await urlCall({ ref: module })(request)
 
   if (state !== ModuleOutcome.Ok) {

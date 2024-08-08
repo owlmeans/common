@@ -17,7 +17,7 @@ export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, 
   const context = useContext()
   const submit = useCallback(createSubmit(context, control), [type])
 
-  const content = () => {
+  const Content = useCallback(() => {
     switch (stage) {
       case AuthenticationStage.Authenticate:
         return ['entityId', 'address', 'privateKey'].map(
@@ -26,12 +26,12 @@ export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, 
       default:
         return <LinearProgress />
     }
-  }
+  }, [stage])
 
   return <Form decorate name="basic-ed25519" horizontal={BlockScaling.Wide}
     i18n={{ ns: 'lib', resource: 'client-panel-auth' }}
     validation={Schema} onSubmit={submit}>
-    {content()}
+    <Content />
   </Form>
 }
 

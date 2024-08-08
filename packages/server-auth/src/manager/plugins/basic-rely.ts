@@ -1,14 +1,15 @@
 import { AuthenFailed, AuthenPayloadError, AuthenticationType, AuthManagerError, AuthorizationError } from '@owlmeans/auth'
-import type { AllowanceResponse, RelyChallenge } from '@owlmeans/auth'
-import type { AppContext, RelyAllowanceRequest, RelyToken } from '../types.js'
+import type { AllowanceResponse, Auth, RelyToken } from '@owlmeans/auth'
+import type { AppContext, RelyAllowanceRequest, RelyCarrier } from '../types.js'
 import type { AuthPlugin, AuthRedisResource, RelyRecord } from './types.js'
 import { makeConsumerRely, makeProviderRely } from '../../model/index.js'
 import { trusted } from '../utils/trusted.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { AUTH_CACHE, RELY_TIMEFRAME } from '../../consts.js'
-import { RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '../consts.js'
 import { ResourceError } from '@owlmeans/resource'
+import { RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
 
+// @TODO they need to be killed on close
 const _subscriptions: Record<string, CallableFunction> = {}
 export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
   const plugin: AuthPlugin = {
@@ -17,7 +18,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
     init: async (request: RelyAllowanceRequest): Promise<AllowanceResponse> => {
       const [, keyPair] = await trusted(context)
       const tunnel = context.resource<AuthRedisResource>(AUTH_CACHE)
-      let relyMsg: RelyChallenge
+      let relyMsg: RelyToken
       do {
         try {
           const rely = request.auth == null ? makeConsumerRely() : makeProviderRely()
@@ -29,16 +30,17 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
           const response = { challenge: await rely.sign(keyPair, EnvelopeKind.Wrap) }
 
           if (pin != null) {
-            await tunnel.create({ ...response, id: pin })
+            await tunnel.create({ ...response, id: pin }, { ttl: RELY_TIMEFRAME })
           }
           if (token != null) {
-            await tunnel.create({ ...response, id: token })
+            await tunnel.create({ ...response, id: token }, { ttl: RELY_TIMEFRAME })
           }
 
           if (request.provideRely != null) {
             await Promise.all([pin, token].filter(key => key != null).map(async key => {
-              _subscriptions[key] = await tunnel.subscribe(async (value) => {
-                const rely = makeEnvelopeModel<RelyChallenge>(value.challenge, EnvelopeKind.Wrap)
+              _subscriptions[key] = await tunnel.subscribe(async value => {
+                console.log('Receive rely from remote: ', value)
+                const rely = makeEnvelopeModel<RelyToken>(value.challenge, EnvelopeKind.Wrap)
                 if (await rely.verify(keyPair)) {
                   [pin, token].filter(key => key != null).forEach(key => _subscriptions[key]?.())
                   await request.provideRely?.(rely.message(), relyMsg)
@@ -67,7 +69,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
       // 2. Provision it with provided own data
       // 3. Delete own rely connection seeds
 
-      let rely: RelyChallenge
+      let rely: RelyToken
       try {
         let peer: RelyRecord
         if (credential.credential.startsWith(RELY_PIN_PERFIX)) {
@@ -85,20 +87,21 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         } else {
           throw new AuthenPayloadError('credential')
         }
-        const envelop = makeEnvelopeModel<RelyChallenge>(peer.challenge, EnvelopeKind.Wrap)
+        const envelop = makeEnvelopeModel<RelyToken>(peer.challenge, EnvelopeKind.Wrap)
         if (!envelop.verify(keyPair)) {
           throw new AuthManagerError()
         }
         rely = envelop.message()
       } catch (e) {
         if (e instanceof ResourceError) {
+          console.error(e)
           throw new AuthorizationError('rely')
         } else {
           throw e
         }
       }
 
-      const myChallenge = makeEnvelopeModel<RelyChallenge>(credential.challenge, EnvelopeKind.Wrap)
+      const myChallenge = makeEnvelopeModel<RelyToken>(credential.challenge, EnvelopeKind.Wrap)
       if (!myChallenge.verify(keyPair)) {
         throw new AuthenFailed()
       }
@@ -116,12 +119,23 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         }
       })
 
-      const token = makeEnvelopeModel<RelyToken>(AuthenticationType.RelyHandshake)
+      const token = makeEnvelopeModel<RelyCarrier>(AuthenticationType.RelyHandshake)
       token.send({ source: myRely, rely })
 
       credential.type = AuthenticationType.RelyHandshake
 
-      return { token: token.tokenize() }
+      // @TODO think about it: we create a mixed object here that is credentials and authentication
+      // in the same time. Actually it's a bit dirty. And it means that auth service at the end of the
+      // day can produce both (authentication token and authentication token "ticket").
+      // Why we do it this way here: cause the consumer of authentication is the auth service itself
+      // and there is no need to "exchange" the token (what we do when we come via url redirect to another service
+      // with the one-time auth token potentially exposed as a result).
+      const _auth: Auth = credential as unknown as Auth
+      _auth.createdAt = new Date()
+      _auth.token = token.tokenize()
+      _auth.isUser = true
+
+      return { token: _auth.token }
     }
   }
 

@@ -238,6 +238,7 @@ export const makeMongoResource = <
   }
 
   resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {
+    console.log('NORM 2 ~', alias, makeCustomResource ? true : false)
     const resource = (makeCustomResource?.(dbAlias, serviceAlias)
       ?? makeMongoResource<R, T>(alias, dbAlias, serviceAlias)) as unknown as Type
 

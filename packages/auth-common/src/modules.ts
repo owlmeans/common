@@ -2,7 +2,7 @@
 import {
   AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, AllowanceRequestSchema, AuthCredentialsSchema,
   AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER,
-  DISPATCHER_AUTHEN
+  DISPATCHER_AUTHEN, OptionalAuthTokenSchema
 } from '@owlmeans/auth'
 import { AppType } from '@owlmeans/context'
 import { body, filter, module, query } from '@owlmeans/module'
@@ -12,7 +12,7 @@ export const modules = [
   module(route(AUTHEN, '/authentication', backend())),
   module(route(AUTHEN_INIT, '/init', backend(AUTHEN, RouteMethod.POST)), filter(body(AllowanceRequestSchema))),
   module(route(AUTHEN_AUTHEN, '/authenticate', backend(AUTHEN, RouteMethod.POST)), filter(body(AuthCredentialsSchema))),
-  module(route(AUTHEN_RELY, '/rely', socket(AUTHEN)), filter(query(AuthTokenSchema))),
+  module(route(AUTHEN_RELY, '/rely', socket(AUTHEN)), filter(query(OptionalAuthTokenSchema))),
   module(route(CAUTHEN, '/authentication', frontend())),
   module(route(CAUTHEN_AUTHEN, '/login', frontend(CAUTHEN))),
   module(route(CAUTHEN_AUTHEN_DEFAULT, '/', frontend(CAUTHEN_AUTHEN, true))),

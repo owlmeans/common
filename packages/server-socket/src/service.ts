@@ -21,7 +21,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
         preClose: () => closeListeners.forEach(listener => listener())
       })
 
-      api.server.register(async (server) => {
+      api.server.register(async server => {
         server.addHook('preHandler', async (req, reply) => {
           const context = extractContext(req, service.ctx as Context, alias)
           await context?.modules<ServerModule<Request>>()
@@ -48,6 +48,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
 
                 populateContext(req, context)
 
+                // @TODO there code duplication with server-api
                 if (module.gate != null) {
                   let gate: GateService = context.service(module.gate)
                   await gate.assert(request, response)

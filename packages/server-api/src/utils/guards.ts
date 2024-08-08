@@ -46,12 +46,16 @@ export const authorize = async <C extends Config, T extends Context<C>>(
       throw new AuthFailedError(guard.alias)
     }
     executeResponse(authResponse, reply, true)
-    if (authResponse.value == null) {
-      throw SyntaxError(`Guard that returns true and does not provide an error, should provide authorization`)
+    // Guard that returns true and does not provide an error is an optional guard
+    // if (authResponse.value == null) {
+    //   throw SyntaxError(`Guard that returns true and does not provide an error, should provide authorization`)
+    // }
+    request.auth = authResponse.value;
+    if (request.auth != null) {
+      (req as any)._auth = request.auth
     }
-    request.auth = authResponse.value
 
-    if (request.auth.entityId != null) {
+    if (request.auth?.entityId != null) {
       console.log('switching to entity context', request.auth.entityId)
       // @TODO Probably we need to downgrade context in this case
       if (!isContextWithoutIds(context as any)) {

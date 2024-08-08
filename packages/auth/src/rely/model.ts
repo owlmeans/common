@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
-import type { RelyChallenge } from './types.js'
+import type { RelyToken } from './types.js'
 
-export const RelyChallengeSchema: JSONSchemaType<RelyChallenge> = {
+export const RelyChallengeSchema: JSONSchemaType<RelyToken> = {
   type: 'object',
   properties: {
     pin: { type: 'string', nullable: true, minLength: 4, maxLength: 12 },

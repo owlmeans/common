@@ -96,7 +96,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         profileId: credentials.profileId,
         entityId: credentials.entityId,
         isUser: true,
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
       }
 
       const authorization = await makeEnvelopeModel<Auth>(AuthroizationType.Ed25519BasicToken)

@@ -18,12 +18,12 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
   context.registerMiddleware(createSocketMiddleware())
 
   // @TODO figure out rely service via config?
-  if (customize && !context.hasService(DEFAULT_RELY)) {
+  if (!customize && !context.hasService(DEFAULT_RELY)) {
     context.registerService(createRelyService(DEFAULT_RELY))
   }
 
   appendStaticResource<C, T>(context)
-  if (customize && !context.hasResource(AUTH_CACHE)) {
+  if (!customize && !context.hasResource(AUTH_CACHE)) {
     appendStaticResource<C, T>(context, AUTH_CACHE)
   }
 

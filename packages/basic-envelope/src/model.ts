@@ -24,10 +24,13 @@ export const makeEnvelopeModel = <T extends {} | string = string>(
       return model
     },
 
-    message: <T>() => {
+    message: <T>(preserve?: boolean) => {
+      if (preserve === true) {
+        return model.envelope.msg as T
+      }
       try {
         return JSON.parse(utf8.encode(base64.decode(model.envelope.msg))) as T
-      } catch {
+      } catch (e) {
         return model.envelope.msg as T
       }
     },

@@ -59,3 +59,11 @@ export const AuthTokenSchema: JSONSchemaType<AuthToken> = {
   },
   required: ['token']
 }
+
+export const OptionalAuthTokenSchema: JSONSchemaType<Partial<AuthToken>> = {
+  type: 'object',
+  properties: {
+    token: { type: 'string', minLength: 32, maxLength: 1024, nullable: true },
+  },
+  required: []
+}

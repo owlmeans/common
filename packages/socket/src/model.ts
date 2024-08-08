@@ -6,6 +6,7 @@ import type {
   EventMessage, Message, RequestHandler
 } from './types.js'
 import { uuid } from '@owlmeans/basic-ids'
+import { AuthError } from '@owlmeans/auth'
 
 export const createBasicConnection = (): Connection => {
   const listeners: ConnectionListener[] = []
@@ -222,15 +223,16 @@ export const createBasicConnection = (): Connection => {
                 break
               }
               case MessageType.Auth: {
+                const _msg: AuthMessage<any> = msg as AuthMessage<any>
                 if (conn._authSequence != null) {
-                  if (msg.payload.stage == null) {
-                    conn._authSequence.reject(ResilientError.ensure(msg.payload.payload))
+                  if (_msg.stage == null) {
+                    conn._authSequence.reject(ResilientError.ensure(_msg.payload ?? new AuthError('socket:unknown')))
                   } else {
-                    conn._authSequence.resolve(msg.payload.payload)
+                    conn._authSequence.resolve(_msg.payload)
                   }
                 } else {
                   try {
-                    const [stage, response] = await conn.authenticate(msg.payload.stage, msg.payload.payload)
+                    const [stage, response] = await conn.authenticate(_msg.stage, _msg.payload)
                     conn.auth(stage, response)
                   } catch (e) {
                     conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error)))

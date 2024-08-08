@@ -2,8 +2,7 @@ import type { WebSocket } from '@fastify/websocket'
 import type { Connection, EventMessage } from '@owlmeans/socket'
 import type { Config, Context } from '@owlmeans/server-api'
 import {
-  SocketUnsupported, createBasicConnection, MessageType, SocketInitializationError,
-  SocketUnauthorized
+  SocketUnsupported, createBasicConnection, MessageType, SocketInitializationError, SocketUnauthorized
 } from '@owlmeans/socket'
 import { AbstractRequest } from '@owlmeans/module'
 import { AuthenticationStage, AUTH_QUERY } from '@owlmeans/auth'
@@ -103,6 +102,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     console.log('On message:', message)
     await model.receive(message)
   }
+
   const closeHandler = async (code: number) => {
     console.log('Connection closed with code:', code)
     const msg: EventMessage<{ code: number }> = {
@@ -117,6 +117,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     conn.off('message', messageHandler)
     conn.off('close', closeHandler)
   }
+
   conn.on('message', messageHandler)
   conn.on('close', closeHandler)
 

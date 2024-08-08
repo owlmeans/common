@@ -31,7 +31,6 @@
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
-    "@owlmeans/client-auth": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
