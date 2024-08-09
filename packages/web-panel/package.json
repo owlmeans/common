@@ -37,6 +37,7 @@
     "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/auth-common": "^0.1.0",
+    "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-api": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
@@ -45,11 +46,10 @@
     "@owlmeans/client-i18n": "^0.1.0",
     "@owlmeans/client-panel": "^0.1.0",
     "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/basic-envelope": "^0.1.0",
-    "@owlmeans/socket": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/i18n": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
+    "@owlmeans/socket": "^0.1.0",
     "@owlmeans/web-client": "^0.1.0",
     "@owlmeans/web-db": "^0.1.0",
     "i18next-browser-languagedetector": "^8.0.0",
@@ -59,9 +59,9 @@
     "@emotion/react": "*",
     "@emotion/styled": "*",
     "@mui/material": "*",
+    "ajv": "*",
     "react": "*",
-    "react-dom": "*",
-    "ajv": "*"
+    "react-dom": "*"
   },
   "devDependencies": {
     "@emotion/react": "^11.11.4",

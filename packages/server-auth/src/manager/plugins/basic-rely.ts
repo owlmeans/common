@@ -43,7 +43,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
                 const rely = makeEnvelopeModel<RelyToken>(value.challenge, EnvelopeKind.Wrap)
                 if (await rely.verify(keyPair)) {
                   [pin, token].filter(key => key != null).forEach(key => _subscriptions[key]?.())
-                  await request.provideRely?.(rely.message(), relyMsg)
+                  await request.provideRely?.(rely.message(), relyMsg, true)
                 }
               }, { ttl: RELY_TIMEFRAME, key, once: true })
             }))

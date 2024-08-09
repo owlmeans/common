@@ -24,6 +24,8 @@ export const makeControl = (
 
     type: AuthenticationType.BasicEd25519,
 
+    callback,
+
     requestAllowence: async request => {
       control.updateStage(AuthenticationStage.Allowence)
 
@@ -84,10 +86,8 @@ export const makeControl = (
           await control.afterAuthenticate(resultingCred, context)
         }
 
-        if (callback != null) {
-          if (await callback(token)) {
-            return { token: '' }
-          }
+        if (callback != null && await callback(token)) {
+          return { token: '' }
         }
 
         return token

@@ -10,7 +10,7 @@ export type ClientAuthType = AuthenticationType | string
 
 export interface AuthenticationProps extends ModuleContextParams {
   type?: ClientAuthType
-  callback?: (token: AuthToken) => Promise<boolean>
+  callback?: AuthenticationCallback
   source?: string
 }
 
@@ -36,6 +36,7 @@ export interface AuthenticationControlState {
 
 export interface AuthenticationControl extends AuthenticationControlState {
   source?: string
+  callback?: AuthenticationCallback
   setStage?: (stage: AuthenticationStage) => void
   updateStage: (stage: AuthenticationStage) => void
   requestAllowence: (request?: Partial<AllowanceRequest>) => Promise<void>
@@ -45,4 +46,8 @@ export interface AuthenticationControl extends AuthenticationControlState {
     credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">,
     context?: ClientContext
   ) => Promise<AuthToken>
+}
+
+export interface AuthenticationCallback {
+  (token: AuthToken, ...args: any[]): Promise<boolean>
 }

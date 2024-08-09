@@ -12,7 +12,7 @@ export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
 
   const startTime = Date.now()
   
-  const pinLength = opts?.pinLength ?? 4
+  const pinLength = opts?.pinLength ?? 6
   const checkLength = opts?.checkLenght ?? 2
   const tokenLength = opts?.tokenLength ?? 16
   const nonceLength = opts?.nonceLength ?? 24

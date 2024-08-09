@@ -32,7 +32,7 @@ export interface RelyAllowanceRequest extends AllowanceRequest {
 }
 
 export interface RelyLinker {
-  (rely: RelyToken, source: RelyToken): Promise<void>
+  (rely: RelyToken, source: RelyToken, notify?: boolean): Promise<void>
 }
 
 export interface RelyCarrier {

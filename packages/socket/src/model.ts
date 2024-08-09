@@ -6,7 +6,7 @@ import type {
   EventMessage, Message, RequestHandler
 } from './types.js'
 import { uuid } from '@owlmeans/basic-ids'
-import { AuthError } from '@owlmeans/auth'
+import { AuthenticationStage, AuthError } from '@owlmeans/auth'
 
 export const createBasicConnection = (): Connection => {
   const listeners: ConnectionListener[] = []
@@ -20,6 +20,8 @@ export const createBasicConnection = (): Connection => {
   const queue: Message<any>[] = []
 
   const conn: Connection = {
+    stage: AuthenticationStage.Init,
+
     send: async () => {
       throw new SyntaxError('Connection send method is not implemented')
     },
@@ -138,9 +140,8 @@ export const createBasicConnection = (): Connection => {
     },
 
     auth: async (stage, payload) => {
-      const msg: AuthMessage<any> = {
-        type: MessageType.Auth, stage, payload
-      }
+      conn.stage = stage
+      const msg: AuthMessage<any> = { type: MessageType.Auth, stage, payload }
 
       return new Promise(async (resolve, reject) => {
         conn._authSequence = { reject, resolve }
@@ -228,12 +229,16 @@ export const createBasicConnection = (): Connection => {
                   if (_msg.stage == null) {
                     conn._authSequence.reject(ResilientError.ensure(_msg.payload ?? new AuthError('socket:unknown')))
                   } else {
+                    conn.stage = _msg.stage
                     conn._authSequence.resolve(_msg.payload)
                   }
+                  conn._authSequence = undefined
                 } else {
                   try {
                     const [stage, response] = await conn.authenticate(_msg.stage, _msg.payload)
-                    conn.auth(stage, response)
+                    if (stage != null) {
+                      conn.auth(stage, response)
+                    }
                   } catch (e) {
                     conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error)))
                   } finally {

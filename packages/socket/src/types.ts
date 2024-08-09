@@ -5,6 +5,8 @@ import type { AuthenticationStage } from '@owlmeans/auth'
 export interface Connection {
   _authSequence?: CallResolver<any>
 
+  stage: AuthenticationStage
+
   notify: <T>(event: string, payload: T) => Promise<void>
   observe: <T>(event: string, handler: (event: EventMessage<T>) => Promise<void>) => () => void
 
@@ -82,7 +84,7 @@ export interface Message<T> {
 }
 
 export interface AuthenticateMethod {
-   <T, R>(stage: AuthenticationStage, payload: T): Promise<[AuthenticationStage, R]>
+   <T, R>(stage: AuthenticationStage, payload: T): Promise<[AuthenticationStage | null, R]>
 }
 
 export interface CallMessage<T extends any[]> extends Message<T> {

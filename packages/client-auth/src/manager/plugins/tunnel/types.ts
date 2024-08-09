@@ -7,4 +7,9 @@ export interface TunnelAuthenticationRenderer extends FC<TunnelAuthenticationRen
 
 export interface TunnelAuthenticationRendererProps extends AuthenticationRendererProps {
   conn: Connection | null
+  submit: (data: PinForm) => Promise<void>
+}
+
+export interface PinForm {
+  pin: string
 }

@@ -13,5 +13,18 @@
   },
   "re-captcha": {
     "guideline": "We need to make sure that you are not a robot. Please click in the white box below to prove that you are a human."
+  },
+  "wallet-provider": {
+    "pin": {
+      "loading": "Loading...",
+      "guideline": "Use this pin-code on any resource supporting wallet-base authorization"
+    }
+  },
+  "wallet-consumer": {
+    "pin": {
+      "label": "Pin-code",
+      "hint": "Genereta pin-code in your wallet app"
+    },
+    "submit": "Proceed with pin"
   }
 }
