@@ -229,11 +229,13 @@ export const makeMongoResource = <
   } as Partial<T>)
 
   resource.init = async () => {
+    console.log('>>>> start resource initialization: ', alias, '... in layer ...', resource.ctx?.cfg.layer)
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
     await mongo.ready()
     const db = await mongo.db(dbAlias)
     const config = mongo.config(dbAlias)
+    console.log('~~~~~~~~~ attaching collection to resource: ', alias, dbAlias, serviceAlias)
     resource.collection = await initializeCollection(db, config, resource as unknown as MongoResource<ResourceRecord>)
   }
 

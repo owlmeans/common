@@ -1,4 +1,4 @@
-import { DIDInitializationError, DIDWalletError } from './errors.js'
+import { DIDInitializationError, DIDKeyError, DIDWalletError } from './errors.js'
 import type { DIDKeyModel, DIDStore, DIDWallet, KeyMeta, KeyPairRecord, MakeDIDWalletOptions } from './types.js'
 import { generateMnemonic, toEntropy, toMnemonic, toSeed } from './utils/mnemonic.js'
 import { KEY_OWL, MASTER } from './consts.js'
@@ -65,7 +65,7 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
 
     meta: async key => {
       if (typeof key === 'string') {
-        if (store.keys.load(key) == null) {
+        if (null == await store.keys.load(key)) {
           throw new DIDWalletError('no:key')
         }
 
@@ -94,9 +94,13 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
     },
 
     find: async meta => {
+      console.log('We are looking for: ', meta)
+
       const result = await store.meta.list(
         Object.fromEntries(Object.entries(meta).filter(([_, v]) => typeof v !== 'boolean'))
       )
+
+      console.log('We found meta: ', result)
 
       const keys = await Promise.all(result.items.filter(item => matchMeta(item, meta))
         .map(async meta => store.keys.get(meta.id)))
@@ -110,7 +114,13 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
         const path = mataToPath(meta)
         const master = await wallet.master()
         const key = master.derive(path)
-        wallet.add(key, meta)
+        if (meta.name == null) {
+          throw new DIDKeyError('no:name')
+        }
+        const metaToSave: KeyMeta = {
+          ...meta, id: meta.id ?? key.exportAddress(), name: meta.name
+        }
+        await wallet.add(key, metaToSave)
 
         return [key]
       }
@@ -136,9 +146,9 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
       if (key == null) {
         throw new DIDWalletError('no:key')
       }
-      store.keys.delete(key)
+      await store.keys.delete(key)
       const model = makeDidKeyModel(key)
-      store.meta.delete(model.exportAddress())
+      await store.meta.delete(model.exportAddress())
 
       return model
     },

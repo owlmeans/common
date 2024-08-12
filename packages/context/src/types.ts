@@ -55,7 +55,7 @@ export interface BasicModule extends Contextual {
 }
 
 export interface BasicResource extends Contextual {
-  layer?: Layer
+  layers?: Layer[]
   init?: () => Promise<void> // After context switch the resource should be able to reinitialize
 }
 

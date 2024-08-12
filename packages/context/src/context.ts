@@ -79,7 +79,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       await Object.values(resources[context.cfg.layer][id]).reduce(async (previous, resource) => {
         await previous
         if (isResourceAvailable(resource, context.cfg.layer)) {
-          console.log(`+ Initialize resource: ${resource.alias}:${resource.layer} in layer ${context.cfg.layer} with id ${context.cfg.layerId}...`)
+          console.log(`+ Initialize resource: ${resource.alias}:${resource.layers?.join(',')} in layer ${context.cfg.layer} with id ${context.cfg.layerId}...`)
           await resource.init?.()
         }
       }, Promise.resolve())

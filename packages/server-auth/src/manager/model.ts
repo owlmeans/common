@@ -49,9 +49,8 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
       const msg: string = envelope.message(true)
 
-      // @TODO This operation is not atomic in case of redis store usage and scaling
       try {
-        cache(context).create({ id: msg }, { ttl: AUTHEN_TIMEFRAME / 1000 })
+        await cache(context).create({ id: msg }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
       } catch (e) {
         const error = new AuthenFailed('challenge')
         if (e instanceof Error) {

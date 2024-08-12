@@ -1,14 +1,16 @@
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_RELY } from './consts.js'
 import type { RelyService } from './types.js'
-import { AUTH_QUERY, AuthenticationType } from '@owlmeans/auth'
-import type { Auth, AuthToken } from '@owlmeans/auth'
+import { AUTH_QUERY, AuthenFailed, AuthenticationType } from '@owlmeans/auth'
+import type { Auth, AuthCredentials, AuthToken } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { ServerConfig, ServerContext, TrustedRecord } from '@owlmeans/server-context'
 import { TRUSTED } from '@owlmeans/server-context'
-import { AUTH_SRV_KEY } from '../consts.js'
+import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
+import type { AuthSpent } from '../types.js'
+import type { Resource } from '@owlmeans/resource'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -54,8 +56,7 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
         return false as T
       }
 
-      // @TODO we need to burn one time token here
-      const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
+      const envelope = makeEnvelopeModel<AuthCredentials>(authorization, EnvelopeKind.Token)
 
       if (!await envelope.verify(await _keyPair(context))) {
         return false as T
@@ -66,7 +67,21 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
         return false as T
       }
 
-      res.resolve(msg)
+      try {
+        const cache = (context: Context): Resource<AuthSpent> =>
+          context.resource<Resource<AuthSpent>>(AUTH_CACHE)
+
+        await cache(context).create({ id: msg.challenge }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
+      } catch (e) {
+        const error = new AuthenFailed('challenge')
+        if (e instanceof Error) {
+          error.oiriginalStack = `${e} : ${e.stack}`
+        }
+        throw error
+      }
+
+      // @TODO Actually there is some mess. We know that it aint Auth but AuthCredentials
+      res.resolve(msg as unknown as Auth)
 
       return true as T
     }

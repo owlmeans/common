@@ -21,7 +21,7 @@ export interface DIDWallet {
 
   find: (meta: Partial<KeyMeta>) => Promise<DIDKeyModel[]>
 
-  provide: (mate: KeyMeta) => Promise<DIDKeyModel[]>
+  provide: (mate: Partial<KeyMeta>) => Promise<DIDKeyModel[]>
 
   remove: (did: string | KeyMeta | DIDKeyModel) => Promise<DIDKeyModel>
 

@@ -16,11 +16,12 @@ export const prepareData = (data: unknown): Uint8Array => {
   }
   if (typeof data === 'string') {
     data = utf8.decode(data)
-  } else {
+  } else if (!(data instanceof Uint8Array)) {
     throw new Error('basic.keys:sign-data-type')
   }
 
   if (!(data instanceof Uint8Array)) {
+    console.log('Impossible scenario of data preparation', data)
     throw new Error('basic.keys:sign-data-type')
   }
 

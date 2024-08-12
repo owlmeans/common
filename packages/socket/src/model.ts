@@ -180,7 +180,7 @@ export const createBasicConnection = (): Connection => {
         let msg: Message<any> | string = message
         try {
           msg = JSON.parse(message)
-        } catch (e) {
+        } catch {
         }
         if (typeof msg === 'object') {
           if (msg.payload == null) {
@@ -249,6 +249,7 @@ export const createBasicConnection = (): Connection => {
               }
             }
           } catch (e) {
+            console.error('Error on message processing:', e)
             throw ResilientError.ensure(e as Error)
           }
         }
@@ -264,13 +265,14 @@ export const createBasicConnection = (): Connection => {
             return
           }
           clearTimeout(timeout)
-          const response: Message<any> = {
+          const resultMsg: Message<any> = {
             id: msg.id,
-            type: MessageType.Response,
+            type: MessageType.Result,
             payload: result
           }
-          await conn.send(response)
+          await conn.send(resultMsg)
         }).catch(async error => {
+          console.error('Error during the call:', error)
           if (cancel) {
             return
           }

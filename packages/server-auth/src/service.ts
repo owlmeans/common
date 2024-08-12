@@ -74,9 +74,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const msg = credentials.challenge
 
       // @TODO This operation is not atomic in case of redis store usage and scling
-      
-      try { 
-        cache(context).create({id: msg}, {ttl: AUTHEN_TIMEFRAME / 1000})
+
+      try {
+        await cache(context).create({ id: msg }, { ttl: AUTHEN_TIMEFRAME / 1000 })
       } catch {
         throw new AuthenFailed()
       }

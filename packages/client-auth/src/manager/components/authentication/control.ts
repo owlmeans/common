@@ -86,7 +86,7 @@ export const makeControl = (
           await control.afterAuthenticate(resultingCred, context)
         }
 
-        if (callback != null && await callback(token)) {
+        if (control.callback != null && await control.callback(token)) {
           return { token: '' }
         }
 

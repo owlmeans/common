@@ -2,7 +2,7 @@
 export { handler, useContext, useModule } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
-export { guard, parent } from '@owlmeans/module'
+export { guard, parent, ModuleOutcome } from '@owlmeans/module'
 export { addWebService } from '@owlmeans/client-config'
 export { module, elevate, provideRequest } from '@owlmeans/client-module'
 export type { ClientModule as Module } from '@owlmeans/client-module'

@@ -33,15 +33,21 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   let internalAuth: Auth | null = auth ?? null
 
   const linker: RelyLinker = async (rely, source, notify) => {
-    console.log('Linker executed!!!')
+    console.log('Linker executed: ', source.nonce, ' -> ', rely.nonce)
     const tunnel = context.resource<RedisResource<Message<any>>>(RELY_TUNNEL)
     const closeReceiver = await tunnel.subscribe(async message => {
       if (isMessage(message, true)) {
+        console.log('<<<<<<< Receive message: ', message)
         await conn.send(message)
       }
     }, source.nonce)
+    // We allow to just forward call messages back and forth
+    conn._receiveCall = async msg => { console.log(source.nonce, 'Forward call', msg.method, msg.id) }
+    conn._receiveResult = async msg => { console.log(source.nonce, 'Forward result', msg.id) }
+    conn._receiveError = async msg => { console.log(source.nonce, 'Forward error', msg.id) }
     const closeSender = conn.listen(async message => {
       if (isMessage(message, true)) {
+        console.log('>>>>>>> Publish message: ', message)
         await tunnel.publish(message, rely.nonce)
       } else if (isEventMessage(message, true)) {
         if (message.event === 'close') {

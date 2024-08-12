@@ -21,6 +21,8 @@ export const rtype = (type: AppType, opts?: RouteOptions | string): Partial<Rout
 export const backend = (opts?: RouteOptions | string | null, method?: RouteOptions | RouteMethod): Partial<RouteOptions> => {
   if (typeof method === 'string') {
     opts = typeof opts === 'string' ? { parent: opts, method } : { method, ...(opts ?? {}) }
+  } else if (typeof method === 'object') {
+    opts = typeof opts === 'string' ? { ...method, parent: opts } : { ...opts, ...method }
   }
 
   return rtype(AppType.Backend, opts as RouteOptions)

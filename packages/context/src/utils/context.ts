@@ -10,7 +10,7 @@ export const isLayerIherited = (current: Layer, parent: Layer): boolean =>
   (current === parent) || (layersOrder.indexOf(parent) > layersOrder.indexOf(current))
 
 export const isResourceAvailable = (resource: BasicResource, layer: Layer) =>
-  resource.layer == null || isLayerIherited(resource.layer, layer)
+  resource.layers == null || resource.layers.some(_layer => isLayerIherited(_layer, layer))
 
 export const layersOrder = [
   Layer.System,
