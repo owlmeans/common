@@ -7,17 +7,25 @@ export interface WalletFacade {
 
   // TODO: This operation is maximum unsecure. It needs to be double checked by user
   // and probably limited by the client to only OwlMeans services
-  getMasterDid: () => Promise<string>
+  getMasterDid: (opts?: RequestReason) => Promise<string>
 
-  getPublicDetails: (did: string) => Promise<{
+  getPublicDetails: (did: string, opts?: RequestReason) => Promise<{
     key: Partial<DIDKeyPair>,
     meta: KeyMeta
   }>
 
+  requestPermissions:  (methods: string[], opts?: WalletOptions) => Promise<boolean>
+
   close: () => Promise<void>
 }
 
-export interface WalletOptions {
+export interface RequestReason {
+  intro?: string
+  reason?: string
+  timestamp?: number
+}
+
+export interface WalletOptions extends RequestReason {
   purpose?: string
   type?: string
   profileId?: string

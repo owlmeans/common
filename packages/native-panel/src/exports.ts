@@ -3,7 +3,7 @@ export {
   handler, useContext, Context, useNavigate, useValue, useSetupModalNavigator,
   useToggle, useStoreModel, useStoreList, useModule
 } from '@owlmeans/client'
-export type { ModalBodyProps } from '@owlmeans/client'
+export type { ModalBodyProps, ModalService } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { guard, parent } from '@owlmeans/module'

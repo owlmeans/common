@@ -26,6 +26,15 @@ export class DIDWalletError extends DIDError {
   }
 }
 
+export class DIDWalletPermissionError extends DIDWalletError {
+  public static override typeName = `${DIDWalletError.typeName}:Permission`
+
+  constructor(message: string = 'error') {
+    super(`permission:${message}`)
+    this.type = DIDWalletPermissionError.typeName
+  }
+}
+
 export class DIDInitializationError extends DIDWalletError {
   public static override typeName = `${DIDWalletError.typeName}:Initialization`
 
@@ -38,4 +47,5 @@ export class DIDInitializationError extends DIDWalletError {
 ResilientError.registerErrorClass(DIDError)
 ResilientError.registerErrorClass(DIDKeyError)
 ResilientError.registerErrorClass(DIDWalletError)
+ResilientError.registerErrorClass(DIDWalletPermissionError)
 ResilientError.registerErrorClass(DIDInitializationError)

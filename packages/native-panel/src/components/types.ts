@@ -8,6 +8,7 @@ export interface ButtonProps {
   color?: string
   textColor?: string
   textVariant?: string
+  variant?: 'text' | 'outlined' | 'contained' | 'elevated' | 'contained-tonal'
   icon?: string
   dark?: boolean
 }

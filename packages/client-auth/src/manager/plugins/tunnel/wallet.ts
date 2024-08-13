@@ -1,4 +1,4 @@
-import type { WalletFacade } from '@owlmeans/auth-common'
+import type { WalletFacade } from '@owlmeans/did'
 import type { Connection } from '@owlmeans/socket'
 import { base64 } from '@scure/base'
 
@@ -14,12 +14,16 @@ export const createWalletFacade = (conn: Connection): WalletFacade => {
       return await conn.call('createKey', entityId, opts)
     },
 
-    getMasterDid: async () => {
-      return await conn.call('getMasterDid')
+    getMasterDid: async opts => {
+      return await conn.call('getMasterDid', opts)
     },
 
-    getPublicDetails: async did => {
-      return await conn.call('getPublicDetails', did)
+    getPublicDetails: async (did, opts) => {
+      return await conn.call('getPublicDetails', did, opts)
+    },
+
+    requestPermissions: async (methods, opts) => {
+      return await conn.call('requestPermissions', methods, opts)
     },
 
     close: async () => {

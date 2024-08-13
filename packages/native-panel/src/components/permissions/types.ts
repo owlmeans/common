@@ -16,6 +16,15 @@ export interface PermissionRequestProps extends ModalBodyProps {
   picture?: ReactNode
   vs?: number
   hs?: number
+  explicitCancel?: boolean
+}
+
+export interface PermissionRendererProps extends Omit<PermissionRequestProps, "permission" | "modal"> {
+  permission: string
+  request: () => void
+  cancel: () => void
+  ns?: string
+  resource?: string
 }
 
 export interface PermissionsRequestRenderer {

@@ -56,9 +56,8 @@ export const createBasicConnection = (): Connection => {
       }
       conn.prepare?.(msg)
       return new Promise(async (resolve, reject) => {
-        const timeout = setTimeout(
-          () => reject(new SocketTimeout('call')), msg.timeout ?? CALL_TIMEOUT
-        )
+        msg.timeout = msg.timeout ?? conn.defaultCallTimeout ?? CALL_TIMEOUT
+        const timeout = setTimeout(() => reject(new SocketTimeout('call')), msg.timeout)
         calls[msg.id!] = {
           resolve: value => {
             clearTimeout(timeout)
@@ -284,9 +283,8 @@ export const createBasicConnection = (): Connection => {
           }
           await conn.send(response)
         })
-      const timeout = setTimeout(() => {
-        cancel = true
-      }, msg.timeout ?? CALL_TIMEOUT)
+      msg.timeout = msg.timeout ?? conn.defaultCallTimeout ?? CALL_TIMEOUT
+      const timeout = setTimeout(() => { cancel = true }, msg.timeout)
     },
 
     _receiveResult: async msg => {

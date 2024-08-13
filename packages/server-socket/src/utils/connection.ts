@@ -80,6 +80,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       }
     }
     if (isRequest) {
+      message.dt = message.dt ?? Date.now()
       if (auth != null && message.recipient == null) {
         message.recipient = auth.profileId ?? auth.userId
       }

@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/did": "^0.1.0",
     "@owlmeans/module": "^0.1.0"
   },
   "devDependencies": {

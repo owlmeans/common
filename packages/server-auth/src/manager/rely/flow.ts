@@ -8,6 +8,7 @@ import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trusted } from '../utils/trusted.js'
 import { RELY_TUNNEL } from '../consts.js'
 import type { RedisResource } from '@owlmeans/redis-resource'
+import { RELY_CALL_TIMEOUT } from '@owlmeans/auth-common'
 
 // 1. There is a difference between privileged (provider)
 //    and non-privileged (consumer) request 
@@ -18,13 +19,6 @@ import type { RedisResource } from '@owlmeans/redis-resource'
 // 3. General idea is that: when you are connected, the auth
 //    process can be started from scratch following same stages
 //    and using the same plugins but via socket
-// We start implemnetation of ProviderHandshake / ConsumerHandshake here:
-// 1. ✅ Our firs objective right now is to just establish one request
-//    connection betwee provider and consumer: ProviderHandshake / ConsumerHandshake
-// 2. It should lead to WalletProvider / WalletConsumer authentication,
-//    that will be used by consumer for one time signature
-// 3. So as outcome is transformation of this connection to one-time
-//    signature / action provider schema.
 
 export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Auth | null): AuthenticateMethod => {
   const auhtenticate = conn.authenticate
@@ -45,10 +39,15 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
     conn._receiveCall = async msg => { console.log(source.nonce, 'Forward call', msg.method, msg.id) }
     conn._receiveResult = async msg => { console.log(source.nonce, 'Forward result', msg.id) }
     conn._receiveError = async msg => { console.log(source.nonce, 'Forward error', msg.id) }
+    conn.defaultCallTimeout = RELY_CALL_TIMEOUT
     const closeSender = conn.listen(async message => {
       if (isMessage(message, true)) {
+        const forward = {...message}
+        if (forward.rawData != null) {
+          delete forward.rawData
+        }
         console.log('>>>>>>> Publish message: ', message)
-        await tunnel.publish(message, rely.nonce)
+        await tunnel.publish(forward, rely.nonce)
       } else if (isEventMessage(message, true)) {
         if (message.event === 'close') {
           closeSender()

@@ -3,6 +3,8 @@ import type { MessageType } from './consts.js'
 import type { AuthenticationStage } from '@owlmeans/auth'
 
 export interface Connection {
+  defaultCallTimeout?: number,
+
   _authSequence?: CallResolver<any>
 
   stage: AuthenticationStage
@@ -80,6 +82,7 @@ export interface Message<T> {
   rawData?: string
   sender?: string
   recipient?: string
+  dt?: number,
   payload: T
 }
 

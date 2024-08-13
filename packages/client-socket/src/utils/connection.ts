@@ -29,6 +29,7 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
 
   model.prepare = (message, _isRequest) => {
     // @TODO add sender / recipient metadata
+    message.dt = message.dt ?? Date.now()
     return message
   }
 

@@ -1,0 +1,75 @@
+{
+  "createKey": {
+    "title": "Create new key",
+    "description": "Some orgnanization or service asks you to create a new crypto key",
+    "unknown-reason": "Be cautious! We do not know why you are asked to create a new key.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
+  "sign": {
+    "title": "Sign with the key",
+    "description": "Some service asks you to sign a document with your key",
+    "unknown-reason": "Be cautious! We do not know why you are asked to make this signature.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
+  "masterSign": {
+    "title": "Sign with the primary key",
+    "description": "Some service asks you to sign a document with your primary key, that most likely should be used only with OwlMeans services",
+    "unknown-reason": "Be cautious! We do not know why you are asked to make this signature.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
+  "getMasterDid": {
+    "title": "Get your primary DID",
+    "description": "Some service asks for your primary decentralized address, that most likely should be shared only with OwlMeans services",
+    "unknown-reason": "Be cautious! We do not know why you are asked to share your primary DID.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
+  "getPublicDetails": {
+    "title": "Get public key",
+    "description": "Some service asks for a public key linked to your organization profile",
+    "unknown-reason": "Be cautious! We do not know why you are asked to share your public key.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
+  "requestPermissions": {
+    "title": "Requested permissions",
+    "description": "Some service asks to perform an action sequence with your wallet",
+    "unknown-reason": "Be cautious! We do not know why you are asked to perform these actions.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    },
+    "method": {
+      "createKey": "Create new crypto key",
+      "sign": "Sign some data with your key",
+      "masterSign": "Sign data with your primary key",
+      "getMasterDid": "Get your primary ID",
+      "getPublicDetails": "Get your public key"
+    }
+  }
+}
