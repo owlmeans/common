@@ -1,5 +1,4 @@
-import type {  } from 'react-native-paper'
-import type { PropsWithChildren } from 'react'
+import type { PropsWithChildren, FC } from 'react'
 import type { TextStyle } from 'react-native'
 
 export interface ButtonProps {
@@ -28,4 +27,13 @@ export interface DotsProps {
   gap?: number
   color?: string
   activeColor?: string
+}
+
+export interface ListProps<T = any>  {
+  items: T[]
+  renderer: FC<ListItemProps<T>>
+}
+
+export interface ListItemProps<T = any> {
+  data: T
 }
