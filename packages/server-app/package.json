@@ -32,7 +32,9 @@
     "@owlmeans/server-auth": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",
-    "@owlmeans/server-route": "^0.1.0"
+    "@owlmeans/server-route": "^0.1.0",
+    "@owlmeans/server-socket": "^0.1.0",
+    "@owlmeans/static-resource": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

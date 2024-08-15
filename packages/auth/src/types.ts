@@ -17,8 +17,8 @@ export interface AuthCredentials extends AuthPayload {
     Authorization:
       entityId?: string
       scopes: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */
@@ -49,8 +49,8 @@ export interface AuthPayload extends ProfilePayload {
     Authorization:
       entityId?: string
       scopes: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */
@@ -67,8 +67,8 @@ export interface ProfilePayload extends Authorization {
     Authorization:
       entityId?: string
       scopes: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */
@@ -77,8 +77,8 @@ export interface ProfilePayload extends Authorization {
 export interface Authorization {
   entityId?: string
   scopes: string[]
-  permissions?: Permission[]
-  attributes?: Attribute[]
+  permissions?: PermissionSet[]
+  attributes?: AttributeSet[]
   /**
    * Whether authorization provides all necessary permissions
    */
@@ -100,8 +100,8 @@ export interface Profile extends ProfilePayload {
     Authorization:
       entityId?: string
       scopes: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */
@@ -124,20 +124,24 @@ export interface Auth extends AuthPayload {
     Authorization:
       entityId?: string
       scopes: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */
 }
 
-export interface Permission {
+export interface PermissionSet {
   scope: string
-  permissions: string[]
-  resources: string[]
+  permissions: Capabilties
+  resources?: string[]
 }
 
-export interface Attribute {
+export interface Capabilties {
+  [key: string]: boolean | number | null
+}
+
+export interface AttributeSet {
   scope: string
   attributes: string[]
 }
@@ -157,8 +161,8 @@ export interface AllowanceRequest extends Partial<AuthPayload> {
     Authorization:
       entityId?: string
       scopes?: string[]
-      permissions?: Permission[]
-      attributes?: Attribute[]
+      permissions?: PermissionSet[]
+      attributes?: AttributeSet[]
       permissioned?: boolean 
       denormalized?: boolean 
    */

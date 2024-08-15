@@ -1,0 +1,21 @@
+import type { JSONSchemaType } from 'ajv'
+import type { Localization } from '../types.js'
+import {
+  ProductDescriptionSchema, ProductTitleSchema, PaymentEntityTypeSchema,
+  LocalizationLngSchema
+} from '../consts.js'
+
+export const LocalizationSchema: JSONSchemaType<Localization> = {
+  type: 'object',
+  properties: {
+    type: PaymentEntityTypeSchema,
+    lng: LocalizationLngSchema,
+    title: { ...ProductTitleSchema, nullable: true },
+    description: { ...ProductDescriptionSchema, nullable: true },
+    keywords: {
+      type: 'object', required: [], nullable: true,
+      additionalProperties: { type: 'string' }
+    }
+  },
+  required: ['type', 'lng']
+}

@@ -5,7 +5,7 @@ import {
   ScopeValueSchema, TypeNameSchema
 } from '../consts.js'
 import { AuthPayloadSchema } from '../auth/model.js'
-import { AttributeSchema, PermissionSchema } from '../permission/.'
+import { AttributeSchema, PermissionSetSchema } from '../permission/.'
 
 export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>, "type">> = {
   type: 'object',
@@ -18,7 +18,7 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
     groups: { type: 'array', items: GroupValueSchema, nullable: true },
     entityId: { ...EntityValueSchema, nullable: true },
     scopes: { type: 'array', items: ScopeValueSchema, nullable: true },
-    permissions: { type: 'array', nullable: true, items: PermissionSchema },
+    permissions: { type: 'array', nullable: true, items: PermissionSetSchema },
     attributes: { type: 'array', nullable: true, items: AttributeSchema },
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }

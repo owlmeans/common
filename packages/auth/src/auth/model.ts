@@ -4,14 +4,14 @@ import {
   EntityValueSchema, EnumValueSchema, GroupValueSchema, IdValueSchema, DateSchema, ScopeValueSchema,
   TypeNameSchema
 } from '../consts.js'
-import { AttributeSchema, PermissionSchema } from '../permission/model.js'
+import { AttributeSchema, PermissionSetSchema } from '../permission/model.js'
 
 export const AuthorizationSchema: JSONSchemaType<Authorization> = {
   type: 'object',
   properties: {
     entityId: { ...EntityValueSchema, nullable: true },
     scopes: { type: 'array', items: ScopeValueSchema },
-    permissions: { type: 'array', nullable: true, items: PermissionSchema },
+    permissions: { type: 'array', nullable: true, items: PermissionSetSchema },
     attributes: { type: 'array', nullable: true, items: AttributeSchema },
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }

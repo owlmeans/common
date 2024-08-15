@@ -21,5 +21,5 @@ export interface PluginConfig extends ConfigRecord {
 }
 
 export interface ConfigResourceAppend {
-  getConfigResource: <T extends ConfigRecord>(alias?: string) => ConfigResource<T>
+  getConfigResource: <T extends ConfigRecord, R extends ConfigResource<T>>(alias?: string) => R
 }
