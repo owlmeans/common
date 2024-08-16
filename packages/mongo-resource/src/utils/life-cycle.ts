@@ -1,6 +1,6 @@
 import type { DbConfig, ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '../types.js'
-import type { Db, Collection } from 'mongodb'
+import type { Db, Collection, Document } from 'mongodb'
 import { mongoCollectionName } from './name.js'
 import { schemaToMongoSchema } from './schema.js'
 import { updateIndexes } from './indexes.js'
@@ -24,7 +24,11 @@ export const initializeCollection = async (
 
 export const createCollection = async (db: Db, name: string, resource: MongoResource<ResourceRecord>): Promise<Collection> => {
   const collection = await db.createCollection(name, {
-    ...(resource.schema != null ? { validator: { $jsonSchema: schemaToMongoSchema(resource.schema) } } : {})
+    ...(resource.schema != null ? {
+      validator: {
+        $jsonSchema: patchJsonSchema(schemaToMongoSchema(resource.schema))
+      }
+    } : {})
   })
 
   if (resource.indexes != null) {
@@ -40,7 +44,9 @@ export const createCollection = async (db: Db, name: string, resource: MongoReso
 
 export const updateCollection = async (db: Db, name: string, resource: MongoResource<ResourceRecord>): Promise<Collection> => {
   if (resource.schema != null) {
-    await db.command({ collMod: name, validator: { $jsonSchema: schemaToMongoSchema(resource.schema) } })
+    const $jsonSchema = patchJsonSchema(schemaToMongoSchema(resource.schema))
+
+    await db.command({ collMod: name, validator: { $jsonSchema } })
   }
 
   const collection = db.collection(name)
@@ -48,4 +54,13 @@ export const updateCollection = async (db: Db, name: string, resource: MongoReso
   await updateIndexes(collection, resource)
 
   return collection
+}
+
+const patchJsonSchema = (schema: Document): Document => {
+  if (schema.properties != null) {
+    if (schema.properties._id == null) {
+      schema.properties._id = { bsonType: 'objectId' }
+    }
+  }
+  return schema
 }

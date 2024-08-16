@@ -11,6 +11,7 @@ export const CapabiltiesSchema: JSONSchemaType<Capabilties> = {
 export const PermissionSetSchema: JSONSchemaType<PermissionSet> = {
   type: 'object',
   properties: {
+    title: { type: 'string', nullable: true, minLength: 1, maxLength: 128 },
     scope: ScopeValueSchema,
     permissions: CapabiltiesSchema,
     resources: { type: 'array', items: ResourceValueSchema, nullable: true }

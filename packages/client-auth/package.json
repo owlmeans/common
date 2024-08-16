@@ -48,6 +48,7 @@
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-api": "^0.1.0",
     "@owlmeans/client-context": "^0.1.0",
+    "@owlmeans/client-flow": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/client-resource": "^0.1.0",
     "@owlmeans/client-route": "^0.1.0",

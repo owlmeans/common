@@ -9,11 +9,16 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useFormContext } from 'react-hook-form'
 import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
-import { useFormI18n } from '@owlmeans/client-panel'
+import { useFormI18n, usePanelHelper } from '@owlmeans/client-panel'
 
 export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size }) => {
   const context = useContext()
-  const t = useCommonI18n(i18n?.resource ?? context.cfg.service, i18n?.ns, i18n?.prefix)
+  const panel = usePanelHelper()
+  const t = useCommonI18n(
+    i18n?.resource ?? panel.resource ?? context.cfg.service,
+    i18n?.ns ?? panel.ns,
+    i18n?.prefix ?? panel.prefix
+  )
   const appT = useI18nApp(context.cfg.service, 'buttons')
   const libT = useI18nLib('client-panel', 'buttons')
   label = useMemo(() => i18n?.suppress ? label : t(label, {

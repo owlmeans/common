@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { createContext, useContext as useReactContext } from 'react'
 import type { TPanelContext } from './types.js'
-import { useCommonI18n, useI18nLib } from '@owlmeans/client-i18n'
+import { I18nProps, useCommonI18n, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
 import { ResilientError } from '@owlmeans/error'
 
@@ -9,7 +9,7 @@ const PanelContext_ = createContext<TPanelContext>({})
 
 export const PanelContext: FC<TPanelContext> = (props) => {
   const parent = usePanelHelper()
-  props = {...parent, ...props}
+  props = { ...parent, ...props }
   return <PanelContext_.Provider value={
     Object.fromEntries(Object.entries(props).filter(([key]) => key !== 'children')) as TPanelContext
   }>{props.children}</PanelContext_.Provider>
@@ -17,9 +17,9 @@ export const PanelContext: FC<TPanelContext> = (props) => {
 
 export const usePanelHelper = () => useReactContext<TPanelContext>(PanelContext_)
 
-export const usePanelI18n = (name?: string) => {
+export const usePanelI18n = (name?: string, override?: I18nProps["i18n"]) => {
   const context = useContext()
-  const i18n = usePanelHelper()
+  const i18n = { ...usePanelHelper(), ...override }
   const prefix = (i18n?.prefix ?? '') + (name != null && i18n?.prefix != null ? '.' : '') + (name ?? '')
 
   return useCommonI18n(

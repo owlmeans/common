@@ -15,7 +15,7 @@ import { useContext } from '@owlmeans/web-client'
 
 export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, control }) => {
   const context = useContext()
-  const submit = useCallback(createSubmit(context, control), [type])
+  const submit = useCallback(createSubmit(context as unknown as AppContext, control), [type])
 
   const Content = useCallback(() => {
     switch (stage) {

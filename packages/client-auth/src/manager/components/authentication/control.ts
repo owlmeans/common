@@ -11,6 +11,8 @@ import { plugins } from '../../plugins/index.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 import { ModuleOutcome } from '@owlmeans/module'
+import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
+import type { FlowService } from '@owlmeans/client-flow'
 
 export const makeControl = (
   context: ClientContext<ClientConfig>,
@@ -101,6 +103,19 @@ export const makeControl = (
     updateStage: stage => {
       control.stage = stage
       control.setStage?.(stage)
+    },
+
+    flow: async () => {
+      const alias = FLOW_SERVICE
+      if (context.hasService(alias)) {
+        const flow = context.service<FlowService>(alias)
+        await flow.ready()
+        if (await flow.supplied) {
+          return flow
+        }
+      }
+
+      return null
     }
   }
 

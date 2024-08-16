@@ -12,3 +12,11 @@ export interface TextProps extends PropsWithChildren {
   variant?: string
   center?: boolean
 }
+
+export interface StatusProps extends PropsWithChildren<I18nProps> {
+  name?: string
+  ok?: boolean
+  variant?: string
+  error?: Error
+  message?: string
+}

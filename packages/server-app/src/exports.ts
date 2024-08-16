@@ -16,4 +16,4 @@ export { handleRequest, handleBody, handleParams } from '@owlmeans/server-api'
 export { route } from '@owlmeans/route'
 export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/server-auth'
 export { klusterize } from '@owlmeans/kluster'
-
+export { toConfigRecord } from '@owlmeans/config'

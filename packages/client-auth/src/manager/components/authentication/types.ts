@@ -4,7 +4,8 @@ import type {
 } from '@owlmeans/auth'
 import type { ModuleContextParams } from '@owlmeans/client'
 import type { FC } from 'react'
-import { ClientContext } from '@owlmeans/client'
+import type { ClientContext } from '@owlmeans/client'
+import type { FlowService } from '@owlmeans/client-flow'
 
 export type ClientAuthType = AuthenticationType | string
 
@@ -46,6 +47,7 @@ export interface AuthenticationControl extends AuthenticationControlState {
     credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">,
     context?: ClientContext
   ) => Promise<AuthToken>
+  flow: () => Promise<FlowService | null>
 }
 
 export interface AuthenticationCallback {

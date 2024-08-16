@@ -3,7 +3,7 @@ import { DEFAULT_KEY } from '@owlmeans/client-config'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type { AbstractRequest, ModuleHandler } from '@owlmeans/module'
 import { ModuleOutcome, provideResponse } from '@owlmeans/module'
-import type { ClientModule, ModuleCall, ClientModuleOptions, ModuleRef } from '../types.js'
+import type { ClientModule, ModuleCall, ClientModuleOptions, ModuleRef, ClientRequest } from '../types.js'
 import { validate } from './module.js'
 import { extractParams } from '@owlmeans/client-route'
 import { PARAM } from '@owlmeans/route'
@@ -97,7 +97,7 @@ export const apiCall: <
   }) as ModuleCall<any>
 
 export const urlCall: <
-  T, R extends AbstractRequest = AbstractRequest
+  T, R extends ClientRequest = ClientRequest
 >(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> = ref => async (req, res) => {
   const module = ref.ref
   if (module == null) {
@@ -117,7 +117,9 @@ export const urlCall: <
     return path.replace(`${PARAM}${param}`, `${req?.params?.[param as keyof typeof req.params]}`)
   }, module.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
 
-  if (module.route.route.service !== null && ctx.cfg.service !== module.route.route.service) {
+  if (module.route.route.service !== null && (
+    ctx.cfg.service !== module.route.route.service
+    || req?.full === true)) {
     // @TODO Fix https 
     path = 'http://' + module.route.route.host + path
   }

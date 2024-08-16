@@ -13,7 +13,7 @@ export interface Product {
    * software services.
    */
   services?: string[]
-  capabilities?: PermissionSet
+  capabilities?: PermissionSet[]
 }
 
 export interface Localization {
@@ -48,7 +48,7 @@ export interface ProductPlan {
    */
   deprecatedAt?: Date
   supsendedAt?: Date
-  capabilities?: PermissionSet
+  capabilities?: PermissionSet[]
   limits?: { [key: string]: LimitConfig }
 }
 

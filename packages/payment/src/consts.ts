@@ -1,16 +1,19 @@
 import type { JSONSchemaType } from 'ajv'
 
 export enum ProductType {
-  Simple = 'simple'
+  Simple = 'simple',
+  Service = 'service'
 }
 
 export enum PaymentEntityType {
   Product = 'product',
-  Plan = 'plan'
+  Plan = 'plan',
+  CapabilitySet = 'capability-set',
 }
 
 export enum PlanStatus {
   Active = 'active',
+  Custom = 'custom',
   Hidden = 'hidden',
   Archived = 'archived',
   Deprecated = 'deprecated',

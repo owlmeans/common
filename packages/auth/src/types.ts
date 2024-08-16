@@ -133,6 +133,7 @@ export interface Auth extends AuthPayload {
 
 export interface PermissionSet {
   scope: string
+  title?: string
   permissions: Capabilties
   resources?: string[]
 }

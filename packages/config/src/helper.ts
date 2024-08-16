@@ -1,7 +1,9 @@
+import type { ConfigRecord } from '@owlmeans/context'
 import type { CommonConfig } from './types.js'
 import type { Tree, TreeValue } from './utils/types.js'
+import type { ResourceRecord } from '@owlmeans/resource'
 
-export const mergeConfig = <T extends CommonConfig = CommonConfig>(target: T, source: T): T => 
+export const mergeConfig = <T extends CommonConfig = CommonConfig>(target: T, source: T): T =>
   mergeObject(target as Tree, source as Tree) as T
 
 const mergeObject = (target: Tree, source: Tree): Tree => {
@@ -27,5 +29,9 @@ const mergeObject = (target: Tree, source: Tree): Tree => {
 const isRecursive = (value: unknown): value is Tree | Array<TreeValue> =>
   typeof value === 'object' && value !== null
 
-const isObject = (value: unknown): value is Tree => 
+const isObject = (value: unknown): value is Tree =>
   isRecursive(value) && !Array.isArray(value)
+
+export const toConfigRecord = (object: Object): ConfigRecord => object as ConfigRecord
+
+export const fromConfigRecord = <C extends ConfigRecord, T extends ResourceRecord>(object: C): T => object as unknown as T

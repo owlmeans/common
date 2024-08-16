@@ -41,21 +41,20 @@ Register an internal application service that is capable to make API requests
 
 ### Counters (for monorepo maintenance)
 We use delayes on dev command for the whole repository to not overwhelme processors.
-* Even counter: 60, 16 (got through once)
+* Even counter: 60, 24 (got through once)
 * Odd counter: 59, (got through once)
 
 ## Modules to be deleted
 ./native-socket
 ./panel
-./payment
 ./web-socket
 ./web-route
-./web-payment
+./web-payment ?
 ./web-did ?
 ./server-resource
-./server-payment
+./server-payment ?
 ./server-panel
-./server-did ??
+./server-did ?
 ./native-did ?
 ./client-payment ?
 ./api-resource-server ?

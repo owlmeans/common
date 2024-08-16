@@ -14,7 +14,7 @@ export const fileConfigReader: Middleware = {
 
 // @TODO Move to server config
 const visitConfigLeafs = (tree: Tree) =>
-  Object.entries(tree).forEach(([key, value]) => {
+  tree != null ? Object.entries(tree).forEach(([key, value]) => {
     if (typeof value === 'string') {
       const descriptor = Object.getOwnPropertyDescriptor(tree, key)
       if (descriptor?.writable) {
@@ -25,7 +25,7 @@ const visitConfigLeafs = (tree: Tree) =>
     } else if (typeof value === 'object') {
       visitConfigLeafs(value as Tree)
     }
-  })
+  }) : tree
 
 type TreeKey = string | number | symbol
 type TreeValue = unknown | Array<unknown> | string

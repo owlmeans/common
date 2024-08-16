@@ -27,12 +27,12 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
     title: ProductTitleSchema,
     description: { ...ProductDescriptionSchema, nullable: true },
 
-    createdAt: {...DateSchema, nullable: true},
-    archivedAt: {...DateSchema, nullable: true},
-    deprecatedAt: {...DateSchema, nullable: true},
-    supsendedAt: {...DateSchema, nullable: true},
-    
-    capabilities: { ...PermissionSetSchema, nullable: true },
+    createdAt: { ...DateSchema, nullable: true },
+    archivedAt: { ...DateSchema, nullable: true },
+    deprecatedAt: { ...DateSchema, nullable: true },
+    supsendedAt: { ...DateSchema, nullable: true },
+
+    capabilities: { type: 'array', items: PermissionSetSchema, nullable: true },
     limits: {
       type: 'object', required: [], nullable: true,
       additionalProperties: LimitConfigSchema

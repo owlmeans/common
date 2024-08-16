@@ -50,16 +50,21 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
     },
 
     list: async <T extends ConfigRecord>(criteria?: ListOptions | ListCriteria, opts?: ListOptions) => {
-      if (criteria != null) {
-        throw new UnsupportedArgumentError('config:list:criteria')
-      }
       if (opts != null) {
         throw new UnsupportedArgumentError('config:list:opts')
       }
       const context = _assertContext(resource.ctx)
 
+      const items = getStore(context) as T[]
+
       const result: ListResult<T> = {
-        items: getStore(context) as T[]
+        items: items.filter(item => {
+          if (criteria == null) {
+            return true
+          }
+          
+          return Object.entries(criteria).every(([key, value]) => item[key as keyof T] === value)
+        })
       }
 
       return result
