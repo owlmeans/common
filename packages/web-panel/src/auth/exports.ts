@@ -1,5 +1,5 @@
 
-export { handler, useContext, useModule, useValue, useNavigate } from '@owlmeans/client'
+export { handler, useModule, useValue, useNavigate } from '@owlmeans/client'
 export type { Navigator } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'

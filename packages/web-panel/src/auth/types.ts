@@ -1,4 +1,5 @@
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientConfig } from '@owlmeans/client-context'
+import type { ClientContext } from '@owlmeans/client'
 import type { WithFlowConfig } from '@owlmeans/flow'
 import type { FlowService } from '@owlmeans/web-flow'
 

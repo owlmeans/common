@@ -52,6 +52,7 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
       console.log('context : ', module.ctx?.cfg.layer, module.ctx?.cfg.layerId)
 
       await module.handle(request, response)
+
       executeResponse(response, reply, true)
       if (!reply.sent) {
         console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)

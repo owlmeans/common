@@ -23,6 +23,7 @@ type MaybeArray<T> = T | T[]
 interface ConfigRecordItem extends Record<
   string,
   MaybeArray<ConfigRecordItem | boolean | string | number | null | undefined>> {
+  recordType?: string
 }
 
 export interface Contextual {

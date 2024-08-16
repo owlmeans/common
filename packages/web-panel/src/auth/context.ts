@@ -1,7 +1,7 @@
 import { makeClientContext } from '@owlmeans/client'
 import { appendWebDbService } from '@owlmeans/web-db'
 import { apiConfigMiddleware } from '@owlmeans/api-config-client'
-import { extractPrimaryHost } from '@owlmeans/web-client'
+import { extractPrimaryHost, useContext as useCtx } from '@owlmeans/web-client'
 import type { AppConfig as Config, AppContext as Context } from '@owlmeans/web-client'
 import { AppConfig, AppContext } from './types.js'
 import { appendFlowService } from '@owlmeans/web-flow'
@@ -20,3 +20,6 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 
   return context
 }
+
+export const useContext = <C extends AppConfig = AppConfig,T extends AppContext<C> = AppContext<C>>(): T => 
+  useCtx() as unknown as T
