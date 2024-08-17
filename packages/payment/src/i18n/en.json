@@ -1,0 +1,36 @@
+{
+  "plan": {
+    "duration": {
+      "monthly": "Montly subscription",
+      "yearly": "Yerly subscription"
+    },
+    "trial": {
+      "gated": "Free trial — {{days}} days",
+      "open": "No card required — {{days}} free trial"
+    },
+    "highlight": {
+      "custom": "Tell us about your custom needs",
+      "comming-soon": "Required features comming soon!",
+      "best-value": "Best value!"
+    },
+    "label": {
+      "monthly": "a month",
+      "discount": "with discount: {{discount}}%"
+    }
+  },
+  "measurement": {
+    "yes": "Yes",
+    "no": "No",
+    "comming-soon": "Comming soon",
+    "custom": "custom",
+    "mb": "Mb"
+  },
+  "action": {
+    "start": "Start now",
+    "custom": "Contact us",
+    "active": "Try now",
+    "gated": "Subscribe now",
+    "best-value": "Start free trial",
+    "comming-soon": "Join now"
+  }
+}

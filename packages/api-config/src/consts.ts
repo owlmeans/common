@@ -6,5 +6,5 @@ export const notAvertizedConfigKeys = [
 ]
 
 export const allowedConfigRecords = [
-  'plan', 'product'
+  'plan', 'product', 'l10n'
 ]

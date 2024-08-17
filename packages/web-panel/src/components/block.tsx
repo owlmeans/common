@@ -8,14 +8,14 @@ import type { SxProps } from '@mui/material/styles'
 import CardActions from '@mui/material/CardActions'
 import { scalingToStyles } from './helper.js'
 
-export const Block: FC<BlockProps> = ({ children, horizontal, Actions, i18n }) => {
+export const Block: FC<BlockProps> = ({ children, horizontal, Actions, i18n, styles }) => {
 
   const style: SxProps = useMemo(() => scalingToStyles(horizontal), [horizontal])
 
   const panelProps = { ...usePanelHelper(), ...i18n }
 
   return <PanelContext {...panelProps}>
-    <Card sx={style}>
+    <Card sx={{...style, ...styles} as SxProps}>
       <CardContent>{children}</CardContent>
       {Actions != null && <CardActions sx={{ flexDirection: "row", justifyContent: "flex-end", pr: 2, pb: 2 }}>
         <Actions />

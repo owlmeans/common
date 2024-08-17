@@ -8,6 +8,7 @@ export const LimitConfigSchema: JSONSchemaType<LimitConfig> = {
   type: 'object',
   properties: {
     interval: PlanDurationSchema,
+    measurment: { type: 'string', nullable: true, maxLength: 16 },
     limit: { type: 'number' }
   },
   required: ['interval', 'limit']
@@ -17,6 +18,7 @@ export const CapabilityUsageSchema: JSONSchemaType<CapabilityUsage> = {
   type: 'object',
   properties: {
     interval: PlanDurationSchema,
+    measurment: { type: 'string', nullable: true, maxLength: 16 },
     startedAt: DateSchema,
     limit: { type: 'number' },
     refreshedAt: { ...DateSchema, nullable: true },

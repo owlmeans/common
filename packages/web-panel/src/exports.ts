@@ -14,7 +14,7 @@ export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
 export { DISPATCHER } from '@owlmeans/auth'
 
-export { useCommonI18n, useI18nApp } from '@owlmeans/client-i18n'
+export { useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 export { addCommonI18n, addI18nApp } from '@owlmeans/i18n'
 export { flow, configureFlows } from '@owlmeans/flow'
-export { QUERY_PARAM as FLOW_PARAM, SERVICE_PARAM } from '@owlmeans/web-flow'
+export { QUERY_PARAM as FLOW_PARAM, SERVICE_PARAM, useFlow } from '@owlmeans/web-flow'

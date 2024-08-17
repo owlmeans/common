@@ -1,3 +1,4 @@
+import type { SxProps } from '@mui/material/styles'
 import type { I18nProps } from '@owlmeans/client-i18n'
 import type { BlockScaling } from '@owlmeans/client-panel'
 import type { FC, PropsWithChildren } from 'react'
@@ -5,6 +6,7 @@ import type { FC, PropsWithChildren } from 'react'
 export interface BlockProps extends PropsWithChildren<I18nProps> {
   horizontal?: BlockScaling
   Actions?: FC
+  styles?: SxProps
 }
 
 export interface TextProps extends PropsWithChildren {

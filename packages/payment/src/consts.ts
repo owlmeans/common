@@ -81,3 +81,15 @@ export const ProductDescriptionSchema: JSONSchemaType<string> = {
 export const LocalizationLngSchema: JSONSchemaType<string> = {
   type: 'string', minLength: 2, maxLength: 3
 }
+
+export const PRODUCT_RECORD_TYPE = 'product'
+export const PRODUCT_RECORD_PREFIX = PRODUCT_RECORD_TYPE
+
+export const PLAN_RECORD_TYPE = 'plan'
+export const PLAN_RECORD_PREFIX = PLAN_RECORD_TYPE
+
+export const L10N_RECORD_TYPE = 'l10n'
+export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
+
+export const DEFAULT_ALIAS = 'payment'
+

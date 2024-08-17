@@ -5,6 +5,7 @@ import { I18nextProvider, useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useI18nInstance } from './utils/instance.js'
 import { DEFAULT_LNG, DEFAULT_NAMESPACE, initI18nResource, LIB_NAMESPACE } from '@owlmeans/i18n'
+import { useContext } from '@owlmeans/client'
 
 export const I18nContext: FC<I18nContextProps> = memo(({ config, children }) => {
   const i18n = useI18nInstance(config)
@@ -47,6 +48,9 @@ export const useI18nLib = (libName: string, prefix?: string): TFunction => {
   return useCommonI18n(libName, LIB_NAMESPACE, prefix)
 }
 
-export const useI18nApp = (appName: string, prefix?: string): TFunction => {
+export const useI18nApp = (appName?: string, prefix?: string): TFunction => {
+  const context = useContext()
+  appName = appName ?? context.cfg.service
+
   return useCommonI18n(appName, appName, prefix)
 }

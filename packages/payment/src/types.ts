@@ -1,3 +1,5 @@
+import type { InitializedService } from '@owlmeans/context'
+
 import type { PaymentEntityType, PlanDuration, PlanStatus, ProductType, SubscriptionStatus } from './consts.js'
 import type { PermissionSet } from '@owlmeans/auth'
 
@@ -17,6 +19,7 @@ export interface Product {
 }
 
 export interface Localization {
+  sku: string
   type: PaymentEntityType
   lng: string
   title?: string
@@ -82,6 +85,7 @@ export interface PlanSubscription {
 export interface LimitConfig {
   interval: PlanDuration
   limit: number
+  measurment?: string
 }
 
 export interface CapabilityUsage extends LimitConfig {
@@ -90,4 +94,14 @@ export interface CapabilityUsage extends LimitConfig {
   refreshAt?: Date
   lastConsumedAt?: Date
   consumption: number
+}
+
+type PaymentEntity = Product | ProductPlan | PermissionSet
+
+export interface PaymentService extends InitializedService {
+  product: (sku: string) => Promise<Product>
+
+  plans: (productSku: string, duration: PlanDuration) => Promise<ProductPlan[]>
+
+  localize: (lng: string, entity: PaymentEntity) => Promise<Localization | null>
 }

@@ -11,7 +11,7 @@ import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/clie
 import { useContext } from '@owlmeans/client'
 import { useFormI18n, usePanelHelper } from '@owlmeans/client-panel'
 
-export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size }) => {
+export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size, variant = 'contained' }) => {
   const context = useContext()
   const panel = usePanelHelper()
   const t = useCommonI18n(
@@ -30,7 +30,7 @@ export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, siz
     ? 20
     : size === 'medium' ? 16 : 14
 
-  return <MUIButton variant="contained" size={size}
+  return <MUIButton variant={variant as any} size={size}
     startIcon={loader != null && loader.opened === true ? <CircularProgress size={progressSize} /> : undefined}
     disabled={loader != null && loader.opened === true}
     onClick={onClick}>{label}</MUIButton>
