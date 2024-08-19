@@ -22,6 +22,7 @@
   "dependencies": {
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/client-resource": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/flow": "^0.1.0",

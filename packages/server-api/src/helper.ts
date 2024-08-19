@@ -29,6 +29,7 @@ export const handleBody: <T>(
 
 export const handleParams: <T>(
   handler: (payload: T, ctx: BasicContext<BasicConfig>) => Promise<any>
+  // @TODO Here and everywher it looks like AbstractResponse is messed up here instead of abstract request
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {

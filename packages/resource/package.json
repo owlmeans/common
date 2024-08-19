@@ -21,8 +21,10 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.0",
-    "@owlmeans/error": "^0.1.0",
-    "ajv": "^8.17.1"
+    "@owlmeans/error": "^0.1.0"
+  },
+  "peerDependencies": {
+    "ajv": "*"
   },
   "devDependencies": {
     "nodemon": "^3.1.4",

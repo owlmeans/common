@@ -20,6 +20,7 @@ export interface AuthServiceAppend {
 
 export interface ClientAuthRecord extends ResourceRecord {
   token: string
+  profileId?: string
 }
 
 export interface ClientAuthResource extends ClientResource<ClientAuthRecord> {

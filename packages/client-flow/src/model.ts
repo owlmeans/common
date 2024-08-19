@@ -1,12 +1,12 @@
-import type { ClientContext,  Navigator } from '@owlmeans/client'
+import type { ClientContext, Navigator } from '@owlmeans/client'
 import type { ClientConfig } from '@owlmeans/client-context'
 import type { ClientModule } from '@owlmeans/client-module'
 import type { ResolvedServiceRoute } from '@owlmeans/route'
 import { FlowStepMissconfigured, FlowTargetError } from '@owlmeans/flow'
 import type { FlowModel } from '@owlmeans/flow'
 import { ResilientError } from '@owlmeans/error'
-import type { FlowClient, FlowService } from './types.js'
-import { DEFAULT_ALIAS } from './consts.js'
+import type { FlowClient, FlowService, StateResource } from './types.js'
+import { DEFAULT_ALIAS, FLOW_STATE } from './consts.js'
 
 export const createFlowModel = <C extends ClientConfig, T extends ClientContext<C>>(context: T, nav: Navigator): FlowClient => {
   const flow = context.service<FlowService>(DEFAULT_ALIAS)
@@ -18,7 +18,21 @@ export const createFlowModel = <C extends ClientConfig, T extends ClientContext<
       await flow.ready()
       let model = await flow.state()
       if (model == null) {
-        model = await flow.begin(undefined, from)
+        if (context.hasResource(FLOW_STATE)) {
+          const resource = context.resource<StateResource>(FLOW_STATE)
+          const _state = await resource.load(FLOW_STATE)
+          if (_state != null) {
+            model = await flow.begin(_state.flow)
+            model.setState(_state)
+            if (target == null) {
+              target = _state.service
+            }
+          }
+        }
+        if (model == null) {
+          model = await flow.begin(undefined, from)
+        }
+        
         if (target == null) {
           throw new FlowTargetError('no')
         }
@@ -49,17 +63,29 @@ export const createFlowModel = <C extends ClientConfig, T extends ClientContext<
       if (step.module == null) {
         throw new FlowStepMissconfigured(step.step)
       }
-      
+
       state.transit(transition.transition, true)
 
       const module = context.module<ClientModule>(step.module)
       const [url] = await module.call<string>()
-      
+
       if (url.startsWith('http')) {
         await flow.proceed(req)
       } else {
         await nav.navigate(module)
       }
+    },
+
+    persist: async () => {
+      if (context.hasResource(FLOW_STATE)) {
+        const resource = context.resource<StateResource>(FLOW_STATE)
+        const _state = state.state()
+        await resource.save({ ..._state, id: FLOW_STATE })
+
+        return true
+      }
+
+      return false
     }
   }
 

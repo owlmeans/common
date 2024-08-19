@@ -1,4 +1,4 @@
-import { FlowStepError, UnknownFlow, UnknownTransition } from './status.js'
+import { FlowStepError, UnknownFlow, UnknownTransition } from './errors.js'
 import type { FlowModel, FlowProvider, FlowState, ShallowFlow } from './types.js'
 import { serializeState, unserializeState } from './utils/flow.js'
 
@@ -31,21 +31,26 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
 
   const model: FlowModel = {
     target: service => {
-      state.service = service
+      state!.service = service
       return model
     },
 
     entity: entityId => {
-      state.entityId = entityId
+      state!.entityId = entityId
 
       return model
     },
 
-    state: () => state,
+    state: () => state!,
 
-    payalod: () => state.payload as any,
+    setState: _state => {
+      state = _state
+      return model 
+    },
 
-    step: step => flow.steps[step ?? state.step],
+    payalod: () => state!.payload as any,
+
+    step: step => flow.steps[step ?? state!.step],
 
     enter: step => {
       step = step ?? flow.initialStep
@@ -54,7 +59,7 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
         throw new FlowStepError(`initial:${step}`)
       }
 
-      state.step = step
+      state!.step = step
       return model
     },
 
@@ -71,17 +76,17 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
 
     transitions: explicit => {
       if (explicit == null) {
-        return Object.values(flow.steps[state.step].transitions)
+        return Object.values(flow.steps[state!.step].transitions)
       }
       if (explicit) {
-        return Object.values(flow.steps[state.step].transitions).filter(t => t.explicit)
+        return Object.values(flow.steps[state!.step].transitions).filter(t => t.explicit)
       }
 
-      return Object.values(flow.steps[state.step].transitions).filter(t => !t.explicit)
+      return Object.values(flow.steps[state!.step].transitions).filter(t => !t.explicit)
     },
 
     transition: transition => {
-      const t = flow.steps[state.step].transitions[transition]
+      const t = flow.steps[state!.step].transitions[transition]
       if (t == null) {
         throw new UnknownTransition(transition)
       }
@@ -91,33 +96,33 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
 
     transit: (transition, ok, message, payload) => {
       const t = model.transition(transition)
-      state.previous = state.step
+      state!.previous = state!.step
 
       if (t.reversible !== true) {
-        delete state.previous
+        delete state!.previous
       }
 
-      state.step = t.step
-      state.ok = ok
+      state!.step = t.step
+      state!.ok = ok
       if (typeof message !== 'string') {
         payload = message
         message = undefined
       }
       if (message != null) {
-        state.message = message
-      } else if (state.message != null) {
-        delete state.message
+        state!.message = message
+      } else if (state!.message != null) {
+        delete state!.message
       }
       if (payload != null) {
-        state.payload = payload
-      } else if (state.payload != null) {
-        delete state.payload
+        state!.payload = payload
+      } else if (state!.payload != null) {
+        delete state!.payload
       }
 
-      return serializeState(flow, state)
+      return serializeState(flow, state!)
     },
 
-    serialize: () => serializeState(flow, state)
+    serialize: () => serializeState(flow, state!)
   }
 
   return model

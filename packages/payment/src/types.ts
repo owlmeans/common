@@ -31,6 +31,9 @@ export interface ProductPlan {
   productSku: string
   sku: string
   status: PlanStatus
+  payagateAliases?: {
+    [paygate: string]: string
+  }
   duration: PlanDuration
   trial?: number
   gatedTrial?: boolean
@@ -104,4 +107,6 @@ export interface PaymentService extends InitializedService {
   plans: (productSku: string, duration: PlanDuration) => Promise<ProductPlan[]>
 
   localize: (lng: string, entity: PaymentEntity) => Promise<Localization | null>
+
+  shallowAuthentication: (token: string | null) => Promise<string>
 }

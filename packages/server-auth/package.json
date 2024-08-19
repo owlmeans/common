@@ -54,8 +54,10 @@
     "@owlmeans/server-socket": "^0.1.0",
     "@owlmeans/socket": "^0.1.0",
     "@owlmeans/static-resource": "^0.1.0",
-    "@scure/base": "^1.1.7",
-    "ajv": "^8.17.1"
+    "@scure/base": "^1.1.7"
+  },
+  "peerDependencies": {
+    "ajv": "*"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

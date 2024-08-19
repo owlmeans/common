@@ -34,9 +34,11 @@
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
-    "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "qs": "^6.12.2"
+  },
+  "peerDependencies": {
+    "ajv": "*"
   },
   "devDependencies": {
     "@types/qs": "^6",

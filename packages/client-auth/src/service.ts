@@ -20,7 +20,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     authenticate: async token => {
       const context = assertContext(service.ctx, location)
 
-      const [authToken] = await context!.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+      const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
 
       const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
       await authResource.save({ id: USER_ID, token: authToken.token })

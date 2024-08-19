@@ -13,6 +13,10 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
     productSku: ResourceValueSchema,
     sku: ResourceValueSchema,
     status: SubscriptionStatusSchema,
+    payagateAliases: {
+      type: 'object', required: [], nullable: true,
+      additionalProperties: { type: 'string' },
+    },
     duration: PlanDurationSchema,
     trial: { type: 'number', nullable: true },
     gatedTrial: { type: 'boolean', nullable: true },

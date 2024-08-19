@@ -1,6 +1,6 @@
 
 export type * from './types.js'
-export * from './status.js'
+export * from './errors.js'
 export * from './consts.js'
 export * from './state.js'
 export * from './helper.js'

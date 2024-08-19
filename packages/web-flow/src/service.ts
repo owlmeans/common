@@ -1,11 +1,12 @@
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
-import { DEFAULT_ALIAS, makeBasicFlowService } from '@owlmeans/client-flow'
+import { DEFAULT_ALIAS, makeBasicFlowService, FLOW_STATE } from '@owlmeans/client-flow'
 import type { FlowService } from './types.js'
 import { QUERY_PARAM } from './consts.js'
 import { FlowStepMissconfigured, makeFlowModel, UnknownTransition } from '@owlmeans/flow'
 import { ResilientError } from '@owlmeans/error'
 import { assertContext } from '@owlmeans/context'
 import type { ClientModule } from '@owlmeans/client-module'
+import { appendClientResource } from '@owlmeans/client-resource'
 
 export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
   const location = `web-flow-service:${alias}`
@@ -65,6 +66,8 @@ export const appendFlowService = <
   const service = makeFlowService(alias)
 
   ctx.registerService(service)
+
+  appendClientResource<C, T>(ctx, FLOW_STATE)
 
   return ctx
 }

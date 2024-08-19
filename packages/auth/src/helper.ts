@@ -4,7 +4,8 @@ import formatsPlugin from 'ajv-formats'
 import { AuthCredentialsSchema, AuthSchema } from './allowance/model.js'
 
 const ajv = new Ajv()
-formatsPlugin(ajv)
+// @TODO There is some serious type mismatch probably because of wrong versions resolution
+formatsPlugin(ajv as any)
 
 export const verifyAuth = (auth: Auth): boolean => {
   const validate = ajv.compile(AuthSchema)

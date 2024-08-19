@@ -1,7 +1,7 @@
 import type { FlowProvider, FlowState, SerializedFlow, ShallowFlow } from '../types.js'
 import { FLOW_SEP, PAYLOAD_SEP } from '../consts.js'
 import { utf8, base64urlnopad } from '@scure/base'
-import { UnknownFlowStep } from '../status.js'
+import { UnknownFlowStep } from '../errors.js'
 
 export const serializeState = (flow: ShallowFlow, state: FlowState): string => {
   const flowBlock = [

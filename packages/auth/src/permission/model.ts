@@ -19,7 +19,7 @@ export const PermissionSetSchema: JSONSchemaType<PermissionSet> = {
   required: ['scope', 'permissions']
 }
 
-export const AttributeSchema: JSONSchemaType<AttributeSet> = {
+export const AttributeSetSchema: JSONSchemaType<AttributeSet> = {
   type: 'object',
   properties: {
     scope: ScopeValueSchema,

@@ -1,6 +1,6 @@
 import type { CommonRouteModel } from '@owlmeans/route'
 import type { InitializedService, LazyService, BasicModule } from '@owlmeans/context'
-import type { JSONSchemaType } from 'ajv'
+import type { AnySchemaObject } from 'ajv'
 import type { ModuleOutcome } from './consts.js'
 import type { Auth } from '@owlmeans/auth'
 
@@ -77,9 +77,9 @@ export interface GateService extends LazyService {
 }
 
 export interface Filter {
-  query?: JSONSchemaType<any>
-  params?: JSONSchemaType<any>
-  body?: JSONSchemaType<any>
-  response?: JSONSchemaType<any>
-  headers?: JSONSchemaType<any>
+  query?: AnySchemaObject
+  params?: AnySchemaObject
+  body?: AnySchemaObject
+  response?: AnySchemaObject
+  headers?: AnySchemaObject
 }

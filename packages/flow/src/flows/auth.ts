@@ -8,6 +8,7 @@ export enum StdAuthStep {
   New = 'new',
   Existing = 'existing',
   Payment = 'payment',
+  Success = 'success',
   Target = 'target'
 }
 
@@ -116,6 +117,19 @@ export const stdAuthFlow: ShallowFlow = {
       service: '$payment',
       module: '$payment.plan',
       transitions: {
+        [StdAuthStep.Success]: {
+          transition: StdAuthStep.Success,
+          step: StdAuthStep.Success,
+        }
+      }
+    },
+
+    [StdAuthStep.Success]: {
+      index: 6,
+      step: StdAuthStep.Success,
+      service: '$payment',
+      module: '$payment.success',
+      transitions: {
         [StdAuthStep.Target]: {
           transition: StdAuthStep.Target,
           step: StdAuthStep.Target,
@@ -124,7 +138,7 @@ export const stdAuthFlow: ShallowFlow = {
     },
 
     [StdAuthStep.Target]: {
-      index: 6,
+      index: 7,
       step: StdAuthStep.Target,
       service: TARGET_SERVICE,
       module: '$dispatcher',

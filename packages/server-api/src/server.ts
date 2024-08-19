@@ -11,6 +11,7 @@ import { provideResponse } from '@owlmeans/module'
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
+import rawBody from 'fastify-raw-body'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -55,7 +56,8 @@ export const createApiServer = (alias: string): ApiServer => {
 
     const server = service.server
     // @TODO It's quite unsafe and should be properly configured
-    server.register(cors, { origin: '*' })
+    await server.register(cors, { origin: '*' })
+    await server.register(rawBody, { field: 'rawBody', global: true, runFirst: true })
 
     server.addHook('preHandler', async (request, reply) => {
       const context = _assertContext(service.ctx as Context);

@@ -4,12 +4,14 @@ import { DEFAULT_ALIAS, PaymentEntityType } from './consts.js'
 import type { Localization, PaymentService } from './types.js'
 import type { Config, Context } from './utils/types.js'
 import { PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX } from './consts.js'
-import { UnknownProduct } from './errors.js'
+import { PaymentIdentificationError, UnknownProduct } from './errors.js'
 import type { Product, ProductPlan } from './types.js'
 import { fromConfigRecord } from '@owlmeans/config'
 import type { ResourceRecord } from '@owlmeans/resource'
 import { l10nToId } from './helper.js'
 import { DEFAULT_LNG } from '@owlmeans/i18n'
+import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
+import type { AuthCredentials } from '@owlmeans/auth'
 
 export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentService => {
   const service: PaymentService = createService<PaymentService>(alias, {
@@ -67,6 +69,20 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       }
 
       return null
+    },
+
+    shallowAuthentication: async token => {
+      if (token == null) {
+        throw new PaymentIdentificationError('token')
+      }
+      const envelope = makeEnvelopeModel<AuthCredentials>(token, EnvelopeKind.Token)
+      const auth = envelope.message() 
+      console.log('Authentication token provided: ', auth.profileId, auth)
+      if (auth.profileId == null) {
+        throw new PaymentIdentificationError('profileId')
+      }
+      
+      return auth.profileId
     }
   }, service => async () => {
     service.initialized = true

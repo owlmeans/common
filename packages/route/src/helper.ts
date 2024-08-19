@@ -28,6 +28,12 @@ export const backend = (opts?: RouteOptions | string | null, method?: RouteOptio
   return rtype(AppType.Backend, opts as RouteOptions)
 }
 
+export const service = (service: string, opts?: Partial<RouteOptions>): Partial<RouteOptions> => {
+  opts = opts ?? {}
+  opts.service = service
+  return opts
+}
+
 export const socket = (opts?: RouteOptions | string | null, secondary?: RouteOptions): Partial<RouteOptions> => {
   const route = backend(opts, secondary)
 
