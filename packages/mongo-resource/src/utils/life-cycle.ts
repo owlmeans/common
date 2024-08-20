@@ -45,7 +45,6 @@ export const createCollection = async (db: Db, name: string, resource: MongoReso
 export const updateCollection = async (db: Db, name: string, resource: MongoResource<ResourceRecord>): Promise<Collection> => {
   if (resource.schema != null) {
     const $jsonSchema = patchJsonSchema(schemaToMongoSchema(resource.schema))
-
     await db.command({ collMod: name, validator: { $jsonSchema } })
   }
 

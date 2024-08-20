@@ -72,6 +72,24 @@ export class PaymentIdentificationError extends PaymentError {
   }
 }
 
+export class SubscriptionError extends PaymentError {
+  public static override typeName: string = `${PaymentError.typeName}Subscription`
+
+  constructor(message: string = 'error') {
+    super(`subscription:${message}`)
+    this.type = SubscriptionError.typeName
+  }
+}
+
+export class UnknownSubscription extends SubscriptionError {
+  public static override typeName: string = `${SubscriptionError.typeName}Unknown`
+
+  constructor(message: string = 'error') {
+    super(`unknown:${message}`)
+    this.type = UnknownSubscription.typeName
+  }
+}
+
 ResilientError.registerErrorClass(PaymentError)
 ResilientError.registerErrorClass(PaygateError)
 ResilientError.registerErrorClass(UnknownPaygate)
@@ -80,3 +98,5 @@ ResilientError.registerErrorClass(ProductError)
 ResilientError.registerErrorClass(UnknownProduct)
 ResilientError.registerErrorClass(UnknownPlan)
 ResilientError.registerErrorClass(PaymentIdentificationError)
+ResilientError.registerErrorClass(SubscriptionError)
+ResilientError.registerErrorClass(UnknownSubscription)

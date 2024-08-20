@@ -62,6 +62,7 @@ export interface PlanSubscription {
   sku: string
   entityId: string
   paymentMethod?: string
+  externalId?: string
   createdAt: Date
   lastPaymentAt?: Date
   trialUntil?: Date

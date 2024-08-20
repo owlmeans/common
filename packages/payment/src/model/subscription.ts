@@ -10,6 +10,7 @@ export const PlanSubscriptionSchema: JSONSchemaType<PlanSubscription> = {
     sku: ResourceValueSchema,
     entityId: EntityValueSchema,
     paymentMethod: { ...IdValueSchema, nullable: true },
+    externalId: { ...IdValueSchema, nullable: true },
     createdAt: DateSchema,
     lastPaymentAt: { ...DateSchema, nullable: true },
     trialUntil: { ...DateSchema, nullable: true },

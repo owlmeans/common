@@ -35,7 +35,6 @@ export enum PlanDuration {
 export enum SubscriptionStatus {
   Created = 'created',
   Trial = 'trial',
-  Paid = 'paid',
   Canceled = 'canceled',
   Expired = 'expired',
   Suspended = 'suspended',

@@ -67,16 +67,16 @@ export const makeMongoResource = <
         throw new MisshapedRecord('id')
       }
 
-      await resource.get(id, field)
+      const original = await resource.get(id, field)
 
       const criteria = '_id' === field ? new ObjectId(id) : id
 
-      const _record = { ...record }
-      if (_record.id != null) {
-        delete _record.id
+      const replace = { ...record, _id: new ObjectId(original.id) }
+      if (replace.id != null) {
+        delete replace.id
       }
 
-      const result = await resource.collection.updateOne({ [field]: criteria }, { $set: _record })
+      const result = await resource.collection.replaceOne({ [field]: criteria }, replace)
       if (!result.acknowledged) {
         throw new RecordUpdateFailed(`${field}:${id}`)
       }
