@@ -81,6 +81,24 @@ export class AuthorizationError extends AuthError {
   }
 }
 
+export class ProfileError extends AuthError {
+  public static override typeName: string = 'ProfileError'
+
+  constructor(message: string = 'error') {
+    super(`profile:${message}`)
+    this.type = ProfileError.typeName
+  }
+}
+
+export class ProfileConsistencyError extends ProfileError {
+  public static override typeName: string = `${ProfileError.typeName}Consistency`
+
+  constructor(message: string = 'error') {
+    super(`consistency:${message}`)
+    this.type = ProfileConsistencyError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(AuthError)
 ResilientError.registerErrorClass(AuthUnknown)
 ResilientError.registerErrorClass(AuthManagerError)
@@ -90,3 +108,5 @@ ResilientError.registerErrorClass(AuthenPayloadError)
 ResilientError.registerErrorClass(AuthPluginError)
 ResilientError.registerErrorClass(TypeMissmatchError)
 ResilientError.registerErrorClass(AuthorizationError)
+ResilientError.registerErrorClass(ProfileError)
+ResilientError.registerErrorClass(ProfileConsistencyError)

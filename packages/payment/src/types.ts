@@ -78,7 +78,7 @@ export interface PlanSubscription {
   /**
    * Custom capabilities for the particular subscription.
    */
-  capabilities?: PermissionSet
+  capabilities?: PermissionSet[]
   /**
    * Custom limits for the particular subscription.
    */

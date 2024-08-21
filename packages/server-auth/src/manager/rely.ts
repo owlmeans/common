@@ -1,28 +1,24 @@
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_RELY } from './consts.js'
-import type { RelyService } from './types.js'
+import type { AppContext, RelyService } from './types.js'
 import { AUTH_QUERY, AuthenFailed, AuthenticationType } from '@owlmeans/auth'
 import type { Auth, AuthCredentials, AuthToken } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import type { ServerConfig, ServerContext, TrustedRecord } from '@owlmeans/server-context'
-import { TRUSTED } from '@owlmeans/server-context'
-import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME } from '../consts.js'
-import { makeKeyPairModel } from '@owlmeans/basic-keys'
+import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
 import type { AuthSpent } from '../types.js'
 import type { Resource } from '@owlmeans/resource'
+import { trusted } from './utils/trusted.js'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
 export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => {
   const _keyPair = async (context: Context) => {
-    const trustedUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(AUTH_SRV_KEY, "name")
-    if (trustedUser == null || trustedUser.secret == null) {
-      throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
-    }
+    const [,keyPair] = await trusted(context as AppContext)
 
-    return makeKeyPairModel(trustedUser.secret)
+    return keyPair
   }
 
   const service: RelyService = createService<RelyService>(alias, {

@@ -1,4 +1,5 @@
-import type { AuthService, AuthServiceAppend, ClientAuthResource } from './types.js'
+import type { AuthServiceAppend, ClientAuthResource } from './types.js'
+import type { AuthService } from '@owlmeans/auth-common'
 import { AUTH_RESOURCE, DEFAULT_ALIAS, USER_ID } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
@@ -6,12 +7,12 @@ import { AuthorizationError, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
 import type { ClientModule } from '@owlmeans/client-module'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { authMiddleware } from './middleware.js'
+import { authMiddleware } from '@owlmeans/auth-common'
 
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const location = `auth-service:${alias}`
   const service: AuthService = createService<AuthService>(alias, {
-    match: async () => service.authenticated(),
+    match: async () => service.authenticated() != null,
 
     handle: async <T>() => {
       return void 0 as T
@@ -35,8 +36,6 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     authenticated: async () => {
-      // @TODO different clients require different implementations
-      // @TODO client auth shouldn't depend on local storage
       if (service.token == null) {
         const context = assertContext(service.ctx, location)
         const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
@@ -54,7 +53,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         }
       }
 
-      return service.token != null
+      return service.token ?? null
     },
 
     user: () => {

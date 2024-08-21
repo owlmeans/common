@@ -13,6 +13,21 @@ import type { FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import rawBody from 'fastify-raw-body'
 
+import formatsPlugin from "ajv-formats"
+import Ajv from 'ajv'
+import ajvErrors from "ajv-errors"
+
+
+const ajv = new Ajv({
+  removeAdditional: true,
+  useDefaults: true,
+  coerceTypes: true,
+  allErrors: true,
+  strict: false
+})
+formatsPlugin(ajv as any)
+ajvErrors(ajv, { singleError: true })
+
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
@@ -55,6 +70,7 @@ export const createApiServer = (alias: string): ApiServer => {
     const context = _assertContext(service.ctx as Context)
 
     const server = service.server
+    server.setValidatorCompiler(opts => ajv.compile(opts))
     // @TODO It's quite unsafe and should be properly configured
     await server.register(cors, { origin: '*' })
     await server.register(rawBody, { field: 'rawBody', global: true, runFirst: true })

@@ -48,6 +48,7 @@
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/redis-resource": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",

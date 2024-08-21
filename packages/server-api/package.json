@@ -39,6 +39,10 @@
     "fastify": "^4.28.1",
     "fastify-raw-body": "^4.3.0"
   },
+  "peerDependencies": {
+    "ajv": "*",
+    "ajv-formats": "*"
+  },
   "devDependencies": {
     "@types/node": "^20.14.9",
     "nodemon": "^3.1.4",

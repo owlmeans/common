@@ -23,7 +23,7 @@ export const PlanSubscriptionSchema: JSONSchemaType<PlanSubscription> = {
     blockedAt: { ...DateSchema, nullable: true },
     suspendedUntil: { ...DateSchema, nullable: true },
     status: SubscriptionStatusSchema,
-    capabilities: { ...PermissionSetSchema, nullable: true },
+    capabilities: { type: 'array', items: PermissionSetSchema, nullable: true },
     limits: {
       type: 'object', required: [], nullable: true,
       additionalProperties: LimitConfigSchema

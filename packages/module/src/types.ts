@@ -65,6 +65,10 @@ export interface AbstractResponse<T> {
 }
 
 export interface GuardService extends InitializedService {
+  // Client guard
+  token?: string
+  authenticated: (req?: Partial<AbstractRequest>) => Promise<string | null>
+  // Server guard
   match: ModuleMatch
   handle: ModuleHandler
 }

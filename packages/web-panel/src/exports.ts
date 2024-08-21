@@ -1,5 +1,5 @@
 
-export { handler, useNavigate, useValue } from '@owlmeans/client'
+export { handler, useNavigate, useValue, useModule } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { guard, parent } from '@owlmeans/module'
@@ -18,3 +18,4 @@ export { useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 export { addCommonI18n, addI18nApp } from '@owlmeans/i18n'
 export { flow, configureFlows } from '@owlmeans/flow'
 export { QUERY_PARAM as FLOW_PARAM, SERVICE_PARAM, useFlow } from '@owlmeans/web-flow'
+export { Dispatcher } from '@owlmeans/web-client'

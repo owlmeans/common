@@ -3,6 +3,7 @@ import type { AppType, ContextStage, Layer, MiddlewareStage, MiddlewareType, CON
 export interface BasicConfig {
   ready: boolean
   service: string
+  alias?: string
   layer: Layer
   type: AppType
   layerId?: string

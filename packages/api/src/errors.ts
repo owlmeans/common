@@ -21,7 +21,7 @@ export class ServerCrashedError extends ApiClientError {
   public static override typeName = `${ApiClientError.typeName}ServerCrashed`
 
   constructor(message: string = 'error') {
-    super(`crashe:${message}`)
+    super(`crashed:${message}`)
     this.type = ServerCrashedError.typeName
   }
 }

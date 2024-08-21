@@ -6,7 +6,7 @@ import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
 import type { AppContext } from '../types.js'
 import { TRUSTED } from '@owlmeans/server-context'
-import type { TrustedRecord } from '@owlmeans/server-context'
+import type { TrustedRecord } from '@owlmeans/auth-common'
 
 export const basicEd25519 = (context: AppContext): AuthPlugin => {
   const plugin: AuthPlugin = {

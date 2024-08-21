@@ -77,10 +77,7 @@ export const IdValueSchema: JSONSchemaType<string> = { type: 'string', minLength
 
 export const DateSchema: JSONSchemaType<Date> = { type: 'object', format: 'date-time', required: [] }
 
-export const AuthRoleSchema: JSONSchemaType<AuthRole> = {
-  type: 'string',
-  enum: Object.values(AuthRole)
-}
+export const AuthRoleSchema: JSONSchemaType<AuthRole> = { type: 'string', enum: Object.values(AuthRole) }
 
 export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`

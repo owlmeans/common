@@ -76,7 +76,10 @@ export const makeMongoResource = <
         delete replace.id
       }
 
-      const result = await resource.collection.replaceOne({ [field]: criteria }, replace)
+      const result = await resource.collection.replaceOne(
+        { [field]: criteria },
+        _prepareValues(replace, resource.schema as JSONSchemaType<any>)
+      )
       if (!result.acknowledged) {
         throw new RecordUpdateFailed(`${field}:${id}`)
       }
@@ -122,7 +125,10 @@ export const makeMongoResource = <
       if (opts != null && opts.ttl != null) {
         throw new UnsupportedArgumentError('ttl')
       }
-      const result = await resource.collection.insertOne({ ...resource.getDefaults(), ...record })
+      const result = await resource.collection.insertOne({
+        ...resource.getDefaults(),
+        ..._prepareValues(record, resource.schema as JSONSchemaType<any>)
+      })
 
       if (!result.acknowledged) {
         throw new RecordUpdateFailed(`creation`)
@@ -251,3 +257,25 @@ export const makeMongoResource = <
 
   return resource
 }
+
+const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaType<T>): T =>
+  schema != null ? Object.fromEntries(Object.entries(obj).map(([key, value]) => {
+    const type = schema.properties?.[key]
+
+    if (type?.type === 'object') {
+      if (type.format === 'date-time') {
+        return [key, new Date(value as string)]
+      }
+
+      if (type.additionalProperties != null && type.additionalProperties.type === 'object') {
+        value = Object.fromEntries(Object.entries(value).map(([key, value]) => {
+          return [key, _prepareValues(value, type.additionalProperties as JSONSchemaType<any>)]
+        }))
+      }
+      return [key, _prepareValues(value, type as JSONSchemaType<typeof value>)]
+    } else if (type?.type === 'array') {
+      return [key, (value as any[]).map(item => _prepareValues(item, type.items as JSONSchemaType<any>))]
+    }
+
+    return [key, value]
+  })) as T : obj

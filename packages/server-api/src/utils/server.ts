@@ -41,7 +41,7 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
 
       const authorized = await authorize(context, module, req, reply)
       context = authorized[0]
-      module = authorized[1];
+      module = authorized[1]
 
       if (module.gate != null) {
         let gate: GateService = context.service(module.gate)

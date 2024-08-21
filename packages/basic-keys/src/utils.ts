@@ -1,6 +1,7 @@
 import { keccak_256 } from '@noble/hashes/sha3'
 import { base64, utf8 } from '@scure/base'
 import { plugins } from './plugins/index.js'
+import canonicalize from 'canonicalize'
 
 export const toAddress = (publicKey: Uint8Array): Uint8Array =>
   keccak_256(publicKey.slice(4)).slice(-20)
@@ -11,7 +12,7 @@ export const prepareKey = (key: string): Uint8Array =>
 export const prepareData = (data: unknown): Uint8Array => {
   if (typeof data === 'object') {
     if (!(data instanceof Uint8Array)) {
-      data = JSON.stringify(data)
+      data = canonicalize(data)
     }
   }
   if (typeof data === 'string') {

@@ -9,7 +9,7 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
 
   model.send = async message => {
     if (typeof message === 'object') {
-      console.log('Sending message: ', message.type)
+      console.log('Sending message: ', message.type, message)
     }
     if (typeof message !== 'string') {
       model.prepare?.(message)

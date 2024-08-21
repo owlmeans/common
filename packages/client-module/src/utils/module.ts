@@ -31,7 +31,7 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Mod
           throw new SyntaxError(`Request has no required section ${key}`)
         }
         const ajv = new Ajv()
-        formatsPlugin(ajv)
+        formatsPlugin(ajv as any)
         
         const validate = ajv.compile(filter)
         validate(req[key as keyof typeof req])

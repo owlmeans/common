@@ -6,7 +6,6 @@ import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { Config, Context } from './types.js'
 
-
 const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
   return req.original._ctx ?? def
 }

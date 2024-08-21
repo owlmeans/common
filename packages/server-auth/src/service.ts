@@ -1,4 +1,5 @@
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
+import { TRUSTED } from '@owlmeans/server-context'
 import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
@@ -10,6 +11,7 @@ import type { AbstractRequest, AbstractResponse } from '../../module/build/types
 import { AUTH_HEADER } from '@owlmeans/auth'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
+import type { TrustedRecord } from '@owlmeans/auth-common'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -17,8 +19,9 @@ type Context = ServerContext<Config>
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const location = `server-auth:${alias}`
 
-  const _keyPair = (context: Context) => {
-    const trustedUser = context.cfg.trusted.find(trusted => trusted.name === context.cfg.service)
+  const _keyPair = async (context: Context) => {
+    // const trustedUser = context.cfg.trusted.find(trusted => trusted.name === context.cfg.service)
+    const trustedUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(context.cfg.service, "name")
     if (trustedUser == null || trustedUser.secret == null) {
       throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
     }
@@ -30,7 +33,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     context.resource<Resource<AuthSpent>>(AUTH_CACHE)
 
   const service: AuthService = createService<AuthService>(alias, {
-    match: async (req) => {
+    match: async req => {
       let authorization = req.headers[AUTH_HEADER]
       authorization = Array.isArray(authorization) ? authorization[0] : authorization
 
@@ -48,7 +51,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      if (!await envelope.verify(_keyPair(service.ctx as Context))) {
+      if (!await envelope.verify(await _keyPair(service.ctx as Context))) {
         return false as T
       }
 
@@ -100,7 +103,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       }
 
       const authorization = await makeEnvelopeModel<Auth>(AuthroizationType.Ed25519BasicToken)
-        .send(auth, null).sign(_keyPair(service.ctx as Context), EnvelopeKind.Token)
+        .send(auth, null).sign(await _keyPair(service.ctx as Context), EnvelopeKind.Token)
 
       return { token: `${AuthroizationType.Ed25519BasicToken.toUpperCase()} ${authorization}` }
     }
