@@ -32,5 +32,8 @@
     "gated": "Subscribe now",
     "best-value": "Start free trial",
     "comming-soon": "Join now"
+  },
+  "success": {
+    "guideline": "Your payment is processing. You will be redirected to the service soon..."
   }
 }

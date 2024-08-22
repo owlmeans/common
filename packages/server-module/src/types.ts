@@ -26,6 +26,6 @@ export interface ModuleRef<R> {
   ref?: ServerModule<R>
 }
 
-export interface RefedModuleHandler<R> {
+export interface RefedModuleHandler<R = {}> {
   (ref: ModuleRef<R>): ModuleHandler
 }

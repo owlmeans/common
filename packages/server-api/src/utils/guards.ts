@@ -16,6 +16,7 @@ export const authorize = async <C extends Config, T extends Context<C>>(
   req: FastifyRequest, reply: FastifyReply
 ): Promise<[T, ServerModule<FastifyRequest>]> => {
   const guards = module.getGuards()
+  console.log('Gaurds in the requested module', module.alias, guards)
   if (guards.length > 0) {
     const response = provideResponse(reply)
     const request = provideRequest(module.alias, req)

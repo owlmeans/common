@@ -1,33 +1,21 @@
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
-import { TRUSTED } from '@owlmeans/server-context'
+import { type ServerContext, type ServerConfig, TRUSTED } from '@owlmeans/server-context'
 import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { fromPubKey, makeKeyPairModel } from '@owlmeans/basic-keys'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthroizationType } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '../../module/build/types.js'
 import { AUTH_HEADER } from '@owlmeans/auth'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
-import type { TrustedRecord } from '@owlmeans/auth-common'
+import { trust } from '@owlmeans/auth-common/utils'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const location = `server-auth:${alias}`
-
-  const _keyPair = async (context: Context) => {
-    // const trustedUser = context.cfg.trusted.find(trusted => trusted.name === context.cfg.service)
-    const trustedUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(context.cfg.service, "name")
-    if (trustedUser == null || trustedUser.secret == null) {
-      throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
-    }
-
-    return makeKeyPairModel(trustedUser.secret)
-  }
 
   const cache = (context: Context): Resource<AuthSpent> =>
     context.resource<Resource<AuthSpent>>(AUTH_CACHE)
@@ -42,6 +30,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     handle: async <T>(req: AbstractRequest, res: AbstractResponse<Auth>) => {
+      const context = assertContext(service.ctx) as Context
       let authorization = req.headers[AUTH_HEADER]
       authorization = Array.isArray(authorization) ? authorization[0] : authorization
       if (typeof authorization !== 'string') {
@@ -51,7 +40,8 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
-      if (!await envelope.verify(await _keyPair(service.ctx as Context))) {
+      const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
+      if (!await envelope.verify(trusted.key)) {
         return false as T
       }
 
@@ -62,14 +52,10 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
     authenticate: async (token) => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
-      const trustedUser = context.cfg.trusted.find(trusted => trusted.name === AUTH_SRV_KEY)
-      if (trustedUser == null || trustedUser.credential == null) {
-        throw new SyntaxError(`Auth service trusted entity secret not provided: ${AUTH_SRV_KEY}`)
-      }
-
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
 
-      if (!await envelope.verify(fromPubKey(trustedUser.credential))) {
+      const authService = await trust<Config, Context>(context, TRUSTED, AUTH_SRV_KEY)
+      if (!await envelope.verify(authService.key)) {
         throw new AuthenFailed()
       }
 
@@ -84,7 +70,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         throw new AuthenFailed()
       }
 
-      if (credentials.credential !== trustedUser.id) {
+      if (credentials.credential !== authService.user.id) {
         throw new AuthenFailed()
       }
 
@@ -102,8 +88,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         createdAt: new Date()
       }
 
+      const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
       const authorization = await makeEnvelopeModel<Auth>(AuthroizationType.Ed25519BasicToken)
-        .send(auth, null).sign(await _keyPair(service.ctx as Context), EnvelopeKind.Token)
+        .send(auth, null).sign(trusted.key, EnvelopeKind.Token)
 
       return { token: `${AuthroizationType.Ed25519BasicToken.toUpperCase()} ${authorization}` }
     }

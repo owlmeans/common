@@ -27,7 +27,7 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
     ? context.resource<Resource<ResourceRecord>>(opts?.cache ?? BED255_CASHE_RESOURCE)
     : null
 
-  const guard = createService<BasicEd25519Guard>(GUARD_ED25519, {
+  const guard: BasicEd25519Guard = createService<BasicEd25519Guard>(GUARD_ED25519, {
     authenticated: async (req) => {
       const context = assertContext<Config, Context>(guard.ctx)
       const truested = await trust(context, resource, context.cfg.alias ?? context.cfg.service)

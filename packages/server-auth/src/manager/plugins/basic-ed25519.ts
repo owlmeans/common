@@ -14,7 +14,7 @@ export const basicEd25519 = (context: AppContext): AuthPlugin => {
     init: async request => {
       assertType(request.type, plugin)
 
-      const challenge = base64.encode(randomBytes(64))
+      const challenge = base64.encode(randomBytes(32))
 
       return { challenge }
     },
@@ -40,7 +40,7 @@ export const basicEd25519 = (context: AppContext): AuthPlugin => {
         throw new AuthenFailed(`challenge:${plugin.type}`)
       }
 
-      const token = base64.encode(randomBytes(64))
+      const token = base64.encode(randomBytes(32))
 
       // @TODO we need to do something with scopes - it's not secure
       credential.scopes = [ALL_SCOPES]

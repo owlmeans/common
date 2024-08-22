@@ -16,7 +16,7 @@ type Context = ServerContext<Config>
 
 export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => {
   const _keyPair = async (context: Context) => {
-    const [,keyPair] = await trusted(context as AppContext)
+    const [, keyPair] = await trusted(context as AppContext)
 
     return keyPair
   }

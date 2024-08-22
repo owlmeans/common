@@ -76,12 +76,12 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
         throw new PaymentIdentificationError('token')
       }
       const envelope = makeEnvelopeModel<AuthCredentials>(token, EnvelopeKind.Token)
-      const auth = envelope.message() 
+      const auth = envelope.message()
       console.log('Authentication token provided: ', auth.profileId, auth)
       if (auth.profileId == null) {
         throw new PaymentIdentificationError('profileId')
       }
-      
+
       return auth.profileId
     }
   }, service => async () => {
@@ -91,7 +91,6 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
   return service
 }
 
-export const appendPaymentService = <
-  C extends Config, T extends Context<C> = Context<C>
->(context: T, alias: string = DEFAULT_ALIAS): T =>
-  context.registerService(makePaymentService(alias))
+export const appendPaymentService = <C extends Config, T extends Context<C>>(
+  context: T, alias: string = DEFAULT_ALIAS
+): T => context.registerService(makePaymentService(alias))

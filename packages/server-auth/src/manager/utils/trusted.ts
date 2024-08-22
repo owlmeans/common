@@ -1,18 +1,16 @@
 import type { KeyPairModel } from '@owlmeans/basic-keys'
-import type { AppContext } from '../types.js'
+import type { AppContext, AppConfig } from '../types.js'
 import { TRUSTED } from '@owlmeans/server-context'
 import { AUTH_SRV_KEY } from '../../consts.js'
-import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import type { TrustedRecord } from '@owlmeans/auth-common'
+import { trust } from '@owlmeans/auth-common/utils'
 
 export const trusted = async (context: AppContext, userName: string = AUTH_SRV_KEY): Promise<[TrustedRecord, KeyPairModel]> => {
+  const trusted = await trust<AppConfig, AppContext>(context, TRUSTED, userName)
 
-  const trustedUser = await context.getConfigResource(TRUSTED).load<TrustedRecord>(userName, "name")
-  if (trustedUser == null || trustedUser.secret == null) {
-    throw new SyntaxError(`Auth service trusted entity secret not provided: ${userName}`)
+  if (trusted.user.secret == null) {
+    throw new SyntaxError(`Auth srvice trusted users should have secret keys to be used ${userName}`)
   }
 
-  const keyPair = makeKeyPairModel(trustedUser.secret)
-
-  return [trustedUser, keyPair]
+  return [trusted.user, trusted.key]
 }

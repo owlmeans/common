@@ -18,6 +18,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken }) => {
           params[key] = value
         }
       })
+
       provideToken({ token }, params)
     }
   }, [])
