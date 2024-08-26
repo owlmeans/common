@@ -36,6 +36,7 @@
     "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",
     "@owlmeans/server-route": "^0.1.0",
+    "ajv-errors": "^3.0.0",
     "fastify": "^4.28.1",
     "fastify-raw-body": "^4.3.0"
   },
@@ -44,8 +45,8 @@
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@types/node": "^20.14.9",
+    "@types/node": "^22.5.0",
     "nodemon": "^3.1.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   }
 }

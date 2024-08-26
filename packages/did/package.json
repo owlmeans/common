@@ -20,7 +20,7 @@
     }
   },
   "dependencies": {
-    "@noble/curves": "^1.4.2",
+    "@noble/curves": "^1.5.0",
     "@noble/hashes": "^1.4.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/basic-keys": "^0.1.0",
@@ -31,6 +31,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   }
 }

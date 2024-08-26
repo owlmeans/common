@@ -60,9 +60,9 @@
   "devDependencies": {
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
-    "@types/react": "^18.3.3",
+    "@types/react": "^18.3.4",
     "nodemon": "^3.1.4",
-    "react-hook-form": "^7.52.1",
-    "typescript": "^5.4.5"
+    "react-hook-form": "^7.53.0",
+    "typescript": "^5.5.4"
   }
 }

@@ -45,9 +45,9 @@
     }
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
+    "@types/react": "^18.3.4",
     "nodemon": "^3.1.4",
-    "react-router": "^6.25.1",
-    "typescript": "^5.4.5"
+    "react-router": "^6.26.1",
+    "typescript": "^5.5.4"
   }
 }

@@ -68,13 +68,13 @@
     "react-dom": "*"
   },
   "devDependencies": {
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
-    "@mui/material": "^5.15.21",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/material": "^5.16.7",
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
     "@types/react-google-recaptcha": "^2.1.9",
     "nodemon": "^3.1.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   }
 }

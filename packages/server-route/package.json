@@ -24,8 +24,8 @@
     "@owlmeans/route": "^0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.9",
+    "@types/node": "^22.5.0",
     "nodemon": "^3.1.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   }
 }

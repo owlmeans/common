@@ -20,9 +20,9 @@
     }
   },
   "devDependencies": {
-    "@types/uuid": "^10",
+    "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.4"
   },
   "dependencies": {
     "@noble/hashes": "^1.4.0",
