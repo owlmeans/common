@@ -83,6 +83,7 @@ export interface FlowModel {
   step: (step?: string) => FlowStep
   transitions: (explicit?: boolean) => FlowTransition[]
   transition: (transition: string) => FlowTransition
+  next: () => FlowTransition
   transit: (transition: string, ok: boolean, message?: string | FlowPayload, payload?: FlowPayload) => string
   serialize: () => string
 }

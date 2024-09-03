@@ -3,7 +3,7 @@ import { Ajv } from 'ajv'
 import formatsPlugin from 'ajv-formats'
 import { AuthCredentialsSchema, AuthSchema } from './allowance/model.js'
 
-const ajv = new Ajv()
+const ajv = new Ajv({ strict: false })
 // @TODO There is some serious type mismatch probably because of wrong versions resolution
 formatsPlugin(ajv as any)
 

@@ -66,6 +66,7 @@ export const createFlowModel = <C extends ClientConfig, T extends ClientContext<
 
       state.transit(transition.transition, true)
 
+      // @TODO Properly use target service - as a way to build the redirect URL
       const module = context.module<ClientModule>(step.module)
       const [url] = await module.call<string>()
 

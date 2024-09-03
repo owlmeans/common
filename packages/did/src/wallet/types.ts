@@ -9,6 +9,11 @@ export interface WalletFacade {
   // and probably limited by the client to only OwlMeans services
   getMasterDid: (opts?: RequestReason) => Promise<string>
 
+  selectKey: (opts?: WalletOptions) => Promise<{
+    key: Partial<DIDKeyPair>,
+    meta: KeyMeta
+  }>
+
   getPublicDetails: (did: string, opts?: RequestReason) => Promise<{
     key: Partial<DIDKeyPair>,
     meta: KeyMeta

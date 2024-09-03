@@ -1,4 +1,4 @@
-import { FlowStepError, UnknownFlow, UnknownTransition } from './errors.js'
+import { FlowStepError, UnknownFlow, UnknownFlowStep, UnknownTransition } from './errors.js'
 import type { FlowModel, FlowProvider, FlowState, ShallowFlow } from './types.js'
 import { serializeState, unserializeState } from './utils/flow.js'
 
@@ -92,6 +92,15 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
       }
 
       return t
+    },
+
+    next: () => {
+      const transition = model.transitions().find(t => t.explicit !== true)
+      if (transition == null) {
+        throw new UnknownFlowStep('next')
+      }
+
+      return transition
     },
 
     transit: (transition, ok, message, payload) => {

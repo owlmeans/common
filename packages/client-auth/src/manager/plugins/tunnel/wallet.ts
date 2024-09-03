@@ -18,6 +18,10 @@ export const createWalletFacade = (conn: Connection): WalletFacade => {
       return await conn.call('getMasterDid', opts)
     },
 
+    selectKey: async opts => {
+      return await conn.call('selectKey', opts)
+    },
+
     getPublicDetails: async (did, opts) => {
       return await conn.call('getPublicDetails', did, opts)
     },

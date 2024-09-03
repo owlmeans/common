@@ -43,6 +43,17 @@
       "label": "Cancel"
     }
   },
+  "selectKey": {
+    "title": "Choose a key",
+    "description": "Some service asks you to choose a key to get its public detials",
+    "unknown-reason": "Be cautious! We do not know why you are asked to provide public info of one of your keys.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
   "getPublicDetails": {
     "title": "Get public key",
     "description": "Some service asks for a public key linked to your organization profile",
@@ -69,6 +80,7 @@
       "sign": "Sign some data with your key",
       "masterSign": "Sign data with your primary key",
       "getMasterDid": "Get your primary ID",
+      "selectKey": "Get one of your public keys",
       "getPublicDetails": "Get your public key"
     }
   }

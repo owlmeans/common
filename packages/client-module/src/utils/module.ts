@@ -9,6 +9,9 @@ import formatsPlugin from 'ajv-formats'
 export { module as makeBasicModule } from '@owlmeans/module'
 export { isModule } from '@owlmeans/module/utils'
 
+const ajv = new Ajv({ strict: false })
+formatsPlugin(ajv as any)
+
 /**
  * @throws {SyntaxError} if data shape doesn't match validation
  * @throws {ClientValidationError} if request is not valid
@@ -30,9 +33,7 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Mod
         if (req[key as keyof typeof req] == null) {
           throw new SyntaxError(`Request has no required section ${key}`)
         }
-        const ajv = new Ajv()
-        formatsPlugin(ajv as any)
-        
+
         const validate = ajv.compile(filter)
         validate(req[key as keyof typeof req])
         if (validate.errors == null) {
