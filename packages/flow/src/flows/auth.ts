@@ -1,4 +1,4 @@
-import { STD_AUTH_FLOW, TARGET_SERVICE } from '../consts.js'
+import { STD_AUTH_FLOW } from '../consts.js'
 import { ShallowFlow } from '../types.js'
 
 export enum StdAuthStep {
@@ -140,7 +140,7 @@ export const stdAuthFlow: ShallowFlow = {
     [StdAuthStep.Target]: {
       index: 7,
       step: StdAuthStep.Target,
-      service: TARGET_SERVICE,
+      service: '$auth',
       module: '$dispatcher',
       transitions: {}
     }

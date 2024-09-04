@@ -6,10 +6,12 @@ export interface I18nContextProps extends PropsWithChildren {
 }
 
 export interface I18nProps {
-  i18n?: {
-    resource?: string
-    ns?: string
-    prefix?: string
-    suppress?: boolean
-  }
+  i18n?: I18nBaseProps
+}
+
+export interface I18nBaseProps {
+  resource?: string
+  ns?: string
+  prefix?: string
+  suppress?: boolean
 }

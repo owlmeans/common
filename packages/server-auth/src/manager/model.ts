@@ -72,6 +72,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       // when some broadcast message is sent from authentication system.
 
       const challenge = credential.challenge
+      console.log('PLUGING: ', plugin.type)
       const { token } = await plugin.authenticate(Object.assign(credential, { challenge: msg }))
       credential.challenge = token === '' ? challenge : token
 

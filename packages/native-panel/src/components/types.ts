@@ -32,8 +32,14 @@ export interface DotsProps {
 export interface ListProps<T = any>  {
   items: T[]
   renderer: FC<ListItemProps<T>>
+  onClick?: ListClick<T>
 }
 
 export interface ListItemProps<T = any> {
+  onClick?: ListClick<T>
   data: T
+}
+
+export interface ListClick<T> {
+  (data: T): void | Promise<void>
 }
