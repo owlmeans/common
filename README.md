@@ -41,7 +41,7 @@ Register an internal application service that is capable to make API requests
 
 ### Counters (for monorepo maintenance)
 We use delayes on dev command for the whole repository to not overwhelme processors.
-* Even counter: 60, 24 (got through once)
+* Even counter: 60, 40 (got through once)
 * Odd counter: 59, (got through once)
 
 ## Modules to be deleted

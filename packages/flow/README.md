@@ -1,2 +1,1 @@
-# OwlMeans Package template
-It's just a template to create a package fast
+# OwlMeans Configurable User Flow - common package

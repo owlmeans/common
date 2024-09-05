@@ -55,20 +55,28 @@ const covertAllOfProperties = (allOf: Record<string, JSONSchemaType<unknown>>[])
   allOf.map(schema => convertProperties(schema.properties ?? {}))
     .reduce((properties, schema) => ({ ...properties, ...schema }), {})
 
+const prepareScalarType = (value: JSONSchemaType<unknown>): string | string[] => {
+  const type = (Array.isArray(value.type) ? value.type : [value.type])
+    .map(type => type === 'boolean' ? 'bool' : type)
+  if (value.nullable) {
+    type.push('null')
+  }
+
+  return type.length === 1 ? type[0] : type
+}
+
 const convertToBsonType = (value: JSONSchemaType<unknown>): Document => {
   if (Array.isArray(value.type)) {
     if ('properties' in value || 'additionalProperties' in value) {
       return {
-        ...schemaToMongoSchema({...value, type: 'object'}), 
-        bsonType: value.type.map(type => type === 'boolean' ? 'bool' : type)
+        ...schemaToMongoSchema({ ...value, type: 'object' }),
+        bsonType: prepareScalarType(value)
       }
     }
-    return { bsonType: value.type.map(type => type === 'boolean' ? 'bool' : type) }
+    return { bsonType: prepareScalarType(value) }
   }
 
   return value.type === 'object'
-    ? value.format === 'date-time' ?
-      { bsonType: 'date' }
-      : schemaToMongoSchema(value)
-    : { bsonType: value.type === 'boolean' ? 'bool' : value.type }
+    ? value.format === 'date-time' ? { bsonType: 'date' } : schemaToMongoSchema(value)
+    : { bsonType: prepareScalarType(value) }
 }
