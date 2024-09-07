@@ -12,8 +12,10 @@ import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import rawBody from 'fastify-raw-body'
+import Middie from '@fastify/middie'
+import Helmet from '@fastify/helmet'
 
-import formatsPlugin from "ajv-formats"
+import formatsPlugin from 'ajv-formats'
 import Ajv from 'ajv'
 import ajvErrors from "ajv-errors"
 
@@ -73,7 +75,9 @@ export const createApiServer = (alias: string): ApiServer => {
     server.setValidatorCompiler(opts => ajv.compile(opts))
     // @TODO It's quite unsafe and should be properly configured
     await server.register(cors, { origin: '*' })
+    await server.register(Helmet)
     await server.register(rawBody, { field: 'rawBody', global: true, runFirst: true })
+    await server.register(Middie)
 
     server.addHook('preHandler', async (request, reply) => {
       const context = _assertContext(service.ctx as Context);

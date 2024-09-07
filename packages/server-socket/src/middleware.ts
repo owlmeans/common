@@ -17,13 +17,14 @@ export const createSocketMiddleware = (web: string = WEB_ALIAS, socket = DEFAULT
       const socketService = context.service<SocketService>(socket)
       // @TODO There is some middlewares that are ok to work only once during context intialization
       
-      if (!ctx.cfg.records?.find(record => record.id === '__socketServiceAdded')) {
+      const marker = `__socketServiceAdded-${web}-${socket}`
+      if (!ctx.cfg.records?.find(record => record.id === marker)) {
         console.log('createSocketMiddleware: Middleware triggered for update...')
         await socketService.update(webService)
         if (ctx.cfg.records == null) {
           ctx.cfg.records = []
         }
-        ctx.cfg.records.push({ id: '__socketServiceAdded' })
+        ctx.cfg.records.push({ id: marker })
       }
     }
   }

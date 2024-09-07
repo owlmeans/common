@@ -77,9 +77,9 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
       + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
   }
 
-  if (parent == null && route.base != null) {
-    route.path = normalizePath(route.base) + SEP + normalizePath(route.path)
-    route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
+  if (parent == null && route.base != null && route.base.trim() !== '') {
+    route.path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
+    // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
   }
 
   console.log(`Route resolves: ${route.alias} to ${route.path} : ${route.host}`)

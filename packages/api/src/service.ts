@@ -1,27 +1,27 @@
-import { BasicContext, createService } from '@owlmeans/context'
+import { assertContext, createService } from '@owlmeans/context'
+import type { BasicContext } from '@owlmeans/context'
 import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios from 'axios'
 import type { CommonModule } from '@owlmeans/module'
-import { RouteProtocols, SEP, normalizePath } from '@owlmeans/route'
-import { DEFAULT_ALIAS, protocols } from './consts.js'
+import { DEFAULT_ALIAS } from './consts.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
 import qs from 'qs'
+import { makeSecurityHelper } from '@owlmeans/config'
 
 type Config = BasicClientConfig
 interface Context<C extends Config = Config> extends BasicContext<C> { }
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
+  const location = `api.service:${alias}`
   const client: ApiClient = createService<ApiClient>(alias, {
     handler: async (request, reply) => {
       if (request.canceled === true) {
         return
       }
-      if (client.ctx == null) {
-        throw new SyntaxError('No context provided')
-      }
-      const module = client.ctx.module<CommonModule>(request.alias)
+      const context = assertContext<Config, Context>(client.ctx, location)
+      const module = context.module<CommonModule>(request.alias)
       const route = module.route.route
       let path = module.getPath()
       const params = extractParams(path)
@@ -36,18 +36,22 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         throw new SyntaxError(`No host provided in ${module.alias} route`)
       }
 
-      let url = normalizePath(route.host)
-        + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+      const helper = makeSecurityHelper(context)
 
-      const [prefix] = url.split('://')
-      if (!protocols.includes(prefix)) {
-        // @TODO fix security
-        if (route.protocol !== RouteProtocols.SOCKET) {
-          url = `http://${url}`
-        } else {
-          url = `ws://${url}`
-        }
-      }
+      const url = helper.makeUrl(route, path)
+
+      // let url = normalizePath(route.host)
+      //   + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+
+      // const [prefix] = url.split('://')
+      // if (!protocols.includes(prefix)) {
+      //   // @TODO fix security
+      //   if (route.protocol !== RouteProtocols.SOCKET) {
+      //     url = `http://${url}`
+      //   } else {
+      //     url = `ws://${url}`
+      //   }
+      // }
 
       const body = request.body != null && Object.entries((request.headers ?? {})).find(
         ([key, value]) =>

@@ -2,6 +2,7 @@ import type { AppType, BasicConfig, CONFIG_RECORD, ConfigRecord } from '@owlmean
 import type { Resource, DbConfig } from '@owlmeans/resource'
 import type { Profile } from '@owlmeans/auth'
 import type { PLUGIN_RECORD } from './consts.js'
+import type { BasicRoute, CommonRoute, RouteProtocols } from '@owlmeans/route'
 
 export interface ConfigResource<T extends ConfigRecord = ConfigRecord> extends Resource<T> {
 }
@@ -14,6 +15,7 @@ export interface CommonConfig extends BasicConfig {
   debug: BasicConfig["debug"] & {
     i18n?: boolean
   }
+  security?: SecurityConfig
 }
 export interface PluginConfig extends ConfigRecord {
   type?: AppType
@@ -22,4 +24,18 @@ export interface PluginConfig extends ConfigRecord {
 
 export interface ConfigResourceAppend {
   getConfigResource: <T extends ConfigRecord, R extends ConfigResource<T>>(alias?: string) => R
+}
+
+export interface SecurityConfig {
+  unsecure?: boolean
+}
+
+export interface SecurityHelper {
+  makeUrl: (route: BasicRoute | CommonRoute, path?: string | SecurityHelperUrlParams, params?: SecurityHelperUrlParams) => string
+}
+
+export interface SecurityHelperUrlParams {
+  path?: string
+  forceUnsecure?: boolean
+  protocol?: RouteProtocols
 }

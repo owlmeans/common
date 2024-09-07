@@ -17,11 +17,11 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
       console.log('Updating API service: ', alias, api.alias)
       const closeListeners: CallableFunction[] = []
       const ctx = assertContext<Config, Context>(service.ctx as Context, alias)
-      api.server.register(fastifyWebsocket, {
+      await api.server.register(fastifyWebsocket, {
         preClose: () => closeListeners.forEach(listener => listener())
       })
 
-      api.server.register(async server => {
+      await api.server.register(async server => {
         server.addHook('preHandler', async (req, reply) => {
           const context = extractContext(req, service.ctx as Context, alias)
           await context?.modules<ServerModule<Request>>()
@@ -120,7 +120,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
         }))
       })
     }
-  }, _service => async () => {
+  }, service => async () => {
     service.initialized = true
   })
 

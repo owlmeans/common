@@ -9,6 +9,7 @@ import { extractParams } from '@owlmeans/client-route'
 import { PARAM } from '@owlmeans/route'
 import { stringify } from 'qs'
 import { assertContext } from '@owlmeans/context'
+import { makeSecurityHelper } from '@owlmeans/config'
 
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
@@ -120,8 +121,8 @@ export const urlCall: <
   if (module.route.route.service !== null && (
     ctx.cfg.service !== module.route.route.service
     || req?.full === true)) {
-    // @TODO Fix https 
-    path = 'http://' + module.route.route.host + path
+    const helper = makeSecurityHelper(ctx)
+    path = helper.makeUrl(module.route.route, path)
   }
 
   res?.resolve(path as any, ModuleOutcome.Ok)

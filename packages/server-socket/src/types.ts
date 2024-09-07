@@ -6,7 +6,6 @@ export interface SocketService extends InitializedService {
   update: (api: ApiServer) => Promise<void>
 }
 
-
 export interface Config extends ServerConfig { }
 
 export interface Context<C extends Config = Config> extends ServerContext<C>

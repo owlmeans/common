@@ -20,6 +20,7 @@
     }
   },
   "devDependencies": {
+    "@types/connect": "^3.4.38",
     "nodemon": "^3.1.4",
     "typescript": "^5.5.4"
   },

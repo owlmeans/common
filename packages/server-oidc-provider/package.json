@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/server-oidc-provider",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,7 +21,21 @@
   },
   "devDependencies": {
     "@types/node": "^22.5.0",
+    "@types/oidc-provider": "^8",
     "nodemon": "^3.1.4",
     "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "fastify": "*"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.5.0",
+    "@owlmeans/config": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/route": "^0.1.0",
+    "@owlmeans/server-api": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0",
+    "@scure/base": "^1.1.8",
+    "oidc-provider": "^8.5.1"
   }
 }
