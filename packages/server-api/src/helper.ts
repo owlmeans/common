@@ -44,12 +44,12 @@ export const handleParams: <T>(
 }
 
 export const handleRequest: (
-  handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>) => Promise<any>
+  handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>, res?: AbstractResponse<any>) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
-      req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
+      req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>, res
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)

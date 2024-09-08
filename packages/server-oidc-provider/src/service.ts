@@ -1,8 +1,11 @@
 import { assertContext, createService } from '@owlmeans/context'
-import { DEFAULT_ALIAS, DEFAULT_PATH } from './consts.js'
+import { DEFAULT_ALIAS } from './consts.js'
+import { DEFAULT_PATH, INTERACTION } from '@owlmeans/oidc'
 import type { Config, Context, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
+import type { ClientModule } from '@owlmeans/client-module'
+import { SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
 
@@ -22,11 +25,31 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
 
-      const oidc = new Provider(url, combineConfig(context, unsecure))
+      const oidc = new Provider(url, {
+        ...combineConfig(context, unsecure),
+        interactions: {
+          url: async (_, interaction) => {
+            console.log(JSON.stringify(interaction, null, 2))
+
+            const module = context.module<ClientModule>(INTERACTION)
+
+            const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
+            return uri
+          }
+        }
+      })
 
       oidc.proxy = cfg.behindProxy ?? unsecure
 
-      await api.server.use(cfg.basePath ?? DEFAULT_PATH, oidc.callback())
+      const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
+
+      await api.server.use(base, oidc.callback())
+
+      service.oidc = oidc
+    },
+
+    instance: () => {
+      return service.oidc
     }
   }, _service => async () => {
     service.initialized = true

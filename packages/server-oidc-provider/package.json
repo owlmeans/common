@@ -35,6 +35,8 @@
     "@owlmeans/route": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/oidc": "^0.1.0",
     "@scure/base": "^1.1.8",
     "oidc-provider": "^8.5.1"
   }

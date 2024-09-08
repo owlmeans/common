@@ -30,9 +30,9 @@ export interface AppProps extends PropsWithChildren {
 export interface RoutedComponent<ExtraProps = {}> extends FC<PropsWithChildren<ModuleContextParams & ExtraProps>> {
 }
 
-export interface ModuleContextParams {
+export interface ModuleContextParams<T extends {} = {}> {
   alias: string
-  params: AbstractRequest['params']
+  params: AbstractRequest<T>['params']
   path: string
   context: ClientContext
 }

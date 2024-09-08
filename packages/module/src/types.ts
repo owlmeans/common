@@ -56,7 +56,7 @@ export interface AbstractRequest<T extends {} = {}> {
 }
 
 export interface AbstractResponse<T> {
-  responseProvider?: unknown
+  responseProvider?: any
   value?: T,
   outcome?: ModuleOutcome
   error?: Error
