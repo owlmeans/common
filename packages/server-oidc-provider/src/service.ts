@@ -27,8 +27,38 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
       const oidc = new Provider(url, {
         ...combineConfig(context, unsecure),
+        findAccount: async (_ctx, ...args) => {
+          console.log('account', args)
+
+          return {
+            accountId: 'xxx',
+            async claims(...args) {
+              console.log('sub', args)
+
+              return {
+                sub: 'xxx',
+                username: 'uuuuuu',
+                name: 'Jon Doe',
+                given_name: "Jon",
+                family_name: "Doe",
+                preferred_username: 'ooooo',
+                nickname: 'nnnnn',
+                profile: {
+                  sub: 'xxx',
+                  username: 'uuuuuu',
+                  name: 'Jon Doe',
+                  given_name: "Jon",
+                  family_name: "Doe",
+                  preferred_username: 'ooooo',
+                  nickname: 'nnnnn',
+                }
+              }
+            }
+          }
+        },
         interactions: {
           url: async (_, interaction) => {
+            console.log('Figuring out interaction url for: ')
             console.log(JSON.stringify(interaction, null, 2))
 
             const module = context.module<ClientModule>(INTERACTION)
@@ -44,6 +74,11 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
       await api.server.use(base, oidc.callback())
+
+      oidc.use(async (ctx, next) => {
+        await next()
+        console.log('OIDC PROVIDER RESPONSE: ', ctx.response.body)
+      })
 
       service.oidc = oidc
     },

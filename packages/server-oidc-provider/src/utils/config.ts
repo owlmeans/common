@@ -13,11 +13,12 @@ export const combineConfig = (context: Context, _unsecure: boolean): Configurati
     claims: {
       email: ['email', 'email_verified', ...cfg.customConfiguration?.claims?.email ?? []],
       profile: [
-        'family_name', 'given_name', 'locale', 'name', 'nickname', 'preferred_username',
+        'username', 'family_name', 'given_name', 'locale', 'name', 'nickname', 'preferred_username',
         ...cfg.customConfiguration?.claims?.profile ?? []
       ],
       ...cfg.customConfiguration?.claims,
     },
+    scopes: ['openid', 'profile', 'username', 'profile.username'],
     features: {
       ...cfg.customConfiguration?.features,
       devInteractions: { enabled: false }

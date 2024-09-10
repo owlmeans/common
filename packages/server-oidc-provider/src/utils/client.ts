@@ -3,6 +3,7 @@ import { hex } from '@scure/base'
 import type { ClientMetadata } from 'oidc-provider'
 import type { Config, Context } from '../types.js'
 import { makeSecurityHelper } from '@owlmeans/config'
+import type { SecurityHelper } from '@owlmeans/config'
 import { SEP } from '@owlmeans/route'
 
 export const updateClient = (context: Context, client: ClientMetadata): ClientMetadata => {
@@ -20,20 +21,22 @@ export const updateClient = (context: Context, client: ClientMetadata): ClientMe
   }
 
   const helper = makeSecurityHelper<Config, Context>(context)
-  client.redirect_uris = client.redirect_uris?.map(
-    uri => { 
-      if (uri.startsWith('{{')) {
-        const [host, ...parts] = uri.split(SEP)
-        
-        const service = context.cfg.services[host.slice(2, -2)]
-        return helper.makeUrl(service, parts.join(SEP))
-      }
-
-      return uri
-    }
-  ) ?? []
+  const updateUri = makeUriUpdater(context, helper)
+  client.redirect_uris = client.redirect_uris?.map(updateUri) ?? []
+  client.post_logout_redirect_uris = client.post_logout_redirect_uris?.map(updateUri) ?? []
   
   console.log('REDIRECT URIS ~~~' , client.redirect_uris)
 
   return client
+}
+
+const makeUriUpdater = (context: Context, helper: SecurityHelper) => (uri: string): string => {
+  if (uri.startsWith('{{')) {
+    const [host, ...parts] = uri.split(SEP)
+    
+    const service = context.cfg.services[host.slice(2, -2)]
+    return helper.makeUrl(service, parts.join(SEP))
+  }
+
+  return uri
 }
