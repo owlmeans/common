@@ -1,7 +1,7 @@
 import { assertContext, createService } from '@owlmeans/context'
-import { DEFAULT_ALIAS } from './consts.js'
+import { DEFAULT_ALIAS, OIDC_ACCOUNT_SERVICE } from './consts.js'
 import { DEFAULT_PATH, INTERACTION } from '@owlmeans/oidc'
-import type { Config, Context, OidcProviderService } from './types.js'
+import type { Config, Context, OidcAccountService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
 import type { ClientModule } from '@owlmeans/client-module'
@@ -26,35 +26,32 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
 
       const oidc = new Provider(url, {
-        ...combineConfig(context, unsecure),
-        findAccount: async (_ctx, ...args) => {
-          console.log('account', args)
+        ...await combineConfig(context, unsecure),
+        findAccount: async (_, id, _token) => {
+          const accountSrv = context.service<OidcAccountService>(
+            cfg.accountService ?? OIDC_ACCOUNT_SERVICE
+          )
 
-          return {
-            accountId: 'xxx',
-            async claims(...args) {
-              console.log('sub', args)
+          console.log('account', id, _token)
 
-              return {
-                sub: 'xxx',
-                username: 'uuuuuu',
-                name: 'Jon Doe',
-                given_name: "Jon",
-                family_name: "Doe",
-                preferred_username: 'ooooo',
-                nickname: 'nnnnn',
-                profile: {
-                  sub: 'xxx',
-                  username: 'uuuuuu',
-                  name: 'Jon Doe',
-                  given_name: "Jon",
-                  family_name: "Doe",
-                  preferred_username: 'ooooo',
-                  nickname: 'nnnnn',
-                }
-              }
-            }
-          }
+          return accountSrv.loadById(context, id)
+
+          // return {
+          //   accountId: 'xxx',
+          //   async claims(...args) {
+          //     console.log('sub', args)
+
+          //     return {
+          //       sub: 'xxx',
+          //       username: 'uuuuuu',
+          //       name: 'Jon Doe',
+          //       given_name: "Jon",
+          //       family_name: "Doe",
+          //       preferred_username: 'ooooo',
+          //       nickname: 'nnnnn'
+          //     }
+          //   }
+          // }
         },
         interactions: {
           url: async (_, interaction) => {
@@ -68,6 +65,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           }
         }
       })
+
 
       oidc.proxy = cfg.behindProxy ?? unsecure
 

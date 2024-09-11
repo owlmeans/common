@@ -1,9 +1,11 @@
 import type { Context } from '../types.js'
 import type { Configuration } from 'oidc-provider'
 import { updateClient } from './client.js'
+import * as jose from 'jose'
 
-export const combineConfig = (context: Context, _unsecure: boolean): Configuration => {
+export const combineConfig = async (context: Context, _unsecure: boolean): Promise<Configuration> => {
   const cfg = context.cfg.oidc
+
   const configuration: Configuration = {
     ...cfg.customConfiguration,
     clients: [
@@ -18,7 +20,7 @@ export const combineConfig = (context: Context, _unsecure: boolean): Configurati
       ],
       ...cfg.customConfiguration?.claims,
     },
-    scopes: ['openid', 'profile', 'username', 'profile.username'],
+    scopes: ['openid', 'profile', 'offline_access'],
     features: {
       ...cfg.customConfiguration?.features,
       devInteractions: { enabled: false }
@@ -29,6 +31,11 @@ export const combineConfig = (context: Context, _unsecure: boolean): Configurati
       //   ) && unsecure,
       //   ...cfg.customConfiguration?.features?.devInteractions,
       // },
+    },
+    jwks: {
+      keys: [
+        await jose.exportJWK(await jose.importPKCS8(cfg.defaultKeys.RS256.pk, 'RS256'))
+      ]
     }
   }
 
