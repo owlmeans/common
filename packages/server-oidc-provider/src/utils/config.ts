@@ -20,7 +20,7 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
       ],
       ...cfg.customConfiguration?.claims,
     },
-    scopes: ['openid', 'profile', 'offline_access'],
+    scopes: ['openid', 'profile', 'offline_access', ...cfg.customConfiguration?.scopes ?? []],
     features: {
       ...cfg.customConfiguration?.features,
       devInteractions: { enabled: false }

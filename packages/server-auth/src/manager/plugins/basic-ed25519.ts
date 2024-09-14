@@ -4,11 +4,11 @@ import { assertType } from './utils.js'
 import { randomBytes } from '@noble/hashes/utils'
 import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
-import type { AppContext } from '../types.js'
+import type { AppConfig, AppContext } from '../types.js'
 import { TRUSTED } from '@owlmeans/server-context'
 import type { TrustedRecord } from '@owlmeans/auth-common'
 
-export const basicEd25519 = (context: AppContext): AuthPlugin => {
+export const basicEd25519 = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: AuthenticationType.BasicEd25519,
     init: async request => {

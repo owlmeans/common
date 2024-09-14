@@ -2,7 +2,7 @@ import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { ApiConfig } from '@owlmeans/api-config'
 import type { ServerConfig } from '@owlmeans/server-context'
 import type { PluginConfig } from '@owlmeans/config'
-import { notAvertizedConfigKeys, allowedConfigRecords } from '@owlmeans/api-config'
+import { notAdvertizedConfigKeys, allowedConfigRecords } from '@owlmeans/api-config'
 import { handleRequest } from '@owlmeans/server-api'
 import { PLUGINS } from '@owlmeans/server-context'
 import { AppType, CONFIG_RECORD } from '@owlmeans/context'
@@ -14,8 +14,8 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
     services: Object.fromEntries(
       Object.entries(ctx.cfg.services ?? {} as ServerConfig).map(([service, config]) => [
         service, {
-          type: config.type,
           service: config.service,
+          type: config.type,
           host: config.host,
           port: config.port,
           base: config.base
@@ -29,10 +29,15 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
     ...(
       Object.fromEntries(
         Object.entries(ctx.cfg).filter(([key]) => ![
-          'debug', 'services', PLUGINS , ...notAvertizedConfigKeys
+          'debug', 'services', PLUGINS, ...notAdvertizedConfigKeys
         ].includes(key))
       )
-    )
+    ),
+    ...("oidc" in ctx.cfg ? {
+      oidc: {
+        clientCookie: (ctx.cfg.oidc as any).clientCookie,
+      }
+    } : {})
   }
 
   return apiConfig

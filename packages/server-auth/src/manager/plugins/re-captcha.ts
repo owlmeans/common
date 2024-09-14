@@ -10,7 +10,7 @@ import { base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { assertType } from './utils.js'
 
-export const reCaptcha = (context: AppContext<AppConfig>): AuthPlugin => {
+export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: AuthenticationType.ReCaptcha,
 

@@ -22,6 +22,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       }
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.module<CommonModule>(request.alias)
+      await module.resolve()
       const route = module.route.route
       let path = module.getPath()
       const params = extractParams(path)

@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-provider",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,6 +18,10 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/oidc": "^0.1.0",
+    "@owlmeans/web-client": "^0.1.0"
   },
   "peerDependencies": {
     "react": "*"

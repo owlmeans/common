@@ -1,7 +1,8 @@
-import type { InitializedService, Service } from '@owlmeans/context'
+import type { InitializedService } from '@owlmeans/context'
+import { OidcSharedConfig } from '@owlmeans/oidc'
 import type { ApiServer, ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { Account, ClientMetadata, Configuration, Provider } from 'oidc-provider'
+import type { Account, Adapter, ClientMetadata, Configuration, Provider } from 'oidc-provider'
 
 export interface OidcProviderService extends InitializedService {
   oidc: Provider
@@ -15,7 +16,7 @@ export interface OidcConfigAppend {
   oidc: OidcConfig
 }
 
-export interface OidcConfig {
+export interface OidcConfig extends OidcSharedConfig {
   authService?: string
   basePath?: string
   frontBase?: string
@@ -29,10 +30,15 @@ export interface OidcConfig {
     }
   }
   accountService?: string
+  adapterService?: string
 }
 
-export interface OidcAccountService extends Service {
+export interface OidcAccountService extends InitializedService {
   loadById: <C extends Config, T extends Context<C>>(ctx: T, id: string) => Promise<Account | undefined>
+}
+
+export interface OidcAdapterService extends InitializedService {
+  instance: (name: string) => Adapter
 }
 
 export interface Config extends ServerConfig, OidcConfigAppend { 

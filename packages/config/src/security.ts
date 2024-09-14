@@ -33,6 +33,7 @@ export const makeSecurityHelper = <
 
       let host = route.host
       let base: string | undefined = undefined
+
       if (host == null) {
         const serviceMeta = ctx.cfg.services?.[route.service ?? ctx.cfg.service] as CommonServiceRoute
         if (serviceMeta == null) {

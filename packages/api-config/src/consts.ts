@@ -1,7 +1,7 @@
 
 export const API_CONFIG = 'api-config:advertise'
 
-export const notAvertizedConfigKeys = [
+export const notAdvertizedConfigKeys = [
   'dbs', 'trusted', 'ready', 'service', 'layer', 'type', 'layerId', 'records', 'webService'
 ]
 

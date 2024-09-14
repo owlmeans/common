@@ -51,6 +51,18 @@ export const makeRedisResource = <
       return list.items[0] ?? null
     },
 
+    save: async (record, opts) => {
+      if (record.id == null) {
+        throw new MisshapedRecord('id')
+      }
+      const existing = await resource.load(record.id)
+      if (existing != null) {
+        return resource.update(record, opts)
+      }
+
+      return resource.create(record, typeof opts !== 'string' ? opts : undefined)
+    },
+
     update: async (record, opts) => {
       let field = 'id'
       if (typeof opts === 'string') {
