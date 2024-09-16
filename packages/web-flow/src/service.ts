@@ -12,7 +12,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
   const location = `web-flow-service:${alias}`
   const service: FlowService = makeBasicFlowService(alias)
 
-  service.proceed = async req => {
+  service.proceed = async (req, dryRun = false) => {
     const ctx = assertContext(service.ctx, location) as ClientContext
     const flow = service.flow
     if (flow == null) {
@@ -31,13 +31,18 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const params = new URLSearchParams(req?.query ?? {})
     params.set(param, flow.serialize())
 
-    params.toString()
-    document.location.href = `${url}?${params.toString()}`
+    const redirectUrl = `${url}?${params.toString()}`
+    if (!dryRun) {
+      document.location.href = redirectUrl
+    }
+    
+    return redirectUrl
   }
 
   const init = service.lazyInit
   service.lazyInit = async () => {
     await init()
+    console.log('^^ init web flow from here')
     const cfg = service.config()
     const param = cfg.queryParam ?? QUERY_PARAM
     const url = new URL(window.location.href)
@@ -45,11 +50,16 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     if (state == null) {
       service.flow = null
       service.resolvePair().resolve(false)
+      console.log('^^ no flow resolve')
       return
     }
 
     try {
+      console.log('^^ resolving flow via state and provider', state)
+
       service.flow = await makeFlowModel(state, service.provideFlow)
+
+      console.log('^^ flow resolved', service.flow.state())
       service.resolvePair().resolve(true)
     } catch (e) {
       service.flow = null

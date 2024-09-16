@@ -1,5 +1,5 @@
-import { STD_AUTH_FLOW , STD_STAB_FLOW} from '../consts.js'
 import type { ShallowFlow } from '../types.js'
+import { STD_AUTH_FLOW } from '../consts.js'
 
 export enum StdAuthStep {
   Choice = 'choice',
@@ -145,20 +145,5 @@ export const stdAuthFlow: ShallowFlow = {
       transitions: {}
     }
 
-  }
-}
-
-export const stdStabFlow: ShallowFlow = {
-  flow: STD_STAB_FLOW,
-  initialStep: STD_STAB_FLOW,
-  steps: {
-    [STD_STAB_FLOW]: {
-      index: 0,
-      step: STD_STAB_FLOW,
-      service: STD_STAB_FLOW,
-      module: STD_STAB_FLOW,
-      initial: true,
-      transitions: {}
-    }
   }
 }

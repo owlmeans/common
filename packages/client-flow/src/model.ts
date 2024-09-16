@@ -15,7 +15,9 @@ export const createFlowModel = <C extends ClientConfig, T extends ClientContext<
 
   const _model: FlowClient = {
     boot: async (target, from) => {
+      console.log('^^ starting flow boot')
       await flow.ready()
+      console.log('^^ flow ready to boot')
       let model = await flow.state()
       if (model == null) {
         if (context.hasResource(FLOW_STATE)) {

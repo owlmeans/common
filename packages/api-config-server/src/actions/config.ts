@@ -36,6 +36,7 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
     ...("oidc" in ctx.cfg ? {
       oidc: {
         clientCookie: (ctx.cfg.oidc as any).clientCookie,
+        consumer: (ctx.cfg.oidc as any).consumer,
       }
     } : {})
   }

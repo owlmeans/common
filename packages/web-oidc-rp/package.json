@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-rp",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -16,9 +17,26 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./plugins": {
+      "import": "./build/plugins/index.js",
+      "require": "./build/plugins/index.js",
+      "default": "./build/plugins/index.js",
+      "module": "./build/plugins/index.js",
+      "types": "./build/plugins/index.d.ts"
     }
   },
+  "dependencies": {
+    "@owlmeans/client-auth": "^0.1.0",
+    "@owlmeans/client-flow": "^0.1.0",
+    "@owlmeans/basic-envelope": "^0.1.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/oidc": "^0.1.0",
+    "@owlmeans/web-client": "^0.1.0",
+    "oidc-client-ts": "^3.0.1"
+  },
   "peerDependencies": {
+    "@mui/material": "*",
     "react": "*"
   },
   "devDependencies": {

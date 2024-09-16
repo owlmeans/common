@@ -17,6 +17,7 @@ export interface FlowConfig {
   services?: { [ref: string]: string }
   modules?: { [ref: string]: string }
   pathes?: { [ref: string]: string }
+  defaultFlow?: string
 }
 
 export interface FlowStep {

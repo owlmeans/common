@@ -21,7 +21,7 @@ export interface FlowService extends LazyService {
 
   provideFlow: FlowProvider
 
-  proceed: (req?: Partial<AbstractRequest>) => Promise<void>
+  proceed: (req?: Partial<AbstractRequest>, dryRun?: boolean) => Promise<string>
 }
 
 export interface ResolvePair {

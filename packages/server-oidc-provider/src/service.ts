@@ -38,8 +38,10 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         },
         interactions: {
           url: async (_, interaction) => {
-            console.log('Figuring out interaction url for: ')
-            console.log(JSON.stringify(interaction, null, 2))
+            if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
+              console.log('Figuring out interaction url for: ')
+              console.log(JSON.stringify(interaction, null, 2))
+            }
 
             const module = context.module<ClientModule>(INTERACTION)
 
@@ -56,10 +58,12 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
       await api.server.use(base, oidc.callback())
 
-      oidc.use(async (ctx, next) => {
-        await next()
-        console.log('OIDC PROVIDER RESPONSE: ', ctx.response.body)
-      })
+      if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
+        oidc.use(async (ctx, next) => {
+          await next()
+          console.log('OIDC PROVIDER RESPONSE: ', ctx.response.body)
+        })
+      }
 
       service.oidc = oidc
     },
