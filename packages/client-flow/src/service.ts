@@ -41,6 +41,8 @@ export const makeBasicFlowService = (alias: string = DEFAULT_ALIAS): FlowService
       slug = slug ?? service.config().defaultFlow ?? STD_AUTH_FLOW
       service.flow = await makeFlowModel(slug, service.provideFlow)
 
+      service.supplied = Promise.resolve(true)
+
       return service.flow.enter(from)
     },
 

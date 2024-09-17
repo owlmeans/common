@@ -1,11 +1,9 @@
 import type { FC } from 'react'
-import type {
-  AuthenticationControl, AuthenticationRenderer, AuthenticationRendererProps
-} from '../components/authentication/types.js'
+import type { AuthenticationControl, AuthenticationRenderer, AuthenticationRendererProps, } from '../components/authentication/types.js'
 
 export interface AuthenticationPlugin extends Pick<
-  AuthenticationControl, "authenticate" | "beforeAuthenticate" | "afterAuthenticate"
-> {
+  AuthenticationControl, "beforeAuthenticate" | "afterAuthenticate"
+>, Pick<Partial<AuthenticationControl>, "authenticate"> {
   type: string
   Implementation: PluginImplemnetation
   Renderer?: AuthenticationRenderer

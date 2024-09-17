@@ -35,8 +35,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
       const issuer = await Issuer.discover(url)
 
-      console.log(issuer.metadata)
-
       return issuer
     },
 

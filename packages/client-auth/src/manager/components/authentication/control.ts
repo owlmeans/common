@@ -11,14 +11,14 @@ import { plugins } from '../../plugins/index.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
 import { ModuleOutcome } from '@owlmeans/module'
-import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
-import type { FlowService } from '@owlmeans/client-flow'
+import { DEFAULT_ALIAS as FLOW_SERVICE, FLOW_STATE } from '@owlmeans/client-flow'
+import type { FlowService, StateResource } from '@owlmeans/client-flow'
+import { CONTROL_STATE_ID } from './consts.js'
 
 export const makeControl = (
   context: ClientContext<ClientConfig>,
   callback?: (token: AuthToken) => Promise<boolean>
 ): AuthenticationControl => {
-
   // @TODO: This control should deal with scopes someway
   const control: AuthenticationControl = {
 
@@ -69,15 +69,18 @@ export const makeControl = (
         if (credentials.challenge == null || credentials.challenge === '') {
           throw new AuthenCredError('challenge')
         }
+        
+        if (plugins[control.type].authenticate != null) {
+          // We sign unwrapped challenge (or do something similar)
+          const clientToken = await plugins[control.type].authenticate!(credentials, context)
 
-        // We sign unwrapped challenge
-        const clientToken = await plugins[control.type].authenticate(credentials, context)
+          if (clientToken.token !== '' && control.beforeAuthenticate != null) {
+            control.beforeAuthenticate(clientToken, context)
+          }
+        }
+
         // We return back unwrapped challenge
         credentials.challenge = control.allowance?.challenge
-
-        if (clientToken.token !== '' && control.beforeAuthenticate != null) {
-          control.beforeAuthenticate(clientToken, context)
-        }
 
         const [token, status] = await context.module<ClientModule<AuthToken>>(AUTHEN_AUTHEN)
           .call({ body: credentials })
@@ -105,10 +108,73 @@ export const makeControl = (
       control.setStage?.(stage)
     },
 
+    persist: async () => {
+      if (context.hasResource(FLOW_STATE)) {
+        const resource = context.resource<StateResource>(FLOW_STATE)
+        await resource.save({
+          id: CONTROL_STATE_ID, ...{
+            type: control.type,
+            stage: control.stage,
+            allowance: control.allowance,
+          }
+        })
+
+        return true
+      }
+
+      return false
+    },
+    
+    restore: async () => {
+      if (context.hasResource(FLOW_STATE)) {
+        const resource = context.resource<StateResource>(FLOW_STATE)
+        const state = await resource.load(CONTROL_STATE_ID)
+        if (state != null) {
+          const _state = state as unknown as Partial<AuthenticationControl>
+          if (_state.type != null) {
+            control.type = _state.type
+          }
+          control.beforeAuthenticate = plugins[control.type].beforeAuthenticate
+          control.afterAuthenticate = plugins[control.type].afterAuthenticate
+
+          if (_state.stage != null) {
+            control.stage = _state.stage
+          }
+          if (_state.allowance != null) {
+            control.allowance = _state.allowance
+          }
+
+          return true
+        }
+      }
+      return false
+    },
+
+    hasPersistentState: async () => {
+      if (context.hasResource(FLOW_STATE)) {
+        const resource = context.resource<StateResource>(FLOW_STATE)
+        if (null != await resource.load(CONTROL_STATE_ID)) {
+          return true
+        }
+      }
+
+      return false
+    },
+
+    cleanUpState: async () => {
+      if (context.hasResource(FLOW_STATE)) {
+        const resource = context.resource<StateResource>(FLOW_STATE)
+        await resource.delete(CONTROL_STATE_ID)
+      }
+    },
+
     flow: async () => {
       const alias = FLOW_SERVICE
+      console.log('^^ try flow service', FLOW_SERVICE)
       if (context.hasService(alias)) {
+        console.log('^^ has flow service')
         const flow = context.service<FlowService>(alias)
+        console.log('^^ flow supplied', await flow.supplied)
         await flow.ready()
         if (await flow.supplied) {
           return flow

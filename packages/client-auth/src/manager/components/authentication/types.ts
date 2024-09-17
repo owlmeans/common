@@ -43,11 +43,25 @@ export interface AuthenticationControl extends AuthenticationControlState {
   requestAllowence: (request?: Partial<AllowanceRequest>) => Promise<void>
   beforeAuthenticate?: (clientToken: AuthToken, context?: ClientContext) => Promise<void>
   afterAuthenticate?: (credential: AuthCredentials, context?: ClientContext) => Promise<void>
-  authenticate: (
+  authenticate: ClientAuthenticationMethod
+
+  flow: () => Promise<FlowService | null>
+
+  /**
+   * These methods are used to store control state in cases when the screen is left
+   * during authentication process. E.g. for OIDC authentication on web
+   */
+  persist: () => Promise<boolean>
+  restore: () => Promise<boolean>
+  hasPersistentState: () => Promise<boolean>
+  cleanUpState: () => Promise<void>
+}
+
+export interface ClientAuthenticationMethod {
+  (
     credential: Partial<AuthCredentials> & Pick<AuthCredentials, "userId" | "credential">,
     context?: ClientContext
-  ) => Promise<AuthToken>
-  flow: () => Promise<FlowService | null>
+  ): Promise<AuthToken>
 }
 
 export interface AuthenticationCallback {

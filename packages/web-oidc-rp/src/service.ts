@@ -9,34 +9,19 @@ import { FlowStepMissconfigured, UnknownFlow } from '@owlmeans/flow'
 import { Module } from '@owlmeans/web-client'
 
 export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthService => {
-  let first = true
   const service: OidcAuthService = createService<OidcAuthService>(alias, {
     proceedToRedirectUrl: async () => {
-      // @TODO Figure out another way to make the flow remounting safe
-      if (!first) {
-        return ''
-      }
-      first = false
       const context = assertContext<Config, Context>(service.ctx as Context)
 
       const flow = context.service<FlowService>(FLOW_SERVICE)
-
       const flowModel = await flow.state()
       if (flowModel == null) {
         throw new UnknownFlow('oidc.dispatch')
       }
 
       const authorityTransition = flowModel.next()
-      // flowModel.transit(authorityTransition.transition, true)
-      // const authorityUrl = await flow.proceed(undefined, true)
       flowModel.transit(authorityTransition.transition, true)
       console.log('initial transition', authorityTransition.transition)
-      // const authorityStep = flowModel.step()
-      // if (authorityStep.module == null) {
-      //   throw new FlowStepMissconfigured(authorityStep.step)
-      // }
-      // console.log('authority step', authorityStep.step, authorityStep.module)
-      // const [authorityUrl] = await context.module<Module>(authorityStep.module).call<string>()
 
       const redirectTransition = flowModel.next()
       flowModel.transit(redirectTransition.transition, true)
@@ -46,12 +31,13 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
       return redirectUrl
     },
 
+    /**
+     * This is client-side only OIDC implementation. It's under constructuion.
+     * We stoped on the try to redirect to OIDC provider, but it requires browser integrated
+     * cryptography under ssl/tls.
+     * @TODO Finish client-side only implementation 
+     */
     dispatch: async () => {
-      // @TODO Figure out another way to make the flow remounting safe
-      if (!first) {
-        return
-      }
-      first = false
       const context = assertContext<Config, Context>(service.ctx as Context)
 
       const flow = context.service<FlowService>(FLOW_SERVICE)
@@ -62,8 +48,6 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
       }
 
       const authorityTransition = flowModel.next()
-      // flowModel.transit(authorityTransition.transition, true)
-      // const authorityUrl = await flow.proceed(undefined, true)
       flowModel.transit(authorityTransition.transition, true)
       console.log('initial transition', authorityTransition.transition)
       const authorityStep = flowModel.step()
