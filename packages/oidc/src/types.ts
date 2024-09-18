@@ -10,6 +10,7 @@ export interface OidcSharedConfig {
     clientId?: string
     basePath?: string
     service?: string
+    extraScopes?: string
   }
   consumerSecrets?: {
     clientSecret?: string

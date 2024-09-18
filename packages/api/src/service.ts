@@ -59,6 +59,8 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
           key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
       ) ? qs.stringify(request.body) : request.body
 
+      // console.log('We try to request: ', url, request.headers)
+
       const response = await axios.request({
         url, method: route.method,
         params: request.query,

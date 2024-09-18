@@ -1,6 +1,6 @@
-import { DEFAULT_ALIAS } from './consts.js'
+import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS, OIDC_ADMIN_CLIENT } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
-import type { Config, Context, OidcClientService } from './types.js'
+import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService } from './types.js'
 import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { custom, Issuer } from 'openid-client'
@@ -53,12 +53,34 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.client-id')
       }
 
-      const secret = context.cfg.oidc.consumerSecrets?.clientSecret
+      const secret = clientId === OIDC_ADMIN_CLIENT
+        ? context.cfg.oidc.consumerSecrets?.adminSecret
+        : context.cfg.oidc.consumerSecrets?.clientSecret
       if (secret == null) {
         throw new AuthManagerError('oidc.client.secert')
       }
 
       return new issuer.Client({ client_id: _clientId, client_secret: secret })
+    },
+
+    providerApi: () => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+      const cfg = context.cfg.oidc.consumer
+      const providerApiService = cfg.providerApiService ?? DEF_OIDC_PROVIDER_API
+      if (context.hasService(providerApiService)) {
+        return context.service<ProviderApiService>(providerApiService)
+      }
+      return null
+    },
+
+    accountLinking: () => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+      const cfg = context.cfg.oidc.consumer
+      const accountLinkingService = cfg.accountLinkingService ?? DEF_OIDC_ACCOUNT_LINKING
+      if (context.hasService(accountLinkingService)) {
+        return context.service<AccountLinkingService>(accountLinkingService)
+      }
+      return null
     }
   }, service => async () => {
     service.initialized = true

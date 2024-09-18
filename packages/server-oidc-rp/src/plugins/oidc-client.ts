@@ -1,15 +1,14 @@
 
 import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
-import type { AppConfig, AppContext } from '@owlmeans/server-auth/manager'
-import type { OidcClientService } from '../types.js'
+import type { Config, Context, OidcClientService } from '../types.js'
 import { assertType } from '@owlmeans/server-auth/manager/plugins'
-import { DEFAULT_ALIAS, OIDC_TOKEN_STORE } from '../consts.js'
+import { DEFAULT_ALIAS, OIDC_ADMIN_CLIENT, OIDC_TOKEN_STORE } from '../consts.js'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
 import Url from 'url'
-import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthRole } from '@owlmeans/auth'
+import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole } from '@owlmeans/auth'
 import type { Resource } from '@owlmeans/resource'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import type { OIDCAuthCache } from './types.js'
@@ -18,7 +17,7 @@ import { decodeJwt } from 'jose'
 const verifierId = (challenge: string) => `verifier:${challenge}`
 const exchangeId = (exchange: string) => `${OIDC_TOKEN_STORE}:${exchange}`
 
-export const oidcClientPlugin = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {
+export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context: T): AuthPlugin => {
   const cache = (context: T): Resource<OIDCAuthCache> =>
     context.resource<Resource<OIDCAuthCache>>(AUTH_CACHE)
 
@@ -36,6 +35,7 @@ export const oidcClientPlugin = <C extends AppConfig, T extends AppContext<C>>(c
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
       const client = await oidc.getClient()
       const url = client.authorizationUrl({
+        scope: `openid profile email ${context.cfg.oidc.consumer?.extraScopes ?? ''}`,
         code_challenge: challenge,
         code_challenge_method: 'S256',
         redirect_uri: request.source,
@@ -78,13 +78,42 @@ export const oidcClientPlugin = <C extends AppConfig, T extends AppContext<C>>(c
         { ttl: AUTHEN_TIMEFRAME / 1000 }
       )
 
+      const userinfo = await client.userinfo(tokenSet)
+
+      console.log('Userinfo', userinfo)
+
       const jwt = decodeJwt(tokenSet.id_token)
+
+      console.log(jwt)
+
+      const authJwt = decodeJwt(tokenSet.access_token)
+      console.log('Auth jwt', authJwt)
+
+
+      const apiClient = await oidc.getClient(OIDC_ADMIN_CLIENT)
+      const adminTokens = await apiClient.grant({
+        grant_type: 'client_credentials'
+      })
+
+      console.log('Admin tokens', adminTokens)
+
+      if (adminTokens.access_token == null) {
+        throw new AuthManagerError('iam.admin')
+      }
+
+      const api = oidc.providerApi()
+      if (api != null) {
+        const deatails = await api.getUserDetails(adminTokens.access_token, jwt.sub!)
+        await api.enrichUser(adminTokens.access_token, deatails)
+      }
 
       // @TODO we need to do something with scopes - it's not secure
       credential.scopes = [ALL_SCOPES]
       credential.source = params.iss as string ?? credential.source
       credential.role = AuthRole.User
       credential.type = OIDC_CLIENT_AUTH
+      // @TODO We need to register user and profile to be able to authenticate and
+      // authorize them further.
       credential.userId = jwt.sub ?? credential.userId
 
       return { token: exchangeToken }

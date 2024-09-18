@@ -14,7 +14,18 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
       reply.resolve(response.data, ModuleOutcome.Accepted)
       return
     case CREATED:
-      reply.resolve(response.data, ModuleOutcome.Created)
+      // console.log('response date', !!response.data, response.data)
+      // console.log('headers', response.headers)
+      // console.log('headers to json', !!response.headers.toJSON, (response.headers.toJSON as any)())
+      if (response.data != null && response.data != '') {
+        reply.resolve(response.data, ModuleOutcome.Created)
+        return
+      }
+      if (response.headers.toJSON != null && typeof response.headers.toJSON === 'function') {
+        reply.resolve(response.headers.toJSON(), ModuleOutcome.Created)
+        return
+      }
+      reply.resolve(response.headers, ModuleOutcome.Created)
       return
     default:
       try {

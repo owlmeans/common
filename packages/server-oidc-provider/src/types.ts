@@ -12,8 +12,8 @@ export interface OidcProviderService extends InitializedService {
   instance: () => Provider
 }
 
-export interface OidcConfigAppend {
-  oidc: OidcConfig
+export interface OidcConfigAppend<Extra extends OidcSharedConfig = OidcSharedConfig> {
+  oidc: OidcConfig & Extra
 }
 
 export interface OidcConfig extends OidcSharedConfig {

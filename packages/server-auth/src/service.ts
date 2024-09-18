@@ -62,6 +62,8 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const credentials = envelope.message()
       const msg = credentials.challenge
 
+      console.log('Authenticate credentials: ', credentials)
+
       // @TODO This operation is not atomic in case of redis store usage and scling
 
       try {
