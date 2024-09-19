@@ -9,6 +9,7 @@ import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
 import Url from 'url'
 import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole } from '@owlmeans/auth'
+import type { AuthPayload } from '@owlmeans/auth'
 import type { Resource } from '@owlmeans/resource'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import type { OIDCAuthCache } from './types.js'
@@ -45,13 +46,12 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     },
 
     authenticate: async credential => {
-      console.log('OIDC authentication finishing', credential)
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
+      const cfg = context.cfg.oidc.consumer
 
       const client = await oidc.getClient()
 
       const params = client.callbackParams('/?' + credential.credential)
-      console.log('Incoming params', params)
 
       const challengeParts = credential.challenge.split(':http')
       const redirectUrl = challengeParts[0]
@@ -66,7 +66,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       }
 
       const tokenSet = await client.callback(redirectUrl, params, { code_verifier: verification.verifier })
-      console.log('After authentication token set', tokenSet)
 
       if (tokenSet.id_token == null || tokenSet.access_token == null) {
         throw new AuthenFailed()
@@ -78,33 +77,42 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         { ttl: AUTHEN_TIMEFRAME / 1000 }
       )
 
-      const userinfo = await client.userinfo(tokenSet)
-
-      console.log('Userinfo', userinfo)
-
       const jwt = decodeJwt(tokenSet.id_token)
 
-      console.log(jwt)
+      if (jwt.sub == null) {
+        throw new AuthenFailed()
+      }
 
-      const authJwt = decodeJwt(tokenSet.access_token)
-      console.log('Auth jwt', authJwt)
-
+      // const authJwt = decodeJwt(tokenSet.access_token)
+      // console.log('Auth jwt', authJwt)
 
       const apiClient = await oidc.getClient(OIDC_ADMIN_CLIENT)
-      const adminTokens = await apiClient.grant({
-        grant_type: 'client_credentials'
-      })
+      const adminTokens = await apiClient.grant({ grant_type: 'client_credentials' })
 
-      console.log('Admin tokens', adminTokens)
+      // console.log('Admin tokens', adminTokens)
 
       if (adminTokens.access_token == null) {
         throw new AuthManagerError('iam.admin')
       }
 
       const api = oidc.providerApi()
+      let profile: AuthPayload | undefined = undefined
       if (api != null) {
         const deatails = await api.getUserDetails(adminTokens.access_token, jwt.sub!)
         await api.enrichUser(adminTokens.access_token, deatails)
+
+        const store = oidc.accountLinking()
+        if (store != null) {
+          if (cfg.clientId == null) {
+            throw new AuthManagerError('oidc.client.client-id')
+          }
+          profile = await store.linkAccount({
+            userId: deatails.userId,
+            entityId: deatails.entityId!,
+            clientId: cfg.clientId,
+            type: OIDC_CLIENT_AUTH,
+          }, { username: jwt.preferred_username as string ?? deatails.username })
+        }
       }
 
       // @TODO we need to do something with scopes - it's not secure
@@ -112,9 +120,9 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       credential.source = params.iss as string ?? credential.source
       credential.role = AuthRole.User
       credential.type = OIDC_CLIENT_AUTH
-      // @TODO We need to register user and profile to be able to authenticate and
-      // authorize them further.
-      credential.userId = jwt.sub ?? credential.userId
+      credential.userId = profile?.userId ?? jwt.sub
+      credential.profileId = profile?.profileId ?? jwt.sub
+      credential.entityId = profile?.entityId ?? jwt.sub
 
       return { token: exchangeToken }
     }

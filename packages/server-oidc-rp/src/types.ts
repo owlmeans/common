@@ -2,7 +2,7 @@ import type { InitializedService } from '@owlmeans/context'
 import type { Client, Issuer } from 'openid-client'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { OidcSharedConfig, WithSharedConfig } from '@owlmeans/oidc'
-import type { Profile } from '@owlmeans/auth'
+import type { AuthPayload } from '@owlmeans/auth'
 
 export interface OidcClientService extends InitializedService {
   getIssuer: (clientId?: string) => Promise<Issuer>
@@ -29,18 +29,21 @@ export interface Config extends ServerConfig, WithSharedConfig {
 export interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export interface AccountLinkingService extends InitializedService {
-  linkAccount: (details: ProviderAccountDetails) => Promise<Profile>
+  linkAccount: (details: ProviderAccountDetails, meta: AccountMeta) => Promise<AuthPayload>
 }
 
 export interface ProviderAccountDetails {
   type: string
   clientId: string
-  profileId: string
+  userId: string
   entityId: string
 }
 
+export interface AccountMeta {
+  username: string
+}
+
 export interface ProviderApiService extends InitializedService {
-  getOrganizationDetails: (token: string, organization: string) => Promise<unknown>
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
   enrichUser: (token: string, user: OidcUserDetails) => Promise<OidcUserDetails>
 }

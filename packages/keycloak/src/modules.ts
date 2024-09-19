@@ -8,5 +8,6 @@ export const keycloakModules = [
   module(route(keycloakApi.group.get, '/admin/realms/:realm/groups/:groupId', backend())),
   module(route(keycloakApi.user.get, '/admin/realms/:realm/users/:userId', backend())),
   module(route(keycloakApi.organization.create, '/admin/realms/:realm/organizations/', backend(null, RouteMethod.POST))),
-  module(route(keycloakApi.organization.get, '/admin/realms/:realm/organizations/:orgId', backend()))
+  module(route(keycloakApi.organization.get, '/admin/realms/:realm/organizations/:orgId', backend())),
+  module(route(keycloakApi.organization.addMember, '/admin/realms/:realm/organizations/:orgId/members', backend(null, RouteMethod.POST)))
 ]

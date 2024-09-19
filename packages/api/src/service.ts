@@ -3,12 +3,14 @@ import type { BasicContext } from '@owlmeans/context'
 import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios from 'axios'
+import type { AxiosRequestTransformer } from 'axios'
 import type { CommonModule } from '@owlmeans/module'
 import { DEFAULT_ALIAS } from './consts.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
 import qs from 'qs'
 import { makeSecurityHelper } from '@owlmeans/config'
+import { RouteMethod } from '@owlmeans/route'
 
 type Config = BasicClientConfig
 interface Context<C extends Config = Config> extends BasicContext<C> { }
@@ -41,33 +43,35 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       const url = helper.makeUrl(route, path)
 
-      // let url = normalizePath(route.host)
-      //   + (route.port != null ? `:${route.port}` : '') + SEP + normalizePath(path)
+      let transformer: AxiosRequestTransformer | undefined = undefined
 
-      // const [prefix] = url.split('://')
-      // if (!protocols.includes(prefix)) {
-      //   // @TODO fix security
-      //   if (route.protocol !== RouteProtocols.SOCKET) {
-      //     url = `http://${url}`
-      //   } else {
-      //     url = `ws://${url}`
-      //   }
-      // }
-
-      const body = request.body != null && Object.entries((request.headers ?? {})).find(
+      let body = request.body != null && Object.entries((request.headers ?? {})).find(
         ([key, value]) =>
           key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
       ) ? qs.stringify(request.body) : request.body
 
-      // console.log('We try to request: ', url, request.headers)
+      // @TODO Probably this hack need to be made a little bit less dirty
+      if (typeof body === 'string' && route.method === RouteMethod.POST) {
+        if (Object.keys(request.headers).every(key => key.toLowerCase() !== 'content-type')) {
+          request.headers['content-type'] = 'application/json'
+          // It fixes the case when final rest api under application/json can't
+          // properly accept canonized jsoned string value (put into quotes)
+          transformer = data => data
+        }
+      }
+
+      // console.log('We try to request: ', url, route.method, request.headers, body, request.query)
 
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
         data: body,
         headers: request.headers,
-        validateStatus: () => true
+        transformRequest: transformer,
+        validateStatus: () => true,
       })
+
+      // console.log('after request we see', response.data, response.headers, response.status)
 
       processResponse(response, reply)
 

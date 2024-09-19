@@ -13,5 +13,6 @@ export const keycloakApi = {
   organization: {
     create: 'keycloak-api:organization:create',
     get: 'keycloak-api:organization:get',
+    addMember: 'keycloak-api:organization:addMember',
   }
 }

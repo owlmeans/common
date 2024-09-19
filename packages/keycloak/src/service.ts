@@ -4,33 +4,11 @@ import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_ALIAS, keycloakApi } from './consts.js'
 import { prepareToken } from './utils/token.js'
 
-import type { GroupListItem, Organization, OrgCreationResult, User } from './types/index.js'
+import type { Organization, OrgCreationResult, User } from './types/index.js'
 import { KeycloakOrphanUser } from './errors.js'
 
 export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakApiService => {
   const service: KeycloakApiService = createService<KeycloakApiService>(alias, {
-    /**
-     * @TODO Make some sense out of this method
-     * Right now it's a complete havoc.
-     */
-    getOrganizationDetails: async (token, organization) => {
-      const context = assertContext<AppConfig, AppContext>(service.ctx as AppContext)
-
-      console.log("organization", organization)
-      const listMod = context.module<ClientModule<GroupListItem[]>>(keycloakApi.group.list)
-      const [result] = await listMod.call(prepareToken(token))
-
-      console.log('Group search result', result)
-
-      const getMod = context.module<ClientModule>(keycloakApi.group.get)
-
-      const groupRequest = prepareToken(token)
-      groupRequest.params.groupId = result[0].id
-      const [group] = await getMod.call(groupRequest)
-
-      console.log('group details', group)
-    },
-
     getUserDetails: async (token, userId) => {
       const context = assertContext<AppConfig, AppContext>(service.ctx as AppContext)
       const mod = context.module<ClientModule<User>>(keycloakApi.user.get)
@@ -44,8 +22,6 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
         entityId = user.attributes['kc.org'][0]
       }
 
-      console.log('user we got', user)
-
       return {
         userId: user.id,
         username: user.username,
@@ -57,6 +33,9 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
       const context = assertContext<AppConfig, AppContext>(service.ctx as AppContext)
       if (details.entityId == null) {
         const create = context.module<ClientModule<OrgCreationResult>>(keycloakApi.organization.create)
+
+        // @TODO we need to properly check if an organization is already exists and 
+        // generate unique name for it
         const [result] = await create.call({
           ...prepareToken(token), body: {
             name: `org-for-${details.username}`,
@@ -78,10 +57,12 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
           throw new KeycloakOrphanUser()
         }
 
-        console.log("enreach user with org", org)
+        const newMemberReq = prepareToken(token)
+        newMemberReq.params.orgId = org.id
+        await context.module<ClientModule>(keycloakApi.organization.addMember)
+          .call({ ...newMemberReq, body: details.userId })
 
-        // @TODO Proceed adding the user to the organization
-        // Ideally he must be made the organization manager
+        // @TODO Make the user the organization mananger
 
         details.entityId = org.id
       }
