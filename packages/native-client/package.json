@@ -27,7 +27,7 @@
     "@owlmeans/client-resource": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
     "react-native-dotenv": "^3.4.11",
-    "react-router-native": "^6.26.1"
+    "react-router-native": "^6.26.2"
   },
   "peerDependencies": {
     "react": "*",
@@ -35,7 +35,7 @@
     "react-native-permissions": "*"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4",
-    "typescript": "^5.5.4"
+    "nodemon": "^3.1.7",
+    "typescript": "^5.6.2"
   }
 }

@@ -20,10 +20,10 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^22.5.0",
-    "@types/oidc-provider": "^8",
-    "nodemon": "^3.1.4",
-    "typescript": "^5.5.4"
+    "@types/node": "^22.7.4",
+    "@types/oidc-provider": "^8.5.2",
+    "nodemon": "^3.1.7",
+    "typescript": "^5.6.2"
   },
   "peerDependencies": {
     "fastify": "*"
@@ -37,8 +37,8 @@
     "@owlmeans/route": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
-    "@scure/base": "^1.1.8",
-    "jose": "^5.8.0",
+    "@scure/base": "^1.1.9",
+    "jose": "^5.9.3",
     "oidc-provider": "^8.5.1"
   }
 }

@@ -22,8 +22,9 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
         }
       ])
     ),
-    plugins: ((ctx.cfg as Record<string, any>)[PLUGINS] ?? []).filter((plugin: PluginConfig) => plugin.type === AppType.Frontend),
-    [CONFIG_RECORD]: ((ctx.cfg as Record<string, any>)[CONFIG_RECORD] ?? []).filter(
+    plugins: ((ctx.cfg as unknown as Record<string, PluginConfig[]>)[PLUGINS] ?? [])
+      .filter((plugin: PluginConfig) => plugin.type === AppType.Frontend),
+    [CONFIG_RECORD]: ((ctx.cfg as unknown as Record<string, ConfigRecord[]>)[CONFIG_RECORD] ?? []).filter(
       (record: ConfigRecord) => record.recordType != null && allowedConfigRecords.includes(record.recordType)
     ),
     ...(
@@ -35,8 +36,11 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
     ),
     ...("oidc" in ctx.cfg ? {
       oidc: {
-        clientCookie: (ctx.cfg.oidc as any).clientCookie,
-        consumer: (ctx.cfg.oidc as any).consumer,
+        clientCookie: (ctx.cfg.oidc as { clientCookie: unknown }).clientCookie,
+        providers: (ctx.cfg.oidc as { providers: Object[] }).providers.map(
+          provider => Object.fromEntries(Object.entries(provider)
+            .filter(([key]) => key !== 'secret'))
+        ),
       }
     } : {})
   }

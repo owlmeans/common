@@ -23,6 +23,7 @@ list.push(
     route(MOD_RECAPTCHA, '/api/siteverify', backend({
       host: 'https://www.google.com',
       base: 'recaptcha',
+      secure: true,
     }, RouteMethod.POST))
   )
 )

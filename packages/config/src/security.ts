@@ -25,6 +25,8 @@ export const makeSecurityHelper = <
         security = true
       }
 
+      // console.log('~~~~ Security check result', security)
+
       let protocol = RouteProtocols.WEB
       if ("protocol" in route) {
         protocol = route.protocol ?? protocol

@@ -62,8 +62,10 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       const redirectUrl = await flow.proceed(undefined, true)
 
+      // @TODO To proceed we need to provide client_id some way
       const manager = new UserManager({
-        client_id: context.cfg.oidc.consumer?.clientId ?? '',
+        // client_id: context.cfg.oidc.consumer?.clientId ?? '',
+        client_id: '',
         redirect_uri: redirectUrl,
         authority: authorityUrl,
       })

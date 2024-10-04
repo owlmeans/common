@@ -42,7 +42,7 @@ export const SubmitButton: FC<SubmitProps> = memo((props) => {
   const t = useFormI18n()
 
   label = label ?? 'submit'
-  const _i18n: I18nProps["i18n"] = { ...i18n } ?? {}
+  const _i18n: I18nProps["i18n"] = { ...i18n }
   _i18n.suppress = true
 
   return <Button {...props} label={t(label)} i18n={_i18n}

@@ -3,6 +3,7 @@ import type { AppType, ContextStage, Layer, MiddlewareStage, MiddlewareType, CON
 export interface BasicConfig {
   ready: boolean
   service: string
+  // Is used as username of the service (e.g. for looking up for autehntication keys)
   alias?: string
   layer: Layer
   type: AppType

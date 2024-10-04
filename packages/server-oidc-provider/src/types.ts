@@ -1,5 +1,5 @@
 import type { InitializedService } from '@owlmeans/context'
-import { OidcSharedConfig } from '@owlmeans/oidc'
+import type { OidcSharedConfig } from '@owlmeans/oidc'
 import type { ApiServer, ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { Account, Adapter, ClientMetadata, Configuration, Provider } from 'oidc-provider'
@@ -20,7 +20,7 @@ export interface OidcConfig extends OidcSharedConfig {
   authService?: string
   basePath?: string
   frontBase?: string
-  staticClients: ClientMetadata[]
+  clients: ClientMetadata[]
   customConfiguration?: Configuration
   behindProxy?: boolean
   defaultKeys: {

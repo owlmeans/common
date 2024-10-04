@@ -36,7 +36,7 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
       const token = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
       const auth = token.message()
 
-      return auth.type === AuthenticationType.OneTimeToken ?? false
+      return auth.type === AuthenticationType.OneTimeToken
     },
 
     handle: async <T>(req: AbstractRequest<AuthToken>, res: AbstractResponse<Auth>) => {

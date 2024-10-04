@@ -1,1 +1,0 @@
-# OwlMeans Socket - web socket client library for browser

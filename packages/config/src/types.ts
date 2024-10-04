@@ -28,6 +28,10 @@ export interface ConfigResourceAppend {
 
 export interface SecurityConfig {
   unsecure?: boolean
+  auth?: {
+    flow?: string
+    enter?: string
+  }
 }
 
 export interface SecurityHelper {

@@ -1,25 +1,22 @@
 import type { InitializedService } from '@owlmeans/context'
 import type { Client, Issuer } from 'openid-client'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { OidcSharedConfig, WithSharedConfig } from '@owlmeans/oidc'
+import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig } from '@owlmeans/oidc'
 import type { AuthPayload } from '@owlmeans/auth'
 
 export interface OidcClientService extends InitializedService {
-  getIssuer: (clientId?: string) => Promise<Issuer>
-  getClient: (clientId?: string | Issuer) => Promise<Client>
+  getIssuer: (clientId: string) => Promise<Issuer>
+  getClient: (clientId: string | Issuer) => Promise<Client>
+  getConfig: (clientId: string) => Promise<OidcProviderConfig | undefined>
+  getDefault: () => string | undefined
 
   providerApi: () => ProviderApiService | null
   accountLinking: () => AccountLinkingService | null
 }
 
 export interface OidcRpConfig extends OidcSharedConfig {
-  consumer: OidcSharedConfig['consumer'] & {
-    accountLinkingService?: string
-    providerApiService?: string
-  },
-  consumerSecrets?: OidcSharedConfig['consumerSecrets'] & {
-    adminSecret?: string
-  }
+  accountLinkingService?: string
+  providerApiService?: string
 }
 
 export interface Config extends ServerConfig, WithSharedConfig {

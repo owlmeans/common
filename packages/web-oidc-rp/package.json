@@ -18,30 +18,33 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     },
-    "./plugins": {
-      "import": "./build/plugins/index.js",
-      "require": "./build/plugins/index.js",
-      "default": "./build/plugins/index.js",
-      "module": "./build/plugins/index.js",
-      "types": "./build/plugins/index.d.ts"
+    "./auth/plugins": {
+      "import": "./build/auth/plugins/index.js",
+      "require": "./build/auth/plugins/index.js",
+      "default": "./build/auth/plugins/index.js",
+      "module": "./build/auth/plugins/index.js",
+      "types": "./build/auth/plugins/index.d.ts"
     }
   },
   "dependencies": {
+    "@owlmeans/auth": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
     "@owlmeans/client-flow": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
+    "@owlmeans/flow": "^0.1.0",
     "@owlmeans/oidc": "^0.1.0",
     "@owlmeans/web-client": "^0.1.0",
-    "oidc-client-ts": "^3.0.1"
+    "oidc-client-ts": "^3.1.0"
   },
   "peerDependencies": {
     "@mui/material": "*",
     "react": "*"
   },
   "devDependencies": {
-    "@types/react": "^18.3.4",
-    "nodemon": "^3.1.4",
-    "typescript": "^5.5.4"
+    "@types/react": "^18.3.11",
+    "nodemon": "^3.1.7",
+    "npm-check": "^6.0.1",
+    "typescript": "^5.6.2"
   }
 }

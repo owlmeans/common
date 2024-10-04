@@ -9,7 +9,7 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
   const configuration: Configuration = {
     ...cfg.customConfiguration,
     clients: [
-      ...cfg.staticClients,
+      ...cfg.clients,
       ...(cfg.customConfiguration?.clients ?? [])
     ].map(client => updateClient(context, client)),
     claims: {

@@ -1,13 +1,15 @@
 import type { ShallowFlow } from '../types.js'
-import { STD_OIDC_FLOW } from '../consts.js'
+import { STD_OIDC_FLOW, TARGET_SERVICE } from '../consts.js'
 
 export enum OidcAuthStep {
   Disaptch = 'dispatch',
   Authen = 'authen',
   PostAuthen = 'post-authen',
+  OrgChoice = 'org-choice',
   Payment = 'payment',
   Success = 'success',
-  Target = 'target'
+  Target = 'target',
+  Ephemeral = 'ephemeral'
 }
 
 // OwlMeans OIDC Based Auth Flow 
@@ -29,9 +31,9 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Authen,
           step: OidcAuthStep.Authen,
         },
-        [OidcAuthStep.Target]: {
-          transition: OidcAuthStep.Target,
-          step: OidcAuthStep.Target,
+        [OidcAuthStep.Ephemeral]: {
+          transition: OidcAuthStep.Ephemeral,
+          step: OidcAuthStep.Ephemeral,
         },
       },
     },
@@ -55,6 +57,10 @@ export const stdOidcFlow: ShallowFlow = {
       service: '$auth',
       module: '$auth.flow',
       transitions: {
+        [OidcAuthStep.OrgChoice]: {
+          transition: OidcAuthStep.OrgChoice,
+          step: OidcAuthStep.OrgChoice,
+        },
         [OidcAuthStep.Payment]: {
           transition: OidcAuthStep.Payment,
           step: OidcAuthStep.Payment,
@@ -66,8 +72,21 @@ export const stdOidcFlow: ShallowFlow = {
       }
     },
 
-    [OidcAuthStep.Payment]: {
+    [OidcAuthStep.OrgChoice]: {
       index: 3,
+      step: OidcAuthStep.OrgChoice,
+      service: '$auth',
+      module: '$auth.flow',
+      transitions: {
+        [OidcAuthStep.Payment]: {
+          transition: OidcAuthStep.Payment,
+          step: OidcAuthStep.Payment,
+        },
+      }
+    },
+
+    [OidcAuthStep.Payment]: {
+      index: 4,
       step: OidcAuthStep.Payment,
       service: '$payment',
       module: '$payment.plan',
@@ -80,7 +99,7 @@ export const stdOidcFlow: ShallowFlow = {
     },
 
     [OidcAuthStep.Success]: {
-      index: 4,
+      index: 5,
       step: OidcAuthStep.Success,
       service: '$payment',
       module: '$payment.success',
@@ -93,9 +112,17 @@ export const stdOidcFlow: ShallowFlow = {
     },
 
     [OidcAuthStep.Target]: {
-      index: 5,
+      index: 6,
       step: OidcAuthStep.Target,
       service: '$auth',
+      module: '$dispatcher',
+      transitions: {}
+    },
+
+    [OidcAuthStep.Ephemeral]: {
+      index: 7,
+      step: OidcAuthStep.Ephemeral,
+      service: TARGET_SERVICE,
       module: '$dispatcher',
       transitions: {}
     }

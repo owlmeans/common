@@ -20,8 +20,8 @@
     }
   },
   "devDependencies": {
-    "nodemon": "^3.1.4",
-    "typescript": "^5.5.4"
+    "nodemon": "^3.1.7",
+    "typescript": "^5.6.2"
   },
   "peerDependencies": {
     "react": "*",
@@ -48,6 +48,6 @@
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/native-client": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
-    "react-native-vector-icons": "^10.1.0"
+    "react-native-vector-icons": "^10.2.0"
   }
 }

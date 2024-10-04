@@ -3,9 +3,11 @@ import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { AUTH_QUERY } from '@owlmeans/auth'
+import { useContext } from '../../context.js'
 
 export const Dispatcher = DispatcherHOC(({ provideToken }) => {
   const [query] = useSearchParams()
+  const context = useContext()
 
   const t = useI18nLib('auth', 'dispatcher')
 
@@ -20,6 +22,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken }) => {
       })
 
       provideToken({ token }, params)
+    } else {
+      context.auth().authenticated().then(
+        authzToken => {
+          if (authzToken == null) {
+            provideToken({ token: '' }, undefined)
+          }
+        }
+      )
     }
   }, [])
 

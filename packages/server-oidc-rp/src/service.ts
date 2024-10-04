@@ -1,16 +1,16 @@
-import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS, OIDC_ADMIN_CLIENT } from './consts.js'
+import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
 import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService } from './types.js'
 import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
+import type { BaseClient } from 'openid-client'
 import { custom, Issuer } from 'openid-client'
 
 export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClientService => {
   const service: OidcClientService = createService<OidcClientService>(alias, {
     getIssuer: async clientId => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
-      const cfg = context.cfg.oidc.consumer
-      clientId = clientId ?? cfg?.clientId
+      let cfg = await service.getConfig(clientId)
 
       if (cfg?.basePath == null) {
         throw new AuthManagerError('oidc.client.basepath')
@@ -20,6 +20,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.service')
       }
 
+      // @TODO Add support for any domain (not just registered services)
       const security = makeSecurityHelper<Config, Context>(context)
       const serviceManager = context.cfg.services[cfg.service]
 
@@ -39,33 +40,40 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     },
 
     getClient: async clientId => {
-      const context = assertContext<Config, Context>(service.ctx as Context, alias)
-      const cfg = context.cfg.oidc.consumer
-      const issuer: Issuer = typeof clientId === 'string' || clientId == null
-        ? await service.getIssuer(clientId) : clientId
-
-      let _clientId = cfg?.clientId
-      if (typeof clientId !== 'object' && clientId != null) {
-        _clientId = clientId
-      }
+      let issuer: Issuer<BaseClient> | null = typeof clientId === 'string' ? null : (clientId ?? null)
+      // @TODO Do not forget to delete it
+      console.log('!!!! Here comes issuers meta: ', typeof clientId === 'string' ? clientId : issuer?.metadata)
+      let _clientId = typeof clientId === 'string' ? clientId : issuer?.metadata.issuer
 
       if (_clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
-      const secret = clientId === OIDC_ADMIN_CLIENT
-        ? context.cfg.oidc.consumerSecrets?.adminSecret
-        : context.cfg.oidc.consumerSecrets?.clientSecret
-      if (secret == null) {
+      issuer ??= await service.getIssuer(_clientId)
+
+      const cfg = await service.getConfig(_clientId)
+      if (cfg?.secret == null) {
         throw new AuthManagerError('oidc.client.secert')
       }
 
-      return new issuer.Client({ client_id: _clientId, client_secret: secret })
+      return new issuer.Client({ client_id: _clientId, client_secret: cfg?.secret })
+    },
+
+    getConfig: async clientId => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+
+      return context.cfg.oidc.providers?.find(consumer => consumer.clientId === clientId)
+    },
+
+    getDefault: () => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+
+      return context.cfg.oidc.providers?.find(consumer => consumer.def)?.clientId
     },
 
     providerApi: () => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
-      const cfg = context.cfg.oidc.consumer
+      const cfg = context.cfg.oidc
       const providerApiService = cfg.providerApiService ?? DEF_OIDC_PROVIDER_API
       if (context.hasService(providerApiService)) {
         return context.service<ProviderApiService>(providerApiService)
@@ -75,7 +83,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
     accountLinking: () => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
-      const cfg = context.cfg.oidc.consumer
+      const cfg = context.cfg.oidc
       const accountLinkingService = cfg.accountLinkingService ?? DEF_OIDC_ACCOUNT_LINKING
       if (context.hasService(accountLinkingService)) {
         return context.service<AccountLinkingService>(accountLinkingService)

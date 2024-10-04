@@ -18,30 +18,38 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     },
-    "./plugins": {
-      "import": "./build/plugins/index.js",
-      "require": "./build/plugins/index.js",
-      "default": "./build/plugins/index.js",
-      "module": "./build/plugins/index.js",
-      "types": "./build/plugins/index.d.ts"
+    "./auth/plugins": {
+      "import": "./build/auth/plugins/index.js",
+      "require": "./build/auth/plugins/index.js",
+      "default": "./build/auth/plugins/index.js",
+      "module": "./build/auth/plugins/index.js",
+      "types": "./build/auth/plugins/index.d.ts"
+    },
+    "./auth": {
+      "import": "./build/auth/index.js",
+      "require": "./build/auth/index.js",
+      "default": "./build/auth/index.js",
+      "module": "./build/auth/index.js",
+      "types": "./build/auth/index.d.ts"
     }
   },
   "devDependencies": {
-    "@types/node": "^22.5.0",
-    "nodemon": "^3.1.4",
-    "typescript": "^5.5.4"
+    "@types/node": "^22.7.4",
+    "nodemon": "^3.1.7",
+    "npm-check": "^6.0.1",
+    "typescript": "^5.6.2"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
     "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/oidc": "^0.1.0",
     "@owlmeans/resource": "^0.1.0",
     "@owlmeans/server-auth": "^0.1.0",
-    "@scure/base": "^1.1.8",
-    "jose": "^5.9.2",
+    "@owlmeans/server-context": "^0.1.0",
+    "@scure/base": "^1.1.9",
+    "jose": "^5.9.3",
     "openid-client": "^5.7.0"
   }
 }

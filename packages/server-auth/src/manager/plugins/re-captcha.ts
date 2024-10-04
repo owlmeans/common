@@ -40,7 +40,7 @@ export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context:
         throw new AuthPluginError('recaptcha:api')
       }
       if (!result.success) {
-        throw new AuthenFailed('recaptcha:' + result['error-codes']?.join(',') ?? 'unknown')
+        throw new AuthenFailed('recaptcha:' + (result['error-codes']?.join(',') ?? 'unknown'))
       }
 
       credential.scopes = [AUTH_SCOPE]

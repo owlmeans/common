@@ -1,1 +1,0 @@
-# OwlMeans Panel — Shared library
