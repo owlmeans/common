@@ -25,13 +25,25 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           // We do nothing if we are in the middle of a flow
           console.log('~^ Try to resolve flow')
           if (await flow.supplied) {
-            return
+            const state = await flow.state()
+            // If the flow we are in already has a targe, it means this is some flow 
+            // that is really happening and we do not need to override it with our own.
+            // It's MAY BE required on the auth manager service side, cause this 
+            // component is actually reused by both service and identity providers of OwlMeans.
+            if (state?.state().service !== '') {
+              return
+            }
           }
           console.log('~^ Proceed with redirect')
           const cfg = context.cfg.security?.auth
-          await flow.begin(cfg?.flow ?? STD_OIDC_FLOW, cfg?.enter)
-          const query = SERVICE_PARAM in params ? { [SERVICE_PARAM]: params[SERVICE_PARAM] } : {}
-          await flow.proceed({ query })
+          const model = await flow.begin(cfg?.flow ?? STD_OIDC_FLOW, cfg?.enter)
+          const target = (
+            SERVICE_PARAM in params ? params[SERVICE_PARAM] : context.cfg.shortAlias
+          ) as string | undefined
+          if (target != null) {
+            model.target(target)
+          }
+          await flow.proceed()
         })
       } else {
         const auth = context.service<AuthService>(DEFAULT_ALIAS)

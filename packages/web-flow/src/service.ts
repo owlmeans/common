@@ -19,6 +19,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
       throw new UnknownTransition('service.proceed')
     }
     const step = flow.step()
+    console.log('The step we are proceeding to', step)
     if (step.module == null) {
       throw new FlowStepMissconfigured(step.step)
     }
@@ -32,6 +33,8 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     params.set(param, flow.serialize())
 
     const redirectUrl = `${url}?${params.toString()}`
+
+    console.log('we get to a redirect url', redirectUrl)
     if (!dryRun) {
       document.location.href = redirectUrl
     }

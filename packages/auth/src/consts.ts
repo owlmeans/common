@@ -70,6 +70,7 @@ export enum AuthenticationStage {
   Authenticated = 'authenticated'
 }
 
+
 export const AUTHEN = 'authentication'
 export const AUTHEN_INIT = `${AUTHEN}:init`
 export const AUTHEN_AUTHEN = `${AUTHEN}:authenticate`
@@ -78,6 +79,7 @@ export const CAUTHEN = `client-${AUTHEN}`
 export const CAUTHEN_AUTHEN = `${CAUTHEN}:authentication`
 export const CAUTHEN_AUTHEN_DEFAULT = `${CAUTHEN}:authentication:default`
 export const CAUTHEN_AUTHEN_TYPED = `${CAUTHEN}:authentication:typed`
+export const CAUTHEN_FLOW_ENTER = `${CAUTHEN}:flow:enter`
 
 export const ScopeValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 32 }
 

@@ -67,6 +67,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
 
             // @TODO we need to provide an identity provider client as entityId here for flexibil usage
             const source = await oidc.proceedToRedirectUrl()
+            console.log('request allowence', type, source)
             await control.requestAllowence({ type, source })
           })
         case AuthenticationStage.Authenticate:
@@ -89,6 +90,8 @@ export const oidcClientPlugin: AuthenticationPlugin = {
 
               // 2. Include additional parameters (control state with allowance to flow state)
               await control.persist()
+
+              console.log('Try to redirect to url for authentication', url)
 
               document.location.href = url
             }

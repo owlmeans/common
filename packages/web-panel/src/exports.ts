@@ -8,11 +8,11 @@ export { module, elevate, provideRequest, stab } from '@owlmeans/client-module'
 export type { ClientModule as Module } from '@owlmeans/client-module'
 export { route as croute } from '@owlmeans/client-route'
 export { route, frontend } from '@owlmeans/route'
-export { DEFAULT_ALIAS as DAUTH_GUARD } from '@owlmeans/client-auth'
+export { DEFAULT_ALIAS as DAUTH_GUARD, setupExternalAuthentication } from '@owlmeans/client-auth'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 
-export { DISPATCHER } from '@owlmeans/auth'
+export { DISPATCHER, CAUTHEN_FLOW_ENTER } from '@owlmeans/auth'
 export type { AuthToken } from '@owlmeans/auth'
 
 export { useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'

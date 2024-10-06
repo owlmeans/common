@@ -22,7 +22,7 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
 
   const _handler = handler as RefedModuleHandler<T, R> | undefined ??
     // There are server modules (api) and client modules. 
-    // Last ones do not need to stab handler with api call.
+    // Later ones do not need to stab handler with api call.
     (('route' in module.route ? module.route.route.type : module.route.type)
       === AppType.Backend ? apiHandler : undefined)
 
