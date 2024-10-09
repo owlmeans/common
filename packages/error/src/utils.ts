@@ -8,7 +8,8 @@ export const createErrorConverter = (
   return {
     match: err => errorClass != null && err instanceof errorClass,
     convert: err => new resilientErrorClass(err.message, err.stack),
-    isMarshaled: err => err.message.startsWith(resilientErrorClass.typeName + ResilientError.separator),
+    isMarshaled: err =>
+      err.message.startsWith(resilientErrorClass.typeName + ResilientError.separator),
     unmarshal: unmarshal(resilientErrorClass)
   }
 }
@@ -28,6 +29,7 @@ export const unmarshal = <T extends ResilientError = ResilientError>(errorClass:
     }
 
     const error = new errorClass(...args)
+    error.message = args[0]
     error.finalizeUnmarshal()
     return error as T
   }

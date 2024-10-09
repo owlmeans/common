@@ -19,6 +19,7 @@ export interface FormRef<T extends FieldValues = FieldValues> {
   form: UseFormReturn<T>
   update: (data: T) => void
   loader: Toggleable
+  error: (error: Error | string, target?: string) => void
 }
 
 export interface FormOnSubmit<T> {
