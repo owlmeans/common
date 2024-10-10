@@ -3,9 +3,9 @@ import type { AppConfig, AppContext, ClientModule } from '@owlmeans/server-app'
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_ALIAS, keycloakApi } from './consts.js'
 import { prepareToken } from './utils/token.js'
-
-import type { Organization, OrgCreationResult, User } from './types/index.js'
+import type { IdentityProviderLink, Organization, OrgCreationResult, User } from './types/index.js'
 import { KeycloakOrphanUser } from './errors.js'
+import { KEY_OWL } from '@owlmeans/did'
 
 export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakApiService => {
   const service: KeycloakApiService = createService<KeycloakApiService>(alias, {
@@ -16,6 +16,29 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
       request.params.userId = userId
       const [user] = await mod.call(request)
 
+      const idpsReq = prepareToken(token)
+      idpsReq.params.userId = user.id
+      const [idps] = await context.module<ClientModule<IdentityProviderLink[]>>(keycloakApi.user.idps.list)
+        .call(idpsReq)
+      // @TODO Use some helper function to check if the id is an OwlMeans DID
+      const owlMeansId = idps.find(idp => idp.userId.startsWith(KEY_OWL + ':'))
+
+      return {
+        userId: user.id,
+        username: user.username,
+        did: owlMeansId?.userId,
+        ...(owlMeansId != null ? { isOwlMeansId: true } : {})
+      }
+    },
+
+    getUserDetailsWithOrg: async (token, userId) => {
+      const context = assertContext<AppConfig, AppContext>(service.ctx as AppContext)
+      const mod = context.module<ClientModule<User>>(keycloakApi.user.get)
+      const request = prepareToken(token)
+      request.params.userId = userId
+      const [user] = await mod.call(request)
+
+      // @TODO This is too implemnetation specific - it needs to be abstracted someway
       let entityId: string | undefined
       if (user.attributes?.['kc.org'] != null && Array.isArray(user.attributes['kc.org'])
         && user.attributes['kc.org'].length > 0) {
@@ -29,7 +52,9 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
       }
     },
 
-    enrichUser: async (token, details) => {
+    // @TODO This method is also quite implementation specific and need to also be moved 
+    // somwhere else (if it is needed in general)
+    enrichUserWithOrg: async (token, details) => {
       const context = assertContext<AppConfig, AppContext>(service.ctx as AppContext)
       if (details.entityId == null) {
         const create = context.module<ClientModule<OrgCreationResult>>(keycloakApi.organization.create)

@@ -8,11 +8,14 @@ export const keycloakApi = {
     get: 'keycloak-api:group:get'
   },
   user: {
-    get: 'keycloak-api:user:get'
+    get: 'keycloak-api:user:get',
+    idps: {
+      list: 'keycloak-api:user:idps'
+    }
   },
   organization: {
     create: 'keycloak-api:organization:create',
     get: 'keycloak-api:organization:get',
     addMember: 'keycloak-api:organization:addMember',
-  }
+  },
 }

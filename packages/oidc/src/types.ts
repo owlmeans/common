@@ -25,6 +25,10 @@ export interface OidcProviderConfig {
   internal?: boolean
   // This flag works only on client side. It specifies a default relying party
   def?: boolean
+  // The client id that is used to administrate the underlying IAM service
+  apiClientId?: string
+  // Bound this client to sepcific organization entity
+  entityId?: string
 }
 
 export interface WithSharedConfig {

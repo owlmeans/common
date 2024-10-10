@@ -33,6 +33,7 @@ export interface Contextual {
   alias: string
   reinitializeContext?: <T extends Contextual>(context: BasicContext<any>) => T // This method is a fix to replace context inside closed scope
   registerContext: <T extends Contextual, C extends BasicConfig>(context: BasicContext<C>) => T
+  assertCtx: <C extends BasicConfig, T extends BasicContext<C>>(location?: string) => T
 }
 
 export interface Service extends Contextual {

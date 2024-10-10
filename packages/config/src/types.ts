@@ -16,6 +16,7 @@ export interface CommonConfig extends BasicConfig {
     i18n?: boolean
   }
   security?: SecurityConfig
+  defaultEntityId?: string
 }
 export interface PluginConfig extends ConfigRecord {
   type?: AppType
