@@ -227,6 +227,20 @@ export const makeMongoResource = <
       }
     },
 
+    db: async () => {
+      const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
+      await mongo.ready()
+      return await mongo.db(dbAlias)
+    },
+
+    client: async () => {
+      const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
+      await mongo.ready()
+      return await mongo.client(dbAlias)
+    },
+
     index: (name, index, options) => {
       resource.indexes = resource.indexes ?? []
       resource.indexes.push({ name, index, options })

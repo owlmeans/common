@@ -31,9 +31,9 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
     const rotueModel = route(module.route, opts?.routeOptions)
     _module = module as ClientModule<T, R>
     _module.route = rotueModel
-    _module.guards = opts?.guards ?? module.guards,
-      _module.filter = opts?.filter ?? module.filter,
-      _module.gate = opts?.gate ?? module.gate
+    _module.guards = opts?.guards ?? module.guards
+    _module.filter = opts?.filter ?? module.filter
+    _module.gate = opts?.gate ?? module.gate
 
   } else if (isClientRouteModel(module)) {
     assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)

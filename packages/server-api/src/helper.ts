@@ -11,13 +11,14 @@ const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<
 }
 
 export const handleBody: <T>(
-  handler: (payload: T, ctx: BasicContext<BasicConfig>) => Promise<any>
+  handler: (payload: T, ctx: BasicContext<BasicConfig>, req: AbstractRequest) => Promise<any>
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.body as any,
-      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
+      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>,
+      req
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)

@@ -86,6 +86,11 @@ export interface PlanSubscription {
   consumptions?: { [key: string]: CapabilityUsage }
 }
 
+export interface SubscriptionPropogateBody extends PlanSubscription {
+  service: string
+  externalId: string
+}
+
 export interface LimitConfig {
   interval: PlanDuration
   limit: number

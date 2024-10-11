@@ -12,6 +12,7 @@ export const createModalService = (alias: string = DEF_MODAL_ALIAS): ModalServic
     service.stack.pop()
     service.toggle.close()
     if (service.stack.length > 0) {
+      // @TODO Figure out how to remove this hack
       setTimeout(() => service.toggle.open(), 500)
     }
   }

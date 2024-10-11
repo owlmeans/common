@@ -19,6 +19,10 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
     return _contextual as T
   }
 
+  contextual.assertCtx = (
+    location => assertContext(contextual.ctx, location ?? contextual.alias)
+  ) as typeof contextual.assertCtx
+
   return contextual as T
 }
 

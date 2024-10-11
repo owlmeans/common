@@ -7,6 +7,8 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T> {
   schema?: AnySchema
   indexes?: Array<{ name: string, index: IndexSpecification, options?: CreateIndexesOptions }>
   collection: Collection
+  db: () => Promise<Db>
+  client: () => Promise<MongoClient>
   index: <Type extends MongoResource<T>>(name: string, index: IndexSpecification, options?: CreateIndexesOptions) => Type
   getDefaults: () => Partial<T>
 }

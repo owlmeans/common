@@ -2,7 +2,6 @@ import type { ClientContext, Navigator } from '@owlmeans/client'
 import type { ClientConfig } from '@owlmeans/client-context'
 import type { ClientModule } from '@owlmeans/client-module'
 import { module, stab } from '@owlmeans/client-module'
-// import { route as croute } from '@owlmeans/client-route'
 import type { ResolvedServiceRoute } from '@owlmeans/route'
 import { route, frontend } from '@owlmeans/route'
 import { FlowStepMissconfigured, FlowTargetError, TARGET_SERVICE } from '@owlmeans/flow'
@@ -70,7 +69,10 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
         throw new FlowStepMissconfigured(step.step)
       }
 
-      model.transit(transition.transition, true)
+      // @TODO Such payload pass may duplicate some query paramters in some 
+      // case. But in general payloadMaping should protect from most of issues.
+      // In general we may stop to pass any params outside the flow state.
+      model.transit(transition.transition, true, {...req?.params, ...req?.query} as Record<string, string>)
 
       let redirectTo: ClientModule<string>
       // @TODO Properly use target service - as a way to build the redirect URL
@@ -86,6 +88,8 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
       }
 
       const [url] = await redirectTo.call<string>()
+
+      console.log('We try to go', model.state(), url)
 
       if (url.startsWith('http')) {
         await service.proceed(req)

@@ -15,10 +15,6 @@ export interface AuthModel {
   init: (request: AllowanceRequest) => Promise<AllowanceResponse>
 
   authenticate: (credential: AuthCredentials) => Promise<AuthToken>
-  
-  // @TODO This method is left here to not delete the code that may be required 
-  // in the future. It leverages Kc.org attribute to link an organization entity.
-  authenticateWithOrg: (credential: AuthCredentials) => Promise<AuthToken>
 
   rely: (conn: Connection, source?: Auth | null) => Promise<void>
 }

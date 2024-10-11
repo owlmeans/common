@@ -42,12 +42,6 @@ export interface AccountMeta {
 
 export interface ProviderApiService extends InitializedService {
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
-  // @TODO This method is left here to not delete the code that may be required 
-  // in the future. It leverages Kc.org attribute to link an organization entity.
-  // The problem is that this behaviour is so implementation specific that it's make
-  // sense to extract it to OwlMeans Auth propritary implementation.
-  getUserDetailsWithOrg: (token: string, userId: string) => Promise<OidcUserDetails>
-  enrichUserWithOrg: (token: string, user: OidcUserDetails) => Promise<OidcUserDetails>
 }
 
 export interface OidcUserDetails {

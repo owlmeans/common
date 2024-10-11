@@ -41,8 +41,12 @@ export const Form: FC<FormProps> = (props) => {
     })
   }) as <T>(data: T) => void, [name])
 
-  const setError = useCallback((error: Error | string, target: string = 'root') => {
-    form.setError(target, { message: ResilientError.ensure(error).marshal().message })
+  const setError = useCallback((error: unknown, target: string = 'root') => {
+    form.setError(target, {
+      message: ResilientError.ensure(
+        error instanceof Error ? error : `${error}`
+      ).marshal().message
+    })
   }, [name])
 
 

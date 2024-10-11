@@ -1,5 +1,6 @@
 import type { ShallowFlow } from '../types.js'
 import { STD_OIDC_FLOW, TARGET_SERVICE } from '../consts.js'
+import { AUTH_QUERY } from '@owlmeans/auth'
 
 export enum OidcAuthStep {
   Disaptch = 'dispatch',
@@ -50,7 +51,7 @@ export const stdOidcFlow: ShallowFlow = {
         },
       }
     },
-    
+
     [OidcAuthStep.PostAuthen]: {
       index: 2,
       step: OidcAuthStep.PostAuthen,
@@ -82,7 +83,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Payment,
           step: OidcAuthStep.Payment,
         },
-      }
+      },
+      payloadMap: { [AUTH_QUERY]: 0 }
     },
 
     [OidcAuthStep.Payment]: {
@@ -115,8 +117,13 @@ export const stdOidcFlow: ShallowFlow = {
       index: 6,
       step: OidcAuthStep.Target,
       service: '$auth',
-      module: '$dispatcher',
-      transitions: {}
+      module: '$auth.flow',
+      transitions: {
+        [OidcAuthStep.Ephemeral]: {
+          transition: OidcAuthStep.Ephemeral,
+          step: OidcAuthStep.Ephemeral,
+        }
+      }
     },
 
     [OidcAuthStep.Ephemeral]: {

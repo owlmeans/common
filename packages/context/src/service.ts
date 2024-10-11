@@ -1,4 +1,4 @@
-import { appendContextual, assertContext } from './helper.js'
+import { appendContextual } from './helper.js'
 import type { Contextual, InitializedService, LazyService, Service } from './types.js'
 
 enum TypeToMethod {
@@ -32,8 +32,6 @@ const _createService = <S extends Service>(type: TypeToMethod): CreateService<S>
   }
 
   service.ready = () => ready
-
-  service.assertCtx = (location => assertContext(service.ctx, location ?? service.alias)) as typeof service.assertCtx
 
   return service as S
 }

@@ -10,6 +10,7 @@ export { elevate as celevate, stab } from '@owlmeans/client-module'
 export type { RefedModuleHandler } from '@owlmeans/server-module'
 export { handleIntermediate, handleBody, handleRequest } from '@owlmeans/server-api'
 export type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
+export { backend } from '@owlmeans/route'
 
 export { AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT } from '@owlmeans/auth'
 export { GUARD_ED25519, BED255_CASHE_RESOURCE } from '@owlmeans/auth-common'

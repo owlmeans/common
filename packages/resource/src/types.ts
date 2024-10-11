@@ -27,7 +27,8 @@ export interface ResourceRecord {
   id?: string
 }
 
-export interface ListCriteria extends Record<string, ListCriteria | number | string | undefined> { }
+type MaybeArray<T> = T | T[]
+export interface ListCriteria extends Record<string, MaybeArray<ListCriteria | number | string | undefined>> { }
 
 export interface ListOptions {
   pager?: ListPager

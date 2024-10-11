@@ -137,6 +137,8 @@ export const stdAuthFlow: ShallowFlow = {
       }
     },
 
+    // @TODO This doesn't work anymore
+    // The auth dispatcher will require an additional step to proceed
     [StdAuthStep.Target]: {
       index: 7,
       step: StdAuthStep.Target,

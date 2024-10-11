@@ -31,7 +31,7 @@ export const modules = [
   ),
   // This is a helper route that representes a API endpoint of service provider that wants to authenticate 
   // a user with OwlMeans server-auth library.
-  module(route(DISPATCHER_AUTHEN, '/authentication', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema))),
+  module(route(DISPATCHER_AUTHEN, '/authenticate', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema))),
 ]
 
 // const skipModules = [DISPATCHER]

@@ -92,3 +92,9 @@ export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
 
 export const DEFAULT_ALIAS = 'payment'
 
+export const paymentApi = {
+  subscription: {
+    base: 'payment-api:subscription',
+    propogate: 'payment-api:subscription:propogate',
+  }
+}

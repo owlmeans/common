@@ -111,6 +111,7 @@ export const AUTHEN_RELY = `${AUTHEN}-rely`
 export const AUTH_HEADER = 'authorization'
 export const AUTH_QUERY = 'token'
 export const ENTITY_QUERY = 'entity'
+export const PROFILE_QUERY = 'profile'
 
 export const MOD_RECAPTCHA = '_external:re-captcha'
 export const CMOD_RECAPTCHA = `_client-${MOD_RECAPTCHA.slice(1)}`

@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import type { PlanSubscription } from '../types.js'
+import type { PlanSubscription, SubscriptionPropogateBody } from '../types.js'
 import { ResourceValueSchema, PermissionSetSchema, DateSchema, EntityValueSchema, IdValueSchema } from '@owlmeans/auth'
 import { SubscriptionStatusSchema } from '../consts.js'
 import { CapabilityUsageSchema, LimitConfigSchema } from './utils.js'
@@ -34,4 +34,14 @@ export const PlanSubscriptionSchema: JSONSchemaType<PlanSubscription> = {
     }
   },
   required: ['sku', 'entityId', 'createdAt', 'startsdAt', 'status']
+}
+
+export const SubscriptionPropogateBodySchema: JSONSchemaType<SubscriptionPropogateBody> = {
+  type: 'object',
+  properties: {
+    ...PlanSubscriptionSchema.properties,
+    service: ResourceValueSchema,
+    externalId: IdValueSchema,
+  } as any, // @TODO Figure out why it doesn't work (probably different version of ajv)
+  required: ['externalId', 'service', ...PlanSubscriptionSchema.required]
 }

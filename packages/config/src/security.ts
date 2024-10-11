@@ -33,7 +33,7 @@ export const makeSecurityHelper = <
       }
       protocol = params.protocol ?? protocol
 
-      let host = route.host
+      let host = route.host ?? params.host
       let base: string | undefined = undefined
 
       if (host == null) {
@@ -42,7 +42,7 @@ export const makeSecurityHelper = <
           throw new SyntaxError(`No services configured to extract host: ${route.service ?? ctx.cfg.service}`)
         }
 
-        base =serviceMeta.base
+        base = serviceMeta.base
         host = serviceMeta.host
         if (host == null) {
           throw new SyntaxError(`No host provided for service: ${serviceMeta.service}`)
@@ -61,15 +61,15 @@ export const makeSecurityHelper = <
         }
         host = _host
       }
-      
+
       let schema = `${protocol}`
       if (Object.values(RouteProtocols).includes(protocol) && security) {
-        schema += 's' 
+        schema += 's'
       }
 
       const port = route.port != null ? ':' + route.port.toString() : ''
       base = base ? SEP + normalizePath(base) : ''
-      path = typeof path === 'string' 
+      path = typeof path === 'string'
         ? SEP + normalizePath(path)
         : ''
 

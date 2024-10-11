@@ -35,13 +35,13 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         }
         return path.replace(`:${param}`, `${request.params[param as Key]}`)
       }, path)
-      if (route.host == null) {
+      if (route.host == null && request.host == null) {
         throw new SyntaxError(`No host provided in ${module.alias} route`)
       }
 
       const helper = makeSecurityHelper(context)
 
-      const url = helper.makeUrl(route, path)
+      const url = helper.makeUrl(route, path, { host: request.host })
 
       let transformer: AxiosRequestTransformer | undefined = undefined
 
