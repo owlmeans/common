@@ -33,8 +33,10 @@ export const makeSecurityHelper = <
       }
       protocol = params.protocol ?? protocol
 
-      let host = route.host ?? params.host
-      let base: string | undefined = undefined
+      let host = params.host ?? route.host 
+      const baseOverride = params.base === false ? route.base 
+        : params.base === true ? '' : params.base
+      let base: string | undefined = baseOverride ?? route.base
 
       if (host == null) {
         const serviceMeta = ctx.cfg.services?.[route.service ?? ctx.cfg.service] as CommonServiceRoute
@@ -42,12 +44,14 @@ export const makeSecurityHelper = <
           throw new SyntaxError(`No services configured to extract host: ${route.service ?? ctx.cfg.service}`)
         }
 
-        base = serviceMeta.base
+        base = baseOverride ?? serviceMeta.base
         host = serviceMeta.host
         if (host == null) {
           throw new SyntaxError(`No host provided for service: ${serviceMeta.service}`)
         }
       }
+
+      console.log('$$$ makeUrl: ', host, base, path)
 
       // @TODO Make sure it's safe
       // It strips security from fully qualified hosts urls in case of non standard configuration

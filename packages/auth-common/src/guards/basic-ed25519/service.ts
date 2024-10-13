@@ -32,7 +32,8 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       const context = assertContext<Config, Context>(guard.ctx)
       const truested = await trust(context, resource, context.cfg.alias ?? context.cfg.service)
 
-      if (req?.body != null && truested.user.secret != null) {
+      // req?.body != null 
+      if (req != null && truested.user.secret != null) {
         if (req.headers == null) {
           req.headers = {}
         }
@@ -40,7 +41,7 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
         req.headers[nonceKey] = createIdOfLength(16)
 
         const payload = {
-          body: req.body,
+          body: req.body ?? {},
           headers: { [timeKey]: req.headers[timeKey], [nonceKey]: req.headers[nonceKey] }
         }
 
@@ -88,7 +89,7 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       }
 
       const payload = {
-        body: req.body,
+        body: req.body == null || req.body == '' ? {} : req.body,
         headers: { [timeKey]: req.headers[timeKey], [nonceKey]: req.headers[nonceKey] }
       }
 

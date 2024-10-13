@@ -44,4 +44,5 @@ export interface SecurityHelperUrlParams {
   forceUnsecure?: boolean
   protocol?: RouteProtocols
   host?: string
+  base?: string | boolean
 }

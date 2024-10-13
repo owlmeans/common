@@ -2,5 +2,6 @@
 export enum ModuleOutcome {
   Ok = 'ok',
   Accepted = 'accepted',
-  Created = 'created'
+  Created = 'created',
+  Finished = 'finished'
 }

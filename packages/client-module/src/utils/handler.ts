@@ -69,6 +69,8 @@ export const apiCall: <
       body: req?.body,
       headers: req?.headers ?? {},
       query: req?.query ?? {},
+      host: req?.host,
+      base: req?.base,
       path: module.getPath(),
     }
     if (req?.cancel != null) {

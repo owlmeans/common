@@ -283,13 +283,37 @@ const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaTyp
 
       if (type.additionalProperties != null && type.additionalProperties.type === 'object') {
         value = Object.fromEntries(Object.entries(value).map(([key, value]) => {
-          return [key, _prepareValues(value, type.additionalProperties as JSONSchemaType<any>)]
+          return [key, _prepareSingleValue(value, type.additionalProperties as JSONSchemaType<any>)]
         }))
+
+        return [key, value]
       }
+
       return [key, _prepareValues(value, type as JSONSchemaType<typeof value>)]
     } else if (type?.type === 'array') {
-      return [key, (value as any[]).map(item => _prepareValues(item, type.items as JSONSchemaType<any>))]
+      return [key, (value as any[]).map(item => _prepareSingleValue(item, type.items as JSONSchemaType<any>))]
     }
 
-    return [key, value]
+    return [key, _prepareSingleValue(value, type)]
   })) as T : obj
+
+const _prepareSingleValue = <T>(value: T, schema?: JSONSchemaType<T>) => {
+  if (['object', 'array'].includes(schema?.type)) {
+    return _prepareValues(value as any, schema as JSONSchemaType<any>)
+  }
+  if (schema?.type === 'string' && value != null) {
+    return `${value}`
+  }
+  if (schema?.type === 'number' && value != null) {
+    return +value
+  }
+  if (schema?.type === 'boolean' && value != null) {
+    return !!value
+  }
+  if (value == null) {
+    return value
+  }
+
+  // We sclarize value forcefully if we don't expect any tricks here
+  return `${value}`
+}

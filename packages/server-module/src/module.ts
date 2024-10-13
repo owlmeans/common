@@ -5,6 +5,7 @@ import { isServerRouteModel, route } from '@owlmeans/server-route'
 import type { CommonModule } from '@owlmeans/module'
 import type { CommonRouteModel } from '@owlmeans/route'
 import type { BasicContext } from '@owlmeans/context'
+import { prependBase } from '@owlmeans/route/utils'
 
 export const module = <R>(
   arg: CommonModule | ServerRouteModel<R> | CommonRouteModel, handler?: RefedModuleHandler<R>, opts?: ModuleOptions<R>
@@ -43,6 +44,8 @@ export const module = <R>(
 
     return _module  as T
   }
+
+  _module.getPath = () => prependBase(_module.route.route)
 
   moduleHandle.ref = _module
 

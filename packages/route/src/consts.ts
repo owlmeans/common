@@ -1,7 +1,8 @@
 
 export enum RouteMethod {
   GET = 'get',
-  POST = 'post'
+  POST = 'post',
+  PUT = 'put'
 }
 
 export const SEP = '/'

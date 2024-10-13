@@ -54,6 +54,7 @@ export interface AbstractRequest<T extends {} = {}> {
   canceled?: boolean
   cancel?: () => void
   host?: string
+  base?: string | boolean
 }
 
 export interface AbstractResponse<T> {

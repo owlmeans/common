@@ -1,1 +1,0 @@
-# OwlMeans Keycloak Server Library - Package with plugin of OIDC impemnetation over Keycloak

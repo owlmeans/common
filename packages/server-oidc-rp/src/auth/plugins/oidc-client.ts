@@ -122,6 +122,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     },
 
     authenticate: async credential => {
+      console.log('000000000000000')
       const [cfg, tokenSet, exchangeToken] = await _authenticate(credential)
 
       if (tokenSet.id_token == null || tokenSet.access_token == null) {
@@ -152,6 +153,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       // managable, so this condition isn't enough to cover described cases.
       let details: OidcUserDetails
       if (cfg.apiClientId != null) {
+        console.log(1)
         const apiClient = await oidc.getClient(cfg.apiClientId)
         const adminTokens = await apiClient.grant({ grant_type: 'client_credentials' })
         if (adminTokens.access_token == null) {
@@ -175,6 +177,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         // Fix profile if it's not linked properly to OwlMeans Id
         || (details.did != null && details.isOwlMeansId && !profile.profileId?.startsWith(KEY_OWL + ':'))
       ) {
+        console.log(2)
         details.isOwlMeansId ??= cfg.entityId != null && cfg.entityId === context.cfg.defaultEntityId
         if (details.isOwlMeansId && context.cfg.defaultEntityId == null) {
           throw new AuthManagerError('iam.governance')
@@ -189,6 +192,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         // We relink existing profile only if it's not yet did bound
         // and the orgnaization is owlmeans.org
         if (profile == null || details.entityId === context.cfg.defaultEntityId) {
+          console.log(3)
           profile = await store.linkProfile({
             ...details,
             clientId: cfg.clientId,
@@ -196,6 +200,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           }, { username: jwt.preferred_username as string ?? details.username })
         }
       }
+      console.log(4)
 
       credential.scopes = [ALL_SCOPES]
       credential.source = cfg.clientId

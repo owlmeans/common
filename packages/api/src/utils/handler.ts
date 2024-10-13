@@ -1,7 +1,7 @@
 import type { AbstractResponse } from '@owlmeans/module'
 import { ModuleOutcome } from '@owlmeans/module'
 import type { AxiosResponse } from 'axios'
-import { ACCEPTED, CREATED, FORBIDDEN_ERROR, OK, SERVER_ERROR, UNAUTHORIZED_ERROR } from '../consts.js'
+import { ACCEPTED, CREATED, FINISHED, FORBIDDEN_ERROR, OK, SERVER_ERROR, UNAUTHORIZED_ERROR } from '../consts.js'
 import { ResilientError } from '@owlmeans/error'
 import { ApiClientError, ServerAuthError, ServerCrashedError } from '../errors.js'
 
@@ -17,16 +17,9 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
       // console.log('response date', !!response.data, response.data)
       // console.log('headers', response.headers)
       // console.log('headers to json', !!response.headers.toJSON, (response.headers.toJSON as any)())
-      if (response.data != null && response.data != '') {
-        reply.resolve(response.data, ModuleOutcome.Created)
-        return
-      }
-      if (response.headers.toJSON != null && typeof response.headers.toJSON === 'function') {
-        reply.resolve(response.headers.toJSON(), ModuleOutcome.Created)
-        return
-      }
-      reply.resolve(response.headers, ModuleOutcome.Created)
-      return
+      return processEmptyResponse(response, reply, ModuleOutcome.Created)
+    case FINISHED:
+      return processEmptyResponse(response, reply, ModuleOutcome.Finished)
     default:
       try {
         if (typeof response.data === 'string') {
@@ -51,4 +44,16 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
           return
       }
   }
+}
+
+const processEmptyResponse = (response: AxiosResponse, reply: AbstractResponse<any>, outcome: ModuleOutcome) => {
+  if (response.data != null && response.data != '') {
+    reply.resolve(response.data, outcome)
+    return
+  }
+  if (response.headers.toJSON != null && typeof response.headers.toJSON === 'function') {
+    reply.resolve(response.headers.toJSON(), outcome)
+    return
+  }
+  reply.resolve(response.headers, outcome)
 }

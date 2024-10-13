@@ -1,1 +1,0 @@
-# OwlMeans Keycloak Web Client - Package with plugin of OIDC impemnetation over Keycloak

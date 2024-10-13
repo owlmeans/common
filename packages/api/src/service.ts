@@ -41,7 +41,8 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       const helper = makeSecurityHelper(context)
 
-      const url = helper.makeUrl(route, path, { host: request.host })
+      console.log('$$$ request.payload: ', request.host, request.params, route)
+      const url = helper.makeUrl(route, path, { host: request.host, base: request.base })
 
       let transformer: AxiosRequestTransformer | undefined = undefined
 
@@ -61,6 +62,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       }
 
       // console.log('We try to request: ', url, route.method, request.headers, body, request.query)
+      console.log('$$$$$$$$$$ We try to request: ', url, route.method, request.headers, request.body)
 
       const response = await axios.request({
         url, method: route.method,
@@ -71,7 +73,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         validateStatus: () => true,
       })
 
-      // console.log('after request we see', response.data, response.headers, response.status)
+      console.log('<<<<<<< $$$$$$$$$$$$$ after request we see', response.data, response.headers, response.status)
 
       processResponse(response, reply)
 

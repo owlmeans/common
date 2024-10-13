@@ -13,3 +13,7 @@ export interface TokenRequest {
   params: ParamsFromToken
   headers: HeadersFromToken
 }
+
+export interface WithLocation {
+  location: string
+}

@@ -33,11 +33,11 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
 /**
  * @throws {SyntaxError}
  */
-export const assertContext = <C extends BasicConfig, T extends BasicContext<C>>(ctx: T | undefined, location?: string): T => {
+export const assertContext = <C extends BasicConfig, T extends BasicContext<C>>(ctx: T | BasicContext<BasicConfig> | undefined, location?: string): T => {
   if (ctx == null) {
     throw new SyntaxError(`Context not found in ${location}`)
   }
-  return ctx
+  return ctx as T
 }
 
 export const isContextWithoutIds = <C extends BasicConfig, T extends BasicContext<C>>(context: T): boolean =>

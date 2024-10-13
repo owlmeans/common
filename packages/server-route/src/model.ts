@@ -1,7 +1,7 @@
 import type { ServerRouteModel, ServerRouteOptions, ServiceRoute } from './types.js'
 import { DEFAULT_FIELD } from './consts.js'
 import { matchToPathes } from './utils/route.js'
-import { resolve, overrideParams } from '@owlmeans/route/utils'
+import { resolve, overrideParams, prependBase } from '@owlmeans/route/utils'
 import type { CommonRouteModel } from '@owlmeans/route'
 
 export const route = <R>(route: CommonRouteModel, intermediate: boolean, opts?: ServerRouteOptions<R>) => {
@@ -37,7 +37,7 @@ export const route = <R>(route: CommonRouteModel, intermediate: boolean, opts?: 
       const req = request as Record<string, string>
       let path = req[opts?.pathField ?? DEFAULT_FIELD] as string
 
-      const { match, partial } = matchToPathes(model.route.path, path)
+      const { match, partial } = matchToPathes(prependBase(model.route), path)
 
       return match || (intermediate && partial)
     }

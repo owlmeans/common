@@ -56,6 +56,8 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.secert')
       }
 
+      console.log('Try to get OIDC client', cfg)
+
       return new issuer.Client({ client_id: _clientId, client_secret: cfg?.secret })
     },
 

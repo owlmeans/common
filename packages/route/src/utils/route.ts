@@ -77,10 +77,11 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
       + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
   }
 
-  if (parent == null && route.base != null && route.base.trim() !== '') {
-    route.path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
-    // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
-  }
+  // Moved base resolution to the final service
+  // if (parent == null && route.base != null && route.base.trim() !== '') {
+  //   route.path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
+  //   // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
+  // }
 
   console.log(`Route resolves: ${route.alias} to ${route.path} : ${route.host}`)
 
@@ -97,4 +98,13 @@ const assertCycle = <C extends BasicConfig, T extends BasicContext<C>>(context: 
     }
     parent = context.module<Contextual & { _module: true, route: CommonRouteModel }>(parent.parent).route.route
   }
+}
+
+export const prependBase = (route: CommonRoute) => {
+  let path = route.path
+  if (route.base != null && route.base.trim() !== '') {
+    path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
+    // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
+  }
+  return path
 }

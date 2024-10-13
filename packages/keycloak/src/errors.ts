@@ -36,7 +36,17 @@ export class KeycloakOrphanUser extends KeycloakConsistencyError {
   }
 }
 
+export class KeycloakCreationError extends KeycloakError {
+  public static override typeName: string = `${KeycloakError.typeName}Creation`
+
+  constructor(message: string = 'error') {
+    super(`creation:${message}`)
+    this.type = KeycloakCreationError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(KeycloakError)
 ResilientError.registerErrorClass(KeycloakTokenError)
 ResilientError.registerErrorClass(KeycloakConsistencyError)
 ResilientError.registerErrorClass(KeycloakOrphanUser)
+ResilientError.registerErrorClass(KeycloakCreationError)
