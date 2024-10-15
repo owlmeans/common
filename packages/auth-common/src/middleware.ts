@@ -13,24 +13,25 @@ export const authMiddleware: Middleware = {
     context.modules<ClientModule<unknown>>().map(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards = module.getGuards()
-        const [service] = guards
-        if (service != null) {
-          console.log(' + ADD MODULE GUARD: ', module.alias, service)
-          const auth = context.service<GuardService>(service)
+        if (guards.length > 0) {
+          console.log(' + ADD MODULE GUARD: ', module.alias, guards)
+          // const auth = context.service<GuardService>(service)
           const call = module.call
           module.call = async (req, res) => {
             console.log(' > INTRODUCE AUTH MIDDLEWARE MODULE INTERCEPTION ', module.alias)
-            const token = await auth.authenticated(req)
+            // @TODO Actually we may use multiple authentication headers with the same name
+            const [token] = (await Promise.all(guards.map(
+              guard => context.service<GuardService>(guard).authenticated(req)
+            ))).filter(token => token != null)
             if (token != null) {
-              // @TODO Just use await module.resolve() - cause the following construction can lead to wrong module resolution
-              // await module.route.resolve((module.ctx ?? context) as BasicContext<BasicConfig>)
               await module.resolve()
               const _req: Partial<AbstractRequest> = req ?? provideRequest(module.getAlias(), module.getPath())
-              // @TODO Authorization header may be already present
               const headers = (_req.headers ?? {}) as Record<string, string | undefined>
-              headers[AUTH_HEADER] = token
-              _req.headers = headers
-              req = _req as typeof req
+              if (headers[AUTH_HEADER] == null) {
+                headers[AUTH_HEADER] = token
+                _req.headers = headers
+                req = _req as typeof req
+              }
             }
 
             return call(req, res)

@@ -8,10 +8,11 @@ import {
 import { trust } from '../../utils/trusted.js'
 import type { Config, Context } from '../../utils/types.js'
 import type { BasicEd25519Guard, BasicEd25519GuardOptions } from './types.js'
-import { AUTH_HEADER, AuthenPayloadError, AuthroizationType, AuthRole } from '@owlmeans/auth'
+import { AuthenPayloadError, AuthroizationType, AuthRole } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import type { Resource, ResourceRecord } from '@owlmeans/resource'
+import { extractAuthToken } from '@owlmeans/auth-common/utils'
 
 const timeKey = BED255_TIME_HEADER.toLocaleLowerCase()
 const nonceKey = BED255_NONCE_HEADER.toLocaleLowerCase()
@@ -28,7 +29,7 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
     : null
 
   const guard: BasicEd25519Guard = createService<BasicEd25519Guard>(GUARD_ED25519, {
-    authenticated: async (req) => {
+    authenticated: async req => {
       const context = assertContext<Config, Context>(guard.ctx)
       const truested = await trust(context, resource, context.cfg.alias ?? context.cfg.service)
 
@@ -59,19 +60,13 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       return null
     },
 
-    match: async req => {
-      let authorization = req.headers[AUTH_HEADER]
-      authorization = Array.isArray(authorization) ? authorization[0] : authorization
-
-      return authorization?.startsWith(AuthroizationType.Ed25519BasicSignature.toUpperCase())
-        ?? false
-    },
+    match: async req =>
+      extractAuthToken(req, AuthroizationType.Ed25519BasicSignature) != null,
 
     handle: async <T>(req: AbstractRequest, res: AbstractResponse<Auth>) => {
       const context = assertContext<Config, Context>(guard.ctx)
-      let authorization = req.headers[AUTH_HEADER]
-      authorization = Array.isArray(authorization) ? authorization[0] : authorization
-      if (typeof authorization !== 'string') {
+      const authorization = extractAuthToken(req, AuthroizationType.Ed25519BasicSignature)
+      if (authorization == null) {
         return false as T
       }
 

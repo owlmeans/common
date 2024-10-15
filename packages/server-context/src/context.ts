@@ -2,7 +2,7 @@ import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
 import { ServerConfig, ServerContext } from './types.js'
 import { fileConfigReader } from './utils/context.js'
 import { makeBasicContext } from '@owlmeans/context'
-import { PLUGINS, TRUSTED } from './consts.js'
+import { PLUGINS, TRUSTED } from '@owlmeans/config'
 import { authMiddleware, makeBasicEd25519Guard } from '@owlmeans/auth-common'
 
 export const makeServerContext = <C extends ServerConfig, T extends ServerContext<C>>(cfg: C): T => {

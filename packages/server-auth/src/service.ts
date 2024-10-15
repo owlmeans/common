@@ -1,4 +1,5 @@
-import { type ServerContext, type ServerConfig, TRUSTED } from '@owlmeans/server-context'
+import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
+import { TRUSTED } from '@owlmeans/config'
 import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
@@ -6,10 +7,9 @@ import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthroizationType } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '../../module/build/types.js'
-import { AUTH_HEADER } from '@owlmeans/auth'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
-import { trust } from '@owlmeans/auth-common/utils'
+import { trust, extractAuthToken } from '@owlmeans/auth-common/utils'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -21,22 +21,14 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     context.resource<Resource<AuthSpent>>(AUTH_CACHE)
 
   const service: AuthService = createService<AuthService>(alias, {
-    match: async req => {
-      let authorization = req.headers[AUTH_HEADER]
-      authorization = Array.isArray(authorization) ? authorization[0] : authorization
-
-      return authorization?.startsWith(AuthroizationType.Ed25519BasicToken.toUpperCase())
-        ?? false
-    },
+    match: async req => extractAuthToken(req, AuthroizationType.Ed25519BasicToken) != null,
 
     handle: async <T>(req: AbstractRequest, res: AbstractResponse<Auth>) => {
       const context = assertContext(service.ctx) as Context
-      let authorization = req.headers[AUTH_HEADER]
-      authorization = Array.isArray(authorization) ? authorization[0] : authorization
-      if (typeof authorization !== 'string') {
+      const authorization = extractAuthToken(req, AuthroizationType.Ed25519BasicToken)
+      if (authorization == null) {
         return false as T
       }
-      [, authorization] = authorization.split(' ')
 
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
@@ -50,7 +42,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       return true as T
     },
 
-    authenticate: async (token) => {
+    authenticate: async token => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
 

@@ -37,7 +37,7 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
         if (_model == null) {
           _model = await service.begin(undefined, from)
         }
-        
+
         if (targetAlias == null) {
           throw new FlowTargetError('no')
         }
@@ -63,16 +63,22 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
 
     service: () => context.serviceRoute(model.state().service) as ResolvedServiceRoute,
 
+    // @TODO Reuse service's proceed method to avoid code ambiguity and duplication
     proceed: async (transition, req) => {
       const step = model.step(transition.step)
       if (step.module == null) {
         throw new FlowStepMissconfigured(step.step)
       }
 
+
+      // @TODO I'm not sure it's always ok to pass previous payload.
+      // It should be configurable some way.
+      const previous = model.payload()
       // @TODO Such payload pass may duplicate some query paramters in some 
       // case. But in general payloadMaping should protect from most of issues.
       // In general we may stop to pass any params outside the flow state.
-      model.transit(transition.transition, true, {...req?.params, ...req?.query} as Record<string, string>)
+      // !!! Probably we can configure what goes there by the flow config.
+      model.transit(transition.transition, true, { ...previous, ...req?.params, ...req?.query } as Record<string, string>)
 
       let redirectTo: ClientModule<string>
       // @TODO Properly use target service - as a way to build the redirect URL

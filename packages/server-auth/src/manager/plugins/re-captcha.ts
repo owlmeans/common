@@ -1,7 +1,7 @@
 import { AuthenFailed, AuthenticationType, AuthPluginError, MOD_RECAPTCHA, AUTH_SCOPE, AuthRole } from '@owlmeans/auth'
 import type { AppContext, AppConfig } from '../types.js'
 import type { AuthPlugin, RecaptchaRequest, RecpatchaResponse } from './types.js'
-import { PLUGINS } from '@owlmeans/server-context'
+import { PLUGINS } from '@owlmeans/config'
 import type { PluginConfig } from '@owlmeans/config'
 import { PluginMissconfigured } from '@owlmeans/config'
 import type { ClientModule } from '@owlmeans/client-module'

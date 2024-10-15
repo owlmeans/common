@@ -13,6 +13,8 @@ export enum OidcAuthStep {
   Ephemeral = 'ephemeral'
 }
 
+export const PURPOSE_PAYLOAD = 'purpose'
+
 // OwlMeans OIDC Based Auth Flow 
 export const stdOidcFlow: ShallowFlow = {
   // naming - preserve space in serialized state
@@ -70,7 +72,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Target,
           step: OidcAuthStep.Target,
         },
-      }
+      },
+      payloadMap: { [PURPOSE_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.OrgChoice]: {
@@ -83,8 +86,15 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Payment,
           step: OidcAuthStep.Payment,
         },
+        [OidcAuthStep.Target]: {
+          transition: OidcAuthStep.Target,
+          step: OidcAuthStep.Target,
+        },
       },
-      payloadMap: { [AUTH_QUERY]: 0 }
+      payloadMap: { 
+        [AUTH_QUERY]: 0,
+        [PURPOSE_PAYLOAD]: 1,
+      }
     },
 
     [OidcAuthStep.Payment]: {

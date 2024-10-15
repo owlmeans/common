@@ -21,13 +21,13 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     authenticate: async token => {
       const context = assertContext(service.ctx, location)
 
-      const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN).call({ body: token })
+      const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN)
+        .call({ body: token })
 
       const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
       await authResource.save({ id: USER_ID, token: authToken.token })
 
       const [, authorization] = authToken.token.split(' ')
-
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 
       service.auth = envelope.message()
@@ -43,9 +43,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
         if (record != null) {
           const token = record.token
-          service.token = token
 
           const [, authorization] = token.split(' ')
+          service.token = token
 
           const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
 

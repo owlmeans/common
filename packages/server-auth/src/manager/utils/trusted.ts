@@ -1,6 +1,6 @@
 import type { KeyPairModel } from '@owlmeans/basic-keys'
 import type { AppContext, AppConfig } from '../types.js'
-import { TRUSTED } from '@owlmeans/server-context'
+import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '../../consts.js'
 import type { TrustedRecord } from '@owlmeans/auth-common'
 import { trust } from '@owlmeans/auth-common/utils'

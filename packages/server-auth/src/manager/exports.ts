@@ -1,14 +1,14 @@
 
-export { config, TRUSTED } from '@owlmeans/server-context'
+export { config } from '@owlmeans/server-context'
 export type { TrustedRecord } from '@owlmeans/auth-common'
 export { addWebService } from '@owlmeans/client-config'
-export { service } from '@owlmeans/config'
+export { service, TRUSTED } from '@owlmeans/config'
 export { AppType, assertContext } from '@owlmeans/context'
 export { klusterize } from '@owlmeans/kluster'
 export { elevate } from '@owlmeans/server-module'
 export { elevate as celevate, stab } from '@owlmeans/client-module'
 export type { RefedModuleHandler } from '@owlmeans/server-module'
-export { handleIntermediate, handleBody, handleRequest } from '@owlmeans/server-api'
+export { handleIntermediate, handleBody, handleRequest, handleParams } from '@owlmeans/server-api'
 export type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 export { backend } from '@owlmeans/route'
 

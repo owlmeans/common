@@ -56,7 +56,7 @@ export interface FlowState {
   ok: boolean
 }
 
-export interface FlowPayload extends Record<string, string | number | null> { }
+export interface FlowPayload extends Record<symbol | string, string | number | null> { }
 
 export interface SerializedFlow {
   // {flow}:{step}:{prev setp}
@@ -80,7 +80,7 @@ export interface FlowModel {
   steps: (enter?: boolean) => FlowStep[]
   state: () => FlowState
   setState: (state: FlowState | null) => FlowModel
-  payload: <T>() => T
+  payload: <T extends FlowPayload>() => T
   step: (step?: string) => FlowStep
   transitions: (explicit?: boolean) => FlowTransition[]
   transition: (transition: string) => FlowTransition

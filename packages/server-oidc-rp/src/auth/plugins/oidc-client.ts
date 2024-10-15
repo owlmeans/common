@@ -22,8 +22,6 @@ import { KEY_OWL } from '@owlmeans/did'
 const verifierId = (challenge: string) => `verifier:${challenge}`
 const exchangeId = (exchange: string) => `${OIDC_TOKEN_STORE}:${exchange}`
 
-
-
 /**
  * Actually the most of implementation desceibed here is a proprietary one and 
  * located within OwlMeans Auth service implmentation.

@@ -8,7 +8,7 @@ import LinearProgress from '@mui/material/LinearProgress'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { Config, Context, OidcAuthService } from '../../types.js'
 import { useContext } from '@owlmeans/web-client'
-import { DEFAULT_ALIAS } from '../../consts.js'
+import { DEFAULT_ALIAS, OidcAuthPurposes } from '../../consts.js'
 import { OidcAuthStep, UnknownFlowStep } from '@owlmeans/flow'
 
 export const oidcClientPlugin: AuthenticationPlugin = {
@@ -25,6 +25,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
         case AuthenticationStage.Init:
           control.hasPersistentState().then(async hasState => {
             if (canceled) {
+              console.log(':) rendering normalization cancel')
               return
             }
             console.log(canceled, 0)
@@ -55,9 +56,10 @@ export const oidcClientPlugin: AuthenticationPlugin = {
                   if (tokenized.token !== '') {
                     throw new AuthManagerError('callback')
                   }
+                  return // @TODO Will it work here?
                 }
               }
-              return
+              // return
             }
 
             console.log(1)
@@ -65,14 +67,17 @@ export const oidcClientPlugin: AuthenticationPlugin = {
             // 1. Initialize OIDC server side authentication
             const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
 
-            // @TODO we need to provide an identity provider client as entityId here for flexibil usage
-            const source = await oidc.proceedToRedirectUrl()
+            // @TODO we need to provide an identity provider client as entityId here for flexibel usage
+            const source = await oidc.proceedToRedirectUrl({
+              purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown
+            })
             console.log('request allowence', type, source)
             await control.requestAllowence({ type, source })
           })
         case AuthenticationStage.Authenticate:
           control.flow().then(async flow => {
             if (canceled) {
+              console.log('rendering normalization cancel :)')
               return
             }
             console.log(canceled, 2)

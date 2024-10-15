@@ -33,5 +33,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken }) => {
     }
   }, [])
 
-  return query.has(AUTH_QUERY) ? <div>{t('loading')}</div> : undefined
+  return query.has(AUTH_QUERY)
+    ? <div>{t('loading')}</div>
+    : undefined
 })

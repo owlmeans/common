@@ -15,7 +15,23 @@ import { SERVICE_PARAM } from '@owlmeans/web-flow'
 
 export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query }) => {
   const [forwarding, setForwarding] = useState<StateToken | undefined>()
+
   const navigator = useNavigate()
+  const navigate = useCallback(async () => {
+    alias = alias == null || alias === DISPATCHER ? HOME : alias
+    const module = context.module<ClientModule<string>>(alias)
+    if (alias === HOME) {
+      params = {}
+      query = {}
+    } else {
+      query = { ...forwarding?.query, ...query }
+      if (query != null && AUTH_QUERY in query) {
+        delete query[AUTH_QUERY]
+      }
+    }
+    await navigator.navigate(module, { params, query })
+  }, [forwarding])
+
   useEffect(() => {
     if (forwarding?.token != null) {
       if (forwarding.token.token === '') {
@@ -49,18 +65,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
         const auth = context.service<AuthService>(DEFAULT_ALIAS)
         auth.authenticate(forwarding.token)
           .then(async () => {
-            alias = alias == null || alias === DISPATCHER ? HOME : alias
-            const module = context.module<ClientModule<string>>(alias)
-            if (alias === HOME) {
-              params = {}
-              query = {}
-            } else {
-              query = { ...forwarding.query, ...query }
-              if (query != null && AUTH_QUERY in query) {
-                delete query[AUTH_QUERY]
-              }
-            }
-            await navigator.navigate(module, { params, query })
+            return await navigate()
           }).catch((e: Error) => {
             // @TODO Show error on the component
             console.error(e)
@@ -73,7 +78,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
     setForwarding({ token, query })
   }, [])
 
-  return <Renderer provideToken={provideToken} />
+  return <Renderer provideToken={provideToken} navigate={navigate} />
 }
 
 interface StateToken {

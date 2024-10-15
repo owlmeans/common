@@ -5,7 +5,7 @@ import { randomBytes } from '@noble/hashes/utils'
 import { base64 } from '@scure/base'
 import { fromPubKey } from '@owlmeans/basic-keys'
 import type { AppConfig, AppContext } from '../types.js'
-import { TRUSTED } from '@owlmeans/server-context'
+import { TRUSTED } from '@owlmeans/config'
 import type { TrustedRecord } from '@owlmeans/auth-common'
 
 export const basicEd25519 = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {

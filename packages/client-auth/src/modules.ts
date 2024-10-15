@@ -10,6 +10,4 @@ export const modules: ClientModule[] = list as ClientModule[]
 
 export const setupExternalAuthentication = (service: string) =>  {
   elevate(list, CAUTHEN_FLOW_ENTER, stab ,{ routeOptions: { overrides: { service } } })
-
-  console.log(list)
 }

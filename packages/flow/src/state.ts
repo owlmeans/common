@@ -48,7 +48,7 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
       return model 
     },
 
-    payload: () => state!.payload as any,
+    payload: () => state!.payload ?? {} as any,
 
     step: step => flow.steps[step ?? state!.step],
 

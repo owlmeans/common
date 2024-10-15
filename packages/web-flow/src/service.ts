@@ -12,6 +12,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
   const location = `web-flow-service:${alias}`
   const service: FlowService = makeBasicFlowService(alias)
 
+  // @TODO Use in the client proceed also (unify the code)
   service.proceed = async (req, dryRun = false) => {
     const ctx = assertContext(service.ctx, location) as ClientContext
     const flow = service.flow

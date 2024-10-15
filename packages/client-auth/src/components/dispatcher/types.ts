@@ -20,4 +20,5 @@ export interface DispatcherRenderer extends FC<DispatcherRendererProps> {
 
 export interface DispatcherRendererProps extends PropsWithChildren {
   provideToken: (token: AuthToken, query?: AbstractRequest['params']) => void
+  navigate: () => Promise<void>
 }
