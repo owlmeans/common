@@ -9,7 +9,8 @@ import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { Config, Context, OidcAuthService } from '../../types.js'
 import { useContext } from '@owlmeans/web-client'
 import { DEFAULT_ALIAS, OidcAuthPurposes } from '../../consts.js'
-import { OidcAuthStep, UnknownFlowStep } from '@owlmeans/flow'
+import { OidcAuthStep, OidpAuthStep, UnknownFlowStep } from '@owlmeans/flow'
+import { useModule } from '@owlmeans/client'
 
 export const oidcClientPlugin: AuthenticationPlugin = {
   type: OIDC_CLIENT_AUTH,
@@ -17,10 +18,13 @@ export const oidcClientPlugin: AuthenticationPlugin = {
   Implementation: Renderer => ({ type, stage, control }) => {
     const context = useContext<Config, Context>()
     Renderer = Renderer ?? oidcClientPlugin.Renderer
+    const module = useModule()
 
     useEffect(() => {
       let canceled = false
 
+      // @TODO extract somewhere else and make it more consequential
+      // This way it looks too messy
       switch (control.stage) {
         case AuthenticationStage.Init:
           control.hasPersistentState().then(async hasState => {
@@ -37,7 +41,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
               const flow = await control.flow()
               if (flow != null) {
                 const state = await flow.state()
-                if (state?.step().step === OidcAuthStep.PostAuthen) {
+                if ([OidcAuthStep.PostAuthen, OidpAuthStep.PostAuth].includes(state?.step().step as OidcAuthStep)) {
                   const url = new URL(window.location.href)
 
                   const auth: AuthCredentials = {
@@ -68,8 +72,11 @@ export const oidcClientPlugin: AuthenticationPlugin = {
             const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
 
             // @TODO we need to provide an identity provider client as entityId here for flexibel usage
+            console.log('~ module ~', module)
             const source = await oidc.proceedToRedirectUrl({
-              purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown
+              purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown,
+              uid: 'uid' in module.params ? `${module.params.uid}` : undefined,
+              alias: module.alias
             })
             console.log('request allowence', type, source)
             await control.requestAllowence({ type, source })
@@ -97,7 +104,6 @@ export const oidcClientPlugin: AuthenticationPlugin = {
               await control.persist()
 
               console.log('Try to redirect to url for authentication', url)
-
               document.location.href = url
             }
           })

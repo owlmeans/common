@@ -1,10 +1,10 @@
 import { createService } from '@owlmeans/context'
-import type { Config, Context, OidcGuard, OidcGuardOptions } from './types.js'
-import { OIDC_GUARD, OIDC_GUARD_CACHE, OIDC_WRAPPED_TOKEN } from './consts.js'
+import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService } from './types.js'
+import { OIDC_GUARD, OIDC_GUARD_CACHE, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
 import type { Resource, ResourceRecord } from '@owlmeans/resource'
 import type { AbstractRequest, AbstractResponse, CommonModule, GuardService } from '@owlmeans/module'
-import { DEFAULT_GUARD } from '@owlmeans/auth-common'
-import type { Auth } from '@owlmeans/auth'
+import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
+import { AUTH_HEADER, type Auth } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
@@ -18,8 +18,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
 
   console.log(!!cache)
 
-  const [cogurad] = Array.isArray(opts?.coguards) ? opts.coguards
-    : (opts?.coguards ?? [DEFAULT_GUARD])
+  const [cogurad] = Array.isArray(opts?.coguards) ? opts.coguards : [opts?.coguards ?? DEFAULT_GUARD]
 
   const guard: OidcGuard = createService<OidcGuard>(OIDC_GUARD, {
     // Client side
@@ -40,9 +39,6 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
     authenticated: async req => {
       const ctx = guard.assertCtx()
       // @TODO Make some custom implementation if required.
-      // Cause it won't work on the back. And it's likely that
-      // we will need it soon.
-
       // We try to rely on some centeral auth service that operates all tokens.
       const auth = ctx.service<GuardService>(opts?.tokenService ?? cogurad)
       const token = await auth.authenticated(req)
@@ -73,9 +69,24 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
-      // @TODO Add functionality that is related to oidc tokens management here.
+      const token = extractAuthToken(req, OIDC_WRAPPED_TOKEN, false)!
+      const updated = await wrapper(ctx).update({ token }, true)
 
-      res.resolve(envelope.message())
+      if (updated == null) {
+        return false as T
+      }
+
+      if (updated.token !== token) {
+        const [, newAuth] = updated.token.split(' ')
+        const envelope = makeEnvelopeModel<Auth>(newAuth, EnvelopeKind.Token)
+
+        res.responseProvider.header(TOKEN_UPDATE, updated.token)
+        req.headers = { ...req.headers, [AUTH_HEADER]: updated.token }
+
+        res.resolve(envelope.message())
+      } else {
+        res.resolve(envelope.message())
+      }
 
       return true as T
     },
@@ -94,7 +105,7 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
 
 export const setupOidcGuard = (modules: CommonModule[], coguards?: string | string[]) => {
   modules.push(...oidcModules)
-  coguards = Array.isArray(coguards) ? coguards : (coguards ?? [DEFAULT_GUARD])
+  coguards = Array.isArray(coguards) ? coguards : [coguards ?? DEFAULT_GUARD]
 
   modules.forEach(module => {
     if (module.guards != null && !module.guards.includes(OIDC_GUARD)
@@ -103,3 +114,8 @@ export const setupOidcGuard = (modules: CommonModule[], coguards?: string | stri
     }
   })
 }
+
+const wrapper = (context: Context): WrappedOIDCService =>
+  context.hasService(WRAPPED_OIDC)
+    ? context.service(WRAPPED_OIDC)
+    : { update: async token => token } as WrappedOIDCService

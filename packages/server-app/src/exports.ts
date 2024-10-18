@@ -1,8 +1,8 @@
 
-export { config, PLUGINS } from '@owlmeans/server-context'
+export { config } from '@owlmeans/server-context'
 export { sservice } from '@owlmeans/server-config'
 export { addWebService } from '@owlmeans/client-config'
-export { service, toConfigRecord } from '@owlmeans/config'
+export { service, toConfigRecord, PLUGINS } from '@owlmeans/config'
 export { parent, filter, body, params, ModuleOutcome } from '@owlmeans/module'
 export type { AbstractRequest as Request, AbstractResponse as Response } from '@owlmeans/module'
 export { createListSchema, filterObject } from '@owlmeans/resource'

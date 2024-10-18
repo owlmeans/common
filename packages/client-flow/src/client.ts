@@ -38,20 +38,19 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
           _model = await service.begin(undefined, from)
         }
 
-        if (targetAlias == null) {
-          throw new FlowTargetError('no')
-        }
-        let target: ResolvedServiceRoute
-        try {
-          target = context.serviceRoute(targetAlias) as ResolvedServiceRoute
-        } catch (e) {
-          const err = ResilientError.ensure(e as Error)
-          const error = new FlowTargetError(targetAlias)
-          error.oiriginalStack = err.stack
+        if (targetAlias != null) {
+          let target: ResolvedServiceRoute
+          try {
+            target = context.serviceRoute(targetAlias) as ResolvedServiceRoute
+          } catch (e) {
+            const err = ResilientError.ensure(e as Error)
+            const error = new FlowTargetError(targetAlias)
+            error.oiriginalStack = err.stack
 
-          throw error
+            throw error
+          }
+          _model.target(target.service)
         }
-        _model.target(target.service)
       }
 
       model = _model
@@ -78,7 +77,10 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
       // case. But in general payloadMaping should protect from most of issues.
       // In general we may stop to pass any params outside the flow state.
       // !!! Probably we can configure what goes there by the flow config.
-      model.transit(transition.transition, true, { ...previous, ...req?.params, ...req?.query } as Record<string, string>)
+      model.transit(
+        transition.transition, true,
+        { ...previous, ...req?.params, ...req?.query } as Record<string, string>
+      )
 
       let redirectTo: ClientModule<string>
       // @TODO Properly use target service - as a way to build the redirect URL
@@ -93,14 +95,13 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
         redirectTo = context.module<ClientModule>(step.module)
       }
 
-      const [url] = await redirectTo.call<string>()
+      const [url] = await redirectTo.call<string>(req)
 
       console.log('We try to go', model.state(), url)
-
       if (url.startsWith('http')) {
         await service.proceed(req)
       } else {
-        await nav.navigate(redirectTo)
+        await nav.navigate(redirectTo, req)
       }
     },
 

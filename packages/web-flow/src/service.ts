@@ -25,7 +25,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
       throw new FlowStepMissconfigured(step.step)
     }
     const module = ctx.module<ClientModule<string>>(step.module)
-    const [url] = await module.call<string>({ full: true })
+    const [url] = await module.call<string>({ ...req, full: true })
 
     const cfg = service.config()
     const param = cfg.queryParam ?? QUERY_PARAM

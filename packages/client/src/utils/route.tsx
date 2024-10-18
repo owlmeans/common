@@ -19,7 +19,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
 
   useEffect(() => {
     if (module.guards != null) {
-      const guards = module.guards.map(guard => context.service<GuardService>(guard))
+      const guards = module.getGuards().map(guard => context.service<GuardService>(guard))
       const request = provideRequest(module.alias, module.getPath())
       const reply = provideResponse()
       let canceled = false

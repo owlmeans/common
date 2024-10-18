@@ -9,6 +9,7 @@ import { SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
 
+let _initializedOidc: Provider | undefined = undefined
 export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcProviderService => {
   const service: OidcProviderService = createService<OidcProviderService>(alias, {
     update: async api => {
@@ -17,18 +18,17 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       console.log('Updating API service: ', alias, api.alias)
 
       const serviceRoute = context.cfg.services[cfg.authService ?? context.cfg.service] as BasicRoute
-
       const helper = makeSecurityHelper<Config, Context>(context)
       const url = helper.makeUrl(serviceRoute, cfg.basePath ?? DEFAULT_PATH)
-
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
-
 
       const oidc = new Provider(url, {
         ...await combineConfig(context, unsecure),
+
         adapter: cfg.adapterService != null
           ? name => context.service<OidcAdapterService>(cfg.adapterService!).instance(name)
           : undefined,
+
         findAccount: async (_, id, _token) => {
           const accountSrv = context.service<OidcAccountService>(
             cfg.accountService ?? OIDC_ACCOUNT_SERVICE
@@ -36,6 +36,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
           return accountSrv.loadById(context, id)
         },
+
         interactions: {
           url: async (_, interaction) => {
             if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
@@ -44,35 +45,40 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
             }
 
             const module = context.module<ClientModule>(INTERACTION)
-
             const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
             return uri
           }
         }
       })
 
-
       oidc.proxy = cfg.behindProxy ?? unsecure
-
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
       await api.server.use(base, oidc.callback())
-
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
         oidc.use(async (ctx, next) => {
+          console.log('OIDC PROVIDER REQUEST: ', ctx.request.toJSON())
           await next()
           console.log('OIDC PROVIDER RESPONSE: ', ctx.response.body)
         })
+
+        oidc.on('grant.error', (_, error) => {
+          console.log(oidc.issuer)
+          console.log ('!!!! GRANT ERROR: ', error)
+        })
       }
 
-      service.oidc = oidc
+      console.log('OIDC set')
+      _initializedOidc = service.oidc = oidc
     },
 
     instance: () => {
-      return service.oidc
+      return service.oidc ?? (service.oidc = _initializedOidc!)
+    },
+
+    getInteraction: async id => {
+      return await service.instance().Interaction.find(id) ?? null
     }
-  }, service => async () => {
-    service.initialized = true
   })
 
   return service

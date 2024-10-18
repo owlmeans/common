@@ -26,3 +26,5 @@ export const DISPATCHER_OIDC = 'dispatcher:oidc:authenticate'
 export const OIDC_CODE_QUERY = 'code'
 
 export const OIDC_WRAPPED_TOKEN = 'oidc-wrapped-token'
+
+export const WRAPPED_OIDC = 'wrapped-oidc-authz'

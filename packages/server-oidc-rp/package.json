@@ -42,17 +42,24 @@
   "dependencies": {
     "@noble/hashes": "^1.5.0",
     "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/did": "^0.1.0",
+    "@owlmeans/module": "^0.1.0",
     "@owlmeans/oidc": "^0.1.0",
     "@owlmeans/resource": "^0.1.0",
+    "@owlmeans/route": "^0.1.0",
+    "@owlmeans/server-api": "^0.1.0",
     "@owlmeans/server-auth": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
     "@owlmeans/server-module": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
     "@scure/base": "^1.1.9",
+    "dayjs": "^1.11.13",
     "jose": "^5.9.3",
     "openid-client": "^5.7.0"
+  },
+  "peerDependencies": {
+    "ajv": "*"
   }
 }

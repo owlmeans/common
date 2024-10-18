@@ -1,7 +1,7 @@
 import type { InitializedService } from '@owlmeans/context'
 import type { Client, Issuer } from 'openid-client'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig } from '@owlmeans/oidc'
+import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig, ProviderProfileDetails, OidcUserDetails } from '@owlmeans/oidc'
 import type { AuthPayload } from '@owlmeans/auth'
 
 export interface OidcClientService extends InitializedService {
@@ -9,6 +9,11 @@ export interface OidcClientService extends InitializedService {
   getClient: (clientId: string | Issuer) => Promise<Client>
   getConfig: (clientId: string) => Promise<OidcProviderConfig | undefined>
   getDefault: () => string | undefined
+
+  registerTemporaryProvider: (config: OidcProviderConfig) => OidcProviderConfig
+  unregisterTemporaryProvider: (clientId: string | OidcProviderConfig) => void
+  hasProvider: (entityId: string) => boolean
+  entityToClientId: (entityId: string) => string
 
   providerApi: () => ProviderApiService | null
   accountLinking: () => AccountLinkingService | null
@@ -30,32 +35,10 @@ export interface AccountLinkingService extends InitializedService {
   linkProfile: (details: ProviderProfileDetails, meta: AccountMeta) => Promise<AuthPayload>
 }
 
-export interface ProviderProfileDetails extends Partial<OidcUserDetails> {
-  type: string
-  clientId: string
-  userId: string
-}
-
 export interface AccountMeta {
   username: string
 }
 
 export interface ProviderApiService extends InitializedService {
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
-}
-
-export interface OidcUserDetails {
-  userId: string
-  username: string
-  entityId?: string
-  did?: string
-  // This flag is used to identify OwlMeans ID and OwlMeans IAM user
-  // The presence of OlwMeans ID exactly is defined by presence of the did field
-  // alongisde this flag set to true
-  // In general sence this flag is used to denounce that the authenticated
-  // profile belongs to the governining organization.
-  // So if the flag is ended up being true - it may also mean that the user
-  // is governed by an organization that uses OwlMeans IAM solutions on premises basis.
-  // Actually it makes this property untrasferable between different app services.
-  isOwlMeansId?: boolean
 }

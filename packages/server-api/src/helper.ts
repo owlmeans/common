@@ -18,7 +18,7 @@ export const handleBody: <T>(
     res.resolve(await handler(
       req.body as any,
       _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>,
-      req
+      req,
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
@@ -28,14 +28,15 @@ export const handleBody: <T>(
 }
 
 export const handleParams: <T>(
-  handler: (payload: T, ctx: BasicContext<BasicConfig>) => Promise<any>
+  handler: (payload: T, ctx: BasicContext<BasicConfig>, req: AbstractRequest) => Promise<any>
   // @TODO Here and everywher it looks like AbstractResponse is messed up here instead of abstract request
 ) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.params as any,
-      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
+      _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>,
+      req,
     ), ModuleOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)

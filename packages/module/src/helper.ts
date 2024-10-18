@@ -5,7 +5,7 @@ import { module } from './module.js'
 export const filter = (filter: Filter, opts?: CommonModuleOptions): CommonModuleOptions => ({ filter, ...opts })
 
 export const guard = (guard: string, opts?: CommonModuleOptions): CommonModuleOptions =>
-  ({ ...opts, guards: [guard, ...(opts?.guards ?? [])] })
+  ({ ...opts, guards: [...new Set([guard, ...(opts?.guards ?? [])])] })
 
 export const provideResponse = <T>(originalResponse?: unknown): AbstractResponse<T> => {
   const hanlder: AbstractResponse<T> = {

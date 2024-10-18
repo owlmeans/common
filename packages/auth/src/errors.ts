@@ -27,6 +27,15 @@ export class AuthManagerError extends AuthError {
   }
 }
 
+export class AuthManagerUnsupported extends AuthManagerError {
+  public static override typeName: string = `${AuthManagerError.typeName}Unsupported`
+
+  constructor(message: string = 'error') {
+    super(`unsupported:${message}`)
+    this.type = AuthManagerUnsupported.typeName
+  }
+}
+
 export class AuthenFailed extends AuthManagerError {
   public static override typeName: string = `${AuthManagerError.typeName}AuthenFailed`
 
@@ -102,6 +111,7 @@ export class ProfileConsistencyError extends ProfileError {
 ResilientError.registerErrorClass(AuthError)
 ResilientError.registerErrorClass(AuthUnknown)
 ResilientError.registerErrorClass(AuthManagerError)
+ResilientError.registerErrorClass(AuthManagerUnsupported)
 ResilientError.registerErrorClass(AuthenFailed)
 ResilientError.registerErrorClass(AuthenExists)
 ResilientError.registerErrorClass(AuthenPayloadError)

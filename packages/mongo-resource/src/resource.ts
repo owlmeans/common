@@ -272,8 +272,15 @@ export const makeMongoResource = <
   return resource
 }
 
-const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaType<T>): T =>
-  schema != null ? Object.fromEntries(Object.entries(obj).map(([key, value]) => {
+const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaType<T>): T => {
+  // @TODO Validate keys from additional properties in the root
+  return schema != null ? Object.fromEntries(Object.entries(obj).map(([key, value]) => {
+    // @TODO What if we reference another table by object id in another field?
+    // How to properly transform them?
+    // What if _id isn't an Object Id?
+    if (key === '_id') {
+      return [key, new ObjectId(value as string)]
+    }
     const type = schema.properties?.[key]
 
     if (type?.type === 'object') {
@@ -296,6 +303,7 @@ const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaTyp
 
     return [key, _prepareSingleValue(value, type)]
   })) as T : obj
+}
 
 const _prepareSingleValue = <T>(value: T, schema?: JSONSchemaType<T>) => {
   if (['object', 'array'].includes(schema?.type)) {

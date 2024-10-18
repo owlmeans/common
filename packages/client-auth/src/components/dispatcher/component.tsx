@@ -42,6 +42,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           console.log('~^ Try to resolve flow')
           if (await flow.supplied) {
             const state = await flow.state()
+            console.log('Flow we are trying to avoid', state?.state())
             // If the flow we are in already has a targe, it means this is some flow 
             // that is really happening and we do not need to override it with our own.
             // It's MAY BE required on the auth manager service side, cause this 

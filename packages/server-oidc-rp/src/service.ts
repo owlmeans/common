@@ -5,6 +5,7 @@ import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import type { BaseClient } from 'openid-client'
 import { custom, Issuer } from 'openid-client'
+import type { OidcProviderConfig } from '@owlmeans/oidc'
 
 export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClientService => {
   const service: OidcClientService = createService<OidcClientService>(alias, {
@@ -22,9 +23,8 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
       // @TODO Add support for any domain (not just registered services)
       const security = makeSecurityHelper<Config, Context>(context)
-      const serviceManager = context.cfg.services[cfg.service]
-
-      const url = security.makeUrl(serviceManager, cfg.basePath)
+      const url = cfg.discoveryUrl
+        ?? security.makeUrl(context.cfg.services[cfg.service], cfg.basePath)
 
       Issuer[custom.http_options] = (_, options) => {
         return {
@@ -55,8 +55,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       if (cfg?.secret == null) {
         throw new AuthManagerError('oidc.client.secert')
       }
-
-      console.log('Try to get OIDC client', cfg)
 
       return new issuer.Client({ client_id: _clientId, client_secret: cfg?.secret })
     },
@@ -91,10 +89,71 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         return context.service<AccountLinkingService>(accountLinkingService)
       }
       return null
+    },
+
+    hasProvider: entityId => {
+      const ctx = service.assertCtx<Config, Context>()
+      if (ctx.cfg.oidc.providers == null) {
+        ctx.cfg.oidc.providers = []
+      }
+
+      return ctx.cfg.oidc.providers.some(provider => provider.entityId === entityId)
+    },
+
+    registerTemporaryProvider: config => {
+      const ctx = service.assertCtx<Config, Context>()
+      if (ctx.cfg.oidc.providers == null) {
+        ctx.cfg.oidc.providers = []
+      }
+      const providers = ctx.cfg.oidc.providers as TemporaryConfig[]
+      let provider = providers.find(provider => provider.clientId === config.clientId)
+      if (provider == null) {
+        provider = { ...config, [_configFlag]: 0 }
+        providers.push(provider)
+      } else {
+        provider[_configFlag]++
+      }
+
+      return provider
+    },
+
+    entityToClientId: entityId => {
+      const ctx = service.assertCtx<Config, Context>()
+      if (ctx.cfg.oidc.providers == null) {
+        ctx.cfg.oidc.providers = []
+      }
+      const provider = ctx.cfg.oidc.providers.find(provider => provider.entityId === entityId)
+      if (provider == null) {
+        throw new AuthManagerError('oidc.client.entity-id')
+      }
+
+      return provider.clientId
+    },
+
+    unregisterTemporaryProvider: clientId => {
+      const ctx = service.assertCtx<Config, Context>()
+      if (ctx.cfg.oidc.providers == null) {
+        ctx.cfg.oidc.providers = []
+      }
+      const providers = ctx.cfg.oidc.providers as TemporaryConfig[]
+
+      clientId = typeof clientId === 'string' ? clientId : clientId.clientId
+      const idx = providers.findIndex(provider => provider.clientId === clientId)
+      if (idx < 0) {
+        return
+      }
+      const provider = providers[idx]
+
+      if (--provider[_configFlag] < 1) {
+        providers.splice(idx, 1)
+      }
     }
-  }, service => async () => {
-    service.initialized = true
   })
 
   return service
+}
+
+const _configFlag = Symbol('temporary-oidc-proivder-config')
+interface TemporaryConfig extends OidcProviderConfig {
+  [_configFlag]: number
 }

@@ -2,7 +2,7 @@ import type { InitializedService } from '@owlmeans/context'
 import type { OidcSharedConfig } from '@owlmeans/oidc'
 import type { ApiServer, ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { Account, Adapter, ClientMetadata, Configuration, Provider } from 'oidc-provider'
+import type { Account, Adapter, ClientMetadata, Configuration, Interaction, Provider } from 'oidc-provider'
 
 export interface OidcProviderService extends InitializedService {
   oidc: Provider
@@ -10,6 +10,8 @@ export interface OidcProviderService extends InitializedService {
   update: (api: ApiServer) => Promise<void>
 
   instance: () => Provider
+
+  getInteraction: (id: string) => Promise<Interaction | null>
 }
 
 export interface OidcConfigAppend<Extra extends OidcSharedConfig = OidcSharedConfig> {

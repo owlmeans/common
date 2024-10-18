@@ -56,7 +56,7 @@ export interface FlowState {
   ok: boolean
 }
 
-export interface FlowPayload extends Record<symbol | string, string | number | null> { }
+export interface FlowPayload extends Record<symbol | string, string | number | boolean | undefined | null> { }
 
 export interface SerializedFlow {
   // {flow}:{step}:{prev setp}

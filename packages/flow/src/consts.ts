@@ -9,6 +9,8 @@ export const STD_OIDC_FLOW = '_oidc'
 
 export const STD_STAB_FLOW = '_stb'
 
+export const STD_OIDP_FLOW = '_oidp'
+
 export const TARGET_SERVICE = '-'
 
 export const CFG_FLOW_PREFIX = 'flow'

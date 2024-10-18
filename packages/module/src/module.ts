@@ -52,7 +52,9 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
       guards = module.guards ?? []
 
       if (module.hasParent()) {
-        guards.push(...module.getParent().getGuards())
+        guards.push(
+          ...module.getParent().getGuards().filter(guard => !guards?.includes(guard))
+        )
       }
 
       return guards

@@ -4,7 +4,7 @@ import type { ServerConfig } from '@owlmeans/server-context'
 import type { PluginConfig } from '@owlmeans/config'
 import { notAdvertizedConfigKeys, allowedConfigRecords } from '@owlmeans/api-config'
 import { handleRequest } from '@owlmeans/server-api'
-import { PLUGINS } from '@owlmeans/server-context'
+import { PLUGINS } from '@owlmeans/config'
 import { AppType, CONFIG_RECORD } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
 

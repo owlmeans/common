@@ -1,7 +1,7 @@
-import type { Config, Context, OidcAuthService } from './types.js'
+import type { Config, Context, OidcAuthService, OidcInteraction } from './types.js'
 import type { FlowService } from '@owlmeans/client-flow'
 
-import { assertContext, createService } from '@owlmeans/context'
+import { assertContext, createService, HOME } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import { UserManager } from 'oidc-client-ts'
 import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
@@ -14,6 +14,9 @@ import type { ClientAuthResource } from '@owlmeans/client-auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 
 export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthService => {
+  const store = (context: Context) => context.auth().store<OidcInteraction>()
+  const storeKey = '_oidc-client-interaction'
+
   const service: OidcAuthService = createService<OidcAuthService>(alias, {
     /**
      * This method performs when the IdP returns authentication params.
@@ -29,6 +32,9 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
       }
 
       const ctx = service.assertCtx<Config, Context>()
+
+      params.authUrl = (await store(ctx).get(storeKey)).authUrl
+
       const [authToken] = await ctx.module<Module<AuthToken>>(DISPATCHER_OIDC)
         .call({ body: params })
 
@@ -66,6 +72,9 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       const [redirectTo] = await ctx.module<Module<string>>(DISPATCHER_OIDC_INIT)
         .call({ body: params })
+      
+      const context = service.assertCtx<Config, Context>()
+      await store(context).save({ id: storeKey, authUrl: redirectTo })
 
       return redirectTo
     },
@@ -79,14 +88,18 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
         throw new UnknownFlow('oidc.dispatch')
       }
 
+      console.log(extras)
       const authorityTransition = flowModel.next()
-      flowModel.transit(authorityTransition.transition, true)
+      flowModel.transit(authorityTransition.transition, true, { purpose: extras.purpose })
       console.log('initial transition', authorityTransition.transition)
 
-      const redirectTransition = flowModel.next()
-      flowModel.transit(redirectTransition.transition, true, { purpose: extras.purpose })
+      // @TODO I'm not sure that this dirty hack is a correct approach
+      if (extras.alias === HOME) {
+        const redirectTransition = flowModel.next()
+        flowModel.transit(redirectTransition.transition, true, { purpose: extras.purpose })
+      }
 
-      const redirectUrl = await flow.proceed(undefined, true)
+      const redirectUrl = await flow.proceed({ params: { uid: extras.uid } }, true)
 
       return redirectUrl
     },
@@ -134,8 +147,6 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       await manager.signinRedirect({ state: flowModel.serialize() })
     }
-  }, service => async () => {
-    service.initialized = true
   })
 
   return service

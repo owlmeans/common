@@ -17,6 +17,9 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const t = useI18nLib('auth', 'dispatcher')
 
   useEffect(() => {
+    if (client == null) {
+      return
+    }
     const token = query.get(AUTH_QUERY)
     const params: Record<string, string> = {}
     query.forEach((value, key) => {
@@ -31,19 +34,27 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
     } else {
       const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
       oidc.dispatch(params).then(async dispatched => {
+        console.log('dispatched', dispatched)
         if (dispatched) {
+          debugger
           return await navigate()
         }
+        console.log('has client', client)
         if (client == null) {
           return
         }
         const redirect = await oidc.authenticate(client.flow(), params)
-        if (redirect != null) {
+        console.log('redirect', redirect)
+        if (redirect != null && redirect !== '') {
+          console.log(redirect)
+          debugger
           document.location.href = redirect
           return
         }
         const authzToken = await context.auth().authenticated()
+        console.log('authzToken', authzToken)
         if (authzToken == null) {
+          debugger
           provideToken({ token: '' }, undefined)
         }
       })

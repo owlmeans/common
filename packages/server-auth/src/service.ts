@@ -42,6 +42,10 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       return true as T
     },
 
+    authenticated: async () => {
+      return null
+    },
+
     authenticate: async token => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
@@ -88,7 +92,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       return { token: `${AuthroizationType.Ed25519BasicToken.toUpperCase()} ${authorization}` }
     }
-  }, service => async () => { service.initialized = true })
+  })
 
   return service
 }

@@ -1,26 +1,19 @@
 
 import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
-import type { Config, Context, OidcClientService, OidcUserDetails } from '../../types.js'
+import type { Config, Context, OidcClientService } from '../../types.js'
 import { assertType } from '@owlmeans/server-auth/manager/plugins'
 import { DEFAULT_ALIAS } from '../../consts.js'
-import { OIDC_TOKEN_STORE } from '../consts.js'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
-import type { OidcProviderConfig } from '@owlmeans/oidc'
+import type { OidcUserDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
-import Url from 'url'
 import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole } from '@owlmeans/auth'
-import type { AuthCredentials } from '@owlmeans/auth'
-import type { Resource } from '@owlmeans/resource'
-import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
-import type { OIDCAuthCache } from './types.js'
+import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import { decodeJwt } from 'jose'
-import type { TokenSet } from 'openid-client'
 import { KEY_OWL } from '@owlmeans/did'
-
-const verifierId = (challenge: string) => `verifier:${challenge}`
-const exchangeId = (exchange: string) => `${OIDC_TOKEN_STORE}:${exchange}`
+import { cache, verifierId } from '../../utils/cache.js'
+import { makeOidcAuthentication } from '../../utils/auth.js'
 
 /**
  * Actually the most of implementation desceibed here is a proprietary one and 
@@ -69,10 +62,7 @@ const exchangeId = (exchange: string) => `${OIDC_TOKEN_STORE}:${exchange}`
  *  4. If there is no profile - we create one and link oidc credentials
  */
 export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context: T): AuthPlugin => {
-  const cache = (context: T): Resource<OIDCAuthCache> =>
-    context.resource<Resource<OIDCAuthCache>>(AUTH_CACHE)
-
-  const _authenticate = authenticate<C, T>(context, cache)
+  const authenticate = makeOidcAuthentication<C, T>(context)
 
   const plugin: AuthPlugin = {
     type: OIDC_CLIENT_AUTH,
@@ -103,7 +93,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       const verifier = base64.encode(randomBytes(32))
       const challenge = base64.encode(sha256(verifier))
 
-      await cache(context).create({
+      await cache<C, T>(context).create({
         id: verifierId(challenge), verifier, client: entityId
       }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
@@ -121,7 +111,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
 
     authenticate: async credential => {
       console.log('000000000000000')
-      const [cfg, tokenSet, exchangeToken] = await _authenticate(credential)
+      const [cfg, tokenSet, exchangeToken] = await authenticate(credential)
 
       if (tokenSet.id_token == null || tokenSet.access_token == null) {
         throw new AuthenFailed()
@@ -214,40 +204,3 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
 
   return plugin
 }
-
-const authenticate = <C extends Config, T extends Context<C>>(context: T, cache: (context: T) => Resource<OIDCAuthCache>) =>
-  async (credential: AuthCredentials): Promise<[OidcProviderConfig, TokenSet, string]> => {
-    const challengeParts = credential.challenge.split(':http')
-    const redirectUrl = challengeParts[0]
-    const challengeUrl = new Url.URL('http' + challengeParts[1])
-    const challenge = challengeUrl.searchParams.get('code_challenge')
-    if (challenge == null) {
-      throw new AuthenPayloadError('code_challenge')
-    }
-    const verification = await cache(context).pick(verifierId(challenge))
-    if (verification.verifier == null) {
-      throw new AuthenFailed()
-    }
-    if (verification.client == null) {
-      throw new AuthenFailed()
-    }
-
-    const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-    const cfg = await oidc.getConfig(verification.client)
-    if (cfg == null) {
-      throw new AuthenFailed()
-    }
-
-    const client = await oidc.getClient(cfg.clientId)
-    const params = client.callbackParams('/?' + credential.credential)
-
-    const tokenSet = await client.callback(redirectUrl, params, { code_verifier: verification.verifier })
-
-    const exchangeToken = base64.encode(randomBytes(32))
-    await cache(context).create(
-      { id: exchangeId(exchangeToken), payload: tokenSet },
-      { ttl: AUTHEN_TIMEFRAME / 1000 }
-    )
-
-    return [cfg, tokenSet, exchangeToken]
-  }

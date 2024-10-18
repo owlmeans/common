@@ -1,4 +1,4 @@
-import type { AuthServiceAppend, ClientAuthResource } from './types.js'
+import type { AuthServiceAppend, ClientAuthRecord } from './types.js'
 import type { AuthService } from '@owlmeans/auth-common'
 import { AUTH_RESOURCE, DEFAULT_ALIAS, USER_ID } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
@@ -24,7 +24,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN)
         .call({ body: token })
 
-      const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
+      const authResource = service.store<ClientAuthRecord>()
       await authResource.save({ id: USER_ID, token: authToken.token })
 
       const [, authorization] = authToken.token.split(' ')
@@ -37,8 +37,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
     authenticated: async () => {
       if (service.token == null) {
-        const context = assertContext(service.ctx, location)
-        const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
+        const authResource = service.store<ClientAuthRecord>()
         const record = await authResource.load(USER_ID)
 
         if (record != null) {
@@ -62,7 +61,9 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       }
 
       return service.auth
-    }
+    },
+
+    store: () => service.assertCtx(location).resource(AUTH_RESOURCE)
   }, service => async () => { service.initialized = true })
 
   return service
