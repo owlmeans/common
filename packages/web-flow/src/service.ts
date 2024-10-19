@@ -30,17 +30,18 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const cfg = service.config()
     const param = cfg.queryParam ?? QUERY_PARAM
 
-    const params = new URLSearchParams(req?.query ?? {})
-    params.set(param, flow.serialize())
+    // const params = new URLSearchParams(req?.query ?? {})
+    // params.set(param, flow.serialize())
 
-    const redirectUrl = `${url}?${params.toString()}`
+    const redirectUrl = new URL(url)
+    redirectUrl.searchParams.set(param, flow.serialize())
 
-    console.log('we get to a redirect url', redirectUrl)
+    console.log('we get to a redirect url', redirectUrl.toString())
     if (!dryRun) {
-      document.location.href = redirectUrl
+      document.location.href = redirectUrl.toString()
     }
     
-    return redirectUrl
+    return redirectUrl.toString()
   }
 
   const init = service.lazyInit

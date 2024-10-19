@@ -55,16 +55,28 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
       await api.server.use(base, oidc.callback())
+      oidc.use(async (ctx, next) => {
+        await next()
+        const csp = ctx.response.headers['content-security-policy']
+        if (csp != null) {
+          // @TODO Make it a little bit nicer - preferably using helmet :)
+
+          ctx.response.set('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
+
+          console.log('Fixed content security policy: ', ctx.response.headers['content-security-policy'])
+        }
+      })
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
         oidc.use(async (ctx, next) => {
-          console.log('OIDC PROVIDER REQUEST: ', ctx.request.toJSON())
+          console.log('OIDC PROVIDER REQUEST: ', ctx.headers, ctx.body)
           await next()
-          console.log('OIDC PROVIDER RESPONSE: ', ctx.response.body)
+          console.log('OIDC PROVIDER RESPONSE: ', ctx.response.headers, ctx.response.body)
+          console.log('non deletable', ctx.response.headerSent)
         })
 
         oidc.on('grant.error', (_, error) => {
           console.log(oidc.issuer)
-          console.log ('!!!! GRANT ERROR: ', error)
+          console.log('!!!! GRANT ERROR: ', error)
         })
       }
 

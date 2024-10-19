@@ -13,6 +13,8 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
       let cfg = await service.getConfig(clientId)
 
+      console.log('Client id we try: ', clientId)
+      console.log('Cfg we got: ', cfg)
       if (cfg?.basePath == null) {
         throw new AuthManagerError('oidc.client.basepath')
       }
@@ -101,6 +103,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     },
 
     registerTemporaryProvider: config => {
+      console.log('We are trying to add temporary provider: ', config)
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []

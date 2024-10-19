@@ -33,6 +33,7 @@ export interface Context<C extends Config = Config> extends ServerContext<C> { }
 export interface AccountLinkingService extends InitializedService {
   getLinkedProfile: (details: ProviderProfileDetails) => Promise<AuthPayload | null>
   linkProfile: (details: ProviderProfileDetails, meta: AccountMeta) => Promise<AuthPayload>
+  linkCredentials: (details: ProviderProfileDetails) => Promise<AuthPayload>
 }
 
 export interface AccountMeta {

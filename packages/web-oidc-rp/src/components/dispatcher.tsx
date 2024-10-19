@@ -36,7 +36,6 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       oidc.dispatch(params).then(async dispatched => {
         console.log('dispatched', dispatched)
         if (dispatched) {
-          debugger
           return await navigate()
         }
         console.log('has client', client)
@@ -47,15 +46,15 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         console.log('redirect', redirect)
         if (redirect != null && redirect !== '') {
           console.log(redirect)
-          debugger
           document.location.href = redirect
           return
         }
         const authzToken = await context.auth().authenticated()
         console.log('authzToken', authzToken)
         if (authzToken == null) {
-          debugger
           provideToken({ token: '' }, undefined)
+        } else {
+          await navigate()
         }
       })
     }

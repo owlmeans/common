@@ -90,6 +90,7 @@ export interface ProviderProfileDetails extends Partial<OidcUserDetails> {
   type: string
   clientId: string
   userId: string
+  profileId?: string
 }
 
 export interface OidcUserDetails {

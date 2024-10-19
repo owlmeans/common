@@ -50,6 +50,7 @@ export const ProviderProfileDetailsSchema: JSONSchemaType<ProviderProfileDetails
     type: { ...TypeNameSchema },
     clientId: { ...ScopeValueSchema },
     userId: { ...IdValueSchema },
+    profileId: {...IdValueSchema, nullable: true },
     username: { type: 'string', minLength: 1, maxLength: 255, nullable: true },
     entityId: { ...EntityValueSchema, nullable: true },
     did: { ...IdValueSchema, nullable: true },
