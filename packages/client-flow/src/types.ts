@@ -19,6 +19,8 @@ export interface FlowService extends LazyService {
 
   begin: (slug?: string, from?: string) => Promise<FlowModel>
 
+  load: (flow: string) => Promise<FlowModel>
+
   provideFlow: FlowProvider
 
   proceed: (req?: Partial<AbstractRequest>, dryRun?: boolean) => Promise<string>
@@ -31,6 +33,7 @@ export interface ResolvePair {
 
 export interface FlowClient {
   boot: (target: string | null, from?: string) => Promise<FlowClient>
+  setup: (flow: FlowModel) => FlowClient
   flow: () => FlowModel
   service: () => ResolvedServiceRoute
   proceed: (transiation: FlowTransition, req?: Partial<AbstractRequest>) => Promise<void>

@@ -58,7 +58,7 @@ export const stdOidcFlow: ShallowFlow = {
       index: 2,
       step: OidcAuthStep.PostAuthen,
       service: '$auth',
-      module: '$auth.flow',
+      module: '$auth.flow-param',
       transitions: {
         [OidcAuthStep.OrgChoice]: {
           transition: OidcAuthStep.OrgChoice,

@@ -58,6 +58,12 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
       return _client
     },
 
+    setup: flow => {
+      model = flow
+
+      return _client
+    },
+
     flow: () => model,
 
     service: () => context.serviceRoute(model.state().service) as ResolvedServiceRoute,

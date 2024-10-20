@@ -10,7 +10,6 @@ import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthRole } from '@owlmeans/auth'
 import { decodeJwt } from 'jose'
 import { cache, exchangeId, managedId } from '../utils/cache.js'
-import type { IdTokenClaims } from 'openid-client'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -56,7 +55,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     decodeJwt(tokenSet.access_token)
   )
 
-  const id = decodeJwt<IdTokenClaims>(tokenSet.id_token)
+  const id = decodeJwt(tokenSet.id_token)
   console.log(
     'token set',
     tokenSet,
@@ -69,7 +68,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     token,
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead ?
-    userId: id.sub,
+    userId: id.sub as string,
     // @TODO Actually we should check is it user or admin or even guest
     // and set proper role
     role: AuthRole.Guest,

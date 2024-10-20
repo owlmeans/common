@@ -57,7 +57,7 @@
     "@scure/base": "^1.1.9",
     "dayjs": "^1.11.13",
     "jose": "^5.9.3",
-    "openid-client": "^5.7.0"
+    "openid-client": "^6.1.1"
   },
   "peerDependencies": {
     "ajv": "*"

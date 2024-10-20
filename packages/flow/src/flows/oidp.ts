@@ -115,7 +115,7 @@ export const stdOidpFlow: ShallowFlow = {
       index: 4,
       step: OidpAuthStep.PostAuth,
       service: '$auth',
-      module: '$auth.interaction',
+      module: '$auth.int-with-flow',
       transitions: {
         [OidpAuthStep.Dispatch]: {
           transition: OidpAuthStep.Dispatch,

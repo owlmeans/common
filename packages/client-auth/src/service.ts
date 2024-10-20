@@ -64,7 +64,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     },
 
     store: () => service.assertCtx(location).resource(AUTH_RESOURCE)
-  }, service => async () => { service.initialized = true })
+  })
 
   return service
 }

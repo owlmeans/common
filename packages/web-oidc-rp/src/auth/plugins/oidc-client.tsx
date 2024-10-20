@@ -73,13 +73,15 @@ export const oidcClientPlugin: AuthenticationPlugin = {
 
             // @TODO we need to provide an identity provider client as entityId here for flexibel usage
             console.log('~ module ~', module)
-            const source = await oidc.proceedToRedirectUrl({
+            const _source = await oidc.proceedToRedirectUrl({
               purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown,
               uid: 'uid' in module.params ? `${module.params.uid}` : undefined,
               alias: module.alias
             })
-            console.log('request allowence', type, source)
-            await control.requestAllowence({ type, source })
+            const source = new URL(_source)
+            source.search = ''
+            console.log('request allowence', type, source.toString())
+            await control.requestAllowence({ type, source: source.toString() })
           })
         case AuthenticationStage.Authenticate:
           control.flow().then(async flow => {

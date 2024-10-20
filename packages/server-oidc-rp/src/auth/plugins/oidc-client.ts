@@ -14,6 +14,7 @@ import { decodeJwt } from 'jose'
 import { KEY_OWL } from '@owlmeans/did'
 import { cache, verifierId } from '../../utils/cache.js'
 import { makeOidcAuthentication } from '../../utils/auth.js'
+// import { URL } from 'url'
 
 /**
  * Actually the most of implementation desceibed here is a proprietary one and 
@@ -97,9 +98,19 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         id: verifierId(challenge), verifier, client: entityId
       }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
+      if (request.source == null) {
+        throw new AuthenPayloadError('redirect-uri')
+      }
+
+      // const redirectUrl = new URL(request.source)
+
+      // for (let key of redirectUrl.searchParams.keys()) {
+      //   redirectUrl.searchParams.delete(key)
+      // }
+
       const client = await oidc.getClient(entityId)
-      const cfg = await oidc.getConfig(entityId)
-      const url = client.authorizationUrl({
+      const cfg = client.getConfig()
+      const url = client.makeAuthUrl({
         scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
         code_challenge: challenge,
         code_challenge_method: 'S256',
@@ -143,7 +154,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       if (cfg.apiClientId != null) {
         console.log(1)
         const apiClient = await oidc.getClient(cfg.apiClientId)
-        const adminTokens = await apiClient.grant({ grant_type: 'client_credentials' })
+        const adminTokens = await apiClient.grantWithCredentials()
         if (adminTokens.access_token == null) {
           throw new AuthManagerError('iam.admin')
         }

@@ -46,6 +46,14 @@ export const makeBasicFlowService = (alias: string = DEFAULT_ALIAS): FlowService
       return service.flow.enter(from)
     },
 
+    load: async (state) => {
+      service.flow = await makeFlowModel(state, service.provideFlow)
+      
+      service.supplied = Promise.resolve(true)
+
+      return service.flow
+    },
+
     provideFlow: async slug => {
       if (flows[slug] == null) {
         throw new UnknownFlow(slug)

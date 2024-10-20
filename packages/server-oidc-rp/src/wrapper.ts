@@ -5,7 +5,7 @@ import { createService } from '@owlmeans/context'
 import type { OIDCTokenUpdate, WrappedOIDCService } from '@owlmeans/oidc'
 import { OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '@owlmeans/oidc'
 import { cache, managedId } from './utils/cache.js'
-import type { Config, Context } from './types.js'
+import type { Config, Context, TokenSetParameters } from './types.js'
 import { authService, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
 import type { ClientModule } from '@owlmeans/client-module'
@@ -69,7 +69,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
           .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
 
-        record.payload = update.tokenSet
+        record.payload = update.tokenSet as TokenSetParameters
 
         await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 

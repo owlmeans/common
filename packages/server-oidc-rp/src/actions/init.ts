@@ -3,10 +3,10 @@ import { handleBody } from '@owlmeans/server-api'
 import type { OIDCAuthInitParams, OidcProviderDescriptor } from '@owlmeans/oidc'
 import { AuthenPayloadError, AuthUnknown, DISPATCHER } from '@owlmeans/auth'
 import { assertContext } from '@owlmeans/context'
-import type { Config, Context, OidcClientService } from '../types.js'
+import type { Config, Context, OidcClientAdapter, OidcClientService } from '../types.js'
 import type { ClientModule } from '@owlmeans/client-module'
 import { authService, DEFAULT_ALIAS, PROVIDER_CACHE_TTL } from '../consts.js'
-import type { Client } from 'openid-client'
+// import type { Client } from 'openid-client'
 
 import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
@@ -22,7 +22,7 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
   const context = assertContext<Config, Context>(ctx)
   const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
 
-  let client: Client
+  let client: OidcClientAdapter
   if (!oidc.hasProvider(body.entity)) {
     /**
      * @TODO We need to move it to some remote resource.
@@ -56,18 +56,20 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
   const challenge = base64.encode(sha256(verifier))
 
   await cache(context).create({
-    id: verifierId(challenge), verifier, client: client.metadata.client_id
+    id: verifierId(challenge), verifier, client: client.getClientId()
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
   const [dispatcherUrl] = await context.module<ClientModule<string>>(DISPATCHER).call()
 
-  const cfg = await oidc.getConfig(client.metadata.client_id)
-  const url = client.authorizationUrl({
+  const cfg = client.getConfig()
+  const url = client.makeAuthUrl({
     scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
     code_challenge: challenge,
     code_challenge_method: 'S256',
     redirect_uri: dispatcherUrl,
   })
+
+  console.log('Url we got', url)
 
   return url
 })
