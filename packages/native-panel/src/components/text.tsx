@@ -4,10 +4,12 @@ import { Text as PaperText, useTheme } from 'react-native-paper'
 import type { TextProps } from './types.js'
 import { usePanelI18n } from '@owlmeans/client-panel'
 
-export const Text: FC<TextProps> = ({ variant, color, name, children, style, cut, center }) => {
+export const Text: FC<TextProps> = ({ variant, color, name, children, style, cut, center, i18n }) => {
   const theme = useTheme()
   const t = usePanelI18n()
-  const label = name != null ? t(name) : undefined
+  const label = name != null
+    ? i18n?.suppress ? name : t(name)
+    : undefined
 
   return <PaperText variant={variant as any ?? 'bodyMedium'}
     style={[style, center === true ? { textAlign: 'center', } : {}]}

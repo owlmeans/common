@@ -10,6 +10,17 @@
       "label": "Cancel"
     }
   },
+  "getEntityKey": {
+    "title": "Get public key for an ortnaization",
+    "description": "Some service asks you to provide a public key and related data for an orgnanization profile",
+    "unknown-reason": "Be cautious! We do not know why you are asked to provide this key.",
+    "proceed": {
+      "label": "Confirm"
+    },
+    "cancel": {
+      "label": "Cancel"
+    }
+  },
   "sign": {
     "title": "Sign with the key",
     "description": "Some service asks you to sign a document with your key",
@@ -77,6 +88,7 @@
     },
     "method": {
       "createKey": "Create new crypto key",
+      "getEntityKey": "Get an organization public key",
       "sign": "Sign some data with your key",
       "masterSign": "Sign data with your primary key",
       "getMasterDid": "Get your primary ID",

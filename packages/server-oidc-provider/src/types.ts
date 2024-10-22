@@ -46,6 +46,8 @@ export interface OidcAdapterService extends InitializedService {
 export interface Config extends ServerConfig, OidcConfigAppend { 
   debug: ServerConfig["debug"] & {
     oidc?: boolean
+    oidcServer?: boolean
+    oidcData?: boolean
   }
 }
 

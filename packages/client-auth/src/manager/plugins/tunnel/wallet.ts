@@ -14,6 +14,10 @@ export const createWalletFacade = (conn: Connection): WalletFacade => {
       return await conn.call('createKey', entityId, opts)
     },
 
+    getEntityKey: async (entityId, opts) => {
+      return await conn.call('getEntityKey', entityId, opts)
+    },
+
     getMasterDid: async opts => {
       return await conn.call('getMasterDid', opts)
     },

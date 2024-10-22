@@ -1,7 +1,8 @@
+import type { I18nProps } from '@owlmeans/client-i18n'
 import type { PropsWithChildren, FC } from 'react'
-import type { TextStyle } from 'react-native'
+import type { TextStyle, ViewStyle } from 'react-native'
 
-export interface ButtonProps {
+export interface ButtonProps extends I18nProps {
   onPress: () => void
   name: string
   color?: string
@@ -10,9 +11,10 @@ export interface ButtonProps {
   variant?: 'text' | 'outlined' | 'contained' | 'elevated' | 'contained-tonal'
   icon?: string
   dark?: boolean
+  style?: ViewStyle
 }
 
-export interface TextProps extends PropsWithChildren {
+export interface TextProps extends PropsWithChildren<I18nProps> {
   variant?: string
   name?: string
   color?: string
@@ -42,4 +44,12 @@ export interface ListItemProps<T = any> {
 
 export interface ListClick<T> {
   (data: T): void | Promise<void>
+}
+
+export interface StatusProps extends PropsWithChildren<I18nProps> {
+  name?: string
+  ok?: boolean
+  variant?: string
+  error?: Error
+  message?: string
 }

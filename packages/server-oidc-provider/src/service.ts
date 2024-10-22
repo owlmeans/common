@@ -19,8 +19,10 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
       const serviceRoute = context.cfg.services[cfg.authService ?? context.cfg.service] as BasicRoute
       const helper = makeSecurityHelper<Config, Context>(context)
-      const url = helper.makeUrl(serviceRoute, cfg.basePath ?? DEFAULT_PATH)
+      const url = helper.makeUrl(serviceRoute, cfg.basePath ?? DEFAULT_PATH, { base: true })
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
+
+      console.log('~~~~ Provider URL we arranged: ', url)
 
       const oidc = new Provider(url, {
         ...await combineConfig(context, unsecure),
@@ -63,15 +65,21 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
           ctx.response.set('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
 
-          console.log('Fixed content security policy: ', ctx.response.headers['content-security-policy'])
+          if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
+            console.log('Fixed content security policy: ', ctx.response.headers['content-security-policy'])
+          }
         }
       })
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
         oidc.use(async (ctx, next) => {
-          console.log('OIDC PROVIDER REQUEST: ', ctx.headers, ctx.body)
+          if (context.cfg.debug.oidcServer) {
+            console.log('OIDC PROVIDER REQUEST: ', ctx.headers, ctx.body)
+          }
           await next()
-          console.log('OIDC PROVIDER RESPONSE: ', ctx.response.headers, ctx.response.body)
-          console.log('non deletable', ctx.response.headerSent)
+          if (context.cfg.debug.oidcServer) {
+            console.log('OIDC PROVIDER RESPONSE: ', ctx.response.headers, ctx.response.body)
+            console.log('non deletable', ctx.response.headerSent)
+          }
         })
 
         oidc.on('grant.error', (_, error) => {
@@ -80,7 +88,6 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         })
       }
 
-      console.log('OIDC set')
       _initializedOidc = service.oidc = oidc
     },
 

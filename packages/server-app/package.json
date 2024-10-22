@@ -37,8 +37,8 @@
     "@owlmeans/static-resource": "^0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.4",
+    "@types/node": "^22.7.8",
     "nodemon": "^3.1.7",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   }
 }

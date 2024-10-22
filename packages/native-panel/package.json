@@ -21,17 +21,20 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7",
-    "typescript": "^5.6.2"
+    "npm-check": "^6.0.1",
+    "typescript": "^5.6.3"
   },
   "peerDependencies": {
+    "@hookform/resolvers": "*",
+    "ajv": "*",
     "react": "*",
+    "react-hook-form": "*",
     "react-native": "*",
     "react-native-paper": "*",
     "react-native-reanimated": "*",
     "react-native-safe-area-context": "*"
   },
   "dependencies": {
-    "@owlmeans/api-config-client": "^0.1.0",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-auth": "^0.1.0",
@@ -47,6 +50,7 @@
     "@owlmeans/i18n": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/native-client": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
     "react-native-vector-icons": "^10.2.0"
   }

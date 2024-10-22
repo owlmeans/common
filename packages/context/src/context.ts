@@ -35,6 +35,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
     configure: <T>() => {
       if (context.stage !== ContextStage.Configuration) {
+        configure(true)
         return context as T
       }
 
@@ -238,7 +239,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
       await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
 
-      context.stage = ContextStage.Loading
+      _context.stage = ContextStage.Loading
       await _context.configure().init()
 
       return (contexts[key] = _context) as T
