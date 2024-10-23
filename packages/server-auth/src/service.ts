@@ -5,7 +5,7 @@ import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
-import { AuthenFailed, AuthroizationType } from '@owlmeans/auth'
+import { AuthenFailed, AuthorizationError, AuthroizationType } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '../../module/build/types.js'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
@@ -40,6 +40,19 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       res.resolve(envelope.message())
 
       return true as T
+    },
+
+    unpack: async token => {
+      const context = service.assertCtx<Config, Context>()
+      const [, authorization] = token.split(' ')
+      const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
+
+      const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
+      if (!await envelope.verify(trusted.key)) {
+        throw new AuthorizationError('unpack')
+      }
+
+      return envelope.message()
     },
 
     authenticated: async () => {

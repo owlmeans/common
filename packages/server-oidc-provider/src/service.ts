@@ -86,6 +86,13 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           console.log(oidc.issuer)
           console.log('!!!! GRANT ERROR: ', error)
         })
+
+        oidc.on('server_error', (ctx, error) => {
+          console.log(oidc.issuer)
+          console.log(Object.getOwnPropertyNames(ctx.oidc))
+          console.log((ctx.oidc as any).grant)
+          console.log('!!!! SERVER ERROR: ', error)
+        })
       }
 
       _initializedOidc = service.oidc = oidc
