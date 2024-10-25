@@ -34,6 +34,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken }) => {
   }, [])
 
   return query.has(AUTH_QUERY)
-    ? <div>{t('loading')}</div>
+    ? <div style={{
+      width: '100%', // Makes the div occupy the full width
+      display: 'flex', // Enables flexbox layout
+      justifyContent: 'center', // Centers content horizontally
+      alignItems: 'center', // Centers content vertically (if needed)
+      textAlign: 'center', // Centers text within the div
+      paddingTop: '1rem', // Adds some vertical padding
+      paddingBottom: '1rem', // Adds some vertical padding
+    }}>{t('loading')}</div>
     : undefined
 })
