@@ -15,12 +15,14 @@ import { useToggle } from '@owlmeans/client'
 import { scalingToStyles } from '../helper.js'
 import { ResilientError } from '@owlmeans/error'
 import { Status } from '../status.js'
+import useTheme from '@mui/material/styles/useTheme.js'
 
 export const Form: FC<FormProps> = (props) => {
   const {
     defaults, children, formRef, validation, name, horizontal, decorate,
     onSubmit, i18n
   } = props
+  const theme = useTheme()
   const _defaults = useMemo(
     () => defaults ?? (validation != null ? schemaToFormDefault(validation) : undefined),
     [name, defaults != null, validation != null]
@@ -54,7 +56,7 @@ export const Form: FC<FormProps> = (props) => {
     formRef.current = { form, update, loader, error: setError }
   }
 
-  const style: SxProps = useMemo(() => scalingToStyles(horizontal), [horizontal])
+  const style: SxProps = useMemo(() => scalingToStyles(horizontal, theme), [horizontal])
 
   const content = () =>
     <Grid container direction="column" justifyContent="flex-start" alignItems="stretch"

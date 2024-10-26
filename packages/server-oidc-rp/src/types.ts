@@ -1,7 +1,7 @@
 import type { InitializedService } from '@owlmeans/context'
 import type { AuthorizationCodeGrantChecks, Configuration, IntrospectionResponse, ServerMetadata, TokenEndpointResponse, TokenEndpointResponseHelpers } from 'openid-client'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig, ProviderProfileDetails, OidcUserDetails } from '@owlmeans/oidc'
+import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig, ProviderProfileDetails, OidcUserDetails, OidcProviderSettings } from '@owlmeans/oidc'
 import type { AuthPayload } from '@owlmeans/auth'
 
 export type OidcClientDescriptor = Configuration 
@@ -57,4 +57,5 @@ export interface AccountMeta {
 
 export interface ProviderApiService extends InitializedService {
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
+  getSettings: (token: string, realm: string) => Promise<OidcProviderSettings>
 }

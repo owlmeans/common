@@ -1,12 +1,18 @@
-import type { SxProps } from '@mui/material/styles'
+import type { SxProps, Theme } from '@mui/material/styles'
 import useTheme from '@mui/material/styles/useTheme'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { BlockScaling } from '@owlmeans/client-panel'
 
-export const scalingToStyles = (scaling?: BlockScaling): SxProps => {
+export const scalingToStyles = (scaling?: BlockScaling, theme?: Theme): SxProps => {
   switch (scaling) {
     case BlockScaling.Half:
-      return { maxWidth: '50%', flexGrow: 1 }
+      return {
+        maxWidth: '50%',
+        [theme?.breakpoints.down('md') ?? 'xs']: {
+          maxWidth: '90%'
+        },
+        flexGrow: 1
+      }
     case BlockScaling.Wide:
       return { mx: '10%', flexGrow: 1 }
     case BlockScaling.Full:

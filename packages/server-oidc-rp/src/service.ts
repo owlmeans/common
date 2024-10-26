@@ -30,7 +30,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
       console.log('External service url', url)
 
-      return await client.discovery(new URL(url) as URL, clientId, cfg.secret, undefined, {
+      return await client.discovery(new URL(url) as URL, cfg.idOverride ?? clientId, cfg.secret, undefined, {
         execute: [
           // @TODO Properly handle it with the config
           client.allowInsecureRequests
@@ -62,7 +62,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       return {
         getMetadata: () => metadata,
 
-        getClientId: () => _clientId,
+        getClientId: () => cfg.idOverride ?? _clientId,
 
         getConfig: () => cfg,
 

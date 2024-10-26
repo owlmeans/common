@@ -3,7 +3,7 @@ import { STD_OIDC_FLOW, TARGET_SERVICE } from '../consts.js'
 import { AUTH_QUERY } from '@owlmeans/auth'
 
 export enum OidcAuthStep {
-  Disaptch = 'dispatch',
+  Dispatch = 'dispatch',
   Authen = 'authen',
   PostAuthen = 'post-authen',
   OrgChoice = 'org-choice',
@@ -19,13 +19,13 @@ export const PURPOSE_PAYLOAD = 'purpose'
 export const stdOidcFlow: ShallowFlow = {
   // naming - preserve space in serialized state
   flow: STD_OIDC_FLOW,
-  initialStep: OidcAuthStep.Disaptch,
+  initialStep: OidcAuthStep.Dispatch,
 
   steps: {
 
-    [OidcAuthStep.Disaptch]: {
+    [OidcAuthStep.Dispatch]: {
       index: 0,
-      step: OidcAuthStep.Disaptch,
+      step: OidcAuthStep.Dispatch,
       service: '$auth',
       initial: true,
       module: '$auth.choice',

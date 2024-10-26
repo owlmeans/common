@@ -38,6 +38,7 @@ export interface OidcProviderDescriptor {
   clientId: string
   secret?: string
   extraScopes?: string
+  idOverride?: string
   // This flag works only on client side. It specifies a default relying party
   def?: boolean
 }
@@ -107,4 +108,8 @@ export interface OidcUserDetails {
   // is governed by an organization that uses OwlMeans IAM solutions on premises basis.
   // Actually it makes this property untrasferable between different app services.
   isOwlMeansId?: boolean
+}
+
+export interface OidcProviderSettings {
+  registrationEnabled: boolean
 }

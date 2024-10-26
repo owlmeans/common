@@ -90,6 +90,15 @@ export class AuthorizationError extends AuthError {
   }
 }
 
+export class AuthForbidden extends AuthorizationError {
+  public static override typeName: string = `Forbidden${AuthorizationError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`forbidden:${message}`)
+    this.type = AuthForbidden.typeName
+  }
+}
+
 export class ProfileError extends AuthError {
   public static override typeName: string = 'ProfileError'
 
@@ -118,5 +127,6 @@ ResilientError.registerErrorClass(AuthenPayloadError)
 ResilientError.registerErrorClass(AuthPluginError)
 ResilientError.registerErrorClass(TypeMissmatchError)
 ResilientError.registerErrorClass(AuthorizationError)
+AuthForbidden.registerErrorClass(AuthForbidden)
 ResilientError.registerErrorClass(ProfileError)
 ResilientError.registerErrorClass(ProfileConsistencyError)

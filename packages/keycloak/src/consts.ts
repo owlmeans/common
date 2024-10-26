@@ -4,6 +4,9 @@ import type { RoleMap } from './types.js'
 export const DEFAULT_ALIAS = DEF_OIDC_PROVIDER_API
 
 export const keycloakApi = {
+  settings: {
+    get: 'keycloak-api:settings:get'
+  },
   user: {
     get: 'keycloak-api:user:get',
     create: 'keycloak-api:user:create',

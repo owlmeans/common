@@ -10,7 +10,8 @@ import { KEY_OWL } from '@owlmeans/did'
 import type { WithLocation } from './utils/types.js'
 import { KeycloakCreationError } from './errors.js'
 import type { Role } from './types/role.js'
-import { Client } from './types/client.js'
+import type { Client } from './types/client.js'
+import type { RealmSettings } from './types/realm.js'
 
 export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakApiService => {
   const service: KeycloakApiService = createService<KeycloakApiService>(alias, {
@@ -33,6 +34,19 @@ export const makeKeycloakApiService = (alias: string = DEFAULT_ALIAS): KeycloakA
         username: user.username,
         did: owlMeansId?.userId,
         ...(owlMeansId != null ? { isOwlMeansId: true } : {})
+      }
+    },
+
+    getSettings: async (token, realm) => {
+      const context = service.assertCtx<AppConfig, AppContext>()
+      const request = prepareToken(token)
+      request.params.realm = realm
+
+      const [settings] = await context.module<ClientModule<RealmSettings>>(keycloakApi.settings.get)
+        .call(request)
+
+      return {
+        registrationEnabled: settings.registrationAllowed,
       }
     },
 

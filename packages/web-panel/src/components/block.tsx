@@ -5,12 +5,14 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import { PanelContext, usePanelHelper } from '@owlmeans/client-panel'
 import type { SxProps } from '@mui/material/styles'
+import useTheme from '@mui/material/styles/useTheme.js'
 import CardActions from '@mui/material/CardActions'
 import { scalingToStyles } from './helper.js'
 
 export const Block: FC<BlockProps> = ({ children, horizontal, Actions, i18n, styles }) => {
+  const theme = useTheme()
 
-  const style: SxProps = useMemo(() => scalingToStyles(horizontal), [horizontal])
+  const style: SxProps = useMemo(() => scalingToStyles(horizontal, theme), [horizontal])
 
   const panelProps = { ...usePanelHelper(), ...i18n }
 
