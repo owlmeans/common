@@ -214,14 +214,18 @@ export const makeRedisResource = <
     subscribe: async (handler, opts) => {
       opts = prepareSubOptions(opts)
 
-      const unsusbscibe = () => {
-        subscriber.punsubscribe(resource.key(opts.key)).then(() => subscriber.quit())
+      const unsusbscibe = async () => {
+        try {
+          await subscriber.punsubscribe(resource.key(opts.key)).then(() => subscriber.quit())
+        } catch (e) {
+          console.error('Try to unsubscribe redis resource', e)
+        }
       }
 
       const listener = (value: R) => {
         handler(value as any)
         if (opts.once === true) {
-          unsusbscibe()
+          void unsusbscibe()
         }
       }
 

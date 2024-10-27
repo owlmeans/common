@@ -9,12 +9,15 @@ import { AUTH_CACHE, RELY_TIMEFRAME } from '../../consts.js'
 import { ResourceError } from '@owlmeans/resource'
 import { RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
 
-// @TODO they need to be killed on close
 const _subscriptions: Record<string, CallableFunction> = {}
 export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: type ?? AuthenticationType.RelyHandshake,
 
+    // This method is used by consumer and by provider (wallet)
+    // to initialize shared authentication process.
+    // The idea is that both subscribe to wait for a handshake value
+    // from the peer, that in fact is a subscription to a redis message tunnel.  
     init: async (request: RelyAllowanceRequest): Promise<AllowanceResponse> => {
       const [, keyPair] = await trusted(context)
       const tunnel = context.resource<AuthRedisResource>(AUTH_CACHE)
@@ -46,6 +49,17 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
                   await request.provideRely?.(rely.message(), relyMsg, true)
                 }
               }, { ttl: RELY_TIMEFRAME, key, once: true })
+
+              // @TODO they need to be killed on close - but actually live a little bit longer 
+              // than timeout for them is ok
+              setTimeout(() => {
+                try {
+                  if (_subscriptions[key] != null) {
+                    void _subscriptions[key]()
+                    delete _subscriptions[key]
+                  }
+                } catch { }
+              }, RELY_TIMEFRAME * 2)
             }))
           }
 
@@ -61,6 +75,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
       } while (true)
     },
 
+    // This part of flow is entered by the party that is active (provides peer's code - token or pin)
     authenticate: async credential => {
       const [, keyPair] = await trusted(context)
       const tunnel = context.resource<AuthRedisResource>(AUTH_CACHE)
@@ -68,6 +83,8 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
       // 1. Just get a peer connection based on provided credential
       // 2. Provision it with provided own data
       // 3. Delete own rely connection seeds
+
+      console.log('~~~~ ENTERING RELY AUTH BY 3', credential)
 
       let rely: RelyToken
       try {
@@ -115,7 +132,8 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         myRely.token != null ? `${RELY_TOKEN_PREFIX}${myRely.token}` : null
       ].filter(key => key != null).forEach(key => {
         if (_subscriptions[key] != null) {
-          _subscriptions[key]()
+          void _subscriptions[key]()
+          delete _subscriptions[key]
         }
       })
 

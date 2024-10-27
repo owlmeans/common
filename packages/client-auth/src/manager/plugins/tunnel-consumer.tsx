@@ -3,7 +3,7 @@ import { AUTH_SCOPE, AUTHEN_RELY, AuthenticationStage, AuthenticationType, AuthR
 import type { AllowanceRequest, AllowanceResponse, Auth, AuthCredentials } from '@owlmeans/auth'
 import type { AuthenticationPlugin } from './types.js'
 import type { PinForm, TunnelAuthenticationRenderer } from './tunnel/types.js'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { Connection } from '@owlmeans/socket'
 import type { AuthenticationControl } from '../components/authentication/types.js'
 import { RELY_PIN_PERFIX } from '@owlmeans/auth-common'
@@ -40,8 +40,8 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
       }
     }, [connection])
 
-    const submit = useMemo(
-      () => connection != null ? makeSubmit(connection, control) : async () => void 0
+    const submit = useCallback(
+      connection != null ? makeSubmit(connection, control) : async () => void 0
       , [connection != null]
     )
 
@@ -56,21 +56,27 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
 }
 
 const makeSubmit = (conn: Connection, control: AuthenticationControl) => async (data: PinForm) => {
-  const auth = await conn.auth<AuthCredentials, Auth>(AuthenticationStage.Authenticate, {
-    challenge: control.allowance?.challenge ?? '',
-    credential: RELY_PIN_PERFIX + data.pin,
-    type: control.type,
-    role: AuthRole.Guest,
-    userId: '',
-    scopes: [AUTH_SCOPE]
-  })
+  await control.updateStage(AuthenticationStage.Authentication)
+  try {
+    const auth = await conn.auth<AuthCredentials, Auth>(AuthenticationStage.Authenticate, {
+      challenge: control.allowance?.challenge ?? '',
+      credential: RELY_PIN_PERFIX + data.pin,
+      type: control.type,
+      role: AuthRole.Guest,
+      userId: '',
+      scopes: [AUTH_SCOPE]
+    })
 
-  if (conn.stage === AuthenticationStage.Authenticated) {
-    if (control.callback == null) {
-      throw new SyntaxError('Tunnel consumer requires a callback to provide connection object')
+    if (conn.stage === AuthenticationStage.Authenticated) {
+      if (control.callback == null) {
+        throw new SyntaxError('Tunnel consumer requires a callback to provide connection object')
+      }
+      await control.callback(auth, createWalletFacade(conn))
     }
-    control.callback(auth, createWalletFacade(conn))
-  }
 
-  console.log(auth)
+    console.log(auth)
+  } catch (e) {
+    await conn.close()
+    await control.setError(e)
+  }
 }

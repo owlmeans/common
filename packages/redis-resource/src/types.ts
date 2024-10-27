@@ -19,7 +19,7 @@ export interface RedisResource<T extends ResourceRecord> extends Resource<T> {
 
   key: (key?: string) => string
 
-  subscribe: <Type extends T>(handler: (value: Type) => Promise<void>, key?: SubOpts) => Promise<() => void>
+  subscribe: <Type extends T>(handler: (value: Type) => Promise<void>, key?: SubOpts) => Promise<() => Promise<void>>
 
   publish: <Type extends T>(value: Type, key?: string) => Promise<void>
 }

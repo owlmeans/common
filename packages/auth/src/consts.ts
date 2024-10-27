@@ -63,6 +63,7 @@ export enum AuthroizationType {
 }
 
 export enum AuthenticationStage {
+  Error = 'error',
   Init = 'init',
   Allowence = 'allowence',
   Authenticate = 'authenticate',

@@ -18,6 +18,8 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
   }
 
   model.close = async () => {
+    // console.log('NORMAL CLIENT CLOSE')
+    // await closeHandler(new CloseEvent('close', { code: 1000, wasClean: true }))
     conn.close()
     // @TODO Make sure it trigger close observers
   }

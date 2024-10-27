@@ -6,6 +6,7 @@ import type { ModuleContextParams } from '@owlmeans/client'
 import type { FC } from 'react'
 import type { ClientContext } from '@owlmeans/client'
 import type { FlowService } from '@owlmeans/client-flow'
+import type { ResilientError } from '@owlmeans/error'
 
 export type ClientAuthType = AuthenticationType | string
 
@@ -33,10 +34,11 @@ export interface AuthenticationControlState {
   type: ClientAuthType
   request?: AllowanceRequest
   allowance?: AllowanceResponse
+  error?: ResilientError
+  source?: string
 }
 
 export interface AuthenticationControl extends AuthenticationControlState {
-  source?: string
   callback?: AuthenticationCallback
   setStage?: (stage: AuthenticationStage) => void
   updateStage: (stage: AuthenticationStage) => void
@@ -55,6 +57,8 @@ export interface AuthenticationControl extends AuthenticationControlState {
   restore: () => Promise<boolean>
   hasPersistentState: () => Promise<boolean>
   cleanUpState: () => Promise<void>
+
+  setError: (error: unknown) => Promise<void>
 }
 
 export interface ClientAuthenticationMethod {

@@ -17,7 +17,7 @@ export const Block: FC<BlockProps> = ({ children, horizontal, Actions, i18n, sty
   const panelProps = { ...usePanelHelper(), ...i18n }
 
   return <PanelContext {...panelProps}>
-    <Card sx={{...style, ...styles} as SxProps}>
+    <Card sx={{ ...style, ...styles } as SxProps}>
       <CardContent>{children}</CardContent>
       {Actions != null && <CardActions sx={{ flexDirection: "row", justifyContent: "flex-end", pr: 2, pb: 2 }}>
         <Actions />

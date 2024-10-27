@@ -26,5 +26,15 @@
       "hint": "Genereta pin-code in your wallet app"
     },
     "submit": "Proceed with pin"
+  },
+  "oidp-create-id": {
+    "error": {
+      "socket": {
+        "timeout": {
+          "call": "Action timeout! For security reason we set a time limit on authentication actions. Please try again."
+        }
+      }
+    },
+    "reset": "Reload"
   }
 }

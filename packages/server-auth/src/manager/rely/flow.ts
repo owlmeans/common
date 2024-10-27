@@ -1,6 +1,6 @@
 import type { AllowanceRequest, Auth, AuthCredentials, RelyToken } from '@owlmeans/auth'
 import { AUTH_SCOPE, AuthenticationStage, AuthenticationType, AuthPluginError, AuthRole, RELY_3RD } from '@owlmeans/auth'
-import type { AuthenticateMethod, Connection, Message } from '@owlmeans/socket'
+import type { AuthenticateMethod, Connection, EventMessage, Message } from '@owlmeans/socket'
 import { isEventMessage, isMessage } from '@owlmeans/socket'
 import type { AppContext, RelyAllowanceRequest, RelyLinker, RelyCarrier } from '../types.js'
 import { makeAuthModel } from '../model.js'
@@ -33,6 +33,12 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
       if (isMessage(message, true)) {
         console.log('<<<<<<< Receive message: ', message)
         await conn.send(message)
+      } else if (isEventMessage(message, true)) {
+        if ((message as EventMessage<unknown>).event === 'close') {
+          await conn.close()
+          closeSender()
+          await closeReceiver()
+        }
       }
     }, source.nonce)
     // We allow to just forward call messages back and forth
@@ -42,14 +48,21 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
     conn.defaultCallTimeout = RELY_CALL_TIMEOUT
     const closeSender = conn.listen(async message => {
       if (isMessage(message, true)) {
-        const forward = {...message}
+        const forward = { ...message }
         if (forward.rawData != null) {
           delete forward.rawData
         }
         console.log('>>>>>>> Publish message: ', message)
         await tunnel.publish(forward, rely.nonce)
       } else if (isEventMessage(message, true)) {
+        console.log('We receive en event message: ', message)
         if (message.event === 'close') {
+          const forward = { ...message as Message<unknown> }
+          if (forward.rawData != null) {
+            delete forward.rawData
+          }
+          await tunnel.publish(forward, rely.nonce)
+          console.log('>>>>> CLOSING all <<<<<')
           closeSender()
           await closeReceiver()
         }
@@ -72,6 +85,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   conn.authenticate = async (stage, payload) => {
     const [, keyPair] = await trusted(context)
     switch (stage) {
+      // This part of flow is entered by both consumer and provider (wallet)
       case AuthenticationStage.Init:
         const _payload = payload as RelyAllowanceRequest
         if (auth != null) {
@@ -79,6 +93,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
         } else if (_payload.auth != null) {
           delete _payload.auth
         }
+        console.log('~~~~ PEER ACTIVITY 1', _payload.auth != null ? 'Provider' : 'Consumer')
         _payload.provideRely = linker
 
         try {
@@ -88,9 +103,11 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
           await conn.close()
         }
         break
+      // This part of flow is entered by that actor who enters peer's key (token or pin)
       case AuthenticationStage.Authenticate:
         try {
           const cred = payload as AuthCredentials
+          console.log('~~~~ ACTOR ACTIVITY 2', cred)
           const authenticated = await model.authenticate(cred)
           const envelope = makeEnvelopeModel<Auth>(authenticated.token, EnvelopeKind.Token)
           if (!await envelope.verify(keyPair)) {

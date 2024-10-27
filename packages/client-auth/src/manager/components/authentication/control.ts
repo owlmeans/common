@@ -14,6 +14,7 @@ import { ModuleOutcome } from '@owlmeans/module'
 import { DEFAULT_ALIAS as FLOW_SERVICE, FLOW_STATE } from '@owlmeans/client-flow'
 import type { FlowService, StateResource } from '@owlmeans/client-flow'
 import { CONTROL_STATE_ID } from './consts.js'
+import { ResilientError } from '@owlmeans/error'
 
 export const makeControl = (
   context: ClientContext<ClientConfig>,
@@ -27,6 +28,12 @@ export const makeControl = (
     type: AuthenticationType.BasicEd25519,
 
     callback,
+
+    setError: async error => {
+      control.error = ResilientError.ensure(error as Error)
+
+      control.updateStage(AuthenticationStage.Error)
+    },
 
     requestAllowence: async request => {
       control.updateStage(AuthenticationStage.Allowence)
