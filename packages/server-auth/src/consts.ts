@@ -5,6 +5,4 @@ export const AUTH_SRV_KEY = 'auth-service'
 
 export const DEFAULT_ALIAS = 'auth'
 
-export  const RELY_TIMEFRAME = 2 * 60 * 1000
-
 export const AUTH_CACHE = 'auth-cache'

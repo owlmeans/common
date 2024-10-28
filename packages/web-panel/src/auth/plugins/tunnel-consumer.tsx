@@ -41,10 +41,10 @@ export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, sta
     case AuthenticationStage.Error:
       return <Block horizontal={BlockScaling.Half} i18n={i18n} Actions={() =>
         // @TODO document reload looks a bit dirty - cause we can loose the flow
-        // <Button label="reset" onClick={async () => { document.location.reload() }} />
-        <Button label="reset" onClick={async () => { 
-          await control.updateStage(AuthenticationStage.Authenticate)
-         }} />
+        <Button label="reset" onClick={async () => { document.location.reload() }} />
+        // <Button label="reset" onClick={async () => { 
+        //   await control.updateStage(AuthenticationStage.Authenticate)
+        //  }} />
       }>
         <Status error={control.error} ok={false} />
       </Block>

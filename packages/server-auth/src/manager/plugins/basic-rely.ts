@@ -5,9 +5,9 @@ import type { AuthPlugin, AuthRedisResource, RelyRecord } from './types.js'
 import { makeConsumerRely, makeProviderRely } from '../../model/index.js'
 import { trusted } from '../utils/trusted.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { AUTH_CACHE, RELY_TIMEFRAME } from '../../consts.js'
+import { AUTH_CACHE } from '../../consts.js'
 import { ResourceError } from '@owlmeans/resource'
-import { RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
+import { RELY_CALL_TIMEOUT, RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
 
 const _subscriptions: Record<string, CallableFunction> = {}
 export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
@@ -33,10 +33,10 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
           const response = { challenge: await rely.sign(keyPair, EnvelopeKind.Wrap) }
 
           if (pin != null) {
-            await tunnel.create({ ...response, id: pin }, { ttl: RELY_TIMEFRAME })
+            await tunnel.create({ ...response, id: pin }, { ttl: RELY_CALL_TIMEOUT })
           }
           if (token != null) {
-            await tunnel.create({ ...response, id: token }, { ttl: RELY_TIMEFRAME })
+            await tunnel.create({ ...response, id: token }, { ttl: RELY_CALL_TIMEOUT })
           }
 
           if (request.provideRely != null) {
@@ -45,21 +45,30 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
                 console.log('Receive rely from remote: ', value)
                 const rely = makeEnvelopeModel<RelyToken>(value.challenge, EnvelopeKind.Wrap)
                 if (await rely.verify(keyPair)) {
-                  [pin, token].filter(key => key != null).forEach(key => _subscriptions[key]?.())
+                  [pin, token].filter(key => key != null).forEach(key => {
+                    _subscriptions[key]?.()
+                    if (_subscriptions[key] != null) {
+                      delete _subscriptions[key]
+                    }
+                  })
                   await request.provideRely?.(rely.message(), relyMsg, true)
                 }
-              }, { ttl: RELY_TIMEFRAME, key, once: true })
+              }, { /*ttl: RELY_CALL_TIMEOUT,*/ key, once: true })
 
               // @TODO they need to be killed on close - but actually live a little bit longer 
               // than timeout for them is ok
               setTimeout(() => {
-                try {
-                  if (_subscriptions[key] != null) {
+                console.log('Trigger closure')
+                if (_subscriptions[key] != null) {
+                  console.log('Trigger closure')
+                  try {
                     void _subscriptions[key]()
                     delete _subscriptions[key]
+                  } finally {
+                    void request.conn?.close()
                   }
-                } catch { }
-              }, RELY_TIMEFRAME * 2)
+                }
+              }, RELY_CALL_TIMEOUT * 1000)
             }))
           }
 
@@ -132,6 +141,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         myRely.token != null ? `${RELY_TOKEN_PREFIX}${myRely.token}` : null
       ].filter(key => key != null).forEach(key => {
         if (_subscriptions[key] != null) {
+          console.log('clean unnecessary tunnel', key)
           void _subscriptions[key]()
           delete _subscriptions[key]
         }

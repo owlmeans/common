@@ -29,6 +29,7 @@ export interface RelyService extends GuardService {
 export interface RelyAllowanceRequest extends AllowanceRequest {
   auth?: Auth
   provideRely?: RelyLinker
+  conn?: Connection
 }
 
 export interface RelyLinker {

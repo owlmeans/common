@@ -31,7 +31,13 @@
     "error": {
       "socket": {
         "timeout": {
-          "call": "Action timeout! For security reason we set a time limit on authentication actions. Please try again."
+          "call": "Action timeout! For security reason we set a time limit on authentication actions. Please try again.",
+          "rely": "Authentication code expired. Please try again."
+        }
+      },
+      "auth": {
+        "authorization": {
+          "sequence": "Auhtentcation process was interupted by the authentication app you use."
         }
       }
     },

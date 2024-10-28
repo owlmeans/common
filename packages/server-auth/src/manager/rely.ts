@@ -67,7 +67,10 @@ export const createRelyService = (alias: string = DEFAULT_RELY): RelyService => 
         const cache = (context: Context): Resource<AuthSpent> =>
           context.resource<Resource<AuthSpent>>(AUTH_CACHE)
 
-        await cache(context).create({ id: msg.challenge }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
+        await cache(context).create(
+          { id: msg.challenge }, 
+          { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 }
+        )
       } catch (e) {
         const error = new AuthenFailed('challenge')
         if (e instanceof Error) {

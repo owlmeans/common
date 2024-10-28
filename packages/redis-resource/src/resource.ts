@@ -214,7 +214,12 @@ export const makeRedisResource = <
     subscribe: async (handler, opts) => {
       opts = prepareSubOptions(opts)
 
+      let _unsubascribeCalled = false
       const unsusbscibe = async () => {
+        if (_unsubascribeCalled) {
+          return
+        }
+        _unsubascribeCalled = true
         try {
           await subscriber.punsubscribe(resource.key(opts.key)).then(() => subscriber.quit())
         } catch (e) {

@@ -5,7 +5,7 @@ import { makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { createRandomPrefix, createIdOfLength, IdStyle } from '@owlmeans/basic-ids'
 import { base58 } from '@scure/base'
 import type { RelyOptions } from './types.js'
-import { RELY_TIMEFRAME } from '../../consts.js'
+import { RELY_CALL_TIMEOUT } from '@owlmeans/auth-common'
 
 export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
   const envelope = makeEnvelopeModel<RelyToken>(RELY_3RD)
@@ -31,7 +31,7 @@ export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
     check: toNumber(checkBytes).substring(0, checkLength),
     token: base58.encode(tokenBytes).substring(0, tokenLength),
     nonce: createIdOfLength(nonceLength, IdStyle.Base64)
-  }, opts?.liveTime ?? RELY_TIMEFRAME)
+  }, opts?.liveTime ?? RELY_CALL_TIMEOUT * 1000)
 
   console.log('Rely generetatd within: ', (Date.now() - startTime) / 1000, 's')
 

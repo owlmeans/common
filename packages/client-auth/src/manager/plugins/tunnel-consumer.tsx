@@ -5,8 +5,9 @@ import type { AuthenticationPlugin } from './types.js'
 import type { PinForm, TunnelAuthenticationRenderer } from './tunnel/types.js'
 import { useCallback, useEffect } from 'react'
 import type { Connection } from '@owlmeans/socket'
+import { isEventMessage, SocketTimeout } from '@owlmeans/socket'
 import type { AuthenticationControl } from '../components/authentication/types.js'
-import { RELY_PIN_PERFIX } from '@owlmeans/auth-common'
+import { RELY_ACTION_TIMEOUT, RELY_PIN_PERFIX } from '@owlmeans/auth-common'
 import { createWalletFacade } from './tunnel/wallet.js'
 
 export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
@@ -31,11 +32,17 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
           AuthenticationStage.Init, { type: AuthenticationType.RelyHandshake }
         ).then(async (allowance: AllowanceResponse) => {
           control.allowance = allowance
-          // const challenge = makeEnvelopeModel<string>(allowance.challenge, EnvelopeKind.Wrap)
-          // const rely = makeEnvelopeModel<RelyToken>(challenge.message(true), EnvelopeKind.Wrap)
-          // console.log(rely.message())
-
           control.updateStage(AuthenticationStage.Authenticate)
+
+          console.log('~~~~~ Tunnel allowance received ~~~~~~')
+
+          connection.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
+        })
+
+        return connection.listen(async message => {
+          if (isEventMessage(message) && message.event === 'close') {
+            await control.setError(new SocketTimeout('rely'))
+          }
         })
       }
     }, [connection])
@@ -49,7 +56,6 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
   },
 
   authenticate: async _credentials => {
-
     // We don't use it - just type compatibility
     return { token: '' }
   }
