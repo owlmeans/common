@@ -22,7 +22,8 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
     attributes: { type: 'array', nullable: true, items: AttributeSetSchema },
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }
-  }
+  },
+  additionalProperties: false,
 }
 
 export const AllowanceRequestSchema: JSONSchemaType<AllowanceRequest> = {
@@ -37,7 +38,8 @@ export const AllowanceRequestSchema: JSONSchemaType<AllowanceRequest> = {
     },
     PartialAuthPayloadSchema
   ],
-  required: ['type']
+  required: ['type'],
+  additionalProperties: false,
 }
 export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
   type: 'object',
@@ -52,7 +54,8 @@ export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
     },
     AuthPayloadSchema
   ],
-  required: ['type', 'challenge', 'credential', ...AuthPayloadSchema.required]
+  required: ['type', 'challenge', 'credential', ...AuthPayloadSchema.required],
+  additionalProperties: false,
 }
 
 export const AuthSchema: JSONSchemaType<Auth> = {
@@ -66,5 +69,6 @@ export const AuthSchema: JSONSchemaType<Auth> = {
   },
   required: [
     'token', 'isUser', 'createdAt', 'type', 'role', 'userId'
-  ]
+  ],
+  additionalProperties: false,
 }

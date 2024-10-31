@@ -33,7 +33,8 @@ export const PlanSubscriptionSchema: JSONSchemaType<PlanSubscription> = {
       additionalProperties: CapabilityUsageSchema
     }
   },
-  required: ['sku', 'entityId', 'createdAt', 'startsdAt', 'status']
+  required: ['sku', 'entityId', 'createdAt', 'startsdAt', 'status'],
+  additionalProperties: false,
 }
 
 export const SubscriptionPropogateBodySchema: JSONSchemaType<SubscriptionPropogateBody> = {
@@ -44,5 +45,5 @@ export const SubscriptionPropogateBodySchema: JSONSchemaType<SubscriptionPropoga
     externalId: IdValueSchema,
   } as any, // @TODO Figure out why it doesn't work (probably different version of ajv)
   required: ['externalId', 'service', ...PlanSubscriptionSchema.required],
-  additionalProperties: false
+  additionalProperties: false,
 }

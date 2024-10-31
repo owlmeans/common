@@ -16,7 +16,8 @@ export const PermissionSetSchema: JSONSchemaType<PermissionSet> = {
     permissions: CapabiltiesSchema,
     resources: { type: 'array', items: ResourceValueSchema, nullable: true }
   },
-  required: ['scope', 'permissions']
+  required: ['scope', 'permissions'],
+  additionalProperties: false,
 }
 
 export const AttributeSetSchema: JSONSchemaType<AttributeSet> = {
@@ -25,5 +26,6 @@ export const AttributeSetSchema: JSONSchemaType<AttributeSet> = {
     scope: ScopeValueSchema,
     attributes: { type: 'array', items: AttributeValueSchema }
   },
-  required: ['scope', 'attributes']
+  required: ['scope', 'attributes'],
+  additionalProperties: false,
 }

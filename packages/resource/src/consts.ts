@@ -13,7 +13,8 @@ export const createListSchema = <T extends ResourceRecord>(schema: JSONSchemaTyp
           id: { type: 'string', nullable: true },
           ...schema.properties
         },
-        ...(schema.required ? { required: [...schema.required] } : undefined)
+        ...(schema.required ? { required: [...schema.required] } : undefined),
+        additionalProperties: false,
       }
     },
     pager: {
@@ -39,8 +40,10 @@ export const createListSchema = <T extends ResourceRecord>(schema: JSONSchemaTyp
         total: { type: 'number', nullable: true }
       },
       required: [],
-      nullable: true
+      nullable: true,
+      additionalProperties: false,
     }
   },
-  required: ['items']
+  required: ['items'],
+  additionalProperties: false,
 })

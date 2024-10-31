@@ -45,5 +45,6 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
   required: [
     'productSku', 'sku', 'status', 'duration',
     'price', 'title'
-  ]
+  ],
+  additionalProperties: false,
 }

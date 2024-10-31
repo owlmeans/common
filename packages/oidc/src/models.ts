@@ -8,7 +8,8 @@ export const OIDCAuthInitParamsSchema: JSONSchemaType<OIDCAuthInitParams> = {
     entity: { ...EntityValueSchema, nullable: true },
     profile: { ...IdValueSchema, nullable: true },
   },
-  required: []
+  required: [],
+  additionalProperties: false,
 }
 
 export const OIDCClientAuthPayloadSchema: JSONSchemaType<OIDCClientAuthPayload> = {
@@ -18,7 +19,7 @@ export const OIDCClientAuthPayloadSchema: JSONSchemaType<OIDCClientAuthPayload> 
     authUrl: { type: 'string', minLength: 0, maxLength: 1024, format: 'uri' },
   },
   additionalProperties: {type: 'string', minLength: 0, maxLength: 512},
-  required: ['code', 'authUrl']
+  required: ['code', 'authUrl'],
 }
 
 export const OIDCTokenUpdateSchema: JSONSchemaType<OIDCTokenUpdate> = {

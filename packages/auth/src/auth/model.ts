@@ -16,7 +16,8 @@ export const AuthorizationSchema: JSONSchemaType<Authorization> = {
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }
   },
-  required: ['scopes']
+  required: ['scopes'],
+  additionalProperties: false,
 }
 
 export const ProfilePayloadSchema: JSONSchemaType<ProfilePayload> = {
@@ -30,7 +31,8 @@ export const ProfilePayloadSchema: JSONSchemaType<ProfilePayload> = {
     },
     AuthorizationSchema
   ],
-  required: ['scopes']
+  required: ['scopes'],
+  additionalProperties: false,
 }
 
 export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
@@ -49,7 +51,8 @@ export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
     },
     ProfilePayloadSchema
   ],
-  required: ['scopes', 'role']
+  required: ['scopes', 'role'],
+  additionalProperties: false,
 }
 
 export const AuthTokenSchema: JSONSchemaType<AuthToken> = {
@@ -57,7 +60,8 @@ export const AuthTokenSchema: JSONSchemaType<AuthToken> = {
   properties: {
     token: { type: 'string', minLength: 32, maxLength: 1024 },
   },
-  required: ['token']
+  required: ['token'],
+  additionalProperties: false,
 }
 
 export const OptionalAuthTokenSchema: JSONSchemaType<Partial<AuthToken>> = {
@@ -65,5 +69,6 @@ export const OptionalAuthTokenSchema: JSONSchemaType<Partial<AuthToken>> = {
   properties: {
     token: { type: 'string', minLength: 32, maxLength: 1024, nullable: true },
   },
-  required: []
+  required: [],
+  additionalProperties: false,
 }

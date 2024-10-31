@@ -10,5 +10,6 @@ export const Ed22519BasicAuthUIPluginFormSchema: JSONSchemaType<Ed22519BasicAuth
     address: { type: 'string', minLength: 1, maxLength: 255, default: '' },
     privateKey: { type: 'string', minLength: 1, maxLength: 512, default: '' }
   },
-  required: ['entityId', 'address', 'privateKey']
+  required: ['entityId', 'address', 'privateKey'],
+  additionalProperties: false,
 }

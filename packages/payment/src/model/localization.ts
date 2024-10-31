@@ -19,5 +19,6 @@ export const LocalizationSchema: JSONSchemaType<Localization> = {
       additionalProperties: { type: 'string' }
     }
   },
-  required: ['type', 'sku', 'lng']
+  required: ['type', 'sku', 'lng'],
+  additionalProperties: false,
 }

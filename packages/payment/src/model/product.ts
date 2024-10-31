@@ -16,5 +16,6 @@ export const ProductSchema: JSONSchemaType<Product> = {
     services: { type: 'array', items: ResourceValueSchema, nullable: true },
     capabilities: { type: 'array', items: PermissionSetSchema, nullable: true }
   },
-  required: ['type', 'sku', 'title']
+  required: ['type', 'sku', 'title'],
+  additionalProperties: false,
 }

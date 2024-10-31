@@ -19,5 +19,6 @@ export const ProfileSchema: JSONSchemaType<Profile> = {
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }
   },
-  required: ['id', 'name', 'scopes']
+  required: ['id', 'name', 'scopes'],
+  additionalProperties: false,
 }
