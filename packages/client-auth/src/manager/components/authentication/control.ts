@@ -44,8 +44,10 @@ export const makeControl = (
       control.beforeAuthenticate = plugins[control.type].beforeAuthenticate
       control.afterAuthenticate = plugins[control.type].afterAuthenticate
 
+      console.log('Before allowance request')
       const module = context.module<ClientModule<AllowanceResponse>>(AUTHEN_INIT)
       const [allowance] = await module.call({ body: control.request })
+      console.log('After allowance request', allowance)
 
       control.allowance = allowance
 

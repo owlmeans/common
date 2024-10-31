@@ -19,9 +19,12 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
   const client: ApiClient = createService<ApiClient>(alias, {
     handler: async (request, reply) => {
+      console.log('1')
       if (request.canceled === true) {
+        console.log('-1')
         return
       }
+      console.log('We are comming')
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.module<CommonModule>(request.alias)
       await module.resolve()

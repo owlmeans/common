@@ -23,38 +23,29 @@ export const PartialAuthPayloadSchema: JSONSchemaType<Omit<Partial<AuthPayload>,
     permissioned: { type: 'boolean', nullable: true },
     denormalized: { type: 'boolean', nullable: true }
   },
+  required: [],
   additionalProperties: false,
 }
 
 export const AllowanceRequestSchema: JSONSchemaType<AllowanceRequest> = {
   type: 'object',
-  allOf: [
-    {
-      type: 'object',
-      properties: {
-        type: TypeNameSchema
-      },
-      required: ['type']
-    },
-    PartialAuthPayloadSchema
-  ],
+  properties: {
+    type: TypeNameSchema,
+    ...PartialAuthPayloadSchema.properties,
+  } as any,
   required: ['type'],
   additionalProperties: false,
 }
+
 export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
   type: 'object',
-  allOf: [
-    {
-      type: 'object',
-      properties: {
-        challenge: { type: 'string', minLength: 32, maxLength: 1024 },
-        credential: { type: 'string', minLength: 16, maxLength: 4096 },
-      },
-      required: ['challenge', 'credential']
-    },
-    AuthPayloadSchema
-  ],
-  required: ['type', 'challenge', 'credential', ...AuthPayloadSchema.required],
+  properties: {
+    challenge: { type: 'string', minLength: 32, maxLength: 1024 },
+    credential: { type: 'string', minLength: 16, maxLength: 4096 },
+    publicKey: { type: 'string', minLength: 16, maxLength: 1024, nullable: true },
+    ...AuthPayloadSchema.properties
+  },
+  required: ['challenge', 'credential', ...AuthPayloadSchema.required],
   additionalProperties: false,
 }
 

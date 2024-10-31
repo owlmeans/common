@@ -188,9 +188,24 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           throw new AuthManagerError('iam.entity')
         }
 
+
+        console.log('Supper attention ~%~: ', details.entityId, cfg.entityId, context.cfg.defaultEntityId)
+
         // We relink existing profile only if it's not yet did bound
         // and the orgnaization is owlmeans.org
-        if (profile == null || details.entityId === context.cfg.defaultEntityId) {
+        if (profile == null || (
+          details.entityId === context.cfg.defaultEntityId
+          // @TODO Figure out more flexible solution. 
+          // This check prevent a potenatilly vulnarability when a user can
+          // connect its own idp to his arbitrary IAM system that is connected as 
+          // idp to our IAM system, and create an internal idp link that
+          // uses owlmeans did as user id of another user to link an arbitrary
+          // profile to his or her owlmeans user account and take adavantage of cross login.
+          // Probably such cross login accross owner like profiles should be prevented
+          // without additional authentication. But for now, this check guaranty that it works
+          // only with owlmeans.org idp that is managed by ours. 
+          && details.entityId === cfg.entityId
+        )) {
           console.log(3)
           profile = await store.linkProfile({
             ...details,

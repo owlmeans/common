@@ -22,36 +22,26 @@ export const AuthorizationSchema: JSONSchemaType<Authorization> = {
 
 export const ProfilePayloadSchema: JSONSchemaType<ProfilePayload> = {
   type: 'object',
-  allOf: [
-    {
-      type: 'object',
-      properties: {
-        groups: { type: 'array', nullable: true, items: GroupValueSchema }
-      },
-    },
-    AuthorizationSchema
-  ],
+  properties: {
+    ...AuthorizationSchema.properties,
+    groups: { type: 'array', nullable: true, items: GroupValueSchema },
+  } as any,
   required: ['scopes'],
   additionalProperties: false,
 }
 
 export const AuthPayloadSchema: JSONSchemaType<AuthPayload> = {
   type: 'object',
-  allOf: [
-    {
-      type: 'object',
-      properties: {
-        type: TypeNameSchema,
-        role: EnumValueSchema,
-        source: { type: 'string', minLength: 1, maxLength: 1024, nullable: true },
-        userId: { ...IdValueSchema, nullable: true },
-        profileId: { ...IdValueSchema, nullable: true },
-        expiresAt: { ...DateSchema, nullable: true },
-      }
-    },
-    ProfilePayloadSchema
-  ],
-  required: ['scopes', 'role'],
+  properties: {
+    ...ProfilePayloadSchema.properties,
+    type: TypeNameSchema,
+    role: EnumValueSchema,
+    source: { type: 'string', minLength: 1, maxLength: 1024, nullable: true },
+    userId: { ...IdValueSchema, nullable: true },
+    profileId: { ...IdValueSchema, nullable: true },
+    expiresAt: { ...DateSchema, nullable: true },
+  } as any,
+  required: ['scopes', 'role', 'type'],
   additionalProperties: false,
 }
 

@@ -36,6 +36,9 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
             cfg.accountService ?? OIDC_ACCOUNT_SERVICE
           )
 
+          console.log('~.~.~.~.~ we get account for: ', _.oidc.client)
+          console.log(_token)
+
           return accountSrv.loadById(context, id)
         },
 
