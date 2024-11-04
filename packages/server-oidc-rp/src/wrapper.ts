@@ -21,7 +21,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
       if (token == null) {
         throw new AuthorizationError('token')
       }
-      const [, authentication] = token.split(' ')
+      const [ , authentication ] = token.split(' ')
       const envelope = makeEnvelopeModel<Auth>(authentication, EnvelopeKind.Token)
       const user = envelope.message()
 
@@ -34,13 +34,13 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         }
 
         if (record.validated != null && days(record.validated)
-          .add(OIDC_WRAP_FRESHNESS, 'milliseconds').isBefore()) {
+          .add(OIDC_WRAP_FRESHNESS, 'milliseconds').isAfter()) {
           return { token }
         }
 
         record.validated = new Date()
 
-        const [update] = await ctx.module<ClientModule<OIDCTokenUpdate>>(authService.auth.update)
+        const [ update ] = await ctx.module<ClientModule<OIDCTokenUpdate>>(authService.auth.update)
           .call({ body: { token, tokenSet: record.payload } })
 
         const updateEnvelope = makeEnvelopeModel<AuthCredentials>(update.token, EnvelopeKind.Token)
@@ -50,20 +50,25 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         }
 
         const updatedAuth = updateEnvelope.message()
+        console.log('Wev got updated auth ~~~: ', updatedAuth)
 
         const updatedUser: Auth = {
           ...user,
           role: updatedAuth.role ?? AuthRole.Guest,
           userId: updatedAuth.userId ?? user.userId,
           profileId: updatedAuth.profileId,
-          entityId: updatedAuth.entityId,
+          entityId: updatedAuth.entityId ?? user.entityId,
           createdAt: new Date()
         }
 
         if (updatedAuth.challenge !== user.token) {
           await cache(ctx).delete(record)
-          updatedUser.token = record.id = updatedAuth.challenge
+          updatedUser.token = updatedAuth.challenge
+          record.id = managedId(updatedUser.token)
+          console.log('>>>>>> we are going to deal with a new record', record)
         }
+
+        console.log('~~~~~ Wev got updated user ~~~~~:', updatedUser)
 
         const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
         const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)

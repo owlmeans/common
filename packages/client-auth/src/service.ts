@@ -24,15 +24,18 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
       const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN)
         .call({ body: token })
 
+      await service.update(authToken.token)
+    },
+
+    update: async token => {
+      service.token = token
+
       const authResource = service.store<ClientAuthRecord>()
-      await authResource.save({ id: USER_ID, token: authToken.token })
+      await authResource.save({ id: USER_ID, token })
 
-      const [, authorization] = authToken.token.split(' ')
+      const [, authorization] = token.split(' ')
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
-
       service.auth = envelope.message()
-
-      service.token = authToken.token
     },
 
     authenticated: async () => {

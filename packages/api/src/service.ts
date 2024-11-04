@@ -2,7 +2,7 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { BasicContext } from '@owlmeans/context'
 import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
-import axios from 'axios'
+import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
 import type { CommonModule } from '@owlmeans/module'
 import { DEFAULT_ALIAS } from './consts.js'
@@ -11,9 +11,13 @@ import { BasicClientConfig } from '@owlmeans/client-config'
 import qs from 'qs'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { RouteMethod } from '@owlmeans/route'
+import { DEF_AUTH_SRV, TOKEN_UPDATE } from '@owlmeans/auth-common'
+import type { AuthService } from '@owlmeans/auth-common'
 
 type Config = BasicClientConfig
-interface Context<C extends Config = Config> extends BasicContext<C> { }
+
+interface Context<C extends Config = Config> extends BasicContext<C> {
+}
 
 export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
@@ -24,7 +28,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         console.log('-1')
         return
       }
-      console.log('We are comming')
+      console.log('We are coming')
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.module<CommonModule>(request.alias)
       await module.resolve()
@@ -50,11 +54,11 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       let transformer: AxiosRequestTransformer | undefined = undefined
 
       let body = request.body != null && Object.entries((request.headers ?? {})).find(
-        ([key, value]) =>
+        ([ key, value ]) =>
           key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
       ) ? qs.stringify(request.body) : request.body
 
-      // @TODO Probably this hack need to be made a little bit less dirty
+      // @TODO Probably this hack needs to be made a little bit less dirty
       if (typeof body === 'string' && route.method === RouteMethod.POST) {
         if (Object.keys(request.headers).every(key => key.toLowerCase() !== 'content-type')) {
           request.headers['content-type'] = 'application/json'
@@ -78,9 +82,16 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       // console.log('<<<<<<< $$$$$$$$$$$$$ after request we see', response.data, response.headers, response.status)
 
+      // @TODO Move somewhere else - desirably into auth package via some middleware
+      const headers = response.headers as AxiosHeaders
+      if (headers.has(TOKEN_UPDATE) && context.hasService(DEF_AUTH_SRV)) {
+        const auth = context.service<AuthService>(DEF_AUTH_SRV)
+        await auth.update(headers.get(TOKEN_UPDATE) as string)
+      }
+
       processResponse(response, reply)
 
-      return [reply.error ?? reply.value, reply.outcome] as any
+      return [ reply.error ?? reply.value, reply.outcome ] as any
     }
   }, service => async () => {
     console.log(`service:${alias}: API client service is initialized`)

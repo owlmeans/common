@@ -76,7 +76,10 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
+      console.log('We compare to update',updated, token)
+
       if (updated.token !== token) {
+        console.log('WE ARE UPDATING TOKEN!!!')
         const [, newAuth] = updated.token.split(' ')
         const envelope = makeEnvelopeModel<Auth>(newAuth, EnvelopeKind.Token)
 

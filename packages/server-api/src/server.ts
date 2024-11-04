@@ -7,6 +7,7 @@ import type { ServerModule } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler } from './utils/server.js'
 import { provideResponse } from '@owlmeans/module'
+import { TOKEN_UPDATE } from '@owlmeans/auth-common'
 
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -74,7 +75,10 @@ export const createApiServer = (alias: string): ApiServer => {
     const server = service.server
     server.setValidatorCompiler(opts => ajv.compile(opts))
     // @TODO It's quite unsafe and should be properly configured
-    await server.register(cors, { origin: '*' })
+    await server.register(cors, {
+      origin: '*',
+      exposedHeaders: [TOKEN_UPDATE]
+    })
     await server.register(Helmet)
     await server.register(rawBody, { field: 'rawBody', global: true, runFirst: true })
     await server.register(Middie)

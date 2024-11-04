@@ -2,6 +2,7 @@
 export enum RouteMethod {
   GET = 'get',
   POST = 'post',
+  PATCH = 'patch',
   PUT = 'put'
 }
 
