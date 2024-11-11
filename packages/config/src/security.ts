@@ -78,6 +78,65 @@ export const makeSecurityHelper = <
         : ''
 
       return `${schema}://${host}${port}${base}${path}`
+    },
+
+    url: (path, params) => {
+      params ??= {}
+      if (typeof path === 'object') {
+        Object.assign(params, path)
+        path = params.path
+      }
+
+      let security = ctx.cfg.security?.unsecure || params.forceUnsecure ? false : true
+
+      if (ctx.cfg.security?.unsecure === false) {
+        security = true
+      }
+
+      let protocol = params.protocol ?? RouteProtocols.WEB
+
+      let host = params.host
+      let base: string | undefined = typeof params.base === 'string' ? params.base : undefined
+
+      if (host == null) {
+        const serviceMeta = ctx.cfg.services?.[ctx.cfg.service] as CommonServiceRoute
+        if (serviceMeta == null) {
+          throw new SyntaxError(`No services configured to extract host: ${ctx.cfg.service}`)
+        }
+
+        base = serviceMeta.base
+        host = serviceMeta.host
+        if (host == null) {
+          throw new SyntaxError(`No host provided for service: ${serviceMeta.service}`)
+        }
+      }
+
+      console.log('$$$ makeUrl: ', host, base, path)
+
+      // @TODO Make sure it's safe
+      // It strips security from fully qualified hosts urls in case of non standard configuration
+      // but it fallows protocol from them
+      if (host.includes('://')) {
+        const [_schema, _host] = host.split('://')
+        if (_schema.startsWith(RouteProtocols.WEB)) {
+          protocol = RouteProtocols.WEB
+        } else if (_schema.startsWith(RouteProtocols.SOCKET)) {
+          protocol = RouteProtocols.SOCKET
+        }
+        host = _host
+      }
+
+      let schema = `${protocol}`
+      if (Object.values(RouteProtocols).includes(protocol) && security) {
+        schema += 's'
+      }
+
+      base = base ? SEP + normalizePath(base) : ''
+      path = typeof path === 'string'
+        ? SEP + normalizePath(path)
+        : ''
+
+      return `${schema}://${host}${base}${path}`
     }
   }
 

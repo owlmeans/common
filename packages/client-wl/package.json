@@ -1,10 +1,9 @@
 {
-  "name": "@owlmeans/client-route",
-  "version": "0.1.0",
+  "name": "@owlmeans/client-wl",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "sleep 63 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
@@ -19,11 +18,11 @@
       "types": "./build/index.d.ts"
     }
   },
-  "dependencies": {
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
+  "peerDependencies": {
+    "react": "*"
   },
   "devDependencies": {
+    "@types/react": "^18.3.11",
     "nodemon": "^3.1.7",
     "typescript": "^5.6.3"
   }

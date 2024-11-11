@@ -37,6 +37,7 @@ export interface SecurityConfig {
 
 export interface SecurityHelper {
   makeUrl: (route: BasicRoute | CommonRoute, path?: string | SecurityHelperUrlParams, params?: SecurityHelperUrlParams) => string
+  url: (path?: string, params?: SecurityHelperUrlParams) => string
 }
 
 export interface SecurityHelperUrlParams {

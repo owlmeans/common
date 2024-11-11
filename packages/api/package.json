@@ -20,9 +20,9 @@
     }
   },
   "dependencies": {
+    "@owlmeans/auth-common": "^0.1.0",
     "@owlmeans/client-config": "^0.1.0",
     "@owlmeans/client-route": "^0.1.0",
-    "@owlmeans/auth-common": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/error": "^0.1.0",

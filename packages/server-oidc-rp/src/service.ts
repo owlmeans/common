@@ -28,7 +28,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       const url = cfg.discoveryUrl
         ?? security.makeUrl(context.cfg.services[cfg.service], cfg.basePath)
 
-      console.log('External service url', url)
+      console.log('External service url', url, cfg)
 
       return await client.discovery(new URL(url) as URL, cfg.idOverride ?? clientId, cfg.secret, undefined, {
         execute: [

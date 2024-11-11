@@ -46,5 +46,8 @@ export const SubmitButton: FC<SubmitProps> = memo((props) => {
   _i18n.suppress = true
 
   return <Button {...props} label={t(label)} i18n={_i18n}
-    onClick={handleSubmit(props.onSubmit ?? props.onClick ?? (() => { }))} />
+    onClick={handleSubmit(
+      props.onSubmit ?? props.onClick ?? (() => { console.log('Empty submit') }),
+      problem => console.error(problem)
+    )} />
 })

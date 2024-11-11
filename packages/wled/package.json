@@ -1,10 +1,9 @@
 {
-  "name": "@owlmeans/client-route",
-  "version": "0.1.0",
+  "name": "@owlmeans/wled",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "sleep 63 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 1 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
@@ -18,10 +17,6 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
-  },
-  "dependencies": {
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7",
