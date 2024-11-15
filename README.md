@@ -19,14 +19,14 @@ OwlMeans Common libraries that simplifies projects development
 * package without standard suffixes or prefixes is a common package mostly containing models and env unspecific logic and implementations
 * server - server side library
 * client - client side library. Implementation unspecific. It may contain react code but not implementation specific. May not contain rendering components (only HOCs)
-* web - frontend (web html) implementation of a library. Will conatain react code. Will contain some components with UI.
+* web - frontend (web html) implementation of a library. Will contain react code. Will contain some components with UI.
 * api - subset of packages working via web or web socket API
-* common - in some cases basic package has a lots of references, in this case it's dependency cycle unsefe to put there
+* common - in some cases basic package has a lots of references, in this case it's dependency cycle unsafe to put there
   dependencies of higher level. So we use common suffix to create more robust version of basic package with high level
   dependencies.
 ### Concepts
-* route - cross environmnet strcuture consisting of URLs, URIs, aliases, permissions, and validations (it's POJO)
-* module - bring together route and related handlers, adding all implmenetation specific middlewares, hidrate routes with all necessary services (it's like a model for a route)
+* route - cross environment structure consisting of URLs, URIs, aliases, permissions, and validations (it's POJO)
+* module - bring together route and related handlers, adding all implementation specific middlewares, hydrate routes with all necessary services (it's like a model for a route)
 * context - in fact this can be treated as an application instance. The only difference there can be multiple contexts
   in one application with different capabilities depending on the complexity of operation and its dependencies.
 * config - configuration of context
@@ -40,5 +40,5 @@ Added an infrastructure service config to a config
 Register an internal application service that is capable to make API requests 
 
 ### Counters (for monorepo maintenance)
-We use delayes on dev command for the whole repository to not overwhelme processors.
-* Even counter: 201 (over 3)
+We use delays on dev command for the whole repository to not overwhelm processors.
+* Even counter: 396 (over 6)

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "dev": "sleep 12 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 24 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",

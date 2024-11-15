@@ -13,7 +13,7 @@ export const canServerModule = (context: Context, module: CommonModule): module 
     return false
   }
 
-  console.log(`Trying to match modules ${module.alias}: `, module.route.route.protocol, RouteProtocols.SOCKET, module.route.route.protocol !== RouteProtocols.SOCKET)
+  console.log(`Trying to match modules ${module.alias}: `, module.route.route.protocol, RouteProtocols.SOCKET, module.route.route.protocol === RouteProtocols.SOCKET)
   if (module.route.route.protocol !== RouteProtocols.SOCKET) {
     return false
   }
