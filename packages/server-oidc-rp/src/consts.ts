@@ -20,4 +20,4 @@ export const OIDC_TOKEN_STORE = 'oidc-token-store'
 
 export const OIDC_AUTH_LIFTETIME = 24 * 3600 * 1000
 
-export const OIDC_WRAP_FRESHNESS = 30 * 60 * 1000
+export const OIDC_WRAP_FRESHNESS = 15 * 60 * 1000

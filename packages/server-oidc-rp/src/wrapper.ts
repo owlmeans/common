@@ -76,6 +76,10 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
 
         record.payload = update.tokenSet as TokenSetParameters
 
+        console.log('\n\n--- new token set ----\n')
+        console.log(update.tokenSet)
+        console.log('\n ~~~ \n\n')
+
         await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 
         return { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }

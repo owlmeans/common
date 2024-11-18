@@ -1,0 +1,29 @@
+{
+  "name": "@owlmeans/storage-resource",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 393 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.8",
+    "nodemon": "^3.1.7",
+    "typescript": "^5.6.3"
+  }
+}
