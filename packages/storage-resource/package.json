@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/storage-resource",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,6 +21,9 @@
   },
   "peerDependencies": {
     "react": "*"
+  },
+  "dependencies": {
+    "@owlmeans/error": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.8",

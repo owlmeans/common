@@ -12,19 +12,24 @@ export const CustomFontSchema: JSONSchemaType<CustomFont> = {
   additionalProperties: false,
 }
 
-export const colorPattern = '^#\\d{3,8}$'
+export const ColorSchema: JSONSchemaType<string> = {
+  type: 'string',
+  pattern: '^#\\d{3,8}$',
+  minLength: 4,
+  maxLength: 9
+}
 
 export const CustomColorsSchema: JSONSchemaType<CustomColors> = {
   type: 'object',
   properties: {
-    primaryColor: { type: 'string', pattern: colorPattern, minLength: 4, maxLength: 9 },
-    secondaryColor: { type: 'string', pattern: colorPattern, nullable: true },
-    alertColor: { type: 'string', pattern: colorPattern, nullable: true },
-    successColor: { type: 'string', pattern: colorPattern, nullable: true },
-    primaryBackground: { type: 'string', pattern: colorPattern, nullable: true },
-    secondaryBackground: { type: 'string', pattern: colorPattern, nullable: true },
-    alertBackground: { type: 'string', pattern: colorPattern, nullable: true },
-    successBackground: { type: 'string', pattern: colorPattern, nullable: true },
+    primaryColor: ColorSchema,
+    secondaryColor: { ...ColorSchema, nullable: true },
+    alertColor: { ...ColorSchema, nullable: true },
+    successColor: { ...ColorSchema, nullable: true },
+    primaryBackground: { ...ColorSchema, nullable: true },
+    secondaryBackground: { ...ColorSchema, nullable: true },
+    alertBackground: { ...ColorSchema, nullable: true },
+    successBackground: { ...ColorSchema, nullable: true },
   },
   required: ['primaryColor'],
   additionalProperties: false,

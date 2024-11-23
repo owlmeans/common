@@ -1,6 +1,7 @@
 {
   "name": "@owlmeans/image-resource",
   "type": "module",
+  "version": "0.1.0",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 390 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -19,7 +20,10 @@
     }
   },
   "peerDependencies": {
-    "react": "*"
+    "ajv": "*"
+  },
+  "dependencies": {
+    "@owlmeans/storage-resource": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.8",
