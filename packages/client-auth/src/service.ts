@@ -30,6 +30,15 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     update: async token => {
       service.token = token
 
+      if (token == null) {
+        service.auth = undefined
+
+        const authResource = service.store<ClientAuthRecord>()
+        await authResource.delete(USER_ID)
+
+        return
+      }
+
       const authResource = service.store<ClientAuthRecord>()
       await authResource.save({ id: USER_ID, token })
 
@@ -45,6 +54,14 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
         if (record != null) {
           const token = record.token
+
+          if (token == '') {
+            service.token = undefined
+            service.auth = undefined
+            await authResource.delete(USER_ID)
+
+            return null
+          }
 
           const [, authorization] = token.split(' ')
           service.token = token

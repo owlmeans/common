@@ -64,13 +64,12 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
         })
       } else {
         const auth = context.service<AuthService>(DEFAULT_ALIAS)
-        auth.authenticate(forwarding.token)
-          .then(async () => {
-            return await navigate()
-          }).catch((e: Error) => {
-            // @TODO Show error on the component
-            console.error(e)
-          })
+        auth.authenticate(forwarding.token).then(async () => {
+          return await navigate()
+        }).catch((e: Error) => {
+          // @TODO Show error on the component
+          console.error(e)
+        })
       }
     }
   }, [forwarding?.token])

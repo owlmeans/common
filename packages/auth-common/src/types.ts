@@ -17,7 +17,7 @@ export interface AuthService extends GuardService {
    * @throws {AuthenFailed}
    */
   authenticate: (token: AuthToken) => Promise<void>
-  update: (token: string) => Promise<void>
+  update: (token: string | undefined) => Promise<void>
   user: () => Auth
   
   store: <T extends ResourceRecord = ResourceRecord>() => Resource<T>

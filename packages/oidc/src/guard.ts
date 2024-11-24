@@ -4,7 +4,7 @@ import { OIDC_GUARD, OIDC_GUARD_CACHE, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '
 import type { Resource, ResourceRecord } from '@owlmeans/resource'
 import type { AbstractRequest, AbstractResponse, CommonModule, GuardService } from '@owlmeans/module'
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import { AUTH_HEADER, type Auth } from '@owlmeans/auth'
+import { AUTH_HEADER, type Auth, AuthToken, AuthorizationError } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
@@ -70,13 +70,25 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
       }
 
       const token = extractAuthToken(req, OIDC_WRAPPED_TOKEN, false)!
-      const updated = await wrapper(ctx).update({ token }, true)
+
+      let updated: AuthToken | null = null
+
+      try {
+        updated = await wrapper(ctx).update({ token }, true)
+      } catch (e) {
+        if (e instanceof AuthorizationError) {
+          res.responseProvider.header(TOKEN_UPDATE, '')
+          req.headers = { ...req.headers, [AUTH_HEADER]: '' }
+        }
+
+        throw e
+      }
 
       if (updated == null) {
         return false as T
       }
 
-      console.log('We compare to update',updated, token)
+      console.log('We compare to update', updated, token)
 
       if (updated.token !== token) {
         console.log('WE ARE UPDATING TOKEN!!!')

@@ -86,7 +86,8 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       const headers = response.headers as AxiosHeaders
       if (headers.has(TOKEN_UPDATE) && context.hasService(DEF_AUTH_SRV)) {
         const auth = context.service<AuthService>(DEF_AUTH_SRV)
-        await auth.update(headers.get(TOKEN_UPDATE) as string)
+        const update = headers.get(TOKEN_UPDATE) as string
+        await auth.update(update == null || update === '' ? undefined : update)
       }
 
       processResponse(response, reply)

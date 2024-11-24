@@ -14,7 +14,7 @@ export const CustomFontSchema: JSONSchemaType<CustomFont> = {
 
 export const ColorSchema: JSONSchemaType<string> = {
   type: 'string',
-  pattern: '^#\\d{3,8}$',
+  pattern: '^#(\\d|[a-fA-F]){3,8}$',
   minLength: 4,
   maxLength: 9
 }

@@ -6,7 +6,7 @@ import TextField from '@mui/material/TextField'
 import { useFormError, useFormI18n } from '@owlmeans/client-panel'
 import { useClientFormContext } from '@owlmeans/client-panel'
 
-export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, def }) => {
+export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, type, def }) => {
   const { control } = useFormContext()
   const t = useFormI18n()
   const key = name
@@ -35,6 +35,7 @@ export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, 
         error={fieldState.error != null}
         disabled={loader != null && loader.opened === true}
         label={label}
+        type={type ?? 'text'}
         placeholder={placeholder}
         helperText={error ?? hint}
       />
