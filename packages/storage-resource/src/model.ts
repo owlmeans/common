@@ -22,7 +22,7 @@ export const StoredFileMetaSchema: JSONSchemaType<StoredFileMeta> = {
 export const StoredFileInstanceSchema: JSONSchemaType<StoredFileInstance> = {
   type: 'object',
   properties: {
-    size: { type: 'integer', default: 0 },
+    size: { type: 'number', default: 0 },
     alias: { ...IdValueSchema },
     url: { type: 'string', format: 'uri' }
   },

@@ -15,6 +15,7 @@ import cors from '@fastify/cors'
 import rawBody from 'fastify-raw-body'
 import Middie from '@fastify/middie'
 import Helmet from '@fastify/helmet'
+import Multipart from '@fastify/multipart'
 
 import formatsPlugin from 'ajv-formats'
 import Ajv from 'ajv'
@@ -79,6 +80,16 @@ export const createApiServer = (alias: string): ApiServer => {
       origin: '*',
       exposedHeaders: [TOKEN_UPDATE]
     })
+    
+    await server.register(Multipart, {
+      throwFileSizeLimit: true,
+      // @TODO It shouldn't be this way, becaues the file is buffer this way
+      attachFieldsToBody: 'keyValues',
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+        files: 5,
+      }
+    })
     await server.register(Helmet)
     await server.register(rawBody, { field: 'rawBody', global: true, runFirst: true })
     await server.register(Middie)
@@ -126,6 +137,11 @@ export const createApiServer = (alias: string): ApiServer => {
           server.route({
             url: module.getPath(), method,
             schema: {
+              consumes: [
+                'application/json', 
+                'application/x-www-form-urlencoded', 
+                'multipart/form-data',
+              ],
               querystring: module.filter?.query ?? {},
               ...(method !== RouteMethod.GET ? { body: module.filter?.body } : {}),
               params: module.filter?.params ?? {},

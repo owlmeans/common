@@ -5,6 +5,8 @@ import { ModuleOutcome } from '@owlmeans/module'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
 import type { RefedModuleHandler } from '@owlmeans/server-module'
 import type { Config, Context } from './types.js'
+import type { FastifyRequest } from 'fastify'
+import type { MultipartFile } from '@fastify/multipart'
 
 const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
   return req.original._ctx ?? def
@@ -67,7 +69,7 @@ export const handleIntermediate: (
   try {
     const result = await handler(
       req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>
-    ) 
+    )
     if (result != null) {
       res.resolve(result)
     }
@@ -77,3 +79,11 @@ export const handleIntermediate: (
     res.reject(e as Error)
   }
 }
+
+export const extractUploadedFile = async <T extends {} = {}>(req: AbstractRequest<T>): Promise<UploadedFile | undefined> => {
+  const request = req.original as FastifyRequest
+
+  return request.file()
+}
+
+export interface UploadedFile extends MultipartFile { }

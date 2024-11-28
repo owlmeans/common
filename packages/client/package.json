@@ -33,6 +33,7 @@
     "@owlmeans/client-resource": "0.1.0",
     "@owlmeans/config": "0.1.0",
     "@owlmeans/context": "0.1.0",
+    "@owlmeans/error": "0.1.0",
     "@owlmeans/module": "0.1.0",
     "@owlmeans/resource": "0.1.0",
     "@owlmeans/state": "0.1.0"

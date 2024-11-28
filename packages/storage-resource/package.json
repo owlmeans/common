@@ -23,7 +23,11 @@
     "react": "*"
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.0"
+    "@aws-sdk/client-s3": "^3.701.0",
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/error": "^0.1.0",
+    "@owlmeans/resource": "^0.1.0",
+    "@owlmeans/server-context": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.8",

@@ -6,6 +6,7 @@ export * from './layout/index.js'
 export * from './form/index.js'
 export * from './form/text/index.js'
 export * from './form/button/index.js'
+export * from './uploader/index.js'
 
 export * from './button/index.js'
 

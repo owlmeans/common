@@ -20,5 +20,16 @@ export class AccessError extends ApiError {
   }
 }
 
+export class NoFileError extends ApiError {
+  public static override typeName = 'NoFileError'
+
+  constructor() {
+    super('no file')
+    this.type = NoFileError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(AuthFailedError)
 ResilientError.registerErrorClass(AccessError)
+ResilientError.registerErrorClass(NoFileError)
+
