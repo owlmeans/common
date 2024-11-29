@@ -27,7 +27,8 @@
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/error": "^0.1.0",
     "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0"
+    "@owlmeans/server-context": "^0.1.0",
+    "file-type": "^19.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.8",

@@ -1,7 +1,6 @@
 import { createService } from '@owlmeans/context'
 import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService } from './types.js'
-import { OIDC_GUARD, OIDC_GUARD_CACHE, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
-import type { Resource, ResourceRecord } from '@owlmeans/resource'
+import { OIDC_GUARD, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
 import type { AbstractRequest, AbstractResponse, CommonModule, GuardService } from '@owlmeans/module'
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { AUTH_HEADER, type Auth, AuthToken, AuthorizationError } from '@owlmeans/auth'
@@ -12,11 +11,11 @@ import { extractAuthToken } from '@owlmeans/auth-common/utils'
 import { modules as oidcModules } from './modules.js'
 
 export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
-  const cache = (context: Context) => context.hasResource(opts?.cache ?? OIDC_GUARD_CACHE)
-    ? context.resource<Resource<ResourceRecord>>(opts?.cache ?? OIDC_GUARD_CACHE)
-    : null
+  // const cache = (context: Context) => context.hasResource(opts?.cache ?? OIDC_GUARD_CACHE)
+  //   ? context.resource<Resource<ResourceRecord>>(opts?.cache ?? OIDC_GUARD_CACHE)
+  //   : null
 
-  console.log(!!cache)
+  // console.log(!!cache)
 
   const [cogurad] = Array.isArray(opts?.coguards) ? opts.coguards : [opts?.coguards ?? DEFAULT_GUARD]
 
@@ -88,7 +87,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
-      console.log('We compare to update', updated, token)
+      // console.log('We compare to update', updated, token)
 
       if (updated.token !== token) {
         console.log('WE ARE UPDATING TOKEN!!!')

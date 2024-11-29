@@ -41,6 +41,7 @@ export interface StoredRecord extends ResourceRecord {
   prefix: string
   stream?: Readable
   format?: StoredFileFormat
+  type?: string,
   bytes?: Uint8Array
   base64?: string
 }

@@ -2,9 +2,10 @@ import { appendContextual } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { Config, Context, StorageResource, StoredRecord } from './types.js'
 import type { GetterOptions } from '@owlmeans/resource'
-import { FilePropertyError, FileStreamError, StorageApiError } from './errors.js'
+import { FilePropertyError, FileStreamError, FileTypeError, StorageApiError } from './errors.js'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ResilientError } from '@owlmeans/error'
+import { fileTypeFromBuffer } from 'file-type'
 
 type Getter = string | GetterOptions
 
@@ -20,12 +21,23 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
         throw new FilePropertyError('size')
       }
 
+
+      // @TODO Do something here - it would be fixed if we do not convert
+      // multipart into buffer by means integrated into fastify
+      const buffers = await record.stream.toArray()
+      const buffer = buffers[0]
+      const type = await fileTypeFromBuffer(buffer)
+
+      if (type?.mime !== record.type) {
+        throw new FileTypeError('mime-mismatch')
+      }
+
       const context = resource.assertCtx() as Context
 
       const config = context.cfg.storageBuckets[configKey]
       const [keyId, keySecret] = config.apiKey.split(':')
       const [bucket, ...parts] = config.url.split('.')
-      
+
       // @TODO Abstract it some way and make the upload multipart
       try {
         const client = new S3Client({
@@ -40,10 +52,11 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
         const result = await client.send(new PutObjectCommand({
           ACL: 'public-read',
           Bucket: bucket,
-          Body: record.stream,
+          Body: Buffer.concat(buffers),
           Key: `${config.basePrefix}/${record.prefix}`,
           ContentLength: record.size,
           ContentDisposition: 'inline',
+          ContentType: record.type,
         }))
 
         if (result.$metadata.httpStatusCode !== 200) {

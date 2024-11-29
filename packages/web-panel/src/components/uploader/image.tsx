@@ -3,13 +3,14 @@ import { ImageUploader as Uploader } from '@owlmeans/web-client'
 import Paper from '@mui/material/Paper'
 import type { ImageUploaderProps } from './types.js'
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
+import Box from '@mui/material/Box'
 
-export const ImageUploader: FC<ImageUploaderProps> = ({ Root, rootProps, ...others }) => {
+export const ImageUploader: FC<ImageUploaderProps> = ({ Root, rootProps, previewUrl, ...others }) => {
   return <Uploader Root={Root ?? Paper} rootProps={{
     elevation: 2,
     sx: {
-      width: { sm: 45, md: 85, lg: 165 },
-      height: { sm: 45, md: 85, lg: 165 },
+      width: wrapperSize,
+      height: wrapperSize,
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -17,6 +18,14 @@ export const ImageUploader: FC<ImageUploaderProps> = ({ Root, rootProps, ...othe
     },
     ...rootProps
   }} {...others}>
-    <AddPhotoAlternateOutlinedIcon sx={{ fontSize: { sm: 40, md: 80, lg: 160 } }} color="primary" />
+    {
+      previewUrl != null
+        ? <Box component="img" src={previewUrl}
+          sx={{ maxWidth: previewSize, maxHeight: previewSize }} />
+        : <AddPhotoAlternateOutlinedIcon sx={{ fontSize: previewSize }} color="primary" />
+    }
   </Uploader>
 }
+
+const previewSize = { xs: 60, md: 120, lg: 200 }
+const wrapperSize = { xs: 65, md: 125, lg: 205 }

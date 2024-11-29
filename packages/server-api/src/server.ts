@@ -29,7 +29,7 @@ const ajv = new Ajv({
   allErrors: true,
   strict: false
 })
-formatsPlugin(ajv as any)
+formatsPlugin(ajv)
 ajvErrors(ajv, { singleError: true })
 
 type Config = ServerConfig
@@ -74,13 +74,14 @@ export const createApiServer = (alias: string): ApiServer => {
     const context = _assertContext(service.ctx as Context)
 
     const server = service.server
-    server.setValidatorCompiler(opts => ajv.compile(opts))
+    // @TODO We should ensure some way that Resilient Error is thrown and go to the flow
+    server.setValidatorCompiler(opts => ajv.compile(opts.schema))
     // @TODO It's quite unsafe and should be properly configured
     await server.register(cors, {
       origin: '*',
       exposedHeaders: [TOKEN_UPDATE]
     })
-    
+
     await server.register(Multipart, {
       throwFileSizeLimit: true,
       // @TODO It shouldn't be this way, becaues the file is buffer this way
@@ -138,8 +139,8 @@ export const createApiServer = (alias: string): ApiServer => {
             url: module.getPath(), method,
             schema: {
               consumes: [
-                'application/json', 
-                'application/x-www-form-urlencoded', 
+                'application/json',
+                'application/x-www-form-urlencoded',
                 'multipart/form-data',
               ],
               querystring: module.filter?.query ?? {},

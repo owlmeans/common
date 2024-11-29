@@ -35,7 +35,6 @@ export class FileStreamError extends FilePropertyError {
   }
 }
 
-
 export class StorageApiError extends StoredFileError {
   public static override typeName: string = `${StoredFileError.typeName}Api`
 
@@ -45,8 +44,18 @@ export class StorageApiError extends StoredFileError {
   }
 }
 
+export class FileTypeError extends StoredFileError {
+  public static override typeName: string = `${StoredFileError.typeName}Type`
+
+  constructor(message: string = 'error') {
+    super(`type:${message}`)
+    this.type = FileTypeError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(StoredFileError)
 ResilientError.registerErrorClass(OrphanFileError)
 ResilientError.registerErrorClass(FilePropertyError)
 ResilientError.registerErrorClass(FileStreamError)
 ResilientError.registerErrorClass(StorageApiError)
+ResilientError.registerErrorClass(FileTypeError)

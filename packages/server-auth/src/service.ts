@@ -61,7 +61,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
     authenticate: async token => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
-      console.log(token)
+      // console.log(token)
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
 
       const authService = await trust<Config, Context>(context, TRUSTED, AUTH_SRV_KEY)

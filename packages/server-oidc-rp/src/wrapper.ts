@@ -28,7 +28,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
       try {
         console.log('<<<< ~~~~~ READ RECORD WITH ID: ', managedId(user.token))
         const record = await cache(ctx).get(managedId(user.token))
-        console.log(record)
+        // console.log(record)
         if (record == null || record.payload == null) {
           throw new AuthorizationError('record')
         }
