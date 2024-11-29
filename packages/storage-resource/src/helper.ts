@@ -1,4 +1,4 @@
-import { StoredFile, StoredFileWithData } from './types.js'
+import type { StoredFile, StoredFileWithData } from '@owlmeans/storage-common'
 
 export const stripData = <
   Input extends StoredFileWithData,

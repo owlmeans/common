@@ -1,5 +1,5 @@
 
-import type { StoredFile, StoredFileMeta, StoredFileWithData } from '@owlmeans/storage-resource'
+import type { StoredFile, StoredFileMeta, StoredFileWithData } from '@owlmeans/storage-common'
 
 export interface ImageMeta extends StoredFileMeta {
 }

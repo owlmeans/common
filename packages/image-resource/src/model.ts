@@ -1,5 +1,5 @@
 import type {JSONSchemaType} from 'ajv'
-import { StoredFileMetaSchema, StoredFileSchema, StoredFileWithDataSchema } from '@owlmeans/storage-resource'
+import { StoredFileMetaSchema, StoredFileSchema, StoredFileWithDataSchema } from '@owlmeans/storage-common'
 import type { ImageMeta, StoredImage, ImageData } from './types.js'
 
 export const ImageMetaSchema: JSONSchemaType<ImageMeta> = {

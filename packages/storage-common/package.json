@@ -1,10 +1,10 @@
 {
-  "name": "@owlmeans/storage-resource",
-  "version": "0.1.0",
+  "name": "@owlmeans/storage-common",
   "type": "module",
+  "version": "0.1.0",
   "scripts": {
     "build": "tsc -b",
-    "dev": "sleep 393 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "dev": "sleep 387 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "main": "build/index.js",
@@ -20,19 +20,13 @@
     }
   },
   "peerDependencies": {
-    "react": "*"
+    "ajv": "*"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.701.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/storage-common": "^0.1.0",
-    "file-type": "^19.6.0"
+    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/error": "^0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.8",
     "nodemon": "^3.1.7",
     "typescript": "^5.6.3"
   }
