@@ -1,1 +1,0 @@
-# OwlMeans Keycloak Common - Shared Library Between Client and Server 
