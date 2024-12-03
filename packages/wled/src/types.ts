@@ -28,3 +28,21 @@ export interface CustomFont {
   fontFamily: string
   basicSize?: number
 }
+
+export interface CustomMedia {
+  brand: CustomBrand
+}
+
+export interface CustomBrand {
+  squareLogo?: string
+  wideLogo?: string
+}
+
+export interface ProvideParams {
+  entity: string
+}
+
+export interface CustomUrls {
+  adminUrl: string
+  userUrl: string
+}
