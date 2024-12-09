@@ -21,6 +21,13 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
     case FINISHED:
       return processEmptyResponse(response, reply, ModuleOutcome.Finished)
     default:
+
+      console.log('\n\n')
+      console.error(response.status, response.statusText)
+      console.error(response.headers)
+      console.error(response.data)
+      console.log('\n')
+
       try {
         if (typeof response.data === 'string') {
           reply.reject(ResilientError.ensure(response.data, true))

@@ -5,7 +5,7 @@ import { canServeModule, executeResponse, provideRequest } from './utils/index.j
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerModule } from '@owlmeans/server-module'
 import { RouteMethod } from '@owlmeans/route'
-import { createServerHandler } from './utils/server.js'
+import { createServerHandler, fixFormatDates } from './utils/index.js'
 import { provideResponse } from '@owlmeans/module'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
 
@@ -40,7 +40,17 @@ export const createApiServer = (alias: string): ApiServer => {
   const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
 
   const service = createService<ApiServer>(alias, {
-    server: Fastify({ logger: true }),
+    server: Fastify({
+      logger: {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            translateTime: 'HH:MM:ss Z',
+            ignore: 'pid,hostname',
+          },
+        },
+      }
+    }),
 
     layers: [Layer.System],
 
@@ -143,11 +153,11 @@ export const createApiServer = (alias: string): ApiServer => {
                 'application/x-www-form-urlencoded',
                 'multipart/form-data',
               ],
-              querystring: module.filter?.query ?? {},
-              ...(method !== RouteMethod.GET ? { body: module.filter?.body } : {}),
-              params: module.filter?.params ?? {},
+              querystring: fixFormatDates(module.filter?.query ?? {}),
+              ...(method !== RouteMethod.GET ? { body: fixFormatDates(module.filter?.body ?? {}) } : {}),
+              params: fixFormatDates(module.filter?.params ?? {}),
               response: module.filter?.response,
-              headers: module.filter?.headers ?? {}
+              headers: fixFormatDates(module.filter?.headers ?? {})
             },
             handler: createServerHandler(module, location)
           })
@@ -175,3 +185,5 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
 
   return context
 }
+
+

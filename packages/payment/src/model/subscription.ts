@@ -41,7 +41,7 @@ export const SubscriptionPropogateBodySchema: JSONSchemaType<SubscriptionPropoga
   type: 'object',
   properties: {
     ...PlanSubscriptionSchema.properties,
-    service: ResourceValueSchema,
+    service: { ...ResourceValueSchema, minLength: 2 },
     externalId: IdValueSchema,
   } as any, // @TODO Figure out why it doesn't work (probably different version of ajv)
   required: ['externalId', 'service', ...PlanSubscriptionSchema.required],
