@@ -12,5 +12,6 @@ export * from './button/index.js'
 
 export * from './block.js'
 export * from './text.js'
+export * from './link.js'
 export * from './helper.js'
 export * from './status.js'
