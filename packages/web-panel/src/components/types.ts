@@ -7,6 +7,7 @@ import type { ClientModule } from '@owlmeans/client-module'
 
 export interface BlockProps extends PropsWithChildren<I18nProps> {
   horizontal?: BlockScaling
+  vertical?: BlockScaling
   Actions?: FC
   styles?: SxProps
 }

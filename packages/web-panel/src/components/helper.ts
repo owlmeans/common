@@ -3,23 +3,49 @@ import useTheme from '@mui/material/styles/useTheme'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { BlockScaling } from '@owlmeans/client-panel'
 
-export const scalingToStyles = (scaling?: BlockScaling, theme?: Theme): SxProps => {
-  switch (scaling) {
+export const scalingToStyles = (
+  horizontal?: BlockScaling,
+  vertical?: BlockScaling,
+  theme?: Theme
+): SxProps => {
+  const style: SxProps = {}
+  switch (horizontal) {
     case BlockScaling.Half:
-      return {
+      Object.assign(style, {
         maxWidth: '50%',
         [theme?.breakpoints.down('md') ?? 'xs']: {
           maxWidth: '90%'
         },
         flexGrow: 1
-      }
+      })
+      break
     case BlockScaling.Wide:
-      return { mx: '10%', flexGrow: 1 }
+      Object.assign(style, { mx: '10%', flexGrow: 1 })
+      break
     case BlockScaling.Full:
-      return { flexGrow: 1 }
+      Object.assign(style, { flexGrow: 1 })
+      break
   }
 
-  return {}
+  switch (vertical) {
+    case BlockScaling.Half:
+      Object.assign(style, {
+        maxHeight: '50%',
+        [theme?.breakpoints.down('md') ?? 'xs']: {
+          maxHeight: '90%'
+        },
+        flexGrow: 1
+      })
+      break
+    case BlockScaling.Wide:
+      Object.assign(style, { my: '10%', flexGrow: 1 })
+      break
+    case BlockScaling.Full:
+      Object.assign(style, { height: '100%', flexGrow: 1 })
+      break
+  }
+
+  return style
 }
 
 export const useBreakPoint = () => {

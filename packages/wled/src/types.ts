@@ -42,7 +42,7 @@ export interface ProvideParams {
   entity: string
 }
 
-export interface CustomUrls {
+  export interface CustomUrls {
   adminUrl: string
   userUrl: string
 }

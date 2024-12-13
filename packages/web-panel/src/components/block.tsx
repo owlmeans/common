@@ -9,10 +9,10 @@ import useTheme from '@mui/material/styles/useTheme.js'
 import CardActions from '@mui/material/CardActions'
 import { scalingToStyles } from './helper.js'
 
-export const Block: FC<BlockProps> = ({ children, horizontal, Actions, i18n, styles }) => {
+export const Block: FC<BlockProps> = ({ children, horizontal, vertical, Actions, i18n, styles }) => {
   const theme = useTheme()
 
-  const style: SxProps = useMemo(() => scalingToStyles(horizontal, theme), [horizontal])
+  const style: SxProps = useMemo(() => scalingToStyles(horizontal, vertical, theme), [horizontal])
 
   const panelProps = { ...usePanelHelper(), ...i18n }
 

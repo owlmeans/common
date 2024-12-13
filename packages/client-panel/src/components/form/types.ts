@@ -11,7 +11,8 @@ export interface FormProps extends PropsWithChildren<I18nProps> {
   defaults?: Record<string, any>
   validation?: AnySchema
   decorate?: boolean
-  horizontal?: BlockScaling 
+  horizontal?: BlockScaling
+  vertical?: BlockScaling
   onSubmit?: FormOnSubmit<any>
 }
 

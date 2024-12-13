@@ -24,8 +24,8 @@ formatsPlugin(ajv)
 
 export const Form: FC<FormProps> = (props) => {
   const {
-    defaults, children, formRef, validation, name, horizontal, decorate,
-    onSubmit, i18n
+    defaults, children, formRef, validation, name, horizontal, vertical,
+    decorate, onSubmit, i18n
   } = props
   const theme = useTheme()
   const _defaults = useMemo(
@@ -66,29 +66,29 @@ export const Form: FC<FormProps> = (props) => {
     formRef.current = { form, update, loader, error: setError }
   }
 
-  const style: SxProps = useMemo(() => scalingToStyles(horizontal, theme), [horizontal])
+  const style: SxProps = useMemo(() => scalingToStyles(horizontal, vertical, theme), [horizontal])
 
   const content = () =>
     <Grid container direction="column" justifyContent="flex-start" alignItems="stretch"
-          rowSpacing={2} sx={!decorate ? style : {}}>{
-      Array.isArray(children)
-        ? children.map((child, index) =>
-          <Grid item key={index}>{child}</Grid>
-        ) : children
-    }</Grid>
+      rowSpacing={2} sx={!decorate ? style : {}}>{
+        Array.isArray(children)
+          ? children.map((child, index) =>
+            <Grid item key={index}>{child}</Grid>
+          ) : children
+      }</Grid>
 
   if (decorate === true) {
     const root = form.getFieldState('root')
     return <FormProvider {...form}>
       <FormContext {...props} loader={loader}>
-        <Card sx={style}>
+        <Card sx={{ ...style, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <CardContent>
             {content()}
             {root.invalid && root.error?.message &&
-                <Status ok={false} i18n={i18n} error={ResilientError.ensure(root.error.message)}/>}
+              <Status ok={false} i18n={i18n} error={ResilientError.ensure(root.error.message)} />}
           </CardContent>
           {onSubmit != null ? <CardActions sx={{ flexDirection: 'row', justifyContent: 'flex-end', pr: 2, pb: 2 }}>
-            <SubmitButton loader={loader} onSubmit={async data => onSubmit(data, update)}/>
+            <SubmitButton loader={loader} onSubmit={async data => onSubmit(data, update)} />
           </CardActions> : undefined}
         </Card>
       </FormContext>
