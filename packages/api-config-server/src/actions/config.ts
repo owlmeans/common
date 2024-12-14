@@ -37,7 +37,7 @@ export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, 
     ...("oidc" in ctx.cfg ? {
       oidc: {
         clientCookie: (ctx.cfg.oidc as { clientCookie: unknown }).clientCookie,
-        providers: (ctx.cfg.oidc as { providers: Object[] }).providers.map(
+        providers: (ctx.cfg.oidc as { providers: Object[] }).providers?.map(
           provider => Object.fromEntries(Object.entries(provider)
             .filter(([key]) => !['secret', 'apiClientId'].includes(key)))
         ).filter(provider => provider.internal !== true),
