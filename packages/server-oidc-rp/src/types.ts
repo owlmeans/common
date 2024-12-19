@@ -2,7 +2,7 @@ import type { InitializedService } from '@owlmeans/context'
 import type { AuthorizationCodeGrantChecks, Configuration, IntrospectionResponse, ServerMetadata, TokenEndpointResponse, TokenEndpointResponseHelpers } from 'openid-client'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { OidcProviderConfig, OidcSharedConfig, WithSharedConfig, ProviderProfileDetails, OidcUserDetails, OidcProviderSettings } from '@owlmeans/oidc'
-import type { AuthPayload, Profile } from '@owlmeans/auth'
+import type { AuthCredentials, AuthPayload, Profile } from '@owlmeans/auth'
 
 export type OidcClientDescriptor = Configuration 
 export type TokenSet = TokenEndpointResponse & TokenEndpointResponseHelpers
@@ -49,7 +49,8 @@ export interface AccountLinkingService extends InitializedService {
   getLinkedProfile: (details: ProviderProfileDetails) => Promise<AuthPayload | null>
   linkProfile: (details: ProviderProfileDetails, meta: AccountMeta) => Promise<AuthPayload>
   linkCredentials: (details: ProviderProfileDetails) => Promise<AuthPayload>
-  getOwnerProfiles: (entityId: string, type?: string, clientId?: string) => Promise<Profile[]>
+  getOwnerProfiles: (entityId: string) => Promise<Profile[]>
+  getOwnerCredentials: (userId: string, entityId?: string, type?: string) => Promise<AuthCredentials | undefined>
 }
 
 export interface AccountMeta {

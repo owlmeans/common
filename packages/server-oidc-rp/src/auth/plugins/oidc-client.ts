@@ -206,7 +206,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // only with owlmeans.org idp that is managed by ours. 
           && details.entityId === cfg.entityId
         )) {
-          console.log(3)
+          console.log(3, details)
           profile = await store.linkProfile({
             ...details,
             clientId: cfg.clientId,

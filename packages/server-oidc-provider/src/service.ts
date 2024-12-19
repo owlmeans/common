@@ -38,6 +38,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
           console.log('~.~.~.~.~ we get account for: ', _.oidc.client)
           console.log(_token)
+          console.log(new Error())
 
           return accountSrv.loadById(context, id)
         },
@@ -86,12 +87,12 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         })
 
         oidc.on('grant.error', (_, error) => {
-          console.log(oidc.issuer)
+          console.log('GRANT ERROR .......: ')
+          console.log(oidc.issuer, _.request.toJSON(), _.body)
           console.log('!!!! GRANT ERROR: ', error)
         })
 
         oidc.on('server_error', (ctx, error) => {
-          console.log(oidc.issuer)
           console.log(Object.getOwnPropertyNames(ctx.oidc))
           console.log((ctx.oidc as any).grant)
           console.log('!!!! SERVER ERROR: ', error)
