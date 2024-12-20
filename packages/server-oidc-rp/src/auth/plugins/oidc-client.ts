@@ -74,7 +74,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       if (context.cfg.oidc.restrictedProviders === false) {
         throw new AuthManagerError('oidc.internal')
       }
-
+      
       // @TODO Actually think about how to make oidc service configurable
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
       let entityId = request.entityId ?? oidc.getDefault()

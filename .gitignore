@@ -35,3 +35,6 @@ node_modules/
 
 # Deployments
 dev.values.yaml
+
+# Typescript
+tsconfig.tsbuildinfo
