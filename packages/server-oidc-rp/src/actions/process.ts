@@ -83,7 +83,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
       context.cfg.service,
       cfg.service,
     ],
-    source: cfg.service,
+    source: `${cfg.service}/${cfg.clientId}`,
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead
     // profileId: user?.userId,
