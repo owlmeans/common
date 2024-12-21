@@ -89,7 +89,7 @@ export interface CommonTokenSetParams extends Record<string, string | number | u
 
 export interface ProviderProfileDetails extends Partial<OidcUserDetails> {
   type: string
-  clientId: string
+  service: string
   userId: string
   profileId?: string
 }

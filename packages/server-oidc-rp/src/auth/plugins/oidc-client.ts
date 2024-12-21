@@ -140,9 +140,13 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         throw new AuthManagerError('oidc.account.store')
       }
 
+      if (cfg.service == null) {
+        throw new AuthManagerError('oidc.service')
+      }
+
       let profile = await store.getLinkedProfile({
         type: OIDC_CLIENT_AUTH,
-        clientId: cfg.clientId,
+        service: cfg.service,
         userId: jwt.sub
       })
 
@@ -209,7 +213,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           console.log(3, details)
           profile = await store.linkProfile({
             ...details,
-            clientId: cfg.clientId,
+            service: cfg.service,
             type: OIDC_CLIENT_AUTH,
           }, { username: jwt.preferred_username as string ?? details.username })
         }
