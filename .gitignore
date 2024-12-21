@@ -37,4 +37,4 @@ node_modules/
 dev.values.yaml
 
 # Typescript
-tsconfig.tsbuildinfo
+# tsconfig.tsbuildinfo
