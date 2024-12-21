@@ -7,7 +7,7 @@ import type { Config, Context } from '../types.js'
 import Url from 'url'
 import { makeOidcAuthentication } from '../utils/auth.js'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
-import { AuthenFailed, AuthRole } from '@owlmeans/auth'
+import { AuthenFailed, AuthManagerError, AuthRole } from '@owlmeans/auth'
 import { decodeJwt } from 'jose'
 import { cache, exchangeId, managedId } from '../utils/cache.js'
 import { trust } from '@owlmeans/auth-common/utils'
@@ -48,6 +48,10 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     throw new AuthenFailed()
   }
 
+  if (cfg.service == null) {
+    throw new AuthManagerError('service')
+  }
+
   await cache(context).delete(exchangeId(token))
 
   console.log(
@@ -76,9 +80,10 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     scopes: [
       ...(context.cfg.shortAlias != null ? [context.cfg.shortAlias] : []),
       ...(context.cfg.alias != null ? [context.cfg.alias] : []),
-      context.cfg.service
+      context.cfg.service,
+      cfg.service,
     ],
-    source: cfg.clientId,
+    source: cfg.service,
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead
     // profileId: user?.userId,

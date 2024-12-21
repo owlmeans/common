@@ -50,6 +50,7 @@ export const ProviderProfileDetailsSchema: JSONSchemaType<ProviderProfileDetails
   properties: {
     type: { ...TypeNameSchema },
     service: { ...ScopeValueSchema },
+    clientId: { ...ScopeValueSchema },
     userId: { ...IdValueSchema },
     profileId: {...IdValueSchema, nullable: true },
     username: { type: 'string', minLength: 1, maxLength: 255, nullable: true },
@@ -57,6 +58,6 @@ export const ProviderProfileDetailsSchema: JSONSchemaType<ProviderProfileDetails
     did: { ...IdValueSchema, nullable: true },
     isOwlMeansId: { type: 'boolean', nullable: true }
   },
-  required: ['type', 'service', 'userId'],
+  required: ['type', 'service', 'clientId', 'userId'],
   additionalProperties: false
 }

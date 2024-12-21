@@ -4,7 +4,7 @@ import type { Config, Context, OidcClientService } from '../../types.js'
 import { assertType } from '@owlmeans/server-auth/manager/plugins'
 import { DEFAULT_ALIAS } from '../../consts.js'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
-import type { OidcUserDetails } from '@owlmeans/oidc'
+import type { OidcUserDetails, ProviderProfileDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
@@ -147,8 +147,9 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       let profile = await store.getLinkedProfile({
         type: OIDC_CLIENT_AUTH,
         service: cfg.service,
+        clientId: cfg.clientId,
         userId: jwt.sub
-      })
+      } satisfies ProviderProfileDetails)
 
       // @TODO It's likely the case when we are talking about owlmeans.org
       // but some addtional checks need to be done.
@@ -214,6 +215,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           profile = await store.linkProfile({
             ...details,
             service: cfg.service,
+            clientId: cfg.clientId,
             type: OIDC_CLIENT_AUTH,
           }, { username: jwt.preferred_username as string ?? details.username })
         }
