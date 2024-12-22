@@ -1,6 +1,6 @@
 import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
-import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService, OidcClientDescriptor, OidcClientAdapter } from './types.js'
+import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService, OidcClientAdapter } from './types.js'
 import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import * as client from 'openid-client'
@@ -49,21 +49,29 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     },
 
     getClient: async clientId => {
-      let descriptor: OidcClientDescriptor | null =
-        typeof clientId === 'string' ? null
-          : (clientId instanceof Configuration ? clientId : null)
+      let params: string | OidcProviderConfig
+      let descriptor: Configuration | null = null
+      let _clientId: string
+      if (clientId instanceof Configuration) {
+        descriptor = clientId
+        _clientId = params = clientId.serverMetadata().issuer
+      } else if (typeof clientId === 'string') {
+        _clientId = params = clientId
+      } else {
+        params = clientId as OidcProviderConfig
+        _clientId = params.clientId
+      }
       let metadata = await descriptor?.serverMetadata()
       // @TODO Do not forget to delete it
-      console.log('!!!! Here comes issuers meta: ', typeof clientId === 'string' ? clientId : metadata)
-      let _clientId = typeof clientId === 'string' ? clientId : metadata?.issuer
+      console.log('!!!! Here comes issuers meta: ', _clientId, params, metadata)
 
       if (_clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
-      descriptor ??= await service.getConfiguration(_clientId)
+      descriptor ??= await service.getConfiguration(params)
 
-      const cfg = await service.getConfig(_clientId)
+      const cfg = await service.getConfig(params)
       if (cfg?.secret == null) {
         throw new AuthManagerError('oidc.client.secert')
       }
