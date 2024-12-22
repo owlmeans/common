@@ -205,11 +205,14 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         ctx.cfg.oidc.providers = []
       }
       const providers = ctx.cfg.oidc.providers as TemporaryConfig[]
-      let provider = providers.find(provider => provider.clientId === config.clientId)
+      let provider = providers.find(provider => matchCriteria.every(
+        key => provider[key as keyof typeof provider] === config[key as keyof typeof config]
+      ))
       if (provider == null) {
         provider = { ...config, [_configFlag]: 0 }
         providers.push(provider)
       } else {
+        provider[_configFlag] ??= 0
         provider[_configFlag]++
       }
 
@@ -233,15 +236,19 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       return provider.clientId
     },
 
-    unregisterTemporaryProvider: clientId => {
+    unregisterTemporaryProvider: params => {
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
       }
       const providers = ctx.cfg.oidc.providers as TemporaryConfig[]
 
-      clientId = typeof clientId === 'string' ? clientId : clientId.clientId
-      const idx = providers.findIndex(provider => provider.clientId === clientId)
+      const idx = providers.findIndex(
+        provider => matchCriteria.every(
+          key => !(key in params) ||
+            provider[key as keyof typeof provider] === params[key as keyof typeof params]
+        )
+      )
       if (idx < 0) {
         return
       }
@@ -255,6 +262,10 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
   return service
 }
+
+const matchCriteria = [
+  'clientId', 'service', 'targetService', 'basePath', 'entityId'
+]
 
 const _configFlag = Symbol('temporary-oidc-proivder-config')
 interface TemporaryConfig extends OidcProviderConfig {

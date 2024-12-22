@@ -15,7 +15,7 @@ export interface OidcClientService extends InitializedService {
   getDefault: () => string | undefined
 
   registerTemporaryProvider: (config: OidcProviderConfig) => OidcProviderConfig
-  unregisterTemporaryProvider: (clientId: string | OidcProviderConfig) => void
+  unregisterTemporaryProvider: (params: Partial<OidcProviderConfig>) => void
   hasProvider: (params: Partial<OidcProviderConfig>) => boolean
   entityToClientId: (params: Partial<OidcProviderConfig>) => string
 
