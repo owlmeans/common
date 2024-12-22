@@ -9,15 +9,15 @@ export type TokenSet = TokenEndpointResponse & TokenEndpointResponseHelpers
 export type TokenSetParameters = TokenEndpointResponse
 
 export interface OidcClientService extends InitializedService {
-  getConfiguration: (clientId: string) => Promise<OidcClientDescriptor>
-  getClient: (clientId: string | OidcClientDescriptor) => Promise<OidcClientAdapter>
-  getConfig: (clientId: string) => Promise<OidcProviderConfig | undefined>
+  getConfiguration: (clientId: string | Partial<OidcProviderConfig>) => Promise<OidcClientDescriptor>
+  getClient: (clientId: string | OidcClientDescriptor | Partial<OidcProviderConfig>) => Promise<OidcClientAdapter>
+  getConfig: (clientId: string | Partial<OidcProviderConfig>) => Promise<OidcProviderConfig | undefined>
   getDefault: () => string | undefined
 
   registerTemporaryProvider: (config: OidcProviderConfig) => OidcProviderConfig
   unregisterTemporaryProvider: (clientId: string | OidcProviderConfig) => void
-  hasProvider: (entityId: string) => boolean
-  entityToClientId: (entityId: string) => string
+  hasProvider: (params: Partial<OidcProviderConfig>) => boolean
+  entityToClientId: (params: Partial<OidcProviderConfig>) => string
 
   providerApi: () => ProviderApiService | null
   accountLinking: () => AccountLinkingService | null

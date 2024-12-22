@@ -19,11 +19,13 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
     throw new AuthenPayloadError('entity')
   }
 
+  const entityId = body.entity
+
   const context = assertContext<Config, Context>(ctx)
   const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
 
   let client: OidcClientAdapter
-  if (!oidc.hasProvider(body.entity)) {
+  if (!oidc.hasProvider({ entityId })) {
     /**
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
@@ -32,7 +34,7 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
       authService.provider.list
     ).call({
       params: { service: context.cfg.alias ?? context.cfg.service },
-      query: { entityId: body.entity }
+      query: { entityId }
     })
 
     if (providers.length < 1) {
@@ -45,11 +47,13 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
       throw new AuthUnknown()
     }
     oidc.registerTemporaryProvider(provider)
-    client = await oidc.getClient(provider.clientId)
+    client = await oidc.getClient({ clientId: provider.clientId, entityId })
     // Cache provider for a while
     setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
   } else {
-    client = await oidc.getClient(oidc.entityToClientId(body.entity))
+    client = await oidc.getClient({
+      entityId, clientId: oidc.entityToClientId({ entityId })
+    })
   }
 
   const verifier = base64.encode(randomBytes(32))

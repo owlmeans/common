@@ -5,6 +5,7 @@ import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import * as client from 'openid-client'
 import type { OidcProviderConfig } from '@owlmeans/oidc'
+import { Configuration } from 'openid-client'
 // import { URL as SrvURL } from 'node:url'
 
 export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClientService => {
@@ -23,6 +24,10 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.service')
       }
 
+      if (typeof clientId === 'object' && clientId.clientId == null) {
+        throw new AuthManagerError('oidc.client.client-id')
+      }
+
       // @TODO Add support for any domain (not just registered services)
       const security = makeSecurityHelper<Config, Context>(context)
       const url = cfg.discoveryUrl
@@ -30,7 +35,12 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
       console.log('External service url', url, cfg)
 
-      return await client.discovery(new URL(url) as URL, cfg.idOverride ?? clientId, cfg.secret, undefined, {
+      return await client.discovery(
+        new URL(url) as URL,
+        cfg.idOverride ?? (
+          typeof clientId === 'string' ? clientId : clientId.clientId!
+        ),
+        cfg.secret, undefined, {
         execute: [
           // @TODO Properly handle it with the config
           client.allowInsecureRequests
@@ -39,7 +49,9 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     },
 
     getClient: async clientId => {
-      let descriptor: OidcClientDescriptor | null = typeof clientId === 'string' ? null : (clientId ?? null)
+      let descriptor: OidcClientDescriptor | null =
+        typeof clientId === 'string' ? null
+          : (clientId instanceof Configuration ? clientId : null)
       let metadata = await descriptor?.serverMetadata()
       // @TODO Do not forget to delete it
       console.log('!!!! Here comes issuers meta: ', typeof clientId === 'string' ? clientId : metadata)
@@ -73,7 +85,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
         grantWithCode: async (url, checks, params) => {
           console.log(
-            url, 
+            url,
             checks,
             params
           )
@@ -103,7 +115,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           return await client.authorizationCodeGrant(
             descriptor, urlObj, checks
           )
-        }, 
+        },
 
         refresh: async tokenSet => {
           const refreshToken = typeof tokenSet === 'string' ? tokenSet : tokenSet.refresh_token
@@ -122,7 +134,18 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     getConfig: async clientId => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
 
-      return context.cfg.oidc.providers?.find(consumer => consumer.clientId === clientId)
+      if (typeof clientId === 'object' && clientId.clientId == null) {
+        throw new AuthManagerError('oidc.client.client-id')
+      }
+
+      return context.cfg.oidc.providers?.find(consumer => {
+        if (typeof clientId === 'string') {
+          return consumer.clientId === clientId
+        }
+        return Object.entries(clientId).every(
+          ([key, value]) => consumer[key as keyof typeof consumer] === value
+        )
+      })
     },
 
     getDefault: () => {
@@ -151,13 +174,20 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       return null
     },
 
-    hasProvider: entityId => {
+    hasProvider: params => {
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
       }
 
-      return ctx.cfg.oidc.providers.some(provider => provider.entityId === entityId)
+      return ctx.cfg.oidc.providers.some(provider => {
+        if (typeof params === 'string') {
+          return provider.clientId === params
+        }
+        return Object.entries(params).every(
+          ([key, value]) => provider[key as keyof typeof provider] === value
+        )
+      })
     },
 
     registerTemporaryProvider: config => {
@@ -178,12 +208,16 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       return provider
     },
 
-    entityToClientId: entityId => {
+    entityToClientId: params => {
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
       }
-      const provider = ctx.cfg.oidc.providers.find(provider => provider.entityId === entityId)
+      const provider = ctx.cfg.oidc.providers.find(
+        provider => Object.entries(params).every(
+          ([key, value]) => provider[key as keyof typeof provider] === value
+        )
+      )
       if (provider == null) {
         throw new AuthManagerError('oidc.client.entity-id')
       }
