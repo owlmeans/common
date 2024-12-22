@@ -83,7 +83,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
       context.cfg.service,
       cfg.service,
     ],
-    source: `${cfg.service}/${cfg.clientId}`,
+    source: `${cfg.service}/${cfg.clientId}${'id' in cfg ? `/${cfg.id}` : ''}`,
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead
     // profileId: user?.userId,
@@ -96,7 +96,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
 
   console.log('>>>>> ~~~~~ STORE RECORD WITH ID: ', managedId(token))
   await cache(context).create(
-    { id: managedId(token), payload: tokenSet, client: cfg.clientId }, 
+    { id: managedId(token), payload: tokenSet, client: cfg.clientId },
     { ttl: OIDC_AUTH_LIFTETIME / 1000 }
   )
 
