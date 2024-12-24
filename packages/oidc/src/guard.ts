@@ -60,6 +60,8 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
+      console.log('\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ OIDC GUARD')
+
       const ctx = guard.assertCtx()
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
       const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)

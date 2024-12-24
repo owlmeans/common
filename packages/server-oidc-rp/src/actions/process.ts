@@ -39,6 +39,9 @@ export const authenticate: RefedModuleHandler = handleBody(async (
   const url = new Url.URL(authUrl)
   const redirectUrl = url.searchParams.get('redirect_uri')
 
+  console.log('\n\n ~~~~~~~~~~~~~~~~~~~ authentication process:', params)
+  params['audience'] ??= 'iam-service'
+
   const [cfg, tokenSet, token] = await makeOidcAuthentication(context)({
     challenge: redirectUrl + ':' + authUrl,
     credential: new Url.URLSearchParams(params).toString()
