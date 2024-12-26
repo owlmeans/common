@@ -4,6 +4,7 @@ import type { CreateModuleSignature } from './utils/types.js'
 
 export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
   let guards: string[] | null = null
+  let gates: [string, string[]][] | null = null
   const module: CommonModule = appendContextual<CommonModule>(route.route.alias, {
     _module: true,
 
@@ -22,7 +23,7 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
       }
 
       await module.route.resolve(module.ctx)
-      
+
       return module as M
     },
 
@@ -58,6 +59,27 @@ export const module: CreateModuleSignature<CommonModule> = (route, opts) => {
       }
 
       return guards
+    },
+
+    getGates: () => {
+      if (gates != null) {
+        return gates
+      }
+      
+      gates = module.gate != null ? [[
+        module.gate, module.gateParams == null
+          ? [] : Array.isArray(module.gateParams)
+            ? module.gateParams : [module.gateParams]
+      ]] : []
+
+      if (module.hasParent()) {
+        gates.push(
+          ...module.getParent().getGates()
+            .filter(([gate]) => !gates?.some(([g]) => g === gate))
+        )
+      }
+
+      return gates
     },
 
     ...opts

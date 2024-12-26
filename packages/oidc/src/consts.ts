@@ -28,3 +28,5 @@ export const OIDC_CODE_QUERY = 'code'
 export const OIDC_WRAPPED_TOKEN = 'oidc-wrapped-token'
 
 export const WRAPPED_OIDC = 'wrapped-oidc-authz'
+
+export const OIDC_GATE = 'oidc-gate'

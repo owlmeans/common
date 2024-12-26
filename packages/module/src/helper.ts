@@ -7,6 +7,9 @@ export const filter = (filter: Filter, opts?: CommonModuleOptions): CommonModule
 export const guard = (guard: string, opts?: CommonModuleOptions): CommonModuleOptions =>
   ({ ...opts, guards: [...new Set([guard, ...(opts?.guards ?? [])])] })
 
+export const gate = (gate: string, params: string | string[], opts?: CommonModuleOptions): CommonModuleOptions =>
+  ({ ...opts, gate, gateParams: params })
+
 export const provideResponse = <T>(originalResponse?: unknown): AbstractResponse<T> => {
   const hanlder: AbstractResponse<T> = {
     responseProvider: originalResponse,

@@ -44,9 +44,10 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
       const response = provideResponse(reply)
       const request = provideRequest(module.alias, req, true)
 
-      if (module.gate != null) {
-        let gate: GateService = context.service(module.gate)
-        await gate.assert(request, response)
+      const gates = module.getGates()
+      for (const [srv, params] of gates) {
+        const gate: GateService = context.service(srv)
+        await gate.assert(request, response, params)
         executeResponse(response, reply, true)
       }
 

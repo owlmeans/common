@@ -14,6 +14,7 @@ export interface CommonModule extends BasicModule {
   filter?: Filter
   guards?: string[]
   gate?: string
+  gateParams?: string | string[]
   handle?: ModuleHandler
   getAlias: () => string
   getPath: () => string
@@ -23,6 +24,7 @@ export interface CommonModule extends BasicModule {
   getParent: <M extends CommonModule>() => M
   setService: (service: string) => void
   getGuards: () => string[]
+  getGates: () => [string, string[]][]
 }
 
 export interface CommonModuleOptions extends Partial<CommonModule> { }
@@ -39,7 +41,7 @@ export interface ModuleHandler {
 }
 
 export interface ModuleAssert {
-  <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P): Promise<void>
+  <R extends AbstractRequest, P extends AbstractResponse<any>>(req: R, res: P, params: string[]): Promise<void>
 }
 
 export interface AbstractRequest<T extends {} = {}> {

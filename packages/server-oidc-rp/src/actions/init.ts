@@ -5,7 +5,8 @@ import { AuthenPayloadError, AuthUnknown, DISPATCHER } from '@owlmeans/auth'
 import { assertContext } from '@owlmeans/context'
 import type { Config, Context, OidcClientAdapter, OidcClientService } from '../types.js'
 import type { ClientModule } from '@owlmeans/client-module'
-import { authService, DEFAULT_ALIAS, PROVIDER_CACHE_TTL } from '../consts.js'
+import { authService, DEFAULT_ALIAS } from '../consts.js'
+// import {  PROVIDER_CACHE_TTL } from '../consts.js'
 // import type { Client } from 'openid-client'
 
 import { base64urlnopad as base64 } from '@scure/base'
@@ -48,8 +49,8 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
     }
     oidc.registerTemporaryProvider(provider)
     client = await oidc.getClient({ clientId: provider.clientId, entityId })
-    // Cache provider for a while
-    setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
+    // Cache provider for a while - we dont actually need to clean it up
+    // setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
   } else {
     client = await oidc.getClient({
       entityId, clientId: oidc.entityToClientId({ entityId })
