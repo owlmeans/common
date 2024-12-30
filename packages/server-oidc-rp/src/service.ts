@@ -224,6 +224,8 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
       }
+      console.log(ctx.cfg.oidc.providers)
+
       const provider = ctx.cfg.oidc.providers.find(
         provider => Object.entries(params).every(
           ([key, value]) => provider[key as keyof typeof provider] === value
