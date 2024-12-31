@@ -217,7 +217,11 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
             service: cfg.service,
             clientId: cfg.clientId,
             type: OIDC_CLIENT_AUTH,
-          }, { username: jwt.preferred_username as string ?? details.username })
+          }, { 
+            username: jwt.preferred_username as string ?? details.username, 
+            // @TODO It's important to keep it this way to make registration disabling working
+            force: false 
+          })
         }
       }
       console.log(4)

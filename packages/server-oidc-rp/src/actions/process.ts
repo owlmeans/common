@@ -87,9 +87,7 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead
     // profileId: user?.userId,
-    // @TODO Actually this is highly incorrect - we need to get profile details
-    // from the OwlMeans Auth intead
-    // entityId: user?.entityId ?? context.cfg.defaultEntityId,
+    entityId: cfg.entityId,
     isUser: true,
     createdAt: new Date(),
   }
