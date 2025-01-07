@@ -10,7 +10,6 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
   const context = makeServerContext(cfg) as T
 
   appendApiServer<C, T>(context)
-  appendAuthService<C, T>(context)
   appendApiClient<C, T>(context)
   appendSocketService<C, T>(context)
 
@@ -19,9 +18,10 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
   appendStaticResource<C, T>(context)
   if (!customize && !context.hasResource(AUTH_CACHE)) {
     appendStaticResource<C, T>(context, AUTH_CACHE)
+    appendAuthService<C, T>(context)
   }
 
-  context.makeContext = makeContext as any
+  context.makeContext = cfg => makeContext(cfg, customize) as any
 
   return context
 }

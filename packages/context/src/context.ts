@@ -153,9 +153,9 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       const id = initializeLayer(services, context.cfg.layer, context.cfg.layerId)
 
       let _service: Service
-      if (services[context.cfg.layer][id][alias] != null) {
+      if (services[context.cfg.layer]?.[id]?.[alias] != null) {
         _service = services[context.cfg.layer][id][alias]
-      } else if (services[Layer.Global][id][alias] != null) {
+      } else if (services[Layer.Global]?.[id]?.[alias] != null) {
         _service = services[context.cfg.layer][id][alias]
       } else {
         const msg = `Service ${alias} not found in layer ${context.cfg.layer}`
