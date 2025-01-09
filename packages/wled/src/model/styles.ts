@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from 'ajv'
 import type { CustomStyles, CustomColors, CustomFont } from '../types.js'
-import { EntityValueSchema } from '@owlmeans/auth'
+import { EntityValueSchema, ResourceValueSchema } from '@owlmeans/auth'
 
 export const CustomFontSchema: JSONSchemaType<CustomFont> = {
   type: 'object',
@@ -38,7 +38,8 @@ export const CustomColorsSchema: JSONSchemaType<CustomColors> = {
 export const CustomStylesSchema: JSONSchemaType<CustomStyles> = {
   type: 'object',
   properties: {
-    entityId: {...EntityValueSchema},
+    resource: { ...ResourceValueSchema, minLength: 0, nullable: true },
+    entityId: { ...EntityValueSchema },
     font: CustomFontSchema,
     colors: CustomColorsSchema
   },

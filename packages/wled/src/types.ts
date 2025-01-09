@@ -1,5 +1,6 @@
 
 export interface CompanyInfo {
+  resource?: string
   entityId: string
   fullName: string
   shortName: string
@@ -8,6 +9,7 @@ export interface CompanyInfo {
 }
 
 export interface CustomStyles {
+  resource?: string
   entityId: string
   font: CustomFont
   colors: CustomColors

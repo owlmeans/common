@@ -1,6 +1,5 @@
 import type { FC } from 'react'
 import { useCallback, useMemo } from 'react'
-import type { FormProps } from '@owlmeans/client-panel'
 import { FormProvider, useForm } from 'react-hook-form'
 import { ajvResolver } from '@hookform/resolvers/ajv'
 import Grid from '@mui/material/Grid'
@@ -18,14 +17,15 @@ import { scalingToStyles } from '../helper.js'
 import { ResilientError } from '@owlmeans/error'
 import { Status } from '../status.js'
 import useTheme from '@mui/material/styles/useTheme.js'
+import type { WebFormProps } from './types.js'
 
 const ajv = new Ajv({ coerceTypes: true })
 formatsPlugin(ajv)
 
-export const Form: FC<FormProps> = (props) => {
+export const Form: FC<WebFormProps> = (props) => {
   const {
     defaults, children, formRef, validation, name, horizontal, vertical,
-    decorate, onSubmit, i18n
+    decorate, onSubmit, i18n, styles
   } = props
   const theme = useTheme()
   const _defaults = useMemo(
@@ -81,7 +81,7 @@ export const Form: FC<FormProps> = (props) => {
     const root = form.getFieldState('root')
     return <FormProvider {...form}>
       <FormContext {...props} loader={loader}>
-        <Card sx={{ ...style, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Card sx={{ ...style, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', ...styles } as SxProps}>
           <CardContent>
             {content()}
             {root.invalid && root.error?.message &&

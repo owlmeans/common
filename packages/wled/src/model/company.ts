@@ -1,10 +1,11 @@
 import type { JSONSchemaType } from 'ajv'
 import type { CompanyInfo } from '../types.js'
-import { EntityValueSchema } from '@owlmeans/auth'
+import { EntityValueSchema, ResourceValueSchema } from '@owlmeans/auth'
 
 export const CompanyInfoSchema: JSONSchemaType<CompanyInfo> = {
   type: 'object',
   properties: {
+    resource: { ...ResourceValueSchema, minLength: 0, nullable: true },
     entityId: { ...EntityValueSchema },
     fullName: { type: 'string', minLength: 1, maxLength: 128 },
     shortName: { type: 'string', minLength: 0, maxLength: 32 },

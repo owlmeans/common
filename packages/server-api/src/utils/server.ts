@@ -62,7 +62,7 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
       }
     } catch (error) {
       console.log('SENDS ERROR RESPONSE: ')
-      console.error(error)
+      console.error(JSON.stringify(error, null, 2))
       if (module.fixer != null) {
         const fixer: FixerService = context.service(module.fixer)
         fixer.handle(reply, ResilientError.ensure(error as Error))
