@@ -2,6 +2,7 @@
   "name": "@owlmeans/common-root",
   "scripts": {
     "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run dev",
+    "build": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run build",
     "watch": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run watch"
   },
   "workspaces": [
