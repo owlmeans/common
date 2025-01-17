@@ -5,8 +5,8 @@ import type { TextProps } from './types.js'
 import Typography from '@mui/material/Typography'
 import type { Variant } from '@mui/material/styles/createTypography.js'
 
-export const Text: FC<TextProps> = ({ variant, name, children, center, styles, nested }) => {
-  const t = usePanelI18n()
+export const Text: FC<TextProps> = ({ variant, name, children, center, styles, nested, i18n }) => {
+  const t = usePanelI18n(undefined, i18n)
 
   const label = name != null ? t(name) : undefined
   return <Typography component={nested ? 'span' : 'p'} variant={variant as Variant}

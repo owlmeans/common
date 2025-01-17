@@ -12,7 +12,7 @@ export interface BlockProps extends PropsWithChildren<I18nProps> {
   styles?: SxProps
 }
 
-export interface TextProps extends PropsWithChildren {
+export interface TextProps extends PropsWithChildren<I18nProps> {
   name?: string
   variant?: Variant
   center?: boolean

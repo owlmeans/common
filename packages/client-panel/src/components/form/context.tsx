@@ -7,9 +7,8 @@ import type { TFormContext } from './types.js'
 
 const FormContext_ = createContext<TFormContext>({} as unknown as TFormContext)
 
-export const FormContext: FC<PropsWithChildren<TFormContext>> = (props) => <FormContext_.Provider value={
-  Object.fromEntries(Object.entries(props).filter(([key]) => key !== 'children')) as TFormContext
-}>{props.children}</FormContext_.Provider>
+export const FormContext: FC<PropsWithChildren<TFormContext>> = ({ children, ...props }) =>
+  <FormContext_.Provider value={props}>{children}</FormContext_.Provider>
 
 export const useClientFormContext = () => useReactContext<TFormContext>(FormContext_)
 

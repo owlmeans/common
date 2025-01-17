@@ -7,12 +7,11 @@ import { ResilientError } from '@owlmeans/error'
 
 const PanelContext_ = createContext<TPanelContext>({})
 
-export const PanelContext: FC<TPanelContext> = (props) => {
+export const PanelContext: FC<TPanelContext> = ({ children, ...props }) => {
   const parent = usePanelHelper()
   props = { ...parent, ...props }
-  return <PanelContext_.Provider value={
-    Object.fromEntries(Object.entries(props).filter(([key]) => key !== 'children')) as TPanelContext
-  }>{props.children}</PanelContext_.Provider>
+  
+  return <PanelContext_.Provider value={props}>{children}</PanelContext_.Provider>
 }
 
 export const usePanelHelper = () => useReactContext<TPanelContext>(PanelContext_)
