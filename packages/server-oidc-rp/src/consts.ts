@@ -14,10 +14,13 @@ export const authService = {
   }
 }
 
-export const PROVIDER_CACHE_TTL = 5 * 60 * 1000
-
 export const OIDC_TOKEN_STORE = 'oidc-token-store'
+/**
+ * @TODO Actually these ones should be constants and should be linked to
+ * configuration on OIDC provider side
+ */
+export const PROVIDER_CACHE_TTL = (5 * 60 - 1) * 1000
 
 export const OIDC_AUTH_LIFTETIME = 24 * 3600 * 1000
 
-export const OIDC_WRAP_FRESHNESS = 15 * 60 * 1000
+export const OIDC_WRAP_FRESHNESS = (5 * 60 - 1) * 1000
