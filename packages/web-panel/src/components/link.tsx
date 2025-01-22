@@ -24,7 +24,10 @@ export const Link: FC<LinkProps> = ({ src, module, name, variant, children, cent
     return null
   }, [src, module])
 
-  const label = name != null ? t(name) : undefined
+  const label = name != null
+    ? t(name)
+    : children != null || module == null
+      ? undefined : t(`modules.${typeof module == 'string' ? module : module.alias}`)
   const target = open ? '_blank' : undefined
   return <MUILink href={href ?? undefined} target={target} variant={variant as Variant}
     sx={{ textAlign: center ? 'center' : 'inherit', ...styles }}>{label ?? children}</MUILink>
