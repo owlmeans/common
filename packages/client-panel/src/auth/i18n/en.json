@@ -27,6 +27,16 @@
     },
     "submit": "Proceed with pin"
   },
+  "oidp-auth": {
+    "reset": "Reset",
+    "error": {
+      "socket": {
+        "timeout": {
+          "rely": "Authentication window expired. Please refresh to try again."
+        }
+      }
+    }
+  },
   "oidp-create-id": {
     "error": {
       "socket": {

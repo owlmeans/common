@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/web-wl",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -17,6 +18,12 @@
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/wled": "^0.1.0",
+    "@owlmeans/client": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.0"
   },
   "peerDependencies": {
     "react": "*"

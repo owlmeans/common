@@ -19,7 +19,7 @@ export interface OidcAuthStateModel extends AuthStateProperties {
 
 export interface AuthStateProperties {
   did?: string
-  entitId?: string
+  entityId?: string
   state: Set<OidcAuthState>
   uid: string
 }

@@ -48,3 +48,8 @@ export interface ProvideParams {
   adminUrl: string
   userUrl: string
 }
+
+export type ProvidedWL<T extends {} = {}> = T & {
+  type: string
+  exists: boolean | null
+}

@@ -75,7 +75,7 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
 
       const serverState = await updateState(uid)
       console.log('UPDATED STATE', serverState)
-      model.entitId = serverState.entityId ?? config.defaultEntityId
+      model.entityId = serverState.entityId ?? config.defaultEntityId
       model.did = serverState.did
       let user: Auth | null = null
       if (await context.auth().authenticated()) {
@@ -83,7 +83,7 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
         model.state.add(OidcAuthState.Authenticated)
       }
 
-      if (model.entitId === user?.entityId) {
+      if (model.entityId === user?.entityId) {
         model.state.add(OidcAuthState.SameEntity)
       }
 
