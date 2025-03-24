@@ -14,6 +14,9 @@ export interface KeyPairModel {
   export: () => string
   exportPublic: () => string
   exportAddress: () => string
+  encrypt: (data: unknown) => Promise<string>
+  decrypt: (data: unknown) => Promise<string>
+  dcrpt: (data: unknown) => Promise<Uint8Array>
 }
 
 export interface KeyPairModelMaker {

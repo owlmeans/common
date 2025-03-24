@@ -11,9 +11,9 @@ export const ed25519owlPluginBuilder = (type: string = KEY_OWL): KeyPlugin => {
   const key: KeyPlugin = {
     type: type,
 
-    random: () =>  key.fromSeed!(randomBytes(32)),
+    random: () => key.fromSeed!(randomBytes(32)),
 
-    derive: (pk, path) => 
+    derive: (pk, path) =>
       hmac(sha512, pk.slice(32), concatBytes(pk.slice(0, 32), utf8.decode(path))),
 
     fromSeed: (seed: Uint8Array) => hmac(sha512, utf8.decode(type), seed),
@@ -24,7 +24,11 @@ export const ed25519owlPluginBuilder = (type: string = KEY_OWL): KeyPlugin => {
 
     toPublic: pk => ed25519.getPublicKey(pk.slice(0, 32)),
 
-    toAdress: pub => base58.encode(keccak_256(pub.slice(4)).slice(-20))
+    toAdress: pub => base58.encode(keccak_256(pub.slice(4)).slice(-20)),
+
+    encrypt: () => { throw new Error(`${key.type}:encryption-support`) },
+
+    decrypt: () => { throw new Error(`${key.type}:encryption-support`) }
   }
 
   return key

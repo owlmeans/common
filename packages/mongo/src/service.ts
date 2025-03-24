@@ -8,6 +8,7 @@ import { prepareConfig } from './utils/config.js'
 import { setUpCluster } from './utils/cluster.js'
 import type { MongoDbService } from '@owlmeans/mongo-resource'
 import { createDbService } from '@owlmeans/resource'
+import { makeKeyPairModel } from '@owlmeans/basic-keys'
 
 type Config = ServerConfig
 interface Context<C extends Config = Config> extends ServerContext<C> { }
@@ -69,6 +70,50 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
       }
 
       service.clients[configAlias] = client
+    },
+
+    lock: async (alias, record, fields) => {
+      alias = service.ensureConfigAlias(alias)
+      const config = service.config(alias)
+      if (config.encryptionKey == null) {
+        throw new SyntaxError(`No encryption key for locking: ${alias}`)
+      }
+      if ((fields.length ?? 0) < 1) {
+        throw new SyntaxError(`No fields to lock: ${JSON.stringify(record)}`)
+      }
+
+      const key = makeKeyPairModel(config.encryptionKey)
+
+      return Object.fromEntries(
+        await Promise.all(Object.entries(record).map(
+          async ([field, value]) => [
+            field,
+            fields.includes(field) ? await key.encrypt(value) : value
+          ]
+        ))
+      )
+    },
+
+    unlock: async (alias, record, fields) => {
+      alias = service.ensureConfigAlias(alias)
+      const config = service.config(alias)
+      if (config.encryptionKey == null) {
+        throw new SyntaxError(`No encryption key for unlocking: ${alias}`)
+      }
+      if ((fields.length ?? 0) < 1) {
+        throw new SyntaxError(`No fields to unlock: ${JSON.stringify(record)}`)
+      }
+
+      const key = makeKeyPairModel(config.encryptionKey)
+
+      return Object.fromEntries(
+        await Promise.all(Object.entries(record).map(
+          async ([field, value]) => [
+            field,
+            fields.includes(field) ? await key.decrypt(value).catch(() => value) : value
+          ]
+        ))
+      )
     },
 
     reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {

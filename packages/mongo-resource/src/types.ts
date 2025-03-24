@@ -1,8 +1,8 @@
-import type { Resource, ResourceRecord, ResourceDbService } from '@owlmeans/resource'
+import type { Resource, ResourceRecord, ResourceDbService, DbLocker, ResourceLocker } from '@owlmeans/resource'
 import type { Collection, CreateIndexesOptions, Db, IndexSpecification, MongoClient } from 'mongodb'
 import type { AnySchema } from 'ajv'
 
-export interface MongoResource<T extends ResourceRecord> extends Resource<T> {
+export interface MongoResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T> {
   name?: string
   schema?: AnySchema
   indexes?: Array<{ name: string, index: IndexSpecification, options?: CreateIndexesOptions }>
@@ -13,5 +13,5 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T> {
   getDefaults: () => Partial<T>
 }
 
-export interface MongoDbService extends ResourceDbService<Db, MongoClient> {
+export interface MongoDbService extends ResourceDbService<Db, MongoClient>, DbLocker<ResourceRecord> {
 }

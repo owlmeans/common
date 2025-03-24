@@ -15,5 +15,9 @@ export const ed25519Plugin: KeyPlugin = {
 
   toPublic: pk => ed25519.getPublicKey(pk),
 
-  toAdress: pub => base58.encode(keccak_256(pub.slice(4)).slice(-20))
+  toAdress: pub => base58.encode(keccak_256(pub.slice(4)).slice(-20)),
+
+  encrypt: () => { throw new Error(`${ed25519Plugin.type}:encryption-support`) },
+
+  decrypt: () => { throw new Error(`${ed25519Plugin.type}:encryption-support`) }
 }

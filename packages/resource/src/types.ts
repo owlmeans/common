@@ -96,6 +96,16 @@ export interface ResourceDbService<Db, Client> extends LazyService {
   client: (alias?: string) => Promise<Client>
 }
 
+export interface DbLocker<T extends ResourceRecord> {
+  lock: (alias: string, record: Partial<T>, fields: string[]) => Promise<T>
+  unlock: (alias: string, record: Partial<T>, fields: string[]) => Promise<T>
+}
+
+export interface ResourceLocker<T extends ResourceRecord> {
+  lock: (record: Partial<T>, fields?: string[]) => Promise<T>
+  unlock: (record: Partial<T>, fields?: string[]) => Promise<T>
+}
+
 export interface DbConfig<P extends {} = {}> {
   service: string
   alias?: string
@@ -107,6 +117,7 @@ export interface DbConfig<P extends {} = {}> {
   resourcePrefix?: string
   entitySensitive?: boolean
   serviceSensitive?: boolean
+  encryptionKey?: string
   meta?: P
 }
 

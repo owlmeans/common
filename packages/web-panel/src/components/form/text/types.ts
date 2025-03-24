@@ -7,4 +7,5 @@ export interface TextInputProps extends FormFieldProps {
   placeholder?: string | boolean
   hint?: string | boolean
   type?: HTMLInputTypeAttribute
+  disableAutocomplete?: boolean
 }

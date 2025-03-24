@@ -7,7 +7,8 @@ import type { MongoDbService, MongoResource } from './types.js'
 import { initializeCollection } from './utils/life-cycle.js'
 import { ObjectId } from 'mongodb'
 import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed, prepareListOptions } from '@owlmeans/resource'
-import { JSONSchemaType } from 'ajv'
+import type { JSONSchemaType } from 'ajv'
+import { getSchemaSecureFeilds } from './helper.js'
 
 type Config = ServerConfig
 type Context<C extends Config = Config> = ServerContext<C>
@@ -225,6 +226,30 @@ export const makeMongoResource = <
           return _item
         })
       }
+    },
+
+    lock: async (record, fields) => {
+      fields ??= getSchemaSecureFeilds(resource.schema ?? {})
+      if (fields == null || fields.length < 1) {
+        throw new SyntaxError(`No fields to lock: ${JSON.stringify(record)}`)
+      }
+
+      const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
+
+      return mongo.lock(dbAlias, record, fields)
+    },
+
+    unlock: async (record, fields) => {
+      fields ??= getSchemaSecureFeilds(resource.schema ?? {})
+      if (fields == null || fields.length < 1) {
+        throw new SyntaxError(`No fields to unlock: ${JSON.stringify(record)}`)
+      }
+
+      const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
+      
+      return mongo.unlock(dbAlias, record, fields)
     },
 
     db: async () => {

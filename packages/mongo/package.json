@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
+    "@owlmeans/basic-keys": "^0.1.0",
     "@owlmeans/context": "^0.1.0",
     "@owlmeans/mongo-resource": "^0.1.0",
     "@owlmeans/server-context": "^0.1.0",
