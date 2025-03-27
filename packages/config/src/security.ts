@@ -15,7 +15,7 @@ export const makeSecurityHelper = <
         path = params.path
       }
 
-      let security = false
+      let security = true
       if ("secure" in route) {
         security = typeof route.secure === 'boolean' ? route.secure : security
       }
