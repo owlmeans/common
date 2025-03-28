@@ -71,6 +71,19 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
 
   overrideParams(route, service, ['host', 'port', 'service', 'base'])
 
+  // Internal host access is non secure only
+  // it's required for server side client routes
+  if ("internalHost" in route) {
+    if (route.internalHost === route.host) {
+      route.secure = false
+    }
+  } else if ("internalHost" in service) {
+    if (service.internalHost === route.host) {
+      route.secure = false
+    }
+  }
+  
+
   const parent = await getParentRoute<C, T>(context, route)
   if (parent != null) {
     route.path = (parent.path.startsWith(SEP) ? SEP : '')

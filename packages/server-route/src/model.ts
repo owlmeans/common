@@ -21,6 +21,8 @@ export const route = <R>(route: CommonRouteModel, intermediate: boolean, opts?: 
       if (service?.internalHost != null) {
         model.route.internalHost = service.internalHost
         model.route.internalPort = model.route.internalPort ?? service.internalPort
+        // Internal service doesn't require ssl
+        model.route.secure = false
       }
 
       return model.route
