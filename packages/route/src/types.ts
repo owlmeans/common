@@ -12,6 +12,7 @@ export interface CommonRoute extends BasicRoute {
 }
 
 export interface CommonServiceRoute extends BasicRoute {
+  home?: string
   service: string
   default?: boolean
 }

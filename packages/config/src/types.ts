@@ -16,8 +16,15 @@ export interface CommonConfig extends BasicConfig {
     i18n?: boolean
   }
   security?: SecurityConfig
+  // @TODO Move to brand settings
   defaultEntityId?: string
+  brand: BrandSettings
 }
+
+export interface BrandSettings {
+  home?: string
+}
+
 export interface PluginConfig extends ConfigRecord {
   type?: AppType
   value?: string

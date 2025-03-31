@@ -10,7 +10,7 @@ import { appendClientResource } from '@owlmeans/client-resource'
 
 export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
   const location = `web-flow-service:${alias}`
-  const service: FlowService = makeBasicFlowService(alias)
+  const service: FlowService = makeBasicFlowService(alias) as FlowService
 
   // @TODO Use in the client proceed also (unify the code)
   service.proceed = async (req, dryRun = false) => {
@@ -47,6 +47,22 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     }
 
     return redirectUrl.toString()
+  }
+
+  service.goHome = async (alias, dryRun = false) => {
+    const ctx = assertContext(service.ctx, location) as ClientContext
+    const cfg = await ctx.config
+    const targetAlias = alias ?? Object.values(cfg.services).find(s => s.default)?.service ?? cfg.service
+    console.log(`\n\n Try target alias: ${targetAlias} \n\n`)
+    const target = ctx.serviceRoute(targetAlias)
+    console.log(target)
+
+    const url = target.home ?? cfg.brand?.home ?? 'https://owlmeans.com'
+    if (!dryRun) {
+      document.location.href = url
+    }
+
+    return url
   }
 
   const init = service.lazyInit
