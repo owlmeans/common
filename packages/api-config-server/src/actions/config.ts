@@ -11,6 +11,7 @@ import type { ConfigRecord } from '@owlmeans/context'
 export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, ctx) => {
   const apiConfig: ApiConfig = {
     debug: ctx.cfg.debug ?? {},
+    brand: {},
     services: Object.fromEntries(
       Object.entries(ctx.cfg.services ?? {} as ServerConfig).map(([service, config]) => [
         service, {

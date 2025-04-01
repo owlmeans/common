@@ -12,6 +12,7 @@ import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
 
 const defaultCfg: ClientConfig = {
   services: {},
+  brand: {},
   layer: Layer.Service,
   trusted: [],
   [CONFIG_RECORD]: [],
