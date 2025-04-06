@@ -26,7 +26,7 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
   const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
 
   let client: OidcClientAdapter
-  if (!oidc.hasProvider({ entityId })) {
+  // if (!oidc.hasProvider({ entityId })) {
     /**
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
@@ -51,11 +51,11 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
     client = await oidc.getClient({ clientId: provider.clientId, entityId })
     // Cache provider for a while - we dont actually need to clean it up
     // setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
-  } else {
-    client = await oidc.getClient({
-      entityId, clientId: oidc.entityToClientId({ entityId })
-    })
-  }
+  // } else {
+  //   client = await oidc.getClient({
+  //     entityId, clientId: oidc.entityToClientId({ entityId })
+  //   })
+  // }
 
   const verifier = base64.encode(randomBytes(32))
   const challenge = base64.encode(sha256(verifier))
