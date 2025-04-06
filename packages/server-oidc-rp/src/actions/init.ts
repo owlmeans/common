@@ -27,30 +27,36 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
 
   let client: OidcClientAdapter
   // if (!oidc.hasProvider({ entityId })) {
-    /**
-     * @TODO We need to move it to some remote resource.
-     * And make oidc service itself use such a resource to get required client.
-     */
-    const [providers] = await context.module<ClientModule<OidcProviderDescriptor[]>>(
-      authService.provider.list
-    ).call({
-      params: { service: context.cfg.alias ?? context.cfg.service },
-      query: { entityId }
-    })
+  /**
+   * @TODO We need to move it to some remote resource.
+   * And make oidc service itself use such a resource to get required client.
+   */
+  const [providers] = await context.module<ClientModule<OidcProviderDescriptor[]>>(
+    authService.provider.list
+  ).call({
+    params: { service: context.cfg.alias ?? context.cfg.service },
+    query: { entityId }
+  })
 
-    if (providers.length < 1) {
-      throw new AuthUnknown()
-    }
+  if (providers.length < 1) {
+    throw new AuthUnknown()
+  }
 
-    const provider = providers.find(p => p.def === true) ?? providers.shift()
+  console.log("\n\n ************* \n Providers we get from remote:", providers)
 
-    if (provider == null) {
-      throw new AuthUnknown()
-    }
-    oidc.registerTemporaryProvider(provider)
-    client = await oidc.getClient({ clientId: provider.clientId, entityId })
-    // Cache provider for a while - we dont actually need to clean it up
-    // setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
+  const provider = providers.find(p => p.def === true) ?? providers.shift()
+
+  console.log("\n\nProvider we choose:", provider)
+  console.log( "************* \n\n")
+
+  if (provider == null) {
+    throw new AuthUnknown()
+  }
+  oidc.unregisterTemporaryProvider({ entityId })
+  oidc.registerTemporaryProvider(provider)
+  client = await oidc.getClient({ clientId: provider.clientId, entityId })
+  // Cache provider for a while - we dont actually need to clean it up
+  // setTimeout(() => provider && oidc.unregisterTemporaryProvider(provider), PROVIDER_CACHE_TTL)
   // } else {
   //   client = await oidc.getClient({
   //     entityId, clientId: oidc.entityToClientId({ entityId })
@@ -59,6 +65,8 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
 
   const verifier = base64.encode(randomBytes(32))
   const challenge = base64.encode(sha256(verifier))
+
+  console.log("\n\n We create verifierID: ", verifierId(challenge), verifier, " with client: ", client.getClientId(), "\n\n")
 
   await cache(context).create({
     id: verifierId(challenge), verifier, client: client.getClientId()

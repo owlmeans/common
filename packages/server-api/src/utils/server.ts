@@ -35,7 +35,7 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
     // We passed context using fastify request object
     let context = assertContext<Config, Context>((req as any)._ctx, location)
     try {
-      console.log('HANDLE REQUEST :', module.alias)
+      console.log('HANDLE REQUEST :', module.alias, '- mm -', module.ctx?.cfg.layerId)
 
       const authorized = await authorize(context, module, req, reply)
       context = authorized[0]
@@ -47,6 +47,7 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
       const gates = module.getGates()
       for (const [srv, params] of gates) {
         const gate: GateService = context.service(srv)
+        console.log('GATE: ', gate.alias, srv, 'on', module.alias, 'with params', params)
         await gate.assert(request, response, params)
         executeResponse(response, reply, true)
       }

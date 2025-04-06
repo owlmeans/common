@@ -17,11 +17,15 @@ export const module = <R>(
   if (isModule(arg)) {
     console.log('serverise module 1: ', arg.route.route.alias)
     const routeModel = route(arg.route, opts?.intermediate ?? false, opts?.routeOptions)
-    _module = arg as ServerModule<R>
-    _module.route = routeModel
-    _module.guards = opts?.guards ?? arg.guards
+    // _module = arg as ServerModule<R> 
+    // _module.route = routeModel
+    _module = makeCommonModule(routeModel, {
+      ...opts,
+      guards: [...(arg.guards ?? []), ...(opts?.guards ?? [])],
+      gate: opts?.gate ?? arg.gate,
+      gateParams: opts?.gateParams ?? arg.gateParams,
+    }) as ServerModule<R>
     _module.filter = opts?.filter ?? arg.filter
-    _module.gate = opts?.gate ?? arg.gate
   } else if (isServerRouteModel(arg)) {
     console.log('serverise module 2: ', arg.route.alias)
     _module = makeCommonModule(arg, { ...opts }) as ServerModule<R>
@@ -42,7 +46,7 @@ export const module = <R>(
     const _module = module(arg, handler, opts)
     _module.ctx = context
 
-    return _module  as T
+    return _module as T
   }
 
   _module.getPath = () => prependBase(_module.route.route)
