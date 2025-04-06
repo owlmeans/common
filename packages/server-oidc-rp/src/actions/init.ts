@@ -52,7 +52,6 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
   if (provider == null) {
     throw new AuthUnknown()
   }
-  oidc.unregisterTemporaryProvider({ entityId })
   oidc.registerTemporaryProvider(provider)
   client = await oidc.getClient({ clientId: provider.clientId, entityId })
   // Cache provider for a while - we dont actually need to clean it up
@@ -69,7 +68,10 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
   console.log("\n\n We create verifierID: ", verifierId(challenge), verifier, " with client: ", client.getClientId(), "\n\n")
 
   await cache(context).create({
-    id: verifierId(challenge), verifier, client: client.getClientId()
+    id: verifierId(challenge), 
+    verifier, 
+    client: client.getClientId(),
+    entityId,
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
   const [dispatcherUrl] = await context.module<ClientModule<string>>(DISPATCHER).call()

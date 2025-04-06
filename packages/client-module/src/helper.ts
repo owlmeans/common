@@ -19,7 +19,10 @@ export const elevate = <T = {}, R extends AbstractRequest = AbstractRequest>(
   if (isClientRouteModel(modules[idx].route) && opts?.force !== true) {
     throw new SyntaxError(`Module with alias ${alias} is elready elevated`)
   }
+  
   modules[idx] = module(modules[idx], handler, opts)
+  
+  console.log('Eleveate: ', modules[idx].getAlias(), Object.getOwnPropertyNames(modules[idx]))
 
   return modules as ClientModule<T, R>[]
 }

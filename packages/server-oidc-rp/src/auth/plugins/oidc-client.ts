@@ -97,7 +97,9 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       console.log("\n\n We create verifierID (2): ", verifierId(challenge), verifier, " with client: ", entityId, "\n\n")
 
       await cache<C, T>(context).create({
-        id: verifierId(challenge), verifier, client: entityId
+        id: verifierId(challenge), 
+        verifier, 
+        client: entityId
       }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
       if (request.source == null) {

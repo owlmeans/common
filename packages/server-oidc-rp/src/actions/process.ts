@@ -44,6 +44,9 @@ export const authenticate: RefedModuleHandler = handleBody(async (
     credential: new Url.URLSearchParams(params).toString()
   } as AuthCredentials)
 
+
+  console.log("\n\n ============ \n Config we got for real autentioncation", cfg)
+
   if (tokenSet.id_token == null || tokenSet.access_token == null) {
     throw new AuthenFailed()
   }

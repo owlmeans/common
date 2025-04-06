@@ -212,6 +212,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         provider = { ...config, [_configFlag]: 0 }
         providers.push(provider)
       } else {
+        Object.assign(provider, config)
         provider[_configFlag] ??= 0
         provider[_configFlag]++
       }

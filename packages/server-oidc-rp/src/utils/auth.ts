@@ -35,7 +35,8 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     }
 
     const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-    const cfg = await oidc.getConfig(verification.client)
+    console.log(">>>>>>>> client we are trying to extract: ", verification)
+    const cfg = await oidc.getConfig({clientId:verification.client, entityId: verification.entityId})
     if (cfg == null) {
       throw new AuthenFailed()
     }
