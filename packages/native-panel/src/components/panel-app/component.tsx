@@ -36,8 +36,8 @@ export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, fonts,
       }}>
         <PanelContext resource={name ?? DEFAULT_NAME}>
           <App context={context} provide={provide ?? nativeProvide}>
-            <Modal />
             {children}
+            <Modal />
           </App >
         </PanelContext>
       </PaperProvider>

@@ -4,7 +4,8 @@ import type { ModalBodyProps } from '@owlmeans/client'
 import { useContext } from '@owlmeans/native-client'
 import { useEffect, useId } from 'react'
 import type { FC } from 'react'
-import Animated, { SlideInDown, SlideOutUp } from 'react-native-reanimated'
+// import Animated, { SlideInDown, SlideOutUp } from 'react-native-reanimated'
+import {View} from 'react-native'
 
 export const Modal: FC = () => {
   const context = useContext()
@@ -21,7 +22,7 @@ export const Modal: FC = () => {
     context.waitForInitialized().then(() => context.modal().link(toggle))
   }, [id])
 
-  return toggle.opened && <Animated.View entering={SlideInDown} exiting={SlideOutUp}>
+  return toggle.opened && <View>
     {Com != null ? <Com modal={context.modal()} /> : undefined}
-  </Animated.View>
+  </View>
 }

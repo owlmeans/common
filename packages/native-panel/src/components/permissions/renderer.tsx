@@ -22,7 +22,7 @@ export const PermissionRequestRenderer: FC<PropsWithChildren<PermissionRendererP
     height: '100%', paddingTop: insets.top
   }}>
     <PanelContext ns={ns} resource={resource} prefix={permission}>
-      <View style={styles.container} >
+      <View style={styles.container}>
         <View style={styles.actions}>
           <IconButton icon="close" onPress={cancel} />
         </View>
