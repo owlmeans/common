@@ -1,6 +1,7 @@
 import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
 import type { BasicConfig, BasicContext, Middleware, BasicModule, BasicResource, Service } from './types.js'
-import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
+// import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
+import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable } from './utils/context.js'
 import { DEFAULT, InLayer, initializeLayer } from './utils/layer.js'
 
 type Module = BasicModule
@@ -20,7 +21,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
   const configured = new Promise<boolean>(resolve => { configure = resolve })
   const initialized = new Promise<boolean>(resolve => { initialize = resolve })
 
-  const contexts: Record<string, BasicContext<C>> = {}
+  // const contexts: Record<string, BasicContext<C>> = {}
 
   const inLazyInit = new Set<Service>()
 
@@ -200,49 +201,60 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return Object.values(modules[context.cfg.layer][id]) as T[]
     },
 
-    updateContext: async <T>(id?: string, layer?: Layer) => {
-      const index = layersOrder.indexOf(context.cfg.layer)
-      layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
-      if (layer == null) {
-        throw new SyntaxError("There is no next layer to switch to")
-      }
+    /**
+     * @TODO Unfortunatly module cloning between contexts is quite unstable.
+     * And it looks like in some cases it relies on modules that aren't really clonned.
+     * The problem is that the not cloned modules are changing their context accross all context
+     * layers and we can't rely on such behaviour.
+     * So we disabled context update as a whole and all functionality that relies on it
+     * cause in curent release mixed tenancy is not in use in any project and it looks like
+     * there is no short term plans to use it some way. 
+     */
+    updateContext: async <T>(_id?: string, _layer?: Layer) => {
+      return context as T
 
-      if ([Layer.Entity, Layer.User].includes(layer) && id == null) {
-        throw new SyntaxError(`Cannot switch to layer ${layer} without id`)
-      }
+      // const index = layersOrder.indexOf(context.cfg.layer)
+      // layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
+      // if (layer == null) {
+      //   throw new SyntaxError("There is no next layer to switch to")
+      // }
 
-      id = initializeLayer(resources, layer, id)
+      // if ([Layer.Entity, Layer.User].includes(layer) && id == null) {
+      //   throw new SyntaxError(`Cannot switch to layer ${layer} without id`)
+      // }
 
-      // Cache initalized context layers
-      const key = `${layer}:${id}`
-      if (key in contexts) {
-        return contexts[key] as T
-      }
+      // id = initializeLayer(resources, layer, id)
 
-      const _config: C = JSON.parse(JSON.stringify(context.cfg))
-      _config.layer = layer
-      _config.ready = false
-      _config.layerId = id
-      // @TODO we need to make a rule to store all makeContext methods after they are applied
-      const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
+      // // Cache initalized context layers
+      // const key = `${layer}:${id}`
+      // if (key in contexts) {
+      //   return contexts[key] as T
+      // }
 
-      Object.values(middlewares).flatMap(middlewares => middlewares)
-        .forEach(middleware => _context.registerMiddleware(middleware))
+      // const _config: C = JSON.parse(JSON.stringify(context.cfg))
+      // _config.layer = layer
+      // _config.ready = false
+      // _config.layerId = id
+      // // @TODO we need to make a rule to store all makeContext methods after they are applied
+      // const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
 
-      await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
+      // Object.values(middlewares).flatMap(middlewares => middlewares)
+      //   .forEach(middleware => _context.registerMiddleware(middleware))
 
-      Object.values(allServices).forEach(service => _context.registerService(service))
+      // await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
 
-      Object.values(allModules).forEach(module => _context.registerModule(module))
+      // Object.values(allServices).forEach(service => _context.registerService(service))
 
-      Object.values(allResources).forEach(resource => _context.registerResource(resource))
+      // Object.values(allModules).forEach(module => _context.registerModule(module))
 
-      await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
+      // Object.values(allResources).forEach(resource => _context.registerResource(resource))
 
-      _context.stage = ContextStage.Loading
-      await _context.configure().init()
+      // await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
 
-      return (contexts[key] = _context) as T
+      // _context.stage = ContextStage.Loading
+      // await _context.configure().init()
+
+      // return (contexts[key] = _context) as T
     },
 
     hasResource: alias => allResources[alias] != null,
