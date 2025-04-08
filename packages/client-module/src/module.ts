@@ -5,12 +5,13 @@ import { isModule, makeBasicModule, normalizeHelperParams, validate } from './ut
 import { isClientRouteModel, route } from '@owlmeans/client-route'
 import { apiCall, apiHandler, urlCall } from './utils/handler.js'
 import { AppType } from '@owlmeans/context'
+import type { BasicContext } from '@owlmeans/context'
 import { normalizePath } from '@owlmeans/route'
 import type { CommonRouteModel } from '@owlmeans/route'
 import { provideRequest } from './helper.js'
 
 export const module = <T, R extends AbstractRequest = AbstractRequest>(
-  module: CommonModule | ClientRouteModel | CommonRouteModel,
+  arg: CommonModule | ClientRouteModel | CommonRouteModel,
   handler?: RefedModuleHandler<T, R> | ClientModuleOptions | boolean,
   opts?: ClientModuleOptions | boolean
 ): ClientModule<T, R> => {
@@ -23,26 +24,31 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   const _handler = handler as RefedModuleHandler<T, R> | undefined ??
     // There are server modules (api) and client modules. 
     // Later ones do not need to stab handler with api call.
-    (('route' in module.route ? module.route.route.type : module.route.type)
+    (('route' in arg.route ? arg.route.route.type : arg.route.type)
       === AppType.Backend ? apiHandler : undefined)
 
-  if (isModule(module)) {
-    assertExplicitHandler(module.route.route.type, handler as RefedModuleHandler<T, R>)
-    const rotueModel = route(module.route, opts?.routeOptions)
-    _module = module as ClientModule<T, R>
+  if (isModule(arg)) {
+    assertExplicitHandler(arg.route.route.type, handler as RefedModuleHandler<T, R>)
+    const rotueModel = route(arg.route, opts?.routeOptions)
+    _module = arg as ClientModule<T, R>
+    // _module = makeBasicModule(rotueModel, {
+    //   ...opts,
+    //   guards: [...(arg.guards ?? []), ...(opts?.guards ?? [])],
+    //   gate: opts?.gate ?? arg.gate,
+    //   gateParams: opts?.gateParams ?? arg.gateParams,
+    // }) as ClientModule<T, R>
     _module.route = rotueModel
-    _module.guards = opts?.guards ?? module.guards
-    _module.filter = opts?.filter ?? module.filter
-    _module.gate = opts?.gate ?? module.gate
-
-  } else if (isClientRouteModel(module)) {
-    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    _module = makeBasicModule(module, { ...opts }) as ClientModule<T, R>
-    _module.route = module
-
+    _module.guards = opts?.guards ?? arg.guards
+    _module.filter = opts?.filter ?? arg.filter
+    _module.gate = opts?.gate ?? arg.gate
+    _module.gateParams = opts?.gateParams ?? arg.gateParams
+  } else if (isClientRouteModel(arg)) {
+    assertExplicitHandler(arg.route.type, handler as RefedModuleHandler<T, R>)
+    _module = makeBasicModule(arg, { ...opts }) as ClientModule<T, R>
+    _module.route = arg
   } else {
-    assertExplicitHandler(module.route.type, handler as RefedModuleHandler<T, R>)
-    const _route = route(module, opts?.routeOptions)
+    assertExplicitHandler(arg.route.type, handler as RefedModuleHandler<T, R>)
+    const _route = route(arg, opts?.routeOptions)
     _module = makeBasicModule(_route, { ...opts }) as ClientModule<T, R>
     _module.route = _route
   }
@@ -56,7 +62,7 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
 
   _module.request = ((request: R): R => {
     if (moduleHanlde.ref == null) {
-      throw SyntaxError(`Try to request uninitialized module ${JSON.stringify(module)}`)
+      throw SyntaxError(`Try to request uninitialized module ${JSON.stringify(arg)}`)
     }
     const _request = provideRequest(moduleHanlde.ref.getAlias(), moduleHanlde.ref.getPath()) as R
 
@@ -70,6 +76,13 @@ export const module = <T, R extends AbstractRequest = AbstractRequest>(
   _module.handle = _handler?.(moduleHanlde)
 
   _module.validate = validate(moduleHanlde)
+
+  _module.reinitializeContext = <T>(context: BasicContext<any>) => {
+    const newModule = module(_module.route, handler, opts)
+    newModule.ctx = context
+
+    return newModule as T
+  }
 
   moduleHanlde.ref = _module
 

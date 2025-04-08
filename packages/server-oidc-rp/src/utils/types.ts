@@ -6,4 +6,5 @@ export interface OIDCAuthCache extends AuthSpent {
   payload?: TokenSetParameters
   client?: string
   validated?: Date
+  entityId?: string
 }

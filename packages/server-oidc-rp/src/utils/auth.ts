@@ -23,7 +23,10 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     if (challenge == null) {
       throw new AuthenPayloadError('code_challenge')
     }
+
+    console.log("\n\nWe are picking verifier by id: ", verifierId(challenge))
     const verification = await cache<C, T>(context).pick(verifierId(challenge))
+    console.log("Verification we get: ", verification, "\n\n")
     if (verification.verifier == null) {
       throw new AuthenFailed()
     }
@@ -32,7 +35,11 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     }
 
     const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-    const cfg = await oidc.getConfig(verification.client)
+    console.log(">>>>>>>> client we are trying to extract: ", verification)
+    const cfg = await oidc.getConfig({
+      clientId: verification.client,
+      ...(verification.entityId != null ? { entityId: verification.entityId } : {})
+    })
     if (cfg == null) {
       throw new AuthenFailed()
     }

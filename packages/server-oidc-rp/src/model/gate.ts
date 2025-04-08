@@ -36,7 +36,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     loadPermissions: async (user, permissions) => {
-      console.log(permissions)
+      console.log('\n\n PERMISSIONS REQUEST: ', permissions)
       const record = await cache<C, T>(ctx).get(managedId(user.token))
       if (record.payload == null) {
         throw new AuthForbidden('record')
@@ -74,7 +74,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
 
       const proofs = await response.json() as PermissionResponse[]
 
-      console.log(permissions, proofs)
+      console.log('Proofs and permissions we got', permissions, proofs)
 
       return permissions.filter(permission => {
         const [fixed] = model.fixPermissions([permission], user)
