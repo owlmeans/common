@@ -57,7 +57,9 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
         reply.code(OK).send(response.value)
       }
     } catch (error) {
+      console.error(`Error in ${module.alias} (${location})`)
       console.error(JSON.stringify(error, null, 2))
+      console.error(error)
       if (module.fixer != null) {
         const fixer: FixerService = context.service(module.fixer)
         fixer.handle(reply, ResilientError.ensure(error as Error))

@@ -44,7 +44,7 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
       throw new AuthenFailed()
     }
 
-    const client = await oidc.getClient(cfg.clientId)
+    const client = await oidc.getClient(cfg)
     const tokenSet = await client.grantWithCode(
       redirectUrl,
       { pkceCodeVerifier: verification.verifier },
