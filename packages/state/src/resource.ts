@@ -26,7 +26,6 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
   }
 
   const _usubscribe = (params: StateSubscriptionOption<R>) => () => {
-    console.log('Unsubscription called for ', params.id)
     const index = listeners.indexOf(params.listener)
     if (index >= 0) {
       const ids = listenerToRecord.get(params.listener)
@@ -132,7 +131,6 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       Object.assign(reference, record)
 
-      console.log('Number of listneres to notify: ', recordToListener.get(record.id)?.size)
       recordToListener.get(record.id)?.forEach(
         listener => listener([createStateModel(reference, resource)])
       )

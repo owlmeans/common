@@ -22,7 +22,6 @@ export const prepareData = (data: unknown): Uint8Array => {
   }
 
   if (!(data instanceof Uint8Array)) {
-    console.log('Impossible scenario of data preparation', data)
     throw new Error('basic.keys:sign-data-type')
   }
 

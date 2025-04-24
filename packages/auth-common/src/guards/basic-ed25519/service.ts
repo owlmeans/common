@@ -52,8 +52,6 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
           , ['Signature', await truested.key.sign(payload)]
         ]
 
-        // console.log('@@@@@@@@', payload, token)
-
         return token.map(
           item => Array.isArray(item) ? item.join('=') : item
         ).join(' ')
@@ -69,7 +67,6 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       const context = assertContext<Config, Context>(guard.ctx)
       const authorization = extractAuthToken(req, AuthroizationType.Ed25519BasicSignature)
       if (authorization == null) {
-        // console.log(1)
         return false as T
       }
 
@@ -83,7 +80,6 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
 
       const trusted = await trust(context, resource, signature.credential, "id")
       if (trusted.user.credential == null) {
-        // console.log(2, trusted.user)
         return false as T
       }
 
@@ -93,26 +89,21 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
       }
 
       if (!await trusted.key.verify(payload, signature.signature)) {
-        // console.log(payload, signature)
-        // console.log(3)
         return false as T
       }
 
       if (typeof req.headers[timeKey] !== 'string') {
-        // console.log(4)
         throw new AuthenPayloadError('timestamp')
       }
 
       const createdAt = new Date(req.headers[timeKey])
 
       if (createdAt.getTime() + BED255_SIG_TTL < Date.now()) {
-        // console.log(5)
         throw new AuthenPayloadError('expired')
       }
 
       const nonce = req.headers[nonceKey]
       if (typeof nonce !== 'string') {
-        // console.log(6)
         throw new AuthenPayloadError('nonce')
       }
 
@@ -122,7 +113,6 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
           await tried.create({ id: nonce }, { ttl: BED255_SIG_TTL / 1000 })
         }
       } catch {
-        // console.log(7)
         throw new AuthenPayloadError('nonce')
       }
 

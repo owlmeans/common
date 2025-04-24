@@ -188,11 +188,9 @@ export const appendClientResource = <C extends Config, T extends Context<C>>(con
     },
 
     erase: async () => {
-      console.log('Erasing all records', location)
       const db = assert()
       const list: string[] = await db.get(LIST_KEY) ?? []
-      const count = await Promise.all(list.map(id => resource.delete(id)))
-      console.log('erased', count.length)
+      await Promise.all(list.map(id => resource.delete(id)))
     }
   })
 

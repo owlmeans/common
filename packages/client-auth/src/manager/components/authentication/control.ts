@@ -44,10 +44,8 @@ export const makeControl = (
       control.beforeAuthenticate = plugins[control.type].beforeAuthenticate
       control.afterAuthenticate = plugins[control.type].afterAuthenticate
 
-      console.log('Before allowance request')
       const module = context.module<ClientModule<AllowanceResponse>>(AUTHEN_INIT)
       const [allowance] = await module.call({ body: control.request })
-      console.log('After allowance request', allowance)
 
       control.allowance = allowance
 
@@ -179,11 +177,8 @@ export const makeControl = (
 
     flow: async () => {
       const alias = FLOW_SERVICE
-      console.log('^^ try flow service', FLOW_SERVICE)
       if (context.hasService(alias)) {
-        console.log('^^ has flow service')
         const flow = context.service<FlowService>(alias)
-        console.log('^^ flow supplied', await flow.supplied)
         await flow.ready()
         if (await flow.supplied) {
           return flow

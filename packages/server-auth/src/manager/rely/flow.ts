@@ -27,11 +27,9 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   let internalAuth: Auth | null = auth ?? null
 
   const linker: RelyLinker = async (rely, source, notify) => {
-    console.log('Linker executed: ', source.nonce, ' -> ', rely.nonce)
     const tunnel = context.resource<RedisResource<Message<any>>>(RELY_TUNNEL)
     const closeReceiver = await tunnel.subscribe(async message => {
       if (isMessage(message, true)) {
-        console.log('<<<<<<< Receive message: ', message)
         await conn.send(message)
       } else if (isEventMessage(message, true)) {
         if ((message as EventMessage<unknown>).event === 'close') {
@@ -42,9 +40,9 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
       }
     }, source.nonce)
     // We allow to just forward call messages back and forth
-    conn._receiveCall = async msg => { console.log(source.nonce, 'Forward call', msg.method, msg.id) }
-    conn._receiveResult = async msg => { console.log(source.nonce, 'Forward result', msg.id) }
-    conn._receiveError = async msg => { console.log(source.nonce, 'Forward error', msg.id) }
+    conn._receiveCall = async msg => { console.info(source.nonce, 'Forward call', msg.method, msg.id) }
+    conn._receiveResult = async msg => { console.info(source.nonce, 'Forward result', msg.id) }
+    conn._receiveError = async msg => { console.info(source.nonce, 'Forward error', msg.id) }
     conn.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
     const closeSender = conn.listen(async message => {
       if (isMessage(message, true)) {
@@ -52,17 +50,14 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
         if (forward.rawData != null) {
           delete forward.rawData
         }
-        console.log('>>>>>>> Publish message: ', message)
         await tunnel.publish(forward, rely.nonce)
       } else if (isEventMessage(message, true)) {
-        console.log('We receive en event message: ', message)
         if (message.event === 'close') {
           const forward = { ...message as Message<unknown> }
           if (forward.rawData != null) {
             delete forward.rawData
           }
           await tunnel.publish(forward, rely.nonce)
-          console.log('>>>>> CLOSING all <<<<<')
           closeSender()
           await closeReceiver()
         }
@@ -93,7 +88,6 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
         } else if (_payload.auth != null) {
           delete _payload.auth
         }
-        console.log('~~~~ PEER ACTIVITY 1', _payload.auth != null ? 'Provider' : 'Consumer')
         _payload.provideRely = linker
         _payload.conn = conn
 
@@ -108,7 +102,6 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
       case AuthenticationStage.Authenticate:
         try {
           const cred = payload as AuthCredentials
-          console.log('~~~~ ACTOR ACTIVITY 2', cred)
           const authenticated = await model.authenticate(cred)
           const envelope = makeEnvelopeModel<Auth>(authenticated.token, EnvelopeKind.Token)
           if (!await envelope.verify(keyPair)) {

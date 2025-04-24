@@ -9,7 +9,6 @@ export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
   stage: MiddlewareStage.Loading,
   apply: async context => {
-    console.log('~ AUTH MIDDLEWARE ENGAGED ~')
     context.modules<Perked>().forEach(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards = module.getGuards()
@@ -18,11 +17,9 @@ export const authMiddleware: Middleware = {
             return
           }
           module._auth_common_middleware_applied = true
-          console.log(' + ADD MODULE GUARD: ', module.alias, guards)
           // const auth = context.service<GuardService>(service)
           const call = module.call
           module.call = async (req, res) => {
-            console.log(' > INTRODUCE AUTH MIDDLEWARE MODULE INTERCEPTION ', module.alias, guards)
             // @TODO Actually we may use multiple authentication headers with the same name
             // As I learnt its not always the case
             const [token] = (await Promise.all(guards.map(

@@ -77,7 +77,6 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       }
       const envelope = makeEnvelopeModel<AuthCredentials>(token, EnvelopeKind.Token)
       const auth = envelope.message()
-      console.log('Authentication token provided: ', auth.profileId, auth)
       if (auth.profileId == null) {
         throw new PaymentIdentificationError('profileId')
       }

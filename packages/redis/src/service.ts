@@ -15,7 +15,6 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
   const service: RedisDbService = createDbService<RedisDb, RedisClient, RedisDbService>(
     alias, {
     db: async configAlias => {
-      console.log('CALL DB FROM FROM REDIS')
       const client = await service.client(configAlias)
 
       const name = await service.name(configAlias)
@@ -54,7 +53,6 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
       }
 
       process.on('SIGTERM', () => {
-        console.log(`Exit redis client ${configAlias}`)
         client.quit()
       })
 
@@ -74,9 +72,7 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
     const context = assertContext<Config, Context>(service.ctx as Context, location)
 
     // Try to initialize all connections
-    console.log(`INITIALIZE REDIS IN LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
     await context.cfg.dbs?.filter(dbConfig => dbConfig.service === alias).reduce(async (prev, dbConfig) => {
-      console.log('... initializ spcicific config', dbConfig.service, dbConfig.alias)
       await prev
       await service.config(dbConfig.alias)
     }, Promise.resolve())

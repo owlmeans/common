@@ -96,8 +96,6 @@ export const resolve = <C extends Config, T extends BasicContext<C>>(route: Comm
   //   // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
   // }
 
-  console.log(`Route resolves: ${route.alias} to ${route.path} : ${route.host}`)
-
   return route
 }
 

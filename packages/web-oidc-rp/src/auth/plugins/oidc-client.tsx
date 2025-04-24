@@ -29,13 +29,10 @@ export const oidcClientPlugin: AuthenticationPlugin = {
         case AuthenticationStage.Init:
           control.hasPersistentState().then(async hasState => {
             if (canceled) {
-              console.log(':) rendering normalization cancel')
               return
             }
-            console.log(canceled, 0)
             // 3. Properly process additional paramters on sequential rendering to restore control state
             if (hasState) {
-              console.log(3)
               await control.restore()
               await control.cleanUpState()
               const flow = await control.flow()
@@ -66,13 +63,10 @@ export const oidcClientPlugin: AuthenticationPlugin = {
               // return
             }
 
-            console.log(1)
-
             // 1. Initialize OIDC server side authentication
             const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
 
             // @TODO we need to provide an identity provider client as entityId here for flexibel usage
-            console.log('~ module ~', module)
             const _source = await oidc.proceedToRedirectUrl({
               purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown,
               uid: 'uid' in module.params ? `${module.params.uid}` : undefined,
@@ -80,22 +74,18 @@ export const oidcClientPlugin: AuthenticationPlugin = {
             })
             const source = new URL(_source)
             source.search = ''
-            console.log('request allowence', type, source.toString())
             await control.requestAllowence({ type, source: source.toString() })
           })
         case AuthenticationStage.Authenticate:
           control.flow().then(async flow => {
             if (canceled) {
-              console.log('rendering normalization cancel :)')
               return
             }
-            console.log(canceled, 2)
             const flowState = await flow?.state()
             if (flowState == null) {
               throw new UnknownFlowStep(AuthenticationStage.Authenticate)
             }
 
-            console.log('Ongoing flow step', flowState.state())
             if (control.allowance?.challenge != null) {
               const envelope = makeEnvelopeModel(control.allowance?.challenge, EnvelopeKind.Wrap)
               const challenge = envelope.message<string>(true)
@@ -105,7 +95,6 @@ export const oidcClientPlugin: AuthenticationPlugin = {
               // 2. Include additional parameters (control state with allowance to flow state)
               await control.persist()
 
-              console.log('Try to redirect to url for authentication', url)
               document.location.href = url
             }
           })

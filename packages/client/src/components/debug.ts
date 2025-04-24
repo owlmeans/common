@@ -37,7 +37,6 @@ export const createDebugService = (alias: string = DEF_DEBUG_ALIAS): DebugServic
     erase: async states => {
       const context = assertContext(service.ctx, location) as ClientContext
       await Promise.all(states.map(async state => {
-        console.log('try to erase state: ', state)
         await context.resource<ClientResource>(state).erase()
       }))
     },

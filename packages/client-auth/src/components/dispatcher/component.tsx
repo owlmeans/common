@@ -39,10 +39,8 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
         // @TODO: Make sure that the provided flow is compatible with OIDC flow or provide custom from step
         flow.ready().then(async () => {
           // We do nothing if we are in the middle of a flow
-          console.log('~^ Try to resolve flow')
           if (await flow.supplied) {
             const state = await flow.state()
-            console.log('Flow we are trying to avoid', state?.state())
             // If the flow we are in already has a targe, it means this is some flow 
             // that is really happening and we do not need to override it with our own.
             // It's MAY BE required on the auth manager service side, cause this 
@@ -51,7 +49,6 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
               return
             }
           }
-          console.log('~^ Proceed with redirect')
           const cfg = context.cfg.security?.auth
           const model = await flow.begin(cfg?.flow ?? STD_OIDC_FLOW, cfg?.enter)
           const target = (

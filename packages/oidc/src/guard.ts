@@ -15,8 +15,6 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
   //   ? context.resource<Resource<ResourceRecord>>(opts?.cache ?? OIDC_GUARD_CACHE)
   //   : null
 
-  // console.log(!!cache)
-
   const [cogurad] = Array.isArray(opts?.coguards) ? opts.coguards : [opts?.coguards ?? DEFAULT_GUARD]
 
   const guard: OidcGuard = createService<OidcGuard>(OIDC_GUARD, {
@@ -60,8 +58,6 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
-      console.log('\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ OIDC GUARD')
-
       const ctx = guard.assertCtx()
       const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
       const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
@@ -89,10 +85,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
         return false as T
       }
 
-      // console.log('We compare to update', updated, token)
-
       if (updated.token !== token) {
-        console.log('WE ARE UPDATING TOKEN!!!')
         const [, newAuth] = updated.token.split(' ')
         const envelope = makeEnvelopeModel<Auth>(newAuth, EnvelopeKind.Token)
 

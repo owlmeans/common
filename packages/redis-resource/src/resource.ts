@@ -239,7 +239,6 @@ export const makeRedisResource = <
         await subscriber.psubscribe(`__keyspace@0__:${resource.key(opts.key)}`)
         subscriber.on('pmessage', async (_, channel) => {
           const [, , ...key] = (channel as string).split(':')
-          console.log('Try key: ', _, channel, key)
           const record = await resource.load(key.join(':'))
           listener(record ?? { id: key, __null: true } as any as R)
         })
@@ -270,15 +269,11 @@ export const makeRedisResource = <
   } as Partial<T>)
 
   resource.init = async () => {
-    console.log('...... redis rsource init ~ ', alias)
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     const redis = context.service<RedisDbService>(serviceAlias ?? dbAlias)
     await redis.ready()
-    console.log('...... redis for resource ready ~ ', alias)
     const db = await redis.db(dbAlias)
     const _pref = (val: string) => val.replaceAll(/\W+/g, '_')
-
-    console.log('DB Config', db.prefix, resource.name, alias)
 
     resource.db = {
       client: db.client,
@@ -287,7 +282,6 @@ export const makeRedisResource = <
   }
 
   resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {
-    console.log('WTF ~', makeCustomResource ? true : false)
     const resource = (makeCustomResource?.(dbAlias, serviceAlias)
       ?? makeRedisResource<R, T>(alias, dbAlias, serviceAlias)) as unknown as Type
 

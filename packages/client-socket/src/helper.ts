@@ -24,7 +24,6 @@ export const ws = async (module: ClientModule<string>, request?: AbstractRequest
 
   return new Promise(resolve => {
     socket.onopen = () => {
-      console.log('Connection established !!!')
       resolve(makeConnection(socket, ctx))
     }
   })
@@ -45,7 +44,6 @@ export const useWs = (module: string | ClientModule<any>, request?: Partial<Abst
   useEffect(() => {
     if (connection != null) {
       return () => {
-        console.log('Close ws connection cause we are levaing the rendering scope')
         void connection.close()
       }
     }

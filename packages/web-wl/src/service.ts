@@ -18,7 +18,6 @@ export const makeWlService = (alias: string = DEFAULT_ALIAS): WlWebService => {
 
       const module = context.module<ClientModule<ProvidedWLSet>>(WL_PROVIDE)
       const [wlSet] = await module.call({ params: { entity: entityId } })
-      console.log('wl loading in progress', wlSet)
 
       return cache[entityId] = wlSet as ProvidedWLSet<any>
     },

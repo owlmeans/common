@@ -12,9 +12,7 @@ export const TextValue: FC<TextValueProps> = ({ value, name, color, nameColor, v
   if (copy === true) {
     actions.push({
       icon: 'copy',
-      press: () => {
-        console.log('copy')
-      }
+      press: () => void navigator.clipboard.writeText(value)
     })
   }
 

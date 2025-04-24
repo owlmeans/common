@@ -34,23 +34,18 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
     } else {
       const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
       oidc.dispatch(params).then(async dispatched => {
-        console.log('dispatched', dispatched)
         if (dispatched) {
           return await navigate()
         }
-        console.log('has client', client)
         if (client == null) {
           return
         }
         const redirect = await oidc.authenticate(client.flow(), params)
-        console.log('redirect', redirect)
         if (redirect != null && redirect !== '') {
-          console.log(redirect)
           document.location.href = redirect
           return
         }
         const authzToken = await context.auth().authenticated()
-        console.log('authzToken', authzToken)
         if (authzToken == null) {
           provideToken({ token: '' }, undefined)
         } else {

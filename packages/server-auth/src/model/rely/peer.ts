@@ -10,8 +10,6 @@ import { RELY_CALL_TIMEOUT } from '@owlmeans/auth-common'
 export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
   const envelope = makeEnvelopeModel<RelyToken>(RELY_3RD)
 
-  const startTime = Date.now()
-  
   const pinLength = opts?.pinLength ?? 6
   const checkLength = opts?.checkLenght ?? 2
   const tokenLength = opts?.tokenLength ?? 16
@@ -32,8 +30,6 @@ export const makeRelyModel = (opts?: RelyOptions): EnvelopeModel<RelyToken> => {
     token: base58.encode(tokenBytes).substring(0, tokenLength),
     nonce: createIdOfLength(nonceLength, IdStyle.Base64)
   }, opts?.liveTime ?? RELY_CALL_TIMEOUT * 1000)
-
-  console.log('Rely generetatd within: ', (Date.now() - startTime) / 1000, 's')
 
   return envelope
 }

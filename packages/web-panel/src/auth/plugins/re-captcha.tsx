@@ -52,9 +52,7 @@ export const ReCaptchaAuthUIPlugin: AuthenticationRenderer = ({ stage, control }
 }
 
 const createFinish = (context: AppContext, control: AuthenticationControl) => async (token: string | null) => {
-  console.log('we are foinishing')
   if (token == null) {
-    console.log('null token')
     throw new AuthorizationError('re-captcha-token')
   }
   const authToken = await control.authenticate({ credential: token, userId: GUEST_ID })
@@ -68,7 +66,6 @@ const createFinish = (context: AppContext, control: AuthenticationControl) => as
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)
 
-  console.log('goto url')
   // Give some time - that is really not cenessary - actually we need 
   // to do it on the layout finished its stuff.
   // @TODO fix it for react native (we need some other solution for redirects context indepedent)

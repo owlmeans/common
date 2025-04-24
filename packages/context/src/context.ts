@@ -62,10 +62,8 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       await getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).reduce(
         async (previous, service) => {
           await previous
-          console.log(`Initializing service ${service.alias}...`)
           if (!service.initialized) {
             if (service.init != null) {
-              console.log(`... call init for ${service.alias}`)
               await service.init()
             }
             if (service.init == null && service.lazyInit == null) {
@@ -81,7 +79,6 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       await Object.values(resources[context.cfg.layer][id]).reduce(async (previous, resource) => {
         await previous
         if (isResourceAvailable(resource, context.cfg.layer)) {
-          console.log(`+ Initialize resource: ${resource.alias}:${resource.layers?.join(',')} in layer ${context.cfg.layer} with id ${context.cfg.layerId}...`)
           await resource.init?.()
         }
       }, Promise.resolve())
@@ -159,8 +156,6 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       } else if (services[Layer.Global]?.[id]?.[alias] != null) {
         _service = services[context.cfg.layer][id][alias]
       } else {
-        const msg = `Service ${alias} not found in layer ${context.cfg.layer}`
-        console.log(msg)
         throw new SyntaxError(`Service ${alias} not found in layer ${context.cfg.layer}`)
       }
       if (!_service.initialized) {

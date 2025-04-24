@@ -26,9 +26,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
       const user = envelope.message()
 
       try {
-        console.log('<<<< ~~~~~ READ RECORD WITH ID: ', managedId(user.token))
         const record = await cache(ctx).get(managedId(user.token))
-        // console.log(record)
         if (record == null || record.payload == null) {
           throw new AuthorizationError('record')
         }
@@ -50,7 +48,6 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         }
 
         const updatedAuth = updateEnvelope.message()
-        console.log('Wev got updated auth ~~~: ', updatedAuth)
 
         const updatedUser: Auth = {
           ...user,
@@ -65,20 +62,14 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           await cache(ctx).delete(record)
           updatedUser.token = updatedAuth.challenge
           record.id = managedId(updatedUser.token)
-          console.log('>>>>>> we are going to deal with a new record', record)
         }
 
-        console.log('~~~~~ Wev got updated user ~~~~~:', updatedUser)
 
         const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
         const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
           .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
 
         record.payload = update.tokenSet as TokenSetParameters
-
-        console.log('\n\n--- new token set ----\n')
-        console.log(update.tokenSet)
-        console.log('\n ~~~ \n\n')
 
         await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 

@@ -17,7 +17,6 @@ interface Context<C extends Config = Config> extends ClientContext<C> { }
 export const apiHandler: <
   T, R extends AbstractRequest = AbstractRequest
 >(ref: ModuleRef<T, R>) => ModuleHandler = (ref) => async (req, res) => {
-  console.log('api handler', req.alias)
   const location = `client-module:api-handler:${ref.ref?.alias}`
   const context = assertContext<Config, Context>(ref.ref?.ctx as Context, location)
 
@@ -26,9 +25,7 @@ export const apiHandler: <
   }
 
   const module = context.module<ClientModule>(req.alias)
-  console.log('before resolve')
   const route = await module.route.resolve<Config, Context>(context)
-  console.log('after resolve')
 
   let alias: string | undefined = typeof context.cfg.webService === 'string'
     ? context.cfg.webService
@@ -44,8 +41,6 @@ export const apiHandler: <
 
   req.path = module.getPath()
 
-  console.log('handle with service', service.alias)
-
   return service.handler(req, res)
 }
 
@@ -54,7 +49,6 @@ export const apiCall: <
 >(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> =
   (ref, opts) => (async (req, res) => {
     const module = ref.ref
-    console.log('api call', module?.alias)
     if (module == null) {
       throw new SyntaxError('Try to make API call before the module is created')
     }
@@ -62,13 +56,9 @@ export const apiCall: <
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${module.alias} module`)
     }
-
-    console.log('before resolve')
     await module.route.resolve(ctx)
-    console.log('after resolve')
 
     if (req?.canceled) {
-      console.log('canceled api call')
       return
     }
 
@@ -89,23 +79,15 @@ export const apiCall: <
         request.canceled = true
       }
     }
-    console.log('berofer validate')
     if (opts?.validateOnCall) {
-      console.log('validate on call')
       try {
         await validate(ref)(request)
       } catch (e) {
-        console.log(module.filter)
-        console.log(request?.body)
-        console.log(request?.params)
-        console.log(request?.query)
         console.error(e)
         throw e
       }
     }
-    console.log('berofer apihandling')
     if (res != null) {
-      console.log('start handling 1')
       await apiHandler(ref)(request, res)
       return
     }
@@ -113,7 +95,6 @@ export const apiCall: <
     if (ctx == null && module.ctx == null) {
       throw new SyntaxError(`Use module ${module.alias} wihtout context`)
     }
-    console.log('start handling 2')
     await apiHandler(ref)(request, reply)
     if (reply.error != null) {
       throw reply.error
@@ -126,7 +107,6 @@ export const urlCall: <
   T, R extends ClientRequest = ClientRequest
 >(ref: ModuleRef<T, R>, opts?: ClientModuleOptions) => ModuleCall<T, R> = ref => async (req, res) => {
   const module = ref.ref
-  console.log('url call', module?.alias)
   if (module == null) {
     throw new SyntaxError('Try to make URL before the module is created')
   }

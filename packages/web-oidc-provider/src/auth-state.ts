@@ -41,7 +41,6 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
         throw new SyntaxError('no-uid')
       }
       if (stateCache[uid] != null) {
-        console.log('no real initailization')
         Object.assign(model, stateCache[uid])
 
         return model
@@ -74,7 +73,6 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
       model.state = new Set<OidcAuthState>()
 
       const serverState = await updateState(uid)
-      console.log('UPDATED STATE', serverState)
       model.entityId = serverState.entityId ?? config.defaultEntityId
       model.did = serverState.did
       let user: Auth | null = null

@@ -23,12 +23,9 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
   const location = `api.service:${alias}`
   const client: ApiClient = createService<ApiClient>(alias, {
     handler: async (request, reply) => {
-      console.log('1')
       if (request.canceled === true) {
-        console.log('-1')
         return
       }
-      console.log('We are coming')
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.module<CommonModule>(request.alias)
       await module.resolve()
@@ -48,7 +45,6 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       const helper = makeSecurityHelper(context)
 
-      // console.log('$$$ request.payload: ', request.host, request.params, route)
       const url = helper.makeUrl(route, path, { host: request.host, base: request.base })
 
       let transformer: AxiosRequestTransformer | undefined = undefined
@@ -68,9 +64,6 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         }
       }
 
-      // console.log('We try to request: ', url, route.method, request.headers, body, request.query)
-      // console.log('$$$$$$$$$$ We try to request: ', url, route.method, request.headers, request.body)
-
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
@@ -79,8 +72,6 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         transformRequest: transformer,
         validateStatus: () => true,
       })
-
-      // console.log('<<<<<<< $$$$$$$$$$$$$ after request we see', response.data, response.headers, response.status)
 
       // @TODO Move somewhere else - desirably into auth package via some middleware
       const headers = response.headers as AxiosHeaders
@@ -95,7 +86,6 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       return [ reply.error ?? reply.value, reply.outcome ] as any
     }
   }, service => async () => {
-    console.log(`service:${alias}: API client service is initialized`)
     service.initialized = true
   })
 

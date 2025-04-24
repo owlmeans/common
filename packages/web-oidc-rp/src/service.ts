@@ -88,10 +88,8 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
         throw new UnknownFlow('oidc.dispatch')
       }
 
-      console.log(extras)
       const authorityTransition = flowModel.next()
       flowModel.transit(authorityTransition.transition, true, { purpose: extras.purpose })
-      console.log('initial transition', authorityTransition.transition)
 
       // @TODO I'm not sure that this dirty hack is a correct approach
       if (extras.alias === HOME) {
@@ -122,12 +120,10 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       const authorityTransition = flowModel.next()
       flowModel.transit(authorityTransition.transition, true)
-      console.log('initial transition', authorityTransition.transition)
       const authorityStep = flowModel.step()
       if (authorityStep.module == null) {
         throw new FlowStepMissconfigured(authorityStep.step)
       }
-      console.log('authority step', authorityStep.step, authorityStep.module)
       const [authorityUrl] = await context.module<Module>(authorityStep.module).call<string>()
 
       const redirectTransition = flowModel.next()
@@ -142,8 +138,6 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
         redirect_uri: redirectUrl,
         authority: authorityUrl,
       })
-
-      console.log('dispatching with manager', manager.settings)
 
       await manager.signinRedirect({ state: flowModel.serialize() })
     }

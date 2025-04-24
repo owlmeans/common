@@ -20,7 +20,6 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
       throw new UnknownTransition('service.proceed')
     }
     const step = flow.step()
-    console.log('The step we are proceeding to', step)
     if (step.module == null) {
       throw new FlowStepMissconfigured(step.step)
     }
@@ -41,7 +40,6 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const redirectUrl = new URL(url)
     redirectUrl.searchParams.set(param, flow.serialize())
 
-    console.log('we get to a redirect url', redirectUrl.toString())
     if (!dryRun) {
       document.location.href = redirectUrl.toString()
     }
@@ -53,9 +51,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const ctx = assertContext(service.ctx, location) as ClientContext
     const cfg = await ctx.config
     const targetAlias = alias ?? Object.values(cfg.services).find(s => s.default)?.service ?? cfg.service
-    console.log(`\n\n Try target alias: ${targetAlias} \n\n`)
     const target = ctx.serviceRoute(targetAlias)
-    console.log(target)
 
     const url = target.home ?? cfg.brand?.home ?? 'https://owlmeans.com'
     if (!dryRun) {
@@ -68,7 +64,6 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
   const init = service.lazyInit
   service.lazyInit = async () => {
     await init()
-    console.log('^^ init web flow from here')
     const cfg = service.config()
     const param = cfg.queryParam ?? QUERY_PARAM
     const url = new URL(window.location.href)
@@ -76,16 +71,11 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     if (state == null) {
       service.flow = null
       service.resolvePair().resolve(false)
-      console.log('^^ no flow resolve')
       return
     }
 
     try {
-      console.log('^^ resolving flow via state and provider', state)
-
       service.flow = await makeFlowModel(state, service.provideFlow)
-
-      console.log('^^ flow resolved', service.flow.state())
       service.resolvePair().resolve(true)
     } catch (e) {
       service.flow = null

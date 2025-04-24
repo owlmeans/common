@@ -12,8 +12,6 @@ export const AuthenticationHOC: TAuthenticationHOC = (Renderer, rendererType) =>
   type = type ?? _params.type ?? rendererType ?? AuthenticationType.BasicEd25519
 
   const Implementation = useMemo(() => {
-    console.log('SAFE: Cast component implementation in AuthenticationHOC')
-
     const Com = plugins[type]?.Implementation(Renderer)
     if (Com == null) {
       throw new SyntaxError(`Implementation for ${type} is not defined in AuthenticationHOC`)
@@ -24,8 +22,6 @@ export const AuthenticationHOC: TAuthenticationHOC = (Renderer, rendererType) =>
   const [stage, setStage] = useState<AuthenticationStage>(AuthenticationStage.Init)
 
   const { current: control } = useRef<AuthenticationControl>((() => {
-    console.log('SAFE: Initialize authentication control in AuthenticationHOC')
-
     const control = makeControl(context, callback)
     control.type = type
     control.setStage = setStage

@@ -12,7 +12,6 @@ export const initializeCollection = async (
 
   const name = mongoCollectionName(config, resource)
   const cursor = db.listCollections({ name })
-  // console.log(JSON.stringify(schemaToMongoSchema(resource.schema!), null, 2))
   if (!await cursor.hasNext()) {
     _collection = await createCollection(db, name, resource)
   } else {

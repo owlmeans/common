@@ -41,7 +41,5 @@ export const DebuggerButton: FC = () => {
     return debug != null && await debug.ready()
   })
 
-  console.log('DebuggerButton', allowed)
-
   return allowed ? <Button title="Debugger" onPress={() => context.debug()?.open()} /> : undefined
 }

@@ -18,9 +18,7 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
 
   const _client: FlowClient = {
     boot: async (targetAlias, from) => {
-      console.log('^^ starting flow boot')
       await service.ready()
-      console.log('^^ flow ready to boot')
       let _model = await service.state()
       if (_model == null) {
         if (context.hasResource(FLOW_STATE)) {
@@ -103,7 +101,6 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
 
       const [url] = await redirectTo.call<string>(req)
 
-      console.log('We try to go', model.state(), url)
       if (url.startsWith('http')) {
         await service.proceed(req)
       } else {

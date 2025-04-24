@@ -50,7 +50,6 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
       if (Array.isArray(config.host)) {
         // @TODO Number of tries can be configurable
         for (let i = 0; i < 3; ++i) {
-          console.log(`Try to initialize cluster: ${i}`)
           if (await setUpCluster(client, config)) {
             break
           }
@@ -61,7 +60,6 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
       }
 
       process.on('SIGTERM', () => {
-        console.log(`Exit mongo client ${configAlias}`)
         client.close()
       })
 
@@ -129,9 +127,7 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
     const context = assertContext<Config, Context>(service.ctx as Context, location)
 
     // Try to initialize all connections
-    console.log(`INITIALIZE MONGO IN LAYER ${context.cfg.layer} ${context.cfg.layerId}`)
     await context.cfg.dbs?.filter(dbConfig => dbConfig.service === alias).reduce(async (prev, dbConfig) => {
-      console.log('... initializ spcicific config', dbConfig.service, dbConfig.alias)
       await prev
       await service.config(dbConfig.alias)
     }, Promise.resolve())

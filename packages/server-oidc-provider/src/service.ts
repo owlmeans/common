@@ -15,14 +15,11 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
     update: async api => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
       const cfg = context.cfg.oidc
-      console.log('Updating API service: ', alias, api.alias)
 
       const serviceRoute = context.cfg.services[cfg.authService ?? context.cfg.service] as BasicRoute
       const helper = makeSecurityHelper<Config, Context>(context)
       const url = helper.makeUrl(serviceRoute, cfg.basePath ?? DEFAULT_PATH, { base: true })
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
-
-      console.log('~~~~ Provider URL we arranged: ', url)
 
       const oidc = new Provider(url, {
         ...await combineConfig(context, unsecure),
@@ -36,20 +33,11 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
             cfg.accountService ?? OIDC_ACCOUNT_SERVICE
           )
 
-          console.log('~.~.~.~.~ we get account for: ', _.oidc.client)
-          console.log(_token)
-          // console.log(new Error())
-
           return accountSrv.loadById(context, id)
         },
 
         interactions: {
           url: async (_, interaction) => {
-            if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
-              console.log('Figuring out interaction url for: ')
-              console.log(JSON.stringify(interaction, null, 2))
-            }
-
             const module = context.module<ClientModule>(INTERACTION)
             const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
             return uri
@@ -68,34 +56,23 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           // @TODO Make it a little bit nicer - preferably using helmet :)
 
           ctx.response.set('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
-
-          if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
-            console.log('Fixed content security policy: ', ctx.response.headers['content-security-policy'])
-          }
         }
       })
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
-        oidc.use(async (ctx, next) => {
-          if (context.cfg.debug.oidcServer) {
-            console.log('OIDC PROVIDER REQUEST: ', ctx.headers, ctx.body)
-          }
+        oidc.use(async (_, next) => {
           await next()
-          if (context.cfg.debug.oidcServer) {
-            console.log('OIDC PROVIDER RESPONSE: ', ctx.response.headers, ctx.response.body)
-            console.log('non deletable', ctx.response.headerSent)
-          }
         })
 
         oidc.on('grant.error', (_, error) => {
-          console.log('GRANT ERROR .......: ')
-          console.log(oidc.issuer, _.request.toJSON(), _.body)
-          console.log('!!!! GRANT ERROR: ', error)
+          console.warn('GRANT ERROR .......: ')
+          console.info(oidc.issuer, _.request.toJSON(), _.body)
+          console.error('!!!! GRANT ERROR: ', error)
         })
 
         oidc.on('server_error', (ctx, error) => {
-          console.log(Object.getOwnPropertyNames(ctx.oidc))
-          console.log((ctx.oidc as any).grant)
-          console.log('!!!! SERVER ERROR: ', error)
+          console.warn('SERVER ERROR .......: ', Object.getOwnPropertyNames(ctx.oidc))
+          console.info((ctx.oidc as any).grant)
+          console.error('!!!! SERVER ERROR: ', error)
         })
       }
 

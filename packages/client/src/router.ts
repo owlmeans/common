@@ -28,7 +28,6 @@ export const Router: FC<RouterProps> = ({ provide }) => {
     if (!progress.current && !context.cfg.ready) {
       progress.current = true
 
-      console.log('Initialize router')
       if (typeof provide === 'function') {
         initializeRouter(context as any).then(router => provide(router))
           .then(routes => setRouter(routes))

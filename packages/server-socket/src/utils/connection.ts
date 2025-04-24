@@ -100,12 +100,10 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   const messageHandler = async (_message: Buffer | Buffer[]) => {
     _message = Array.isArray(_message) ? _message : [_message]
     const message = _message.map(msg => msg.toString('utf8')).join('')
-    console.log('On message:', message)
     await model.receive(message)
   }
 
   const closeHandler = async (code: number) => {
-    console.log('Connection closed with code:', code)
     const msg: EventMessage<{ code: number }> = {
       type: MessageType.System,
       event: 'close',
@@ -121,8 +119,6 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
 
   conn.on('message', messageHandler)
   conn.on('close', closeHandler)
-
-  console.log('Socket handlers registered')
 
   return model
 }

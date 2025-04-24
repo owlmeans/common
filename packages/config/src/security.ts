@@ -25,8 +25,6 @@ export const makeSecurityHelper = <
         security = true
       }
 
-      // console.log('~~~~ Security check result', security)
-
       let protocol = RouteProtocols.WEB
       if ("protocol" in route) {
         protocol = route.protocol ?? protocol
@@ -50,8 +48,6 @@ export const makeSecurityHelper = <
           throw new SyntaxError(`No host provided for service: ${serviceMeta.service}`)
         }
       }
-
-      console.log('$$$ makeUrl: ', host, base, path)
 
       // @TODO Make sure it's safe
       // It strips security from fully qualified hosts urls in case of non standard configuration
@@ -110,8 +106,6 @@ export const makeSecurityHelper = <
           throw new SyntaxError(`No host provided for service: ${serviceMeta.service}`)
         }
       }
-
-      console.log('$$$ makeUrl: ', host, base, path)
 
       // @TODO Make sure it's safe
       // It strips security from fully qualified hosts urls in case of non standard configuration

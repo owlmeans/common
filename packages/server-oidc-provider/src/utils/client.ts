@@ -13,11 +13,11 @@ export const updateClient = (context: Context, client: ClientMetadata): ClientMe
     }
     client.client_secret = hex.encode(randomBytes(32))
 
-    console.log('\n')
-    console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    console.log('IT IS EXCEPTIONALY UNSECURE, BUT WE GENEREATED A CLIENT SECRET FOR YOU', client.client_secret)
-    console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    console.log('\n')
+    console.info('\n')
+    console.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+    console.warn('IT IS EXCEPTIONALY UNSECURE, BUT WE GENEREATED A CLIENT SECRET FOR YOU', client.client_secret)
+    console.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+    console.info('\n')
   }
 
   const helper = makeSecurityHelper<Config, Context>(context)
@@ -25,8 +25,6 @@ export const updateClient = (context: Context, client: ClientMetadata): ClientMe
   client.redirect_uris = client.redirect_uris?.map(updateUri) ?? []
   client.post_logout_redirect_uris = client.post_logout_redirect_uris?.map(updateUri) ?? []
   
-  console.log('REDIRECT URIS ~~~' , client.redirect_uris)
-
   return client
 }
 

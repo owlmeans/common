@@ -11,7 +11,6 @@ export const generateMnemonic = (opts?: MnemonicOptions): string => {
   }
 
   const strength = Math.round(256 * size / 24)
-  console.log('Strength:', typeof wordlist)
   return generate(wordlist as any, strength + (32 - strength % 32))
 }
 

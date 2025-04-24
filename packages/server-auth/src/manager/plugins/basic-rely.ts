@@ -42,7 +42,6 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
           if (request.provideRely != null) {
             await Promise.all([pin, token].filter(key => key != null).map(async key => {
               _subscriptions[key] = await tunnel.subscribe(async value => {
-                console.log('Receive rely from remote: ', value)
                 if (value.challenge != null) {
                   const rely = makeEnvelopeModel<RelyToken>(value.challenge, EnvelopeKind.Wrap)
                   if (await rely.verify(keyPair)) {
@@ -60,9 +59,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
               // @TODO they need to be killed on close - but actually live a little bit longer 
               // than timeout for them is ok
               setTimeout(() => {
-                console.log('Trigger closure')
                 if (_subscriptions[key] != null) {
-                  console.log('Trigger closure')
                   try {
                     void _subscriptions[key]()
                     delete _subscriptions[key]
@@ -94,8 +91,6 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
       // 1. Just get a peer connection based on provided credential
       // 2. Provision it with provided own data
       // 3. Delete own rely connection seeds
-
-      console.log('~~~~ ENTERING RELY AUTH BY 3', credential)
 
       let rely: RelyToken
       try {
@@ -143,7 +138,6 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
         myRely.token != null ? `${RELY_TOKEN_PREFIX}${myRely.token}` : null
       ].filter(key => key != null).forEach(key => {
         if (_subscriptions[key] != null) {
-          console.log('clean unnecessary tunnel', key)
           void _subscriptions[key]()
           delete _subscriptions[key]
         }

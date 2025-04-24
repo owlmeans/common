@@ -22,7 +22,6 @@ export const prepareClusterRedisOptions = (config: DbConfig<RedisMeta>): { nodes
   return {
     nodes: config.host.map(host => ({ host, port: config.port })), options: {
       dnsLookup: (address, callback) => {
-        console.log('DNS lookup', address)
         callback(null, address)
       },
       slotsRefreshTimeout: 20000,

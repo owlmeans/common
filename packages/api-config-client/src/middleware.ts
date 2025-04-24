@@ -16,7 +16,6 @@ export const apiConfigMiddleware: Middleware = {
     )
     const module = context.module<ClientModule<ApiConfig>>(API_CONFIG)
     if (context.cfg.primaryHost != null) {
-      console.log('LOAD EXTERNAL CONFIG')
       module.route.route.host = context.cfg.primaryHost
       if (context.cfg.primaryPort != null) {
         module.route.route.port = context.cfg.primaryPort
@@ -25,7 +24,6 @@ export const apiConfigMiddleware: Middleware = {
         const [config] = await module.call()
         const target: CommonConfig = context.cfg as unknown as CommonConfig
         mergeConfig(target, config as CommonConfig)
-        console.log(JSON.stringify(target, null, 2))
       } catch (e) { 
         console.error(e)
       }

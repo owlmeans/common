@@ -36,7 +36,6 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     loadPermissions: async (user, permissions) => {
-      console.log('\n\n PERMISSIONS REQUEST: ', permissions)
       const record = await cache<C, T>(ctx).get(managedId(user.token))
       if (record.payload == null) {
         throw new AuthForbidden('record')
@@ -56,8 +55,6 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
         client
       )
 
-      console.log('-----------')
-
       request.subject_token = record.payload.access_token
 
       const response = await fetch(
@@ -65,16 +62,12 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
         await model.prepareRequest(client, request)
       )
 
-      console.log(response)
-
       if (!response.ok) {
-        console.log(await response.text())
+        console.warn(await response.text())
         return []
       }
 
       const proofs = await response.json() as PermissionResponse[]
-
-      console.log('Proofs and permissions we got', permissions, proofs)
 
       return permissions.filter(permission => {
         const [fixed] = model.fixPermissions([permission], user)
@@ -90,7 +83,6 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     ),
 
     prepareRequest: async (client, request) => {
-      console.log('>>>> ', request)
       let { permission, ..._request } = request
       const params = new URLSearchParams(_request)
       permission = Array.isArray(permission) ? permission : [permission]
@@ -104,8 +96,6 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
         'Authorization': `Basic ${Buffer.from(`${client.getClientId()}:${cfg.secret}`).toString('base64')}`,
         'Content-Length': `${body.length}`,
       }
-
-      console.log({ body, headers, method: 'POST' })
 
       return { body, headers, method: 'POST' }
     },

@@ -14,19 +14,14 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
       reply.resolve(response.data, ModuleOutcome.Accepted)
       return
     case CREATED:
-      // console.log('response date', !!response.data, response.data)
-      // console.log('headers', response.headers)
-      // console.log('headers to json', !!response.headers.toJSON, (response.headers.toJSON as any)())
       return processEmptyResponse(response, reply, ModuleOutcome.Created)
     case FINISHED:
       return processEmptyResponse(response, reply, ModuleOutcome.Finished)
     default:
 
-      console.log('\n\n')
       console.error(response.status, response.statusText)
       console.error(response.headers)
       console.error(response.data)
-      console.log('\n')
 
       try {
         if (typeof response.data === 'string') {

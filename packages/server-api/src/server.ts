@@ -61,21 +61,16 @@ export const createApiServer = (alias: string): ApiServer => {
 
       const port = config?.internalPort ?? config?.port ?? PORT
       const host = config.opened === true ? OPENED_HOST : CLOSED_HOST
-      console.log('Try to listen on: ', host, port)
       await service.server.listen({ port, host })
       console.info(`${location}: server listening on ${host}${port != null ? `:${port}` : ''}`)
 
       process.on('SIGTERM', () => {
-        console.log(`Closing http server: ${alias}`)
         service.server.close().then(() => {
-          console.log(`Http server closed: ${alias}`)
           process.exit(0)
         })
       })
     }
   }, service => async () => {
-    console.log(`${location}: ready to init api server`)
-
     if (service.server.server.listening) {
       await service.server.close()
       service.server = Fastify({ logger: true })
@@ -141,10 +136,8 @@ export const createApiServer = (alias: string): ApiServer => {
           await module.resolve()
           const method = module.route.route.method ?? RouteMethod.GET
           if (module.handle == null) {
-            console.log('!!! no handler for module: ', module.getPath(), module.getAlias())
             return
           }
-          console.log('))) listen module: ', module.getPath(), module.getAlias())
           server.route({
             url: module.getPath(), method,
             schema: {
@@ -174,7 +167,6 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
   ctx: T, alias: string = DEFAULT_ALIAS
 ): T & ApiServerAppend => {
   const service = createApiServer(alias)
-  console.log('Append api server')
   const context = ctx as T & ApiServerAppend
 
   context.registerService(service)

@@ -13,7 +13,6 @@ type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
-  console.log(`SAFE: Rendering route component ${module.alias}`)
   const params = useParams()
   const reply = provideResponse()
 
@@ -28,7 +27,6 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
         return await guard.match(request, reply) ? guard : undefined
       })).then(async guards => {
         if (canceled) return
-        console.log('Try guards: ' + module.alias)
         const guard = guards.find(guard => guard != null)
         if (guard == null) {
           throw new AuthorizationError('frontend-guard')

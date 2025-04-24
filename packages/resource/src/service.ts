@@ -66,7 +66,6 @@ export const createDbService = <
       configAlias = service.ensureConfigAlias(configAlias)
       const chached = cachedNames.get(configAlias)
       if (chached != null) {
-        console.log('RETURN CHACHED NAME', chached)
         return chached
       }
 

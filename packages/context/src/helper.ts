@@ -12,7 +12,6 @@ export const appendContextual = <T extends Contextual>(alias: string, contextual
     // We do NOT update context when it's the same contextual with already set context
     // Actuall we just do not need to switch context in many on the level of context consumer
     if (_contextual.ctx == null) {
-      console.log(`Register context in ${contextual.alias} -`, context ? 1 : 0)
       _contextual.ctx = context
     }
 

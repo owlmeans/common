@@ -25,7 +25,6 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
     }
 
     useEffect(() => {
-      console.log('Try to get through tunnel', connection ? true : false)
       if (connection != null) {
         control.updateStage(AuthenticationStage.Allowence)
         connection.auth<AllowanceRequest, AllowanceResponse>(
@@ -33,8 +32,6 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
         ).then(async (allowance: AllowanceResponse) => {
           control.allowance = allowance
           control.updateStage(AuthenticationStage.Authenticate)
-
-          console.log('~~~~~ Tunnel allowance received ~~~~~~')
 
           connection.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
         })
@@ -80,7 +77,7 @@ const makeSubmit = (conn: Connection, control: AuthenticationControl) => async (
       await control.callback(auth, createWalletFacade(conn))
     }
 
-    console.log(auth)
+    (auth)
   } catch (e) {
     await conn.close()
     await control.setError(e)

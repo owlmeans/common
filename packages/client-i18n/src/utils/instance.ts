@@ -14,8 +14,6 @@ export const useI18nInstance = (config: ClientConfig): i18n => {
       return i18nInstance
     }
 
-    console.log('Initialzie i18n instance')
-
     const instance = createInstance({
       compatibilityJSON: 'v3',
       defaultNS: config.i18n?.defaultNs ?? DEFAULT_NAMESPACE,

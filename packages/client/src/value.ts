@@ -29,7 +29,6 @@ export const useValue = <T>(
     }
     void (async () => {
       if (await Promise.resolve(cancel.current)) {
-        console.log('cancel use value')
         return
       }
       const value = await loader(cancel)

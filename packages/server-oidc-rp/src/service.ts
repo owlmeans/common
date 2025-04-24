@@ -14,8 +14,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
       let cfg = await service.getConfig(clientId)
 
-      console.log('Client id we try: ', clientId)
-      console.log('Cfg we got: ', cfg)
       if (cfg?.basePath == null) {
         throw new AuthManagerError('oidc.client.basepath')
       }
@@ -32,8 +30,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       const security = makeSecurityHelper<Config, Context>(context)
       const url = cfg.discoveryUrl
         ?? security.makeUrl(context.cfg.services[cfg.service], cfg.basePath)
-
-      console.log('External service url', url, cfg)
 
       return await client.discovery(
         new URL(url) as URL,
@@ -63,8 +59,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       }
       let metadata = await descriptor?.serverMetadata()
       // @TODO Do not forget to delete it
-      console.log('!!!! Here comes issuers meta: ', _clientId, params, metadata)
-
       if (_clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
@@ -92,12 +86,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         grantWithCredentials: async () => client.clientCredentialsGrant(descriptor),
 
         grantWithCode: async (url, checks, params) => {
-          console.log(
-            url,
-            checks,
-            params
-          )
-
           const urlObj = new URL(url)
           Object.entries(params).forEach(([key, value]) => {
             if (key === 'flow') {
@@ -108,17 +96,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           })
 
           checks.idTokenExpected ??= true
-
-          // console.log(
-          //   'URL Search', urlObj.toJSON()
-          // )
-
-          // const {flow, ..._params} = params
-          // console.log(flow)
-
-          console.log('Url we sent', urlObj.href)
-          console.log('checks', checks)
-          console.log('params', params)
 
           return await client.authorizationCodeGrant(
             descriptor, urlObj, checks
@@ -199,7 +176,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     },
 
     registerTemporaryProvider: config => {
-      console.log('We are trying to add temporary provider: ', config)
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
@@ -225,7 +201,6 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       if (ctx.cfg.oidc.providers == null) {
         ctx.cfg.oidc.providers = []
       }
-      console.log(ctx.cfg.oidc.providers)
 
       const provider = ctx.cfg.oidc.providers.find(
         provider => Object.entries(params).every(

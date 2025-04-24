@@ -61,7 +61,6 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
     authenticate: async token => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
-      // console.log(token)
       const envelope = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token)
 
       const authService = await trust<Config, Context>(context, TRUSTED, AUTH_SRV_KEY)
@@ -71,8 +70,6 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
 
       const credentials = envelope.message()
       const msg = credentials.challenge
-
-      console.log('Authenticate credentials: ', credentials)
 
       // @TODO This operation is not atomic in case of redis store usage and scling
 
@@ -120,7 +117,6 @@ export const appendAuthService = <C extends Config, T extends ServerContext<C>>(
   }
 
   const service = makeAuthService(alias)
-  console.log('Append auth service')
   const context = ctx as T & AuthServiceAppend
 
   context.registerService(service)

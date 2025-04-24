@@ -94,13 +94,9 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
     },
 
     find: async meta => {
-      console.log('We are looking for: ', meta)
-
       const result = await store.meta.list(
         Object.fromEntries(Object.entries(meta).filter(([_, v]) => typeof v !== 'boolean'))
       )
-
-      console.log('We found meta: ', result)
 
       const keys = await Promise.all(result.items.filter(item => matchMeta(item, meta))
         .map(async meta => store.keys.get(meta.id)))

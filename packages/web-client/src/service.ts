@@ -28,7 +28,6 @@ export const appendWebAuthService = <C extends ClientConfig, T extends ClientCon
   ctx: T, alias: string = DEFAULT_ALIAS
 ): T & AuthServiceAppend => {
   const service = makeAuthWebService(alias)
-  console.log('Append auth service')
 
   const context = ctx as T & AuthServiceAppend
 

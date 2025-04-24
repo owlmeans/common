@@ -14,7 +14,6 @@ import { ResilientError } from '@owlmeans/error'
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
     update: async api => {
-      console.log('Updating API service: ', alias, api.alias)
       const closeListeners: CallableFunction[] = []
       const ctx = assertContext<Config, Context>(service.ctx as Context, alias)
       await api.server.register(fastifyWebsocket, {
@@ -55,10 +54,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                   await gate.assert(request, response, params)
                   executeResponse(response, reply, true)
                 }
-
-                console.log('context : ', module.ctx?.cfg.layer, module.ctx?.cfg.layerId)
               } catch (error) {
-                console.log('SENDS ERROR RESPONSE: ')
                 console.error(error)
                 if (module.fixer != null) {
                   const fixer: FixerService = context.service(module.fixer)
@@ -77,7 +73,6 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
         ).map(async module => {
           await module.resolve()
           if (module.handle == null) {
-            console.log('!!! no handler for websocket module: ', module.getPath(), module.getAlias())
             return
           }
 
@@ -92,9 +87,9 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             const request = provideRequest(module.alias, req, true)
             request.body = conn
 
-            conn.on('open', () => {
-              console.log('Connection opened...')
-            })
+            // conn.on('open', () => {
+            // @TODO: do something?
+            // })
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {

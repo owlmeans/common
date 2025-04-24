@@ -16,7 +16,6 @@ export const createOidcProviderMiddleware = (web: string = WEB_ALIAS, oidc = DEF
 
       const marker = `__oidcServiceAdded-${web}-${oidc}`
       if (!ctx.cfg.records?.find(record => record.id === marker)) {
-        console.log('createOidcProviderMiddleware: Middleware triggered for update...')
         await oidcService.update(webService)
         if (ctx.cfg.records == null) {
           ctx.cfg.records = []

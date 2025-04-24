@@ -8,9 +8,6 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
   const model = createBasicConnection()
 
   model.send = async message => {
-    if (typeof message === 'object') {
-      console.log('Sending message: ', message.type, message)
-    }
     if (typeof message !== 'string') {
       model.prepare?.(message)
     }
@@ -18,7 +15,6 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
   }
 
   model.close = async () => {
-    // console.log('NORMAL CLIENT CLOSE')
     // await closeHandler(new CloseEvent('close', { code: 1000, wasClean: true }))
     conn.close()
     // @TODO Make sure it trigger close observers
@@ -39,7 +35,6 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
     await model.receive(message.data)
   }
   const closeHandler = async (event: CloseEvent) => {
-    console.log('Connection closed with code:', event.code)
     const msg: EMessage<{ code: number }> = {
       type: MessageType.System,
       event: 'close',
