@@ -46,12 +46,17 @@ export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServi
 
     get: () => service.wallet
   }, service => async () => {
-    const context = assertContext(service.ctx, location) as ClientContext
-    await context.resource(deps.keys).init?.()
-    if (service.wallet == null && await service.exists()) {
-      await service.intialize()
+    try {
+      const context = assertContext(service.ctx, location) as ClientContext
+      await context.resource(deps.keys).init?.()
+      if (service.wallet == null && await service.exists()) {
+        await service.intialize()
+      }
+      service.initialized = true
+    } catch (e) {
+      console.error('DID Service initialization error', e)
+      throw e
     }
-    service.initialized = true
   })
 
   return service
