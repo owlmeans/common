@@ -22,7 +22,7 @@ export const Modal: FC = () => {
     context.waitForInitialized().then(() => context.modal().link(toggle))
   }, [id])
 
-  return toggle.opened && <View>
+  return toggle.opened && <View style={{zIndex: 1000}}>
     {Com != null ? <Com modal={context.modal()} /> : undefined}
   </View>
 }
