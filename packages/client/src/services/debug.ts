@@ -1,6 +1,6 @@
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { DEBUG_CONFIG_KEY, DEBUGGER_FLAG, DEF_DEBUG_ALIAS } from '../consts.js'
-import type { DebugService, DebugServiceAppend } from './types.js'
+import type { DebugService, DebugServiceAppend } from '../components/types.js'
 import type { ClientConfig } from '@owlmeans/client-context'
 import type { ClientContext, DebugConfigRecord } from '../types.js'
 import type { ClientDbService, ClientResource } from '@owlmeans/client-resource'

@@ -1,6 +1,7 @@
 
 export * from './context.js'
 export * from './components/index.js'
+export * from './services/index.js'
 export * from './helper.js'
 export * from './navigate.js'
 export * from './module.js'

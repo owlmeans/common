@@ -5,9 +5,13 @@ import { View, StyleSheet } from 'react-native'
 import { useColors } from '../helper.js'
 
 export const ProgessBar: FC<ProgressBarProps> = ({
-  duration, startValue, value, color = 'primary',
-  maxValue = 100, backgroundColor = 'onPrimary' }) => {
-
+  duration, 
+  startValue, 
+  value, 
+  color = 'primary',
+  maxValue = 100, 
+  backgroundColor = 'onPrimary',
+}) => {
   const progrss = useSharedValue(startValue ?? 0)
 
   useEffect(() => {

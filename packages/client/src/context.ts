@@ -7,7 +7,7 @@ import { AppType, CONFIG_RECORD, Layer } from '@owlmeans/context'
 import type { ClientContext } from './types.js'
 import { appendStateResource } from '@owlmeans/state'
 import { appendModalService } from './components/modal.js'
-import { appendDebugService } from './components/debug.js'
+import { appendDebugService } from './services/debug.js'
 import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
 
 const defaultCfg: ClientConfig = {

@@ -52,10 +52,10 @@ export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServi
       if (service.wallet == null && await service.exists()) {
         await service.intialize()
       }
-      service.initialized = true
     } catch (e) {
       console.error('DID Service initialization error', e)
-      throw e
+    } finally {
+      service.initialized = true
     }
   })
 
