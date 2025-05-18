@@ -13,7 +13,7 @@ import { createWalletFacade } from './tunnel/wallet.js'
 export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.WalletConsumer,
 
-  Implementation: renderer => ({ type, stage, control }) => {
+  Implementation: renderer => ({ type, stage, control, params }) => {
     type = type ?? AuthenticationType.WalletConsumer
     const Renderer: TunnelAuthenticationRenderer | undefined = renderer
       ?? tunnelConsumerUIPlugin.Renderer
@@ -36,6 +36,22 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
           connection.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
         })
 
+        connection.authenticate = async (stage: AuthenticationStage, payload: any) => {
+          if (stage === AuthenticationStage.Authenticated) {
+            try {
+              if (control.callback == null) {
+                throw new SyntaxError('Tunnel consumer requires a callback to provide connection object')
+              }
+              await control.callback(payload, createWalletFacade(connection))
+              control.updateStage(AuthenticationStage.Authentication)
+            } catch (e) {
+              await connection.close()
+              await control.setError(e)
+            }
+          }
+          return [null, null as any]
+        }
+
         return connection.listen(async message => {
           if (isEventMessage(message) && message.event === 'close') {
             await control.setError(new SocketTimeout('rely'))
@@ -49,7 +65,7 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
       , [connection != null]
     )
 
-    return <Renderer type={type} stage={stage} control={control} conn={connection} submit={submit} />
+    return <Renderer type={type} stage={stage} control={control} conn={connection} params={params} submit={submit} />
   },
 
   authenticate: async _credentials => {
@@ -76,8 +92,7 @@ const makeSubmit = (conn: Connection, control: AuthenticationControl) => async (
       }
       await control.callback(auth, createWalletFacade(conn))
     }
-
-    (auth)
+    // (auth)
   } catch (e) {
     await conn.close()
     await control.setError(e)

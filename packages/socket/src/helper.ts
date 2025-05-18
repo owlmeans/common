@@ -1,5 +1,5 @@
 import { MessageType } from './consts.js'
-import type { CallMessage, EventMessage, Message } from './types.js'
+import type { CallMessage, EventMessage, Message, AuthMessage } from './types.js'
 
 export const isMessage = <P, T extends Message<P>>(msg: string | T, nonSystem?: boolean): msg is T =>
   typeof msg === 'object' && 'type' in msg && 'payload' in msg
@@ -11,6 +11,9 @@ export const isEventMessage = <P>(msg: string | Message<P>, system?: boolean): m
 
 export const isCallMessage = <P extends any[]>(msg: string | Message<unknown>): msg is CallMessage<P> =>
   isMessage(msg) && msg.type === MessageType.Call
+
+export const isAuthMessage = <P>(msg: string | Message<P>): msg is AuthMessage<P> =>
+  isMessage(msg) && msg.type === MessageType.Auth
 
 
 // export const prepareLongCalls = (connection: Connection, longTimeout = CALL_TIMEOUT * 10) => {

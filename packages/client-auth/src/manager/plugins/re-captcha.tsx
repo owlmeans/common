@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 export const reCaptchaPlugin: AuthenticationPlugin = {
   type: AuthenticationType.ReCaptcha,
 
-  Implementation: Renderer => ({ type, stage, control }) => {
+  Implementation: Renderer => ({ type, stage, control, params }) => {
     Renderer = Renderer ?? reCaptchaPlugin.Renderer
 
     // ReCaptcha authentication requests allowance unconditionally 
@@ -20,7 +20,7 @@ export const reCaptchaPlugin: AuthenticationPlugin = {
       throw new SyntaxError('Renderer is not defined for ReCaptcha plugin')
     }
 
-    return <Renderer type={type} stage={stage} control={control} />
+    return <Renderer type={type} stage={stage} control={control} params={params} />
   },
 
   /**

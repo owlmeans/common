@@ -30,5 +30,5 @@ export const AuthenticationHOC: TAuthenticationHOC = (Renderer, rendererType) =>
     return control
   })())
 
-  return <Implementation type={type} stage={stage} control={control} />
+  return <Implementation type={type} stage={stage} control={control} params={params} />
 }

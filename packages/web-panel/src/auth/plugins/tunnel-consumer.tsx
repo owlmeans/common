@@ -12,9 +12,11 @@ import { Block } from '../../components/block.js'
 import { BlockScaling } from '@owlmeans/client-panel'
 import { Status } from '../../components/status.js'
 import type { SxProps } from '@mui/material/styles'
+import { useTheme } from '@mui/material/styles'
 import { Button } from '../../components/form/button/component.js'
+import { QRCodeCanvas } from 'qrcode.react'
 
-export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, stage, control, submit }) => { // { type, stage, control, conn }
+export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, stage, control, params, submit }) => {
   const rely = useMemo(() => {
     if (control.allowance == null) {
       return null
@@ -25,6 +27,8 @@ export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, sta
     ).message()
   }, [stage])
 
+  const theme = useTheme()
+  const prefix = "prefix" in params ? params.prefix as string : ""
   const i18n = { ns: "lib", resource: 'client-panel-auth' }
 
   const loadingStyle: SxProps = {
@@ -33,8 +37,12 @@ export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, sta
 
   switch (stage) {
     case AuthenticationStage.Authenticate:
-      return <Form decorate name={type} validation={PinSchema} onSubmit={submit}
-        i18n={i18n}>
+      return <Form decorate name={type} validation={PinSchema} onSubmit={submit} i18n={i18n}>
+        {rely?.token != null && <QRCodeCanvas size={256}
+          value={`${prefix}${rely?.token ?? ""}`}
+          fgColor={theme.palette.primary.dark}
+          bgColor={theme.palette.background.paper}
+        />}
         <Text>{rely?.token}</Text>
         <TextInput name="pin" label hint />
       </Form>

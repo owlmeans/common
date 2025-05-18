@@ -57,7 +57,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
               }, { /*ttl: RELY_CALL_TIMEOUT,*/ key, once: true })
 
               // @TODO they need to be killed on close - but actually live a little bit longer 
-              // than timeout for them is ok
+              // then timeout for them is ok
               setTimeout(() => {
                 if (_subscriptions[key] != null) {
                   try {
@@ -102,7 +102,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
           }
           peer = await tunnel.get(credential.credential)
         } else if (credential.credential.startsWith(RELY_TOKEN_PREFIX)) {
-          const key = credential.credential.substring(RELY_PIN_PERFIX.length)
+          const key = credential.credential.substring(RELY_TOKEN_PREFIX.length)
           if (key.length > 16) {
             throw new AuthenPayloadError('token')
           }

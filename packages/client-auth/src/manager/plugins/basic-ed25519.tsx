@@ -7,7 +7,7 @@ import { AuthenCredError } from '../errors.js'
 export const ed25519BasicUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.BasicEd25519,
 
-  Implementation: Renderer => ({ type, stage, control }) => {
+  Implementation: Renderer => ({ type, stage, control, params }) => {
 
     type = type ?? AuthenticationType.BasicEd25519
     Renderer = Renderer ?? ed25519BasicUIPlugin.Renderer
@@ -24,7 +24,7 @@ export const ed25519BasicUIPlugin: AuthenticationPlugin = {
       throw new SyntaxError('Renderer is not defined for BasicEd25519 plugin')
     }
 
-    return <Renderer type={type} stage={stage} control={control} />
+    return <Renderer type={type} stage={stage} control={control} params={params} />
   },
 
   authenticate: async credentials => {

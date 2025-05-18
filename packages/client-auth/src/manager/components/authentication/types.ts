@@ -24,6 +24,7 @@ export interface AuthenticationRendererProps {
   stage: AuthenticationStage
   type: ClientAuthType
   control: AuthenticationControl
+  params: Record<string, unknown>
 }
 
 export interface AuthenticationRenderer extends FC<AuthenticationRendererProps> {
