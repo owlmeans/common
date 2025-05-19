@@ -5,7 +5,7 @@ import type { TunnelAuthenticationRenderer } from '@owlmeans/client-auth/manager
 import { PinSchema } from '@owlmeans/client-auth/manager/plugins'
 import { Form } from '../../components/form/component.js'
 import { TextInput } from '../../components/form/text/component.js'
-import { Text } from '../../components/text.js'
+// import { Text } from '../../components/text.js'
 import { useMemo } from 'react'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { Block } from '../../components/block.js'
@@ -15,6 +15,7 @@ import type { SxProps } from '@mui/material/styles'
 import { useTheme } from '@mui/material/styles'
 import { Button } from '../../components/form/button/component.js'
 import { QRCodeCanvas } from 'qrcode.react'
+import Box from '@mui/material/Box'
 
 export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, stage, control, params, submit }) => {
   const rely = useMemo(() => {
@@ -38,12 +39,14 @@ export const TunnelConsumerUIPlugin: TunnelAuthenticationRenderer = ({ type, sta
   switch (stage) {
     case AuthenticationStage.Authenticate:
       return <Form decorate name={type} validation={PinSchema} onSubmit={submit} i18n={i18n}>
-        {rely?.token != null && <QRCodeCanvas size={256}
-          value={`${prefix}${rely?.token ?? ""}`}
-          fgColor={theme.palette.primary.dark}
-          bgColor={theme.palette.background.paper}
-        />}
-        <Text>{rely?.token}</Text>
+        <Box width="fit-content" margin="auto">
+          {rely?.token != null && <QRCodeCanvas size={256}
+            value={`${prefix}${rely?.token ?? ""}`}
+            fgColor={theme.palette.primary.dark}
+            bgColor={theme.palette.background.paper}
+          />}
+        </Box>
+        {/* <Text>{rely?.token}</Text> */}
         <TextInput name="pin" label hint />
       </Form>
     case AuthenticationStage.Error:
