@@ -8,6 +8,7 @@ export interface ButtonProps extends I18nProps {
   color?: string
   textColor?: string
   textVariant?: string
+  disabled?: boolean
   variant?: 'text' | 'outlined' | 'contained' | 'elevated' | 'contained-tonal'
   icon?: string
   dark?: boolean

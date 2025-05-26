@@ -5,9 +5,21 @@ import { Button as PaperButton, useTheme } from 'react-native-paper'
 import type { ButtonProps } from './types.js'
 import { Text } from './text.js'
 
-export const Button: FC<ButtonProps> = ({ icon, dark, name, onPress, color, textColor, textVariant, i18n, style, variant = "contained" }) => {
+export const Button: FC<ButtonProps> = ({
+  icon,
+  disabled,
+  dark,
+  name,
+  color,
+  textColor,
+  textVariant,
+  i18n,
+  style,
+  variant = "contained",
+  onPress,
+}) => {
   const theme = useTheme()
-  return <PaperButton mode={variant} dark={dark ?? true} onPress={onPress}
+  return <PaperButton mode={variant} dark={dark ?? true} onPress={onPress} disabled={disabled}
     buttonColor={color != null ? theme.colors[color as keyof typeof theme.colors] as any : undefined}
     textColor={
       textColor ? theme.colors[textColor as keyof typeof theme.colors] as string : undefined
