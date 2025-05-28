@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { FC } from 'react'
 import type { ModalBodyProps } from '@owlmeans/client'
 import { useValue } from '@owlmeans/client'
-import { FlatList, Button, SafeAreaView } from 'react-native'
+import { FlatList, Button, SafeAreaView, View, Platform, StyleSheet } from 'react-native'
 import { DebuggerProps } from './types'
 import { useContext } from '../context.js'
 
@@ -10,11 +10,13 @@ const DebuggerMenu: FC<ModalBodyProps> = () => {
   const context = useContext()
 
   const items = useMemo(() => context.debug()?.items ?? [], [context.debug()?.items.length])
-  return <SafeAreaView style={{ backgroundColor: '#fff', height: '100%' }}>
-    <FlatList data={items} renderItem={
-      ({ item }) => <Button title={item.title}
-        onPress={() => context.debug()?.select(item.alias)} />
-    } keyExtractor={item => item.alias} />
+  return <SafeAreaView style={styles.container}>
+    <View style={styles.content}>
+      <FlatList data={items} renderItem={
+        ({ item }) => <Button title={item.title}
+          onPress={() => context.debug()?.select(item.alias)} />
+      } keyExtractor={item => item.alias} />
+    </View>
   </SafeAreaView>
 }
 
@@ -43,3 +45,14 @@ export const DebuggerButton: FC = () => {
 
   return allowed ? <Button title="Debugger" onPress={() => context.debug()?.open()} /> : undefined
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    height: '100%',
+    paddingTop: Platform.OS !== 'ios' ? '20%' : 0
+  },
+  content: {
+    height: '100%',
+  }
+})
