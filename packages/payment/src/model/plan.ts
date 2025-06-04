@@ -30,6 +30,7 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
 
     title: ProductTitleSchema,
     description: { ...ProductDescriptionSchema, nullable: true },
+    customUrl: { type: 'string', maxLength: 256, nullable: true },
 
     createdAt: { ...DateSchema, nullable: true },
     archivedAt: { ...DateSchema, nullable: true },

@@ -46,6 +46,7 @@ export interface ProductPlan {
   awaitingInterval?: number
   title: string
   description?: string
+  customUrl?: string
   createdAt?: Date
   archivedAt?: Date
   /**
