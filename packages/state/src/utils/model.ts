@@ -13,6 +13,8 @@ export const createStateModel = <T extends ResourceRecord>(
       if (force !== true) {
         if (!Object.entries(before).reduce(
           (changed, [key, value]) => changed || model.record[key as keyof T] !== value, false
+        ) && !Object.entries(model.record).reduce(
+          (changed, [key, value]) => changed || before[key as keyof T] !== value, false
         )) {
           return
         }
