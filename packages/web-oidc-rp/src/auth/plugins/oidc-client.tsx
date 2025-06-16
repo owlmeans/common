@@ -107,7 +107,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
       throw new SyntaxError('Renderer is not defined for OIDC plugin')
     }
 
-    return <Renderer type={type} stage={stage} control={control} />
+    return <Renderer type={type} stage={stage} control={control} params={module.params} />
   },
 
   Renderer: () => <LinearProgress />

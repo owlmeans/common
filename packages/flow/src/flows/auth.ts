@@ -15,7 +15,7 @@ export enum StdAuthStep {
 // OwlMeans Authentication Standard Flow 
 /**
  * @TODO Actually this thing is kept here for the iteration when
- * OwlMeans ID account may be used without owlmeans.org account.
+ * OwlMeans ID account may be used without owlmeans.net account.
  * 
  * @deprecated
  */

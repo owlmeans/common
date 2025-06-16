@@ -26,7 +26,7 @@ import { makeOidcAuthentication } from '../../utils/auth.js'
  * 
  * We need to distinguish the following cases:
  * 1. The user authenticates via owlmenas.org
- *  1.1. The user authenticated in owlmeans.org via IAM product based account.
+ *  1.1. The user authenticated in owlmeans.net via IAM product based account.
  *     1.1.1. The user do it for the first time
  *          * We create an account
  *          * We create and link credentials from jwt to the account (i'm not sure if it's required)
@@ -34,7 +34,7 @@ import { makeOidcAuthentication } from '../../utils/auth.js'
  *          * We create and link credentials from jwt to the profile
  *     1.1.2. The user do it not for the first time
  *          * We found the linked profile by jwt
- *  1.2. The user autehnticated in owlmeans.org via OwlMeans ID
+ *  1.2. The user autehnticated in owlmeans.net via OwlMeans ID
  *     1.2.1. The user do it for the first time
  *          * Figure out if the user has OwlMeans ID linked to the authentication from jwt
  *            (GET /admin/realms/{realm}/users/{id}/federated-identity)
@@ -47,19 +47,19 @@ import { makeOidcAuthentication } from '../../utils/auth.js'
  *          * We create a profile (we cant request info about his Owlmeans id)!
  *          * We create and link credentials from jwt to the profile
  *          * ! When the user will try to pay for something via this profile
- *          *   we need to force him to link it to owlmeans.org profile / account.
+ *          *   we need to force him to link it to owlmeans.net profile / account.
  *     2.1.2. The user do it not for the first time
  *          * We found the linked profile by jwt
  *  2.2. The user authenticated in his identity provider via OwlMeans ID
  *     - This case actually shouldn't know anything about it until the profile is linked to the 
- *       owlmeans.org acccount.
+ *       owlmeans.net acccount.
  *
  *  Generailized
  *  1. We try to get credentials
  *  2. If there is no credentials we try to get more info abou the user
  *  2.1. To do it we get admin client if it's presented for API access
- *  2.2. If it's presented we get list of identity providers to figure out if there an owlmeans.org id
- *  3. If there is no owlmeans.org account while the login is going through it - we create one
+ *  2.2. If it's presented we get list of identity providers to figure out if there an owlmeans.net id
+ *  3. If there is no owlmeans.net account while the login is going through it - we create one
  *  4. If there is no profile - we create one and link oidc credentials
  */
 export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context: T): AuthPlugin => {
@@ -155,7 +155,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         userId: jwt.sub
       } satisfies ProviderProfileDetails)
 
-      // @TODO It's likely the case when we are talking about owlmeans.org
+      // @TODO It's likely the case when we are talking about owlmeans.net
       // but some addtional checks need to be done.
       // The problem is that we will make the sold identity providers also
       // managable, so this condition isn't enough to cover described cases.
@@ -201,7 +201,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         console.log('Supper attention ~%~: ', details.entityId, cfg.entityId, context.cfg.defaultEntityId)
 
         // We relink existing profile only if it's not yet did bound
-        // and the orgnaization is owlmeans.org
+        // and the orgnaization is owlmeans.net
         if (profile == null || (
           details.entityId === context.cfg.defaultEntityId
           // @TODO Figure out more flexible solution. 
@@ -212,7 +212,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // profile to his or her owlmeans user account and take adavantage of cross login.
           // Probably such cross login accross owner like profiles should be prevented
           // without additional authentication. But for now, this check guaranty that it works
-          // only with owlmeans.org idp that is managed by ours. 
+          // only with owlmeans.net idp that is managed by ours. 
           && details.entityId === cfg.entityId
         )) {
           console.log(3, details)

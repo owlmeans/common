@@ -108,7 +108,7 @@ export const stdOidpFlow: ShallowFlow = {
       service: '$auth',
       module: '$auth.interaction',
       transitions: {
-        // In case of owlmeans.org classic idp chaining
+        // In case of owlmeans.net classic idp chaining
         [OidpAuthStep.PostAuth]: {
           transition: OidpAuthStep.PostAuth,
           step: OidpAuthStep.PostAuth,
