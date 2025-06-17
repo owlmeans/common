@@ -1,7 +1,7 @@
 import type { DbConfig } from '@owlmeans/resource'
 import { Cluster } from 'ioredis'
 import type { Redis } from 'ioredis'
-import { prepareClusterRedisOptions } from './config'
+import { prepareClusterRedisOptions } from './config.js'
 import { createClient } from './instance.js'
 import type { RedisMeta } from '../types.js'
 

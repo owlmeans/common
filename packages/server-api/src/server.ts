@@ -41,15 +41,17 @@ export const createApiServer = (alias: string): ApiServer => {
 
   const service = createService<ApiServer>(alias, {
     server: Fastify({
-      logger: {
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            translateTime: 'HH:MM:ss Z',
-            ignore: 'pid,hostname',
-          },
-        },
-      }
+      logger: true,
+      /*{
+       transport: {
+         target: 'pino-pretty',
+         options: {
+           singleLine: true,
+           translateTime: 'HH:MM:ss Z',
+           ignore: 'pid,hostname',
+         },
+       },
+     }*/
     }),
 
     layers: [Layer.System],

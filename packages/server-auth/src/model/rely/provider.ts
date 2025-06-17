@@ -1,5 +1,5 @@
 
-import { makeRelyModel } from './peer'
+import { makeRelyModel } from './peer.js'
 import type { RelyOptions } from './types.js'
 
 export const makeProviderRely = (opts?: RelyOptions) => {

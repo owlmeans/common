@@ -2,7 +2,7 @@ import type { MongoClientOptions } from 'mongodb'
 import type { MongoMeta } from '../types.js'
 import type { DbConfig } from '@owlmeans/resource'
 
-import { DEF_REPLSET } from '../consts'
+import { DEF_REPLSET } from '../consts.js'
 
 export const prepareConfig = (config: DbConfig, single: boolean = true): [string, MongoClientOptions] => {
   let host = Array.isArray(config.host) ? config.host[0] : config.host

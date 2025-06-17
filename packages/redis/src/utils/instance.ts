@@ -1,8 +1,8 @@
 import type { DbConfig } from '@owlmeans/resource'
 import type { RedisClient } from '@owlmeans/redis-resource'
 import {Redis} from 'ioredis'
-import { prepareSingleRedisOptions } from './config'
-import { ensuerCluster } from './cluster'
+import { prepareSingleRedisOptions } from './config.js'
+import { ensuerCluster } from './cluster.js'
 
 export const createClient = async (config: DbConfig): Promise<RedisClient> => {
   if (Array.isArray(config.host) && config.host.length === 1) {

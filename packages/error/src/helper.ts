@@ -1,4 +1,4 @@
-import { ResilientError } from './resilient'
+import { ResilientError } from './resilient.js'
 
 export const enuserError = <T extends ResilientError = ResilientError>(err: Error | string, throwOnUnknown?: boolean): T =>
   ResilientError.ensure(err, throwOnUnknown) as T

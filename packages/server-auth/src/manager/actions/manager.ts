@@ -1,8 +1,8 @@
 import type { AllowanceRequest, AuthCredentials } from '@owlmeans/auth'
 import { handleBody } from '@owlmeans/server-api'
-import { makeAuthModel } from '../model'
+import { makeAuthModel } from '../model.js'
 import type { RefedModuleHandler } from '@owlmeans/server-module'
-import type { AppContext, AppConfig } from '../types'
+import type { AppContext, AppConfig } from '../types.js'
 import { handleConnection } from '@owlmeans/server-socket'
 
 export const authenticationInit: RefedModuleHandler<AllowanceRequest> = handleBody(
