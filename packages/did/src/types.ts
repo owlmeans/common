@@ -26,6 +26,8 @@ export interface DIDWallet {
   remove: (did: string | KeyMeta | DIDKeyModel) => Promise<DIDKeyModel>
 
   all: () => Promise<DIDKeyModel[]>
+  
+  allMeta: () => Promise<KeyMeta[]>
 }
 
 export interface MakeDIDWalletOptions {

@@ -159,6 +159,19 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
       } while (more)
 
       return result.map(key => makeDidKeyModel(key))
+    },
+
+    allMeta: async () => {
+      const result: KeyMeta[] = []
+      let more = false
+      do {
+        // const found = await store.keys.list({ pager: { page: Math.floor(result.length / 100), size: 100 } })
+        const found = await store.meta.list({ pager: { page: Math.floor(result.length / 100), size: 100 } })
+        result.push(...found.items)
+        more = found.pager?.total != null && found.pager.total > result.length
+      } while (more)
+
+      return result
     }
   }
 
