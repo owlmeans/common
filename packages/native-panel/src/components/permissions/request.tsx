@@ -11,9 +11,7 @@ export const PermissionRequest: FC<PropsWithChildren<PermissionRequestProps>> = 
 
   const request = useCallback(() => {
     context.permissions().request(permission).then(granted => {
-      if (granted) {
-        modal?.response(granted)
-      }
+      modal?.response(granted)
     })
   }, [])
 

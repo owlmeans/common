@@ -1,5 +1,6 @@
 import type { FC, PropsWithChildren } from 'react'
-import { View, StyleSheet } from 'react-native'
+import { useMemo } from 'react'
+import { View, StyleSheet, Platform } from 'react-native'
 import type { PermissionRendererProps } from './types.js'
 import { IconButton, useTheme } from 'react-native-paper'
 import { PanelContext } from '@owlmeans/client-panel'
@@ -16,6 +17,7 @@ export const PermissionRequestRenderer: FC<PropsWithChildren<PermissionRendererP
 }) => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
+  const showCancel = useMemo(() => !!cancel && Platform.OS !== 'ios', [!!cancel])
 
   return <View style={{
     backgroundColor: theme.colors.primaryContainer,
@@ -23,9 +25,9 @@ export const PermissionRequestRenderer: FC<PropsWithChildren<PermissionRendererP
   }}>
     <PanelContext ns={ns} resource={resource} prefix={permission}>
       <View style={styles.container}>
-        <View style={styles.actions}>
+        {showCancel && <View style={styles.actions}>
           <IconButton icon="close" onPress={cancel} />
-        </View>
+        </View>}
         <View style={styles.infoGroup}>
           {children}
         </View>
