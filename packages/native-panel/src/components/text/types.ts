@@ -6,6 +6,6 @@ export interface TextValueProps {
   color?: string
   valueColor?: string
   nameColor?: string
-  copy?: boolean
+  copy?: boolean | Function
   style?: TextStyle
 }

@@ -14,6 +14,11 @@ export const TextValue: FC<TextValueProps> = ({ value, name, color, nameColor, v
       icon: 'copy',
       press: () => void navigator.clipboard.writeText(value)
     })
+  } else if (typeof copy === 'function') {
+    actions.push({
+      icon: 'copy',
+      press: () => copy(value)
+    })
   }
 
   // @TODO We need to properly calculate available space
