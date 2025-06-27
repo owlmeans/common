@@ -23,7 +23,7 @@
   "wallet-consumer": {
     "pin": {
       "label": "Pin-code",
-      "hint": "Scan the QR code or genereta a pin-code with your wallet app"
+      "hint": "Scan the QR code or genereta a pin-code with your OwlMeans ID app"
     },
     "submit": "Proceed with pin"
   },
