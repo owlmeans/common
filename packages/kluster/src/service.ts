@@ -3,12 +3,18 @@ import type { KlusterConfig, KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { KubeConfig, CoreV1Api, HttpError, NetworkingV1Api } from '@kubernetes/client-node'
 import { ServerContext } from '@owlmeans/server-context'
+import { readConfigValue } from '@owlmeans/server-config'
 
 type Config = KlusterConfig
 type Context = ServerContext<Config>
 
 export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterService => {
   const location = `kluster:${alias}`
+
+  const updateSelector = (selector: string): string =>
+    selector.startsWith('/') || selector.startsWith('file:')
+      ? readConfigValue(selector, selector) : selector
+
   const service: KlusterService = createLazyService<KlusterService>(alias, {
     getHostnames: async selector => {
       try {
@@ -53,6 +59,7 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
     },
 
     dispatch: async <T>(action: string, query: string) => {
+      query = updateSelector(query)
       switch (action) {
         case ACT_HOST:
           return service.getHostnames(query) as T
