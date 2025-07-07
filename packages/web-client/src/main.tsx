@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+// import { StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { DEFAULT_ROOT } from './consts.js'
@@ -15,9 +15,9 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
       throw new Error(`Root element not found with id: ${key}`)
     }
     if (opts?.hydrate === true) {
-      hydrateRoot(root, <StrictMode>{node}</StrictMode>)
+      hydrateRoot(root, node)
     } else {
-      createRoot(root).render(<StrictMode>{node}</StrictMode>)
+      createRoot(root).render(node)
     }
   }
 
