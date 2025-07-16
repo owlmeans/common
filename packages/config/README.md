@@ -61,6 +61,24 @@ const configWithService = service({
 }, config)
 ```
 
+### Client-Side Configuration
+
+For client-side applications, use `@owlmeans/client-config`:
+
+```typescript
+import { BasicClientConfig, addWebService } from '@owlmeans/client-config'
+import { makeConfig } from '@owlmeans/config'
+
+// Create client configuration
+let config: BasicClientConfig = makeConfig(AppType.Frontend, 'web-app', {
+  primaryHost: 'app.example.com',
+  shortAlias: 'webapp'
+})
+
+// Add web services
+config = addWebService('https://api.example.com', 'api', config)
+```
+
 ### Configuration with Resources
 
 ```typescript
@@ -565,6 +583,34 @@ The `@owlmeans/config` package integrates seamlessly with other OwlMeans package
 - **@owlmeans/route**: Supplies routing capabilities and URL generation
 - **@owlmeans/auth**: Handles authentication and authorization
 - **@owlmeans/error**: Provides error handling framework
+- **@owlmeans/client-config**: Extends config with client-side specific functionality
+
+### Client-Side Configuration Extension
+
+For client-side applications, consider using `@owlmeans/client-config` which extends this package with client-specific configuration capabilities:
+
+```typescript
+import { BasicClientConfig, addWebService } from '@owlmeans/client-config'
+import { makeConfig } from '@owlmeans/config'
+
+// Create client configuration with web service management
+let config: BasicClientConfig = makeConfig(AppType.Frontend, 'web-app', {
+  primaryHost: 'app.example.com',
+  shortAlias: 'webapp'
+})
+
+// Add web services with aliases
+config = addWebService('https://api.example.com', 'api', config)
+config = addWebService('https://auth.example.com', 'auth', config)
+```
+
+The `@owlmeans/client-config` package provides:
+- **Web Service Management**: Configure and manage web services with aliases
+- **Primary Host/Port Settings**: Set primary host and port configurations for client applications
+- **Service Aliases**: Create short, memorable names for services
+- **Client-Side Extensions**: Additional properties relevant for client-side applications
+
+See the `@owlmeans/client-config` package documentation for complete API reference and usage examples.
 
 ## Best Practices
 
