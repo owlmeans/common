@@ -355,47 +355,6 @@ const providedMedia: ProvidedWL<CustomMedia> = {
 }
 ```
 
-### Validation Usage
-
-```typescript
-import Ajv from 'ajv'
-import { CompanyInfoSchema, CustomStylesSchema } from '@owlmeans/wled'
-
-const ajv = new Ajv()
-
-// Validate company information
-const validateCompanyInfo = ajv.compile(CompanyInfoSchema)
-
-const companyData = {
-  entityId: 'company-123',
-  fullName: 'Example Corp',
-  shortName: 'ExampleCorp',
-  slug: 'example-corp',
-  description: 'A technology company'
-}
-
-if (validateCompanyInfo(companyData)) {
-  console.log('Company info is valid')
-} else {
-  console.log('Validation errors:', validateCompanyInfo.errors)
-}
-
-// Validate custom styles
-const validateStyles = ajv.compile(CustomStylesSchema)
-
-const styleData = {
-  entityId: 'company-123',
-  font: { fontFamily: 'Inter' },
-  colors: { primaryColor: '#007bff' }
-}
-
-if (validateStyles(styleData)) {
-  console.log('Styles are valid')
-} else {
-  console.log('Validation errors:', validateStyles.errors)
-}
-```
-
 ### Module Integration
 
 ```typescript
