@@ -25,6 +25,14 @@ A module represents a URL unit that can be transformed into routes or components
 ### Parent-Child Relationships
 Modules can be organized in hierarchical structures where child modules inherit properties from their parents, such as guards and gates.
 
+### Fullstack Consistency
+A key architectural benefit of the module system is that all validators are defined at the module level using **AJV (Another JSON Schema Validator)** format. Since the system is designed for fullstack development (existing on both frontend and backend), these validation schemas are consistently accessible across all application services and clients. This ensures:
+
+- **Unified validation**: Same validation rules apply on both frontend and backend
+- **Consistent data contracts**: API contracts are shared between client and server
+- **Reduced duplication**: No need to define validation schemas separately for frontend and backend
+- **Type safety**: AJV schemas provide runtime validation that complements TypeScript's compile-time checking
+
 ## API Reference
 
 ### Types
@@ -67,17 +75,19 @@ interface ModuleHandler {
 ```
 
 #### Filter
-Schema definitions for request/response validation using AJV.
+Schema definitions for request/response validation using **AJV (Another JSON Schema Validator)** format. All validators are defined at the module level, ensuring consistent validation schemas across both frontend and backend environments in fullstack applications.
 
 ```typescript
 interface Filter {
-  query?: AnySchemaObject      // Query parameters validation
-  params?: AnySchemaObject     // Path parameters validation
-  body?: AnySchemaObject       // Request body validation
-  response?: AnySchemaObject   // Response validation
-  headers?: AnySchemaObject    // Headers validation
+  query?: AnySchemaObject      // Query parameters validation (AJV schema)
+  params?: AnySchemaObject     // Path parameters validation (AJV schema)
+  body?: AnySchemaObject       // Request body validation (AJV schema)
+  response?: AnySchemaObject   // Response validation (AJV schema)
+  headers?: AnySchemaObject    // Headers validation (AJV schema)
 }
 ```
+
+Since the module system is designed for fullstack development, these AJV validation schemas are accessible and consistent across all application services and clients, providing unified data validation throughout the entire application stack.
 
 #### AbstractRequest
 Generic request interface for both frontend and backend.
@@ -238,45 +248,48 @@ function clone<M extends CommonModule>(
 
 ### Filter Building Functions
 
+These functions create validation filters using **AJV (Another JSON Schema Validator)** format. All schemas are defined at the module level and remain consistent across both frontend and backend environments, ensuring unified validation throughout your fullstack application.
+
 #### body(schema, filter?)
-Creates or extends a filter with body validation schema.
+Creates or extends a filter with body validation schema using AJV format.
 
 ```typescript
 function body<T>(schema: JSONSchemaType<T>, filter?: Filter): Filter
 ```
 
 #### query(schema, filter?)
-Creates or extends a filter with query parameters validation schema.
+Creates or extends a filter with query parameters validation schema using AJV format.
 
 ```typescript
 function query<T>(schema: JSONSchemaType<T>, filter?: Filter): Filter
 ```
 
 #### params(schema, filter?)
-Creates or extends a filter with path parameters validation schema.
+Creates or extends a filter with path parameters validation schema using AJV format.
 
 ```typescript
 function params<T>(schema: JSONSchemaType<T>, filter?: Filter): Filter
 ```
 
 #### response(schema, code?, filter?)
-Creates or extends a filter with response validation schema.
+Creates or extends a filter with response validation schema using AJV format.
 
 ```typescript
 function response<T>(schema: JSONSchemaType<T>, code?: number, filter?: Filter): Filter
 ```
 
 #### headers(schema, filter?)
-Creates or extends a filter with headers validation schema.
+Creates or extends a filter with headers validation schema using AJV format.
 
 ```typescript
 function headers<T>(schema: JSONSchemaType<T>, filter?: Filter): Filter
 ```
 
-**Example:**
+**Example with AJV Schema Format:**
 ```typescript
 import { body, query, params, response } from '@owlmeans/module'
 
+// AJV schema for request body validation
 const userFilter = body({
   type: 'object',
   properties: {
@@ -290,6 +303,9 @@ const userFilter = body({
     include: { type: 'string', enum: ['profile', 'preferences'] }
   }
 }))
+
+// These AJV schemas are accessible on both frontend and backend
+// providing consistent validation across your fullstack application
 ```
 
 ### Utility Functions
@@ -493,4 +509,4 @@ This package depends on:
 - `@owlmeans/route` - For route management
 - `@owlmeans/context` - For contextual module support
 - `@owlmeans/auth` - For authentication integration
-- `ajv` - For JSON schema validation
+- `ajv` - For JSON schema validation using AJV format, providing consistent validation across fullstack applications
