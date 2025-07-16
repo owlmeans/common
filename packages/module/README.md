@@ -12,6 +12,8 @@ In the context of OwlMeans Common Libraries, a **module** is not a programmatic 
 - Provide a centralized place where all possible routes are registered
 - Enable micro-applications or micro-services to flawlessly address different parts of the system
 
+For **client-side applications**, the [`@owlmeans/client-module`](../client-module) package extends this base module system with client-specific capabilities such as API calls, URL generation, and request validation.
+
 ## Core Concepts
 
 ### Module
@@ -510,3 +512,10 @@ This package depends on:
 - `@owlmeans/context` - For contextual module support
 - `@owlmeans/auth` - For authentication integration
 - `ajv` - For JSON schema validation using AJV format, providing consistent validation across fullstack applications
+
+## Related Packages
+
+- [`@owlmeans/client-module`](../client-module) - Client-side extension with API calls and URL generation
+- [`@owlmeans/server-module`](../server-module) - Server-side module implementation
+- [`@owlmeans/route`](../route) - Core routing functionality
+- [`@owlmeans/context`](../context) - Context management system
