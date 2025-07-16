@@ -1,11 +1,11 @@
-import { RESILIENT_ERROR, SEPARATOR } from './consts.js'
+import { RESILENT_ERROR, SEPARATOR } from './consts.js'
 import type { Converter, ResilientErrorConstructor } from './types.js'
 import { createErrorConverter } from './utils.js'
 
 export class ResilientError extends Error {
   public static separator: string = SEPARATOR
 
-  public static typeName: string = RESILIENT_ERROR
+  public static typeName: string = RESILENT_ERROR
 
   public static converters: Converter[] = []
 
@@ -48,23 +48,23 @@ export class ResilientError extends Error {
 
   public static marshal(err: Error): Error {
     if (err instanceof ResilientError) {
-      return new Error([err.type, err.message, err.originalStack].join(this.separator))
+      return new Error([err.type, err.message, err.oiriginalStack].join(this.separator))
     }
 
     return new Error([this.typeName, err.message, err.stack].join(this.separator))
   }
 
-  public type: string = RESILIENT_ERROR
+  public type: string = RESILENT_ERROR
 
-  public originalStack?: string
+  public oiriginalStack?: string
 
   constructor(type: string, message: string, stack?: string) {
     super(message)
     this.type = type
     if (stack != null) {
-      this.originalStack = stack
+      this.oiriginalStack = stack
     } else {
-      this.originalStack = this.stack
+      this.oiriginalStack = this.stack
     }
   }
 

@@ -40,7 +40,7 @@ The package includes a flexible converter system that allows registration of cus
 #### Properties
 
 - `type: string` - The error type identifier
-- `originalStack?: string` - The original stack trace when the error was created
+- `oiriginalStack?: string` - The original stack trace when the error was created
 
 #### Static Properties
 
@@ -273,12 +273,12 @@ The default separator used in marshaled error messages.
 const SEPARATOR = '|||'
 ```
 
-#### `RESILIENT_ERROR`
+#### `RESILENT_ERROR`
 
 The default type name for ResilientError instances.
 
 ```typescript
-const RESILIENT_ERROR = 'ResilientError'
+const RESILENT_ERROR = 'ResilientError'
 ```
 
 ## Usage Examples

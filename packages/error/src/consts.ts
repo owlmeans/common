@@ -1,4 +1,4 @@
 
 export const SEPARATOR = '|||'
 
-export const RESILIENT_ERROR = 'ResilientError'
+export const RESILENT_ERROR = 'ResilientError'
