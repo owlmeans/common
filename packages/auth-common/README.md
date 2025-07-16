@@ -148,6 +148,27 @@ The package exports pre-configured authentication modules for routing:
 - `CAUTHEN_FLOW_ENTER` - Flow entry point (`/`)
 - `DISPATCHER` - Dispatcher route (`/dispatcher`)
 
+#### Important: DISPATCHER Module Registration
+
+The **DISPATCHER** module is a critical component that **must be registered** into your application if you want to use **OwlMeans ID** or **OwlMeans Net** authentications out of the box.
+
+**Key characteristics:**
+- **Sticky Module**: Always attaches to the client router automatically
+- **Required for External Auth**: Essential for OwlMeans ID and OwlMeans Net authentication flows
+- **Handles Redirects**: Processes authentication redirects from external identity providers
+- **Path**: `/dispatcher`
+
+**Usage:**
+```typescript
+import { modules } from '@owlmeans/auth-common'
+
+// The DISPATCHER module is included in the exported modules array
+// and will be automatically registered when you use the modules
+context.registerModules(modules)
+```
+
+**Note**: The DISPATCHER module is automatically included when you import the `modules` array from this package, ensuring proper handling of redirected authentication flows.
+
 ### Middleware
 
 #### `authMiddleware`
