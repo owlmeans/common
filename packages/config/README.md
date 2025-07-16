@@ -185,23 +185,104 @@ Appends a configuration resource to a context.
 
 #### `makeSecurityHelper<C extends CommonConfig, T extends Context<C>>(ctx: T): SecurityHelper`
 
-Creates a security helper for URL generation and security management.
+Creates a security helper for URL generation and security management. The security helper provides methods to generate URLs with proper protocol handling, host resolution, and security configuration.
 
 **Parameters:**
-- `ctx` - Context with configuration
+- `ctx` - Context with configuration containing service definitions and security settings
 
-**Returns:** Security helper instance
+**Returns:** Security helper instance with URL generation methods
 
-**Methods:**
-- `makeUrl(route, path?, params?)` - Generate URL from route
-- `url(path?, params?)` - Generate URL from current service
+**Security Helper Methods:**
+
+#### `makeUrl(route: BasicRoute | CommonRoute, path?: string | SecurityHelperUrlParams, params?: SecurityHelperUrlParams): string`
+
+Generates a complete URL from a route configuration with optional path and parameters. This method handles protocol selection, host resolution from service configuration, base path handling, and security settings.
+
+**Parameters:**
+- `route` - Route configuration object containing service, host, base, and other route properties
+- `path` - Optional path to append to the URL, or SecurityHelperUrlParams object
+- `params` - Optional parameters to override route settings
+
+**SecurityHelperUrlParams Interface:**
+- `path?: string` - Path to append to the URL
+- `forceUnsecure?: boolean` - Force HTTP instead of HTTPS
+- `protocol?: RouteProtocols` - Override protocol (WEB or SOCKET)
+- `host?: string` - Override host from route
+- `base?: string | boolean` - Override base path (false = use route base, true = no base, string = custom base)
+
+**Behavior:**
+- Determines protocol security based on route.secure, context security config, and params
+- Resolves host from route or service configuration
+- Handles base path resolution with override options
+- Normalizes paths and constructs complete URLs
+- Supports both web (http/https) and socket (ws/wss) protocols
 
 **Example:**
 ```typescript
 const security = makeSecurityHelper(context)
-const apiUrl = security.makeUrl(apiRoute, '/users', { protocol: 'https' })
-const currentUrl = security.url('/dashboard')
+
+// Generate URL from route with path
+const apiUrl = security.makeUrl(apiRoute, '/users')
+
+// Generate URL with custom parameters
+const secureUrl = security.makeUrl(apiRoute, '/admin', { 
+  protocol: RouteProtocols.WEB,
+  forceUnsecure: false,
+  host: 'admin.example.com'
+})
+
+// Generate URL with path in params
+const customUrl = security.makeUrl(apiRoute, { 
+  path: '/data',
+  base: '/api/v2'
+})
 ```
+
+#### `url(path?: string | SecurityHelperUrlParams, params?: SecurityHelperUrlParams): string`
+
+Generates a URL using the current service context. This is a convenience method that uses the current service configuration from the context to generate URLs without requiring a route object.
+
+**Parameters:**
+- `path` - Optional path to append to the URL, or SecurityHelperUrlParams object
+- `params` - Optional parameters to override service settings
+
+**Behavior:**
+- Uses the current service from context configuration (ctx.cfg.service)
+- Resolves host and base from the current service configuration
+- Applies the same security and protocol logic as makeUrl
+- Throws error if current service is not configured
+
+**Example:**
+```typescript
+const security = makeSecurityHelper(context)
+
+// Generate URL from current service
+const dashboardUrl = security.url('/dashboard')
+
+// Generate URL with custom host
+const customUrl = security.url('/api/data', { 
+  host: 'api.example.com',
+  protocol: RouteProtocols.WEB
+})
+
+// Generate URL with path in params
+const settingsUrl = security.url({ 
+  path: '/settings',
+  forceUnsecure: true
+})
+```
+
+**Security Configuration:**
+
+The security helper respects the following configuration options:
+- `ctx.cfg.security?.unsecure` - Global security setting (true = force HTTP, false = force HTTPS)
+- `route.secure` - Per-route security setting
+- `params.forceUnsecure` - Override to force HTTP for specific calls
+
+**Protocol Handling:**
+- Automatically adds 's' suffix for secure protocols (https, wss)
+- Supports both web (http/https) and socket (ws/wss) protocols
+- Handles fully qualified host URLs by extracting protocol and host parts
 
 ### Plugin Management
 
