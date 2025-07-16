@@ -125,7 +125,7 @@ const contextualObject = appendContextual('my-object', {
 
 #### `BasicContext<C extends BasicConfig>`
 
-The main context interface that provides:
+The main context interface that provides comprehensive dependency management. Each method serves a specific purpose in the context lifecycle and dependency resolution:
 
 ```typescript
 interface BasicContext<C extends BasicConfig> {
@@ -158,6 +158,147 @@ interface BasicContext<C extends BasicConfig> {
   get config(): Promise<C>
 }
 ```
+
+### Context Methods Detailed Reference
+
+#### Lifecycle Methods
+
+**`waitForConfigured(): Promise<boolean>`**
+- **Purpose**: Returns a promise that resolves when the context has completed its configuration stage
+- **Usage**: Useful for waiting for configuration to complete before proceeding
+- **Returns**: Promise that resolves to `true` when configuration is complete
+
+**`waitForInitialized(): Promise<boolean>`**
+- **Purpose**: Returns a promise that resolves when the context has completed initialization and reached the Ready stage
+- **Usage**: Essential for ensuring all services and resources are initialized before use
+- **Returns**: Promise that resolves to `true` when initialization is complete
+
+**`configure<T extends BasicContext<C>>(): T`**
+- **Purpose**: Transitions the context from Configuration stage to Loading stage
+- **Behavior**: Applies configuration middlewares and prepares the context for initialization
+- **Usage**: Must be called after registering all components and before `init()`
+- **Returns**: The context instance for method chaining
+
+**`init<T extends BasicContext<C>>(): Promise<T>`**
+- **Purpose**: Initializes all registered services and resources, transitioning context to Ready stage
+- **Behavior**: 
+  - Executes `init()` methods on all registered services
+  - Initializes all resources according to their layer availability
+  - Applies loading and ready stage middlewares
+  - Marks context as ready for use
+- **Usage**: Must be called after `configure()` to make the context operational
+- **Returns**: Promise that resolves to the initialized context instance
+
+#### Registration Methods
+
+**`registerService<T extends BasicContext<C>>(service: Service): T`**
+- **Purpose**: Registers a service with the context for dependency injection
+- **Behavior**: 
+  - Associates the service with the current context
+  - Stores the service in the appropriate layer
+  - Makes the service available for retrieval via `service()`
+- **Usage**: Call during configuration stage to register services
+- **Returns**: The context instance for method chaining
+
+**`registerModule<T extends BasicContext<C>>(module: BasicModule): T`**
+- **Purpose**: Registers a module (URL unit) with the context
+- **Behavior**: 
+  - Associates the module with the current context
+  - Makes the module available for route resolution and navigation
+- **Usage**: Register modules that define URL structures and routing
+- **Returns**: The context instance for method chaining
+
+**`registerModules<T extends BasicContext<C>>(modules: BasicModule[]): T`**
+- **Purpose**: Convenience method to register multiple modules at once
+- **Behavior**: Iterates through the array and registers each module
+- **Usage**: Efficient way to register multiple modules simultaneously
+- **Returns**: The context instance for method chaining
+
+**`registerResource<T extends BasicContext<C>>(resource: BasicResource): T`**
+- **Purpose**: Registers a resource (data source or external service) with the context
+- **Behavior**: 
+  - Associates the resource with the current context
+  - Resources are initialized during context initialization based on layer availability
+- **Usage**: Register resources that provide data or external functionality
+- **Returns**: The context instance for method chaining
+
+**`registerMiddleware<T extends BasicContext<C>>(middleware: Middleware): T`**
+- **Purpose**: Registers middleware for cross-cutting concerns during context lifecycle
+- **Behavior**: 
+  - Middleware is applied at specific stages (Configuration, Loading, Ready, Switching)
+  - Multiple middlewares can be registered for the same stage
+- **Usage**: Register middleware for logging, validation, or other cross-cutting functionality
+- **Returns**: The context instance for method chaining
+
+#### Access Methods
+
+**`service<T extends Service>(alias: string): T`**
+- **Purpose**: Retrieves a registered service by its alias
+- **Behavior**: 
+  - Looks up the service in the current layer and falls back to Global layer
+  - Handles lazy initialization if the service is not yet initialized
+  - Throws `SyntaxError` if service is not found or not initialized
+- **Usage**: Primary way to access services for dependency injection
+- **Returns**: The requested service instance
+- **Throws**: `SyntaxError` if service not found or not initialized
+
+**`module<T extends BasicModule>(alias: string): T`**
+- **Purpose**: Retrieves a registered module by its alias
+- **Behavior**: 
+  - Looks up the module in the current layer
+  - Throws `SyntaxError` if module is not found
+- **Usage**: Access modules for route resolution and navigation
+- **Returns**: The requested module instance
+- **Throws**: `SyntaxError` if module not found
+
+**`resource<T extends BasicResource>(alias: string): T`**
+- **Purpose**: Retrieves a registered resource by its alias
+- **Behavior**: 
+  - Looks up the resource in the current layer
+  - Throws `SyntaxError` if resource is not found
+- **Usage**: Access resources for data operations or external service calls
+- **Returns**: The requested resource instance
+- **Throws**: `SyntaxError` if resource not found
+
+**`modules<T extends BasicModule>(): T[]`**
+- **Purpose**: Retrieves all registered modules as an array
+- **Behavior**: Returns all modules registered in the current layer
+- **Usage**: Useful for iterating over all available modules
+- **Returns**: Array of all registered modules
+
+#### Utility Methods
+
+**`hasResource(alias: string): boolean`**
+- **Purpose**: Checks if a resource with the given alias exists
+- **Behavior**: Searches across all layers for the resource
+- **Usage**: Defensive programming to check resource availability before access
+- **Returns**: `true` if resource exists, `false` otherwise
+
+**`hasService(alias: string): boolean`**
+- **Purpose**: Checks if a service with the given alias exists
+- **Behavior**: Searches across all layers for the service
+- **Usage**: Defensive programming to check service availability before access
+- **Returns**: `true` if service exists, `false` otherwise
+
+#### Configuration Access
+
+**`get config(): Promise<C>`**
+- **Purpose**: Provides access to the context configuration after it's been configured
+- **Behavior**: Returns a promise that resolves to the configuration object once context is configured
+- **Usage**: Access configuration settings after context setup
+- **Returns**: Promise that resolves to the configuration object
+
+#### Properties
+
+**`cfg: C`**
+- **Purpose**: Direct access to the context configuration object
+- **Usage**: Access configuration settings synchronously
+- **Type**: The configuration object of type `C extends BasicConfig`
+
+**`stage: ContextStage`**
+- **Purpose**: Indicates the current lifecycle stage of the context
+- **Values**: `Configuration`, `Loading`, or `Ready`
+- **Usage**: Check context readiness before performing operations
 
 #### `BasicConfig`
 
@@ -316,6 +457,144 @@ await configuredContext.init()
 
 // Use the service
 const dbService = context.service('database')
+```
+
+### Advanced Context Method Usage
+
+```typescript
+import { 
+  makeBasicContext, 
+  makeBasicConfig, 
+  createService, 
+  createLazyService,
+  AppType, 
+  Layer,
+  ContextStage 
+} from '@owlmeans/context'
+
+const config = makeBasicConfig(AppType.Backend, 'advanced-app')
+const context = makeBasicContext(config)
+
+// Register multiple services
+const cacheService = createService('cache', {
+  get: (key: string) => `cached-${key}`,
+  set: (key: string, value: any) => console.log(`Set ${key}=${value}`)
+})
+
+const logService = createLazyService('logger', {
+  log: (message: string) => console.log(`[LOG] ${message}`)
+}, (service) => async () => {
+  console.log('Logger initialized lazily')
+  service.initialized = true
+})
+
+context.registerService(cacheService)
+context.registerService(logService)
+
+// Check service availability before use
+if (context.hasService('cache')) {
+  console.log('Cache service is available')
+}
+
+// Wait for specific lifecycle stages
+await context.waitForConfigured()
+console.log('Context configured')
+
+// Configure and initialize
+context.configure()
+await context.init()
+
+// Check current stage
+console.log('Current stage:', context.stage) // ContextStage.Ready
+
+// Access configuration after initialization
+const finalConfig = await context.config
+console.log('Final config:', finalConfig.service)
+
+// Service access - cache service is already initialized
+const cache = context.service('cache')
+cache.set('key1', 'value1')
+
+// Lazy service access - will initialize on first access
+const logger = context.service('logger') // Triggers lazy initialization
+logger.log('Application ready')
+```
+
+### Method Chaining and Error Handling
+
+```typescript
+import { 
+  makeBasicContext, 
+  makeBasicConfig, 
+  createService, 
+  appendContextual,
+  AppType 
+} from '@owlmeans/context'
+
+const config = makeBasicConfig(AppType.Backend, 'chaining-example')
+const context = makeBasicContext(config)
+
+// Method chaining for registration
+const service1 = createService('service1', { value: 1 })
+const service2 = createService('service2', { value: 2 })
+const module1 = appendContextual('module1', { _module: true, routes: {} })
+const resource1 = appendContextual('resource1', { data: 'test' })
+
+// Chain multiple registrations
+context
+  .registerService(service1)
+  .registerService(service2)
+  .registerModule(module1)
+  .registerResource(resource1)
+
+// Error handling for service access
+try {
+  const nonExistentService = context.service('non-existent')
+} catch (error) {
+  console.error('Service not found:', error.message)
+  // Output: Service non-existent not found in layer service
+}
+
+// Safe service access using hasService
+if (context.hasService('service1')) {
+  const service = context.service('service1')
+  console.log('Service value:', service.value)
+}
+
+// Error handling for uninitialized services
+await context.configure().init()
+
+// Now services are accessible
+const service = context.service('service1')
+console.log('Service accessible after init:', service.value)
+```
+
+### Context Lifecycle Management
+
+```typescript
+const context = makeBasicContext(config)
+
+// Register components during Configuration stage
+console.log('Stage:', context.stage) // ContextStage.Configuration
+
+context.registerService(myService)
+context.registerModule(myModule)
+
+// Move to Loading stage
+context.configure()
+console.log('Stage:', context.stage) // ContextStage.Loading
+
+// Move to Ready stage
+await context.init()
+console.log('Stage:', context.stage) // ContextStage.Ready
+
+// Context lifecycle promises
+const configuredPromise = context.waitForConfigured()
+const initializedPromise = context.waitForInitialized()
+
+// Both promises resolve immediately if context is already ready
+await configuredPromise // Resolves to true
+await initializedPromise // Resolves to true
 ```
 
 ### Module Registration
