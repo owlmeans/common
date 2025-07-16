@@ -4,7 +4,9 @@ Cross-environment routing library for OwlMeans applications that provides struct
 
 ## Overview
 
-The `@owlmeans/route` module is a core component of the OwlMeans Common library suite that provides:
+The `@owlmeans/route` module is a core component of the OwlMeans Common library suite that provides routing functionality as part of the OwlMeans Common Module approach (described in `@owlmeans/context`). This module is not self-sufficient and is designed to work within the OwlMeans Common Module ecosystem.
+
+Key features:
 
 - **Routes** - Cross-environment structures consisting of URLs, URIs, aliases, permissions, and validations (POJO)
 - **Route Models** - Wrapper objects that add behavior to route POJOs with resolution capabilities
@@ -27,7 +29,7 @@ A route is a cross-environment structure that defines how to access a particular
 A route model wraps a route POJO with additional behavior, particularly the ability to resolve the route within a given context.
 
 ### Service Route
-A service route defines the configuration for a particular service, including host, port, and other connection details.
+A service route is an object that describes the base URL of a service (host, port, and other connection details). It differs from a regular route object, which describes a specific URL within a service.
 
 ## Installation
 
@@ -55,7 +57,7 @@ interface CommonRoute extends BasicRoute {
 ```
 
 #### CommonServiceRoute
-Service route interface that defines service endpoint configuration.
+Service route interface that describes the base URL of a service.
 
 ```typescript
 interface CommonServiceRoute extends BasicRoute {
@@ -64,6 +66,8 @@ interface CommonServiceRoute extends BasicRoute {
   default?: boolean     // Whether this is a default service
 }
 ```
+
+**Note:** A service route describes the base URL of a service (such as host and port), while a regular route describes a specific URL within that service.
 
 #### BasicRoute
 Base route interface with common properties.
@@ -453,7 +457,7 @@ const userServiceRoute = route('userService', '/users', {
 
 ## Integration with OwlMeans Context
 
-The route module integrates seamlessly with the OwlMeans context system:
+The route module is part of the OwlMeans Common Module approach and integrates seamlessly with the OwlMeans context system (see `@owlmeans/context` for more details on the Common Module approach). This module is not self-sufficient and requires the context system to function properly:
 
 ```typescript
 import { route, backend } from '@owlmeans/route'
