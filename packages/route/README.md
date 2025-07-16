@@ -469,6 +469,31 @@ const userServiceRoute = route('userService', '/users', {
 })
 ```
 
+## Client-Side Usage
+
+For client-side applications, consider using the `@owlmeans/client-route` package which extends this module with additional client-specific functionality:
+
+```typescript
+import { route as baseRoute } from '@owlmeans/route'
+import { route as clientRoute } from '@owlmeans/client-route'
+
+// Create a base route
+const userRoute = baseRoute('user', '/users/:id')
+
+// Wrap with client functionality
+const clientUserRoute = clientRoute(userRoute)
+
+// Access client-specific features
+console.log(clientUserRoute.route.partialPath) // '/users/:id'
+```
+
+The `@owlmeans/client-route` package provides:
+- **Partial Path Preservation** - Maintains original path patterns for client-side processing
+- **Parameter Extraction** - Utilities for extracting route parameters
+- **Promise-based Resolution** - Enhanced resolution tracking for client applications
+
+See the `@owlmeans/client-route` documentation for complete client-side routing capabilities.
+
 ## Integration with OwlMeans Context
 
 The route module is part of the OwlMeans Common Module approach and integrates seamlessly with the OwlMeans context system (see `@owlmeans/context` for more details on the Common Module approach). This module is not self-sufficient and requires the context system to function properly.
@@ -531,6 +556,6 @@ The module provides comprehensive error handling:
 
 ## Related Modules
 
-- `@owlmeans/context` - Provides the context system for route resolution
-- `@owlmeans/client-route` - Client-side route implementations
-- `@owlmeans/server-route` - Server-side route implementations
+- **@owlmeans/context** - Provides the context system for route resolution
+- **@owlmeans/client-route** - Client-side route implementations and extensions with additional functionality like partial path preservation and parameter extraction
+- **@owlmeans/server-route** - Server-side route implementations
