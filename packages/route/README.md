@@ -6,7 +6,21 @@ Cross-environment routing library for OwlMeans applications that provides struct
 
 The `@owlmeans/route` module is a core component of the OwlMeans Common library suite that provides routing functionality as part of the OwlMeans Common Module approach (described in `@owlmeans/context`). This module is not self-sufficient and is designed to work within the OwlMeans Common Module ecosystem.
 
-Key features:
+### Understanding "Modules" in OwlMeans Common Libraries
+
+The term "module" in the context of OwlMeans Common libraries refers not to a programmatic module but to a **URL unit** in the system. The OwlMeans Common libraries are intended for fullstack microservices and microclients development, where modules serve as a central registry for URL structures.
+
+Modules provide several key capabilities:
+
+- **URL Declaration and Nesting** - Define hierarchical URL structures that can be shared across services
+- **Context-Aware Transformation** - Transform module definitions into routes based on frontend or backend context
+- **Handler Attachment** - On the backend, attach handlers to routes; on the frontend, specify which components to render
+- **URL Generation** - Generate final URLs for navigation or API calls on both backend and frontend
+- **Centralized Registration** - Provide a single place where all possible routes are registered, allowing micro-applications and micro-services to seamlessly address different parts of the system
+
+This approach enables consistent URL management across distributed systems while maintaining flexibility for different deployment contexts.
+
+### Key Features
 
 - **Routes** - Cross-environment structures consisting of URLs, URIs, aliases, permissions, and validations (POJO)
 - **Route Models** - Wrapper objects that add behavior to route POJOs with resolution capabilities
@@ -457,27 +471,47 @@ const userServiceRoute = route('userService', '/users', {
 
 ## Integration with OwlMeans Context
 
-The route module is part of the OwlMeans Common Module approach and integrates seamlessly with the OwlMeans context system (see `@owlmeans/context` for more details on the Common Module approach). This module is not self-sufficient and requires the context system to function properly:
+The route module is part of the OwlMeans Common Module approach and integrates seamlessly with the OwlMeans context system (see `@owlmeans/context` for more details on the Common Module approach). This module is not self-sufficient and requires the context system to function properly.
+
+### Working with Modules and Routes
+
+In the OwlMeans ecosystem, modules define URL structures that can be transformed into routes based on the deployment context. Here's how they work together:
 
 ```typescript
 import { route, backend } from '@owlmeans/route'
 import { BasicContext } from '@owlmeans/context'
 
-// Create a route
-const apiRoute = route('api', '/api', backend())
-
-// Resolve within context
-const resolvedRoute = await apiRoute.resolve(context)
-
-// Use in module
-const module = {
+// Define a module with route structure
+const apiModule = {
   _module: true,
-  route: apiRoute,
-  resolve: async () => {
-    await apiRoute.resolve(context)
+  route: route('api', '/api', backend()),
+  
+  // Nested routes within the module
+  users: route('users', '/users', 'api'),
+  posts: route('posts', '/posts', 'api'),
+  
+  // Resolution logic
+  resolve: async (context) => {
+    await apiModule.route.resolve(context)
+    await apiModule.users.resolve(context)
+    await apiModule.posts.resolve(context)
   }
 }
+
+// Use the module in different contexts
+const resolvedRoute = await apiModule.route.resolve(context)
+
+// Generate URLs for navigation or API calls
+const userApiUrl = await apiModule.users.resolve(backendContext) // Backend API URL
+const userPageUrl = await apiModule.users.resolve(frontendContext) // Frontend page URL
 ```
+
+### Module-Based Architecture Benefits
+
+- **Centralized Route Definition** - All routes are defined in modules and shared across services
+- **Context-Aware Resolution** - Same route definitions work for both frontend and backend
+- **Consistent URL Generation** - URLs are generated consistently across the entire system
+- **Service Integration** - Modules can span multiple microservices while maintaining coherent routing
 
 ## Error Handling
 
