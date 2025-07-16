@@ -8,9 +8,13 @@ Configuration management library for OwlMeans Common applications. This package 
 npm install @owlmeans/config
 ```
 
+**Note**: This package depends on `@owlmeans/context` and extends its functionality. Make sure you have the proper OwlMeans Common ecosystem set up in your project.
+
 ## Overview
 
 The `@owlmeans/config` package is part of the OwlMeans Common libraries ecosystem and provides a comprehensive configuration management solution. It follows the OwlMeans package structure with types, models, helpers, services, and resources.
+
+**Important Note**: This package is not intended to be used separately from the OwlMeans Common ecosystem. It extends the functionality of `@owlmeans/context` and should be used in conjunction with it. The configuration objects created by this package build upon the basic configuration structure provided by `@owlmeans/context`.
 
 ### Key Features
 
@@ -29,7 +33,7 @@ Configuration objects in OwlMeans are structured data that define application be
 
 ### Context Integration
 
-Configurations are typically used within a context (application instance) and can be extended with resources and services.
+This package extends the functionality of `@owlmeans/context` by providing additional configuration management capabilities. Configurations are built upon the basic configuration structure from `@owlmeans/context` and are typically used within a context (application instance). They can be extended with resources and services through the functions provided by this package.
 
 ### Resource Pattern
 
