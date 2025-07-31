@@ -60,9 +60,90 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 - **Web packages**: Browser-specific React implementations with Material-UI
 - **Native packages**: React Native mobile implementations
 
-## 🚀 **Quick Start: Fullstack "Hello World" Application**
+## 🚀 **Quick Start**
 
-This example demonstrates building a complete fullstack application with user authentication, a backend API, and a React Material-UI frontend using OwlMeans Common.
+Get started with OwlMeans Common in just a few minutes by creating a simple "Hello World" application with a server endpoint and client.
+
+### **Step 1: Install Dependencies**
+
+```bash
+npm install @owlmeans/server-app @owlmeans/web-panel
+```
+
+### **Step 2: Create Server**
+
+```typescript
+// server.ts
+import { makeContext, main, modules, elevate, handleRequest } from '@owlmeans/server-app'
+import { module, route } from '@owlmeans/module'
+
+// Define a simple hello endpoint
+const helloModule = module(
+  route('hello', '/api/hello', { method: 'GET' })
+)
+
+// Handle the hello request
+elevate(helloModule, 'hello', handleRequest(async (req, res) => {
+  res.resolve({ message: 'Hello World from OwlMeans!' })
+}))
+
+// Start server
+const context = makeContext({ port: 3001 })
+main(context, [...modules, helloModule])
+```
+
+### **Step 3: Create Client**
+
+```typescript
+// client.tsx
+import React, { useState, useEffect } from 'react'
+import { render } from 'react-dom'
+import { Button, Typography, Box } from '@mui/material'
+
+const App = () => {
+  const [message, setMessage] = useState('')
+
+  const fetchHello = async () => {
+    const response = await fetch('http://localhost:3001/api/hello')
+    const data = await response.json()
+    setMessage(data.message)
+  }
+
+  useEffect(() => { fetchHello() }, [])
+
+  return (
+    <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Typography variant="h4" gutterBottom>
+        OwlMeans Common
+      </Typography>
+      <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
+        {message || 'Loading...'}
+      </Typography>
+      <Button variant="contained" onClick={fetchHello}>
+        Refresh
+      </Button>
+    </Box>
+  )
+}
+
+render(<App />, document.getElementById('root'))
+```
+
+### **Step 4: Run the Application**
+
+```bash
+# Terminal 1: Start server
+npx ts-node server.ts
+
+# Terminal 2: Start client (with your preferred React setup)
+npm start
+```
+
+That's it! You now have a working OwlMeans Common application. For a more comprehensive example with authentication, validation, and advanced features, see the Full Example below.
+
+## 📖 **Full Example: Complete Fullstack Application**
+
+This comprehensive example demonstrates building a complete fullstack application with user authentication, a backend API, and a React Material-UI frontend using OwlMeans Common.
 
 ### **Project Structure**
 
