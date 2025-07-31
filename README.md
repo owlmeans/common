@@ -67,7 +67,7 @@ Get started with OwlMeans Common in just a few minutes by creating a simple "Hel
 ### **Step 1: Install Dependencies**
 
 ```bash
-npm install @owlmeans/server-app @owlmeans/web-panel
+npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-module @owlmeans/client-config @owlmeans/client
 ```
 
 ### **Step 2: Create Server**
@@ -97,16 +97,32 @@ main(context, [...modules, helloModule])
 ```typescript
 // client.tsx
 import React, { useState, useEffect } from 'react'
-import { render } from 'react-dom'
+import { makeContext, render } from '@owlmeans/web-client'
+import { App } from '@owlmeans/client'
+import { module } from '@owlmeans/client-module'
+import { route } from '@owlmeans/route'
+import { config, addWebService } from '@owlmeans/client-config'
 import { Button, Typography, Box } from '@mui/material'
+import { AppType, Layer } from '@owlmeans/context'
 
-const App = () => {
+// Create the hello module for client-side API calls
+const helloModule = module(route('hello', '/api/hello', { method: 'GET' }))
+
+// Create root component module 
+const rootModule = module(route('root', '/', { frontend: true }))
+
+const HelloComponent = () => {
   const [message, setMessage] = useState('')
 
   const fetchHello = async () => {
-    const response = await fetch('http://localhost:3001/api/hello')
-    const data = await response.json()
-    setMessage(data.message)
+    try {
+      // Use module system to make API call
+      const [data, outcome] = await helloModule.call()
+      setMessage(data.message)
+    } catch (error) {
+      console.error('Failed to fetch hello:', error)
+      setMessage('Error loading message')
+    }
   }
 
   useEffect(() => { fetchHello() }, [])
@@ -126,7 +142,32 @@ const App = () => {
   )
 }
 
-render(<App />, document.getElementById('root'))
+// Create web context with API service configuration
+const context = makeContext(config(
+  AppType.Frontend,
+  'hello-world-client',
+  addWebService('api', {
+    host: 'localhost',
+    port: 3001
+  }),
+  {
+    layer: Layer.Service,
+    trusted: ['localhost:3001']
+  }
+))
+
+// Register modules
+context.registerModules([helloModule, rootModule])
+
+// Initialize context and render
+context.configure().then(() => context.init()).then(() => {
+  render(
+    <App context={context}>
+      <HelloComponent />
+    </App>,
+    { domId: 'root' }
+  )
+})
 ```
 
 ### **Step 4: Run the Application**
