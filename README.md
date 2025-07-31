@@ -60,9 +60,131 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 - **Web packages**: Browser-specific React implementations with Material-UI
 - **Native packages**: React Native mobile implementations
 
-## 🚀 **Quick Start: Fullstack "Hello World" Application**
+## 🚀 **Quick Start**
 
-This example demonstrates building a complete fullstack application with user authentication, a backend API, and a React Material-UI frontend using OwlMeans Common.
+Get started with OwlMeans Common in just a few minutes by creating a simple "Hello World" application with a server endpoint and client.
+
+### **Step 1: Install Dependencies**
+
+```bash
+npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-module @owlmeans/client-config @owlmeans/client
+```
+
+### **Step 2: Create Server**
+
+```typescript
+// server.ts
+import { makeContext, main, modules, elevate, handleRequest } from '@owlmeans/server-app'
+import { module, route } from '@owlmeans/module'
+
+// Define a simple hello endpoint
+const helloModule = module(
+  route('hello', '/api/hello', { method: 'GET' })
+)
+
+// Handle the hello request
+elevate(helloModule, 'hello', handleRequest(async (req, res) => {
+  res.resolve({ message: 'Hello World from OwlMeans!' })
+}))
+
+// Start server
+const context = makeContext({ port: 3001 })
+main(context, [...modules, helloModule])
+```
+
+### **Step 3: Create Client**
+
+```typescript
+// client.tsx
+import React, { useState, useEffect } from 'react'
+import { makeContext, render } from '@owlmeans/web-client'
+import { App } from '@owlmeans/client'
+import { module } from '@owlmeans/client-module'
+import { route } from '@owlmeans/route'
+import { config, addWebService } from '@owlmeans/client-config'
+import { Button, Typography, Box } from '@mui/material'
+import { AppType, Layer } from '@owlmeans/context'
+
+// Create the hello module for client-side API calls
+const helloModule = module(route('hello', '/api/hello', { method: 'GET' }))
+
+// Create root component module 
+const rootModule = module(route('root', '/', { frontend: true }))
+
+const HelloComponent = () => {
+  const [message, setMessage] = useState('')
+
+  const fetchHello = async () => {
+    try {
+      // Use module system to make API call
+      const [data, outcome] = await helloModule.call()
+      setMessage(data.message)
+    } catch (error) {
+      console.error('Failed to fetch hello:', error)
+      setMessage('Error loading message')
+    }
+  }
+
+  useEffect(() => { fetchHello() }, [])
+
+  return (
+    <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Typography variant="h4" gutterBottom>
+        OwlMeans Common
+      </Typography>
+      <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
+        {message || 'Loading...'}
+      </Typography>
+      <Button variant="contained" onClick={fetchHello}>
+        Refresh
+      </Button>
+    </Box>
+  )
+}
+
+// Create web context with API service configuration
+const context = makeContext(config(
+  AppType.Frontend,
+  'hello-world-client',
+  addWebService('api', {
+    host: 'localhost',
+    port: 3001
+  }),
+  {
+    layer: Layer.Service,
+    trusted: ['localhost:3001']
+  }
+))
+
+// Register modules
+context.registerModules([helloModule, rootModule])
+
+// Initialize context and render
+context.configure().then(() => context.init()).then(() => {
+  render(
+    <App context={context}>
+      <HelloComponent />
+    </App>,
+    { domId: 'root' }
+  )
+})
+```
+
+### **Step 4: Run the Application**
+
+```bash
+# Terminal 1: Start server
+npx ts-node server.ts
+
+# Terminal 2: Start client (with your preferred React setup)
+npm start
+```
+
+That's it! You now have a working OwlMeans Common application. For a more comprehensive example with authentication, validation, and advanced features, see the Full Example below.
+
+## 📖 **Full Example: Complete Fullstack Application**
+
+This comprehensive example demonstrates building a complete fullstack application with user authentication, a backend API, and a React Material-UI frontend using OwlMeans Common.
 
 ### **Project Structure**
 
