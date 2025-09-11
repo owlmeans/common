@@ -49,7 +49,6 @@
     "@scure/base": "^1.1.9",
     "canonicalize": "^2.0.0"
   },
-  "private": false,
   "publishConfig": {
     "access": "public"
   }

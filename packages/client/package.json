@@ -59,7 +59,6 @@
     "react-router": "^6.26.2",
     "typescript": "^5.6.3"
   },
-  "private": false,
   "publishConfig": {
     "access": "public"
   }

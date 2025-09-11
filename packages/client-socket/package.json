@@ -37,7 +37,6 @@
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/socket": "^0.1.0"
   },
-  "private": false,
   "publishConfig": {
     "access": "public"
   }
