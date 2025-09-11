@@ -53,5 +53,9 @@
     "@owlmeans/resource": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
     "react-native-vector-icons": "^10.2.0"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -41,5 +41,9 @@
     "@scure/base": "^1.1.9",
     "jose": "5.9.6",
     "oidc-provider": "8.5.2"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -32,5 +32,9 @@
     "@owlmeans/server-context": "^0.1.0",
     "@scure/base": "^1.1.9",
     "mongodb": "^6.9.0"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
   }
 }

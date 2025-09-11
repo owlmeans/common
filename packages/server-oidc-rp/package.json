@@ -63,5 +63,9 @@
   },
   "peerDependencies": {
     "ajv": "*"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
   }
 }
