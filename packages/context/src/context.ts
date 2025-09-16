@@ -254,7 +254,9 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
     hasResource: alias => allResources[alias] != null,
 
-    hasService: alias => allServices[alias] != null
+    hasService: alias => allServices[alias] != null,
+
+    hasModule: alias => allModules[alias] != null,
   }
 
   return context

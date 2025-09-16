@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-oidc-rp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -46,7 +46,7 @@
     "@owlmeans/basic-envelope": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "@owlmeans/did": "^0.1.0",
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/oidc": "^0.1.0",

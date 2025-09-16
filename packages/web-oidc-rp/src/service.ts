@@ -61,12 +61,14 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
        * 3. The server should return an URL to redirect user to
        * 4. Return this user to the component for the further processing (redirection)
        */
-      if (flow.state().flow !== STD_OIDC_FLOW || flow.state().step !== OidcAuthStep.Ephemeral) {
+      const state = flow.state()
+      if (state.flow !== STD_OIDC_FLOW || state.step !== OidcAuthStep.Ephemeral) {
         return null
       }
-      if (params.entity == null && params.entity == null) {
+      if (params.entity == null && state.entityId == null) {
         return null
       }
+      params.entity ??= state.entityId!
 
       const ctx = service.assertCtx<Config, Context>()
 
