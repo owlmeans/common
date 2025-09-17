@@ -22,7 +22,7 @@
   "dependencies": {
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "idb-keyval": "^6.2.1"
   },
   "devDependencies": {

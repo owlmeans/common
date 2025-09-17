@@ -22,7 +22,7 @@
   "dependencies": {
     "@owlmeans/client-context": "^0.1.0",
     "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/context": "^0.1.0"
+    "@owlmeans/context": "^0.1.1"
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": "*"

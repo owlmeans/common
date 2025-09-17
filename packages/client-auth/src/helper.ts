@@ -4,9 +4,12 @@ import { provideRequest } from '@owlmeans/client-module'
 import { useWs as useWebSocket } from '@owlmeans/client-socket'
 import type { AbstractRequest } from '@owlmeans/module'
 import type { AuthServiceAppend } from './types.js'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ClientContext } from '@owlmeans/client-context'
-import { AUTH_QUERY } from '@owlmeans/auth'
+import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
+import { QUERY_PARAM, useFlow } from '@owlmeans/web-flow'
+import { DEFAULT_ENTITY } from './consts.js'
+import { OidcAuthStep } from '@owlmeans/flow'
 
 export const useWs = (
   module: string | ClientModule<any>, _request?: Partial<AbstractRequest<any>>
@@ -36,4 +39,29 @@ export const useWs = (
   }, [_request])
 
   return useWebSocket(module, request)
+}
+
+export const useSelfAuth = (force: boolean = true, entity: string = DEFAULT_ENTITY) => {
+  const context = useContext() as unknown as AuthServiceAppend & ClientContext
+  const flow = useFlow(context.cfg.service)
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    if (flow == null) return
+    context.auth().authenticated().then(async auth => {
+      if (force && !auth) {
+        flow.flow().entity(entity)
+        const transition = flow.flow().transit(OidcAuthStep.Ephemeral, true)
+        const [url] = await context.module<ClientModule<string>>(DISPATCHER).call({
+          query: { [QUERY_PARAM]: transition }
+        })
+
+        document.location = url
+      }
+
+      setAuthenticated(!!auth)
+    })
+  }, [flow])
+
+  return authenticated
 }

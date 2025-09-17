@@ -31,7 +31,7 @@
     "@fastify/websocket": "^11.0.1",
     "@owlmeans/auth": "^0.1.0",
     "@owlmeans/basic-envelope": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "@owlmeans/module": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",
     "@owlmeans/server-auth": "^0.1.0",

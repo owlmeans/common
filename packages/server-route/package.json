@@ -20,7 +20,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "@owlmeans/route": "^0.1.0"
   },
   "devDependencies": {

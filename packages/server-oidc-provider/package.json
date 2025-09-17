@@ -33,7 +33,7 @@
     "@noble/hashes": "^1.5.0",
     "@owlmeans/client-module": "^0.1.0",
     "@owlmeans/config": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "@owlmeans/oidc": "^0.1.0",
     "@owlmeans/route": "^0.1.0",
     "@owlmeans/server-api": "^0.1.0",

@@ -22,7 +22,7 @@
   "dependencies": {
     "@owlmeans/client": "^0.1.0",
     "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/context": "^0.1.1",
     "@owlmeans/wled": "^0.1.0"
   },
   "peerDependencies": {
