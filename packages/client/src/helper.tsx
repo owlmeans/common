@@ -31,7 +31,7 @@ export const handler = <T extends {}>(
   }
 
   if (preprender === true) {
-    const Renderer = Component as RendererType
+    const Renderer = Component as unknown as RendererType
     const element = <Renderer {...req} context={ctx} />
     res.resolve(element as HandledRenderer<T>)
 
@@ -39,7 +39,7 @@ export const handler = <T extends {}>(
   }
 
   const Renderer: RoutedComponent = ({ children, ...props }) => {
-    const Renderer = Component as RendererType
+    const Renderer = Component as unknown as RendererType
     return <ModuleContext.Provider value={props}>
       <Renderer {...props}>{children}</Renderer>
     </ModuleContext.Provider>
