@@ -29,6 +29,6 @@ export const InputCtrl: FC<InputControllerProps> = (props) => {
     const form = useClientFormContext()
     const error = useFormError(name, fieldState.error)
 
-    return render({ ...other, ...form, field, fieldState, label, placeholder, hint, error })
+    return render({ ...other, ...form, field, fieldState, label, placeholder, hint, error, t })
   }} />
 }

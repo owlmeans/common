@@ -1,6 +1,7 @@
 import type { HTMLInputTypeAttribute, ReactElement } from 'react'
 import type { FormFieldProps, TFormContext } from '../types.js'
-import { ControllerFieldState, ControllerRenderProps, FieldValues } from 'react-hook-form'
+import type { ControllerFieldState, ControllerRenderProps, FieldValues } from 'react-hook-form'
+import type { TFunction } from "i18next"
 
 export interface InputControllerProps extends FormFieldProps {
   name: string
@@ -22,5 +23,6 @@ export interface InputControllerRendererArgs<T extends FieldValues = FieldValues
   placeholder?: string
   field: ControllerRenderProps<T>
   fieldState: ControllerFieldState
+  t: TFunction
   error?: string
 }
