@@ -6,8 +6,8 @@ import type { AbstractRequest } from '@owlmeans/module'
 import type { AuthServiceAppend } from './types.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { ClientContext } from '@owlmeans/client-context'
-import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
-import { QUERY_PARAM, useFlow } from '@owlmeans/web-flow'
+import { AUTH_QUERY } from '@owlmeans/auth'
+import { useFlow } from '@owlmeans/web-flow'
 import { DEFAULT_ENTITY } from './consts.js'
 import { OidcAuthStep } from '@owlmeans/flow'
 
@@ -51,12 +51,7 @@ export const useSelfAuth = (force: boolean = true, entity: string = DEFAULT_ENTI
     context.auth().authenticated().then(async auth => {
       if (force && !auth) {
         flow.flow().entity(entity)
-        const transition = flow.flow().transit(OidcAuthStep.Ephemeral, true)
-        const [url] = await context.module<ClientModule<string>>(DISPATCHER).call({
-          query: { [QUERY_PARAM]: transition }
-        })
-
-        document.location = url
+        await flow.proceed(flow.flow().transition(OidcAuthStep.Ephemeral))
       }
 
       setAuthenticated(!!auth)
