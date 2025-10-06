@@ -87,7 +87,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             const request = provideRequest(module.alias, req, true)
             request.body = conn
 
-            conn.on('error', error => console.error('WebSocket error: ', error))
+            conn.on('error', (error: Error) => console.error('WebSocket error: ', error))
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
