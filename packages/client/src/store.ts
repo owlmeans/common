@@ -37,9 +37,12 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
     JSON.stringify(params.default),
     params.listen
   ]
+
   const id = useId()
-  const [unsubscribe, _initialModels] = useMemo(() => {
-    return resource.subscribe({
+  const [models, setModels] = useState<StateModel<ResourceRecord>[]>([])
+
+  const unsubscribe = useMemo(() => {
+    const [unsubscribe, _initialModels] = resource.subscribe({
       _systemId: id,
       id: params.id,
       listener: models => {
@@ -48,8 +51,11 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
       default: params.default,
       query: params.query,
     })
+    
+    setModels(_initialModels)
+
+    return unsubscribe
   }, deps)
-  const [models, setModels] = useState(_initialModels)
 
   useEffect(() => unsubscribe, deps)
 
