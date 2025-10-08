@@ -149,7 +149,15 @@ export const createApiServer = (alias: string): ApiServer => {
                 'multipart/form-data',
               ],
               querystring: fixFormatDates(module.filter?.query ?? {}),
-              ...(method !== RouteMethod.GET ? { body: fixFormatDates(module.filter?.body ?? {}) } : {}),
+              ...(
+                [
+                  RouteMethod.POST,
+                  RouteMethod.PATCH,
+                  RouteMethod.PUT
+                ].includes(method)
+                  ? { body: fixFormatDates(module.filter?.body ?? {}) }
+                  : {}
+              ),
               params: fixFormatDates(module.filter?.params ?? {}),
               response: module.filter?.response,
               headers: fixFormatDates(module.filter?.headers ?? {})
