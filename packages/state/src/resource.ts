@@ -200,11 +200,12 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         return createStateModel(store[id], resource)
       })
       if (params._systemId != null) {
-        if (systemToListeners[params._systemId] != null) {
+        const key = `${params._systemId}:${ids.join(",")}`
+        if (systemToListeners[key] != null) {
           return [_usubscribe(params), records]
         }
 
-        systemToListeners[params._systemId] = params.listener
+        systemToListeners[key] = params.listener
       }
       if (listeners.includes(params.listener)) {
         throw new StateListenerError('subscribed')
