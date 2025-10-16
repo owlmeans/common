@@ -19,7 +19,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
 
   type StoreKey = keyof typeof store
 
-  const notifyGlobalListenrs = (records: R[]) => {
+  const notifyGlobalListeners = (records: R[]) => {
     globalListeners.forEach(listener => listener(
       records.map(record => createStateModel(record, resource))
     ))
@@ -113,7 +113,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       store[record.id as StoreKey] = record as unknown as R
 
-      notifyGlobalListenrs([store[record.id as StoreKey]])
+      notifyGlobalListeners([store[record.id as StoreKey]])
 
       return record as any
     },
@@ -135,7 +135,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         listener => listener([createStateModel(reference, resource)])
       )
 
-      notifyGlobalListenrs([reference])
+      notifyGlobalListeners([reference])
 
       return reference as any
     },
@@ -172,7 +172,7 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         // listeners.clear()
         // recordToListener.delete(_id)
       }
-      notifyGlobalListenrs([record])
+      notifyGlobalListeners([record])
 
       return record as any
     },

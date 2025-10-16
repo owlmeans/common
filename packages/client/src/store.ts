@@ -54,6 +54,10 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
     
     setModels(_initialModels)
 
+    if (models.length < 1) {
+      models.push(..._initialModels)
+    }
+
     return unsubscribe
   }, deps)
 
