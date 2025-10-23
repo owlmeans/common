@@ -18,7 +18,7 @@ export interface StateSubscriptionOption<T extends ResourceRecord> {
 }
 
 export interface StateListener<T extends ResourceRecord> {
-  (record: StateModel<T>[]): void | Promise<void>
+  (record: StateModel<T>[], systemId?: string): void | Promise<void>
 }
 
 export interface StateModel<T extends ResourceRecord> {

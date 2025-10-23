@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis-resource",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -26,7 +26,8 @@
   "dependencies": {
     "@owlmeans/context": "^0.1.1",
     "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0"
+    "@owlmeans/server-context": "^0.1.0",
+    "@owlmeans/basic-ids": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.2",

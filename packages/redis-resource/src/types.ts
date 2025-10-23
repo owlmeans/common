@@ -22,6 +22,10 @@ export interface RedisResource<T extends ResourceRecord> extends Resource<T> {
   subscribe: <Type extends T>(handler: (value: Type) => Promise<void>, key?: SubOpts) => Promise<() => Promise<void>>
 
   publish: <Type extends T>(value: Type, key?: string) => Promise<void>
+
+  stream: <Type extends T>(key: string, data: Type) => Promise<void>
+  
+  consume: <Type extends T>(key: string, group?: string, consumer?: string) => AsyncGenerator<Type>
 }
 
 export type SubOpts = number |string | boolean | SubscriptionOptions
