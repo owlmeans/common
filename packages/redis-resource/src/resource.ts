@@ -270,13 +270,13 @@ export const makeRedisResource = <
 
     stream: async (key, record) => {
       await resource.db.client.xadd(
-        resource.key(`_stream:${key}`), 'MAXLEN', '~', 10000, '*', JSON.stringify(record)
+        resource.key(key), 'MAXLEN', '~', 10000, '*', JSON.stringify(record)
       )
     },
 
     consume: async function* (key, group, consumer = createIdOfLength(15)) {
       console.log(`Establish redis stream consumer: ${group ?? 'no-group'}:${consumer} for ${key}`)
-      const streamKey = resource.key(`_stream:${key}`)
+      const streamKey = resource.key(key)
       if (group == null) {
         let id = '$'
         do {
