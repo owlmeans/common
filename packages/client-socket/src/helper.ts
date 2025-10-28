@@ -39,7 +39,11 @@ export const useWs = (module: string | ClientModule<any>, request?: Partial<Abst
     const _request = provideRequest(mod.getAlias(), mod.getPath())
     Object.assign(_request, request)
     return await ws(mod, _request)
-  }, [mod.getAlias(), request?.query?.[AUTH_QUERY]])
+  }, [
+    mod.getAlias(), 
+    request?.query?.[AUTH_QUERY], 
+    request?.params ? JSON.stringify(request.params) : undefined
+  ])
 
   useEffect(() => {
     if (connection != null) {

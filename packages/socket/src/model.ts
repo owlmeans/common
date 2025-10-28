@@ -327,7 +327,7 @@ export const createBasicConnection = (): Connection => {
       if (msg.id == null) {
         throw new SocketMessageMalformed('response:id')
       }
-      if (observers[msg.id] == null) {
+      if (observers[msg.id] != null) {
         await observers[msg.id](msg.payload)
         delete observers[msg.id]
       }

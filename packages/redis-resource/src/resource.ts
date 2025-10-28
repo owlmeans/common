@@ -270,7 +270,7 @@ export const makeRedisResource = <
 
     stream: async (key, record) => {
       await resource.db.client.xadd(
-        resource.key(key), 'MAXLEN', '~', 10000, '*', JSON.stringify(record)
+        resource.key(key), 'MAXLEN', '~', 10000, '*', 'payload', JSON.stringify(record)
       )
     },
 
@@ -290,6 +290,7 @@ export const makeRedisResource = <
             id = entryId
             const line = fields[1]
             try {
+              console.log('received', fields)
               yield JSON.parse(line)
             } catch (e) {
               console.error('Cannot parse redis stream entry', e)
