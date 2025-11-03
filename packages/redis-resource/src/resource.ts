@@ -298,12 +298,19 @@ export const makeRedisResource = <
           }
         } while (true)
       } else {
-        const _reclaim = async () => {
+        const _reclaim = async function* () {
           try {
             const [, entries] = await resource.db.client.xautoclaim(
-              streamKey, group, consumer, 60000, '0-0', 'COUNT', 10
+              streamKey, group, 'junitor', 60000, '0-0', 'COUNT', 10
             )
-            for (const [id] of entries as [string][]) {
+            for (const [id, fields] of entries as [string, string[]][]) {
+              console.log('Reclaimed', id)
+              const line = fields[1]
+              try {
+                yield JSON.parse(line)
+              } catch (e) {
+                console.error('Cannot parse reclaimed redis stream entry', e)
+              }
               await resource.db.client.xack(streamKey, group, id)
             }
           } catch { }
@@ -314,11 +321,15 @@ export const makeRedisResource = <
           console.error('Error in redis stream consumer group', e)
         }
         do {
+          console.log('Try to consume')
           const resp = await resource.db.client.xreadgroup(
             'GROUP', group, consumer,
             'BLOCK', 1000, 'STREAMS', streamKey, '>'
           )
-          if (!resp) continue
+          if (!resp) {
+            yield* _reclaim()
+            continue
+          }
 
           const [, entries] = resp[0] as [string, Array<[string, string[]]>]
           for (const [entryId, fields] of entries) {
@@ -330,7 +341,6 @@ export const makeRedisResource = <
               console.error('Cannot parse redis stream entry', e)
             }
           }
-          await _reclaim()
         } while (true)
       }
     }
