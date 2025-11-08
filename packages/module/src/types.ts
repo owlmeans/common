@@ -47,10 +47,10 @@ export interface ModuleAssert {
 export interface AbstractRequest<T extends {} = {}> {
   alias: string
   auth?: Auth
-  params: Record<string, string | number | undefined | null> | Partial<T>
+  params: Record<string, string | number | undefined | null> & Partial<T>
   body?: Record<string, any> | Partial<T>
   headers: Record<string, string[] | string | undefined>
-  query: Record<string, string | number | undefined | null> | Partial<T>
+  query: Record<string, string | number | undefined | null> & Partial<T>
   path: string
   original?: any
   canceled?: boolean

@@ -236,10 +236,10 @@ export const createBasicConnection = (): Connection => {
                   try {
                     const [stage, response] = await conn.authenticate(_msg.stage, _msg.payload)
                     if (stage != null) {
-                      conn.auth(stage, response)
+                      conn.auth(stage, response).finally(() => void 0)
                     }
                   } catch (e) {
-                    conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error)))
+                    conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error))).finally(() => void 0)
                   } finally {
                     conn._authSequence = undefined
                   }
