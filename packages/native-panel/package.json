@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/native-panel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,8 +20,13 @@
     }
   },
   "devDependencies": {
+    "@types/react-native-vector-icons": "^6.4.18",
     "nodemon": "^3.1.7",
     "npm-check": "^6.0.1",
+    "react-native": "^0.82.1",
+    "react-native-paper": "^5.14.5",
+    "react-native-reanimated": "^4.1.5",
+    "react-native-safe-area-context": "^5.6.2",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {

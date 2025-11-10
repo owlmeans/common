@@ -321,7 +321,6 @@ export const makeRedisResource = <
           console.error('Error in redis stream consumer group', e)
         }
         do {
-          console.log('Try to consume')
           const resp = await resource.db.client.xreadgroup(
             'GROUP', group, consumer,
             'BLOCK', 1000, 'STREAMS', streamKey, '>'
