@@ -40,7 +40,7 @@ export const Router: FC<RouterProps> = ({ provide }) => {
     return undefined
   }
 
-  return createElement(RouterProvider, { router })
+  return createElement(RouterProvider, { router: router as any })
 }
 
 export const makeRouterModel = (): RouterModel => {

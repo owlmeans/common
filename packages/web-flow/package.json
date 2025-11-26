@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-flow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -30,8 +30,7 @@
     "@owlmeans/flow": "^0.1.0"
   },
   "peerDependencies": {
-    "react": "*",
-    "react-router-dom": "*"
+    "react": "*"
   },
   "devDependencies": {
     "nodemon": "^3.1.7",

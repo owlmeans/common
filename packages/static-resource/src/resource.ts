@@ -4,7 +4,7 @@ import type {
   GetterOptions, ListOptions, ListResult, LifecycleOptions, ListCriteria, Resource,
   ResourceRecord
 } from '@owlmeans/resource'
-import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, UnsupportedMethodError } from '@owlmeans/resource'
+import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError } from '@owlmeans/resource'
 import type { Config, Context, StaticResourceAppend } from './types.js'
 
 type Getter = string | GetterOptions
@@ -66,7 +66,27 @@ export const createStaticResource = (alias: string = DEFAULT_ALIAS, key?: string
       return result
     },
 
-    save: () => { throw new UnsupportedMethodError('static:save') },
+    save: async <T extends ResourceRecord>(record: Partial<T>, opts?: Getter) => {
+      const store = getStore()
+      if (record.id == null) {
+        throw new MisshapedRecord('id')
+      }
+      store.set(record.id, record as ResourceRecord)
+
+      if (typeof opts === 'object' && opts?.ttl != null) {
+        const ttl = opts.ttl instanceof Date
+          ? (opts.ttl.getTime() - Date.now()) / 1000
+          : typeof opts.ttl === 'number'
+            ? opts.ttl * 1000
+            : null
+        if (ttl == null) {
+          throw new UnsupportedArgumentError('static:opts:ttl-string')
+        }
+        setTimeout(() => record.id != null && void store.delete(record.id), ttl)
+      }
+
+      return record as T
+    },
 
     create: async (record, opts) => {
       const store = getStore()
@@ -78,7 +98,7 @@ export const createStaticResource = (alias: string = DEFAULT_ALIAS, key?: string
       }
       store.set(record.id, record)
       if (opts?.ttl != null) {
-        const ttl = opts.ttl instanceof Date 
+        const ttl = opts.ttl instanceof Date
           ? (opts.ttl.getTime() - Date.now()) / 1000
           : typeof opts.ttl === 'number'
             ? opts.ttl * 1000
@@ -92,7 +112,9 @@ export const createStaticResource = (alias: string = DEFAULT_ALIAS, key?: string
       return record as any
     },
 
-    update: () => { throw new UnsupportedMethodError('static:update') },
+    update: async (record, opts) => {
+      return resource.save(record, opts)
+    },
 
     delete: async (id, opts) => {
       let record: ResourceRecord | null = null
@@ -103,6 +125,8 @@ export const createStaticResource = (alias: string = DEFAULT_ALIAS, key?: string
         record = await resource.load(id.id)
       } else if (typeof opts === 'string') {
         record = await resource.load(id, opts)
+      } else if (typeof id === 'string') {
+        record = await resource.load(id)
       }
 
       if (record == null) {

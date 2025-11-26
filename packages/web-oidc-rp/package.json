@@ -44,8 +44,7 @@
   },
   "peerDependencies": {
     "@mui/material": "*",
-    "react": "*",
-    "react-router-dom": "*"
+    "react": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.11",
