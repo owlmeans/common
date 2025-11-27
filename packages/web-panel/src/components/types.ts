@@ -2,7 +2,7 @@ import type { SxProps } from '@mui/material/styles'
 import type { I18nProps } from '@owlmeans/client-i18n'
 import type { BlockScaling } from '@owlmeans/client-panel'
 import type { FC, PropsWithChildren } from 'react'
-import type { Variant } from '@mui/material/styles/createTypography'
+import type { TypographyOwnProps } from '@mui/material'
 import type { ClientModule } from '@owlmeans/client-module'
 
 export interface BlockProps extends PropsWithChildren<I18nProps> {
@@ -14,7 +14,7 @@ export interface BlockProps extends PropsWithChildren<I18nProps> {
 
 export interface TextProps extends PropsWithChildren<I18nProps> {
   name?: string
-  variant?: Variant
+  variant?: TypographyOwnProps['variant']
   center?: boolean
   styles?: SxProps
   nested?: boolean

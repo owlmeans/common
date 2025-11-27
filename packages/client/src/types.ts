@@ -1,4 +1,4 @@
-import type { RouteObject, Location, NavigateFunction, Router } from 'react-router'
+import type { RouteObject, Location, NavigateFunction } from 'react-router'
 import type { Router as RemixRouter } from '@remix-run/router'
 import type { PropsWithChildren, FC, DependencyList } from 'react'
 import type { AbstractRequest } from '@owlmeans/module'

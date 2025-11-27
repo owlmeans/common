@@ -1,5 +1,5 @@
 import type { AnySchema } from 'ajv'
-import type { PropsWithChildren, RefObject, ReactNode } from 'react'
+import type { PropsWithChildren, ReactNode, MutableRefObject } from 'react'
 import type { UseFormReturn, FieldValues } from 'react-hook-form'
 import type { I18nProps } from '@owlmeans/client-i18n'
 import type { Toggleable } from '@owlmeans/client'
@@ -8,7 +8,7 @@ import type { TFunction } from 'i18next'
 
 export interface FormProps extends PropsWithChildren<I18nProps> {
   name?: string
-  formRef?: RefObject<FormRef<any> | null>
+  formRef?: MutableRefObject<FormRef<any> | null>
   defaults?: Record<string, any>
   validation?: AnySchema
   decorate?: boolean

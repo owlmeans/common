@@ -10,13 +10,13 @@ import { FormContext, schemaToFormDefault } from '@owlmeans/client-panel'
 import type { JSONSchemaType } from 'ajv'
 import Ajv from 'ajv'
 import formatsPlugin from 'ajv-formats'
-import type { SxProps } from '@mui/material'
+import type { SxProps } from '@mui/material/styles'
+import { useTheme } from '@mui/material/styles'
 import { SubmitButton } from './button/component.js'
 import { useToggle } from '@owlmeans/client'
 import { scalingToStyles } from '../helper.js'
 import { ResilientError } from '@owlmeans/error'
 import { Status } from '../status.js'
-import useTheme from '@mui/material/styles/useTheme.js'
 import type { WebFormProps } from './types.js'
 
 const ajv = new Ajv({ coerceTypes: true })
@@ -73,7 +73,7 @@ export const Form: FC<WebFormProps> = (props) => {
       rowSpacing={2} sx={!decorate ? style : {}}>{
         Array.isArray(children)
           ? children.map((child, index) =>
-            <Grid item key={index}>{child}</Grid>
+            <Grid key={index}>{child}</Grid>
           ) : children
       }</Grid>
 

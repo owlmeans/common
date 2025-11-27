@@ -5,7 +5,7 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import { PanelContext, usePanelHelper } from '@owlmeans/client-panel'
 import type { SxProps } from '@mui/material/styles'
-import useTheme from '@mui/material/styles/useTheme.js'
+import { useTheme } from '@mui/material/styles'
 import CardActions from '@mui/material/CardActions'
 import { scalingToStyles } from './helper.js'
 
