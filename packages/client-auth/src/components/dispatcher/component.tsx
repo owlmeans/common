@@ -4,13 +4,13 @@ import type { AuthToken } from '@owlmeans/auth'
 import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
 import type { ClientModule } from '@owlmeans/client-module'
 import { HOME } from '@owlmeans/context'
-import { DEFAULT_ALIAS } from '../../consts.js'
+import { DEFAULT_ALIAS, DEFAULT_ENTITY } from '../../consts.js'
 import type { AuthService } from '@owlmeans/auth-common'
 import { useNavigate } from '@owlmeans/client'
 import type { AbstractRequest } from '@owlmeans/module'
 import type { FlowService } from '@owlmeans/client-flow'
 import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
-import { STD_OIDC_FLOW } from '@owlmeans/flow'
+import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
 
 export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query }) => {
@@ -56,6 +56,16 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           ) as string | undefined
           if (target != null) {
             model.target(target)
+          } else if (model.state().flow === STD_OIDC_FLOW) {
+            const target = model.step().service
+            model.target(target)
+            const entity = model.state().entityId
+            if (entity == null) {
+              model.entity(DEFAULT_ENTITY)
+            }
+            if (target === FLOW_PLACEHOLDER) {
+              model.transit(OidcAuthStep.Ephemeral, true)
+            }
           }
           await flow.proceed()
         })

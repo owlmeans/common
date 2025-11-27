@@ -43,7 +43,7 @@ export const useWs = (
 
 export const useSelfAuth = (force: boolean = true, entity: string = DEFAULT_ENTITY) => {
   const context = useContext() as unknown as AuthServiceAppend & ClientContext
-  const flow = useFlow(context.cfg.service)
+  const flow = useFlow(context.cfg.shortAlias ?? context.cfg.service)
   const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {

@@ -60,6 +60,8 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
       }
 
       state!.step = step
+      // state!.service = info.service
+
       return model
     },
 

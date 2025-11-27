@@ -69,6 +69,7 @@ export const makeSecurityHelper = <
 
       const port = route.port != null ? ':' + route.port.toString() : ''
       base = base ? SEP + normalizePath(base) : ''
+      base = base === SEP ? '' : base
       path = typeof path === 'string'
         ? SEP + normalizePath(path)
         : ''

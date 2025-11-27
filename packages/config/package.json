@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 144 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
