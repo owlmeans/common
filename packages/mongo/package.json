@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mongo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,16 +20,16 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^24.3.2",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/basic-keys": "^0.1.0",
+    "@owlmeans/basic-keys": "^0.1.1",
     "@owlmeans/context": "^0.1.1",
-    "@owlmeans/mongo-resource": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
+    "@owlmeans/mongo-resource": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
     "@scure/base": "^1.1.9",
     "mongodb": "^6.9.0"
   },

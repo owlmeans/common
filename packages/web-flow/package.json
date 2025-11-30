@@ -20,22 +20,23 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.0",
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/client-flow": "^0.1.0",
-    "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/client-resource": "^0.1.0",
+    "@owlmeans/client": "^0.1.1",
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/client-flow": "^0.1.1",
+    "@owlmeans/client-module": "^0.1.1",
+    "@owlmeans/client-resource": "^0.1.1",
     "@owlmeans/context": "^0.1.1",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/flow": "^0.1.0"
+    "@owlmeans/error": "^0.1.1",
+    "@owlmeans/flow": "^0.1.1"
   },
   "peerDependencies": {
-    "react": "*"
+    "react": "*",
+    "react-router": "^7.*"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

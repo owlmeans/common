@@ -24,16 +24,16 @@
     "ioredis": "*"
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.0",
+    "@owlmeans/basic-ids": "^0.1.1",
     "@owlmeans/context": "^0.1.1",
-    "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0"
+    "@owlmeans/resource": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1"
   },
   "devDependencies": {
-    "@types/node": "^24.3.2",
-    "nodemon": "^3.1.7",
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

@@ -5,7 +5,6 @@ import type { ClientModule } from '@owlmeans/client-module'
 import { provideRequest } from '@owlmeans/client-module'
 import { provideResponse } from '@owlmeans/module'
 import type { GuardService } from '@owlmeans/module'
-import { Outlet, useParams } from 'react-router'
 import { AuthorizationError } from '@owlmeans/auth'
 import type { ClientConfig } from '@owlmeans/client-context'
 
@@ -13,7 +12,7 @@ type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const createRouteRenderer: (params: RendererParams) => FC = ({ context, module, hasChildren }) => () => {
-  const params = useParams()
+  const params = context.router().useParams()
   const reply = provideResponse()
 
   useEffect(() => {
@@ -53,6 +52,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
   if (isValidElement(Renderer)) {
     return Renderer
   }
+  const Outlet = context.router().outlet()
   if (isComponent(Renderer)) {
     const EnsuredRenderer = memo(Renderer) as RoutedComponent
     const props: ModuleContextParams = {

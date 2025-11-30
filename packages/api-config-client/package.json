@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/api-config-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,14 +20,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api-config": "^0.1.0",
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/client-module": "^0.1.0",
+    "@owlmeans/api-config": "^0.1.1",
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/client-module": "^0.1.1",
     "@owlmeans/context": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

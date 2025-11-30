@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,20 +20,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/oidc": "^0.1.0",
-    "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/web-client": "^0.1.0",
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/oidc": "^0.1.1",
+    "@owlmeans/resource": "^0.1.1",
+    "@owlmeans/web-client": "^0.1.1",
     "universal-cookie": "^7.2.1"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@types/react": "^18.3.11",
-    "nodemon": "^3.1.7",
+    "@types/react": "^19.2.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

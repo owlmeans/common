@@ -20,13 +20,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.0",
-    "@owlmeans/server-route": "^0.1.0"
+    "@owlmeans/config": "^0.1.1",
+    "@owlmeans/server-route": "^0.1.1"
   },
   "devDependencies": {
-    "@types/node": "^24.3.2",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

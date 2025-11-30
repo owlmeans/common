@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/payment",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -30,20 +30,20 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/basic-envelope": "^0.1.0",
-    "@owlmeans/config": "^0.1.0",
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/basic-envelope": "^0.1.1",
+    "@owlmeans/config": "^0.1.1",
     "@owlmeans/context": "^0.1.1",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/i18n": "^0.1.0",
-    "@owlmeans/module": "^0.1.0",
-    "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
+    "@owlmeans/error": "^0.1.1",
+    "@owlmeans/i18n": "^0.1.1",
+    "@owlmeans/module": "^0.1.1",
+    "@owlmeans/resource": "^0.1.1",
+    "@owlmeans/route": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-route",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,12 +20,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/route": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

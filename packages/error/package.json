@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/error",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,12 +20,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/i18n": "^0.1.0"
+    "@owlmeans/i18n": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

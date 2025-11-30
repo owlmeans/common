@@ -331,30 +331,6 @@ function AuthErrorHandler({ children }) {
 
 ## Integration Patterns
 
-### React Router Integration
-
-```typescript
-import { AuthenticationHOC } from '@owlmeans/client-auth/manager'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-
-const ProtectedRoute = AuthenticationHOC(({ children }) => children)
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/public" element={<PublicPage />} />
-        <Route path="/protected" element={
-          <ProtectedRoute>
-            <ProtectedPage />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </BrowserRouter>
-  )
-}
-```
-
 ### State Management Integration
 
 ```typescript

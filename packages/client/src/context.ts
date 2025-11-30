@@ -9,6 +9,8 @@ import { appendStateResource } from '@owlmeans/state'
 import { appendModalService } from './components/modal.js'
 import { appendDebugService } from './services/debug.js'
 import { appendConfigResource, PLUGIN_RECORD } from '@owlmeans/config'
+import type { RouterService } from '@owlmeans/router'
+import { ROUTER_SERVICE } from '@owlmeans/router'
 
 const defaultCfg: ClientConfig = {
   services: {},
@@ -46,6 +48,8 @@ export const makeClientContext = <C extends ClientConfig, T extends ClientContex
       rerenderers.forEach(callback => callback())
     }
   }
+
+  context.router = () => context.service<RouterService>(ROUTER_SERVICE)
 
   context.makeContext = makeClientContext as typeof context.makeContext
 

@@ -22,7 +22,7 @@ This package is designed for environment-agnostic React applications and can be 
 ## Installation
 
 ```bash
-npm install @owlmeans/client react react-router react-router-dom
+npm install @owlmeans/client react
 ```
 
 ## Core Concepts
@@ -677,7 +677,6 @@ This package depends on:
 - `@owlmeans/context` - Core context system
 - `@owlmeans/state` - State management
 - `react` - React library (peer dependency)
-- `react-router` - React Router (peer dependency)
 
 ## Related Packages
 
