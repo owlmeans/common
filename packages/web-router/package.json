@@ -32,5 +32,7 @@
   "dependencies": {
     "@owlmeans/router": "^0.1.1"
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  }
 }

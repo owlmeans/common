@@ -33,5 +33,7 @@
     "@owlmeans/router": "^0.1.1",
     "react-router-native": "6.30.0"
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  }
 }

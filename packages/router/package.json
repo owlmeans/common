@@ -31,5 +31,7 @@
     "nodemon": "^3.1.11",
     "typescript": "^5.8.3"
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  }
 }
