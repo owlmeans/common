@@ -13,7 +13,8 @@ export const sservice = <C extends BasicServerConfig>(service: Omit<ServiceRoute
     ..._cfg.services[service.service], 
     ...service, 
     resolved: service.host != null || service.internalHost != null,
-    host: service.host ?? service.internalHost
+    host: service.host ?? service.internalHost,
+    port: service.port ?? service.internalPort,
   }
 
   return _cfg

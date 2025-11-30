@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-socket",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -21,23 +21,23 @@
   },
   "devDependencies": {
     "@types/connect": "^3.4.38",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "fastify": "*"
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.1",
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/basic-envelope": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/module": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-auth": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0",
-    "@owlmeans/socket": "^0.1.0"
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/basic-envelope": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/module": "^0.1.1",
+    "@owlmeans/server-api": "^0.1.1",
+    "@owlmeans/server-auth": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
+    "@owlmeans/server-module": "^0.1.1",
+    "@owlmeans/socket": "^0.1.1"
   },
   "publishConfig": {
     "access": "public"

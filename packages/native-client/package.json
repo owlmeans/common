@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/native-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,24 +20,28 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api-config-client": "^0.1.0",
-    "@owlmeans/client": "^0.1.0",
-    "@owlmeans/client-auth": "^0.1.0",
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/native-db": "^0.1.0",
-    "@owlmeans/route": "^0.1.0",
-    "react-native-dotenv": "^3.4.11",
-    "react-router-native": "^6.26.2"
+    "@owlmeans/api-config-client": "^0.1.1",
+    "@owlmeans/client": "^0.1.1",
+    "@owlmeans/client-auth": "^0.1.1",
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/client-resource": "^0.1.1",
+    "@owlmeans/native-db": "^0.1.1",
+    "@owlmeans/native-router": "^0.1.1",
+    "@owlmeans/route": "^0.1.1",
+    "react-native-dotenv": "^3.4.11"
   },
   "peerDependencies": {
+    "@owlmeans/router": "*",
     "react": "*",
     "react-native": "*",
-    "react-native-permissions": "*"
+    "react-native-permissions": "*",
+    "react-router-native": "*"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "react-native": "^0.82.1",
+    "react-native-permissions": "^5.4.4",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

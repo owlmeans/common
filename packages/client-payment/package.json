@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-payment",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,17 +20,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/payment": "^0.1.0"
+    "@owlmeans/client-auth": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/payment": "^0.1.1"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
-    "@types/react": "^18.3.11",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "@types/react": "^19.2.7",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

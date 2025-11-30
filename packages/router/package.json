@@ -1,0 +1,35 @@
+{
+  "name": "@owlmeans/router",
+  "version": "0.1.1",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 60 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.1"
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
+  },
+  "private": true
+}

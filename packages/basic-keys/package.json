@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-keys",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -37,15 +37,15 @@
     }
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "5.6.3"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@noble/ciphers": "^1.2.1",
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/auth": "^0.1.0",
+    "@owlmeans/auth": "^0.1.1",
     "@scure/base": "^1.1.9",
     "canonicalize": "^2.0.0"
   },

@@ -1,16 +1,14 @@
 import type { FC } from 'react'
 import type { RouterModel, RouterProps } from './types.js'
-import type { RouteObject } from 'react-router'
 import { createElement, useEffect, useRef, useState } from 'react'
 import { buildModuleTree, initializeRouter, visitModuleTree } from './utils/router.js'
 import { createRouteRenderer } from './utils/route.js'
-import { RouterProvider } from 'react-router'
-import type { Router as RemixRouter } from '@remix-run/router'
 import { useContext } from './context.js'
 import type { ClientConfig } from '@owlmeans/client-context'
 import type { ClientContext } from './types.js'
 import { assertContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import type { LibraryRouter, RouteObject } from '@owlmeans/router'
 
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
@@ -19,8 +17,8 @@ export const Router: FC<RouterProps> = ({ provide }) => {
   const progress = useRef(false)
   const context = useContext()
 
-  const [router, setRouter] = useState<RemixRouter>(
-    (typeof provide === 'function' ? undefined : provide) as RemixRouter
+  const [router, setRouter] = useState<LibraryRouter>(
+    (typeof provide === 'function' ? undefined : provide) as LibraryRouter
   )
   // @TODO We expect that this use memo will do the trick and we don't need to useEffect
   // @TODO Show debug only in debug mode
@@ -40,7 +38,7 @@ export const Router: FC<RouterProps> = ({ provide }) => {
     return undefined
   }
 
-  return createElement(RouterProvider, { router })
+  return createElement(context.router().provider(), { router })
 }
 
 export const makeRouterModel = (): RouterModel => {

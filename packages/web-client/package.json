@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,35 +20,35 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/auth-common": "^0.1.0",
-    "@owlmeans/client": "^0.1.0",
-    "@owlmeans/client-auth": "^0.1.0",
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/client-i18n": "^0.1.0",
-    "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/client-route": "^0.1.0",
-    "@owlmeans/config": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/i18n": "^0.1.0",
-    "@owlmeans/route": "^0.1.0",
-    "@owlmeans/web-db": "^0.1.0",
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/auth-common": "^0.1.1",
+    "@owlmeans/client": "^0.1.1",
+    "@owlmeans/client-auth": "^0.1.1",
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/client-i18n": "^0.1.1",
+    "@owlmeans/client-module": "^0.1.1",
+    "@owlmeans/client-resource": "^0.1.1",
+    "@owlmeans/client-route": "^0.1.1",
+    "@owlmeans/config": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/error": "^0.1.1",
+    "@owlmeans/i18n": "^0.1.1",
+    "@owlmeans/route": "^0.1.1",
+    "@owlmeans/web-db": "^0.1.1",
+    "@owlmeans/web-router": "^0.1.1",
     "react-dropzone": "^14.3.5"
   },
   "peerDependencies": {
     "react": "*",
     "react-dom": "*",
-    "react-router-dom": "*"
+    "react-router": "^7.*"
   },
   "devDependencies": {
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.0",
-    "nodemon": "^3.1.7",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "react-router-dom": "^6.26.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

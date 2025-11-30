@@ -16,3 +16,5 @@ export const TARGET_SERVICE = '-'
 export const CFG_FLOW_PREFIX = 'flow'
 
 export const FLOW_RECORD = 'flow'
+
+export const FLOW_PLACEHOLDER = '?'

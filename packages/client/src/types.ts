@@ -1,5 +1,3 @@
-import type { RouteObject, Location, NavigateFunction } from 'react-router'
-import type { Router as RemixRouter } from '@remix-run/router'
 import type { PropsWithChildren, FC, DependencyList } from 'react'
 import type { AbstractRequest } from '@owlmeans/module'
 import type { ClientConfig, ClientContext as BasicClientContext } from '@owlmeans/client-context'
@@ -8,6 +6,8 @@ import type { ClientModule } from '@owlmeans/client-module'
 import type { DebugServiceAppend, ModalServiceAppend } from './components/types.js'
 import type { ConfigResourceAppend } from '@owlmeans/config'
 import type { ConfigRecord } from '@owlmeans/context'
+import type { NavigateFunction, RouterService, Location, RouteObject, LibraryRouter } from '@owlmeans/router'
+
 
 export interface RouterModel {
   routes: RouteObject[]
@@ -15,16 +15,16 @@ export interface RouterModel {
 }
 
 export interface RouterProvider {
-  (routes: RouteObject[]): RemixRouter | Promise<RemixRouter>
+  (routes: RouteObject[]): LibraryRouter | Promise<LibraryRouter>
 }
 
 export interface RouterProps {
-  provide: RouterProvider | RemixRouter
+  provide: RouterProvider | LibraryRouter
 }
 
 export interface AppProps extends PropsWithChildren {
   context: ClientContext<any>
-  provide?: RouterProvider | RemixRouter
+  provide?: RouterProvider | LibraryRouter
 }
 
 export interface RoutedComponent<ExtraProps = {}> extends FC<PropsWithChildren<ModuleContextParams & ExtraProps>> {
@@ -44,6 +44,7 @@ export interface ClientContext<C extends ClientConfig = ClientConfig> extends Ba
   DebugServiceAppend {
   registerRerenderer: (listener: CallableFunction) => () => void
   rerender: () => void
+  router: () => RouterService
 }
 
 export interface NavRequest<T extends Record<string, any> = Record<string, any>>

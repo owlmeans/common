@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/server-wl",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 330 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -20,16 +20,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0",
-    "@owlmeans/wled": "^0.1.0"
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/server-api": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
+    "@owlmeans/server-module": "^0.1.1",
+    "@owlmeans/wled": "^0.1.1"
   },
   "devDependencies": {
-    "@types/node": "^22.7.8",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

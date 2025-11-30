@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -31,15 +31,15 @@
     "@fastify/helmet": "^12.0.1",
     "@fastify/middie": "^9.0.2",
     "@fastify/multipart": "^9.0.1",
-    "@owlmeans/api": "^0.1.0",
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/auth-common": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/module": "^0.1.0",
-    "@owlmeans/route": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0",
+    "@owlmeans/api": "^0.1.1",
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/auth-common": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/error": "^0.1.1",
+    "@owlmeans/module": "^0.1.1",
+    "@owlmeans/route": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
+    "@owlmeans/server-module": "^0.1.1",
     "ajv-errors": "^3.0.0",
     "fastify": "^5.0.0",
     "fastify-raw-body": "^5.0.0",
@@ -50,10 +50,10 @@
     "ajv-formats": "*"
   },
   "devDependencies": {
-    "@types/node": "^22.7.8",
-    "nodemon": "^3.1.7",
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

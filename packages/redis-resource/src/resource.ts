@@ -6,6 +6,7 @@ import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE } from './consts.js'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import type { BasicContext, Contextual } from '@owlmeans/context'
 import { prepareSubOptions } from './utils/options.js'
+import { createIdOfLength } from '@owlmeans/basic-ids'
 
 type Config = ServerConfig
 type Context<C extends Config = Config> = ServerContext<C>
@@ -265,6 +266,82 @@ export const makeRedisResource = <
 
     publish: async (record, key) => {
       await resource.db.client.publish(resource.key(key), JSON.stringify(record))
+    },
+
+    stream: async (key, record) => {
+      await resource.db.client.xadd(
+        resource.key(key), 'MAXLEN', '~', 10000, '*', 'payload', JSON.stringify(record)
+      )
+    },
+
+    consume: async function* (key, group, consumer = createIdOfLength(15)) {
+      console.log(`Establish redis stream consumer: ${group ?? 'no-group'}:${consumer} for ${key}`)
+      const streamKey = resource.key(key)
+      if (group == null) {
+        let id = '$'
+        do {
+          const resp = await resource.db.client.xread(
+            'BLOCK', 1000, 'STREAMS', streamKey, id
+          )
+          if (!resp) continue
+
+          const [, entries] = resp[0]
+          for (const [entryId, fields] of entries) {
+            id = entryId
+            const line = fields[1]
+            try {
+              console.log('received', fields)
+              yield JSON.parse(line)
+            } catch (e) {
+              console.error('Cannot parse redis stream entry', e)
+            }
+          }
+        } while (true)
+      } else {
+        const _reclaim = async function* () {
+          try {
+            const [, entries] = await resource.db.client.xautoclaim(
+              streamKey, group, 'junitor', 60000, '0-0', 'COUNT', 10
+            )
+            for (const [id, fields] of entries as [string, string[]][]) {
+              console.log('Reclaimed', id)
+              const line = fields[1]
+              try {
+                yield JSON.parse(line)
+              } catch (e) {
+                console.error('Cannot parse reclaimed redis stream entry', e)
+              }
+              await resource.db.client.xack(streamKey, group, id)
+            }
+          } catch { }
+        }
+        try {
+          await resource.db.client.xgroup('CREATE', streamKey, group, '$', 'MKSTREAM')
+        } catch (e) {
+          console.error('Error in redis stream consumer group', e)
+        }
+        do {
+          const resp = await resource.db.client.xreadgroup(
+            'GROUP', group, consumer,
+            'BLOCK', 1000, 'STREAMS', streamKey, '>'
+          )
+          if (!resp) {
+            yield* _reclaim()
+            continue
+          }
+
+          const [, entries] = resp[0] as [string, Array<[string, string[]]>]
+          for (const [entryId, fields] of entries) {
+            const line = fields[1]
+            try {
+              yield JSON.parse(line)
+              await resource.db.client.xack(streamKey, group, entryId)
+            } catch (e) {
+              console.error('Cannot parse redis stream entry', e)
+            }
+          }
+        } while (true)
+      }
     }
   } as Partial<T>)
 

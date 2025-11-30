@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-oidc-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,24 +20,24 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^22.7.8",
+    "@types/node": "^24.10.1",
     "@types/oidc-provider": "^8.5.2",
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "fastify": "*"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/config": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/oidc": "^0.1.0",
-    "@owlmeans/route": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
+    "@owlmeans/client-module": "^0.1.1",
+    "@owlmeans/config": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/oidc": "^0.1.1",
+    "@owlmeans/route": "^0.1.1",
+    "@owlmeans/server-api": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
     "@scure/base": "^1.1.9",
     "jose": "5.9.6",
     "oidc-provider": "8.5.2"

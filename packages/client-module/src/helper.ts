@@ -3,6 +3,7 @@ import { module } from './module.js'
 import { isClientRouteModel } from '@owlmeans/client-route'
 import type { AbstractRequest, CommonModule } from '@owlmeans/module'
 import { normalizeHelperParams } from './utils/module.js'
+import type { JSONSchemaType } from "ajv"
 
 export const elevate = <T = {}, R extends AbstractRequest = AbstractRequest>(
   modules: (CommonModule | ClientModule<T, R>)[],
@@ -42,3 +43,13 @@ export const provideRequest = <T extends {} = {}>(alias: string, path: string): 
 
   return request
 }
+
+export const pickPerSchema = <T, R>(object: T, schema: JSONSchemaType<R>): Partial<R> =>
+  Object.keys(schema.properties).reduce(
+    (acc, key) => {
+      if (object[key as keyof T] != null) {
+        acc[key as keyof R] = object[key as keyof T] as unknown as R[keyof R]
+      }
+      return acc
+    }, {} as Partial<R>
+  )

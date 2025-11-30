@@ -2,7 +2,7 @@ import { useContext, useModule, useNavigate, useValue } from '@owlmeans/client'
 import { createFlowClient } from '@owlmeans/client-flow'
 import type { FlowClient, FlowService } from '@owlmeans/client-flow'
 import { DEFAULT_ALIAS as FLOW_ALIAS } from '@owlmeans/client-flow'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { QUERY_PARAM, SERVICE_PARAM } from './consts.js'
 
 export const useFlow = (target: string | null = null): FlowClient | null => {

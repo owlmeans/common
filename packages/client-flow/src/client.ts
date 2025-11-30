@@ -37,6 +37,7 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
         }
 
         if (targetAlias != null) {
+          targetAlias = targetAlias === context.cfg.shortAlias ? context.cfg.service : targetAlias
           let target: ResolvedServiceRoute
           try {
             target = context.serviceRoute(targetAlias) as ResolvedServiceRoute

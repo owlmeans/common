@@ -11,7 +11,6 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
   const location = `state-resource:${alias}`
 
   const store: { [id: string]: R } = {}
-  const listeners: StateListener<R>[] = []
   const recordToListener = new Map<string, Set<StateListener<R>>>()
   const listenerToRecord = new Map<StateListener<R>, string[]>()
   const globalListeners: StateListener<R>[] = []
@@ -19,28 +18,24 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
 
   type StoreKey = keyof typeof store
 
-  const notifyGlobalListenrs = (records: R[]) => {
+  const _notifyGlobalListeners = (records: R[]) => {
     globalListeners.forEach(listener => listener(
       records.map(record => createStateModel(record, resource))
     ))
   }
 
   const _usubscribe = (params: StateSubscriptionOption<R>) => () => {
-    const index = listeners.indexOf(params.listener)
-    if (index >= 0) {
-      const ids = listenerToRecord.get(params.listener)
-      listeners.splice(index, 1)
-      listenerToRecord.delete(params.listener)
-      ids?.forEach(id => {
-        const listeners = recordToListener.get(id)
-        if (listeners != null) {
-          listeners.delete(params.listener)
-          if (listeners.size === 0) {
-            recordToListener.delete(id)
-          }
+    const ids = listenerToRecord.get(params.listener)
+    listenerToRecord.delete(params.listener)
+    ids?.forEach(id => {
+      const listeners = recordToListener.get(id)
+      if (listeners != null) {
+        listeners.delete(params.listener)
+        if (listeners.size === 0) {
+          recordToListener.delete(id)
         }
-      })
-    }
+      }
+    })
     Object.entries(systemToListeners).some(([key, listener]) => {
       if (listener === params.listener) {
         delete systemToListeners[key]
@@ -49,6 +44,19 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
 
       return false
     })
+  }
+
+  const _notifyListeners = (record: R) => {
+    for (const listener of recordToListener.get(record.id!) ?? []) {
+      listener([createStateModel(record, resource)])
+    }
+    for (const key of Object.keys(systemToListeners)) {
+      const [, ...idsProto] = key.split(':')
+      const ids = idsProto.join(':').split(',')
+      if (ids.includes(record.id!)) {
+        systemToListeners[key](ids.map(id => createStateModel(store[id], resource)), key)
+      }
+    }
   }
 
   const resource: StateResource<R> = appendContextual<StateResource<R>>(alias, {
@@ -113,7 +121,8 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       store[record.id as StoreKey] = record as unknown as R
 
-      notifyGlobalListenrs([store[record.id as StoreKey]])
+      _notifyListeners(store[record.id as StoreKey])
+      _notifyGlobalListeners([store[record.id as StoreKey]])
 
       return record as any
     },
@@ -131,11 +140,8 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       Object.assign(reference, record)
 
-      recordToListener.get(record.id)?.forEach(
-        listener => listener([createStateModel(reference, resource)])
-      )
-
-      notifyGlobalListenrs([reference])
+      _notifyListeners(reference)
+      _notifyGlobalListeners([reference])
 
       return reference as any
     },
@@ -154,25 +160,8 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
       }
       delete store[_id as StoreKey]
 
-      const listeners = recordToListener.get(_id)
-      if (listeners != null) {
-        listeners.forEach(listener => {
-          listener([createStateModel(record, resource)])
-          // const listeners = listenerToRecord.get(listener)
-          // if (listeners != null) {
-          //   const idx = listeners.indexOf(_id)
-          //   if (idx > 0) {
-          //     listeners.splice(idx, 1)
-          //   }
-          //   if (listeners.length < 1) {
-          //     listenerToRecord.delete(listener)
-          //   }
-          // }
-        })
-        // listeners.clear()
-        // recordToListener.delete(_id)
-      }
-      notifyGlobalListenrs([record])
+      _notifyListeners(record)
+      _notifyGlobalListeners([record])
 
       return record as any
     },
@@ -200,23 +189,24 @@ export const createStateResource = <R extends ResourceRecord>(alias: string = DE
         return createStateModel(store[id], resource)
       })
       if (params._systemId != null) {
-        if (systemToListeners[params._systemId] != null) {
+        const key = `${params._systemId}:${ids.join(",")}`
+        if (systemToListeners[key] != null) {
           return [_usubscribe(params), records]
         }
 
-        systemToListeners[params._systemId] = params.listener
-      }
-      if (listeners.includes(params.listener)) {
-        throw new StateListenerError('subscribed')
-      }
-      listeners.push(params.listener)
-      listenerToRecord.set(params.listener, ids)
-      ids.forEach(id => {
-        if (!recordToListener.has(id)) {
-          recordToListener.set(id, new Set())
+        systemToListeners[key] = params.listener
+      } else {
+        if (listenerToRecord.has(params.listener)) {
+          throw new StateListenerError('subscribed')
         }
-        recordToListener.get(id)?.add(params.listener)
-      })
+        listenerToRecord.set(params.listener, ids)
+        ids.forEach(id => {
+          if (!recordToListener.has(id)) {
+            recordToListener.set(id, new Set())
+          }
+          recordToListener.get(id)?.add(params.listener)
+        })
+      }
 
       return [_usubscribe(params), records]
     },

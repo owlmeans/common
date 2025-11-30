@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-context",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,16 +27,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "0.1.0",
-    "@owlmeans/client-config": "0.1.0",
-    "@owlmeans/config": "0.1.0",
-    "@owlmeans/context": "0.1.0",
-    "@owlmeans/i18n": "0.1.0",
-    "@owlmeans/route": "0.1.0"
+    "@owlmeans/api": "^0.1.1",
+    "@owlmeans/client-config": "^0.1.1",
+    "@owlmeans/config": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/i18n": "^0.1.1",
+    "@owlmeans/route": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

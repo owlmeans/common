@@ -1,6 +1,6 @@
 import { DispatcherHOC } from '@owlmeans/client-auth'
 import { useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { AUTH_QUERY } from '@owlmeans/auth'
 import { useContext } from '../../context.js'

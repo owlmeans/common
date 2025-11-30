@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-db",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,14 +20,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.0",
-    "@owlmeans/client-resource": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
+    "@owlmeans/client-context": "^0.1.1",
+    "@owlmeans/client-resource": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
     "idb-keyval": "^6.2.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

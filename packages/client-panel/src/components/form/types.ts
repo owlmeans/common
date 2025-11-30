@@ -1,9 +1,10 @@
 import type { AnySchema } from 'ajv'
-import type { PropsWithChildren, MutableRefObject } from 'react'
+import type { PropsWithChildren, ReactNode, MutableRefObject } from 'react'
 import type { UseFormReturn, FieldValues } from 'react-hook-form'
 import type { I18nProps } from '@owlmeans/client-i18n'
 import type { Toggleable } from '@owlmeans/client'
 import type { BlockScaling } from '../consts.js'
+import type { TFunction } from 'i18next'
 
 export interface FormProps extends PropsWithChildren<I18nProps> {
   name?: string
@@ -34,4 +35,24 @@ export interface TFormContext extends Omit<FormProps, 'defaults' | 'children'> {
 export interface FormFieldProps {
   name: string
   def?: any
+}
+
+export interface FormActionProps<T extends FieldValues = FieldValues> extends I18nProps {
+  label?: string
+  size?: 'small' | 'medium' | 'large'
+  render: (args: FormActionRenderArgs<T>) => ReactNode
+  onClick?: () => void
+  submit?: FormOnSubmit<T>
+}
+
+export interface FormActionRenderArgs<T extends FieldValues = FieldValues> {
+  label: string
+  size: 'small' | 'medium' | 'large'
+  progressSize: number
+  form: UseFormReturn<T>
+  client: TFormContext
+  action?: () => void
+  loading: boolean
+  t: TFunction
+  update: (data: T) => void
 }

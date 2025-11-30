@@ -1,7 +1,8 @@
 
 import type { RouterProvider } from '@owlmeans/client'
-import { createBrowserRouter } from 'react-router-dom'
+import type { RouteObject } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 
 export const provide: RouterProvider = (routes) => {
-  return createBrowserRouter(routes)
+  return createBrowserRouter(routes as RouteObject[]) as any
 }

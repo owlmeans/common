@@ -11,12 +11,15 @@ export const makeConnection = <C extends Config = Config, T extends Context<C> =
     if (typeof message !== 'string') {
       model.prepare?.(message)
     }
-    conn.send(typeof message === 'string' ? message : JSON.stringify(message))
+    if (conn.readyState === WebSocket.OPEN) {
+      conn.send(typeof message === 'string' ? message : JSON.stringify(message))
+    }
   }
 
   model.close = async () => {
-    // await closeHandler(new CloseEvent('close', { code: 1000, wasClean: true }))
-    conn.close()
+    if (conn.readyState === WebSocket.OPEN || conn.readyState === WebSocket.CONNECTING) {
+      conn.close()
+    }
     // @TODO Make sure it trigger close observers
   }
 

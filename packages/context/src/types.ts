@@ -89,6 +89,7 @@ export interface BasicContext<C extends BasicConfig> {
   resource: <T extends BasicResource>(alias: string) => T
   hasResource: (alias: string) => boolean
   hasService: (alias: string) => boolean
+  hasModule: (alias: string) => boolean
 
   modules: <T extends BasicModule>() => T[]
 

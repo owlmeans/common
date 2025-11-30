@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,26 +20,26 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.0",
-    "@owlmeans/client-config": "^0.1.0",
-    "@owlmeans/client-module": "^0.1.0",
-    "@owlmeans/config": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/kluster": "^0.1.0",
-    "@owlmeans/module": "^0.1.0",
-    "@owlmeans/route": "^0.1.0",
-    "@owlmeans/server-api": "^0.1.0",
-    "@owlmeans/server-auth": "^0.1.0",
-    "@owlmeans/server-context": "^0.1.0",
-    "@owlmeans/server-module": "^0.1.0",
-    "@owlmeans/server-route": "^0.1.0",
-    "@owlmeans/server-socket": "^0.1.0",
-    "@owlmeans/static-resource": "^0.1.0"
+    "@owlmeans/api": "^0.1.1",
+    "@owlmeans/client-config": "^0.1.1",
+    "@owlmeans/client-module": "^0.1.1",
+    "@owlmeans/config": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/kluster": "^0.1.1",
+    "@owlmeans/module": "^0.1.1",
+    "@owlmeans/route": "^0.1.1",
+    "@owlmeans/server-api": "^0.1.1",
+    "@owlmeans/server-auth": "^0.1.1",
+    "@owlmeans/server-context": "^0.1.1",
+    "@owlmeans/server-module": "^0.1.1",
+    "@owlmeans/server-route": "^0.1.1",
+    "@owlmeans/server-socket": "^0.1.1",
+    "@owlmeans/static-resource": "^0.1.1"
   },
   "devDependencies": {
-    "@types/node": "^22.7.8",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3"
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

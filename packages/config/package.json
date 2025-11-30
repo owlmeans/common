@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 144 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -27,16 +27,16 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.0",
-    "@owlmeans/context": "^0.1.0",
-    "@owlmeans/error": "^0.1.0",
-    "@owlmeans/resource": "^0.1.0",
-    "@owlmeans/route": "^0.1.0"
+    "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/context": "^0.1.1",
+    "@owlmeans/error": "^0.1.1",
+    "@owlmeans/resource": "^0.1.1",
+    "@owlmeans/route": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"

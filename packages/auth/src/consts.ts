@@ -100,7 +100,7 @@ export const EnumValueSchema: JSONSchemaType<string> = { type: 'string', minLeng
 
 export const IdValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 128 }
 
-export const DateSchema: JSONSchemaType<Date> = { type: 'object', format: 'date-time', required: [] }
+export const DateSchema: JSONSchemaType<Date> = { type: 'object', format: 'date-time' } as unknown as JSONSchemaType<Date>
 
 export const AuthRoleSchema: JSONSchemaType<AuthRole> = { type: 'string', enum: Object.values(AuthRole) }
 

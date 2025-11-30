@@ -5,8 +5,7 @@ import type { PanelAppProps } from './types.js'
 import { App } from '@owlmeans/client'
 import { I18nContext } from '@owlmeans/client-i18n'
 import CssBaseline from '@mui/material/CssBaseline'
-import ThemeProvider from '@mui/material/styles/ThemeProvider.js'
-import createTheme from '@mui/material/styles/createTheme.js'
+import { createTheme, ThemeProvider } from '@mui/material/styles'
 
 export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, theme }) => {
   theme = useMemo(() => theme ?? createTheme(), [theme])
