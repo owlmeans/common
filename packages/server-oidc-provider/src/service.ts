@@ -59,9 +59,6 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         }
       })
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
-        oidc.use(async (_, next) => {
-          await next()
-        })
 
         oidc.on('grant.error', (_, error) => {
           console.warn('GRANT ERROR .......: ')
@@ -74,6 +71,23 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           console.info((ctx.oidc as any).grant)
           console.error('!!!! SERVER ERROR: ', error)
         })
+
+        oidc.on('userinfo.error', (ctx, error) => {
+          console.warn('USER INFO ERROR .......: ', Object.getOwnPropertyNames(ctx.oidc))
+          console.info((ctx.oidc as any).grant)
+          console.error('!!!! USER INFO ERROR: ', error)
+        })
+
+        oidc.use(async (_, next) => {
+          console.log('OIDC REQ .......: ')
+          console.log(_.request.toJSON())
+          await next()
+          console.log(_.oidc)
+          console.log('OIDC RES .......: ')
+          console.log(_.response.toJSON())
+          console.log('OIDC RESPONSE BODY .......: ', _.response.body)
+        })
+
       }
 
       _initializedOidc = service.oidc = oidc
