@@ -4,6 +4,9 @@ import type { UseValueParams } from './types.js'
 
 const _complexValues: { [key: string]: any } = {}
 
+/**
+ * @TODO add optional interface that doesn't return null if default value is not null
+ */
 export const useValue = <T>(
   loader: (cancel?: MutableRefObject<boolean>) => Promise<T>,
   def?: T | DependencyList | UseValueParams<T> | null,
