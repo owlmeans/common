@@ -1,7 +1,7 @@
 import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
 import type { KlusterConfig, KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
-import { KubeConfig, CoreV1Api, HttpError, NetworkingV1Api } from '@kubernetes/client-node'
+import { KubeConfig, CoreV1Api, HttpError, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node'
 import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
 
@@ -69,7 +69,9 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
       throw new SyntaxError(`Unknown kluster directive: ${action}`)
     },
 
-    makeNetworkingApi: () => service.config!.makeApiClient(NetworkingV1Api)
+    makeNetworkingApi: () => service.config!.makeApiClient(NetworkingV1Api),
+
+    makeAppsApi: () => service.config!.makeApiClient(AppsV1Api),
   }, service => async () => {
     if (service.config == null || service.api == null) {
       service.config = new KubeConfig()

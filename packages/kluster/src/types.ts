@@ -1,5 +1,5 @@
 import type { LazyService } from '@owlmeans/context'
-import type { KubeConfig, CoreV1Api, NetworkingV1Api } from '@kubernetes/client-node'
+import type { KubeConfig, CoreV1Api, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node'
 import type { ServerConfig } from '@owlmeans/server-context'
 
 export interface KlusterService extends LazyService {
@@ -13,6 +13,8 @@ export interface KlusterService extends LazyService {
   dispatch: <T>(action: string, query: string) => Promise<T>
 
   makeNetworkingApi: () => NetworkingV1Api
+
+  makeAppsApi: () => AppsV1Api
 }
 
 export interface KlusterConfig extends ServerConfig {

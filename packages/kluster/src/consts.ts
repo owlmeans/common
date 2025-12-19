@@ -1,5 +1,7 @@
 
-export const DEFAULT_ALIAS = 'kluster'
+export const KLUSTER_SERVICE_ALIAS = 'kluster'
+
+export const DEFAULT_ALIAS = KLUSTER_SERVICE_ALIAS
 
 export const DIRECTIVE = 'kluster'
 
