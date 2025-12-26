@@ -6,9 +6,9 @@ export interface KlusterService extends LazyService {
   config?: KubeConfig
   api?: CoreV1Api
 
-  getHostnames: (selector: string) => Promise<string[]>
+  getHostnames: (selector: string, namespace?: string) => Promise<string[]>
 
-  getServiceHostname: (selector: string) => Promise<string>
+  getServiceHostname: (selector: string, namespace?: string) => Promise<string>
 
   dispatch: <T>(action: string, query: string) => Promise<T>
 

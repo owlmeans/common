@@ -16,10 +16,10 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
       ? readConfigValue(selector, selector) : selector
 
   const service: KlusterService = createLazyService<KlusterService>(alias, {
-    getHostnames: async selector => {
+    getHostnames: async (selector, namespace) => {
       try {
         const ctx = assertContext<Config, Context>(service.ctx as Context, location)
-        const namespace = ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
+        namespace ??= ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
 
         const { body } = await service.api!.listNamespacedPod(
           namespace, undefined, undefined, undefined, undefined, selector
@@ -36,10 +36,10 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
       }
     },
 
-    getServiceHostname: async selector => {
+    getServiceHostname: async (selector, namespace) => {
       try {
         const ctx = assertContext<Config, Context>(service.ctx as Context, location)
-        const namespace = ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
+        namespace ??= ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
 
         const { body } = await service.api!.listNamespacedService(namespace, undefined, undefined, undefined, undefined, selector)
 
