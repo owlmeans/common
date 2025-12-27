@@ -5,6 +5,8 @@ import { KubeConfig, CoreV1Api, HttpError, NetworkingV1Api, AppsV1Api } from '@k
 import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
 
+// import util from 'node:util'
+
 type Config = KlusterConfig
 type Context = ServerContext<Config>
 
@@ -43,11 +45,9 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
 
         const { body } = await service.api!.listNamespacedService(namespace, undefined, undefined, undefined, undefined, selector)
 
-        if (body.items[0] == null) {
-          return selector
-        }
+        // console.log(util.inspect(body, { depth: null, colors: true }))
 
-        return body.items[0].metadata?.name ?? selector
+        return body.items[0].spec?.clusterIP ?? selector
       } catch (e) {
         if (e instanceof HttpError) {
           console.error(e.name, e.cause, e.message, e.body)

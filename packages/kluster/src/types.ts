@@ -8,6 +8,7 @@ export interface KlusterService extends LazyService {
 
   getHostnames: (selector: string, namespace?: string) => Promise<string[]>
 
+  // It should also return the array of cluster ips
   getServiceHostname: (selector: string, namespace?: string) => Promise<string>
 
   dispatch: <T>(action: string, query: string) => Promise<T>
