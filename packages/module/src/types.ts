@@ -57,6 +57,7 @@ export interface AbstractRequest<T extends {} = {}> {
   cancel?: () => void
   host?: string
   base?: string | boolean
+  unsecure?: boolean
 }
 
 export interface AbstractResponse<T> {

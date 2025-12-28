@@ -45,12 +45,12 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       const helper = makeSecurityHelper(context)
 
-      const url = helper.makeUrl(route, path, { host: request.host, base: request.base })
+      const url = helper.makeUrl(route, path, { host: request.host, base: request.base, forceUnsecure: request.unsecure })
 
       let transformer: AxiosRequestTransformer | undefined = undefined
 
       let body = request.body != null && Object.entries((request.headers ?? {})).find(
-        ([ key, value ]) =>
+        ([key, value]) =>
           key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
       ) ? qs.stringify(request.body) : request.body
 
@@ -83,7 +83,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
 
       processResponse(response, reply)
 
-      return [ reply.error ?? reply.value, reply.outcome ] as any
+      return [reply.error ?? reply.value, reply.outcome] as any
     }
   }, service => async () => {
     service.initialized = true
