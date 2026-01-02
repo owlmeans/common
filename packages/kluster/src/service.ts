@@ -47,7 +47,7 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
 
         // console.log(util.inspect(body, { depth: null, colors: true }))
 
-        return body.items[0].spec?.clusterIP ?? selector
+        return body.items?.[0]?.spec?.clusterIP ?? null
       } catch (e) {
         if (e instanceof HttpError) {
           console.error(e.name, e.cause, e.message, e.body)
