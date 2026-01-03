@@ -128,7 +128,9 @@ export const urlCall: <
     ctx.cfg.service !== module.route.route.service
     || req?.full === true)) {
     const helper = makeSecurityHelper(ctx)
-    path = helper.makeUrl(module.route.route, path)
+    path = helper.makeUrl(
+      module.route.route, path, { host: req?.host, base: req?.base, forceUnsecure: req?.unsecure }
+    )
   }
 
   res?.resolve(path as any, ModuleOutcome.Ok)

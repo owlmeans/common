@@ -35,6 +35,8 @@ ajvErrors(ajv, { singleError: true })
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
+const bodyLimit = 1024 * 1024 * 20
+
 export const createApiServer = (alias: string): ApiServer => {
   const location = `service:${alias}`
   const _assertContext = (context: Context | undefined): Context => assertContext<Config, Context>(context, location)
@@ -42,6 +44,7 @@ export const createApiServer = (alias: string): ApiServer => {
   const service = createService<ApiServer>(alias, {
     server: Fastify({
       logger: true,
+      bodyLimit,
       /*{
        transport: {
          target: 'pino-pretty',
@@ -75,7 +78,7 @@ export const createApiServer = (alias: string): ApiServer => {
   }, service => async () => {
     if (service.server.server.listening) {
       await service.server.close()
-      service.server = Fastify({ logger: true })
+      service.server = Fastify({ logger: true, bodyLimit })
     }
 
     const context = _assertContext(service.ctx as Context)
