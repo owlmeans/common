@@ -248,7 +248,7 @@ export const makeMongoResource = <
 
       const context = assertContext<Config, Context>(resource.ctx as Context, location)
       const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
-      
+
       return mongo.unlock(dbAlias, record, fields)
     },
 
@@ -315,6 +315,10 @@ const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaTyp
           return [key, _prepareSingleValue(value, type.additionalProperties as JSONSchemaType<any>)]
         }))
 
+        return [key, value]
+      }
+
+      if (value == null) {
         return [key, value]
       }
 

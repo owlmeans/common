@@ -22,6 +22,10 @@ export const schemaToMongoSchema = (schema: AnySchema): Document => {
     ...(_schema.required != null ? { required: _schema.required } : {}),
   }
 
+  if (_schema.nullable) {
+    mongoSchems.bsonType = [mongoSchems.bsonType, 'null']
+  }
+
   if ("properties" in mongoSchems && mongoSchems.properties == null) {
     delete mongoSchems.properties
   }
