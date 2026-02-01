@@ -14,6 +14,7 @@ export enum OidcAuthStep {
 }
 
 export const PURPOSE_PAYLOAD = 'purpose'
+export const SIMPLIFIED_PAYLOAD = 'simplified'
 
 // OwlMeans OIDC Based Auth Flow 
 export const stdOidcFlow: ShallowFlow = {
@@ -39,6 +40,7 @@ export const stdOidcFlow: ShallowFlow = {
           step: OidcAuthStep.Ephemeral,
         },
       },
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.Authen]: {
@@ -51,7 +53,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.PostAuthen,
           step: OidcAuthStep.PostAuthen,
         },
-      }
+      },
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.PostAuthen]: {
@@ -73,7 +76,10 @@ export const stdOidcFlow: ShallowFlow = {
           step: OidcAuthStep.Target,
         },
       },
-      payloadMap: { [PURPOSE_PAYLOAD]: 0 }
+      payloadMap: { 
+        [PURPOSE_PAYLOAD]: 0,
+        [SIMPLIFIED_PAYLOAD]: 1,
+      }
     },
 
     [OidcAuthStep.OrgChoice]: {
@@ -91,9 +97,10 @@ export const stdOidcFlow: ShallowFlow = {
           step: OidcAuthStep.Target,
         },
       },
-      payloadMap: { 
+      payloadMap: {
         [AUTH_QUERY]: 0,
         [PURPOSE_PAYLOAD]: 1,
+        [SIMPLIFIED_PAYLOAD]: 1,
       }
     },
 
@@ -107,7 +114,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Success,
           step: OidcAuthStep.Success,
         }
-      }
+      },
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.Success]: {
@@ -120,7 +128,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Target,
           step: OidcAuthStep.Target,
         }
-      }
+      },
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.Target]: {
@@ -133,7 +142,8 @@ export const stdOidcFlow: ShallowFlow = {
           transition: OidcAuthStep.Ephemeral,
           step: OidcAuthStep.Ephemeral,
         }
-      }
+      },
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     },
 
     [OidcAuthStep.Ephemeral]: {
@@ -141,7 +151,8 @@ export const stdOidcFlow: ShallowFlow = {
       step: OidcAuthStep.Ephemeral,
       service: TARGET_SERVICE,
       module: '$dispatcher',
-      transitions: {}
+      transitions: {},
+      payloadMap: { [SIMPLIFIED_PAYLOAD]: 0 }
     }
 
   }

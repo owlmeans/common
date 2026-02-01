@@ -38,7 +38,7 @@ export const authMiddleware: Middleware = {
 
             return call(req, res)
           }
-          
+
         }
       }
     })

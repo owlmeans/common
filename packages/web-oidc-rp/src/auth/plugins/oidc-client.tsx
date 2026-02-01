@@ -67,8 +67,11 @@ export const oidcClientPlugin: AuthenticationPlugin = {
             const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
 
             // @TODO we need to provide an identity provider client as entityId here for flexibel usage
+            const flow = await control.flow()
+            const state = await flow?.state()
             const _source = await oidc.proceedToRedirectUrl({
               purpose: control.source as OidcAuthPurposes ?? OidcAuthPurposes.Unknown,
+              simplified: state?.payload().simplified as string,
               uid: 'uid' in module.params ? `${module.params.uid}` : undefined,
               alias: module.alias
             })
@@ -90,6 +93,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
               const envelope = makeEnvelopeModel(control.allowance?.challenge, EnvelopeKind.Wrap)
               const challenge = envelope.message<string>(true)
               const parts = challenge.split(':http')
+              // This thing includes url with flow state so the OIDC redirect it back a correct way
               const url = 'http' + parts[1]
 
               // 2. Include additional parameters (control state with allowance to flow state)

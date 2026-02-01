@@ -72,8 +72,12 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       const ctx = service.assertCtx<Config, Context>()
 
-      const [redirectTo] = await ctx.module<Module<string>>(DISPATCHER_OIDC_INIT)
+      let [redirectTo] = await ctx.module<Module<string>>(DISPATCHER_OIDC_INIT)
         .call({ body: params })
+
+      if (flow.payload().simplified === 'true') {
+        redirectTo += '&simplified=true'
+      }
       
       const context = service.assertCtx<Config, Context>()
       await store(context).save({ id: storeKey, authUrl: redirectTo })
@@ -91,12 +95,18 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
       }
 
       const authorityTransition = flowModel.next()
-      flowModel.transit(authorityTransition.transition, true, { purpose: extras.purpose })
+      flowModel.transit(authorityTransition.transition, true, { 
+        purpose: extras.purpose,
+        simplified: extras.simplified,
+      })
 
       // @TODO I'm not sure that this dirty hack is a correct approach
       if (extras.alias === HOME) {
         const redirectTransition = flowModel.next()
-        flowModel.transit(redirectTransition.transition, true, { purpose: extras.purpose })
+        flowModel.transit(redirectTransition.transition, true, { 
+          purpose: extras.purpose,
+          simplified: extras.simplified
+        })
       }
 
       const redirectUrl = await flow.proceed({ params: { uid: extras.uid } }, true)

@@ -5,4 +5,5 @@ export enum OidcAuthState {
   IdLinked = 'id-linked',
   ProfileExists = 'profile-exists',
   RegistrationAllowed = 'registration-allowed',
+  Simplified = 'simplified',
 }

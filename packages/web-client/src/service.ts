@@ -1,12 +1,12 @@
 
-import { DEFAULT_ALIAS } from '@owlmeans/client-auth'
-import type { AuthServiceAppend } from '@owlmeans/client-auth'
-import type { AuthService } from '@owlmeans/auth-common'
-import { makeAuthService } from '@owlmeans/client-auth'
-import type { ClientModule } from '@owlmeans/client-module'
 import { DISPATCHER } from '@owlmeans/auth'
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { AuthService } from '@owlmeans/auth-common'
 import { authMiddleware } from '@owlmeans/auth-common'
+import type { AuthServiceAppend } from '@owlmeans/client-auth'
+import { DEFAULT_ALIAS, makeAuthService } from '@owlmeans/client-auth'
+import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import type { ClientModule } from '@owlmeans/client-module'
+import { logoutMiddleware } from './middleware.js'
 
 export const makeAuthWebService = (alias: string = DEFAULT_ALIAS): AuthService => {
   const service = makeAuthService(alias)
@@ -34,6 +34,7 @@ export const appendWebAuthService = <C extends ClientConfig, T extends ClientCon
   context.registerService(service)
 
   context.registerMiddleware(authMiddleware)
+  context.registerMiddleware(logoutMiddleware)
 
   context.auth = () => ctx.service(service.alias)
 

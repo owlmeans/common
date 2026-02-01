@@ -13,7 +13,7 @@ import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
 
-export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query }) => {
+export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query, payload }) => {
   const [forwarding, setForwarding] = useState<StateToken | undefined>()
 
   const navigator = useNavigate()
@@ -41,7 +41,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           // We do nothing if we are in the middle of a flow
           if (await flow.supplied) {
             const state = await flow.state()
-            // If the flow we are in already has a targe, it means this is some flow 
+            // If the flow we are in already has a target, it means this is some flow 
             // that is really happening and we do not need to override it with our own.
             // It's MAY BE required on the auth manager service side, cause this 
             // component is actually reused by both service and identity providers of OwlMeans.
@@ -56,6 +56,9 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           ) as string | undefined
           if (target != null) {
             model.target(target)
+            if (payload != null) {
+              model.updatePayload(payload)
+            }
           } else if (model.state().flow === STD_OIDC_FLOW) {
             const target = model.step().service
             model.target(target)

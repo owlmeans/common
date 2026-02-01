@@ -81,6 +81,7 @@ export interface FlowModel {
   state: () => FlowState
   setState: (state: FlowState | null) => FlowModel
   payload: <T extends FlowPayload>() => T
+  updatePayload: (payload: FlowPayload) => FlowModel
   step: (step?: string) => FlowStep
   transitions: (explicit?: boolean) => FlowTransition[]
   transition: (transition: string) => FlowTransition

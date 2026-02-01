@@ -48,7 +48,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       oidc.proxy = cfg.behindProxy ?? unsecure
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
-      await api.server.use(base, oidc.callback())
+      api.server.use(base, oidc.callback())
       oidc.use(async (ctx, next) => {
         await next()
         const csp = ctx.response.headers['content-security-policy']

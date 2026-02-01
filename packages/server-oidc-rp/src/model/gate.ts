@@ -63,6 +63,10 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
       )
 
       if (!response.ok) {
+        if (response.status === 400) {
+          throw new AuthUnknown('invalid')
+        }
+
         console.warn(await response.text())
         return []
       }

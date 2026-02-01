@@ -4,6 +4,7 @@ import type { OIDCAuthInitParams, WithSharedConfig } from '@owlmeans/oidc'
 import type { OidcAuthPurposes } from './consts.js'
 import type { FlowModel, FlowPayload } from '@owlmeans/flow'
 import type { ResourceRecord } from '@owlmeans/resource'
+import type { AuthToken } from '@owlmeans/auth'
 
 export interface OidcAuthService extends InitializedService {
   dispatch: (params: Record<string, string>) => Promise<boolean>
@@ -19,8 +20,14 @@ export interface OidcAuthService extends InitializedService {
 
 export interface OidcAuthRedirectExtras extends FlowPayload {
   purpose: OidcAuthPurposes
+  simplified?: string
   uid?: string
   alias?: string
+}
+
+export interface OidcPostAuthPayload extends FlowPayload , AuthToken {
+  purpose: OidcAuthPurposes
+  simplified?: string
 }
 
 export interface Config extends AppConfig, WithSharedConfig { }

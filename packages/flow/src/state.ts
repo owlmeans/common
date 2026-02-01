@@ -45,10 +45,19 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
 
     setState: _state => {
       state = _state
-      return model 
+      return model
     },
 
     payload: () => state!.payload ?? {} as any,
+
+    updatePayload: payload => {
+      if (state!.payload == null) {
+        state!.payload = payload
+      } else {
+        Object.assign(state!.payload, payload)
+      }
+      return model
+    },
 
     step: step => flow.steps[step ?? state!.step],
 
@@ -125,10 +134,11 @@ export const makeFlowModel = async (flow: string | ShallowFlow, provider?: FlowP
         delete state!.message
       }
       if (payload != null) {
-        state!.payload = payload
-      } else if (state!.payload != null) {
+        model.updatePayload(payload)
+        // state!.payload = payload
+      } /*else if (state!.payload != null) {
         delete state!.payload
-      }
+      }*/
 
       return serializeState(flow, state!)
     },

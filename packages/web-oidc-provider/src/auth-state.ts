@@ -1,8 +1,10 @@
+import type { Auth } from '@owlmeans/auth'
+import type { StateResource } from '@owlmeans/client-flow'
+import { EXTRA_FLOW, FLOW_STATE } from '@owlmeans/client-flow'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
-import type { AuthStateProperties, OidcAuthStateModel, OidcInteraction, WithSharedConfig } from './types.js'
 import Cookies from 'universal-cookie'
 import { OidcAuthState } from './consts.js'
-import type { Auth } from '@owlmeans/auth'
+import type { AuthStateProperties, OidcAuthStateModel, OidcInteraction, WithSharedConfig } from './types.js'
 
 const stateCache: Record<string, AuthStateProperties> = {}
 export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>(
@@ -45,8 +47,10 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
 
         return model
       }
+
       if (currentUid != null && currentUid !== uid) {
         let stack = await store().load(stackKey)
+        // @TODO Something wrong is here - it will always be null
         if (stack == null) {
           stack = { stack: [], id: stackKey }
         } else if (reset) {
@@ -89,6 +93,14 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
         model.state.add(OidcAuthState.IdLinked)
       }
 
+      const extraFlows = context.resource<StateResource>(FLOW_STATE)
+      const extra = await extraFlows.load(EXTRA_FLOW)
+      if (extra != null) {
+        if (extra.payload?.simplified === 'true') {
+          model.state.add(OidcAuthState.Simplified)
+        }
+      }
+
       stateCache[uid] = { ...model }
 
       return [...model.state]
@@ -100,6 +112,8 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
 
     isIdLinked: () => model.state.has(OidcAuthState.IdLinked),
 
+    isSimplified: () => model.state.has(OidcAuthState.Simplified),
+
     profileExists: () => model.state.has(OidcAuthState.ProfileExists),
 
     isRegistrationAllowed: () => model.state.has(OidcAuthState.RegistrationAllowed),
@@ -109,7 +123,13 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
       if (stateCache[model.uid] != null) {
         delete stateCache[model.uid]
       }
+      const extraFlows = context.resource<StateResource>(FLOW_STATE)
+      const extra = await extraFlows.load(EXTRA_FLOW)
+      if (extra != null) {
+        await extraFlows.delete(EXTRA_FLOW)
+      }
       if (stack != null) {
+        debugger
         const item = stack.stack.pop()
         if (item != null) {
           model.uid = item.uid

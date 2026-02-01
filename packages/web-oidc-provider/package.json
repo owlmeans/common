@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.1",
+    "@owlmeans/client-flow": "^0.1.1",
     "@owlmeans/oidc": "^0.1.1",
     "@owlmeans/resource": "^0.1.1",
     "@owlmeans/web-client": "^0.1.1",

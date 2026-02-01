@@ -7,6 +7,7 @@ export interface OidcAuthStateModel extends AuthStateProperties {
   updateAuthState: (uid: string) => Promise<OidcAuthState[]>
 
   isAuthenticated: () => boolean
+  isSimplified: () => boolean
   isSameEntity: () => boolean
   isIdLinked: () => boolean
   profileExists: () => boolean
