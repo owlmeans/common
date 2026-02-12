@@ -10,6 +10,8 @@ export const CreateCheckoutBodySchema: JSONSchemaType<CreateCheckoutBody> = {
     entityId: EntityValueSchema,
     service: { ...ResourceValueSchema, minLength: 2 },
     subscriptionId: { ...IdValueSchema, nullable: true },
+    successUrl: { ...ResourceValueSchema, minLength: 1, nullable: true },
+    cancelUrl: { ...ResourceValueSchema, minLength: 1, nullable: true },
   },
   required: ['productSku', 'entityId', 'service'],
   additionalProperties: false,

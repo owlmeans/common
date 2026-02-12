@@ -94,6 +94,8 @@ export interface CreateCheckoutBody {
   entityId: string
   service: string
   subscriptionId?: string
+  successUrl?: string
+  cancelUrl?: string
 }
 
 export interface CreateCheckoutResponse {

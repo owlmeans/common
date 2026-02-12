@@ -20,7 +20,7 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
     default:
 
       console.error(response.status, response.statusText)
-      console.error(response.headers)
+      console.error(response.config.url, response.headers)
       console.error(response.data)
 
       try {
