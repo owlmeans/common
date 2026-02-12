@@ -15,6 +15,7 @@ export interface Product {
    * software services.
    */
   services?: string[]
+  gateways?: string[]
   capabilities?: PermissionSet[]
 }
 
@@ -32,7 +33,7 @@ export interface ProductPlan {
   sku: string
   status: PlanStatus
   payagateAliases?: {
-    [paygate: string]: string
+    [paygate: string]: string | null
   }
   duration: PlanDuration
   trial?: number
@@ -87,10 +88,27 @@ export interface PlanSubscription {
   consumptions?: { [key: string]: CapabilityUsage }
 }
 
-export interface SubscriptionPropogateBody extends PlanSubscription {
+export interface CreateCheckoutBody {
+  productSku: string
+  sku?: string
+  entityId: string
+  service: string
+  subscriptionId?: string
+}
+
+export interface CreateCheckoutResponse {
+  url: string
+}
+
+export interface SubscriptionPropagateBody extends PlanSubscription {
   service: string
   externalId: string
 }
+
+/**
+ * @deprecated Use SubscriptionPropagateBody instead
+ */
+export type SubscriptionPropogateBody = SubscriptionPropagateBody
 
 export interface LimitConfig {
   interval: PlanDuration
@@ -111,7 +129,11 @@ type PaymentEntity = Product | ProductPlan | PermissionSet
 export interface PaymentService extends InitializedService {
   product: (sku: string) => Promise<Product>
 
+  products: () => Promise<Product[]>
+
   plans: (productSku: string, duration: PlanDuration) => Promise<ProductPlan[]>
+
+  allPlans: (productSku: string) => Promise<ProductPlan[]>
 
   localize: (lng: string, entity: PaymentEntity) => Promise<Localization | null>
 

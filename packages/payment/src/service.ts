@@ -1,6 +1,6 @@
-import { createService, assertContext } from '@owlmeans/context'
+import { createService } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
-import { DEFAULT_ALIAS, PaymentEntityType } from './consts.js'
+import { DEFAULT_ALIAS, PaymentEntityType, PRODUCT_RECORD_TYPE } from './consts.js'
 import type { Localization, PaymentService } from './types.js'
 import type { Config, Context } from './utils/types.js'
 import { PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX } from './consts.js'
@@ -16,11 +16,12 @@ import type { AuthCredentials } from '@owlmeans/auth'
 export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentService => {
   const service: PaymentService = createService<PaymentService>(alias, {
     product: async sku => {
-      const context = assertContext(service.ctx) as Context
-
+      const context = service.assertCtx() as Context
       const configRes = context.getConfigResource()
 
-      const result = fromConfigRecord<ConfigRecord, Product & ResourceRecord>(await configRes.get(`${PRODUCT_RECORD_PREFIX}:${sku}`))
+      const result = fromConfigRecord<ConfigRecord, Product & ResourceRecord>(
+        await configRes.get(`${PRODUCT_RECORD_PREFIX}:${sku}`)
+      )
 
       if (result == null) {
         throw new UnknownProduct(sku)
@@ -29,8 +30,17 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       return result as Product
     },
 
+    products: async () => {
+      const context = service.assertCtx() as Context
+      const configRes = context.getConfigResource()
+
+      const { items } = await configRes.list({ recordType: PRODUCT_RECORD_TYPE })
+
+      return items.map(i => fromConfigRecord<ConfigRecord, Product & ResourceRecord>(i))
+    },
+
     plans: async (productSku, duration) => {
-      const context = assertContext(service.ctx) as Context
+      const context = service.assertCtx() as Context
       const configRes = context.getConfigResource()
 
       const result = await configRes.list({
@@ -39,11 +49,24 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
 
       return result.items.map(
         item => fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
-      ) as ProductPlan[]
+      )
+    },
+
+    allPlans: async productSku => {
+      const context = service.assertCtx() as Context
+      const configRes = context.getConfigResource()
+
+      const { items } = await configRes.list({
+        productSku, recordType: PLAN_RECORD_TYPE
+      })
+
+      return items.map(
+        item => fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
+      )
     },
 
     localize: async (lng, entity) => {
-      const context = assertContext(service.ctx) as Context
+      const context = service.assertCtx() as Context
       const configRes = context.getConfigResource()
 
       const idsToCheck: string[] = []

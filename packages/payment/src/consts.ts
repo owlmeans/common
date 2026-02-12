@@ -2,7 +2,8 @@ import type { JSONSchemaType } from 'ajv'
 
 export enum ProductType {
   Simple = 'simple',
-  Service = 'service'
+  Service = 'service',
+  Consumable = 'consumable'
 }
 
 export enum PaymentEntityType {
@@ -92,9 +93,28 @@ export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
 
 export const DEFAULT_ALIAS = 'payment'
 
+export const PAYMENT_SERVICE = DEFAULT_ALIAS
+
 export const paymentApi = {
   subscription: {
     base: 'payment-api:subscription',
+    /**
+     * @deprecated Use propagate instead
+     */
     propogate: 'payment-api:subscription:propogate',
+    propagate: 'payment-api:subscription:propagate',
+  },
+  service: {
+    base: 'payment-service:base',
+    checkout: {
+      base: 'payment-service:checkout',
+      session: {
+        base: 'payment-service:checkout:session',
+        external: {
+          base: 'payment-service:checkout:session:external',
+          create: 'payment-service:checkout:session:external:create',
+        }
+      }
+    }
   }
 }

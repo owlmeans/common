@@ -14,6 +14,7 @@ export const ProductSchema: JSONSchemaType<Product> = {
     description: { ...ProductDescriptionSchema, nullable: true },
     defaultLng: { ...LocalizationLngSchema, nullable: true },
     services: { type: 'array', items: ResourceValueSchema, nullable: true },
+    gateways: { type: 'array', items: ResourceValueSchema, nullable: true },
     capabilities: { type: 'array', items: PermissionSetSchema, nullable: true }
   },
   required: ['type', 'sku', 'title'],
