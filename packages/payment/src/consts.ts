@@ -42,7 +42,8 @@ export enum SubscriptionStatus {
   Blocked = 'blocked',
   Ended = 'ended',
   Free = 'free',
-  Active = 'active'
+  Active = 'active',
+  Consumable = 'consumable'
 }
 
 export const ProductTypeSchema: JSONSchemaType<ProductType> = {
