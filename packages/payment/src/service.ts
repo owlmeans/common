@@ -1,10 +1,10 @@
 import { createService } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
-import { DEFAULT_ALIAS, PaymentEntityType, PRODUCT_RECORD_TYPE } from './consts.js'
+import { DEFAULT_ALIAS, PaymentEntityType, PLAN_RECORD_PREFIX, PRODUCT_RECORD_TYPE } from './consts.js'
 import type { Localization, PaymentService } from './types.js'
 import type { Config, Context } from './utils/types.js'
 import { PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX } from './consts.js'
-import { PaymentIdentificationError, UnknownProduct } from './errors.js'
+import { PaymentIdentificationError, UnknownPlan, UnknownProduct } from './errors.js'
 import type { Product, ProductPlan } from './types.js'
 import { fromConfigRecord } from '@owlmeans/config'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -50,6 +50,19 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       return result.items.map(
         item => fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(item)
       )
+    },
+
+    plan: async planSku => {
+      const context = service.assertCtx() as Context
+      const configRes = context.getConfigResource()
+
+      const result = await configRes.get(`${PLAN_RECORD_PREFIX}:${planSku}`)
+
+      if (result == null) {
+        throw new UnknownPlan(planSku)
+      }
+
+      return fromConfigRecord<ConfigRecord, ProductPlan & ResourceRecord>(result)
     },
 
     allPlans: async productSku => {

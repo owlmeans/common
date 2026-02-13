@@ -135,6 +135,8 @@ export interface PaymentService extends InitializedService {
 
   plans: (productSku: string, duration: PlanDuration) => Promise<ProductPlan[]>
 
+  plan: (planSku: string) => Promise<ProductPlan>
+
   allPlans: (productSku: string) => Promise<ProductPlan[]>
 
   localize: (lng: string, entity: PaymentEntity) => Promise<Localization | null>
