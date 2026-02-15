@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-socket",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -28,14 +28,14 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/basic-envelope": "^0.1.1",
-    "@owlmeans/client": "^0.1.1",
-    "@owlmeans/client-context": "^0.1.1",
-    "@owlmeans/client-module": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/module": "^0.1.1",
-    "@owlmeans/socket": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/basic-envelope": "^0.1.2",
+    "@owlmeans/client": "^0.1.2",
+    "@owlmeans/client-context": "^0.1.2",
+    "@owlmeans/client-module": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/socket": "^0.1.2"
   },
   "publishConfig": {
     "access": "public"

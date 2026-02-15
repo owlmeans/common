@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-rp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,19 +27,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/basic-envelope": "^0.1.1",
-    "@owlmeans/client": "^0.1.1",
-    "@owlmeans/client-auth": "^0.1.1",
-    "@owlmeans/client-flow": "^0.1.1",
-    "@owlmeans/client-i18n": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/flow": "^0.1.1",
-    "@owlmeans/module": "^0.1.1",
-    "@owlmeans/oidc": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
-    "@owlmeans/web-client": "^0.1.1",
-    "@owlmeans/web-flow": "^0.1.1",
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/basic-envelope": "^0.1.2",
+    "@owlmeans/client": "^0.1.2",
+    "@owlmeans/client-auth": "^0.1.2",
+    "@owlmeans/client-flow": "^0.1.2",
+    "@owlmeans/client-i18n": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/flow": "^0.1.2",
+    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/oidc": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
+    "@owlmeans/web-client": "^0.1.2",
+    "@owlmeans/web-flow": "^0.1.2",
     "oidc-client-ts": "^3.1.0"
   },
   "peerDependencies": {

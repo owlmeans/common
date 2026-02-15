@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/storage-resource",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -24,11 +24,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.701.0",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/error": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
-    "@owlmeans/server-context": "^0.1.1",
-    "@owlmeans/storage-common": "^0.1.1",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/error": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
+    "@owlmeans/server-context": "^0.1.2",
+    "@owlmeans/storage-common": "^0.1.2",
     "file-type": "^19.6.0"
   },
   "devDependencies": {

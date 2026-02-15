@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/socket",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,9 +20,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/basic-ids": "^0.1.1",
-    "@owlmeans/error": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/basic-ids": "^0.1.2",
+    "@owlmeans/error": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

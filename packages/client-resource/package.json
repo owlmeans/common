@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-resource",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/client-context": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
+    "@owlmeans/client-context": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
     "@scure/base": "^1.1.9"
   },
   "devDependencies": {

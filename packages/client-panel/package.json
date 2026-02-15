@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-panel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -35,12 +35,12 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@owlmeans/client": "^0.1.1",
-    "@owlmeans/client-i18n": "^0.1.1",
-    "@owlmeans/client-module": "^0.1.1",
-    "@owlmeans/client-route": "^0.1.1",
-    "@owlmeans/error": "^0.1.1",
-    "@owlmeans/module": "^0.1.1"
+    "@owlmeans/client": "^0.1.2",
+    "@owlmeans/client-i18n": "^0.1.2",
+    "@owlmeans/client-module": "^0.1.2",
+    "@owlmeans/client-route": "^0.1.2",
+    "@owlmeans/error": "^0.1.2",
+    "@owlmeans/module": "^0.1.2"
   },
   "peerDependencies": {
     "@owlmeans/auth": "*",
@@ -60,8 +60,8 @@
     }
   },
   "devDependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/client-auth": "^0.1.1",
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/client-auth": "^0.1.2",
     "@types/react": "^19.2.7",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-flow",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,18 +20,18 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.1",
-    "@owlmeans/client": "^0.1.1",
-    "@owlmeans/client-context": "^0.1.1",
-    "@owlmeans/client-module": "^0.1.1",
-    "@owlmeans/client-resource": "^0.1.1",
-    "@owlmeans/config": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/error": "^0.1.1",
-    "@owlmeans/flow": "^0.1.1",
-    "@owlmeans/module": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
-    "@owlmeans/route": "^0.1.1"
+    "@owlmeans/auth-common": "^0.1.2",
+    "@owlmeans/client": "^0.1.2",
+    "@owlmeans/client-context": "^0.1.2",
+    "@owlmeans/client-module": "^0.1.2",
+    "@owlmeans/client-resource": "^0.1.2",
+    "@owlmeans/config": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/error": "^0.1.2",
+    "@owlmeans/flow": "^0.1.2",
+    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
+    "@owlmeans/route": "^0.1.2"
   },
   "peerDependencies": {
     "react": "*"

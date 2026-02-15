@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/error",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,7 +20,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/i18n": "^0.1.1"
+    "@owlmeans/i18n": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-context",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,11 +27,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-config": "^0.1.1",
-    "@owlmeans/config": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/route": "^0.1.1",
-    "@owlmeans/server-config": "^0.1.1"
+    "@owlmeans/client-config": "^0.1.2",
+    "@owlmeans/config": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/route": "^0.1.2",
+    "@owlmeans/server-config": "^0.1.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

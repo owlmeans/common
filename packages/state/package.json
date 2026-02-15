@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/state",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,8 +20,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1"
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

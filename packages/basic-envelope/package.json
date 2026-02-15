@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-envelope",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -29,7 +29,7 @@
   "dependencies": {
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/basic-keys": "^0.1.1",
+    "@owlmeans/basic-keys": "^0.1.2",
     "@scure/base": "^1.1.9"
   },
   "publishConfig": {

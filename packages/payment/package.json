@@ -30,15 +30,15 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/basic-envelope": "^0.1.1",
-    "@owlmeans/config": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/error": "^0.1.1",
-    "@owlmeans/i18n": "^0.1.1",
-    "@owlmeans/module": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
-    "@owlmeans/route": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/basic-envelope": "^0.1.2",
+    "@owlmeans/config": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/error": "^0.1.2",
+    "@owlmeans/i18n": "^0.1.2",
+    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
+    "@owlmeans/route": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

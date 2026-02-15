@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-common",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -27,15 +27,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/auth-common": "^0.1.1",
-    "@owlmeans/basic-ids": "^0.1.1",
-    "@owlmeans/basic-keys": "^0.1.1",
-    "@owlmeans/client-module": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/module": "^0.1.1",
-    "@owlmeans/resource": "^0.1.1",
-    "@owlmeans/route": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/auth-common": "^0.1.2",
+    "@owlmeans/basic-ids": "^0.1.2",
+    "@owlmeans/basic-keys": "^0.1.2",
+    "@owlmeans/client-module": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/resource": "^0.1.2",
+    "@owlmeans/route": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

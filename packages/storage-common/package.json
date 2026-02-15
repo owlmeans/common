@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/storage-common",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 387 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
@@ -23,8 +23,8 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/error": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/error": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",

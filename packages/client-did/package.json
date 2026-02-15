@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-did",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -20,13 +20,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.1",
-    "@owlmeans/client": "^0.1.1",
-    "@owlmeans/client-context": "^0.1.1",
-    "@owlmeans/client-resource": "^0.1.1",
-    "@owlmeans/context": "^0.1.1",
-    "@owlmeans/did": "^0.1.1",
-    "@owlmeans/state": "^0.1.1"
+    "@owlmeans/auth": "^0.1.2",
+    "@owlmeans/client": "^0.1.2",
+    "@owlmeans/client-context": "^0.1.2",
+    "@owlmeans/client-resource": "^0.1.2",
+    "@owlmeans/context": "^0.1.2",
+    "@owlmeans/did": "^0.1.2",
+    "@owlmeans/state": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11",
