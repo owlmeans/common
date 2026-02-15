@@ -1,5 +1,6 @@
 {
   "name": "@owlmeans/common-root",
+  "version": "0.1.2",
   "scripts": {
     "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run dev",
     "build": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run build",

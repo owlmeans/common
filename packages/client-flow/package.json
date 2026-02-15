@@ -1,6 +1,7 @@
 {
   "name": "@owlmeans/client-flow",
   "version": "0.1.2",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",

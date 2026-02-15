@@ -2,6 +2,7 @@
   "name": "@owlmeans/storage-common",
   "type": "module",
   "version": "0.1.2",
+"license": "MIT",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 387 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",

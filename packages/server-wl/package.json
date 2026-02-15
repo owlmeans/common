@@ -2,6 +2,7 @@
   "name": "@owlmeans/server-wl",
   "type": "module",
   "version": "0.1.2",
+  "license": "MIT",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 330 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",

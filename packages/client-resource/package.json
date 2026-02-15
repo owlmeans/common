@@ -1,6 +1,7 @@
 {
   "name": "@owlmeans/client-resource",
   "version": "0.1.2",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
