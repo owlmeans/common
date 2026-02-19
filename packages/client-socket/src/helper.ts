@@ -24,6 +24,17 @@ export const ws = async (module: ClientModule<string>, request?: AbstractRequest
 
   return new Promise(resolve => {
     socket.onopen = () => {
+      const heartbeat = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'ping' }))
+        }
+      }, 30_000)
+
+      socket.addEventListener('close', () => {
+        console.info('WebSocket connection closed, clearing heartbeat interval.')
+        clearInterval(heartbeat)
+      })
+
       resolve(makeConnection(socket, ctx))
     }
   })
@@ -40,8 +51,8 @@ export const useWs = (module: string | ClientModule<any>, request?: Partial<Abst
     Object.assign(_request, request)
     return await ws(mod, _request)
   }, [
-    mod.getAlias(), 
-    request?.query?.[AUTH_QUERY], 
+    mod.getAlias(),
+    request?.query?.[AUTH_QUERY],
     request?.params ? JSON.stringify(request.params) : undefined
   ])
 

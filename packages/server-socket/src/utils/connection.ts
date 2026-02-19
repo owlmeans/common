@@ -100,8 +100,38 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   const messageHandler = async (_message: Buffer | Buffer[]) => {
     _message = Array.isArray(_message) ? _message : [_message]
     const message = _message.map(msg => msg.toString('utf8')).join('')
+
+    if (message.startsWith('{') || message.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(message)
+        if (parsed.type === 'ping') {
+          console.log("Received soft ping, sending pong.")
+          conn.pong()
+          conn.send(JSON.stringify({ type: 'pong' }))
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
     await model.receive(message)
   }
+
+  conn.on("ping", () => {
+    console.log("Received hard ping, sending pong.")
+    conn.pong()
+  })
+
+  conn.on('open', (ws: WebSocket) => {
+    const heartbeat = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping()
+      }
+    }, 30_000)
+    conn.on('close', () => {
+      clearInterval(heartbeat)
+    })
+  })
 
   const closeHandler = async (code: number) => {
     const msg: EventMessage<{ code: number }> = {

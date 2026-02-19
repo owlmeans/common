@@ -51,7 +51,7 @@
     "@owlmeans/client-flow": "^0.1.2",
     "@owlmeans/client-module": "^0.1.2",
     "@owlmeans/client-resource": "^0.1.2",
-    "@owlmeans/client-socket": "^0.1.2",
+    "@owlmeans/client-socket": "^0.1.3",
     "@owlmeans/context": "^0.1.2",
     "@owlmeans/did": "^0.1.2",
     "@owlmeans/error": "^0.1.2",
