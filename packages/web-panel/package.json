@@ -67,6 +67,7 @@
   "peerDependencies": {
     "@emotion/react": "*",
     "@emotion/styled": "*",
+    "@mui/icons-material": "*",
     "@mui/material": "*",
     "ajv": "*",
     "react": "*",
@@ -76,6 +77,7 @@
   "devDependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^9.0.0",
     "@mui/material": "^7.3.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

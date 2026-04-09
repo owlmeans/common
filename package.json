@@ -2,13 +2,16 @@
   "name": "@owlmeans/common-root",
   "version": "0.1.2",
   "scripts": {
-    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run dev",
-    "build": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run build",
-    "watch": "yarn workspaces foreach -piW -j unlimited -vv --from 'libraries/common/packages/*' --exclude 'packages/_tpl' run watch"
+    "dev": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run dev",
+    "build": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run build",
+    "watch": "yarn workspaces foreach -piW -j unlimited -vv --from 'packages/*' --exclude 'packages/_tpl' run watch"
   },
   "workspaces": [
     "packages/*"
   ],
+  "resolutions": {
+    "react-router": "^7.*"
+  },
   "packageManager": "yarn@4.13.0",
   "private": true
 }
