@@ -10,6 +10,9 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Dependency only configuration
+yarn.lock
+
 # Dependency directories
 node_modules/
 
