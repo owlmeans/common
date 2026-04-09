@@ -12,6 +12,7 @@ lerna-debug.log*
 
 # Dependency only configuration
 yarn.lock
+bun.lock
 
 # Dependency directories
 node_modules/

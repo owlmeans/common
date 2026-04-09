@@ -1,5 +1,5 @@
 {
-  "name": "@owlmeans/package-name",
+  "name": "@owlmeans/_tpl",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
