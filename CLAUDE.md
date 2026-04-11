@@ -26,6 +26,7 @@ Security-first TypeScript monorepo framework for fullstack applications with mic
 
 When working on a package, identify its layer: **Core → Server/Client → Web/Native**
 
+- **Configuration**: `dep-config` — shared TypeScript configs for all packages
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `module`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
 - **Server**: `server-api`, `server-app`, `server-auth`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
 - **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
@@ -37,8 +38,9 @@ When working on a package, identify its layer: **Core → Server/Client → Web/
 ## Key Facts
 
 - ~75 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
-- TypeScript, ESM + CJS dual exports, build output → `build/`, version 0.1.2
-- TypeScript base config: `packages/tsconfig.default.json` (strict, ESNext, isolated modules)
+- TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
+- TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution) + `tsconfig.react.json` (JSX+DOM)
+- Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`
 - React is a peer dependency, pinned to react-router v7
 - Cryptography: `@noble/curves`, `@noble/hashes`, `@scure/base`, `@scure/bip39`
 - Validation: AJV with ajv-formats
@@ -47,3 +49,5 @@ When working on a package, identify its layer: **Core → Server/Client → Web/
 
 - **Bun (package manager & build)**: skill at `.claude/skills/bun/SKILL.md` — auto-invoked when doing install, build, or script work
 - **Creating skills**: skill at `.claude/skills/create-skill/SKILL.md` — follow this when converting knowledge into a new skill
+- **Versioning**: skill at `.claude/skills/versions/SKILL.md` — how to bump package versions across the monorepo
+- **TypeScript configs**: skill at `.claude/skills/tsconfig/SKILL.md` — how to configure tsconfig in packages, which configs to extend

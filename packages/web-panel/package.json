@@ -75,6 +75,7 @@
     "react-hook-form": "*"
   },
   "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^9.0.0",
@@ -84,7 +85,7 @@
     "@types/react-google-recaptcha": "^2.1.9",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.2"
   },
   "publishConfig": {
     "access": "public"

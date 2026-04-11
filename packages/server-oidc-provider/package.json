@@ -21,11 +21,12 @@
     }
   },
   "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/oidc-provider": "^8.5.2",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.2"
   },
   "peerDependencies": {
     "fastify": "*"

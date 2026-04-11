@@ -33,10 +33,11 @@
     "qs": "^6.13.0"
   },
   "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
     "@types/qs": "^6.9.16",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.2"
   },
   "publishConfig": {
     "access": "public"

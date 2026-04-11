@@ -728,7 +728,14 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 ## 📦 **Complete Package Reference**
 
-OwlMeans Common provides 69 specialized packages organized into six categories following the "quadra" architectural pattern.
+OwlMeans Common provides 70 specialized packages organized into seven categories following the "quadra" architectural pattern.
+
+### **⚙️ Configuration Packages (1 package)**
+Shared build tooling and TypeScript configuration.
+
+| Package | Description |
+|---------|-------------|
+| [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
 
 ### **🏗️ Core Packages (29 packages)**
 Foundational libraries providing environment-agnostic functionality.

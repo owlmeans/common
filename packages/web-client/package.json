@@ -45,11 +45,12 @@
     "react-router": "^7.*"
   },
   "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.2"
   },
   "publishConfig": {
     "access": "public"
