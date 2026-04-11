@@ -31,13 +31,6 @@ node_modules/
 /packages/*/build/*
 !/packages/*/build/.gitkeep
 
-# Prevent build artifacts from being committed inside src/
-packages/*/src/**/*.js
-packages/*/src/**/*.js.map
-packages/*/src/**/*.d.ts
-packages/*/src/**/*.d.ts.map
-!packages/native-client/src/globals.d.ts
-
 # Tmp files from dev containers
 /tmp/*
 

@@ -1,0 +1,7 @@
+{
+  "extends": ["@owlmeans/dep-config/tsconfig.server.json"],
+  "compilerOptions": {
+    "types": ["bun"],
+    "allowImportingTsExtensions": true
+  }
+}

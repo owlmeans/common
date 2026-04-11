@@ -39,8 +39,8 @@ When working on a package, identify its layer: **Core → Server/Client → Web/
 
 - ~75 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
 - TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
-- TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution) + `tsconfig.react.json` (JSX+DOM)
-- Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`
+- TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution), `tsconfig.react.json` (JSX+DOM), `tsconfig.server.json` (no DOM), `tsconfig.node.json` (server + Node globals), `tsconfig.bun.json` (server + Bun globals)
+- Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`; server packages extend `tsconfig.server.json`, `tsconfig.node.json`, or `tsconfig.bun.json` as appropriate
 - React is a peer dependency, pinned to react-router v7
 - Cryptography: `@noble/curves`, `@noble/hashes`, `@scure/base`, `@scure/bip39`
 - Validation: AJV with ajv-formats

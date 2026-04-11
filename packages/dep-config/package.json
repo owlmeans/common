@@ -5,6 +5,13 @@
   "license": "MIT",
   "type": "module",
   "private": true,
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.react.json": "./tsconfig.react.json",
+    "./tsconfig.server.json": "./tsconfig.server.json",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./tsconfig.bun.json": "./tsconfig.bun.json"
+  },
   "devDependencies": {
     "typescript": "^6.0.2"
   }

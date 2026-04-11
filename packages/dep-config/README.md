@@ -1,6 +1,6 @@
 # @owlmeans/dep-config
 
-Shared TypeScript configuration for all `@owlmeans/*` packages. Provides base compiler options, React/JSX settings, and a consistent strict configuration aligned with TypeScript 6.0+.
+Shared TypeScript configuration for all `@owlmeans/*` packages. Provides base compiler options, React/JSX settings, server/Node/Bun runtime settings, and a consistent strict configuration aligned with TypeScript 6.0+.
 
 ## Configs
 
@@ -8,6 +8,9 @@ Shared TypeScript configuration for all `@owlmeans/*` packages. Provides base co
 |------|---------|
 | `tsconfig.base.json` | Core strict settings, ESNext target, Bundler module resolution |
 | `tsconfig.react.json` | JSX + DOM lib (for React/React Native packages) |
+| `tsconfig.server.json` | Server-side base: `lib: ["ESNext"]` only (no DOM) |
+| `tsconfig.node.json` | Extends server + adds `types: ["node"]` (Node.js globals) |
+| `tsconfig.bun.json` | Extends server + adds `types: ["bun"]` + `allowImportingTsExtensions` |
 
 ## Usage
 
@@ -17,9 +20,9 @@ Add to your package's `devDependencies`:
 "@owlmeans/dep-config": "workspace:*"
 ```
 
-Then create a `tsconfig.json` in your package using one of the two flavors:
+Then create a `tsconfig.json` in your package using one of the flavors below:
 
-### Basic package (no JSX)
+### Basic package (no JSX, no runtime-specific types)
 
 ```json
 {
@@ -34,7 +37,61 @@ Then create a `tsconfig.json` in your package using one of the two flavors:
 }
 ```
 
-Used by: core packages, server packages, infrastructure packages.
+Used by: core packages, infrastructure packages.
+
+### Server package (no DOM, runtime-agnostic)
+
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.server.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+Used by: server packages that don't need Node.js or Bun-specific APIs.
+
+### Node.js package
+
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.node.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+Used by: packages using Node.js built-ins (fs, path, crypto, net, etc.). Requires `@types/node` in devDependencies.
+
+### Bun package
+
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.bun.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+Used by: packages using Bun-specific APIs (Bun.serve, Bun.file, etc.). Requires `@types/bun` in devDependencies.
 
 ### React package (JSX enabled)
 

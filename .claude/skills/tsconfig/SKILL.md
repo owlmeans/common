@@ -16,10 +16,13 @@ All shared TypeScript config lives in `packages/dep-config/` (`@owlmeans/dep-con
 |------|---------|
 | `tsconfig.base.json` | Core settings: strict, ESNext, Bundler resolution, declaration output |
 | `tsconfig.react.json` | Adds `jsx: "react-jsx"` and `lib: ["DOM", "DOM.Iterable", "ESNext"]` |
+| `tsconfig.server.json` | Sets `lib: ["ESNext"]` only — no DOM. Base for Node/Bun overlays |
+| `tsconfig.node.json` | Extends server + adds `types: ["node"]` (Node.js globals) |
+| `tsconfig.bun.json` | Extends server + adds `types: ["bun"]` + `allowImportingTsExtensions` |
 
 ## Choosing which configs to extend
 
-**Basic package** (no React/JSX — core, server, infrastructure packages):
+**Basic package** (no React/JSX, no runtime-specific types — core, non-runtime infrastructure):
 ```json
 {
   "extends": ["@owlmeans/dep-config/tsconfig.base.json"],
@@ -30,6 +33,54 @@ All shared TypeScript config lives in `packages/dep-config/` (`@owlmeans/dep-con
   "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
 }
 ```
+
+**Server package** (no DOM, runtime-agnostic — server-* packages without Node/Bun-specific APIs):
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.server.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+**Node.js package** (uses fs, path, crypto, net, etc. — requires `@types/node` in devDependencies):
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.node.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+**Bun package** (uses Bun.serve, Bun.file, etc. — requires `@types/bun` in devDependencies):
+```json
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.bun.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/"
+  },
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}
+```
+
+> Note: `tsconfig.node.json` and `tsconfig.bun.json` both extend `tsconfig.server.json`, so extending either automatically excludes DOM lib.
+> Do NOT use `@types/node` and `@types/bun` together — they conflict.
 
 **React package** (any package that imports React components or uses JSX):
 ```json

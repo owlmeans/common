@@ -1,10 +1,15 @@
 {
   "extends": [
-    "@owlmeans/dep-config/tsconfig.base.json"
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.node.json"
   ],
   "compilerOptions": {
     "rootDir": "./src/",
     "outDir": "./build/"
   },
-  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+  "exclude": [
+    "./dist/**/*",
+    "./build/**/*",
+    "./*.ts"
+  ]
 }
