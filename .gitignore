@@ -39,6 +39,7 @@ node_modules/
 
 # Deployments
 dev.values.yaml
+.env
 
 # Typescript
 tsconfig.tsbuildinfo
