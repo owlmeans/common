@@ -2,9 +2,9 @@
   "name": "@owlmeans/common-root",
   "version": "0.1.2",
   "scripts": {
-    "dev": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' dev",
+    "dev": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel dev",
     "build": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' build",
-    "watch": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' watch"
+    "watch": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel watch"
   },
   "workspaces": [
     "packages/*"
