@@ -58,7 +58,7 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 - **Server packages**: Backend implementations with API and business logic  
 - **Client packages**: Platform-agnostic client logic and components
 - **Web packages**: Browser-specific React implementations with Material-UI
-- **Native packages**: React Native mobile implementations
+- **Native packages**: React Native mobile implementations — see [owlmeans/native](https://github.com/owlmeans/native)
 
 ## 🚀 **Quick Start**
 
@@ -728,7 +728,7 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 ## 📦 **Complete Package Reference**
 
-OwlMeans Common provides 70 specialized packages organized into seven categories following the "quadra" architectural pattern.
+OwlMeans Common provides ~71 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
 
 ### **⚙️ Configuration Packages (1 package)**
 Shared build tooling and TypeScript configuration.
@@ -808,14 +808,8 @@ Platform-agnostic client libraries for React applications.
 | [`@owlmeans/client-socket`](packages/client-socket) | Client-side WebSocket integration for real-time communication |
 | [`@owlmeans/client-wl`](packages/client-wl) | Client-side whitelabeling functionality |
 
-### **📱 Native Packages (3 packages)**
-React Native implementations for mobile applications.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/native-client`](packages/native-client) | React Native client framework with authentication and database integration |
-| [`@owlmeans/native-db`](packages/native-db) | React Native database functionality using AsyncStorage |
-| [`@owlmeans/native-panel`](packages/native-panel) | React Native panel components with Material Design 3 support |
+### **📱 Native Packages**
+React Native implementations for mobile applications live in the **[owlmeans/native](https://github.com/owlmeans/native)** monorepo: `@owlmeans/native-client`, `@owlmeans/native-db`, `@owlmeans/native-panel`, `@owlmeans/native-router`.
 
 ### **🖥️ Server Packages (12 packages)**
 Backend implementations for API services and business logic.
@@ -859,7 +853,7 @@ Start with the two flagship packages:
 ### **For Specific Use Cases**
 
 - **Authentication Systems**: Start with [`@owlmeans/auth`](packages/auth) and [`@owlmeans/auth-common`](packages/auth-common)
-- **Mobile Applications**: Use [`@owlmeans/native-client`](packages/native-client) and [`@owlmeans/native-panel`](packages/native-panel)
+- **Mobile Applications**: Use packages from [owlmeans/native](https://github.com/owlmeans/native) — `@owlmeans/native-client`, `@owlmeans/native-panel`
 - **Microservices**: Begin with [`@owlmeans/context`](packages/context) and [`@owlmeans/config`](packages/config)
 - **Data Management**: Explore [`@owlmeans/resource`](packages/resource) with storage-specific implementations
 - **Real-time Communication**: Use [`@owlmeans/socket`](packages/socket) with client/server implementations

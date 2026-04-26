@@ -20,24 +20,24 @@ All project memory and meta-information must be stored inside this project, neve
 
 ## What This Is
 
-Security-first TypeScript monorepo framework for fullstack applications with microservices/microclients architecture. Provides unified abstractions for web, mobile (React Native), and server-side code with cryptographic auth (Ed25519/DID) baked in.
+Security-first TypeScript monorepo framework for fullstack applications with microservices/microclients architecture. Provides unified abstractions for web and server-side code with cryptographic auth (Ed25519/DID) baked in. React Native packages live in the `native` monorepo and consume packages from here.
 
 ## Architecture Layers ("Quadra" pattern)
 
-When working on a package, identify its layer: **Core → Server/Client → Web/Native**
+When working on a package, identify its layer: **Core → Server/Client → Web**
 
 - **Configuration**: `dep-config` — shared TypeScript configs for all packages
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `module`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
 - **Server**: `server-api`, `server-app`, `server-auth`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
 - **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
 - **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`
-- **Native** (React Native): `native-client`, `native-router`, `native-panel`, `native-db`
+- **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `redis`, `redis-resource`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
 - **Other**: `oidc`, `payment`, `queue`, `flow`, `wled`
 
 ## Key Facts
 
-- ~75 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
+- ~71 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
 - TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
 - TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution), `tsconfig.react.json` (JSX+DOM), `tsconfig.server.json` (no DOM), `tsconfig.node.json` (server + Node globals), `tsconfig.bun.json` (server + Bun globals)
 - Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`; server packages extend `tsconfig.server.json`, `tsconfig.node.json`, or `tsconfig.bun.json` as appropriate
