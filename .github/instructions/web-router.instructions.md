@@ -1,0 +1,26 @@
+---
+description: "How to use @owlmeans/web-router — React Router v7 wrapper exposing the framework router service."
+applyTo: "**/*.ts, **/*.tsx"
+---
+
+# @owlmeans/web-router
+
+**Layer:** Web (React)
+**Install:** `"@owlmeans/web-router": "^0.1.2"` in `dependencies`
+
+## Key Exports
+
+| Export | Description |
+|--------|-------------|
+| `makeWebRouterService()` | React Router v7 wrapped as a router service |
+
+## Usage
+
+```typescript
+import { makeWebRouterService } from '@owlmeans/web-router'
+context.registerService(makeWebRouterService())
+```
+
+## Depends On
+
+- `@owlmeans/router`, `@owlmeans/client`, `react-router`

@@ -1,0 +1,52 @@
+---
+name: context
+description: How to use @owlmeans/context — base context (DI container) factory, registerService(), service<T>() lookups, module<ClientModule<T>>() resolution. Auto-invoked when importing context primitives or building a makeContext factory.
+user-invocable: false
+---
+
+# @owlmeans/context
+
+**Layer:** Core
+**Install:** `"@owlmeans/context": "^0.1.2"` in `dependencies`
+
+## Key Exports
+
+| Export | Description |
+|--------|-------------|
+| `Context<C>` types | Generic context interface (typed by Config) |
+| `makeBasicContext` | Low-level factory — usually you extend a layer-specific factory instead |
+| `registerService` (method) | Add a service to the DI container |
+| `service<T>(alias)` (method) | Resolve a service by alias |
+| `module<ClientModule<T>>(alias)` (method) | Resolve a module to call cross-service |
+| `Service` types | Service interface and lifecycle |
+| Constants | Built-in service/module aliases |
+
+## Usage
+
+Always extend a layer-specific factory (`@owlmeans/server-context`, `@owlmeans/web-panel`, etc.) rather than calling the basic factory directly. Always reassign `context.makeContext` so child contexts inherit the typed factory:
+
+```typescript
+import { makeBackendContext } from '@owlmeans/server-context'
+
+export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
+  const context = makeBackendContext<C, T>(cfg)
+  context.registerService(makeMyService())
+  context.makeContext = makeContext as typeof context.makeContext
+  return context
+}
+```
+
+Resolve services and call cross-service modules from a handler:
+
+```typescript
+const someService = ctx.service<MyService>(MY_SERVICE_ALIAS)
+
+const [response] = await ctx.module<ClientModule<ResponseType>>(
+  externalService.action.alias
+).call({ body: { ... } })
+```
+
+## Depends On
+
+- `@owlmeans/config` — context is parameterized by a Config
+- `@owlmeans/module` — `ClientModule<T>` type for cross-service calls

@@ -51,3 +51,4 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Creating skills**: skill at `.claude/skills/create-skill/SKILL.md` — follow this when converting knowledge into a new skill
 - **Versioning**: skill at `.claude/skills/versions/SKILL.md` — how to bump package versions across the monorepo
 - **TypeScript configs**: skill at `.claude/skills/tsconfig/SKILL.md` — how to configure tsconfig in packages, which configs to extend
+- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.claude/skills/<package-name>/SKILL.md` (e.g. `server-app`, `module`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — auto-invoked when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).

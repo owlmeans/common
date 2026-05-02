@@ -1,0 +1,23 @@
+---
+description: "How to use @owlmeans/client-wl — client-side white-label / whitelist UI primitives (currently a placeholder)."
+applyTo: "**/*.ts, **/*.tsx"
+---
+
+# @owlmeans/client-wl
+
+**Layer:** Client
+**Install:** `"@owlmeans/client-wl": "^0.1.2"` in `dependencies`
+
+## Key Exports
+
+Currently a stub. Web equivalent: `@owlmeans/web-wl`.
+
+## Usage
+
+```typescript
+// Reserved for future client-side wled UI
+```
+
+## Depends On
+
+- `@owlmeans/wled`, `@owlmeans/client-context`

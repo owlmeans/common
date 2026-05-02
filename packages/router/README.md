@@ -1,24 +1,21 @@
-# OwlMeans Package Template
+# @owlmeans/router
 
-This is a template directory for creating new packages within the OwlMeans Common Libraries ecosystem.
+Internal router service for the OwlMeans module system.
 
-## Usage
+## Overview
 
-Copy this template directory when creating a new package:
+- Provides the `RouterService` that attaches modules to a runtime router (e.g. Express, Bun's HTTP server)
+- Used internally by `@owlmeans/server-route` and `@owlmeans/client-route`
+- Not typically used directly in application code
+
+## Installation
 
 ```bash
-cp -r packages/_tpl packages/your-new-package
-cd packages/your-new-package
+bun add @owlmeans/router
 ```
 
-Then update:
-- `package.json` - Change the package name and dependencies
-- `README.md` - Replace with proper documentation following OwlMeans standards
-- `src/index.ts` - Implement your package functionality
+## Related Packages
 
-## Template Structure
-
-- **package.json** - Base package configuration with common scripts and exports
-- **tsconfig.json** - TypeScript configuration aligned with OwlMeans standards  
-- **src/index.ts** - Entry point file
-- **README.md** - This template documentation (replace with actual docs)
+- [`@owlmeans/server-route`](../server-route) — server-side router implementation
+- [`@owlmeans/client-route`](../client-route) — client-side router implementation
+- [`@owlmeans/module`](../module) — modules registered with the router

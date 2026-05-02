@@ -61,3 +61,4 @@ bun run dev                    # dev mode with nodemon
 - **Versioning**: see `.github/instructions/versions.instructions.md` — synchronized version bumps
 - **TypeScript configs**: see `.github/instructions/tsconfig.instructions.md` — which config to extend
 - **Creating instructions**: see `.github/instructions/create-skill.instructions.md`
+- **Using @owlmeans/* packages from a downstream app**: every package has its own instruction file at `.github/instructions/<package-name>.instructions.md` (e.g. `server-app`, `module`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — `applyTo` globs auto-attach when editing matching files. Patterns mirror real-world consumption from the `viable` monorepo.
