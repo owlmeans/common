@@ -730,6 +730,8 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 OwlMeans Common provides ~71 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
 
+> **Need the full dependency map?** See [`tree.md`](tree.md) — every package, its direct `@owlmeans/*` dependencies, its architecture layer, and the topological build order, including the two known dependency cycles.
+
 ### **⚙️ Configuration Packages (1 package)**
 Shared build tooling and TypeScript configuration.
 

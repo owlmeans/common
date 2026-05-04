@@ -1,0 +1,152 @@
+---
+name: auth-protocol
+description: Comprehensive reference for the OwlMeans authentication and authorization protocol — Ed25519 path, OIDC path, core types, errors, guards, gates, trust resource, envelope shape, refresh flow, and mocking points. Auto-invoked when files under auth*, *oidc*, did*, wled, client-payment are touched.
+---
+
+# OwlMeans Auth Protocol
+
+This skill is the canonical reference for how authentication and authorization work across the monorepo. Read it before refactoring auth code, adding a new guard, or extending the auth-related packages.
+
+## Two protocol paths
+
+The system supports two distinct authentication protocols that share the same `Auth` and `Authorization` types and the same envelope shape but diverge in the first half of the flow.
+
+### Ed25519 (self-signed)
+
+Use case: service-to-service, wallet provider, backend clients, high-security browser-issued tokens.
+
+1. **Allowance**: client posts `AllowanceRequest` (a partial `AuthPayload`) to `/authentication/init`. Server returns `AllowanceResponse { challenge }`.
+2. **Credential generation**: client builds `AuthCredentials` (challenge + ephemeral payload), signs the canonicalized payload with its Ed25519 keypair via `packAuthCredentials()` (`packages/basic-keys/src/auth.ts:5`), posts to `/authentication/authenticate`.
+3. **Token exchange**: server resolves the signer from the `TRUSTED` config resource via `trust()` (`packages/auth-common/src/utils/trusted.ts:7`), verifies the signature, builds an `Auth`, wraps it in an `EnvelopeModel` of type `ed25519-basic-token` signed with the service's own key, and returns the tokenized envelope.
+4. **Bearer**: client sends `Authorization: ED25519-BASIC-TOKEN <encoded>`.
+5. **Server verification**: incoming requests hit `makeBasicEd25519Guard` (`packages/auth-common/src/guards/basic-ed25519/service.ts`) which `match`-es the header, `unpack`-s the envelope, and `handle`-s by resolving an `Auth` into the response.
+
+### OIDC (delegated)
+
+Use case: browser clients, third-party IdP integration, multi-tenant SaaS.
+
+1. Standard OAuth2 code flow via `makeOidcGuard` (`packages/oidc/src/guard.ts`).
+2. Server validates the ID token, wraps the resulting `Auth` in an envelope of type `oidc-wrapped-token` signed with the service key.
+3. Subsequent requests carry the wrapped token; the OIDC guard verifies the envelope signature and freshness.
+4. Refresh: `wrapper().update()` (`packages/oidc/src/guard.ts:74`) exchanges a stale token transparently — alias `TOKEN_UPDATE` (`packages/auth-common/src/consts.ts:15`).
+
+## Core types
+
+All in `packages/auth/src/types.ts`:
+
+- `Auth` (l. 110) — the full authenticated identity, includes `token`, `userId`, `role`, `scopes`, `permissions?`, `attributes?`, `entityId?`, `createdAt`, `isUser`.
+- `AuthPayload` (l. 27) — minimal identity tuple; `Auth extends AuthPayload`.
+- `AuthCredentials` (l. 3) — challenge/response pair signed during authentication.
+- `Authorization` (l. 77) — RBAC primitive: `entityId?`, `scopes`, `permissions?`, `attributes?`, `permissioned?`, `denormalized?`.
+- `AllowanceRequest` (l. 150) — partial `AuthPayload` triggering challenge generation.
+- `AllowanceResponse` (l. 172) — `{ challenge }`.
+- `AuthToken` (l. 176) — `{ token }`, used in module query auth.
+- `PermissionSet` (l. 134) / `Capabilties` (l. 141) / `AttributeSet` (l. 145) — scope-bound capability shapes.
+
+## Enums and constants
+
+`packages/auth/src/consts.ts`:
+
+- `AuthRole` — `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`.
+- `AuthenticationType` — `BasicEd25519`, `OneTimeToken`, `ReCaptcha`, `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`.
+- `AuthroizationType` (sic) — `AuthToken`, `Ed25519BasicToken`, `Ed25519BasicSignature`.
+- `AUTH_HEADER = 'authorization'`, `AUTH_QUERY = 'token'`, `ENTITY_QUERY = 'entity'`, `PROFILE_QUERY = 'profile'`.
+
+`packages/auth-common/src/consts.ts`:
+
+- `DEF_AUTH_SRV = 'auth'` and its alias `DEFAULT_GUARD = 'auth'`.
+- `TOKEN_UPDATE = 'auth-token-refresh'`.
+- `DISPATCHER_PATH = '/dispatcher'`.
+
+`packages/oidc/src/consts.ts`:
+
+- `OIDC_GATE = 'oidc-gate'` — the `gate(...)` value to attach OIDC enforcement to a module.
+
+## Errors
+
+`packages/auth/src/errors.ts`: `AuthError`, `AuthManagerError`, `AuthenFailed`, `AuthenExists`, `AuthenPayloadError`, `AuthPluginError`, `TypeMissmatchError`, `AuthorizationError`, `AuthForbidden`, `ProfileError`, `ProfileConsistencyError`. Each is i18n-aware via `@owlmeans/error`.
+
+## Guard interface
+
+`packages/module/src/types.ts:72`:
+
+```ts
+export interface GuardService extends InitializedService {
+  token?: string                                           // client-side
+  authenticated: (req?: Partial<AbstractRequest>) => Promise<string | null>
+  match: ModuleMatch                                       // server-side
+  handle: ModuleHandler
+}
+```
+
+`AuthService extends GuardService` with `authenticate(token)`, `update(token)`, `user()`, `store<T>()` — see `packages/auth-common/src/types.ts:14`.
+
+Guards are services registered on the context under their alias (`DEFAULT_GUARD` = `'auth'` is the canonical alias). A request is matched and handled by the guard whose `match()` returns `true`; `handle()` resolves an `Auth` into the response via `res.resolve(auth)`.
+
+## Trust resource
+
+`packages/auth-common/src/utils/trusted.ts:7`:
+
+```ts
+export const trust = async (context, resource, userName, field = 'name') => {
+  const trustedUser = await context.resource<Resource<TrustedRecord>>(resource).load(userName, field)
+  /* …keyPair derived from trustedUser.secret or trustedUser.credential… */
+}
+```
+
+`TrustedRecord` (`packages/auth-common/src/types.ts:36`) extends `Profile` minus `permissions` / `attributes`. The `TRUSTED` config resource is the system's source of truth for known signing identities — the auth service, peer services, wallet providers, etc.
+
+## Envelope shape
+
+`packages/basic-envelope/src/types.ts`:
+
+```
+{
+  t: string                    // type, e.g. "ed25519-basic-token", "oidc-wrapped-token"
+  msg: string                  // base64(JSON.stringify(payload)) or raw string
+  sig?: string                 // signature over {t, msg, dt, ttl}
+  dt: number                   // creation timestamp (ms)
+  ttl: number | null           // time-to-live (ms); null = no expiry
+}
+```
+
+`makeEnvelopeModel(type, kind?)` (`packages/basic-envelope/src/model.ts:6`) builds a model with `send(msg, ttl)`, `sign(key, kind?)`, `verify(key)`, `tokenize()`, `wrap()`. `EnvelopeKind.Token` produces a string for HTTP headers; `EnvelopeKind.Wrap` produces a transport-friendly object.
+
+## Key model
+
+`packages/basic-keys/src/types.ts:10`:
+
+```ts
+export interface KeyPairModel {
+  sign: (data) => Promise<string>
+  verify: (data, signature) => Promise<boolean>
+  export: () => string         // private, "ed25519:<base64>"
+  exportPublic: () => string   // public,  "ed25519:<base64>"
+  exportAddress: () => string
+  encrypt / decrypt / dcrpt
+}
+```
+
+`makeKeyPairModel(input?)` (`packages/basic-keys/src/model.ts:7`) accepts a `KeyPair`, an `ed25519:<base64>` string, or `undefined` for random. `fromPubKey(credential)` builds a public-only model. `packAuthCredentials(auth, extra, signer)` signs an `AuthCredentials` for the Ed25519 path.
+
+## Setup wiring
+
+Server-side:
+- `setupAuthServiceModules(modules, serviceAlias, prefix?)` (`packages/server-oidc-rp/src/modules.ts:9`) — registers provider list and token-update routes.
+- `makeAuthService(alias)` (`packages/server-auth/src/service.ts:17`) — factory for the server `AuthService`.
+- `makeOidcWrappingService`, `makeOidcGate` — wire OIDC into a server context (`@owlmeans/server-oidc-rp`).
+
+Client-side:
+- `setupExternalAuthentication(service)` (`packages/client-auth/src/modules.ts:11`) — wire OAuth/OIDC flows for a client context.
+- `appendAuthService(ctx, alias?)` (`packages/client-auth/src/service.ts:92`) — attach the client auth service with persistent storage.
+- `appendOidcGuard()`, `setupOidcGuard()` — `@owlmeans/web-oidc-rp` for browser-side.
+
+## Mocking points (for category-B tests)
+
+The protocol exposes three natural mocking boundaries. The only allowed implementation lives in `@owlmeans/test-auth`:
+
+1. **Guard substitution.** Replace the guard service in the context with `makeMockGuard({ auth })` so `match` always hits and `handle` resolves a chosen `Auth`. This bypasses signature verification entirely — useful when the spec is about behaviour downstream of authentication.
+2. **TRUSTED resource substitution.** Register `makeMemoryTrustedResource([records])` so `trust()` finds whichever signers your spec needs without touching real config.
+3. **Fixture keys + envelopes.** `makeFixtureKeyPair(seed)` returns a deterministic `KeyPairModel`. `signMockEnvelope(msg, type, kind?, kp?)` produces a properly-signed envelope using a fixture key. `makeBearer(auth, kp?)` returns a header value `ED25519-BASIC-TOKEN <encoded>`.
+
+The protocol does **not** ship a fake JWKS server. For OIDC-end-to-end tests, exercise the real `makeOidcGuard` against an in-memory trusted resource and a fixture keypair. If a downstream test needs a hostable IdP fake, add it to `@owlmeans/test-auth` (don't roll one in a per-package `tests/`).

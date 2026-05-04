@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 384 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -76,6 +77,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/test-ui": "^0.1.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^9.0.0",

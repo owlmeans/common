@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel dev",
     "build": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' build",
-    "watch": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel watch"
+    "watch": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel watch",
+    "test": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --filter '!@owlmeans/dep-config' test"
   },
   "workspaces": [
     "packages/*"

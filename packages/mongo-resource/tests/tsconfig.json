@@ -1,0 +1,7 @@
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.bun.json"
+  ],
+  "include": ["./**/*.ts"]
+}
