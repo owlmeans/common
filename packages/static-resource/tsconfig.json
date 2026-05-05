@@ -1,7 +1,7 @@
 {
   "extends": [
     "@owlmeans/dep-config/tsconfig.base.json",
-    "@owlmeans/dep-config/tsconfig.server.json"
+    "@owlmeans/dep-config/tsconfig.node.json"
   ],
   "compilerOptions": {
     "rootDir": "./src/",
