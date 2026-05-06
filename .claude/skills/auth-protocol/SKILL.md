@@ -1,15 +1,15 @@
 ---
 name: auth-protocol
-description: Comprehensive reference for the OwlMeans authentication and authorization protocol — Ed25519 path, OIDC path, core types, errors, guards, gates, trust resource, envelope shape, refresh flow, and mocking points. Auto-invoked when files under auth*, *oidc*, did*, wled, client-payment are touched.
+description: Comprehensive reference for the OwlMeans authentication and authorization protocol — Ed25519 path, OIDC path, provider-backed local identity, core types, errors, guards, gates, trust resource, envelope shape, refresh flow, and mocking points. Auto-invoked when files under auth*, *oidc*, server-auth-identity, did*, wled, client-payment are touched.
 ---
 
 # OwlMeans Auth Protocol
 
 This skill is the canonical reference for how authentication and authorization work across the monorepo. Read it before refactoring auth code, adding a new guard, or extending the auth-related packages.
 
-## Two protocol paths
+## Protocol paths
 
-The system supports two distinct authentication protocols that share the same `Auth` and `Authorization` types and the same envelope shape but diverge in the first half of the flow.
+The system supports multiple authentication paths that share the same `Auth` and `Authorization` types and the same envelope shape but diverge in the first half of the flow.
 
 ### Ed25519 (self-signed)
 
@@ -29,6 +29,16 @@ Use case: browser clients, third-party IdP integration, multi-tenant SaaS.
 2. Server validates the ID token, wraps the resulting `Auth` in an envelope of type `oidc-wrapped-token` signed with the service key.
 3. Subsequent requests carry the wrapped token; the OIDC guard verifies the envelope signature and freshness.
 4. Refresh: `wrapper().update()` (`packages/oidc/src/guard.ts:74`) exchanges a stale token transparently — alias `TOKEN_UPDATE` (`packages/auth-common/src/consts.ts:15`).
+
+### Provider-Backed Local Identity
+
+Use case: apps such as `product-viable` that use Google/OIDC as login bootstrap but authorize against local product identity.
+
+1. Browser imports `@owlmeans/web-oidc-rp/auth/plugins`, which registers OIDC and Google plugins in `@owlmeans/client-auth`.
+2. The plugin persists auth control state, redirects to the provider, restores state on return, and submits code/query params as `AuthCredentials`.
+3. Server exchanges the provider code through `@owlmeans/server-oidc-rp` and maps `ProviderProfileDetails` through `@owlmeans/server-auth-identity`.
+4. `AUTH_IDENTITY_ACCOUNT`, `AUTH_IDENTITY_PROFILE`, and `AUTH_IDENTITY_CREDENTIALS` store local account/profile/provider-link data.
+5. Server returns a normal OwlMeans bearer token. Downstream product gates authorize against local profile scopes, not against `OIDC_GATE`.
 
 ## Core types
 
@@ -61,6 +71,10 @@ All in `packages/auth/src/types.ts`:
 `packages/oidc/src/consts.ts`:
 
 - `OIDC_GATE = 'oidc-gate'` — the `gate(...)` value to attach OIDC enforcement to a module.
+- `GOOGLE_CLIENT_AUTH = 'google-oauth'` — browser plugin type for Google OAuth.
+- `GOOGLE_SERVICE = 'google'` — provider service key used by backend config and identity linking.
+
+For apps that use OIDC/Google only as a login provider and then authorize against local identity resources, declare a product-specific gate alias instead of reusing `OIDC_GATE`.
 
 ## Errors
 
@@ -140,6 +154,13 @@ Client-side:
 - `setupExternalAuthentication(service)` (`packages/client-auth/src/modules.ts:11`) — wire OAuth/OIDC flows for a client context.
 - `appendAuthService(ctx, alias?)` (`packages/client-auth/src/service.ts:92`) — attach the client auth service with persistent storage.
 - `appendOidcGuard()`, `setupOidcGuard()` — `@owlmeans/web-oidc-rp` for browser-side.
+
+Local identity:
+- `appendAuthIdentityResources(context)` — registers identity account/profile/credentials resources and the linking service.
+- `AUTH_IDENTITY_LINKING` — service that maps provider profile details into an `AuthPayload`.
+- `AUTH_IDENTITY_PROFILE` — durable authorization profile with `entityId`, `role`, `scopes`, and optional expiry.
+
+Read identity records with `load()` or `list()`. Do not use `pick()` for authorization lookups because `pick()` deletes the matching record.
 
 ## Mocking points (for category-B tests)
 

@@ -29,6 +29,13 @@ import { setupExternalAuthentication } from '@owlmeans/client-auth'
 setupExternalAuthentication(AUTH_WEB)
 ```
 
+## Product-Viable Usage Notes
+
+- The manager web app imports `DEFAULT_ALIAS` from `@owlmeans/client-auth` as the client-side equivalent of `DEFAULT_GUARD`.
+- It imports `@owlmeans/web-oidc-rp/auth/plugins` for side effects; that registers OIDC and Google authentication plugins in the client auth manager.
+- During Google/OIDC redirects, plugins persist the client auth control state, restore it on return, then submit `AuthCredentials` to the server auth flow.
+- The browser receives and stores a normal OwlMeans bearer token. Product authorization remains server-side through module gates and handler checks, not through client-only state.
+
 ## Depends On
 
 - `@owlmeans/auth`, `@owlmeans/auth-common`, `@owlmeans/client-context`, `@owlmeans/client-module`, `react`

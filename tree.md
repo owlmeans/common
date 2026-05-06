@@ -105,6 +105,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-oidc-provider`](packages/server-oidc-provider) → `client-module`, `config`, `context`, `oidc`, `route`, `server-api`, `server-context`
 - [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `module`, `server-api`, `server-auth`, `server-context`, `server-module`, `socket`
 - [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-module`, `config`, `context`, `kluster`, `module`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-module`, `server-route`, `server-socket`, `socket`, `static-resource`
+- [`server-auth-identity`](packages/server-auth-identity) → `auth`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-module`, `config`, `context`, `did`, `module`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-module`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-module`, `config`, `context`, `kluster`, `module`, `route`, `server-api`, `server-auth`, `server-context`, `server-module`, `server-route`, `server-socket`, `static-resource`
 

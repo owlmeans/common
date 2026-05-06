@@ -37,7 +37,11 @@ export interface OidcProviderDescriptor {
   basePath?: string
   clientId: string
   secret?: string
+  redirectUri?: string
   extraScopes?: string
+  authEndpoint?: string
+  tokenEndpoint?: string
+  userinfoEndpoint?: string
   idOverride?: string
   // This flag works only on client side. It specifies a default relying party
   def?: boolean

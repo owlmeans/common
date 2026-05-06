@@ -62,6 +62,13 @@ Creates the browser OIDC auth service. `alias` defaults to `DEFAULT_ALIAS` (`'oi
 
 Login and callback React components exported from `./components` (re-exported at root).
 
+## Product-Viable Integration Notes
+
+- Import `@owlmeans/web-oidc-rp/auth/plugins` for side effects to register `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` with `@owlmeans/client-auth`.
+- The Google plugin uses `useValue`, persists auth control state before redirect, restores it on return, and submits URL query params as `AuthCredentials`.
+- The browser starts login; the server exchanges provider code, links local identity, and returns a normal bearer token.
+- Keep product authorization server-side through module gates and identity profile scopes.
+
 ## Related Packages
 
 - [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, dispatcher modules

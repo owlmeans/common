@@ -39,6 +39,13 @@ module(
 )
 ```
 
+## Product-Viable Usage Notes
+
+- Manager API modules use `DEFAULT_GUARD` for bearer-token authentication and compose product authorization with `gate(VIABLE_AUTH_GATE, [...])` inside the same `guard(...)` options object.
+- Internal service-to-service routes still use `GUARD_ED25519`, including publisher/project command paths and auth service helper modules.
+- `DEFAULT_GUARD` is the guard alias shared across server and web; `@owlmeans/client-auth` exports the matching client alias.
+- OIDC gates are not required when OIDC is only the login/bootstrap provider. In product-viable, OIDC/Google login issues local bearer auth, and a product-specific gate checks local identity scopes.
+
 ## Depends On
 
 - `@owlmeans/auth` — types and errors

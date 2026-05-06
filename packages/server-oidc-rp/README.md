@@ -90,6 +90,13 @@ const oidc = context.service<OidcClientService>(OIDC_SERVICE)
 
 `OidcClientService`, RP config types — exported from the root entry.
 
+## Product-Viable Integration Notes
+
+- `makeOidcClientService()` reads provider descriptors from `cfg.oidc.providers`, including Google and internal admin providers.
+- Use `findProvider(predicate)`, `hasProvider(params)`, and `entityToClientId(params)` for provider lookup rather than ad hoc config scans.
+- `setupAuthServiceModules(managerModules, AUTH_API)` wires provider-list and token-update endpoints protected by `GUARD_ED25519`.
+- If OIDC/Google is only the login provider and local identity records hold authorization, do not re-add `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local profile scopes.
+
 ## Related Packages
 
 - [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, types

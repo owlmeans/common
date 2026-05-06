@@ -56,6 +56,13 @@ The auth service alias: `'auth'`. Re-exported as `DAUTH_GUARD` from `@owlmeans/s
 
 Resource alias for the nonce replay-prevention cache.
 
+## Product-Viable Integration Notes
+
+- Register `appendAuthService(context)` before `appendAuthIdentityResources(context)` and product-specific gate services.
+- Register `AUTH_CACHE` explicitly as a Redis resource when customizing the backend context.
+- This package verifies bearer tokens and populates `request.auth`; authorization remains the job of module gates and handler-level entity checks.
+- Pair it with `@owlmeans/server-auth-identity` when external provider login should produce durable local account/profile/credentials records.
+
 ## Related Packages
 
 - [`@owlmeans/auth-common`](../auth-common) — `GUARD_ED25519` constant and auth modules

@@ -34,6 +34,14 @@ export const list = handleRequest(async (req, context) => {
 })
 ```
 
+## Product-Viable Usage Notes
+
+- `product-viable` handlers use `AuthUnknown('entity')` when a request should be authenticated but lacks `req.auth.entityId`.
+- WebSocket helpers use `Auth`, `AuthToken`, and `AuthenticationStage` to move token-bearing connections into authenticated state.
+- Google/OIDC login ultimately produces a normal `AuthPayload` with `userId`, `profileId`, `entityId`, and `scopes`; `@owlmeans/server-auth-identity` stores that local identity and returns the payload.
+- Authorization failures in gates should use `AuthForbidden`, while missing handler auth/entity state usually uses `AuthUnknown`.
+- Keep product ownership rules outside `@owlmeans/auth`; downstream apps compose `@owlmeans/module` gates or handler-level entity checks around these core types.
+
 ## Depends On
 
 - `@owlmeans/error` — `AuthUnknown` and friends extend `ResilientError`

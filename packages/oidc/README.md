@@ -66,6 +66,13 @@ import { OIDC_GUARD } from '@owlmeans/oidc'
 - `WithSharedConfig` — config mixin adding the OIDC fields
 - `OidcProviderConfig` — provider configuration shape
 
+## Product-Viable Integration Notes
+
+- Provider configuration belongs in `cfg.oidc.providers`; viable registers an internal admin provider and a Google provider there.
+- `GOOGLE_SERVICE` is the stable provider service key (`'google'`) and must match browser plugin, backend provider lookup, and identity-linking derivation.
+- `GOOGLE_CLIENT_AUTH` identifies the browser Google auth plugin registered by `@owlmeans/web-oidc-rp/auth/plugins`.
+- `OIDC_GATE` is for OIDC-backed authorization. Apps that only use Google/OIDC for login and authorize against local identity records should define their own product gate alias.
+
 ### `modules`
 
 Array of dispatcher module declarations: `POST /authenticate/oidc/init` and `POST /authenticate/oidc/process`.

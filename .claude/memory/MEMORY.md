@@ -15,11 +15,13 @@ Read this at the start of every conversation. Load files relevant to the current
 - [testing-auth-unit](./../skills/testing-auth-unit/SKILL.md) — Category-B unit tests using `@owlmeans/test-auth` mocks
 - [testing-integration](./../skills/testing-integration/SKILL.md) — Category-C env-gated integration tests
 - [testing-ui](./../skills/testing-ui/SKILL.md) — Category-D Playwright acceptance tests
-- [auth-protocol](./../skills/auth-protocol/SKILL.md) — Comprehensive OwlMeans auth protocol reference (Ed25519 + OIDC paths, types, errors, mocking points)
+- [auth-protocol](./../skills/auth-protocol/SKILL.md) — Comprehensive OwlMeans auth protocol reference (Ed25519 + OIDC + local identity paths, types, errors, mocking points)
+- [server-auth-identity](./../skills/server-auth-identity/SKILL.md) — Mongo identity resources, linking service, provider account linking; auto-invoked for identity resource work
 - [dependency-tree](./../skills/dependency-tree/SKILL.md) — Pointer to `tree.md` (per-package `@owlmeans/*` deps, layer assignments, build order, known SCCs)
 
 ## Project facts
 - [versioning](./versioning.md) — Synchronized version convention, internal dep refs, dep-config as workspace:*
+- [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 
 ## How to add new memory
 - Facts, decisions, gotchas → `.claude/memory/<topic>.md` + update this index

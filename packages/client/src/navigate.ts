@@ -16,12 +16,16 @@ export const useNavigate = (): Navigator => {
         const [url, ok] = await module.call(request)
 
         if (ok === ModuleOutcome.Ok) {
-          navigate(url, {
-            state: {
-              ...module.route.route, silent: request?.silent
-            },
-            replace: request?.replace ?? false
-          })
+          if (url.startsWith('http')) {
+            globalThis.location.href = url
+          } else {
+            navigate(url, {
+              state: {
+                ...module.route.route, silent: request?.silent
+              },
+              replace: request?.replace ?? false
+            })
+          }
         }
       },
 

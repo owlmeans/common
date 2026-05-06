@@ -21,6 +21,7 @@ export interface OidcClientService extends InitializedService {
 
   providerApi: () => ProviderApiService | null
   accountLinking: () => AccountLinkingService | null
+  findProvider: (predicate: (provider: OidcProviderConfig) => boolean) => OidcProviderConfig | undefined
 }
 
 export interface OidcClientAdapter {

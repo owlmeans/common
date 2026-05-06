@@ -15,6 +15,11 @@ export const PROVIDER_INTERACTION = 'oidc-server:interaction'
 
 export const OIDC_CLIENT_AUTH = 'oidc-client'
 
+export const GOOGLE_CLIENT_AUTH = 'google-oauth'
+
+// This constant is the name of oidc identity provider that is called service in the oidc provider config. 
+export const GOOGLE_SERVICE = 'google'
+
 export const OIDC_GUARD = 'guard:oidc'
 
 export const OIDC_GUARD_CACHE = 'resource:oidc-guard:cache'

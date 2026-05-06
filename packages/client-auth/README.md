@@ -55,6 +55,13 @@ Pre-built `ClientModule[]` for the auth flow (mirrors `@owlmeans/auth-common`'s 
 
 Auth service alias: `'auth'`.
 
+## Product-Viable Integration Notes
+
+- The manager web app imports `DEFAULT_ALIAS` from this package as the client-side guard alias.
+- `@owlmeans/web-oidc-rp/auth/plugins` is imported for side effects to register the `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` plugins.
+- Redirect plugins persist auth control state before leaving the app and restore it before submitting provider query params as `AuthCredentials`.
+- After login, the browser stores a normal OwlMeans bearer token; product authorization is enforced by server gates and handler checks.
+
 ## Related Packages
 
 - [`@owlmeans/auth`](../auth) — `Auth` type returned by `useSelfAuth`

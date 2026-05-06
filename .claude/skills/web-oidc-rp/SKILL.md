@@ -42,6 +42,13 @@ import { setupOidcGuard } from '@owlmeans/web-oidc-rp'
 setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 ```
 
+## Product-Viable Usage Notes
+
+- Importing `@owlmeans/web-oidc-rp/auth/plugins` registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` plugins into the `@owlmeans/client-auth` plugin registry.
+- The Google plugin uses `useValue` to manage redirect side effects, persists auth control state before redirect, restores it on return, then submits URL query params as `AuthCredentials`.
+- The browser plugin starts login; the server finalizes provider exchange, links local identity, and returns a normal bearer token.
+- Do not encode product authorization in browser OIDC plugins. Server module gates and local identity profiles remain the authorization source.
+
 ## Depends On
 
 - `@owlmeans/oidc`, `@owlmeans/web-client`, `@owlmeans/web-panel`, `@owlmeans/client-auth`, `@owlmeans/auth-common`

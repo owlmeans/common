@@ -159,6 +159,11 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
       return null
     },
 
+    findProvider: predicate => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+      return (context.cfg.oidc.providers ?? []).find(predicate)
+    },
+
     hasProvider: params => {
       const ctx = service.assertCtx<Config, Context>()
       if (ctx.cfg.oidc.providers == null) {

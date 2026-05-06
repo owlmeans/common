@@ -61,6 +61,13 @@ enum AuthenticationStage { /* connection auth lifecycle */ }
 
 - `AuthUnknown` — thrown when a request is missing or has invalid auth
 
+## Product-Viable Integration Notes
+
+- Manager API handlers use `AuthUnknown('entity')` when `request.auth?.entityId` is missing.
+- WebSocket helpers use `Auth`, `AuthToken`, and `AuthenticationStage` to authenticate token-bearing connections.
+- Google/OIDC login is normalized into an `AuthPayload` with `userId`, `profileId`, `entityId`, and `scopes`; the local identity store lives in `@owlmeans/server-auth-identity`.
+- Gate denial should use `AuthForbidden`; product ownership checks should stay in module gates or handlers, not in this core package.
+
 ### AJV Schemas (for module filter definitions)
 
 - `AuthCredentialsSchema` — validates an auth credential request body

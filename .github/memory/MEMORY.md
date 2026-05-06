@@ -10,10 +10,13 @@ Read this at the start of every conversation. Load files relevant to the current
 - [versions](./../instructions/versions.instructions.md) — Versioning conventions; use when bumping versions or checking internal dep patterns
 - [tsconfig](./../instructions/tsconfig.instructions.md) — TypeScript config setup; use when creating packages or editing tsconfigs
 - [create-skill](./../instructions/create-skill.instructions.md) — How to create Copilot instruction files
+- [auth-protocol](./../instructions/auth-protocol.instructions.md) — Auth protocol rules including provider-backed local identity and non-destructive identity reads
+- [server-auth-identity](./../instructions/server-auth-identity.instructions.md) — Mongo identity resources, linking service, provider account linking
 
 ## Project facts
 - **versioning** — All ~71 packages synchronized at `0.1.2`; internal deps use `^0.1.2`; `dep-config` is always `workspace:*`
 - **native packages** — Moved to the `native` monorepo; consumed from there via library links
+- [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 
 ## How to add new memory
 - Facts, decisions, gotchas → `.github/memory/<topic>.md` + update this index

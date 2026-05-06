@@ -63,6 +63,13 @@ BED255_TIME_HEADER   // 'X-Auth-Time'
 BED255_CASHE_RESOURCE // resource alias for nonce cache
 ```
 
+## Product-Viable Integration Notes
+
+- `DEFAULT_GUARD` protects manager routes after bearer authentication is installed by `@owlmeans/server-auth`.
+- Product authorization composes a custom gate inside `guard(DEFAULT_GUARD, gate(VIABLE_AUTH_GATE, [...]))` rather than using `OIDC_GATE` for Google login flows.
+- `GUARD_ED25519` remains the service-to-service guard for internal/publisher/payment/auth-service calls.
+- The browser-side alias from `@owlmeans/client-auth` must match the default guard name so shared module declarations elevate consistently.
+
 ## Related Packages
 
 - [`@owlmeans/auth`](../auth) — auth type definitions and schemas

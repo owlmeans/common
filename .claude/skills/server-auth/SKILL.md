@@ -32,6 +32,14 @@ import { AUTH_API } from '@owlmeans/auth-common'
 setupAuthServiceModules(appModules, AUTH_API)
 ```
 
+## Product-Viable Usage Notes
+
+- Backend context registers `appendAuthService(context)` before identity resources and product-specific gate services.
+- `AUTH_CACHE` must be registered as a Redis resource when the backend context does not rely on the default `server-app` setup.
+- `server-auth` verifies bearer tokens and populates `req.auth`; it does not decide product ownership or permissions by itself.
+- Pair this package with `@owlmeans/server-auth-identity` when an external provider such as Google should map into local account/profile/credentials records.
+- Pair it with `@owlmeans/module` gates for authorization, and keep handler-level `entityId` checks as a second line of defense.
+
 ## Depends On
 
 - `@owlmeans/auth`, `@owlmeans/auth-common`

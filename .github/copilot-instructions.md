@@ -28,7 +28,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 
 - **Configuration**: `dep-config` — shared TypeScript configs for all packages
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `module`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
 - **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
 - **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
@@ -100,4 +100,5 @@ Per-category instruction files:
 - **Versioning**: see `.github/instructions/versions.instructions.md` — synchronized version bumps
 - **TypeScript configs**: see `.github/instructions/tsconfig.instructions.md` — which config to extend
 - **Creating instructions**: see `.github/instructions/create-skill.instructions.md`
+- **Auth protocol and local identity**: see `.github/instructions/auth-protocol.instructions.md` and `.github/instructions/server-auth-identity.instructions.md`
 - **Using @owlmeans/* packages from a downstream app**: every package has its own instruction file at `.github/instructions/<package-name>.instructions.md` (e.g. `server-app`, `module`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — `applyTo` globs auto-attach when editing matching files. Patterns mirror real-world consumption from the `viable` monorepo.
