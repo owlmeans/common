@@ -13,8 +13,27 @@ Skills live in `.claude/skills/<skill-name>/SKILL.md`. Each skill is a directory
 .claude/skills/<skill-name>/
 ├── SKILL.md          # Required — entrypoint with frontmatter + instructions
 ├── reference.md      # Optional — detailed reference docs
-└── examples.md       # Optional — usage examples
+├── examples.md       # Optional — usage examples
+└── scripts/          # Optional — bundled shell scripts the skill runs
+    └── <name>.sh
 ```
+
+## Skills with Scripts
+
+Some skills bundle shell scripts that agents run as part of their procedure. This requires two locations for dual-tool support:
+
+| Location | Purpose |
+|---|---|
+| `.claude/skills/<name>/scripts/<script>.sh` | Claude Code — loaded relative to the skill |
+| `.github/agent-scripts/<script>.sh` | GitHub Copilot — accessible from repo root |
+
+**Both copies must remain byte-identical.** When updating a script, update both locations simultaneously. Document this sync requirement in the SKILL.md.
+
+When creating a skill with bundled scripts:
+1. Place the script in `.claude/skills/<name>/scripts/<script>.sh`
+2. Copy it verbatim to `.github/agent-scripts/<script>.sh`
+3. Note both locations in the SKILL.md body under a "Script reference" section
+4. Set `allowed-tools: Bash(sh *)` in frontmatter so Claude can run the script without prompting
 
 ## SKILL.md Frontmatter
 
