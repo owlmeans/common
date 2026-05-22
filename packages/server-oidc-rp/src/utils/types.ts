@@ -7,4 +7,5 @@ export interface OIDCAuthCache extends AuthSpent {
   client?: string
   validated?: Date
   entityId?: string
+  redirectUri?: string
 }

@@ -36,3 +36,11 @@ export interface AuthorizationService extends InitializedService {
 export interface TrustedRecord extends ConfigRecord, Partial<Omit<Profile, "permissions" | "attributes">> {
   id: string
 }
+
+export interface ProfileToEntityIdRequest {
+  profileId: string
+}
+
+export interface ProfileToEntityIdResponse {
+  entityId: string
+}

@@ -35,6 +35,21 @@ cfg.trusted = []
 sservice({ service: AGENT, internalHost: 'kluster:service:agent', internalPort: 8081 }, cfg)
 ```
 
+## makeSecurityHelper — URL Generation
+
+`makeSecurityHelper(ctx)` returns a `SecurityHelper` with `makeUrl(route, path?, params?)` that builds full URLs respecting service host/port/base and the `security.unsecure` flag:
+
+```typescript
+import { makeSecurityHelper } from '@owlmeans/config'
+
+const helper = makeSecurityHelper(ctx)
+// Build URL for a specific service route
+const url = helper.makeUrl(module.route.route, '/callback', { host, base })
+// => "https://api.example.com/callback"
+```
+
+On the client side, prefer calling `context.module<ClientModule<string>>(alias).call({ full: true })` which internally uses `makeSecurityHelper` — see `@owlmeans/client-module` instructions.
+
 ## Depends On
 
 - `@owlmeans/auth` — trusted entity / signing primitives

@@ -48,6 +48,7 @@ setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 - The Google plugin uses `useValue` to manage redirect side effects, persists auth control state before redirect, restores it on return, then submits URL query params as `AuthCredentials`.
 - The browser plugin starts login; the server finalizes provider exchange, links local identity, and returns a normal bearer token.
 - Do not encode product authorization in browser OIDC plugins. Server module gates and local identity profiles remain the authorization source.
+- **URL generation:** Use `context.module<Module<string>>(alias).call({ full: true, params })` to build full URLs (redirect_uri, post-auth home). Import `HOME` and module aliases from `@owlmeans/web-client` / `@owlmeans/auth`. Never use raw `window.location.origin + window.location.pathname` concatenation.
 
 ## Depends On
 

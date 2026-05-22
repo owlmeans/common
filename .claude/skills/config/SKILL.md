@@ -51,6 +51,8 @@ const helper = makeSecurityHelper<Config, Context>(ctx)
 const url = helper.makeUrl(VIB_ALIAS, '/checkout/success')
 ```
 
+On the client side, prefer `context.module<ClientModule<string>>(alias).call({ full: true })` which delegates to `makeSecurityHelper` internally — see `@owlmeans/client-module`.
+
 ## Depends On
 
 - `@owlmeans/auth` — trusted entity / signing primitives

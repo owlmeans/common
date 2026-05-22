@@ -1,9 +1,13 @@
 
 import type { AuthenticationPlugin } from '@owlmeans/client-auth/manager/plugins'
-import { AUTH_SCOPE, AuthenticationStage, AuthRole } from '@owlmeans/auth'
+import { AUTH_SCOPE, AuthenticationStage, AuthRole, CAUTHEN_AUTHEN_TYPED } from '@owlmeans/auth'
 import type { AuthCredentials } from '@owlmeans/auth'
+import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
+import type { AuthService } from '@owlmeans/auth-common'
 import { GOOGLE_CLIENT_AUTH } from '@owlmeans/oidc'
-import { useValue } from '@owlmeans/client'
+import { useContext, useValue } from '@owlmeans/client'
+import { HOME } from '@owlmeans/web-client'
+import type { Module } from '@owlmeans/web-client'
 import LinearProgress from '@mui/material/LinearProgress'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 
@@ -11,6 +15,7 @@ export const googleClientPlugin: AuthenticationPlugin = {
   type: GOOGLE_CLIENT_AUTH,
 
   Implementation: Renderer => ({ type, stage, control }) => {
+    const context = useContext()
     Renderer = Renderer ?? googleClientPlugin.Renderer
 
     useValue(async cancel => {
@@ -38,14 +43,26 @@ export const googleClientPlugin: AuthenticationPlugin = {
                 scopes: [AUTH_SCOPE],
               }
 
-              await control.authenticate(auth)
+              const token = await control.authenticate(auth)
+
+              if (token.token !== '') {
+                const authService = context.service<AuthService>(AUTH_SERVICE)
+                await authService.authenticate(token)
+              }
+
+              // Navigate to app root after successful authentication
+              const [homeUrl] = await context.module<Module<string>>(HOME).call({ full: true }) ?? []
+              window.location.href = homeUrl ?? window.location.origin
+
               return
             }
           }
 
           // Initial request — ask server for Google auth URL
-          const source = window.location.origin + window.location.pathname
-          await control.requestAllowence({ type, source })
+          const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
+            full: true, params: { type }
+          }) ?? []
+          await control.requestAllowence({ type, source: source ?? '' })
           break
         }
 
@@ -54,7 +71,14 @@ export const googleClientPlugin: AuthenticationPlugin = {
 
           if (control.allowance?.challenge != null) {
             const envelope = makeEnvelopeModel(control.allowance.challenge, EnvelopeKind.Wrap)
-            const url = envelope.message<string>(true)
+            const msg = envelope.message<string>(true)
+
+            // The server wraps challenge as "source:googleUrl" — extract the URL part
+            const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
+              full: true, params: { type }
+            }) ?? []
+            const sourcePrefix = source ?? ''
+            const url = msg.startsWith(sourcePrefix + ':') ? msg.slice(sourcePrefix.length + 1) : msg
 
             // Persist control state before redirect
             await control.persist()

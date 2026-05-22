@@ -40,6 +40,7 @@ setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 - The Google plugin uses `useValue` to manage redirect side effects, persists auth control state before redirect, restores it on return, then submits URL query params as `AuthCredentials`.
 - The browser plugin starts login; the server finalizes provider exchange, links local identity, and returns a normal bearer token.
 - Do not encode product authorization in browser OIDC plugins. Server module gates and local identity profiles remain the authorization source.
+- **URL generation:** The Google plugin uses module-based URL generation via `context.module<Module<string>>(alias).call({ full: true })` to build its `source` (redirect_uri) and post-auth home redirect. Never use raw `window.location.origin` concatenation — use the `HOME` module for the app root and `CAUTHEN_AUTHEN_TYPED` with `{ params: { type } }` for the current auth page URL.
 
 ## Depends On
 

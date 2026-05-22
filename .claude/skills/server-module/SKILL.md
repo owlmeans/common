@@ -24,6 +24,16 @@ Most app code uses `elevate()` from `@owlmeans/server-app` (which builds on this
 import type { ServerModule } from '@owlmeans/server-module'
 ```
 
+## Cross-Service URL Generation
+
+Use `makeSecurityHelper` from `@owlmeans/config` to build URLs pointing at other services (OAuth redirect URIs, webhook callbacks, etc.):
+
+```typescript
+import { makeSecurityHelper } from '@owlmeans/config'
+const helper = makeSecurityHelper<Config, Context>(ctx)
+const url = helper.makeUrl(route, '/callback')
+```
+
 ## Depends On
 
 - `@owlmeans/module`, `@owlmeans/server-route`, `@owlmeans/server-context`

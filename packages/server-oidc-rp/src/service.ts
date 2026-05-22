@@ -22,7 +22,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.service')
       }
 
-      if (typeof clientId === 'object' && clientId.clientId == null) {
+      if (typeof clientId === 'object' && clientId.clientId == null && cfg.clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
@@ -119,7 +119,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     getConfig: async clientId => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
 
-      if (typeof clientId === 'object' && clientId.clientId == null) {
+      if (typeof clientId === 'object' && clientId.clientId == null && clientId.service == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
@@ -128,7 +128,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           return consumer.clientId === clientId
         }
         return Object.entries(clientId).every(
-          ([key, value]) => consumer[key as keyof typeof consumer] === value
+          ([key, value]) => value == null || consumer[key as keyof typeof consumer] === value
         )
       })
     },

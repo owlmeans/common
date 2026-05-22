@@ -7,7 +7,7 @@ import {
 // import { AppType } from '@owlmeans/context'
 import { body, filter, module, query } from '@owlmeans/module'
 import { route, RouteMethod, frontend, backend, socket } from '@owlmeans/route'
-import { DISPATCHER_PATH } from './consts.js'
+import { DISPATCHER_PATH, WEB_API, authApi } from './consts.js'
 
 export const modules = [
   module(route(AUTHEN, '/authentication', backend())),
@@ -32,6 +32,19 @@ export const modules = [
   // This is a helper route that representes a API endpoint of service provider that wants to authenticate 
   // a user with OwlMeans server-auth library.
   module(route(DISPATCHER_AUTHEN, '/authenticate', backend(null, RouteMethod.POST)), filter(body(AuthTokenSchema))),
+]
+
+export const managerModules = [
+  module(route(authApi.profile.base, '/profile', backend({ service: WEB_API }))),
+  module(route(
+    authApi.profile.toEntityId, '/to-entity-id',
+    backend(authApi.profile.base, RouteMethod.POST)
+  )),
+  module(route(authApi.auth.base, '/auth', backend({ service: WEB_API }))),
+  module(route(
+    authApi.auth.delegate, '/delegate',
+    backend(authApi.auth.base, RouteMethod.POST)
+  )),
 ]
 
 // const skipModules = [DISPATCHER]

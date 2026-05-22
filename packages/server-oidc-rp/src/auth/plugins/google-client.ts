@@ -18,13 +18,13 @@ const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const GOOGLE_USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo'
 
 export const googleClientPlugin = <C extends Config, T extends Context<C>>(context: T, service: string = GOOGLE_SERVICE): AuthPlugin => {
-  const getGoogleConfig = async (): Promise<Required<Pick<OidcProviderDescriptor, 'clientId' | 'secret' | 'redirectUri'>> & OidcProviderDescriptor> => {
+  const getGoogleConfig = async (): Promise<Required<Pick<OidcProviderDescriptor, 'clientId' | 'secret'>> & OidcProviderDescriptor> => {
     const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
     const cfg = await oidc.getConfig({ service })
-    if (cfg == null || cfg.clientId == null || cfg.secret == null || cfg.redirectUri == null) {
+    if (cfg == null || cfg.clientId == null || cfg.secret == null) {
       throw new AuthManagerError('google.config')
     }
-    return cfg as Required<Pick<OidcProviderDescriptor, 'clientId' | 'secret' | 'redirectUri'>> & OidcProviderDescriptor
+    return cfg as Required<Pick<OidcProviderDescriptor, 'clientId' | 'secret'>> & OidcProviderDescriptor
   }
 
   const plugin: AuthPlugin = {
@@ -35,30 +35,34 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
 
       const google = await getGoogleConfig()
 
-      const verifier = base64.encode(randomBytes(32))
-      const challenge = base64.encode(sha256(verifier))
-
-      await cache<C, T>(context).create({
-        id: verifierId(challenge),
-        verifier,
-        client: google.clientId,
-      }, { ttl: AUTHEN_TIMEFRAME / 1000 })
-
       if (request.source == null) {
         throw new AuthenPayloadError('redirect-uri')
       }
 
+      const verifier = base64.encode(randomBytes(32))
+      const challenge = base64.encode(sha256(verifier))
+      // Use a random state for cache lookup on callback
+      const state = base64.encode(randomBytes(16))
+
+      await cache<C, T>(context).create({
+        id: verifierId(state),
+        verifier,
+        client: google.clientId,
+        redirectUri: request.source,
+      }, { ttl: AUTHEN_TIMEFRAME / 1000 })
+
       const scopes = google.extraScopes ?? 'openid profile email'
       const authEndpoint = google.authEndpoint ?? GOOGLE_AUTH_ENDPOINT
 
+      // Use request.source as redirect_uri — it's the browser's current auth page URL
       const params = new URLSearchParams({
         client_id: google.clientId,
-        redirect_uri: google.redirectUri,
+        redirect_uri: request.source,
         response_type: 'code',
         scope: scopes,
         code_challenge: challenge,
         code_challenge_method: 'S256',
-        state: request.source,
+        state,
         access_type: 'offline',
         prompt: 'consent',
       })
@@ -71,26 +75,28 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
     authenticate: async credential => {
       const google = await getGoogleConfig()
 
-      // The credential.challenge contains state (our source/redirect URL)
-      // The credential.credential contains the query params from Google callback
+      // credential.credential contains the query params from Google callback
       const callbackParams = new URLSearchParams(credential.credential)
       const code = callbackParams.get('code')
-      // state is available in callbackParams if needed for validation
+      const state = callbackParams.get('state')
 
       if (code == null) {
         throw new AuthenPayloadError('code')
       }
 
-      // Extract the PKCE challenge from the credential
-      // In Google flow, we store the challenge in the init phase
-      // and the client sends back its challenge reference
-      const challengeKey = credential.challenge
-      if (challengeKey == null || challengeKey === '') {
-        throw new AuthenPayloadError('challenge')
+      if (state == null || state === '') {
+        throw new AuthenPayloadError('state')
       }
 
-      const verification = await cache<C, T>(context).pick(verifierId(challengeKey))
-      if (verification.verifier == null) {
+      // Look up the PKCE verifier using the state parameter
+      const verification = await cache<C, T>(context).pick(verifierId(state))
+      if (verification == null || verification.verifier == null) {
+        throw new AuthenFailed()
+      }
+
+      // Use the redirect_uri stored during init for token exchange
+      const redirectUri = verification.redirectUri
+      if (redirectUri == null) {
         throw new AuthenFailed()
       }
 
@@ -103,7 +109,7 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
           code,
           client_id: google.clientId,
           client_secret: google.secret,
-          redirect_uri: google.redirectUri,
+          redirect_uri: redirectUri,
           grant_type: 'authorization_code',
           code_verifier: verification.verifier,
         }),

@@ -22,6 +22,16 @@ import type { ServerModule } from '@owlmeans/server-module'
 // Most code uses elevate() from @owlmeans/server-app instead
 ```
 
+## Cross-Service URL Generation
+
+Server modules that need to produce URLs for other services (e.g., OAuth redirect URIs, callback URLs) should use `makeSecurityHelper` from `@owlmeans/config`:
+
+```typescript
+import { makeSecurityHelper } from '@owlmeans/config'
+const helper = makeSecurityHelper<Config, Context>(ctx)
+const callbackUrl = helper.makeUrl(route, '/callback')
+```
+
 ## Depends On
 
 - `@owlmeans/module`, `@owlmeans/server-route`, `@owlmeans/server-context`
