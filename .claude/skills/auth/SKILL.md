@@ -42,6 +42,22 @@ export const list = handleRequest(async (req, context) => {
 - Authorization failures in gates should use `AuthForbidden`, while missing handler auth/entity state usually uses `AuthUnknown`.
 - Keep product ownership rules outside `@owlmeans/auth`; downstream apps compose `@owlmeans/module` gates or handler-level entity checks around these core types.
 
+## AuthRole enum
+
+`AuthRole` is a **string** enum (not numeric). Always use the enum members — never assign a number literal to `role`:
+
+```typescript
+import { AuthRole } from '@owlmeans/auth'
+
+// Correct
+const creds: AuthCredentials = { role: AuthRole.User, ... }
+
+// WRONG — will not compile
+const creds: AuthCredentials = { role: 0, ... }
+```
+
+Members: `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`.
+
 ## Depends On
 
 - `@owlmeans/error` — `AuthUnknown` and friends extend `ResilientError`

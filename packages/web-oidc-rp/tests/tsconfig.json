@@ -4,8 +4,9 @@
     "@owlmeans/dep-config/tsconfig.react.json"
   ],
   "compilerOptions": {
-    "rootDir": "./src/",
-    "outDir": "./build/"
+    "types": ["bun"],
+    "rootDir": "../",
+    "noEmit": true
   },
-  "exclude": ["./dist/**/*", "./build/**/*", "./tests/**/*", "./*.ts"]
+  "include": ["./**/*", "../src/**/*"]
 }

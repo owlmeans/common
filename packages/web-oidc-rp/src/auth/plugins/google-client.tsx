@@ -1,6 +1,6 @@
 
 import type { AuthenticationPlugin } from '@owlmeans/client-auth/manager/plugins'
-import { AUTH_SCOPE, AuthenticationStage, AuthRole, CAUTHEN_AUTHEN_TYPED } from '@owlmeans/auth'
+import { AuthenticationStage, CAUTHEN_AUTHEN_TYPED } from '@owlmeans/auth'
 import type { AuthCredentials } from '@owlmeans/auth'
 import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
@@ -9,7 +9,7 @@ import { useContext, useValue } from '@owlmeans/client'
 import { HOME } from '@owlmeans/web-client'
 import type { Module } from '@owlmeans/web-client'
 import LinearProgress from '@mui/material/LinearProgress'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
+import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
 
 export const googleClientPlugin: AuthenticationPlugin = {
   type: GOOGLE_CLIENT_AUTH,
@@ -33,15 +33,11 @@ export const googleClientPlugin: AuthenticationPlugin = {
             const code = url.searchParams.get('code')
 
             if (code != null) {
-              const auth: AuthCredentials = {
-                ...control.allowance,
+              const auth: AuthCredentials = buildCallbackCredentials(
+                url.searchParams.toString(),
                 type,
-                challenge: control.allowance?.challenge ?? '',
-                credential: url.searchParams.toString(),
-                role: AuthRole.User,
-                userId: 'code',
-                scopes: [AUTH_SCOPE],
-              }
+                control.allowance?.challenge ?? '',
+              )
 
               const token = await control.authenticate(auth)
 
@@ -70,15 +66,11 @@ export const googleClientPlugin: AuthenticationPlugin = {
           if (cancel?.current) return
 
           if (control.allowance?.challenge != null) {
-            const envelope = makeEnvelopeModel(control.allowance.challenge, EnvelopeKind.Wrap)
-            const msg = envelope.message<string>(true)
-
             // The server wraps challenge as "source:googleUrl" — extract the URL part
             const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
               full: true, params: { type }
             }) ?? []
-            const sourcePrefix = source ?? ''
-            const url = msg.startsWith(sourcePrefix + ':') ? msg.slice(sourcePrefix.length + 1) : msg
+            const url = extractGoogleUrl(control.allowance.challenge, source ?? '')
 
             // Persist control state before redirect
             await control.persist()

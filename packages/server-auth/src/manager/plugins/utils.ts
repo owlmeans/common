@@ -1,6 +1,5 @@
 import { AuthUnknown, TypeMissmatchError } from '@owlmeans/auth'
 import type { AuthPlugin } from './types.js'
-import { plugins } from './index.js'
 import type { AppContext, AppConfig } from '../types.js'
 
 export const assertType = (type: string, plugin: AuthPlugin) => {
@@ -12,7 +11,8 @@ export const assertType = (type: string, plugin: AuthPlugin) => {
 /**
  * @throws {AuthUnknown}
  */
-export const getPlugin = (type: string, context: AppContext<AppConfig>): AuthPlugin => {
+export const getPlugin = async (type: string, context: AppContext<AppConfig>): Promise<AuthPlugin> => {
+  const { plugins } = await import('./index.js')
   const plugin = plugins[type]
   if (plugin == null) {
     throw new AuthUnknown(type)

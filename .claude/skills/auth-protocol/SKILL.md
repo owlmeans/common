@@ -57,7 +57,7 @@ All in `packages/auth/src/types.ts`:
 
 `packages/auth/src/consts.ts`:
 
-- `AuthRole` — `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`.
+- `AuthRole` — **string** enum: `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`. Never use numeric literals for `role` fields — always use `AuthRole.User` etc.
 - `AuthenticationType` — `BasicEd25519`, `OneTimeToken`, `ReCaptcha`, `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`.
 - `AuthroizationType` (sic) — `AuthToken`, `Ed25519BasicToken`, `Ed25519BasicSignature`.
 - `AUTH_HEADER = 'authorization'`, `AUTH_QUERY = 'token'`, `ENTITY_QUERY = 'entity'`, `PROFILE_QUERY = 'profile'`.

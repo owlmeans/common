@@ -20,7 +20,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
   const model: AuthModel = {
     init: async request => {
-      const plugin = getPlugin(request.type, context)
+      const plugin = await getPlugin(request.type, context)
       const response = await plugin.init(request)
 
       const envelope = makeEnvelopeModel(plugin.type)
@@ -63,7 +63,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
         throw new AuthenPayloadError('userId')
       }
 
-      const plugin = getPlugin(envelope.type(), context)
+      const plugin = await getPlugin(envelope.type(), context)
 
       // @TODO this token PROBABLY needs to be registered somewhere and rechecked
       // from time to time to make sure that the session is not deleted 
