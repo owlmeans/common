@@ -9,7 +9,7 @@ import { AuthenticationStage, DISPATCHER } from '@owlmeans/auth'
 import { Form } from '../../components/form/index.js'
 import { TextInput } from '../../components/form/text/index.js'
 import { useCallback } from 'react'
-import LinearProgress from '@mui/material/LinearProgress'
+import { Progress } from '@/components/ui/progress'
 import { BlockScaling } from '@owlmeans/client-panel'
 import { useContext } from '@owlmeans/web-client'
 
@@ -24,7 +24,7 @@ export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, 
           name => <TextInput key={name} name={name} label />
         )
       default:
-        return <LinearProgress />
+        return <Progress />
     }
   }, [stage])
 

@@ -22,7 +22,7 @@ Register the guard in your web context:
 
 ```typescript
 import { appendOidcGuard } from '@owlmeans/web-oidc-rp'
-import { makeContext as makeBasicContext } from '@owlmeans/web-panel'
+import { makeContext as makeBasicContext } from '@owlmeans/mui-panel'
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
   const context = makeBasicContext<C, T>(cfg) as T
@@ -73,5 +73,5 @@ Login and callback React components exported from `./components` (re-exported at
 
 - [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, dispatcher modules
 - [`@owlmeans/web-client`](../web-client) — base web context this guard plugs into
-- [`@owlmeans/web-panel`](../web-panel) — `makeContext` typically used as the base
+- [`@owlmeans/mui-panel`](../mui-panel) — `makeContext` typically used as the base
 - [`@owlmeans/client-auth`](../client-auth) — auth manager primitives the guard interacts with

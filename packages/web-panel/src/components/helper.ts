@@ -1,70 +1,85 @@
-import type { SxProps, Theme } from '@mui/material/styles'
-import { useTheme } from '@mui/material/styles'
-import useMediaQuery from '@mui/material/useMediaQuery'
+import { useEffect, useState } from 'react'
 import { BlockScaling } from '@owlmeans/client-panel'
 
+/**
+ * Map MUI's previous `scalingToStyles(horizontal, vertical, theme): SxProps`
+ * to a Tailwind utility class composition string. Consumers compose this
+ * with their own classes via `cn()` or template literals.
+ *
+ * Breakpoint semantics mirror the old MUI implementation:
+ *   - Half:  capped width/height on >=md, expanded on <md, `flex-grow: 1`
+ *   - Wide:  10% horizontal/vertical margin, `flex-grow: 1`
+ *   - Full:  fill axis, `flex-grow: 1`
+ */
 export const scalingToStyles = (
   horizontal?: BlockScaling,
-  vertical?: BlockScaling,
-  theme?: Theme
-): SxProps => {
-  const style: SxProps = {}
+  vertical?: BlockScaling
+): string => {
+  const parts: string[] = []
+
   switch (horizontal) {
     case BlockScaling.Half:
-      Object.assign(style, {
-        maxWidth: '50%',
-        [theme?.breakpoints.down('md') ?? 'xs']: {
-          maxWidth: '90%'
-        },
-        flexGrow: 1
-      })
+      parts.push('max-w-[90%]', 'md:max-w-[50%]', 'grow')
       break
     case BlockScaling.Wide:
-      Object.assign(style, { mx: '10%', flexGrow: 1 })
+      parts.push('mx-[10%]', 'grow')
       break
     case BlockScaling.Full:
-      Object.assign(style, { flexGrow: 1 })
+      parts.push('grow')
       break
   }
 
   switch (vertical) {
     case BlockScaling.Half:
-      Object.assign(style, {
-        maxHeight: '50%',
-        [theme?.breakpoints.down('md') ?? 'xs']: {
-          maxHeight: '90%'
-        },
-        flexGrow: 1
-      })
+      parts.push('max-h-[90%]', 'md:max-h-[50%]', 'grow')
       break
     case BlockScaling.Wide:
-      Object.assign(style, { my: '10%', flexGrow: 1 })
+      parts.push('my-[10%]', 'grow')
       break
     case BlockScaling.Full:
-      Object.assign(style, { height: '100%', flexGrow: 1 })
+      parts.push('h-full', 'grow')
       break
   }
 
-  return style
+  return parts.join(' ')
 }
 
-export const useBreakPoint = () => {
-  const theme = useTheme()
+/**
+ * Tailwind default breakpoints — kept stable across consumers. If a consumer
+ * has customised Tailwind breakpoints in their app config, override this
+ * via a wrapping hook in the app.
+ */
+const BREAKPOINTS: Array<{ name: string, min: number, max: number }> = [
+  { name: 'xs', min: 0,    max: 639  },
+  { name: 'sm', min: 640,  max: 767  },
+  { name: 'md', min: 768,  max: 1023 },
+  { name: 'lg', min: 1024, max: 1279 },
+  { name: 'xl', min: 1280, max: Number.POSITIVE_INFINITY },
+]
 
-  // Define breakpoints
-  const isXs = useMediaQuery(theme.breakpoints.only('xs'))
-  const isSm = useMediaQuery(theme.breakpoints.only('sm'))
-  const isMd = useMediaQuery(theme.breakpoints.only('md'))
-  const isLg = useMediaQuery(theme.breakpoints.only('lg'))
-  const isXl = useMediaQuery(theme.breakpoints.only('xl'))
+const matchBreakpoint = (width: number): string => {
+  for (const bp of BREAKPOINTS) {
+    if (width >= bp.min && width <= bp.max) {
+      return bp.name
+    }
+  }
+  return 'xs'
+}
 
-  let currentBreakpoint = isXs ? 'xs' : 'unknown' // Default value
-  if (isSm) currentBreakpoint = 'sm'
-  if (isMd) currentBreakpoint = 'md'
-  if (isLg) currentBreakpoint = 'lg'
-  if (isXl) currentBreakpoint = 'xl'
+export const useBreakPoint = (): string => {
+  const [bp, setBp] = useState<string>(() =>
+    typeof window === 'undefined' ? 'lg' : matchBreakpoint(window.innerWidth)
+  )
 
-  return currentBreakpoint
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onResize = () => setBp(matchBreakpoint(window.innerWidth))
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  return bp
 }
 
 export const useMapBreakpoint = <T>(map: Record<string, T>, def?: T, breakpoint?: string): T => {
@@ -74,6 +89,5 @@ export const useMapBreakpoint = <T>(map: Record<string, T>, def?: T, breakpoint?
   if (result == null) {
     throw new SyntaxError(`Breakpoint should always return value. We have ${breakpoint}, but ${Object.keys(map).join(', ')} are available`)
   }
-
-  return result
+  return result as T
 }

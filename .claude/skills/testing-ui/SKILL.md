@@ -1,6 +1,6 @@
 ---
 name: testing-ui
-description: Category-D component-level acceptance tests for OwlMeans Common UI packages (web-panel, web-client, client-panel, client-wl, web-flow, web-wl, client, client-i18n). Run under bun test, drive a real chromium via Playwright as a library — not the Playwright runner. Auto-invoked when writing tests in those packages.
+description: Category-D component-level acceptance tests for OwlMeans Common UI packages (web-panel, web-client, client-panel, client-wl, web-flow, web-wl, client, client-i18n) and new shadcn UI + Tailwind v4 packages. Run under bun test, drive a real chromium via Playwright as a library — not the Playwright runner. Auto-invoked when writing tests in those packages.
 ---
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
@@ -104,7 +104,7 @@ export const getHarnessUrl = async (): Promise<string> => {
 export const HARNESS_URL = await getHarnessUrl()
 ```
 
-The per-package `tests/harness/mount.tsx` reads `?component=<name>` and `?props=<json>`, dynamic-imports the component from the consumer's `src/`, and renders it via `react-dom/client` inside `<div id="root">`. Each consuming UI package wires its own providers (MUI theme, i18n, router) the way the real app does — that's why mount.tsx is per-package, not in `@owlmeans/test-ui`.
+The per-package `tests/harness/mount.tsx` reads `?component=<name>` and `?props=<json>`, dynamic-imports the component from the consumer's `src/`, and renders it via `react-dom/client` inside `<div id="root">`. Each consuming UI package wires its own providers (MUI theme for legacy packages, or Tailwind CSS + `@` alias for shadcn packages; plus i18n, router) the way the real app does — that's why mount.tsx is per-package, not in `@owlmeans/test-ui`.
 
 ## Smoke-only baseline
 
@@ -138,6 +138,43 @@ Per-package `package.json`:
 ```
 
 Same line as categories A/B/C. No `playwright.config.ts`, no `bun x playwright test`.
+
+## Tailwind + shadcn packages
+
+For shadcn-based OwlMeans packages the `tests/context.ts` Vite config needs two additions beyond the standard setup:
+
+```ts
+import tailwindcss from '@tailwindcss/vite'
+import { resolve } from 'node:path'
+
+const server = await createServer({
+  configFile: false,
+  root: resolve(here, './harness'),
+  plugins: [react(), tailwindcss()],               // add Tailwind v4 Vite plugin
+  resolve: {
+    alias: { '@': resolve(here, '../src/@') },     // resolve @/ to the package's local copy
+  },
+  server: { port: 0 },
+})
+```
+
+`tests/harness/mount.tsx` imports the package CSS so components render with Tailwind styles:
+
+```tsx
+import '../../src/@/globals.css'
+// ... dynamic component mounting ...
+```
+
+Shadcn components are plain React — no theme provider needed. Assert via `getByRole` / text as usual. To verify that Tailwind classes took visual effect, read computed styles:
+
+```ts
+const bg = await page.locator('button').evaluate(el =>
+  window.getComputedStyle(el).backgroundColor
+)
+expect(bg).not.toBe('')
+```
+
+See `[[shadcn-web]]` for the full `@` alias contract and `tests/context.ts` pattern.
 
 ## Rules
 

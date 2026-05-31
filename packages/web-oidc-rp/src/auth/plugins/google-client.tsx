@@ -8,7 +8,7 @@ import { GOOGLE_CLIENT_AUTH } from '@owlmeans/oidc'
 import { useContext, useValue } from '@owlmeans/client'
 import { HOME } from '@owlmeans/web-client'
 import type { Module } from '@owlmeans/web-client'
-import LinearProgress from '@mui/material/LinearProgress'
+import { Progress } from '@/components/ui/progress'
 import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
 
 export const googleClientPlugin: AuthenticationPlugin = {
@@ -90,5 +90,5 @@ export const googleClientPlugin: AuthenticationPlugin = {
     return <Renderer type={type} stage={stage} control={control} params={{}} />
   },
 
-  Renderer: () => <LinearProgress />
+  Renderer: () => <Progress />
 }

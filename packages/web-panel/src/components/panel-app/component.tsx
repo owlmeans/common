@@ -1,20 +1,16 @@
 import type { FC } from 'react'
-import { useMemo } from 'react'
 import type { PanelAppProps } from './types.js'
 
 import { App } from '@owlmeans/client'
 import { I18nContext } from '@owlmeans/client-i18n'
-import CssBaseline from '@mui/material/CssBaseline'
-import { createTheme, ThemeProvider } from '@mui/material/styles'
+import { cn } from '@/lib/utils'
 
-export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, theme }) => {
-  theme = useMemo(() => theme ?? createTheme(), [theme])
-  return <ThemeProvider theme={theme}>
+export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, rootClassName }) => {
+  return <div className={cn('min-h-screen bg-background text-foreground', rootClassName)}>
     <I18nContext config={context.cfg}>
       <App context={context} provide={provide}>
-        <CssBaseline />
         {children}
-      </App >
+      </App>
     </I18nContext>
-  </ThemeProvider>
+  </div>
 }

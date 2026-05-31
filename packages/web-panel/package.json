@@ -66,28 +66,42 @@
     "react-google-recaptcha": "^3.1.0"
   },
   "peerDependencies": {
-    "@emotion/react": "*",
-    "@emotion/styled": "*",
-    "@mui/icons-material": "*",
-    "@mui/material": "*",
+    "@radix-ui/react-label": "*",
+    "@radix-ui/react-progress": "*",
+    "@radix-ui/react-separator": "*",
+    "@radix-ui/react-slot": "*",
     "ajv": "*",
+    "class-variance-authority": "*",
+    "clsx": "*",
+    "lucide-react": "*",
     "react": "*",
     "react-dom": "*",
-    "react-hook-form": "*"
+    "react-hook-form": "*",
+    "tailwind-merge": "*",
+    "tailwindcss": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "@owlmeans/test-ui": "^0.1.2",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^7.3.2",
-    "@mui/material": "^7.3.2",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-progress": "^1.1.0",
+    "@radix-ui/react-separator": "^1.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/react-google-recaptcha": "^2.1.9",
+    "@vitejs/plugin-react": "^4.3.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.460.0",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
-    "typescript": "^6.0.2"
+    "playwright": "^1.49.0",
+    "tailwind-merge": "^2.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^6.0.2",
+    "vite": "^5.4.0"
   },
   "publishConfig": {
     "access": "public"

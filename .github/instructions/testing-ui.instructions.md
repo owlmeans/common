@@ -10,6 +10,7 @@ applyTo: "packages/{client,client-i18n,client-panel,client-wl,web-client,web-flo
 - Always `await close()` the returned context and call `closeBrowser()` from `afterAll` — leaked contexts hang `bun test`.
 - Use `bun:test`'s `expect` against awaited Playwright DOM queries: `expect(await page.locator('h1').textContent()).toBe('Sign in')`.
 - Per-package harness (`tests/harness/index.html` + `mount.tsx`) is served by a Vite dev server booted once in `tests/context.ts`. For smoke-only specs a `data:text/html,...` URL is fine.
+- **shadcn + Tailwind packages**: add `@tailwindcss/vite` plugin and `resolve.alias: { '@': resolve(here, '../src/@') }` to the Vite config so mounted components resolve primitives; import `src/@/globals.css` in `mount.tsx`. Assert via `getByRole`/text as usual; check computed styles via `page.evaluate` for visual assertions.
 - One-time per machine: `bunx playwright install chromium`.
 - No mocks. Render the real component with real client-context wiring. For network calls use `page.route(...)` to a static fixture — never a live backend.
 - Cover `.github/instructions/<pkg>.instructions.md` and `README.md` cases first.

@@ -1,15 +1,48 @@
 import { useMemo } from 'react'
 import type { FC } from 'react'
 import { memo } from 'react'
-import type { ButtonProps, SubmitProps } from './types'
-
-import MUIButton from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
-
+import type { ButtonProps, SubmitProps } from './types.js'
 import { useFormContext } from 'react-hook-form'
+import { Loader2 } from 'lucide-react'
 import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
 import { useFormI18n, usePanelHelper } from '@owlmeans/client-panel'
+import { Button as UIButton } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+
+/**
+ * MUI → shadcn variant mapping:
+ *   contained → default
+ *   outlined  → outline
+ *   text      → ghost
+ * Any other value is forwarded as-is (shadcn variants: default, destructive,
+ * outline, secondary, ghost, link).
+ */
+const mapVariant = (v: string | undefined): 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link' => {
+  switch (v) {
+    case undefined:
+    case 'contained': return 'default'
+    case 'outlined':  return 'outline'
+    case 'text':      return 'ghost'
+    case 'destructive':
+    case 'outline':
+    case 'secondary':
+    case 'ghost':
+    case 'link':
+    case 'default':
+      return v
+    default:          return 'default'
+  }
+}
+
+const mapSize = (s: ButtonProps['size']): 'sm' | 'default' | 'lg' => {
+  switch (s) {
+    case 'small':  return 'sm'
+    case 'large':  return 'lg'
+    case 'medium':
+    default:       return 'default'
+  }
+}
 
 export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size, fullWidth, variant = 'contained' }) => {
   const context = useContext()
@@ -25,15 +58,22 @@ export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, siz
     defaultValue: appT(label, { defaultValue: libT(label) })
   }), [i18n?.suppress, label])
 
-  size = size ?? 'medium'
-  const progressSize = size === 'large'
-    ? 20
-    : size === 'medium' ? 16 : 14
+  const disabled = loader != null && loader.opened === true
+  const showLoader = disabled
 
-  return <MUIButton variant={variant as any} size={size} fullWidth={fullWidth}
-    startIcon={loader != null && loader.opened === true ? <CircularProgress size={progressSize} /> : undefined}
-    disabled={loader != null && loader.opened === true}
-    onClick={onClick}>{label}</MUIButton>
+  return (
+    <UIButton
+      type="button"
+      variant={mapVariant(variant)}
+      size={mapSize(size)}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(fullWidth && 'w-full')}
+    >
+      {showLoader && <Loader2 className="animate-spin" aria-hidden />}
+      {label}
+    </UIButton>
+  )
 })
 
 export const SubmitButton: FC<SubmitProps> = memo((props) => {
@@ -42,7 +82,7 @@ export const SubmitButton: FC<SubmitProps> = memo((props) => {
   const t = useFormI18n()
 
   label = label ?? 'submit'
-  const _i18n: I18nProps["i18n"] = { ...i18n }
+  const _i18n: I18nProps['i18n'] = { ...i18n }
   _i18n.suppress = true
 
   return <Button {...props} label={t(label)} i18n={_i18n}

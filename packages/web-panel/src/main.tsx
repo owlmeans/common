@@ -5,15 +5,18 @@ import type { FC } from 'react'
 import { useI18nInstance } from '@owlmeans/client-i18n/utils'
 import detector from 'i18next-browser-languagedetector'
 import { PanelApp } from './components/panel-app/component.js'
-import type { Theme } from '@mui/material/styles'
 
-export const render = <C extends ClientConfig, T extends ClientContext<C>>(context: T, theme?: Theme, opts?: RenderOptions) => {
-  basicRender(<App context={context as unknown as AppContext} theme={theme}/>, opts)
+export interface WebRenderOptions extends RenderOptions {
+  rootClassName?: string
 }
 
-const App: FC<{ context: AppContext<any>, theme?: Theme }> = ({ context, theme }) => {
+export const render = <C extends ClientConfig, T extends ClientContext<C>>(context: T, opts?: WebRenderOptions) => {
+  basicRender(<App context={context as unknown as AppContext} rootClassName={opts?.rootClassName}/>, opts)
+}
+
+const App: FC<{ context: AppContext<any>, rootClassName?: string }> = ({ context, rootClassName }) => {
   const i18nInstance = useI18nInstance(context.cfg)
   i18nInstance.use(detector)
 
-  return <PanelApp context={context} provide={provide} theme={theme} />
+  return <PanelApp context={context} provide={provide} rootClassName={rootClassName} />
 }

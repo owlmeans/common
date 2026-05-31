@@ -1,96 +1,123 @@
 # @owlmeans/web-panel
 
-MUI + React Router base for OwlMeans web apps — `makeContext`, panel/form components, and hand-picked re-exports for app-side modules.
+shadcn UI + Tailwind v4 implementation of the OwlMeans web panel layer.
+Wraps the headless `@owlmeans/client-panel` logic with shadcn primitives
+instead of Material UI.
 
-## Overview
+## When to use this package
 
-- `makeContext(cfg)` / `useContext()` — base web context with API config middleware and flow service wired in
-- `render(context, theme?, opts?)` — entry-point renderer that wraps the app with MUI theme and i18n
-- `modules` — base module declarations for auth panel screens
-- Components and form primitives in `./components`
-- Re-exports from sibling packages: `module`, `route`, `frontend`, `handler`, `elevate`, `useNavigate`, `useI18nApp`, `HOME`, `BASE`, `ROOT`, `GUEST`, `flow`, `configureFlows`, `CAUTHEN_FLOW_ENTER`, `Dispatcher`, `appendWebAuthService`, `addWebService`, etc.
-- Inherits all `@owlmeans/client-panel` exports (`ClientForm`, `InputCtrl`, `ActionCtrl`, …)
+- New OwlMeans web apps where the consumer owns its shadcn primitives and
+  Tailwind v4 theme.
+- Drop-in replacement for the previous Material-UI based `@owlmeans/web-panel`
+  (which has been renamed to [`@owlmeans/mui-panel`](../mui-panel) for
+  backwards-compatibility consumers).
 
-## Installation
+## Install
 
-```bash
+```sh
 bun add @owlmeans/web-panel
 ```
 
-## Usage
+Peer requirements (the consuming app provides these): `react`, `react-dom`,
+`react-hook-form`, `ajv`, `tailwindcss@^4`, `lucide-react`, `clsx`,
+`tailwind-merge`, `class-variance-authority`, plus the radix primitives
+listed in `peerDependencies`.
 
-Build the app context on top of `web-panel`:
+## Consumer setup — the `@` contract
 
-```typescript
+This package imports its shadcn primitives as `@/components/ui/<name>` and
+its utility as `@/lib/utils`. Build emits these specifiers verbatim
+(TypeScript `moduleResolution: Bundler`). The consumer's bundler must
+resolve `@/*` to its own shadcn primitive copy.
+
+### 1. Add the package's primitives to your app
+
+Generate the matching primitives in your app once. You can either copy them
+from this package's `src/@/components/ui/` or use the shadcn CLI:
+
+```sh
+npx shadcn add button card input label progress alert separator
+```
+
+This package was authored against the shadcn `new-york` style with
+`baseColor: neutral`. See `components.json` for the exact config.
+
+### 2. Add Tailwind v4 theme tokens
+
+The components rely on the following CSS variables (defined inside
+`@theme` in your app's globals.css):
+
+- `--color-background`, `--color-foreground`
+- `--color-card`, `--color-card-foreground`
+- `--color-primary`, `--color-primary-foreground`
+- `--color-secondary`, `--color-secondary-foreground`
+- `--color-muted`, `--color-muted-foreground`
+- `--color-accent`, `--color-accent-foreground`
+- `--color-destructive`
+- `--color-success` (custom; only needed if you use `<Status ok />`)
+- `--color-border`, `--color-input`, `--color-ring`
+- `--radius`
+- `--animate-progress-indeterminate` + the `@keyframes progress-indeterminate`
+  rule for the `Progress` component's indeterminate mode
+
+A working set is shipped at `src/@/globals.css` (for dev/test only).
+
+### 3. Bundler alias
+
+```ts
+// vite.config.ts
+resolve: { alias: { '@': fileURLToPath(new URL('./src/@', import.meta.url)) } }
+```
+
+## Breaking changes vs `@owlmeans/mui-panel`
+
+This package keeps the same public name and re-export surface as the
+previous MUI implementation, but the following props/types have changed:
+
+- **`styles?: SxProps` is removed.** Use the new `className?: string` and
+  `style?: React.CSSProperties` props instead. Affected: `BlockProps`,
+  `TextProps`, `LinkProps`, `WebFormProps`, `LayoutProps`.
+- **`variant` on `Text` / `Link` is now `TextVariant`**, a string-literal
+  union: `'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'lead' | 'large' | 'small' |
+  'muted' | 'blockquote'`. The previous MUI `TypographyOwnProps['variant']`
+  union no longer applies.
+- **`PanelAppProps.theme?: Theme` is replaced with
+  `PanelAppProps.rootClassName?: string`.** Apply your theme via Tailwind
+  classes / CSS variables instead of MUI's `Theme` object.
+- **`render(context, theme?, opts?)` signature → `render(context, opts?)`**
+  where `opts` includes the new `rootClassName?: string`.
+- **`scalingToStyles()`** now returns a class-name string (composable with
+  `cn()`), not an `SxProps` object. The `theme?: Theme` parameter is
+  removed (Tailwind handles breakpoints declaratively).
+- **`useBreakPoint` / `useMapBreakpoint`** now use Tailwind's static
+  default breakpoints (`xs/sm/md/lg/xl`) instead of MUI's `Theme.breakpoints`.
+  Customise via Tailwind config in the consuming app.
+- **Component prop API for buttons** stays compatible (`'small' | 'medium'
+  | 'large'`, `variant` strings `contained`/`outlined`/`text`/shadcn names).
+  Internally they map to shadcn variants.
+
+Consumers that need the previous MUI behaviour should swap to
+[`@owlmeans/mui-panel`](../mui-panel) — same exports, MUI-rendered.
+
+## Public exports
+
+```ts
 import {
-  useContext as useBasicContext,
-  makeContext as makeBasicContext
+  PanelApp, Layout, Form, TextInput, SubmitButton, Button, ButtonSelector,
+  Block, Text, Link, Status, ImageUploader,
+  scalingToStyles, useBreakPoint, useMapBreakpoint,
+  render,
 } from '@owlmeans/web-panel'
-import { appendOidcGuard } from '@owlmeans/web-oidc-rp'
 
-export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
-  const context = makeBasicContext<C, T>(cfg) as T
-  appendOidcGuard<C, T>(context)
-  context.makeContext = makeContext as typeof context.makeContext
-  return context
-}
-
-export const useContext = useBasicContext
+import { setupExternalAuthentication } from '@owlmeans/web-panel/auth'
+import { modules } from '@owlmeans/web-panel/auth/modules'
 ```
 
-Compose your modules over the base set:
+## Related packages
 
-```typescript
-import { modules as baseModules } from '@owlmeans/web-panel'
-
-export const modules = [...baseModules, ...appModules]
-```
-
-Use the re-exported helpers in screens:
-
-```typescript
-import { HOME, useI18nApp, useNavigate } from '@owlmeans/web-panel'
-
-const t = useI18nApp('manager-web')
-const navigate = useNavigate()
-```
-
-Render the app:
-
-```typescript
-import { render } from '@owlmeans/web-panel'
-import { theme } from './theme'
-
-render(context, theme)
-```
-
-## API
-
-### `makeContext<C, T>(cfg): T`
-
-Creates a web context: registers `apiConfigMiddleware`, the flow service, and adds `context.flow()` accessor.
-
-### `useContext<C, T>(): T`
-
-React hook returning the current context.
-
-### `render<C, T>(context, theme?, opts?)`
-
-Mounts the React tree using the configured theme and i18n detector.
-
-### `modules`
-
-Base module declarations for auth panel screens.
-
-### Re-exports
-
-Cherry-picked APIs from `@owlmeans/client`, `@owlmeans/client-context`, `@owlmeans/client-module`, `@owlmeans/client-route`, `@owlmeans/client-config`, `@owlmeans/client-auth`, `@owlmeans/client-i18n`, `@owlmeans/web-client`, `@owlmeans/web-flow`, `@owlmeans/route`, `@owlmeans/module`, `@owlmeans/auth`, `@owlmeans/i18n`, `@owlmeans/flow`, `@owlmeans/config`, `@owlmeans/context`. See `src/exports.ts` for the full list.
-
-Plus full re-export of [`@owlmeans/client-panel`](../client-panel).
-
-## Related Packages
-
-- [`@owlmeans/web-client`](../web-client) — provides `render` and the underlying web context
-- [`@owlmeans/client-panel`](../client-panel) — cross-platform form/panel primitives re-exported here
-- [`@owlmeans/web-flow`](../web-flow) — flow service registered by `makeContext`
-- [`@owlmeans/web-oidc-rp`](../web-oidc-rp) — typically chained on top of this `makeContext`
+- [`@owlmeans/mui-panel`](../mui-panel) — Material UI implementation of the
+  same surface.
+- [`@owlmeans/web-oidc-rp`](../web-oidc-rp) — companion OIDC/OAuth UI for
+  this package; uses the same Tailwind theme.
+- [`@owlmeans/client-panel`](../client-panel) — framework-agnostic headless
+  form/layout logic this package wraps.

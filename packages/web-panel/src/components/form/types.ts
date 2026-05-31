@@ -1,6 +1,7 @@
-import type { SxProps } from '@mui/material/styles'
-import type { FormProps  } from '@owlmeans/client-panel'
+import type { FormProps } from '@owlmeans/client-panel'
+import type { CSSProperties } from 'react'
 
 export interface WebFormProps extends FormProps {
-  styles?: SxProps
+  className?: string
+  style?: CSSProperties
 }

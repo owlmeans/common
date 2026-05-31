@@ -1,6 +1,5 @@
 import type { AuthenticationControl, AuthenticationRenderer } from '@owlmeans/client-auth/manager'
 
-import LinearProgress from '@mui/material/LinearProgress'
 import { AuthenticationStage, AuthorizationError, CMOD_RECAPTCHA, DISPATCHER, GUEST_ID } from '@owlmeans/auth'
 import { useValue } from '@owlmeans/client'
 import { PLUGINS } from '@owlmeans/client-context'
@@ -8,9 +7,7 @@ import ReCAPTCHA from 'react-google-recaptcha'
 import { useCallback, useState } from 'react'
 import { PanelContext } from '@owlmeans/client-panel'
 import { Text } from '../../components/text.js'
-import Stack from '@mui/material/Stack'
-import Box from '@mui/material/Box'
-import type { SxProps } from '@mui/material/styles'
+import { Progress } from '@/components/ui/progress'
 import type { AppContext, Module } from '@owlmeans/web-client'
 import { useContext } from '@owlmeans/web-client'
 import type { AuthRequest } from '@owlmeans/auth-common'
@@ -21,33 +18,28 @@ export const ReCaptchaAuthUIPlugin: AuthenticationRenderer = ({ stage, control }
   const config = useValue(() => context.getConfigResource(PLUGINS).get(CMOD_RECAPTCHA), [])
   const finish = useCallback(createFinish(context, control), [])
 
-  const style: SxProps = {
-    maxWidth: { xs: '100%', sm: '100%', md: '50%' }
-  }
-  const loadingStyle: SxProps = {
-    width: { xs: '100%', sm: '100%', md: '50%' }
-  }
-
   const content = () => {
     switch (config?.value != null ? stage : null) {
       case AuthenticationStage.Authenticate:
-        return <Stack direction="column" sx={style} justifyContent="center" alignItems="center">
-          <Text name="guideline" center />
-          <Box sx={{ pt: 2 }}>
-            <ReCAPTCHA sitekey={config?.value as string ?? ''} onChange={finish}
-              asyncScriptOnLoad={() => setLoading(false)} />
-          </Box>
-        </Stack>
+        return (
+          <div className="flex flex-col items-center justify-center max-w-full md:max-w-[50%]">
+            <Text name="guideline" center />
+            <div className="pt-4">
+              <ReCAPTCHA sitekey={config?.value as string ?? ''} onChange={finish}
+                asyncScriptOnLoad={() => setLoading(false)} />
+            </div>
+          </div>
+        )
       default:
-        return <LinearProgress sx={loadingStyle} />
+        return <Progress className="w-full md:w-1/2" />
     }
   }
 
   return <PanelContext ns="lib" prefix="re-captcha" resource="client-panel-auth">
-    <Stack direction="column" justifyContent="center" alignItems="center">
+    <div className="flex flex-col items-center justify-center">
       {content()}
-      {loading && <LinearProgress sx={loadingStyle} />}
-    </Stack>
+      {loading && <Progress className="w-full md:w-1/2" />}
+    </div>
   </PanelContext>
 }
 

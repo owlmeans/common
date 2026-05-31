@@ -4,7 +4,7 @@ import { AUTH_SCOPE, AuthenticationStage, AuthManagerError, AuthRole } from '@ow
 import type { AuthCredentials } from '@owlmeans/auth'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
 import { useEffect } from 'react'
-import LinearProgress from '@mui/material/LinearProgress'
+import { Progress } from '@/components/ui/progress'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { Config, Context, OidcAuthService } from '../../types.js'
 import { useContext } from '@owlmeans/web-client'
@@ -114,5 +114,5 @@ export const oidcClientPlugin: AuthenticationPlugin = {
     return <Renderer type={type} stage={stage} control={control} params={module.params} />
   },
 
-  Renderer: () => <LinearProgress />
+  Renderer: () => <Progress />
 }

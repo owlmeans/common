@@ -30,7 +30,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `module`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
 - **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
 - **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
-- **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`
+- **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl` — current MUI-based packages; a new shadcn UI + Tailwind v4 family is being introduced alongside (wraps `client-panel`, uses the `@` app-provides contract — see `shadcn-web.instructions.md`)
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `redis`, `redis-resource`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
 - **Other**: `oidc`, `payment`, `queue`, `flow`, `wled`
@@ -44,6 +44,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - React is a peer dependency, pinned to react-router v7 via `overrides`
 - Cryptography: `@noble/curves`, `@noble/hashes`, `@scure/base`, `@scure/bip39`
 - Validation: AJV with ajv-formats
+- **UI strategy**: MUI-based `web-panel` is the current Web UI layer; new shadcn UI + Tailwind CSS v4 packages are being developed alongside to replace it — see `shadcn-web.instructions.md` and `shadcn-versions.instructions.md`
 - **Package manager: Bun 1.3.10** — always use `bun`, never `yarn` or `npm`
 
 ## Build & Scripts
@@ -100,5 +101,6 @@ Per-category instruction files:
 - **Versioning**: see `.github/instructions/versions.instructions.md` — synchronized version bumps
 - **TypeScript configs**: see `.github/instructions/tsconfig.instructions.md` — which config to extend
 - **Creating instructions**: see `.github/instructions/create-skill.instructions.md`
+- **shadcn UI + Tailwind v4 web packages**: see `.github/instructions/shadcn-web.instructions.md` (development & maintenance, the `@` alias contract, Tailwind wiring, MUI→shadcn mapping) and `.github/instructions/shadcn-versions.instructions.md` (version management). `.github/instructions/testing-ui.instructions.md` covers Playwright tests for shadcn packages too.
 - **Auth protocol and local identity**: see `.github/instructions/auth-protocol.instructions.md` and `.github/instructions/server-auth-identity.instructions.md`
 - **Using @owlmeans/* packages from a downstream app**: every package has its own instruction file at `.github/instructions/<package-name>.instructions.md` (e.g. `server-app`, `module`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — `applyTo` globs auto-attach when editing matching files. Patterns mirror real-world consumption from the `viable` monorepo.
