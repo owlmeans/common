@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@kubernetes/client-node": "^0.22.0",
+    "@kubernetes/client-node": "^1.4.0",
     "@owlmeans/config": "^0.1.2",
     "@owlmeans/context": "^0.1.2",
     "@owlmeans/server-config": "^0.1.2",
