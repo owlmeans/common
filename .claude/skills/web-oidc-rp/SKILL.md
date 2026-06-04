@@ -53,4 +53,6 @@ setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 ## Depends On
 
 - `@owlmeans/oidc`, `@owlmeans/web-client`, `@owlmeans/web-panel`, `@owlmeans/client-auth`, `@owlmeans/auth-common`
-- `oidc-client-ts` (runtime), `react` (peer)
+- `oidc-client-ts@3.5.0` (exact), `react` (peer) — see [[oidc-versions]]
+
+**Note:** The `oidc-client-ts` `UserManager` path (for fully browser-side OIDC) is an **incomplete stub**. The production flow uses server-side token exchange via `DISPATCHER_OIDC_INIT` / `DISPATCHER_OIDC` modules, not `UserManager.signinRedirect`.

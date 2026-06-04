@@ -62,7 +62,23 @@ cfg.oidc.providers.push({
 - `setupAuthServiceModules(managerModules, AUTH_API)` exposes provider-list and token-update service modules protected by `GUARD_ED25519`.
 - When a downstream app uses OIDC/Google only for login and maps users into `@owlmeans/server-auth-identity`, do not reintroduce `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local identity data.
 
+## Public type contract (isolation principle)
+
+`openid-client` types **never appear in this package's public exports**. All public types are OwlMeans-owned:
+
+| Owned type | Replaces upstream | Description |
+|---|---|---|
+| `OidcTokenSet` | `TokenEndpointResponse & TokenEndpointResponseHelpers` | `access_token`, `refresh_token`, `id_token`, `token_type`, `expires_in`, `scope` |
+| `OidcTokenSetParameters` | `TokenEndpointResponse` | Subset without helper methods |
+| `OidcGrantChecks` | `AuthorizationCodeGrantChecks` | `{ pkceCodeVerifier?: string; idTokenExpected?: boolean }` |
+| `OidcServerMetadata` | `ServerMetadata` | Issuer and endpoint metadata |
+| `OidcIntrospectionResponse` | `IntrospectionResponse` | Active, scope, sub, client_id |
+| `OidcClientDescriptor` | `Configuration` (opaque) | Pass-through; consumers must never read its internals |
+
+Upstream `openid-client` types are imported **only** in `src/service.ts`; mappings happen at the method boundaries. This keeps future library swaps confined to that one file.
+
 ## Depends On
 
 - `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-module`
 - `@owlmeans/auth-common`, `@owlmeans/basic-keys`
+- `openid-client@6.8.4` (exact), `jose@6.2.3` (exact) — see [[oidc-versions]]

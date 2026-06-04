@@ -18,6 +18,7 @@ Read this at the start of every conversation. Load files relevant to the current
 - [shadcn-web](./../skills/shadcn-web/SKILL.md) — Development & maintenance of shadcn UI + Tailwind v4 web packages; the `@` alias contract
 - [shadcn-versions](./../skills/shadcn-versions/SKILL.md) — Bumping tailwind/shadcn external deps; re-syncing copied primitives
 - [auth-protocol](./../skills/auth-protocol/SKILL.md) — Comprehensive OwlMeans auth protocol reference (Ed25519 + OIDC + local identity paths, types, errors, mocking points)
+- [oidc-versions](./../skills/oidc-versions/SKILL.md) — OIDC/OAuth dependency version management: exact-pin policy, lib checklists, isolation principle, downstream verification
 - [server-auth-identity](./../skills/server-auth-identity/SKILL.md) — Mongo identity resources, linking service, provider account linking; auto-invoked for identity resource work
 - [dependency-tree](./../skills/dependency-tree/SKILL.md) — Pointer to `tree.md` (per-package `@owlmeans/*` deps, layer assignments, build order, known SCCs)
 
@@ -25,6 +26,7 @@ Read this at the start of every conversation. Load files relevant to the current
 - [versioning](./versioning.md) — Synchronized version convention, internal dep refs, dep-config as workspace:*
 - [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 - [shadcn-ui-strategy](./shadcn-ui-strategy.md) — Three durable decisions: no registries, `@` app-provides-at-integration, wrap client-panel
+- [oidc-deps](./oidc-deps.md) — Exact-pinned OIDC lib versions, two critical gotchas (v9 middleware + jose extractable), isolation principle, downstream symlinks
 
 ## How to add new memory
 - Facts, decisions, gotchas → `.claude/memory/<topic>.md` + update this index

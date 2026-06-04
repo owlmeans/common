@@ -42,7 +42,7 @@
     "@owlmeans/resource": "^0.1.2",
     "@owlmeans/web-client": "^0.1.2",
     "@owlmeans/web-flow": "^0.1.2",
-    "oidc-client-ts": "^3.1.0"
+    "oidc-client-ts": "3.5.0"
   },
   "peerDependencies": {
     "@mui/material": "^7.*",

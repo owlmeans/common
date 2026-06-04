@@ -63,8 +63,8 @@
     "@owlmeans/server-module": "^0.1.2",
     "@scure/base": "^1.1.9",
     "dayjs": "^1.11.13",
-    "jose": "^5.9.6",
-    "openid-client": "^6.1.1"
+    "jose": "6.2.3",
+    "openid-client": "6.8.4"
   },
   "peerDependencies": {
     "ajv": "*"

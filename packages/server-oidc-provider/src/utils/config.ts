@@ -34,7 +34,7 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
     },
     jwks: {
       keys: [
-        await jose.exportJWK(await jose.importPKCS8(cfg.defaultKeys.RS256.pk, 'RS256'))
+        await jose.exportJWK(await jose.importPKCS8(cfg.defaultKeys.RS256.pk, 'RS256', { extractable: true }))
       ]
     }
   }

@@ -1,8 +1,7 @@
 import type { AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthenPayloadError } from '@owlmeans/auth'
-import type { Config, Context, OidcClientService, TokenSet } from '../types.js'
+import type { Config, Context, OidcClientService, OidcTokenSet } from '../types.js'
 import type { OidcProviderConfig } from '@owlmeans/oidc'
-import type { } from 'openid-client'
 import Url from 'url'
 import { cache, exchangeId, verifierId } from './cache.js'
 import { DEFAULT_ALIAS } from '../consts.js'
@@ -11,7 +10,7 @@ import { randomBytes } from '@noble/hashes/utils'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
 export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(context: T) =>
-  async (credential: AuthCredentials): Promise<[OidcProviderConfig, TokenSet, string]> => {
+  async (credential: AuthCredentials): Promise<[OidcProviderConfig, OidcTokenSet, string]> => {
     console.log('Challenge we got: ', credential.challenge)
     const challengeParts = credential.challenge.split(':http')
     // This is ex. source - url we were going to return user to after all it happens

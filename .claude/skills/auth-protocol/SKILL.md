@@ -171,3 +171,13 @@ The protocol exposes three natural mocking boundaries. The only allowed implemen
 3. **Fixture keys + envelopes.** `makeFixtureKeyPair(seed)` returns a deterministic `KeyPairModel`. `signMockEnvelope(msg, type, kind?, kp?)` produces a properly-signed envelope using a fixture key. `makeBearer(auth, kp?)` returns a header value `ED25519-BASIC-TOKEN <encoded>`.
 
 The protocol does **not** ship a fake JWKS server. For OIDC-end-to-end tests, exercise the real `makeOidcGuard` against an in-memory trusted resource and a fixture keypair. If a downstream test needs a hostable IdP fake, add it to `@owlmeans/test-auth` (don't roll one in a per-package `tests/`).
+
+## OIDC dependency boundary and pinned versions
+
+The OIDC packages wrap four upstream libraries. **No upstream type from those libraries is re-exported** through any `@owlmeans/*` package's public index. All public contracts use OwlMeans-owned types; the mapping layer is confined to each package's `src/service.ts`.
+
+Current exact pins (see [[oidc-versions]] for full upgrade checklist):
+- `oidc-provider@9.8.4` — in `@owlmeans/server-oidc-provider`
+- `jose@6.2.3` — in `server-oidc-provider` and `server-oidc-rp`
+- `openid-client@6.8.4` — in `@owlmeans/server-oidc-rp`
+- `oidc-client-ts@3.5.0` — in `@owlmeans/web-oidc-rp` and `@owlmeans/mui-oidc-rp`

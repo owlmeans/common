@@ -1,9 +1,9 @@
 import type { AuthSpent } from '@owlmeans/server-auth'
-import type { TokenSetParameters } from '../types.js'
+import type { OidcTokenSetParameters } from '../types.js'
 
 export interface OIDCAuthCache extends AuthSpent {
   verifier?: string
-  payload?: TokenSetParameters
+  payload?: OidcTokenSetParameters
   client?: string
   validated?: Date
   entityId?: string
