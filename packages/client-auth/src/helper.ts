@@ -1,8 +1,8 @@
 import { useContext, useNavigate } from '@owlmeans/client'
-import type { ClientModule } from '@owlmeans/client-module'
-import { provideRequest } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { provideRequest } from '@owlmeans/client-entrypoint'
 import { useWs as useWebSocket } from '@owlmeans/client-socket'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { AuthServiceAppend } from './types.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { ClientContext } from '@owlmeans/client-context'
@@ -12,12 +12,12 @@ import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
 // import { OidcAuthStep } from '@owlmeans/flow'
 
 export const useWs = (
-  module: string | ClientModule<any>, _request?: Partial<AbstractRequest<any>>
+  module: string | ClientEntrypoint<any>, _request?: Partial<AbstractRequest<any>>
 ) => {
   const ctx = useContext() as unknown as AuthServiceAppend & ClientContext
 
   const mod = useMemo(
-    () => typeof module === 'string' ? ctx.module<ClientModule>(module) : module, [module]
+    () => typeof module === 'string' ? ctx.entrypoint<ClientEntrypoint>(module) : module, [module]
   )
 
   const request = useMemo(() => {

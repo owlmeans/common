@@ -33,4 +33,4 @@ export const makeBackendContext = <C extends Config, T extends Context<C>>(cfg: 
 
 ## Depends On
 
-- `@owlmeans/context`, `@owlmeans/server-config`, `@owlmeans/server-module`, `@owlmeans/server-route`
+- `@owlmeans/context`, `@owlmeans/server-config`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`

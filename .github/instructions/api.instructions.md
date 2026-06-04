@@ -1,5 +1,5 @@
 ---
-description: "How to use @owlmeans/api — HTTP client service (axios-based) used to call modules across services."
+description: "How to use @owlmeans/api — HTTP client service (axios-based) used to call entrypoints across services."
 applyTo: "**/*.ts, **/*.tsx"
 ---
 

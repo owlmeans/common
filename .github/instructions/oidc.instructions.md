@@ -24,7 +24,7 @@ applyTo: "**/*.ts, **/*.tsx"
 
 ```typescript
 import { OIDC_GATE } from '@owlmeans/oidc'
-import { guard, gate } from '@owlmeans/module'
+import { guard, gate } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 
 guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
@@ -39,4 +39,4 @@ guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`

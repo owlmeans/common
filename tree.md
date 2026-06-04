@@ -44,7 +44,8 @@ Environment-agnostic primitives. Everything else builds on this layer. Within th
 - [`auth`](packages/auth) → `error`
 - [`resource`](packages/resource) → `context`, `error`
 - [`basic-keys`](packages/basic-keys) → `auth`
-- [`module`](packages/module) → `auth`, `context`, `route`
+- [`entrypoint`](packages/entrypoint) → `auth`, `context`, `route`
+- [`module`](packages/module) → `entrypoint` *(deprecated shim — re-exports `@owlmeans/entrypoint`)*
 - [`state`](packages/state) → `context`, `resource`
 - [`socket`](packages/socket) → `auth`, `basic-ids`, `error`
 - [`basic-envelope`](packages/basic-envelope) → `basic-keys`
@@ -57,26 +58,26 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 
 - [`queue`](packages/queue) → *(no `@owlmeans/*` deps — abstract interface)*
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
-- [`wled`](packages/wled) → `auth`, `module`, `route`
-- [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `error`, `i18n`, `module`, `resource`, `route`
-- [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `module`, `resource`, `route`
+- [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
+- [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `error`, `i18n`, `entrypoint`, `resource`, `route`
+- [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
 
 ## 4. Auth shared
 
-Sits between core and the server/client auth implementations. References both server-style and client-style module surfaces.
+Sits between core and the server/client auth implementations. References both server-style and client-style entrypoint surfaces.
 
-- [`auth-common`](packages/auth-common) → `auth`, `basic-ids`, `basic-keys`, `client-module`, `context`, `module`, `resource`, `route`
+- [`auth-common`](packages/auth-common) → `auth`, `basic-ids`, `basic-keys`, `client-entrypoint`, `context`, `entrypoint`, `resource`, `route`
 
-> **Note.** `auth-common` references `client-module` for typed module helpers shared by both server and client auth flows. This is a deliberate cross-layer dependency — see [Cross-layer notes](#cross-layer-notes).
+> **Note.** `auth-common` references `client-entrypoint` for typed entrypoint helpers shared by both server and client auth flows. This is a deliberate cross-layer dependency — see [Cross-layer notes](#cross-layer-notes).
 
 ## 5. API & API config
 
 HTTP client and the runtime API-config endpoint that lets clients discover backend services.
 
-- [`api`](packages/api) → `auth-common`, `client-config`, `client-route`, `config`, `context`, `error`, `module`, `route`
-- [`api-config`](packages/api-config) → `config`, `module`, `route`
-- [`api-config-client`](packages/api-config-client) → `api-config`, `client-context`, `client-module`, `context`
-- [`api-config-server`](packages/api-config-server) → `api-config`, `server-api`, `server-context`, `server-module`
+- [`api`](packages/api) → `auth-common`, `client-config`, `client-route`, `config`, `context`, `error`, `entrypoint`, `route`
+- [`api-config`](packages/api-config) → `config`, `entrypoint`, `route`
+- [`api-config-client`](packages/api-config-client) → `api-config`, `client-context`, `client-entrypoint`, `context`
+- [`api-config-server`](packages/api-config-server) → `api-config`, `server-api`, `server-context`, `server-entrypoint`
 
 ## 6. Storage & infrastructure
 
@@ -99,17 +100,18 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-route`](packages/server-route) → `context`, `route`
 - [`server-config`](packages/server-config) → `config`, `server-route`
 - [`server-context`](packages/server-context) → `client-config`, `config`, `context`, `route`, `server-config`
-- [`server-module`](packages/server-module) → `context`, `module`, `route`, `server-route`
-- [`server-api`](packages/server-api) → `api`, `auth`, `auth-common`, `context`, `error`, `module`, `route`, `server-context`, `server-module`
-- [`server-wl`](packages/server-wl) → `context`, `server-api`, `server-context`, `server-module`, `wled`
-- [`server-oidc-provider`](packages/server-oidc-provider) → `client-module`, `config`, `context`, `oidc`, `route`, `server-api`, `server-context`
-- [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `module`, `server-api`, `server-auth`, `server-context`, `server-module`, `socket`
-- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-module`, `config`, `context`, `kluster`, `module`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-module`, `server-route`, `server-socket`, `socket`, `static-resource`
+- [`server-entrypoint`](packages/server-entrypoint) → `context`, `entrypoint`, `route`, `server-route`
+- [`server-module`](packages/server-module) → `server-entrypoint` *(deprecated shim — re-exports `@owlmeans/server-entrypoint`)*
+- [`server-api`](packages/server-api) → `api`, `auth`, `auth-common`, `context`, `error`, `entrypoint`, `route`, `server-context`, `server-entrypoint`
+- [`server-wl`](packages/server-wl) → `context`, `server-api`, `server-context`, `server-entrypoint`, `wled`
+- [`server-oidc-provider`](packages/server-oidc-provider) → `client-entrypoint`, `config`, `context`, `oidc`, `route`, `server-api`, `server-context`
+- [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `entrypoint`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `socket`
+- [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
 - [`server-auth-identity`](packages/server-auth-identity) → `auth`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
-- [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-module`, `config`, `context`, `did`, `module`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-module`
-- [`server-app`](packages/server-app) → `api`, `client-config`, `client-module`, `config`, `context`, `kluster`, `module`, `route`, `server-api`, `server-auth`, `server-context`, `server-module`, `server-route`, `server-socket`, `static-resource`
+- [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
+- [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
 
-> **Note.** Several server packages depend on `client-config` / `client-module` for the shared module/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
+> **Note.** Several server packages depend on `client-config` / `client-entrypoint` for the shared entrypoint/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
 
 ## 8. Client packages (platform-agnostic)
 
@@ -120,15 +122,16 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 - [`client-context`](packages/client-context) → `api`, `client-config`, `config`, `context`, `i18n`, `route`
 - [`client-route`](packages/client-route) → `client-context`, `route`
 - [`client-resource`](packages/client-resource) → `client-context`, `context`, `resource`
-- [`client-module`](packages/client-module) → `api`, `client-config`, `client-context`, `client-route`, `config`, `context`, `error`, `module`, `route`
+- [`client-entrypoint`](packages/client-entrypoint) → `api`, `client-config`, `client-context`, `client-route`, `config`, `context`, `entrypoint`, `error`, `route`
+- [`client-module`](packages/client-module) → `client-entrypoint` *(deprecated shim — re-exports `@owlmeans/client-entrypoint`)*
 - [`client-i18n`](packages/client-i18n) → `client`, `client-context`, `i18n`
-- [`client`](packages/client) → `auth`, `client-context`, `client-module`, `client-resource`, `config`, `context`, `error`, `module`, `resource`, `router`, `state`
+- [`client`](packages/client) → `auth`, `client-context`, `client-entrypoint`, `client-resource`, `config`, `context`, `error`, `entrypoint`, `resource`, `router`, `state`
 - [`client-did`](packages/client-did) → `auth`, `client`, `client-context`, `client-resource`, `context`, `did`, `state`
-- [`client-flow`](packages/client-flow) → `auth-common`, `client`, `client-context`, `client-module`, `client-resource`, `config`, `context`, `error`, `flow`, `module`, `resource`, `route`
-- [`client-socket`](packages/client-socket) → `auth`, `basic-envelope`, `client`, `client-context`, `client-module`, `context`, `module`, `socket`
+- [`client-flow`](packages/client-flow) → `auth-common`, `client`, `client-context`, `client-entrypoint`, `client-resource`, `config`, `context`, `error`, `flow`, `entrypoint`, `resource`, `route`
+- [`client-socket`](packages/client-socket) → `auth`, `basic-envelope`, `client`, `client-context`, `client-entrypoint`, `context`, `entrypoint`, `socket`
 - [`client-payment`](packages/client-payment) → `client-auth`, `context`, `payment`
-- [`client-panel`](packages/client-panel) → `auth`, `client`, `client-auth`, `client-i18n`, `client-module`, `client-route`, `error`, `i18n`, `module`, `router`
-- [`client-auth`](packages/client-auth) → `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-flow`, `client-module`, `client-resource`, `client-socket`, `context`, `did`, `error`, `flow`, `module`, `resource`, `socket`, `web-flow`
+- [`client-panel`](packages/client-panel) → `auth`, `client`, `client-auth`, `client-i18n`, `client-entrypoint`, `client-route`, `error`, `i18n`, `entrypoint`, `router`
+- [`client-auth`](packages/client-auth) → `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-flow`, `client-entrypoint`, `client-resource`, `client-socket`, `context`, `did`, `error`, `flow`, `entrypoint`, `resource`, `socket`, `web-flow`
 
 > **Note.** `client-auth` declares `web-flow` as a peer dependency so that web apps can wire web-specific flow handling into the client auth manager. See [Cross-layer notes](#cross-layer-notes).
 
@@ -138,12 +141,12 @@ Browser-specific React (DOM, Material-UI, IndexedDB, react-router v7). Listed in
 
 - [`web-router`](packages/web-router) → `router`
 - [`web-db`](packages/web-db) → `client-context`, `client-resource`, `context`
-- [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-i18n`, `client-module`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
-- [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-flow`, `client-module`, `client-resource`, `context`, `error`, `flow`
+- [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-i18n`, `client-entrypoint`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
+- [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-flow`, `client-entrypoint`, `client-resource`, `context`, `error`, `flow`
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
-- [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `flow`, `module`, `oidc`, `resource`, `web-client`, `web-flow`
-- [`web-wl`](packages/web-wl) → `client`, `client-module`, `context`, `wled`
-- [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-route`, `config`, `context`, `error`, `flow`, `i18n`, `module`, `route`, `web-client`, `web-db`, `web-flow`, `web-router`
+- [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
+- [`web-wl`](packages/web-wl) → `client`, `client-entrypoint`, `context`, `wled`
+- [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-panel`, `client-route`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `route`, `web-client`, `web-db`, `web-flow`, `web-router`
 
 ## 10. Native packages (external monorepo)
 
@@ -162,10 +165,10 @@ These consume the platform-agnostic [client packages](#8-client-packages-platfor
 
 A handful of dependencies cross the obvious layer boundaries. They are intentional — record them here so they are not "fixed" by mistake:
 
-- **Strongly connected component (SCC) at level 5: `{api, auth-common, client-context, client-module, client-route}`.** These five packages have mutual `dependencies` references (e.g. `client-context → api → client-route → client-context`). They form a single connected unit and are compiled together. Treat them as one logical layer when reasoning about build order; reaching for one of them generally pulls the others in.
+- **Strongly connected component (SCC) at level 5: `{api, auth-common, client-context, client-entrypoint, client-route}`.** These five packages have mutual `dependencies` references (e.g. `client-context → api → client-route → client-context`). They form a single connected unit and are compiled together. Treat them as one logical layer when reasoning about build order; reaching for one of them generally pulls the others in.
 - **Strongly connected component at level 8: `{server-auth, server-socket}`.** `server-auth` declares `server-socket` as a dep, and `server-socket` declares `server-auth` as a dep. Same caveat as the level-5 SCC.
-- **`auth-common` → `client-module`.** `auth-common` exposes typed helpers for the shared auth modules in a form the client uses; the dependency surfaces the client-side helper types in the shared layer. (Part of the level-5 SCC above.)
-- **Several server packages → `client-config` / `client-module`.** The server mirrors the client's module/config types so that route declarations and config payloads stay in sync across the wire. Server packages do not pull in any DOM or React.
+- **`auth-common` → `client-entrypoint`.** `auth-common` exposes typed helpers for the shared auth entrypoints in a form the client uses; the dependency surfaces the client-side helper types in the shared layer. (Part of the level-5 SCC above.)
+- **Several server packages → `client-config` / `client-entrypoint`.** The server mirrors the client's entrypoint/config types so that route declarations and config payloads stay in sync across the wire. Server packages do not pull in any DOM or React.
 - **`client-auth` → `web-flow`.** Lets web applications wire `web-flow` into the platform-agnostic client auth manager. Native applications use a native flow analogue from the [`native` monorepo](https://github.com/owlmeans/native).
 
 If you add a new cross-layer dependency, document it here and explain why.
@@ -177,9 +180,11 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `context`, `dep-config`, `i18n`, `queue`
 - **L1**: `error`, `route`, `router`
 - **L2**: `auth`, `resource`, `server-route`, `web-router`
-- **L3**: `basic-keys`, `config`, `module`, `socket`, `state`, `static-resource`, `storage-common`
-- **L4**: `api-config`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-module`, `wled`
-- **L5**: `payment`, `server-context`, `{api | auth-common | client-context | client-module | client-route}`
+- **L3**: `basic-keys`, `config`, `entrypoint`, `socket`, `state`, `static-resource`, `storage-common`
+- **L4**: `api-config`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
+- **L4 (shims)**: `module`, `server-module` *(deprecated — each re-exports its canonical counterpart)*
+- **L5**: `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
+- **L5 (shim)**: `client-module` *(deprecated — re-exports `@owlmeans/client-entrypoint`)*
 - **L6**: `api-config-client`, `client-resource`, `kluster`, `mongo-resource`, `oidc`, `redis-resource`, `server-api`, `storage-resource`
 - **L7**: `api-config-server`, `client`, `image-resource`, `mongo`, `redis`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `web-wl`, `{server-auth | server-socket}`
@@ -209,16 +214,16 @@ Dependencies flow downward: every package can only import from the layers below 
  ║                                                                              ║
  ║  client-auth      client-panel    client-flow      client                   ║
  ║  client-socket    client-i18n     client-did       client-payment            ║
- ║  client-module ─┐                                                            ║
- ║  client-context  ├─ SCC (mutual refs)                                        ║
- ║  client-route  ──┘                                client-resource            ║
+ ║  client-entrypoint ─┐                                                        ║
+ ║  client-context     ├─ SCC (mutual refs)                                     ║
+ ║  client-route     ──┘                             client-resource             ║
  ║  client-config    client-wl                                                  ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  SERVER  (Node / Bun / Fastify)                                   L7–L9     ║
  ║                                                                              ║
  ║  server-app       server-auth ─┐                  server-api                ║
  ║  server-oidc-rp   server-socket┘ SCC              server-oidc-provider      ║
- ║  server-module    server-route   server-context   server-config              ║
+ ║  server-entrypoint  server-route  server-context   server-config             ║
  ║  server-wl                                                                   ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                         L6–L7     ║
@@ -233,7 +238,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  AUTH SHARED                                                          L5    ║
  ║                                                                              ║
- ║  auth-common  (bridges core auth ↔ server + client module surfaces)          ║
+ ║  auth-common  (bridges core auth ↔ server + client entrypoint surfaces)      ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CROSS-CUTTING DOMAIN  (environment-agnostic domain logic)        L4–L5     ║
  ║                                                                              ║
@@ -242,7 +247,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  CORE FOUNDATIONS  (environment-agnostic primitives)              L0–L4     ║
  ║                                                                              ║
  ║  context          error           auth             config          i18n      ║
- ║  route            router          module           resource        state     ║
+ ║  route            router          entrypoint       resource        state     ║
  ║  socket           did             basic-keys       basic-envelope            ║
  ║  basic-ids        static-resource storage-common                            ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -266,10 +271,10 @@ Dependencies flow downward: every package can only import from the layers below 
    L6  ████████ api-config-client  client-resource  kluster  mongo-resource
                 oidc  redis-resource  server-api  storage-resource
    L5  ████████ payment  server-context
-        █████████████ {api ↔ auth-common ↔ client-context ↔ client-module ↔ client-route}
+        █████████████ {api ↔ auth-common ↔ client-context ↔ client-entrypoint ↔ client-route}
    L4  ████████ api-config  basic-envelope  client-config  did  flow
-                server-config  server-module  wled
-   L3  ███████ basic-keys  config  module  socket  state  static-resource  storage-common
+                server-config  server-entrypoint  wled
+   L3  ████████ basic-keys  config  entrypoint  socket  state  static-resource  storage-common
    L2  ████ auth  resource  server-route  web-router
    L1  ███ error  route  router
    L0  ██████ basic-ids  client-wl  context  dep-config  i18n  queue
@@ -285,13 +290,13 @@ Dependencies flow downward: every package can only import from the layers below 
 server-app
 ├── server-auth ↔ server-socket  (L8 SCC — mutual ref)
 │   ├── server-api
-│   │   └── ╌╌ {api | auth-common | client-context | client-module | client-route}  (L5 SCC)
+│   │   └── ╌╌ {api | auth-common | client-context | client-entrypoint | client-route}  (L5 SCC)
 │   │             └── client-config ← config ← auth ← error ← i18n
 │   ├── basic-keys ← auth ← error
 │   ├── redis-resource ← server-context ← server-config ← config
 │   └── socket ← auth
 ├── server-api  (see above)
-├── server-module ← module ← auth
+├── server-entrypoint ← entrypoint ← auth
 ├── server-route  ← route ← context
 ├── server-context ← server-config ← config
 ├── kluster ← server-context
@@ -301,7 +306,7 @@ web-panel
 ├── web-client  (L11)
 │   ├── client-auth  (L10)
 │   │   ├── client  (L7)
-│   │   │   ├── ╌╌ {client-module | client-context | ...}  (L5 SCC)
+│   │   │   ├── ╌╌ {client-entrypoint | client-context | ...}  (L5 SCC)
 │   │   │   ├── router ← context
 │   │   │   └── state ← resource ← context
 │   │   ├── client-flow  (L8)

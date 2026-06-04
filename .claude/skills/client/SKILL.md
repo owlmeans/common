@@ -38,6 +38,6 @@ navigateTo('/projects')
 
 ## Depends On
 
-- `@owlmeans/client-context`, `@owlmeans/client-module`, `@owlmeans/client-route`
+- `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `@owlmeans/client-route`
 - `@owlmeans/router`, `@owlmeans/auth-common`
 - `react` (peer)

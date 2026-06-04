@@ -27,10 +27,10 @@ user-invocable: false
 
 ```typescript
 import { route, frontend, RouteMethod } from '@owlmeans/route'
-import { module } from '@owlmeans/module'
+import { entrypoint } from '@owlmeans/entrypoint'
 
 // Server route
-module(
+entrypoint(
   route(manager.back.project.create, '/create', {
     parent: manager.back.project.base,
     method: RouteMethod.POST,
@@ -38,7 +38,7 @@ module(
 )
 
 // Web route — frontend() marks it as a React page
-module(
+entrypoint(
   route(HOME, '/', frontend({ default: true, parent: BASE }))
 )
 ```

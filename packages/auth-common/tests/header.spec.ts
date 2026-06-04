@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
 import { AUTH_HEADER, AuthroizationType } from '@owlmeans/auth'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 
 const reqWith = (header: string | undefined): Partial<AbstractRequest> => ({
   headers: header == null ? {} : { [AUTH_HEADER]: header },

@@ -1,5 +1,5 @@
 import { createLazyService } from '@owlmeans/context'
-import type { GateService } from '@owlmeans/module'
+import type { GateService } from '@owlmeans/entrypoint'
 import { OIDC_GATE } from '@owlmeans/oidc'
 import type { Config, Context } from './types.js'
 import { AuthForbidden } from '@owlmeans/auth'

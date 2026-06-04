@@ -1,7 +1,7 @@
 import { createService } from '@owlmeans/context'
 import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService } from './types.js'
 import { OIDC_GUARD, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
-import type { AbstractRequest, AbstractResponse, CommonModule, GuardService } from '@owlmeans/module'
+import type { AbstractRequest, AbstractResponse, CommonEntrypoint, GuardService } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { AUTH_HEADER, type Auth, AuthToken, AuthorizationError } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -112,7 +112,7 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return context
 }
 
-export const setupOidcGuard = (modules: CommonModule[], coguards?: string | string[]) => {
+export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[]) => {
   modules.push(...oidcModules)
   coguards = Array.isArray(coguards) ? coguards : [coguards ?? DEFAULT_GUARD]
 

@@ -34,11 +34,11 @@
     "@owlmeans/auth": "^0.1.2",
     "@owlmeans/basic-envelope": "^0.1.2",
     "@owlmeans/context": "^0.1.2",
-    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/entrypoint": "^0.1.2",
     "@owlmeans/server-api": "^0.1.2",
     "@owlmeans/server-auth": "^0.1.2",
     "@owlmeans/server-context": "^0.1.2",
-    "@owlmeans/server-module": "^0.1.2",
+    "@owlmeans/server-entrypoint": "^0.1.2",
     "@owlmeans/socket": "^0.1.2"
   },
   "publishConfig": {

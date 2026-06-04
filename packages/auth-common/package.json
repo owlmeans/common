@@ -33,9 +33,9 @@
     "@owlmeans/auth-common": "^0.1.2",
     "@owlmeans/basic-ids": "^0.1.2",
     "@owlmeans/basic-keys": "^0.1.2",
-    "@owlmeans/client-module": "^0.1.2",
+    "@owlmeans/client-entrypoint": "^0.1.2",
     "@owlmeans/context": "^0.1.2",
-    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/entrypoint": "^0.1.2",
     "@owlmeans/resource": "^0.1.2",
     "@owlmeans/route": "^0.1.2"
   },

@@ -82,14 +82,14 @@ For apps that use OIDC/Google only as a login provider and then authorize agains
 
 ## Guard interface
 
-`packages/module/src/types.ts:72`:
+`packages/entrypoint/src/types.ts:72`:
 
 ```ts
 export interface GuardService extends InitializedService {
   token?: string                                           // client-side
   authenticated: (req?: Partial<AbstractRequest>) => Promise<string | null>
-  match: ModuleMatch                                       // server-side
-  handle: ModuleHandler
+  match: EntrypointMatch                                   // server-side
+  handle: EntrypointHandler
 }
 ```
 

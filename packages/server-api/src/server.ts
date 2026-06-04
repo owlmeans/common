@@ -3,10 +3,10 @@ import type { ApiServer, ApiServerAppend } from './types.js'
 import { Layer, assertContext, createService } from '@owlmeans/context'
 import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
-import type { ServerModule } from '@owlmeans/server-module'
+import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler, fixFormatDates } from './utils/index.js'
-import { provideResponse } from '@owlmeans/module'
+import { provideResponse } from '@owlmeans/entrypoint'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
 
 import Fastify from 'fastify'
@@ -108,7 +108,7 @@ export const createApiServer = (alias: string): ApiServer => {
     server.addHook('preHandler', async (request, reply) => {
       const context = _assertContext(service.ctx as Context);
       // We pass context further using fastify request object
-      (request as any)._ctx = await context.modules<ServerModule<FastifyRequest>>().filter(
+      (request as any)._ctx = await context.entrypoints<ServerEntrypoint<FastifyRequest>>().filter(
         module => canServeModule(context, module) && module.route.isIntermediate()
       ).reduce<Promise<Context>>(async (promise, module) => {
         let context = await promise
@@ -134,7 +134,7 @@ export const createApiServer = (alias: string): ApiServer => {
     })
 
     await Promise.all(
-      context.modules<ServerModule<FastifyRequest>>()
+      context.entrypoints<ServerEntrypoint<FastifyRequest>>()
         .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
         .map(async module => {
           // await module.route.resolve(context as any)

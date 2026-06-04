@@ -1,6 +1,6 @@
 import { DISPATCHER } from '@owlmeans/auth'
 import { handler } from '@owlmeans/client'
-import type { CommonModule } from '@owlmeans/module'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import type { OidcGuardOptions } from '@owlmeans/oidc'
 import {
   appendOidcGuard as appendBasicOidcGuard,
@@ -23,7 +23,7 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-export const setupOidcGuard = (modules: CommonModule[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
+export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
   const DispatcherCom = extras ? parametriseDispatcher(extras, Dispatcher) : Dispatcher
 
   setupBasicOidcGuard(modules, coguards)

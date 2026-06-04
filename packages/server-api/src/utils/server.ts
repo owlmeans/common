@@ -1,10 +1,10 @@
 import { AppType } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { assertContext } from '@owlmeans/context'
-import type { FixerService, ServerModule } from '@owlmeans/server-module'
-import type { CommonModule } from '@owlmeans/module'
-import type { GateService } from '@owlmeans/module'
-import { provideResponse } from '@owlmeans/module'
+import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import type { GateService } from '@owlmeans/entrypoint'
+import { provideResponse } from '@owlmeans/entrypoint'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
@@ -16,7 +16,7 @@ import { RouteProtocols } from '@owlmeans/route'
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
-export const canServeModule = (context: Context, module: CommonModule): module is ServerModule<unknown> => {
+export const canServeModule = (context: Context, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
   if (module.route.route.type !== AppType.Backend) {
     return false
   }
@@ -30,7 +30,7 @@ export const canServeModule = (context: Context, module: CommonModule): module i
   return 'isIntermediate' in module.route
 }
 
-export const createServerHandler = (module: ServerModule<FastifyRequest>, location: string) =>
+export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, location: string) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     // We passed context using fastify request object
     let context = assertContext<Config, Context>((req as any)._ctx, location)

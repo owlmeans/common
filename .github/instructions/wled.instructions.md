@@ -26,4 +26,4 @@ cfg.storageBuckets = { [WL_BUCKET]: { url: '...', apiKey: '...', basePrefix: WL_
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth-common`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth-common`

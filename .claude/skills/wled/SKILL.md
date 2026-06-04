@@ -32,4 +32,4 @@ Server side wires the module declarations through `@owlmeans/server-wl`; web sid
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth-common`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth-common`

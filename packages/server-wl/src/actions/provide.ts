@@ -1,10 +1,10 @@
-import type { RefedModuleHandler } from '@owlmeans/server-module'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { handleParams } from '@owlmeans/server-api'
 import type { Context, WlEntityIdentifier, WlProvider } from '../types.js'
 import { assertContext } from '@owlmeans/context'
 import type { ProvideParams } from '@owlmeans/wled'
 
-export const provide: RefedModuleHandler = handleParams<ProvideParams>(
+export const provide: RefedEntrypointHandler = handleParams<ProvideParams>(
   async (params, ctx) => {
     const context = assertContext(ctx, 'provide') as Context
 

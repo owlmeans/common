@@ -1,4 +1,4 @@
-import type { RefedModuleHandler } from '@owlmeans/server-module'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { handleBody } from '@owlmeans/server-api'
 import type { OIDCClientAuthPayload } from '@owlmeans/oidc'
 import { OIDC_WRAPPED_TOKEN } from '@owlmeans/oidc'
@@ -30,7 +30,7 @@ import { wrapper } from '../utils/wrapped.js'
  * 
  * ! There is also token renewal mechanism that should be implemented nearby.
  */
-export const authenticate: RefedModuleHandler = handleBody(async (
+export const authenticate: RefedEntrypointHandler = handleBody(async (
   { authUrl, ...params }: OIDCClientAuthPayload,
   ctx
 ) => {

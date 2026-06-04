@@ -38,4 +38,4 @@ setupExternalAuthentication(AUTH_WEB)
 
 ## Depends On
 
-- `@owlmeans/auth`, `@owlmeans/auth-common`, `@owlmeans/client-context`, `@owlmeans/client-module`, `react`
+- `@owlmeans/auth`, `@owlmeans/auth-common`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `react`

@@ -25,12 +25,12 @@ applyTo: "**/*.ts, **/*.tsx"
 ## Usage
 
 ```typescript
-import { module, guard, gate } from '@owlmeans/module'
+import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { OIDC_GATE } from '@owlmeans/oidc'
 
-module(
+entrypoint(
   route(manager.back.account.base, '/account'),
   guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
 )
@@ -46,4 +46,4 @@ module(
 ## Depends On
 
 - `@owlmeans/auth` — types and errors
-- `@owlmeans/module` — module/guard/gate helpers
+- `@owlmeans/entrypoint` — entrypoint/guard/gate helpers

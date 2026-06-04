@@ -33,4 +33,4 @@ const context = makeClientContext<Config, Context>(cfg)
 
 ## Depends On
 
-- `@owlmeans/context`, `@owlmeans/client-config`, `@owlmeans/client-module`, `@owlmeans/client-route`
+- `@owlmeans/context`, `@owlmeans/client-config`, `@owlmeans/client-entrypoint`, `@owlmeans/client-route`

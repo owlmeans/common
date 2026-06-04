@@ -27,9 +27,9 @@ Security-first TypeScript monorepo framework for fullstack applications with mic
 When working on a package, identify its layer: **Core → Server/Client → Web**
 
 - **Configuration**: `dep-config` — shared TypeScript configs for all packages
-- **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `module`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-module`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
-- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-module`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
+- **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
 - **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl` — current MUI-based packages; a new shadcn UI + Tailwind v4 family is being introduced alongside (wraps `client-panel`, uses the `@` app-provides contract — see `shadcn-web` skill)
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `redis`, `redis-resource`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
@@ -56,4 +56,4 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **shadcn UI + Tailwind v4 web packages**: skill at `.claude/skills/shadcn-web/SKILL.md` (development & maintenance, the `@` alias contract, Tailwind wiring, MUI→shadcn mapping) + `.claude/skills/shadcn-versions/SKILL.md` (version management). `testing-ui` skill covers Playwright tests for shadcn packages.
 - **Auth protocol and local identity**: skills at `.claude/skills/auth-protocol/SKILL.md` and `.claude/skills/server-auth-identity/SKILL.md`
 - **OIDC/OAuth dependency versions**: skill at `.claude/skills/oidc-versions/SKILL.md` — exact-pin policy, upgrade checklists for oidc-provider, jose, openid-client, oidc-client-ts, isolation principle, downstream verification
-- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.claude/skills/<package-name>/SKILL.md` (e.g. `server-app`, `module`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — auto-invoked when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).
+- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.claude/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `redis`, `kluster`, etc.) — auto-invoked when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).

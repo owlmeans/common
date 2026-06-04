@@ -2,7 +2,7 @@ import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import type { Auth } from '@owlmeans/auth'
-import type { AbstractRequest, AbstractResponse, GuardService } from '@owlmeans/module'
+import type { AbstractRequest, AbstractResponse, GuardService } from '@owlmeans/entrypoint'
 
 export interface MockGuardOptions {
   alias?: string

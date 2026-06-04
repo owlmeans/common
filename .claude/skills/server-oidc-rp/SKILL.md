@@ -79,6 +79,6 @@ Upstream `openid-client` types are imported **only** in `src/service.ts`; mappin
 
 ## Depends On
 
-- `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-module`
+- `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-entrypoint`
 - `@owlmeans/auth-common`, `@owlmeans/basic-keys`
 - `openid-client@6.8.4` (exact), `jose@6.2.3` (exact) — see [[oidc-versions]]

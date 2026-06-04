@@ -15,7 +15,7 @@ user-invocable: false
 |--------|-------------|
 | `paymentApi` | Service alias tree for payment endpoints (e.g. `paymentApi.service.checkout.session.external.create`) |
 | `Payment`, `Checkout` types | Domain model shapes |
-| `paymentModules` | Module declarations to spread into `appModules` |
+| `paymentModules` | Entrypoint declarations to spread into `appModules` |
 | Errors | Typed payment errors |
 | Constants | Payment service aliases |
 | `model` submodule | Reusable payment models |
@@ -27,17 +27,17 @@ user-invocable: false
 
 ## Usage
 
-Spread the modules into your app, then call them via `ctx.module(paymentApi....)`:
+Spread the entrypoints into your app, then call them via `ctx.entrypoint(paymentApi....)`:
 
 ```typescript
 import { paymentApi, paymentModules } from '@owlmeans/payment'
 import type { CreateCheckoutResponse } from '@owlmeans/payment'
-import type { ClientModule } from '@owlmeans/module'
+import type { ClientEntrypoint } from '@owlmeans/entrypoint'
 
 export const appModules = [...modules, ...paymentModules]
 
 // In a handler:
-const [result] = await ctx.module<ClientModule<CreateCheckoutResponse>>(
+const [result] = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
   paymentApi.service.checkout.session.external.create
 ).call({
   body: { productSku: 'tokens', entityId, service: VIB_ALIAS, successUrl: helper.makeUrl(service) }
@@ -46,5 +46,5 @@ const [result] = await ctx.module<ClientModule<CreateCheckoutResponse>>(
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`
+- `@owlmeans/entrypoint`, `@owlmeans/route`
 - `@owlmeans/auth`, `@owlmeans/error`, `@owlmeans/i18n`

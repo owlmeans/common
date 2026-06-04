@@ -48,7 +48,7 @@ const url = helper.makeUrl(module.route.route, '/callback', { host, base })
 // => "https://api.example.com/callback"
 ```
 
-On the client side, prefer calling `context.module<ClientModule<string>>(alias).call({ full: true })` which internally uses `makeSecurityHelper` — see `@owlmeans/client-module` instructions.
+On the client side, prefer calling `context.entrypoint<ClientEntrypoint<string>>(alias).call({ full: true })` which internally uses `makeSecurityHelper` — see `@owlmeans/client-entrypoint` instructions.
 
 ## Depends On
 

@@ -21,10 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.2",
-    "@owlmeans/module": "^0.1.2",
-    "@owlmeans/route": "^0.1.2",
-    "@owlmeans/server-route": "^0.1.2"
+    "@owlmeans/server-entrypoint": "^0.1.2"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

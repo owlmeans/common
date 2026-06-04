@@ -1,7 +1,7 @@
 import type { ClientContext, Navigator } from '@owlmeans/client'
 import type { ClientConfig } from '@owlmeans/client-context'
-import type { ClientModule } from '@owlmeans/client-module'
-import { module, stab } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { entrypoint, stab } from '@owlmeans/client-entrypoint'
 import type { ResolvedServiceRoute } from '@owlmeans/route'
 import { route, frontend } from '@owlmeans/route'
 import { FlowStepMissconfigured, FlowTargetError, TARGET_SERVICE } from '@owlmeans/flow'
@@ -87,17 +87,17 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
         { ...previous, ...req?.params, ...req?.query } as Record<string, string>
       )
 
-      let redirectTo: ClientModule<string>
+      let redirectTo: ClientEntrypoint<string>
       // @TODO Properly use target service - as a way to build the redirect URL
       if (step.service === TARGET_SERVICE) {
-        context.registerModule(module(
+        context.registerEntrypoint(entrypoint(
           route(REHACK_MOD, DISPATCHER_PATH, frontend({ service: model.state().service })), stab
         ))
-        redirectTo = context.module<ClientModule<string>>(REHACK_MOD)
+        redirectTo = context.entrypoint<ClientEntrypoint<string>>(REHACK_MOD)
         await redirectTo.resolve()
         step.module = REHACK_MOD
       } else {
-        redirectTo = context.module<ClientModule>(step.module)
+        redirectTo = context.entrypoint<ClientEntrypoint>(step.module)
       }
 
       const [url] = await redirectTo.call<string>(req)

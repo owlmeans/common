@@ -2,7 +2,7 @@ import type { FC, PropsWithChildren } from 'react'
 import type { RoutedComponent } from '@owlmeans/client'
 import type { AuthToken } from '@owlmeans/auth'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { FlowPayload } from '@owlmeans/flow'
 
 export interface DispatcherProps {

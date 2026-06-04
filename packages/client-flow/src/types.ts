@@ -1,7 +1,7 @@
 
 import type { LazyService } from '@owlmeans/context'
 import type { FlowConfig, FlowModel, FlowProvider, FlowState, FlowTransition } from '@owlmeans/flow'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { ResolvedServiceRoute } from '@owlmeans/route'
 import type { ClientResource } from '@owlmeans/client-resource'

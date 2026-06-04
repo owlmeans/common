@@ -3,7 +3,7 @@ import type { I18nProps } from '@owlmeans/client-i18n'
 import type { BlockScaling } from '@owlmeans/client-panel'
 import type { FC, PropsWithChildren } from 'react'
 import type { TypographyOwnProps } from '@mui/material'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 
 export interface BlockProps extends PropsWithChildren<I18nProps> {
   horizontal?: BlockScaling
@@ -22,7 +22,7 @@ export interface TextProps extends PropsWithChildren<I18nProps> {
 
 export interface LinkProps extends TextProps {
   src?: string
-  module?: string | ClientModule
+  module?: string | ClientEntrypoint
   open?: boolean
 }
 

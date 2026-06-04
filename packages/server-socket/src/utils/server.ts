@@ -1,10 +1,10 @@
-import type { CommonModule } from '@owlmeans/module'
-import type { ServerModule } from '@owlmeans/server-module'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { RouteProtocols } from '@owlmeans/route'
 import { AppType } from '@owlmeans/context'
 import type { Context } from '@owlmeans/server-api'
 
-export const canServerModule = (context: Context, module: CommonModule): module is ServerModule<unknown> => {
+export const canServerModule = (context: Context, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
   if (module.route.route.type !== AppType.Backend) {
     return false
   }

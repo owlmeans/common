@@ -1,4 +1,4 @@
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { Config, Context, ProvidedWLSet, WlWebService } from './types.js'
 import { createService } from '@owlmeans/context'
@@ -16,7 +16,7 @@ export const makeWlService = (alias: string = DEFAULT_ALIAS): WlWebService => {
 
       const context = service.assertCtx<Config, Context>()
 
-      const module = context.module<ClientModule<ProvidedWLSet>>(WL_PROVIDE)
+      const module = context.entrypoint<ClientEntrypoint<ProvidedWLSet>>(WL_PROVIDE)
       const [wlSet] = await module.call({ params: { entity: entityId } })
 
       return cache[entityId] = wlSet as ProvidedWLSet<any>

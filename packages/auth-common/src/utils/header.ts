@@ -1,5 +1,5 @@
 import { AUTH_HEADER, AuthroizationType } from '@owlmeans/auth'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 
 export const extractAuthToken = (
   req: Partial<AbstractRequest>, 

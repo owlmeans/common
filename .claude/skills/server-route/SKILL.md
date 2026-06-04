@@ -20,7 +20,7 @@ user-invocable: false
 
 ## Usage
 
-This package is typically used internally by `@owlmeans/server-app` and `@owlmeans/server-module`. Import directly only for custom routing.
+This package is typically used internally by `@owlmeans/server-app` and `@owlmeans/server-entrypoint`. Import directly only for custom routing.
 
 ```typescript
 import { resolveServerRoute } from '@owlmeans/server-route'

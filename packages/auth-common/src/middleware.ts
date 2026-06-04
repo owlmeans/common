@@ -1,15 +1,15 @@
 import type { Middleware } from '@owlmeans/context'
 import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
-import { provideRequest } from '@owlmeans/client-module'
-import type { ClientModule } from '@owlmeans/client-module'
+import { provideRequest } from '@owlmeans/client-entrypoint'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { AUTH_HEADER } from '@owlmeans/auth'
-import type { AbstractRequest, GuardService } from '@owlmeans/module'
+import type { AbstractRequest, GuardService } from '@owlmeans/entrypoint'
 
 export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
   stage: MiddlewareStage.Loading,
   apply: async context => {
-    context.modules<Perked>().forEach(module => {
+    context.entrypoints<Perked>().forEach(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards = module.getGuards()
         if (guards.length > 0) {
@@ -45,6 +45,6 @@ export const authMiddleware: Middleware = {
   }
 }
 
-interface Perked extends ClientModule<unknown> {
+interface Perked extends ClientEntrypoint<unknown> {
   _auth_common_middleware_applied?: boolean
 }

@@ -28,4 +28,4 @@ const appModules = [...apiConfigModules, ...myModules]
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/config`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/config`

@@ -24,4 +24,4 @@ export const appModules = [...modules, ...apiConfigServerModules, ...managerModu
 
 ## Depends On
 
-- `@owlmeans/api-config`, `@owlmeans/server-module`, `@owlmeans/server-context`
+- `@owlmeans/api-config`, `@owlmeans/server-entrypoint`, `@owlmeans/server-context`

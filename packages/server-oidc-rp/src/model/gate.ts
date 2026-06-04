@@ -4,7 +4,7 @@ import type { Config, Context, OidcClientService } from '../types.js'
 import { cache, managedId } from '../utils/cache.js'
 import type { GateModel, PermissionRequest, PermissionResponse } from './types.js'
 import { ResponseMode } from './consts.js'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { OidcProviderDescriptor } from '@owlmeans/oidc'
 
 export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T): GateModel => {
@@ -18,7 +18,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
         })
       } catch (e) {
         if (e instanceof AuthManagerError) {
-          const [providers] = await ctx.module<ClientModule<OidcProviderDescriptor[]>>(
+          const [providers] = await ctx.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
             authService.provider.list
           ).call({
             params: { service: ctx.cfg.alias ?? ctx.cfg.service },

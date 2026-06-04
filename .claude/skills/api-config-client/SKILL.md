@@ -20,9 +20,9 @@ user-invocable: false
 
 ```typescript
 import { modules as apiConfigClientModules } from '@owlmeans/api-config-client'
-context.registerModules([...apiConfigClientModules, ...appModules])
+context.registerEntrypoints([...apiConfigClientModules, ...appModules])
 ```
 
 ## Depends On
 
-- `@owlmeans/api-config`, `@owlmeans/client-module`, `@owlmeans/client-context`
+- `@owlmeans/api-config`, `@owlmeans/client-entrypoint`, `@owlmeans/client-context`

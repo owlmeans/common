@@ -55,4 +55,4 @@ cfg.oidc.providers.push({
 
 ## Depends On
 
-- `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-module`, `@owlmeans/auth-common`, `@owlmeans/basic-keys`
+- `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/auth-common`, `@owlmeans/basic-keys`

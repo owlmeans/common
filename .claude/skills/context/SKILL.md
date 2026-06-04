@@ -1,6 +1,6 @@
 ---
 name: context
-description: How to use @owlmeans/context — base context (DI container) factory, registerService(), service<T>() lookups, module<ClientModule<T>>() resolution. Auto-invoked when importing context primitives or building a makeContext factory.
+description: How to use @owlmeans/context — base context (DI container) factory, registerService(), service<T>() lookups, entrypoint<ClientEntrypoint<T>>() resolution. Auto-invoked when importing context primitives or building a makeContext factory.
 user-invocable: false
 ---
 
@@ -17,9 +17,9 @@ user-invocable: false
 | `makeBasicContext` | Low-level factory — usually you extend a layer-specific factory instead |
 | `registerService` (method) | Add a service to the DI container |
 | `service<T>(alias)` (method) | Resolve a service by alias |
-| `module<ClientModule<T>>(alias)` (method) | Resolve a module to call cross-service |
+| `entrypoint<ClientEntrypoint<T>>(alias)` (method) | Resolve an entrypoint to call cross-service |
 | `Service` types | Service interface and lifecycle |
-| Constants | Built-in service/module aliases |
+| Constants | Built-in service/entrypoint aliases |
 
 ## Usage
 
@@ -36,12 +36,12 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 }
 ```
 
-Resolve services and call cross-service modules from a handler:
+Resolve services and call cross-service entrypoints from a handler:
 
 ```typescript
 const someService = ctx.service<MyService>(MY_SERVICE_ALIAS)
 
-const [response] = await ctx.module<ClientModule<ResponseType>>(
+const [response] = await ctx.entrypoint<ClientEntrypoint<ResponseType>>(
   externalService.action.alias
 ).call({ body: { ... } })
 ```
@@ -49,4 +49,4 @@ const [response] = await ctx.module<ClientModule<ResponseType>>(
 ## Depends On
 
 - `@owlmeans/config` — context is parameterized by a Config
-- `@owlmeans/module` — `ClientModule<T>` type for cross-service calls
+- `@owlmeans/entrypoint` — `ClientEntrypoint<T>` type for cross-service calls

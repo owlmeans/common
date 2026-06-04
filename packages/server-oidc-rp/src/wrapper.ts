@@ -8,7 +8,7 @@ import { cache, managedId } from './utils/cache.js'
 import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
 import { authService, DEFAULT_ALIAS, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
@@ -38,8 +38,8 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
 
         record.validated = new Date()
 
-        if (ctx.hasModule(authService.auth.update)) {
-          const [update] = await ctx.module<ClientModule<OIDCTokenUpdate>>(authService.auth.update)
+        if (ctx.hasEntrypoint(authService.auth.update)) {
+          const [update] = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
             .call({ body: { token, tokenSet: record.payload } })
 
           const updateEnvelope = makeEnvelopeModel<AuthCredentials>(update.token, EnvelopeKind.Token)

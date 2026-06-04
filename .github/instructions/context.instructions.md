@@ -1,5 +1,5 @@
 ---
-description: "How to use @owlmeans/context — base context (DI container) factory, registerService, service<T>() lookups, module<ClientModule<T>>() resolution. Use when building a makeContext factory."
+description: "How to use @owlmeans/context — base context (DI container) factory, registerService, service<T>() lookups, entrypoint<ClientEntrypoint<T>>() resolution. Use when building a makeContext factory."
 applyTo: "**/context.ts, **/context.tsx, **/*.ts, **/*.tsx"
 ---
 
@@ -14,9 +14,9 @@ applyTo: "**/context.ts, **/context.tsx, **/*.ts, **/*.tsx"
 |--------|-------------|
 | `Context<C>` types | Generic context interface |
 | `makeBasicContext` | Low-level factory |
-| `registerService`, `service<T>`, `module<ClientModule<T>>` | Methods on every Context |
+| `registerService`, `service<T>`, `entrypoint<ClientEntrypoint<T>>` | Methods on every Context |
 | `Service` types | Service interface and lifecycle |
-| Constants | Built-in service/module aliases |
+| Constants | Built-in service/entrypoint aliases |
 
 ## Usage
 
@@ -31,10 +31,10 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 }
 
 // Cross-service call
-const [response] = await ctx.module<ClientModule<ResponseType>>(alias).call({ body: { ... } })
+const [response] = await ctx.entrypoint<ClientEntrypoint<ResponseType>>(alias).call({ body: { ... } })
 ```
 
 ## Depends On
 
 - `@owlmeans/config` — context is parameterized by a Config
-- `@owlmeans/module` — `ClientModule<T>` for cross-service calls
+- `@owlmeans/entrypoint` — `ClientEntrypoint<T>` for cross-service calls

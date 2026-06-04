@@ -24,4 +24,4 @@ export const appModules = [...modules, ...wlModules, ...managerModules]
 
 ## Depends On
 
-- `@owlmeans/wled`, `@owlmeans/server-module`, `@owlmeans/server-route`
+- `@owlmeans/wled`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`

@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.2",
-    "@owlmeans/module": "^0.1.2",
+    "@owlmeans/entrypoint": "^0.1.2",
     "@owlmeans/route": "^0.1.2"
   },
   "devDependencies": {

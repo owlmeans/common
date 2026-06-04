@@ -14,7 +14,7 @@ applyTo: "**/*.ts, **/*.tsx"
 |--------|-------------|
 | `paymentApi` | Service alias tree |
 | `Payment`, `Checkout` types | Domain shapes |
-| `paymentModules` | Modules to spread into `appModules` |
+| `paymentModules` | Entrypoints to spread into `appModules` |
 | Errors | Typed payment errors |
 | Constants | Payment service aliases |
 | `model` submodule | Reusable payment models |
@@ -30,11 +30,11 @@ import { paymentApi, paymentModules } from '@owlmeans/payment'
 
 export const appModules = [...modules, ...paymentModules]
 
-const [result] = await ctx.module<ClientModule<CreateCheckoutResponse>>(
+const [result] = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
   paymentApi.service.checkout.session.external.create
 ).call({ body: { productSku: 'tokens', entityId, successUrl } })
 ```
 
 ## Depends On
 
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`, `@owlmeans/i18n`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`, `@owlmeans/i18n`

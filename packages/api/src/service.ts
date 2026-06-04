@@ -4,7 +4,7 @@ import { extractParams } from '@owlmeans/client-route'
 import type { ApiClient } from './types.js'
 import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
-import type { CommonModule } from '@owlmeans/module'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { DEFAULT_ALIAS } from './consts.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
@@ -27,7 +27,7 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         return
       }
       const context = assertContext<Config, Context>(client.ctx, location)
-      const module = context.module<CommonModule>(request.alias)
+      const module = context.entrypoint<CommonEntrypoint>(request.alias)
       await module.resolve()
       const route = module.route.route
       let path = module.getPath()

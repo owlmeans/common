@@ -5,7 +5,7 @@ import { authMiddleware } from '@owlmeans/auth-common'
 import type { AuthServiceAppend } from '@owlmeans/client-auth'
 import { DEFAULT_ALIAS, makeAuthService } from '@owlmeans/client-auth'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { logoutMiddleware } from './middleware.js'
 
 export const makeAuthWebService = (alias: string = DEFAULT_ALIAS): AuthService => {
@@ -15,7 +15,7 @@ export const makeAuthWebService = (alias: string = DEFAULT_ALIAS): AuthService =
   service.update = async token => {
     await update(token)
     if (token == null) {
-      const module = service.assertCtx().module<ClientModule<string>>(DISPATCHER)
+      const module = service.assertCtx().entrypoint<ClientEntrypoint<string>>(DISPATCHER)
       const [url] = await module.call()
       document.location.href = url
     }

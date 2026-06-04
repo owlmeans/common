@@ -12,14 +12,14 @@ applyTo: "**/*.ts, **/*.tsx"
 
 | Export | Description |
 |--------|-------------|
-| `main<E, C, T>(context, modules)` | Entry point — boots Express, registers modules |
+| `main<E, C, T>(context, modules)` | Entry point — boots Express, registers entrypoints |
 | `handleRequest(fn)` | Wrap a server handler `(req, context) => result` |
 | `handleBody<T>(fn)` | Wrap with validated body — `(payload, context, req) => result` |
-| `elevate(modules, alias, handler)` | Attach handler to a module declaration |
+| `elevate(modules, alias, handler)` | Attach handler to an entrypoint declaration |
 | `celevate(modules, alias, handler)` | Conditional elevate |
 | `sservice(options, cfg)` | Register a server-side service in the config |
-| `modules` | Built-in system modules to spread |
-| `Context`, `Config`, `ClientModule` re-exports | Common types |
+| `modules` | Built-in system entrypoints to spread |
+| `Context`, `Config`, `ClientEntrypoint` re-exports | Common types |
 
 ## Usage
 
@@ -44,5 +44,5 @@ export const appModules = [...modules, ...managerModules]
 
 ## Depends On
 
-- `@owlmeans/server-context`, `@owlmeans/server-module`, `@owlmeans/server-route`, `@owlmeans/server-api`
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`
+- `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`, `@owlmeans/server-api`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`

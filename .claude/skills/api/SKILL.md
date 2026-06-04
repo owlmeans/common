@@ -1,6 +1,6 @@
 ---
 name: api
-description: How to use @owlmeans/api — HTTP client service (axios-based) used to call modules across services. Auto-invoked when importing the API service or when ctx.module(...).call() under the hood is involved.
+description: How to use @owlmeans/api — HTTP client service (axios-based) used to call entrypoints across services. Auto-invoked when importing the API service or when ctx.entrypoint(...).call() under the hood is involved.
 user-invocable: false
 ---
 
@@ -20,7 +20,7 @@ user-invocable: false
 
 ## Usage
 
-The api service backs `ctx.module<ClientModule<T>>(alias).call(...)` cross-service calls. Most apps don't import it directly — they register it once in their context factory:
+The api service backs `ctx.entrypoint<ClientEntrypoint<T>>(alias).call(...)` cross-service calls. Most apps don't import it directly — they register it once in their context factory:
 
 ```typescript
 import { makeApiService } from '@owlmeans/api'

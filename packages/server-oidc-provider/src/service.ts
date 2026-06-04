@@ -4,7 +4,7 @@ import { DEFAULT_PATH, INTERACTION } from '@owlmeans/oidc'
 import type { Config, Context, OidcAccountService, OidcAdapterService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
@@ -38,7 +38,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
         interactions: {
           url: async (_, interaction) => {
-            const module = context.module<ClientModule>(INTERACTION)
+            const module = context.entrypoint<ClientEntrypoint>(INTERACTION)
             const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
             return uri
           }

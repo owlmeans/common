@@ -1,6 +1,6 @@
 import { DISPATCHER } from '@owlmeans/auth'
 import { modules as list } from '@owlmeans/client-auth'
-import { elevate } from '@owlmeans/client-module'
+import { elevate } from '@owlmeans/client-entrypoint'
 import { handler } from '@owlmeans/client'
 import { Dispatcher } from './components/dispatcher/component.js'
 

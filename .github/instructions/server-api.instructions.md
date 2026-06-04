@@ -32,4 +32,4 @@ context.registerService(server)
 
 ## Depends On
 
-- `@owlmeans/context`, `@owlmeans/module`, `@owlmeans/route`, `fastify`
+- `@owlmeans/context`, `@owlmeans/entrypoint`, `@owlmeans/route`, `fastify`

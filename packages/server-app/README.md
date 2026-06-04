@@ -5,7 +5,7 @@ The main entry point for OwlMeans backend services — aggregates server package
 ## Overview
 
 - `makeContext(cfg)` creates a fully initialized server context with Fastify, auth, WebSocket, and static resource support
-- `main(ctx, modules)` registers modules, initializes the context, and starts the HTTP server
+- `main(ctx, entrypoints)` registers entrypoints, initializes the context, and starts the HTTP server
 - Re-exports the most commonly used symbols from lower-level packages so backend code has a single import target
 - Used by every service in the viable monorepo
 
@@ -33,7 +33,7 @@ const context = makeContext(appConfig)
 await main(context, [...modules, ...appModules])
 ```
 
-Elevate a module with a handler:
+Elevate an entrypoint with a handler:
 
 ```typescript
 import { elevate, handleBody, guard, GUARD_ED25519, modules } from '@owlmeans/server-app'
@@ -49,30 +49,30 @@ elevate(modules, 'project-create', handleBody<CreateProject>(async (payload, ctx
 
 Creates a server context with Fastify HTTP, WebSocket, static resources, and auth guard set up. Pass `customize: true` to skip the default auth setup.
 
-### `main<R, C, T>(ctx, modules): Promise<void>`
+### `main<R, C, T>(ctx, entrypoints): Promise<void>`
 
-Registers modules, calls `configure().init()`, then starts the Fastify server.
+Registers entrypoints, calls `configure().init()`, then starts the Fastify server.
 
 ### Re-exported symbols (for convenience)
 
 | Symbol | Source |
 |---|---|
 | `handleBody`, `handleParams`, `handleRequest` | `@owlmeans/server-api` |
-| `elevate`, `module`, `guard` | `@owlmeans/server-module` |
-| `celevate` | `@owlmeans/client-module` |
+| `elevate`, `entrypoint`, `guard` | `@owlmeans/server-entrypoint` |
+| `celevate` | `@owlmeans/client-entrypoint` |
 | `route` | `@owlmeans/route` |
 | `broute` | `@owlmeans/server-route` |
-| `filter`, `body`, `params`, `parent`, `ModuleOutcome` | `@owlmeans/module` |
+| `filter`, `body`, `params`, `parent`, `EntrypointOutcome` | `@owlmeans/entrypoint` |
 | `config`, `service`, `sservice`, `toConfigRecord` | various config packages |
 | `AppType`, `Layer`, `BASE`, `assertContext` | `@owlmeans/context` |
 | `DAUTH_GUARD` | `@owlmeans/server-auth` |
 | `GUARD_ED25519`, `BED255_CASHE_RESOURCE` | `@owlmeans/auth-common` |
 | `klusterize` | `@owlmeans/kluster` |
-| `Request`, `Response`, `Module`, `ClientModule` | type re-exports |
+| `Request`, `Response`, `CommonEntrypoint`, `ClientEntrypoint` | type re-exports |
 
 ### `modules`
 
-Default module array providing auth and API config routes. Spread into `main()`:
+Default entrypoint array providing auth and API config routes. Spread into `main()`:
 ```typescript
 await main(context, [...modules, ...myModules])
 ```
@@ -81,4 +81,4 @@ await main(context, [...modules, ...myModules])
 
 - [`@owlmeans/server-context`](../server-context) — `makeServerContext` called internally by `makeContext`
 - [`@owlmeans/server-api`](../server-api) — handler wrappers re-exported here
-- [`@owlmeans/server-module`](../server-module) — `elevate` re-exported here
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `elevate` re-exported here

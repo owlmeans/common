@@ -43,5 +43,5 @@ setupExternalAuthentication(AUTH_WEB) // alias of the web auth service
 ## Depends On
 
 - `@owlmeans/auth`, `@owlmeans/auth-common`
-- `@owlmeans/client-context`, `@owlmeans/client-module`
+- `@owlmeans/client-context`, `@owlmeans/client-entrypoint`
 - `react` (peer)

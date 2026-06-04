@@ -1,18 +1,18 @@
 import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
-import type { BasicConfig, BasicContext, Middleware, BasicModule, BasicResource, Service } from './types.js'
+import type { BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicModule, BasicResource, Service } from './types.js'
 // import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
 import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable } from './utils/context.js'
 import { DEFAULT, InLayer, initializeLayer } from './utils/layer.js'
 
-type Module = BasicModule
+type Entrypoint = BasicEntrypoint
 
 export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C> => {
   const services = {} as InLayer<Record<string, Service>>
-  const modules = {} as InLayer<Record<string, Module>>
+  const entrypoints = {} as InLayer<Record<string, Entrypoint>>
   const resources = {} as InLayer<Record<string, BasicResource>>
   const middlewares: Record<string, Middleware[]> = {}
   const allServices: Record<string, Service> = {}
-  const allModules: Record<string, Module> = {}
+  const allEntrypoints: Record<string, Entrypoint> = {}
   const allResources: Record<string, BasicResource> = {}
 
   let configure: (res: boolean) => void
@@ -106,21 +106,27 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return context as T
     },
 
-    registerModule: <T>(module: Module) => {
-      const id = initializeLayer(modules, context.cfg.layer, context.cfg.layerId)
-      module = module.registerContext(context)
-      if (allModules[module.alias] == null) {
-        allModules[module.alias] = module
+    registerEntrypoint: <T>(entrypoint: Entrypoint) => {
+      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
+      entrypoint = entrypoint.registerContext(context)
+      if (allEntrypoints[entrypoint.alias] == null) {
+        allEntrypoints[entrypoint.alias] = entrypoint
       }
-      modules[context.cfg.layer][id][module.alias] = module
+      entrypoints[context.cfg.layer][id][entrypoint.alias] = entrypoint
 
       return context as T
     },
 
-    registerModules: <T>(modules: Module[]) => {
-      modules.forEach(module => context.registerModule(module))
+    registerEntrypoints: <T>(eps: Entrypoint[]) => {
+      eps.forEach(ep => context.registerEntrypoint(ep))
       return context as T
     },
+
+    /** @deprecated use registerEntrypoint */
+    registerModule: <T>(module: BasicModule) => context.registerEntrypoint(module as unknown as Entrypoint) as T,
+
+    /** @deprecated use registerEntrypoints */
+    registerModules: <T>(mods: BasicModule[]) => context.registerEntrypoints(mods as unknown as Entrypoint[]) as T,
 
     registerResource: <T>(resource: BasicResource) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
@@ -173,13 +179,16 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return _service as T
     },
 
-    module: <T>(alias: string) => {
-      const id = initializeLayer(modules, context.cfg.layer, context.cfg.layerId)
-      if (modules[context.cfg.layer][id][alias] != null) {
-        return modules[context.cfg.layer][id][alias] as T
+    entrypoint: <T extends Entrypoint>(alias: string) => {
+      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
+      if (entrypoints[context.cfg.layer][id][alias] != null) {
+        return entrypoints[context.cfg.layer][id][alias] as T
       }
-      throw new SyntaxError(`Module ${alias} not found`)
+      throw new SyntaxError(`Entrypoint ${alias} not found`)
     },
+
+    /** @deprecated use entrypoint */
+    module: <T>(alias: string) => context.entrypoint<any>(alias) as T,
 
     resource: <T extends BasicResource>(alias: string) => {
       const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
@@ -191,10 +200,13 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       throw new SyntaxError(`Resource ${alias} not found`)
     },
 
-    modules: <T>() => {
-      const id = initializeLayer(modules, context.cfg.layer, context.cfg.layerId)
-      return Object.values(modules[context.cfg.layer][id]) as T[]
+    entrypoints: <T extends Entrypoint>() => {
+      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
+      return Object.values(entrypoints[context.cfg.layer][id]) as T[]
     },
+
+    /** @deprecated use entrypoints */
+    modules: <T>() => context.entrypoints<any>() as T[],
 
     /**
      * @TODO Unfortunatly module cloning between contexts is quite unstable.
@@ -240,7 +252,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
       // Object.values(allServices).forEach(service => _context.registerService(service))
 
-      // Object.values(allModules).forEach(module => _context.registerModule(module))
+      // Object.values(allEntrypoints).forEach(ep => _context.registerEntrypoint(ep))
 
       // Object.values(allResources).forEach(resource => _context.registerResource(resource))
 
@@ -256,7 +268,10 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
     hasService: alias => allServices[alias] != null,
 
-    hasModule: alias => allModules[alias] != null,
+    hasEntrypoint: alias => allEntrypoints[alias] != null,
+
+    /** @deprecated use hasEntrypoint */
+    hasModule: alias => context.hasEntrypoint(alias),
   }
 
   return context

@@ -1,7 +1,7 @@
 import type { I18nProps } from '@owlmeans/client-i18n'
 import type { BlockScaling } from '@owlmeans/client-panel'
 import type { CSSProperties, FC, PropsWithChildren } from 'react'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 
 /**
  * Shadcn `Typography`-equivalent text variants. Each value maps to a Tailwind
@@ -34,7 +34,7 @@ export interface TextProps extends PropsWithChildren<I18nProps>, StyledProps {
 
 export interface LinkProps extends TextProps {
   src?: string
-  module?: string | ClientModule
+  module?: string | ClientEntrypoint
   open?: boolean
 }
 

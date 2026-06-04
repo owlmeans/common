@@ -54,6 +54,12 @@ export interface LazyService extends Service {
   ready: () => Promise<boolean>
 }
 
+export interface BasicEntrypoint extends Contextual {
+  _entrypoint: true
+  _module: true
+}
+
+/** @deprecated use BasicEntrypoint */
 export interface BasicModule extends Contextual {
   _module: true
 }
@@ -78,19 +84,30 @@ export interface BasicContext<C extends BasicConfig> {
   init: <T extends BasicContext<C>>() => Promise<T>
   updateContext: <T extends BasicContext<C>>(id?: string, to?: Layer) => Promise<T>
   registerService: <T extends BasicContext<C>>(service: Service) => T
-  registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
-  registerModules: <T extends BasicContext<C>>(module: BasicModule[]) => T
+  registerEntrypoint: <T extends BasicContext<C>>(entrypoint: BasicEntrypoint) => T
+  registerEntrypoints: <T extends BasicContext<C>>(entrypoints: BasicEntrypoint[]) => T
   registerResource: <T extends BasicContext<C>>(resource: BasicResource) => T
   registerMiddleware: <T extends BasicContext<C>>(middleware: Middleware) => T
 
   get config(): Promise<C>
   service: <T extends Service>(alias: string) => T
-  module: <T extends BasicModule>(alias: string) => T
+  entrypoint: <T extends BasicEntrypoint>(alias: string) => T
   resource: <T extends BasicResource>(alias: string) => T
   hasResource: (alias: string) => boolean
   hasService: (alias: string) => boolean
-  hasModule: (alias: string) => boolean
+  hasEntrypoint: (alias: string) => boolean
 
+  entrypoints: <T extends BasicEntrypoint>() => T[]
+
+  /** @deprecated use registerEntrypoint */
+  registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
+  /** @deprecated use registerEntrypoints */
+  registerModules: <T extends BasicContext<C>>(modules: BasicModule[]) => T
+  /** @deprecated use entrypoint */
+  module: <T extends BasicModule>(alias: string) => T
+  /** @deprecated use hasEntrypoint */
+  hasModule: (alias: string) => boolean
+  /** @deprecated use entrypoints */
   modules: <T extends BasicModule>() => T[]
 
   makeContext?: <T extends BasicContext<C>>(cfg: C) => T

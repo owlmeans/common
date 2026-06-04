@@ -23,6 +23,7 @@ Read this at the start of every conversation. Load files relevant to the current
 - [dependency-tree](./../skills/dependency-tree/SKILL.md) — Pointer to `tree.md` (per-package `@owlmeans/*` deps, layer assignments, build order, known SCCs)
 
 ## Project facts
+- [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, deprecated shims, marker interop, context method renames, phase status
 - [versioning](./versioning.md) — Synchronized version convention, internal dep refs, dep-config as workspace:*
 - [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 - [shadcn-ui-strategy](./shadcn-ui-strategy.md) — Three durable decisions: no registries, `@` app-provides-at-integration, wrap client-panel

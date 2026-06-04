@@ -1,7 +1,7 @@
 import type { AuthToken } from '@owlmeans/auth'
 import type { AuthorizationService } from '@owlmeans/auth-common'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import type { GuardService } from '@owlmeans/module'
+import type { GuardService } from '@owlmeans/entrypoint'
 
 export interface Config extends BasicConfig { }
 export interface Context<C extends Config = Config> extends BasicContext<C> { }

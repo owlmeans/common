@@ -15,7 +15,7 @@ Aliases: `DEFAULT_GUARD = 'auth'`, `GUARD_ED25519 = 'guard:ed25519-basic-signatu
 
 `AuthRole` is a **string** enum (`User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`). Never use numeric literals like `role: 0` — always use `AuthRole.User` etc.
 
-Guard interface lives in `@owlmeans/module` (`GuardService` extends `InitializedService`, has `match`, `handle`, `authenticated`). Auth service extends it with `authenticate`, `update`, `user`, `store` (`@owlmeans/auth-common/types.ts`).
+Guard interface lives in `@owlmeans/entrypoint` (`GuardService` extends `InitializedService`, has `match`, `handle`, `authenticated`). Auth service extends it with `authenticate`, `update`, `user`, `store` (`@owlmeans/auth-common/types.ts`).
 
 Envelope shape `{t, msg, sig?, dt, ttl}` from `@owlmeans/basic-envelope`. KeyPairModel `sign/verify/export/exportPublic` from `@owlmeans/basic-keys`.
 

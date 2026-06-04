@@ -27,4 +27,4 @@ White-label DNS/routing service is typically wired separately as `@owlmeans/serv
 
 ## Depends On
 
-- `@owlmeans/wled`, `@owlmeans/server-module`, `@owlmeans/server-route`
+- `@owlmeans/wled`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`

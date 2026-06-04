@@ -36,4 +36,4 @@ For browser apps prefer `@owlmeans/web-client`.
 
 ## Depends On
 
-- `@owlmeans/client-context`, `@owlmeans/client-module`, `@owlmeans/client-route`, `@owlmeans/router`, `@owlmeans/auth-common`, `react`
+- `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `@owlmeans/client-route`, `@owlmeans/router`, `@owlmeans/auth-common`, `react`

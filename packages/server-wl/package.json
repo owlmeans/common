@@ -24,7 +24,7 @@
     "@owlmeans/context": "^0.1.2",
     "@owlmeans/server-api": "^0.1.2",
     "@owlmeans/server-context": "^0.1.2",
-    "@owlmeans/server-module": "^0.1.2",
+    "@owlmeans/server-entrypoint": "^0.1.2",
     "@owlmeans/wled": "^0.1.2"
   },
   "devDependencies": {

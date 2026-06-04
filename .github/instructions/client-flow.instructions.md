@@ -25,4 +25,4 @@ context.registerService(makeFlowService())
 
 ## Depends On
 
-- `@owlmeans/flow`, `@owlmeans/client-context`, `@owlmeans/client-module`
+- `@owlmeans/flow`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`

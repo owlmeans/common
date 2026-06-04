@@ -1,9 +1,9 @@
 
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { assertContext } from '@owlmeans/context'
-import { ModuleOutcome } from '@owlmeans/module'
-import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
-import type { RefedModuleHandler } from '@owlmeans/server-module'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
+import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import type { Config, Context } from './types.js'
 import type { FastifyRequest } from 'fastify'
 import type { MultipartFile } from '@fastify/multipart'
@@ -14,14 +14,14 @@ const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<
 
 export const handleBody: <T>(
   handler: (payload: T, ctx: BasicContext<BasicConfig>, req: AbstractRequest) => Promise<any>
-) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
+) => RefedEntrypointHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.body as any,
       _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>,
       req,
-    ), ModuleOutcome.Ok)
+    ), EntrypointOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -32,14 +32,14 @@ export const handleBody: <T>(
 export const handleParams: <T>(
   handler: (payload: T, ctx: BasicContext<BasicConfig>, req: AbstractRequest) => Promise<any>
   // @TODO Here and everywher it looks like AbstractResponse is messed up here instead of abstract request
-) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
+) => RefedEntrypointHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req.params as any,
       _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>,
       req,
-    ), ModuleOutcome.Ok)
+    ), EntrypointOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -49,12 +49,12 @@ export const handleParams: <T>(
 
 export const handleRequest: (
   handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>, res?: AbstractResponse<any>) => Promise<any>
-) => RefedModuleHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
+) => RefedEntrypointHandler<AbstractResponse<any>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     res.resolve(await handler(
       req, _castContextFromOriginal<Config, Context>(req, ctx) as BasicContext<BasicConfig>, res
-    ), ModuleOutcome.Ok)
+    ), EntrypointOutcome.Ok)
   } catch (e) {
     res.reject(e as Error)
   }
@@ -64,7 +64,7 @@ export const handleRequest: (
 
 export const handleIntermediate: (
   handler: (payload: AbstractRequest, ctx: BasicContext<BasicConfig>) => Promise<BasicContext<BasicConfig> | null>
-) => RefedModuleHandler<AbstractResponse<Context | null>> = handler => ref => async (req, res) => {
+) => RefedEntrypointHandler<AbstractResponse<Context | null>> = handler => ref => async (req, res) => {
   const ctx = assertContext(ref.ref?.ctx) as Context
   try {
     const result = await handler(

@@ -26,4 +26,4 @@ context.registerService(makePaymentService())
 
 ## Depends On
 
-- `@owlmeans/payment`, `@owlmeans/client-context`, `@owlmeans/client-module`
+- `@owlmeans/payment`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`

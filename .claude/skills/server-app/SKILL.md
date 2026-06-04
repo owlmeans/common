@@ -13,14 +13,14 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
-| `main<E, C, T>(context, modules)` | Entry point — boots Express, registers all modules as routes |
+| `main<E, C, T>(context, modules)` | Entry point — boots Express, registers all entrypoints as routes |
 | `handleRequest(fn)` | Wrap an async function as a server handler `(req, context) => result` |
 | `handleBody<T>(fn)` | Wrap an async function with validated body — `(payload, context, req) => result` |
-| `elevate(modules, alias, handler)` | Attach a handler to a module declaration |
-| `celevate(modules, alias, handler)` | Conditional elevate — only if module exists |
+| `elevate(modules, alias, handler)` | Attach a handler to an entrypoint declaration |
+| `celevate(modules, alias, handler)` | Conditional elevate — only if entrypoint exists |
 | `sservice(options, cfg)` | Register a server-side service entry in the config |
-| `modules` | Built-in system modules — spread into `appModules` |
-| `Context`, `Config`, `ClientModule` re-exports | Common types |
+| `modules` | Built-in system entrypoints — spread into `appModules` |
+| `Context`, `Config`, `ClientEntrypoint` re-exports | Common types |
 
 ## Usage
 
@@ -40,7 +40,7 @@ main<{}, Config, Context>(context, appModules)
 ```typescript
 import { handleRequest, handleBody } from '@owlmeans/server-app'
 import { AuthUnknown } from '@owlmeans/auth'
-import type { ClientModule } from '@owlmeans/server-app'
+import type { ClientEntrypoint } from '@owlmeans/server-app'
 
 export const list = handleRequest(async (req, context) => {
   if (req.auth?.entityId == null) throw new AuthUnknown('entity')
@@ -51,7 +51,7 @@ export const list = handleRequest(async (req, context) => {
 
 export const create = handleBody<CreateProject>(async (payload, context, req) => {
   const ctx = context as Context
-  const [result] = await ctx.module<ClientModule<Project>>(agent.project.create).call({
+  const [result] = await ctx.entrypoint<ClientEntrypoint<Project>>(agent.project.create).call({
     body: { prompt: payload.prompt, entity: req.auth?.entityId }
   })
   return result
@@ -72,6 +72,6 @@ export const appModules = [...modules, ...paymentModules, ...managerModules]
 
 ## Depends On
 
-- `@owlmeans/server-context`, `@owlmeans/server-module`, `@owlmeans/server-route`, `@owlmeans/server-api`
-- `@owlmeans/module`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`
+- `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`, `@owlmeans/server-api`
+- `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`
 - `express` / `fastify` (server runtime)

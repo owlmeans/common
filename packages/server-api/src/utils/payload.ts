@@ -1,5 +1,5 @@
-import { ModuleOutcome } from '@owlmeans/module'
-import type { AbstractResponse, AbstractRequest } from '@owlmeans/module'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
+import type { AbstractResponse, AbstractRequest } from '@owlmeans/entrypoint'
 import type { Request, Response } from '../types.js'
 import { ACCEPTED, CREATED, OK, SERVER_ERROR } from '@owlmeans/api'
 import type { AnySchemaObject } from 'ajv'
@@ -29,13 +29,13 @@ export const executeResponse = <T>(response: AbstractResponse<T>, reply: Respons
     reply.code(SERVER_ERROR).send(response.error.message)
   } else if (response.outcome != null) {
     switch (response.outcome) {
-      case ModuleOutcome.Accepted:
+      case EntrypointOutcome.Accepted:
         reply.code(ACCEPTED).send(response.value)
         break
-      case ModuleOutcome.Created:
+      case EntrypointOutcome.Created:
         reply.code(CREATED).send(response.value)
         break
-      case ModuleOutcome.Ok:
+      case EntrypointOutcome.Ok:
       default:
         reply.code(OK).send(response.value)
     }

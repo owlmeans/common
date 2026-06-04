@@ -1,5 +1,5 @@
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import type { GuardService } from '@owlmeans/module'
+import type { GuardService } from '@owlmeans/entrypoint'
 import type { ResourceRecord } from '@owlmeans/resource'
 
 export interface AuthService extends GuardService {
