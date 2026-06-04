@@ -36,18 +36,18 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@owlmeans/client": "^0.1.2",
-    "@owlmeans/client-i18n": "^0.1.2",
-    "@owlmeans/client-entrypoint": "^0.1.2",
-    "@owlmeans/client-route": "^0.1.2",
-    "@owlmeans/error": "^0.1.2",
-    "@owlmeans/entrypoint": "^0.1.2"
+    "@owlmeans/client": "^0.1.3",
+    "@owlmeans/client-i18n": "^0.1.3",
+    "@owlmeans/client-entrypoint": "^0.1.3",
+    "@owlmeans/client-route": "^0.1.3",
+    "@owlmeans/error": "^0.1.3",
+    "@owlmeans/entrypoint": "^0.1.3"
   },
   "peerDependencies": {
-    "@owlmeans/auth": "*",
-    "@owlmeans/client-auth": "*",
-    "@owlmeans/i18n": "*",
-    "@owlmeans/router": "*",
+    "@owlmeans/auth": "^0.1.3",
+    "@owlmeans/client-auth": "^0.1.3",
+    "@owlmeans/i18n": "^0.1.3",
+    "@owlmeans/router": "^0.1.3",
     "ajv": "*",
     "react": "*",
     "react-hook-form": "*"
@@ -62,8 +62,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/auth": "^0.1.2",
-    "@owlmeans/client-auth": "^0.1.2",
+    "@owlmeans/auth": "^0.1.3",
+    "@owlmeans/client-auth": "^0.1.3",
     "@types/react": "^19.2.7",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",

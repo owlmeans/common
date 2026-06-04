@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.2",
-    "@owlmeans/client-entrypoint": "^0.1.2",
-    "@owlmeans/context": "^0.1.2",
-    "@owlmeans/wled": "^0.1.2"
+    "@owlmeans/client": "^0.1.3",
+    "@owlmeans/client-entrypoint": "^0.1.3",
+    "@owlmeans/context": "^0.1.3",
+    "@owlmeans/wled": "^0.1.3"
   },
   "peerDependencies": {
     "react": "*"

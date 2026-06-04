@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api-config": "^0.1.2",
-    "@owlmeans/server-api": "^0.1.2",
-    "@owlmeans/server-context": "^0.1.2",
-    "@owlmeans/server-entrypoint": "^0.1.2"
+    "@owlmeans/api-config": "^0.1.3",
+    "@owlmeans/server-api": "^0.1.3",
+    "@owlmeans/server-context": "^0.1.3",
+    "@owlmeans/server-entrypoint": "^0.1.3"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/server-entrypoint": "^0.1.2"
+    "@owlmeans/server-entrypoint": "^0.1.3"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
