@@ -48,6 +48,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 
 ## Additional Context
 
+- **Localization (i18n)**: skill at `.claude/skills/localization/SKILL.md` — tiered namespace model, compound-prefix keys, 7-language requirement (`SUPPORTED_LNGS`), override pattern, language switcher. Read **before** adding any UI string or translation file. Package-specific: `i18n` skill (core registry) and `client-i18n` skill (React hooks).
 - **Dependency tree (canonical map)**: [`tree.md`](tree.md) at the repo root — every package, its direct `@owlmeans/*` deps, its architecture layer, build order, and known SCCs. Skill at `.claude/skills/dependency-tree/SKILL.md` points to it.
 - **Bun (package manager & build)**: skill at `.claude/skills/bun/SKILL.md` — auto-invoked when doing install, build, or script work
 - **Creating skills**: skill at `.claude/skills/create-skill/SKILL.md` — follow this when converting knowledge into a new skill

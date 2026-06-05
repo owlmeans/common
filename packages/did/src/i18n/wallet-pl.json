@@ -1,0 +1,67 @@
+{
+  "createKey": {
+    "title": "Utwórz nowy klucz",
+    "description": "Jakaś organizacja lub usługa prosi Cię o utworzenie nowego klucza kryptograficznego",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o utworzenie nowego klucza.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "getEntityKey": {
+    "title": "Pobierz klucz publiczny dla organizacji",
+    "description": "Jakaś usługa prosi Cię o podanie klucza publicznego i powiązanych danych dla profilu organizacji",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o podanie tego klucza.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "sign": {
+    "title": "Podpisz kluczem",
+    "description": "Jakaś usługa prosi Cię o podpisanie dokumentu swoim kluczem",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o złożenie tego podpisu.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "masterSign": {
+    "title": "Podpisz kluczem głównym",
+    "description": "Jakaś usługa prosi Cię o podpisanie dokumentu kluczem głównym, który powinien być używany tylko z usługami OwlMeans",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o złożenie tego podpisu.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "getMasterDid": {
+    "title": "Pobierz swój główny DID",
+    "description": "Jakaś usługa prosi o Twój główny zdecentralizowany adres, który powinien być udostępniany tylko usługom OwlMeans",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o udostępnienie głównego DID.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "selectKey": {
+    "title": "Wybierz klucz",
+    "description": "Jakaś usługa prosi Cię o wybór klucza, aby uzyskać jego publiczne dane",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o podanie publicznych informacji jednego z Twoich kluczy.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "getPublicDetails": {
+    "title": "Pobierz klucz publiczny",
+    "description": "Jakaś usługa prosi o klucz publiczny powiązany z profilem Twojej organizacji",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o udostępnienie klucza publicznego.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" }
+  },
+  "requestPermissions": {
+    "title": "Żądane uprawnienia",
+    "description": "Jakaś usługa prosi o wykonanie sekwencji działań z Twoim portfelem",
+    "unknown-reason": "Uważaj! Nie wiemy, dlaczego jesteś proszony o wykonanie tych działań.",
+    "proceed": { "label": "Potwierdź" },
+    "cancel": { "label": "Anuluj" },
+    "method": {
+      "createKey": "Utwórz nowy klucz kryptograficzny",
+      "getEntityKey": "Pobierz publiczny klucz organizacji",
+      "sign": "Podpisz dane swoim kluczem",
+      "masterSign": "Podpisz dane kluczem głównym",
+      "getMasterDid": "Pobierz swój główny identyfikator",
+      "selectKey": "Pobierz jeden z Twoich kluczy publicznych",
+      "getPublicDetails": "Pobierz swój klucz publiczny"
+    }
+  }
+}

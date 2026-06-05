@@ -1,0 +1,8 @@
+{
+  "address": {
+    "hint": "DID-Adresse"
+  },
+  "master": {
+    "title": "Hauptschlüssel"
+  }
+}

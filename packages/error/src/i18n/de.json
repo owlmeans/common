@@ -1,0 +1,6 @@
+{
+  "minLength": "Der Wert ist zu kurz",
+  "maxLength": "Der Wert ist zu lang",
+  "form-field": "Ungültiger Feldwert",
+  "required": "Dieses Feld ist erforderlich"
+}

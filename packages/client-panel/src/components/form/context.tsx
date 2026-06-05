@@ -1,6 +1,6 @@
 import type { FC, PropsWithChildren } from 'react'
 import { createContext, useContext as useReactContext } from 'react'
-import { useCommonI18n, useI18nLib } from '@owlmeans/client-i18n'
+import { composePrefix, useI18n, useI18nLib } from '@owlmeans/client-i18n'
 import type { FieldError } from 'react-hook-form'
 import { useContext } from '@owlmeans/client'
 import type { TFormContext } from './types.js'
@@ -15,12 +15,11 @@ export const useClientFormContext = () => useReactContext<TFormContext>(FormCont
 export const useFormI18n = () => {
   const context = useContext()
   const { i18n, name } = useClientFormContext()
-  const prefix = (i18n?.prefix != null ? i18n.prefix + '.' : '') + (name ?? '')
-  return useCommonI18n(
-    i18n?.resource ?? context.cfg.service,
-    i18n?.ns ?? i18n?.resource ?? context.cfg.service,
-    prefix
-  )
+  const prefix = composePrefix(i18n?.prefix, name)
+  const resource = i18n?.resource ?? context.cfg.service
+  const ns = i18n?.ns ?? resource
+
+  return useI18n(resource, ns, prefix)
 }
 
 export const useFormError = (name: string, error?: FieldError) => {

@@ -1,0 +1,39 @@
+{
+  "plan": {
+    "duration": {
+      "monthly": "Suscripción mensual",
+      "yearly": "Suscripción anual"
+    },
+    "trial": {
+      "gated": "Prueba gratuita — {{days}} días",
+      "open": "Sin tarjeta — {{days}} días gratis"
+    },
+    "highlight": {
+      "custom": "Cuéntenos sus necesidades",
+      "comming-soon": "¡Las funciones requeridas próximamente!",
+      "best-value": "¡Mejor relación calidad-precio!"
+    },
+    "label": {
+      "monthly": "al mes",
+      "discount": "con descuento: {{discount}}%"
+    }
+  },
+  "measurement": {
+    "yes": "Sí",
+    "no": "No",
+    "comming-soon": "Próximamente",
+    "custom": "personalizado",
+    "mb": "MB"
+  },
+  "action": {
+    "start": "Comenzar ahora",
+    "custom": "Contáctenos",
+    "active": "Probar ahora",
+    "gated": "Suscribirse ahora",
+    "best-value": "Comenzar prueba gratuita",
+    "comming-soon": "Unirse ahora"
+  },
+  "success": {
+    "guideline": "Su pago se está procesando. Será redirigido al servicio en breve..."
+  }
+}

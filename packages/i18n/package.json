@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
+    "test": "bun test ./tests",
     "dev": "sleep 168 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },

@@ -1,0 +1,50 @@
+{
+  "basic-ed25519": {
+    "entityId": { "label": "Identyfikator organizacji" },
+    "address": { "label": "DID użytkownika" },
+    "privateKey": { "label": "Klucz prywatny" },
+    "submit": "Uwierzytelnij"
+  },
+  "re-captcha": {
+    "guideline": "Musimy upewnić się, że nie jesteś robotem. Kliknij w białe pole poniżej, aby udowodnić, że jesteś człowiekiem."
+  },
+  "wallet-provider": {
+    "pin": {
+      "loading": "Ładowanie...",
+      "guideline": "Użyj tego kodu PIN na dowolnym zasobie obsługującym autoryzację opartą na portfelu"
+    }
+  },
+  "wallet-consumer": {
+    "pin": {
+      "label": "Kod PIN",
+      "hint": "Zeskanuj kod QR lub wygeneruj kod PIN za pomocą aplikacji OwlMeans ID"
+    },
+    "submit": "Kontynuuj z pinem"
+  },
+  "oidp-auth": {
+    "reset": "Resetuj",
+    "error": {
+      "socket": {
+        "timeout": {
+          "rely": "Okno uwierzytelniania wygasło. Odśwież stronę, aby spróbować ponownie."
+        }
+      }
+    }
+  },
+  "oidp-create-id": {
+    "error": {
+      "socket": {
+        "timeout": {
+          "call": "Przekroczono limit czasu! Ze względów bezpieczeństwa ustawiamy limit czasu na działania uwierzytelniające. Spróbuj ponownie.",
+          "rely": "Kod uwierzytelniania wygasł. Spróbuj ponownie."
+        }
+      },
+      "auth": {
+        "authorization": {
+          "sequence": "Proces uwierzytelniania został przerwany przez aplikację uwierzytelniającą."
+        }
+      }
+    },
+    "reset": "Przeładuj"
+  }
+}

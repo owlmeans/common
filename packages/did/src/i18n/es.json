@@ -1,0 +1,8 @@
+{
+  "address": {
+    "hint": "Dirección DID"
+  },
+  "master": {
+    "title": "Clave maestra"
+  }
+}

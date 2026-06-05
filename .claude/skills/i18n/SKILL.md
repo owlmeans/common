@@ -1,42 +1,95 @@
 ---
 name: i18n
-description: How to use @owlmeans/i18n — internationalization core types and helpers used by error messages and UI labels. Auto-invoked when importing from this package or adding translatable strings to a package.
+description: How to use @owlmeans/i18n — the core localization registry (no runtime deps). Auto-invoked when adding translatable strings to a library package, importing from this package, or working with the tier/priority system.
 user-invocable: false
 ---
 
 # @owlmeans/i18n
 
-**Layer:** Core
-**Install:** `"@owlmeans/i18n": "^0.1.2"` in `dependencies`
+**Layer:** Core (no runtime deps)
+**Install:** `"@owlmeans/i18n": "^0.1.4"` in `dependencies`
+
+## Purpose
+
+Global registration store that packages write into at import time. React clients drain it lazily via `@owlmeans/client-i18n`. The store is addressed by **(ns, resource, language)**.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `I18nResource` types | Resource bundle shape (namespaces, keys, translations) |
-| Helpers | Register and resolve translation keys |
-| Constants | Default language codes, namespace separators |
+| `addI18nLib(lng, resource, data, opts?)` | Register library-owned strings (ns defaults to `'lib'`) |
+| `addI18nApp(lng, resource, data, opts?)` | Register app-owned strings (ns defaults to resource name) |
+| `initI18nResource(lng, resource, ns?)` | Drain a registered bundle for a language (called by client-i18n) |
+| `SUPPORTED_LNGS` | `['en','pl','ru','be','uk','es','de']` — the canonical language set |
+| `DEFAULT_LNG` | `'en'` |
+| `LIB_NAMESPACE` | `'lib'` |
+| `I18nTier` | `Library \| App` — enum used internally |
+| `I18nConfig` | `{ defaultLng?, defaultNs?, fallbackLng?, supportedLngs? }` |
 
-## Subpath Exports
+## Tiers
 
-- `./utils` — utility functions for working with translation bundles
+| Tier | Helper | Default ns | When to use |
+|------|--------|-----------|-------------|
+| Library | `addI18nLib` | `'lib'` | Any `@owlmeans/*` package |
+| App | `addI18nApp` | resource name | Project-specific app / shared project package |
 
-## Usage
+App-tier strings deep-merge **over** Library-tier strings for the same keys at resolution time — this is the override mechanism.
 
-Each package that ships translatable strings exports an `i18n.ts` (e.g. `./i18n.js`) that registers its bundle. Consumer apps re-export them through `@owlmeans/client-i18n` (web) which wraps i18next.
+## Per-package pattern
+
+Every package that ships translatable strings exports a side-effect `i18n.ts`:
 
 ```typescript
-import type { I18nResource } from '@owlmeans/i18n'
+// src/i18n.ts
+import { addI18nLib } from '@owlmeans/i18n'
+import en from './i18n/en.json' with { type: 'json' }
+import pl from './i18n/pl.json' with { type: 'json' }
+import ru from './i18n/ru.json' with { type: 'json' }
+import be from './i18n/be.json' with { type: 'json' }
+import uk from './i18n/uk.json' with { type: 'json' }
+import es from './i18n/es.json' with { type: 'json' }
+import de from './i18n/de.json' with { type: 'json' }
 
-const resource: I18nResource = {
-  ns: 'my-package',
-  resources: {
-    en: { 'error.unknown': 'Unknown error' },
-    es: { 'error.unknown': 'Error desconocido' }
-  }
+addI18nLib('en', 'my-package', en)
+addI18nLib('pl', 'my-package', pl)
+addI18nLib('ru', 'my-package', ru)
+addI18nLib('be', 'my-package', be)
+addI18nLib('uk', 'my-package', uk)
+addI18nLib('es', 'my-package', es)
+addI18nLib('de', 'my-package', de)
+```
+
+Then re-export from `src/index.ts`:
+```typescript
+export * from './i18n.js'
+```
+
+## Key structure
+
+Keys are plain dot-paths inside a JSON file:
+```json
+{
+  "mySection": {
+    "title": "Title",
+    "description": "Description"
+  },
+  "form-field": "Invalid field"
 }
 ```
 
+Consumers use `useI18nLib('my-package', 'mySection')` → `t('title')` → resolves `lib:my-package.mySection.title`.
+
+## Custom namespace (rare)
+
+Use the optional `opts.ns` when keys must live in a namespace other than `'lib'`:
+```typescript
+addI18nLib('en', 'wallet', walletEn, { ns: 'did' })
+```
+
+## Languages
+
+All packages **must** ship all 7 languages from `SUPPORTED_LNGS`. Adding a new key → add it to all 7 files in the same commit.
+
 ## Depends On
 
-- None at runtime — pure types and helpers
+Nothing at runtime — pure types and helpers.

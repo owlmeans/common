@@ -1,0 +1,39 @@
+{
+  "plan": {
+    "duration": {
+      "monthly": "Monatliches Abonnement",
+      "yearly": "Jährliches Abonnement"
+    },
+    "trial": {
+      "gated": "Kostenlose Testphase — {{days}} Tage",
+      "open": "Ohne Karte — {{days}} Tage kostenlos"
+    },
+    "highlight": {
+      "custom": "Erzählen Sie uns von Ihren Bedürfnissen",
+      "comming-soon": "Erforderliche Funktionen kommen bald!",
+      "best-value": "Bestes Preis-Leistungs-Verhältnis!"
+    },
+    "label": {
+      "monthly": "pro Monat",
+      "discount": "mit Rabatt: {{discount}}%"
+    }
+  },
+  "measurement": {
+    "yes": "Ja",
+    "no": "Nein",
+    "comming-soon": "Demnächst",
+    "custom": "benutzerdefiniert",
+    "mb": "MB"
+  },
+  "action": {
+    "start": "Jetzt beginnen",
+    "custom": "Kontaktieren Sie uns",
+    "active": "Jetzt ausprobieren",
+    "gated": "Jetzt abonnieren",
+    "best-value": "Kostenlose Testphase starten",
+    "comming-soon": "Jetzt beitreten"
+  },
+  "success": {
+    "guideline": "Ihre Zahlung wird verarbeitet. Sie werden in Kürze zum Dienst weitergeleitet..."
+  }
+}

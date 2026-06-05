@@ -4,9 +4,9 @@ import { memo } from 'react'
 import type { ButtonProps, SubmitProps } from './types.js'
 import { useFormContext } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
-import { I18nProps, useCommonI18n, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
+import { I18nProps, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
-import { useFormI18n, usePanelHelper } from '@owlmeans/client-panel'
+import { useFormI18n, usePanelI18n } from '@owlmeans/client-panel'
 import { Button as UIButton } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -46,12 +46,7 @@ const mapSize = (s: ButtonProps['size']): 'sm' | 'default' | 'lg' => {
 
 export const Button: FC<ButtonProps> = memo(({ label, onClick, i18n, loader, size, fullWidth, variant = 'contained' }) => {
   const context = useContext()
-  const panel = usePanelHelper()
-  const t = useCommonI18n(
-    i18n?.resource ?? panel.resource ?? context.cfg.service,
-    i18n?.ns ?? panel.ns,
-    i18n?.prefix ?? panel.prefix
-  )
+  const t = usePanelI18n(undefined, i18n)
   const appT = useI18nApp(context.cfg.service, 'buttons')
   const libT = useI18nLib('client-panel', 'buttons')
   label = useMemo(() => i18n?.suppress ? label : t(label, {

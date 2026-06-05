@@ -1,4 +1,4 @@
-import type { I18nLevel } from './consts.js'
+import type { I18nTier } from './consts.js'
 
 export interface I18nStorage {
   data: I18nNamespaces
@@ -16,19 +16,19 @@ export interface I18nLanguages extends Record<string, {
 export interface I18nResource {
   ns?: string
   lng?: string
-  level: I18nLevel
+  tier: I18nTier
   resource: string
   priority?: number
   data: Record<string, any>
 }
 
 export interface I18nResourceOptions {
-  priroty?: number
+  priority?: number
   ns?: string
 }
 
 export interface I18nResourceSignature {
-  (level: I18nLevel, lng: string, resource: string, data: Record<string, any>, opts?: I18nResourceOptions | string): void
+  (tier: I18nTier, lng: string, resource: string, data: Record<string, any>, opts?: I18nResourceOptions | string): void
 }
 
 export interface I18nLeveledResourceSignature {
@@ -38,4 +38,6 @@ export interface I18nLeveledResourceSignature {
 export interface I18nConfig {
   defaultLng?: string
   defaultNs?: string
+  fallbackLng?: string
+  supportedLngs?: string[]
 }

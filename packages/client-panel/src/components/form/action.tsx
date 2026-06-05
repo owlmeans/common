@@ -4,8 +4,6 @@ import { useFormContext } from "react-hook-form"
 import { useClientFormContext, useFormI18n } from "./context.js"
 import type { FormActionProps } from "./types.js"
 import { useContext } from "@owlmeans/client"
-// import { usePanelHelper } from "../context.js"
-// import { useCommonI18n, useI18nApp, useI18nLib } from "@owlmeans/client-i18n"
 import { useI18nApp, useI18nLib } from "@owlmeans/client-i18n"
 
 export const ActionCtrl: FC<FormActionProps> = ({ render, label, i18n, size, onClick, submit }) => {
@@ -13,12 +11,6 @@ export const ActionCtrl: FC<FormActionProps> = ({ render, label, i18n, size, onC
   const client = useClientFormContext()
 
   const context = useContext()
-  // const panel = usePanelHelper()
-  /*const t = useCommonI18n(
-    i18n?.resource ?? panel.resource ?? context.cfg.service,
-    i18n?.ns ?? panel.ns,
-    i18n?.prefix ?? panel.prefix
-  )*/
   const t = useFormI18n()
   const appT = useI18nApp(context.cfg.service, 'buttons')
   const libT = useI18nLib('client-panel', 'buttons')

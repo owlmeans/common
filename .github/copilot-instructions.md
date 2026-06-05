@@ -96,6 +96,7 @@ Per-category instruction files:
 
 ## Additional Context
 
+- **Localization (i18n)**: see `.github/instructions/localization.instructions.md` — tiered namespace model, compound-prefix keys, 7-language requirement (`SUPPORTED_LNGS`), override pattern, language switcher. Read **before** adding any UI string or translation file. Package-specific: `i18n.instructions.md` (core registry) and `client-i18n.instructions.md` (React hooks).
 - **Dependency tree (canonical map)**: [`tree.md`](../tree.md) at the repo root — every package, its direct `@owlmeans/*` deps, its architecture layer, build order, and known SCCs. Instruction at `.github/instructions/dependency-tree.instructions.md` points to it.
 - **Bun**: see `.github/instructions/bun.instructions.md` — install, build, scripts, workspace filters
 - **Versioning**: see `.github/instructions/versions.instructions.md` — synchronized version bumps
