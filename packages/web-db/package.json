@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-context": "^0.1.3",
-    "@owlmeans/client-resource": "^0.1.3",
-    "@owlmeans/context": "^0.1.3",
+    "@owlmeans/client-context": "^0.1.4",
+    "@owlmeans/client-resource": "^0.1.4",
+    "@owlmeans/context": "^0.1.4",
     "idb-keyval": "^6.2.1"
   },
   "devDependencies": {
