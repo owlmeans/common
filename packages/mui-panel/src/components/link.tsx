@@ -5,7 +5,7 @@ import MUILink from '@mui/material/Link'
 import type { TypographyOwnProps } from '@mui/material'
 import { useValue } from '@owlmeans/client'
 import { useContext } from '@owlmeans/web-client'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 
 export const Link: FC<LinkProps> = ({ src, module, name, variant, children, center, open, styles }) => {
   const t = usePanelI18n()
@@ -16,7 +16,7 @@ export const Link: FC<LinkProps> = ({ src, module, name, variant, children, cent
       return src
     }
     if (module != null) {
-      module = typeof module === 'string' ? context.module<ClientModule<string>>(module) : module
+      module = typeof module === 'string' ? context.module<ClientEntrypoint<string>>(module) : module
       const [url] = await module.call<string>()
 
       return url

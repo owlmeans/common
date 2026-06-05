@@ -1,10 +1,10 @@
 import type { FC, PropsWithChildren, ReactElement } from 'react'
 import type { ModuleContextParams, RoutedComponent, ClientContext } from '../types.js'
 import { isValidElement, memo, useEffect } from 'react'
-import type { ClientModule } from '@owlmeans/client-module'
-import { provideRequest } from '@owlmeans/client-module'
-import { provideResponse } from '@owlmeans/module'
-import type { GuardService } from '@owlmeans/module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { provideRequest } from '@owlmeans/client-entrypoint'
+import { provideResponse } from '@owlmeans/entrypoint'
+import type { GuardService } from '@owlmeans/entrypoint'
 import { AuthorizationError } from '@owlmeans/auth'
 import type { ClientConfig } from '@owlmeans/client-context'
 
@@ -74,7 +74,7 @@ export type HandledRenderer<T extends {}> = FC<PropsWithChildren<T> | T> | React
 
 interface RendererParams {
   context: Context,
-  module: ClientModule<unknown>
+  module: ClientEntrypoint<unknown>
   hasChildren: boolean
 }
 

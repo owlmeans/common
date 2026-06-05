@@ -3,7 +3,7 @@ import type { FC } from 'react'
 import type { LinkProps } from './types.js'
 import { useValue } from '@owlmeans/client'
 import { useContext } from '@owlmeans/web-client'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { cn } from '@/lib/utils'
 
 export const Link: FC<LinkProps> = ({ src, module, name, children, center, open, className, style }) => {
@@ -15,7 +15,7 @@ export const Link: FC<LinkProps> = ({ src, module, name, children, center, open,
       return src
     }
     if (module != null) {
-      module = typeof module === 'string' ? context.module<ClientModule<string>>(module) : module
+      module = typeof module === 'string' ? context.module<ClientEntrypoint<string>>(module) : module
       const [url] = await module.call<string>()
       return url
     }

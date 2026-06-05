@@ -1,7 +1,7 @@
 import type { Ed22519BasicAuthUIPluginForm as FormData } from '@owlmeans/client-panel/auth/plugins'
 import type { AuthenticationControl, AuthenticationRenderer } from '@owlmeans/client-auth/manager'
 import type { AppContext } from '../types.js'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { AuthRequest } from '@owlmeans/auth-common'
 
 import { Ed22519BasicAuthUIPluginFormSchema as Schema } from '@owlmeans/client-panel/auth/plugins'
@@ -46,7 +46,7 @@ const createSubmit = (context: AppContext, control: AuthenticationControl) => as
     return
   }
 
-  const [url] = await context.module<ClientModule<string, AuthRequest>>(DISPATCHER)
+  const [url] = await context.module<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
     .call({ query: token })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)

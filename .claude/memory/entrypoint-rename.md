@@ -47,6 +47,7 @@ export const isEntrypoint = (obj: object): obj is CommonEntrypoint =>
 ## Phase status
 
 - **Phase 1** (common code migration): ✅ Complete. Build green, all consumers migrated.
+  - 2026-06-05 follow-up: four packages were stragglers still importing the deprecated shims while their `package.json` already declared only the canonical deps — `client` (`src/utils/route.tsx`, `src/helper.tsx`), `client-auth` (`dispatcher/component.tsx`), `mui-panel` & `web-panel` (`auth/plugins/basic-ed25519.tsx`, `components/link.tsx`). The `client` case shipped a broken published `0.1.3`: its built `route.js` `import`ed `@owlmeans/client-module`/`@owlmeans/module` at runtime (undeclared deps), breaking any clean install (e.g. the viable-agent template Rollup build). All migrated to `@owlmeans/client-entrypoint`/`@owlmeans/entrypoint` and rebuilt. **Republish required** so consumers stop pulling the broken `0.1.3`. Lesson: when migrating a shim import, also confirm `package.json` declares the canonical pkg and rebuild so `build/` matches src.
 - **Phase 2** (common docs/skills/metadata): ✅ Complete.
 - **Phase 3** (internal monorepo): pending.
 - **Phase 4** (viable-agent monorepo): pending.

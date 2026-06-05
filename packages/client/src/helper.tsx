@@ -1,6 +1,6 @@
-import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
+import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { ModuleContextParams, RoutedComponent, ClientContext } from './types.js'
-import type { RefedModuleHandler } from '@owlmeans/client-module'
+import type { RefedEntrypointHandler } from '@owlmeans/client-entrypoint'
 import { HandledRenderer } from './utils/route.js'
 import { isValidElement } from 'react'
 import type { PropsWithChildren } from 'react'
@@ -13,7 +13,7 @@ interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const handler = <T extends {}>(
   Component: HandledRenderer<T>, preprender?: boolean
-): RefedModuleHandler<T> => ref => <
+): RefedEntrypointHandler<T> => ref => <
   R extends AbstractRequest = AbstractRequest,
   P extends AbstractResponse<HandledRenderer<T>> = AbstractResponse<HandledRenderer<T>>
 >(req: R, res: P): any => {
