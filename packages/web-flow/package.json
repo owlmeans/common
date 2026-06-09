@@ -21,14 +21,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.4",
-    "@owlmeans/client-context": "^0.1.4",
-    "@owlmeans/client-flow": "^0.1.4",
-    "@owlmeans/client-entrypoint": "^0.1.4",
-    "@owlmeans/client-resource": "^0.1.4",
-    "@owlmeans/context": "^0.1.4",
-    "@owlmeans/error": "^0.1.4",
-    "@owlmeans/flow": "^0.1.4"
+    "@owlmeans/client": "^0.1.5",
+    "@owlmeans/client-context": "^0.1.5",
+    "@owlmeans/client-flow": "^0.1.5",
+    "@owlmeans/client-entrypoint": "^0.1.5",
+    "@owlmeans/client-resource": "^0.1.5",
+    "@owlmeans/context": "^0.1.5",
+    "@owlmeans/error": "^0.1.5",
+    "@owlmeans/flow": "^0.1.5"
   },
   "peerDependencies": {
     "react": "*",

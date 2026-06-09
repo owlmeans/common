@@ -22,8 +22,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.4",
-    "@owlmeans/error": "^0.1.4"
+    "@owlmeans/context": "^0.1.5",
+    "@owlmeans/error": "^0.1.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

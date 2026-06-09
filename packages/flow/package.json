@@ -21,11 +21,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.4",
-    "@owlmeans/config": "^0.1.4",
-    "@owlmeans/error": "^0.1.4",
-    "@owlmeans/i18n": "^0.1.4",
-    "@owlmeans/resource": "^0.1.4",
+    "@owlmeans/auth": "^0.1.5",
+    "@owlmeans/config": "^0.1.5",
+    "@owlmeans/error": "^0.1.5",
+    "@owlmeans/i18n": "^0.1.5",
+    "@owlmeans/resource": "^0.1.5",
     "@scure/base": "^1.1.9"
   },
   "devDependencies": {

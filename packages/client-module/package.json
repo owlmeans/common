@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-entrypoint": "^0.1.4"
+    "@owlmeans/client-entrypoint": "^0.1.5"
   },
   "peerDependencies": {
     "ajv": "*"

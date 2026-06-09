@@ -21,14 +21,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.4",
-    "@owlmeans/client-config": "^0.1.4",
-    "@owlmeans/client-route": "^0.1.4",
-    "@owlmeans/config": "^0.1.4",
-    "@owlmeans/context": "^0.1.4",
-    "@owlmeans/error": "^0.1.4",
-    "@owlmeans/entrypoint": "^0.1.4",
-    "@owlmeans/route": "^0.1.4",
+    "@owlmeans/auth-common": "^0.1.5",
+    "@owlmeans/client-config": "^0.1.5",
+    "@owlmeans/client-route": "^0.1.5",
+    "@owlmeans/config": "^0.1.5",
+    "@owlmeans/context": "^0.1.5",
+    "@owlmeans/error": "^0.1.5",
+    "@owlmeans/entrypoint": "^0.1.5",
+    "@owlmeans/route": "^0.1.5",
     "axios": "^1.7.7",
     "qs": "^6.13.0"
   },

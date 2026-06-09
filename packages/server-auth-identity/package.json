@@ -22,13 +22,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.4",
-    "@owlmeans/basic-ids": "^0.1.4",
-    "@owlmeans/context": "^0.1.4",
-    "@owlmeans/mongo-resource": "^0.1.4",
-    "@owlmeans/oidc": "^0.1.4",
-    "@owlmeans/resource": "^0.1.4",
-    "@owlmeans/server-context": "^0.1.4"
+    "@owlmeans/auth": "^0.1.5",
+    "@owlmeans/basic-ids": "^0.1.5",
+    "@owlmeans/context": "^0.1.5",
+    "@owlmeans/mongo-resource": "^0.1.5",
+    "@owlmeans/oidc": "^0.1.5",
+    "@owlmeans/resource": "^0.1.5",
+    "@owlmeans/server-context": "^0.1.5"
   },
   "peerDependencies": {
     "mongodb": "*"

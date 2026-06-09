@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/i18n": "^0.1.4"
+    "@owlmeans/i18n": "^0.1.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

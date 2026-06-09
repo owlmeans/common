@@ -21,11 +21,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.4",
-    "@owlmeans/client-flow": "^0.1.4",
-    "@owlmeans/oidc": "^0.1.4",
-    "@owlmeans/resource": "^0.1.4",
-    "@owlmeans/web-client": "^0.1.4",
+    "@owlmeans/auth": "^0.1.5",
+    "@owlmeans/client-flow": "^0.1.5",
+    "@owlmeans/oidc": "^0.1.5",
+    "@owlmeans/resource": "^0.1.5",
+    "@owlmeans/web-client": "^0.1.5",
     "universal-cookie": "^7.2.1"
   },
   "peerDependencies": {

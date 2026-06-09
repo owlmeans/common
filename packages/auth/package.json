@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.4",
+    "@owlmeans/error": "^0.1.5",
     "ajv-formats": "^3.0.1"
   },
   "peerDependencies": {

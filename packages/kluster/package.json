@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
-    "@owlmeans/config": "^0.1.4",
-    "@owlmeans/context": "^0.1.4",
-    "@owlmeans/server-config": "^0.1.4",
-    "@owlmeans/server-context": "^0.1.4"
+    "@owlmeans/config": "^0.1.5",
+    "@owlmeans/context": "^0.1.5",
+    "@owlmeans/server-config": "^0.1.5",
+    "@owlmeans/server-context": "^0.1.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

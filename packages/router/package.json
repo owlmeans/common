@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.4"
+    "@owlmeans/context": "^0.1.5"
   },
   "peerDependencies": {
     "react": "*"
