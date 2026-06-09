@@ -61,3 +61,11 @@ export interface KubeEnv {
 
 export const kubeGate = (): IntegrationGate<KubeEnv> =>
   toIntegrationGate<KubeEnv>(['KUBE_CONFIG', 'KUBE_TEST_OK'])
+
+export interface PostgresEnv {
+  POSTGRES_URL: string
+  POSTGRES_TEST_DB_PREFIX: string
+}
+
+export const postgresGate = (): IntegrationGate<PostgresEnv> =>
+  toIntegrationGate<PostgresEnv>(['POSTGRES_URL'], ['POSTGRES_TEST_DB_PREFIX'])

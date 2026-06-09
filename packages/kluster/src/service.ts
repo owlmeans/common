@@ -1,7 +1,7 @@
 import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
 import type { KlusterConfig, KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
-import { KubeConfig, CoreV1Api, ApiException, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node'
+import { KubeConfig, CoreV1Api, ApiException, NetworkingV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node'
 import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
 
@@ -81,6 +81,8 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
     makeNetworkingApi: () => service.config!.makeApiClient(NetworkingV1Api),
 
     makeAppsApi: () => service.config!.makeApiClient(AppsV1Api),
+
+    makeCustomObjectsApi: () => service.config!.makeApiClient(CustomObjectsApi),
   }, service => async () => {
     if (service.config == null || service.api == null) {
       service.config = new KubeConfig()
