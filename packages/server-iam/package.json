@@ -23,7 +23,10 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.5",
-    "@owlmeans/iam": "^0.1.5"
+    "@owlmeans/iam": "^0.1.5",
+    "@owlmeans/oidc": "^0.1.5",
+    "@owlmeans/server-context": "^0.1.5",
+    "@owlmeans/server-oidc-rp": "^0.1.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

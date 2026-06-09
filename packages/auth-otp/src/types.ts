@@ -1,6 +1,9 @@
 import type { InitializedService } from '@owlmeans/context'
 
-/** Passwordless OTP/magic-link authentication service — implemented in Phase 2 */
+/** Passwordless email OTP service — generates, stores, and verifies short-lived one-time codes */
 export interface OtpService extends InitializedService {
-  // Phase 2: issueChallenge, verifyChallenge
+  /** Generate a code, persist it with TTL, and email it to the user. */
+  issueChallenge: (email: string) => Promise<void>
+  /** Verify and consume the code. Throws OtpInvalidError if the code is wrong or expired. */
+  verifyChallenge: (email: string, code: string) => Promise<void>
 }

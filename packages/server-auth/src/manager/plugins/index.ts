@@ -11,3 +11,11 @@ plugins[AuthenticationType.BasicEd25519] = basicEd25519 as typeof plugins[keyof 
 plugins[AuthenticationType.ReCaptcha] = reCaptcha as typeof plugins[keyof typeof plugins]
 plugins[AuthenticationType.RelyHandshake] = basicRely as typeof plugins[keyof typeof plugins]
 
+/** Register an external AuthPlugin factory under a custom type string. */
+export const registerPlugin = (
+  type: string,
+  factory: <C extends AppConfig, T extends AppContext<C>>(context: T) => AuthPlugin
+): void => {
+  plugins[type] = factory as typeof plugins[keyof typeof plugins]
+}
+
