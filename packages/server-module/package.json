@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-module",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/server-entrypoint": "^0.1.5"
+    "@owlmeans/server-entrypoint": "^0.1.6"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
