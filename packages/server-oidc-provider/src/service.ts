@@ -28,12 +28,15 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           ? name => context.service<OidcAdapterService>(cfg.adapterService!).instance(name)
           : undefined,
 
-        findAccount: async (_, id, _token) => {
+        findAccount: async (kctx, id, token) => {
           const accountSrv = context.service<OidcAccountService>(
             cfg.accountService ?? OIDC_ACCOUNT_SERVICE
           )
 
-          return accountSrv.loadById(context, id)
+          const clientId = (kctx as { oidc?: { client?: { clientId?: string } } })?.oidc?.client?.clientId
+            ?? (token as { clientId?: string } | undefined)?.clientId
+
+          return accountSrv.loadById(context, id, { clientId })
         },
 
         interactions: {

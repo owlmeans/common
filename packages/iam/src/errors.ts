@@ -27,6 +27,26 @@ export class IamResourceError extends IamError {
   }
 }
 
+export class IamGrantError extends IamError {
+  public static override typeName = `IamGrant${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`grant:${message}`)
+    this.type = IamGrantError.typeName
+  }
+}
+
+export class IamUnsupported extends IamError {
+  public static override typeName = `IamUnsupported${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`unsupported:${message}`)
+    this.type = IamUnsupported.typeName
+  }
+}
+
 ResilientError.registerErrorClass(IamError)
 ResilientError.registerErrorClass(IamClientError)
 ResilientError.registerErrorClass(IamResourceError)
+ResilientError.registerErrorClass(IamGrantError)
+ResilientError.registerErrorClass(IamUnsupported)

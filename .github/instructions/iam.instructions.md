@@ -5,17 +5,21 @@ applyTo: "**/services/iam*.ts, **/context.ts, **/types.ts"
 
 # Using `@owlmeans/iam`
 
-Provider-agnostic IAM abstraction. Defines `IamService` interface and related types. Used by both the platform backend (`viable-backend`) and the agent library (`@owlmeans/viable`). Concrete implementations live in `@owlmeans/iam-keycloak` (full proxy) and `@owlmeans/iam-integrated` (Phase 2 skeleton).
+Provider-agnostic IAM abstraction. Defines `IamService` interface and related types. Used by both the platform backend (`viable-backend`) and the agent library (`@owlmeans/viable`). Concrete implementations live in `@owlmeans/iam-keycloak` (full proxy) and `@owlmeans/iam-integrated`.
 
 ## Public API surface
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `IamService` | type | Unified IAM interface — all provisioning operations |
+| `IamService` | type | Unified IAM interface — all provisioning + authorization operations |
 | `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm? }` |
 | `IamCredentialsPair` | type | `{ token: string; realm: string }` |
-| `IamPermissionArgs` | type | `{ permission?: string }` — absent means unscoped |
+| `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title? }` — `permission` absent means unscoped resource name |
 | `IamResourceSpec` | type | `{ name: string; displayName?: string }` |
+| `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, title? }` |
+| `IamGrantArgs` | type | `{ resources?: string[] }` — present = resource-scoped grant form |
+| `IamGrant` | type | `{ profileId, clientId, permission, resources? }` |
+| `hasPermission` | fn | `(auth, permission, { scope?, resourceId? }?)` — checks `Authorization.permissions` PermissionSet[]; an unscoped set satisfies a resourceId check |
 | `DEFAULT_ALIAS` | const | Default service alias `'iam-service'` |
 | `IAM_MODE_KEYCLOAK` | const | `'keycloak'` |
 | `IAM_MODE_INTEGRATED` | const | `'integrated'` |
@@ -23,6 +27,20 @@ Provider-agnostic IAM abstraction. Defines `IamService` interface and related ty
 | `IamError` | class | Base IAM error |
 | `IamClientError` | class | Thrown when an OIDC client is missing a required field (e.g. `secret`) |
 | `IamResourceError` | class | Thrown when a KC resource returns with no name |
+| `IamGrantError` | class | Grant subject missing or entity mismatch |
+| `IamUnsupported` | class | Operation not supported by the active backend (e.g. resource-scoped grants on Keycloak) |
+
+## Permission model (two grant forms)
+
+Permissions are declared per entity client (project) with `ensurePermission` and granted to end-user
+subjects with `grantPermission`:
+
+- **Unscoped (project-wide)**: `grantPermission(entityId, clientId, profileId, 'article--modify')`
+- **Resource-scoped**: `grantPermission(entityId, clientId, profileId, 'department--modify', { resources: ['dep-123'] })` —
+  the grant only applies to the listed resource ids.
+
+Grants materialize as OwlMeans `PermissionSet[]` (`scope` = clientId; resource-scoped grants live in a
+dedicated set per permission carrying `resources[]`, because `resources` applies to all keys of a set).
 
 ## `IamService` interface
 
@@ -42,6 +60,20 @@ interface IamService extends InitializedService {
 
   // Provision a resource and assign it to the tenant's owner role (used in payment provisioning)
   ensureResourceOwnership: (entityId: string, clientId: string, resource: IamResourceSpec) => Promise<void>
+
+  // --- Authorization (permission definitions & grants) ---
+
+  // List permission definitions registered for the entity's client
+  listPermissions: (entityId: string, clientId: string) => Promise<IamPermissionDefinition[]>
+
+  // Grant a permission to an end-user subject; args.resources = resource-scoped form
+  grantPermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<IamGrant>
+
+  // Revoke; with args.resources only those ids are removed, else the whole grant
+  revokePermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<void>
+
+  // List grants for the client, optionally for one subject
+  listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
 }
 ```
 
@@ -79,3 +111,4 @@ export const makeIamService = (mode = process.env.IAM_MODE ?? 'keycloak') => {
 
 - `@owlmeans/iam-keycloak` (internal) — full proxy over Keycloak; see `iam-keycloak.instructions.md`
 - `@owlmeans/keycloak` (internal) — low-level KC admin API; see `keycloak.instructions.md`
+- `@owlmeans/server-iam` — IAM gate asserting both grant forms; see `server-iam.instructions.md`

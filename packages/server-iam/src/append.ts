@@ -1,6 +1,7 @@
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { WithSharedConfig } from '@owlmeans/oidc'
-import { appendOidcGuard, makeOidcClientService, makeOidcGate, makeOidcWrappingService } from '@owlmeans/server-oidc-rp'
+import { appendOidcGuard, makeOidcClientService, makeOidcWrappingService } from '@owlmeans/server-oidc-rp'
+import { makeIamGate } from './gate.js'
 
 type IamServerConfig = ServerConfig & WithSharedConfig
 type IamServerContext<C extends IamServerConfig = IamServerConfig> = ServerContext<C>
@@ -22,7 +23,9 @@ export const appendIam = <C extends IamServerConfig, T extends IamServerContext<
 ): T => {
   context.registerService(makeOidcClientService())
   context.registerService(makeOidcWrappingService())
-  context.registerService(makeOidcGate())
+  // IAM gate under the OIDC_GATE alias: claims-first (integrated mode),
+  // UMA2 fallback byte-equivalent to makeOidcGate (keycloak mode)
+  context.registerService(makeIamGate())
   appendOidcGuard<C, T>(context)
   return context
 }

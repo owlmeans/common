@@ -37,6 +37,10 @@ guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
 - `GOOGLE_CLIENT_AUTH` names the browser authentication plugin registered by `@owlmeans/web-oidc-rp/auth/plugins`.
 - `OIDC_GATE` is for OIDC/UMA-style authorization gates. Do not use it for downstream products that authenticate with OIDC/Google but authorize against local identity resources; those products should declare their own gate alias.
 
+- `PERMISSIONS_SCOPE` / `PERMISSIONS_CLAIM` (`'permissions'`) — the OIDC scope requesting, and the
+  token claim carrying, the subject's `PermissionSet[]` from the integrated IAM provider. Shared by
+  `server-oidc-provider` (emission), `server-oidc-rp` (extraction), and target provider config (`extraScopes`).
+
 ## Depends On
 
 - `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`

@@ -35,3 +35,9 @@ export const OIDC_WRAPPED_TOKEN = 'oidc-wrapped-token'
 export const WRAPPED_OIDC = 'wrapped-oidc-authz'
 
 export const OIDC_GATE = 'oidc-gate'
+
+/** OIDC scope that requests the permissions claim from the integrated provider. */
+export const PERMISSIONS_SCOPE = 'permissions'
+
+/** Token/userinfo claim carrying the subject's PermissionSet[] for the requesting client. */
+export const PERMISSIONS_CLAIM = 'permissions'

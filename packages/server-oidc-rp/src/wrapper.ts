@@ -8,6 +8,9 @@ import { cache, managedId } from './utils/cache.js'
 import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
 import { authService, DEFAULT_ALIAS, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
+import { decodeJwt } from 'jose'
+import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
+import { extractPermissionSets } from './utils/permissions.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
@@ -93,6 +96,15 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
             const updatedUser: Auth = {
               ...user,
               createdAt: new Date()
+            }
+
+            // Keep integrated-IAM permission grants fresh across token refreshes
+            if (tokenSet.id_token != null) {
+              const permissions = extractPermissionSets(decodeJwt(tokenSet.id_token)[PERMISSIONS_CLAIM])
+              if (permissions != null) {
+                updatedUser.permissions = permissions
+                updatedUser.permissioned = true
+              }
             }
 
             const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)

@@ -15,6 +15,8 @@ import { TRUSTED } from '@owlmeans/config'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { OIDC_AUTH_LIFTETIME } from '../consts.js'
 import { wrapper } from '../utils/wrapped.js'
+import { extractPermissionSets } from '../utils/permissions.js'
+import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
 
 /**
  * Authentication method links together OIDC and OwlMeans auth.
@@ -70,6 +72,9 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     id
   )
 
+  // Integrated IAM mode: the provider mints the subject's PermissionSet[] into the id_token
+  const permissions = extractPermissionSets(id[PERMISSIONS_CLAIM])
+
   let user: Auth = {
     type: OIDC_WRAPPED_TOKEN,
     token,
@@ -91,6 +96,7 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     // from the OwlMeans Auth intead
     // profileId: user?.userId,
     entityId: cfg.entityId,
+    ...(permissions != null ? { permissions, permissioned: true } : {}),
     isUser: true,
     createdAt: new Date(),
   }

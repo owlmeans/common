@@ -53,6 +53,15 @@ cfg.oidc.providers.push({
 - `setupAuthServiceModules(managerModules, AUTH_API)` exposes provider-list and token-update service modules protected by `GUARD_ED25519`.
 - When a downstream app uses OIDC/Google only for login and maps users into `@owlmeans/server-auth-identity`, do not reintroduce `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local identity data.
 
+## Integrated-IAM permissions claim (Phase 3)
+
+- `extractPermissionSets(claim)` (exported) shape-validates a `permissions` token claim into
+  `PermissionSet[]`; non-conforming claims (e.g. anything Keycloak emits) return `undefined`.
+- `authenticate` (actions/process.ts) maps a conforming id_token `permissions` claim into
+  `Auth.permissions` + `permissioned: true`; the wrapping service re-extracts it on token refresh.
+- `createGateModel` is exported for `@owlmeans/server-iam`, whose `makeIamGate` asserts claims first
+  and falls back to this UMA2 model — registered under the same `OIDC_GATE` alias by `appendIam()`.
+
 ## Depends On
 
 - `@owlmeans/oidc`, `@owlmeans/server-auth`, `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/auth-common`, `@owlmeans/basic-keys`

@@ -22,7 +22,9 @@
     }
   },
   "dependencies": {
+    "@owlmeans/auth": "^0.1.6",
     "@owlmeans/context": "^0.1.6",
+    "@owlmeans/entrypoint": "^0.1.6",
     "@owlmeans/iam": "^0.1.6",
     "@owlmeans/oidc": "^0.1.6",
     "@owlmeans/server-context": "^0.1.6",
