@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/router",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.6"
+    "@owlmeans/context": "^0.1.7"
   },
   "peerDependencies": {
     "react": "*"
