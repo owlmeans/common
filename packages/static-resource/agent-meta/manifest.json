@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/static-resource",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.733Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "static-resource",
+      "category": "package-specific",
+      "file": "skills/static-resource/SKILL.md",
+      "canonicalPath": ".claude/skills/static-resource/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "static-resource",
+      "category": "package-specific",
+      "file": "instructions/static-resource.instructions.md",
+      "canonicalPath": ".github/instructions/static-resource.instructions.md"
+    }
+  ]
+}

@@ -26,7 +26,7 @@ Every package falls into exactly one of four testing categories. The category dr
 
 ## Eight invariants (apply everywhere)
 
-1. **Tests live next to `src/` in `packages/<pkg>/tests/`**, named `*.spec.ts`. They are outside `rootDir: ./src/` so `tsc -b` already excludes them.
+1. **Tests live next to `src/` in `<your-package>/tests/`**, named `*.spec.ts`. They are outside `rootDir: ./src/` so `tsc -b` already excludes them.
 2. **One real context per package**, set up in `tests/context.ts`. It builds a real `BasicContext` / server / client context (whatever the package documents in its `SKILL.md`), provisions real sibling-package services and resources, and exports a single helper specs import.
 3. **Cross-package imports are real.** No mocks for sibling packages. Auth/authz is the only mockable boundary, only in category B, only via `@owlmeans/test-auth`.
 4. **Don't test context wiring** in every package. Trust `@owlmeans/context`'s own tests.
@@ -38,7 +38,7 @@ Every package falls into exactly one of four testing categories. The category dr
 ## Running tests
 
 - All packages from root: `bun run test`
-- One package: `cd packages/<pkg> && bun test ./tests` — same line for every category
+- One package: `cd <your-package> && bun test ./tests` — same line for every category
 - Integration tests: `MONGO_URL=... bun run test` — empty values skip cleanly
 - One-time UI setup: `bunx playwright install chromium` (downloads the browser the `playwright` library drives in category D)
 

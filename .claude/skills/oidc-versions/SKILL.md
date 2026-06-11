@@ -93,7 +93,7 @@ Current pin is `3.5.0`. OwlMeans only uses `UserManager` (browser-side, currentl
 
 **No upstream OIDC library type may appear in a package's public `index.ts` exports.** Define OwlMeans-owned interfaces and map at the service boundary.
 
-Canonical example: `packages/server-oidc-rp/src/types.ts`:
+Canonical example — `@owlmeans/server-oidc-rp` public types:
 - `OidcTokenSet` — OwlMeans-owned shape for `access_token`, `refresh_token`, `id_token`, etc.
 - `OidcGrantChecks` — owned shape for PKCE checks.
 - `OidcServerMetadata` — owned shape for issuer/endpoint metadata.
@@ -116,11 +116,11 @@ See [[server-oidc-rp]] for the full public surface.
 
 ## Downstream verification
 
-All three downstream repos symlink `@owlmeans/*` packages from `common/packages/*` (bun hoisted linker). After rebuilding common, verify each downstream:
+Downstream repos that link `@owlmeans/*` packages as local workspace entries (bun hoisted linker) pick up the rebuilt outputs automatically. After rebuilding the affected packages, verify each downstream:
 
 ```bash
 # per repo: viable, viable-agent, internal
-cd /home/igor/projects/owlmeans/<repo>
+cd <your-project-root>
 bun install           # refresh transitive third-party versions
 bun run build         # or per-workspace build command
 bun test              # or per-workspace test command

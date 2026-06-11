@@ -17,8 +17,8 @@ This covers **external UI dependency versions** across shadcn-based OwlMeans pac
 ## Bumping npm versions
 
 ```bash
-# Example: bump tailwindcss across all shadcn packages
-sed -i 's/"tailwindcss": "[^"]*"/"tailwindcss": "^4.1.0"/g' packages/*/package.json
+# Example: bump tailwindcss in a shadcn package (run per package)
+sed -i 's/"tailwindcss": "[^"]*"/"tailwindcss": "^4.1.0"/g' <shadcn-package>/package.json
 bun install
 bun run build
 ```
@@ -39,7 +39,7 @@ Follow the official Tailwind upgrade guide. Check `@theme` token compatibility a
 ```bash
 bun run build
 # Run category-D UI tests for shadcn packages
-bun test --filter packages/<pkg> ./tests
+bun test --filter <shadcn-pkg-name> ./tests
 ```
 
 See `.claude/skills/shadcn-versions/SKILL.md` for full procedure.

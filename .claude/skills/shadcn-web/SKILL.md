@@ -23,7 +23,7 @@ Three invariants govern every shadcn-based OwlMeans package:
 ## Package skeleton (mirrors `web-panel`)
 
 ```
-packages/<pkg>/
+<your-package>/
 ├── src/
 │   ├── @/                              # dev/test-only primitives — NOT a public export
 │   │   ├── components/ui/              # hand-copied shadcn primitives
@@ -132,7 +132,7 @@ packages/<pkg>/
 
 ## Adding a primitive without a registry
 
-1. Find the component source at the shadcn GitHub (`packages/shadcn-ui/src/registry/…`) or via `npx shadcn@latest add <name> --cwd packages/<pkg>` in a throwaway branch.
+1. Find the component source on the [shadcn GitHub](https://github.com/shadcn-ui/ui) (e.g. `registry/new-york/ui/<name>.tsx`) or via `npx shadcn@latest add <name> --cwd <your-package-dir>` in a throwaway branch.
 2. Copy the `.tsx` source into `src/@/components/ui/<name>.tsx`.
 3. Repoint all imports to `@/lib/utils` and `@/components/ui/…` for sub-primitives.
 4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`.
@@ -141,7 +141,7 @@ packages/<pkg>/
 
 ## Wrapping `@owlmeans/client-panel`
 
-Shadcn form/field components are the rendering layer over the framework-agnostic headless logic from `@owlmeans/client-panel`. Mirror the MUI pattern from `packages/web-panel/src/components/form/text/component.tsx`:
+Shadcn form/field components are the rendering layer over the framework-agnostic headless logic from `@owlmeans/client-panel`. Mirror the MUI pattern from `@owlmeans/web-panel` (form text component):
 
 ```tsx
 // MUI version (web-panel) — for reference

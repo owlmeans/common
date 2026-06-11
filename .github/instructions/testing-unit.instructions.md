@@ -4,7 +4,7 @@ applyTo: "packages/{basic-ids,context,config,error,flow,i18n,module,route,router
 
 # Category A — Unit Tests (no mocks)
 
-- Tests in `packages/<pkg>/tests/*.spec.ts`. Use `bun:test` (`describe`, `test`, `expect`).
+- Tests in `<your-package>/tests/*.spec.ts`. Use `bun:test` (`describe`, `test`, `expect`).
 - Build a real context once in `tests/context.ts` and export a helper specs call. No mocks.
 - Sibling packages are imported normally. If you feel the urge to mock one, you're in the wrong category — move to integration instead.
 - Cover `.claude/skills/<pkg>/SKILL.md` and `README.md` cases first.

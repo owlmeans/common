@@ -63,3 +63,20 @@ Submodule exporting AJV schemas (e.g., `ProvideParamsSchema`) and helpers for wh
 - [`@owlmeans/server-wl`](../server-wl) — server-side whitelabel handlers (uses `modules` from here)
 - [`@owlmeans/web-wl`](../web-wl) — web UI components for whitelabel content
 - [`@owlmeans/client-wl`](../client-wl) — client-side whitelabel placeholder
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded Claude Code skills and GitHub Copilot instructions under
+`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
+agent-skills installer to place them into your project's native locations
+(`.claude/skills/` and `.github/instructions/`):
+
+```sh
+npx @owlmeans/agent-skills
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

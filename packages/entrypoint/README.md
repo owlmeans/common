@@ -93,3 +93,20 @@ enum EntrypointOutcome { Ok, Accepted, Created, Finished }
 - [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `elevate()` to attach handlers
 - [`@owlmeans/client-entrypoint`](../client-entrypoint) — client-side entrypoint with API call support
 - [`@owlmeans/server-app`](../server-app) — re-exports everything from this package
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded Claude Code skills and GitHub Copilot instructions under
+`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
+agent-skills installer to place them into your project's native locations
+(`.claude/skills/` and `.github/instructions/`):
+
+```sh
+npx @owlmeans/agent-skills
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

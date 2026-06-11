@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/agent-skills",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:26:08.778Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "shadcn-web",
+      "category": "multi-package",
+      "file": "skills/shadcn-web/SKILL.md",
+      "canonicalPath": ".claude/skills/shadcn-web/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "shadcn-versions",
+      "category": "multi-package",
+      "file": "skills/shadcn-versions/SKILL.md",
+      "canonicalPath": ".claude/skills/shadcn-versions/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "shadcn-versions",
+      "category": "multi-package",
+      "file": "instructions/shadcn-versions.instructions.md",
+      "canonicalPath": ".github/instructions/shadcn-versions.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "shadcn-web",
+      "category": "multi-package",
+      "file": "instructions/shadcn-web.instructions.md",
+      "canonicalPath": ".github/instructions/shadcn-web.instructions.md"
+    }
+  ]
+}

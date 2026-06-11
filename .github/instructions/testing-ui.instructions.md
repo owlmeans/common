@@ -4,7 +4,7 @@ applyTo: "packages/{client,client-i18n,client-panel,client-wl,web-client,web-flo
 
 # Category D — Component Acceptance Tests (bun test + Playwright as a library)
 
-- Tests in `packages/<pkg>/tests/*.spec.ts`. Use `bun:test` (`describe`, `test`, `expect`) — same as categories A/B/C.
+- Tests in `<your-package>/tests/*.spec.ts`. Use `bun:test` (`describe`, `test`, `expect`) — same as categories A/B/C.
 - Playwright is consumed as a **library**: `import { launchBrowser, closeBrowser, mountComponent } from '@owlmeans/test-ui'`. Never `import` from `@playwright/test`.
 - Mount one component at a time via `mountComponent({ url, component?, props? })`. Tests are component-level acceptance — not end-to-end.
 - Always `await close()` the returned context and call `closeBrowser()` from `afterAll` — leaked contexts hang `bun test`.

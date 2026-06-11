@@ -4,7 +4,7 @@ applyTo: "packages/{auth,auth-common,basic-keys,basic-envelope,did,client-auth,c
 
 # Category B — Auth Unit Tests
 
-- Tests in `packages/<pkg>/tests/*.spec.ts`. Use `bun:test`.
+- Tests in `<your-package>/tests/*.spec.ts`. Use `bun:test`.
 - The **only** mocks allowed: `@owlmeans/test-auth` helpers (`makeFixtureKeyPair`, `makeMemoryTrustedResource`, `makeMockGuard`, `withAuth`, `signMockEnvelope`, `makeBearer`).
 - Never roll a new auth mock in a per-package `tests/`. Add it to `@owlmeans/test-auth` and update its skill instead.
 - Use deterministic seeds: `makeFixtureKeyPair('alice')` keeps signatures stable.

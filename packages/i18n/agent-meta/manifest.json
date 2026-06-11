@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/i18n",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.717Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "localization",
+      "category": "multi-package",
+      "file": "skills/localization/SKILL.md",
+      "canonicalPath": ".claude/skills/localization/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "i18n",
+      "category": "package-specific",
+      "file": "skills/i18n/SKILL.md",
+      "canonicalPath": ".claude/skills/i18n/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "localization",
+      "category": "multi-package",
+      "file": "instructions/localization.instructions.md",
+      "canonicalPath": ".github/instructions/localization.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "i18n",
+      "category": "package-specific",
+      "file": "instructions/i18n.instructions.md",
+      "canonicalPath": ".github/instructions/i18n.instructions.md"
+    }
+  ]
+}

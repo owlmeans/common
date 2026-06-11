@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/web-client",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.724Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-client",
+      "category": "package-specific",
+      "file": "skills/web-client/SKILL.md",
+      "canonicalPath": ".claude/skills/web-client/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "web-client",
+      "category": "package-specific",
+      "file": "instructions/web-client.instructions.md",
+      "canonicalPath": ".github/instructions/web-client.instructions.md"
+    }
+  ]
+}

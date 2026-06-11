@@ -10,7 +10,7 @@ Apply this skill when adding tests to packages in category A (see `testing-overv
 ## Layout
 
 ```
-packages/<pkg>/
+<your-package>/
 ├── src/...
 ├── tests/
 │   ├── context.ts          # one real context, shared across specs

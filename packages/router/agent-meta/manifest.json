@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/router",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.726Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "router",
+      "category": "package-specific",
+      "file": "skills/router/SKILL.md",
+      "canonicalPath": ".claude/skills/router/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "router",
+      "category": "package-specific",
+      "file": "instructions/router.instructions.md",
+      "canonicalPath": ".github/instructions/router.instructions.md"
+    }
+  ]
+}

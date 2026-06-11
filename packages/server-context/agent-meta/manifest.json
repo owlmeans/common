@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-context",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.723Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-context",
+      "category": "package-specific",
+      "file": "skills/server-context/SKILL.md",
+      "canonicalPath": ".claude/skills/server-context/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-context",
+      "category": "package-specific",
+      "file": "instructions/server-context.instructions.md",
+      "canonicalPath": ".github/instructions/server-context.instructions.md"
+    }
+  ]
+}

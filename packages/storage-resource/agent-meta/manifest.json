@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/storage-resource",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.719Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "storage-resource",
+      "category": "package-specific",
+      "file": "skills/storage-resource/SKILL.md",
+      "canonicalPath": ".claude/skills/storage-resource/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "storage-resource",
+      "category": "package-specific",
+      "file": "instructions/storage-resource.instructions.md",
+      "canonicalPath": ".github/instructions/storage-resource.instructions.md"
+    }
+  ]
+}

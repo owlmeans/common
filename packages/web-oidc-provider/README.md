@@ -54,3 +54,20 @@ Provider UI state and option types — exported from the root entry.
 - [`@owlmeans/server-oidc-provider`](../server-oidc-provider) — server hosting OIDC endpoints and interactions
 - [`@owlmeans/oidc`](../oidc) — shared `INTERACTION` constants and types
 - [`@owlmeans/web-client`](../web-client) / [`@owlmeans/web-panel`](../web-panel) — web context this UI runs in
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded Claude Code skills and GitHub Copilot instructions under
+`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
+agent-skills installer to place them into your project's native locations
+(`.claude/skills/` and `.github/instructions/`):
+
+```sh
+npx @owlmeans/agent-skills
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

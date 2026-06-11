@@ -4,7 +4,7 @@ applyTo: "packages/{mongo,mongo-resource,redis,redis-resource,kluster,storage-co
 
 # Category C — Integration Tests (env-gated)
 
-- Tests in `packages/<pkg>/tests/*.spec.ts`. Use `bun:test`.
+- Tests in `<your-package>/tests/*.spec.ts`. Use `bun:test`.
 - No mocks. Connect to real MongoDB / Redis / S3 / Kubernetes via the env values supplied by `<root>/.env`.
 - Open the gate at the top of `tests/context.ts` via `mongoGate()` / `redisGate()` / `s3Gate()` / `kubeGate()`. If `gate.skip`, do **not** register that service in the test context, and have specs self-skip with `gate.reason`.
 - Always `randomNamespace(prefix)` databases / key prefixes / S3 prefixes for parallel safety.

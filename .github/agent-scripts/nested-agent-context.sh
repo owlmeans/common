@@ -5,6 +5,12 @@
 # children of libraries/ and apps/ (one level deep only — no recursion
 # into a linked monorepo's own libraries/).
 #
+# Embedded per-package agent guidance (packages/<pkg>/agent-meta/, shipped
+# with published @owlmeans/* npm packages) is NEVER loaded here: in a linked
+# monorepo the child's ROOT skills/instructions are authoritative.  When such
+# copies are present the script reports them as a single [embedded] ... IGNORED
+# line so the omission is explicit rather than silent.
+#
 # PURPOSE
 #   Before editing anything inside libraries/ or apps/, agents MUST run
 #   this script and read every listed file whose description matches the
@@ -33,10 +39,14 @@
 #              -- Context DI container skill
 #     [rule]   .claude/rules/bun.md
 #     [memory] .claude/memory/MEMORY.md  (index only)
+#     [embedded]  N package(s) ship packages/*/agent-meta/ — IGNORED here
+#                 -- linked context: the root skills/instructions above ...
 #
 # NOTES
 #   - Symlinks are followed exactly one level; the child project's
 #     own libraries/ subdirectory is never entered.
+#   - Embedded packages/<pkg>/agent-meta/ copies are counted and reported as
+#     IGNORED; they are never opened or listed as [skill]/[instruction].
 #   - Descriptions are extracted from YAML frontmatter (between the
 #     first two '---' lines).  If absent, the first markdown heading
 #     line is used.  Files are never sourced or eval'd.
@@ -200,6 +210,23 @@ EOF
         desc=$(extract_description "$mem_index")
         [ -z "$desc" ] && desc=$(extract_heading "$mem_index")
         print_entry "[memory-index]" "$child_label/.claude/memory/MEMORY.md" "$desc"
+    fi
+
+    # ---- packages/*/agent-meta/ (embedded copies — reported as IGNORED) ----
+    # Published @owlmeans/* packages embed read-only copies of the canonical
+    # root skills/instructions for standalone npm consumers.  In a linked
+    # monorepo the ROOT guidance above is authoritative, so these are ignored.
+    # Count direct children only (packages/*); never recurse or open them.
+    embedded_count=0
+    for am in "$child_dir"/packages/*/agent-meta/; do
+        [ -d "$am" ] || continue
+        embedded_count=$((embedded_count + 1))
+    done
+    if [ "$embedded_count" -gt 0 ]; then
+        print_header
+        print_entry "[embedded]" \
+            "$embedded_count package(s) ship packages/*/agent-meta/ — IGNORED here" \
+            "linked context: the root skills/instructions above are authoritative; embedded copies serve standalone npm consumers only"
     fi
 
     if [ "$found_anything" -eq 0 ]; then

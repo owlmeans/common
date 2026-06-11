@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-app",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.725Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-app",
+      "category": "package-specific",
+      "file": "skills/server-app/SKILL.md",
+      "canonicalPath": ".claude/skills/server-app/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-app",
+      "category": "package-specific",
+      "file": "instructions/server-app.instructions.md",
+      "canonicalPath": ".github/instructions/server-app.instructions.md"
+    }
+  ]
+}

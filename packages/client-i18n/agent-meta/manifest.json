@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-i18n",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.725Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-i18n",
+      "category": "package-specific",
+      "file": "skills/client-i18n/SKILL.md",
+      "canonicalPath": ".claude/skills/client-i18n/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-i18n",
+      "category": "package-specific",
+      "file": "instructions/client-i18n.instructions.md",
+      "canonicalPath": ".github/instructions/client-i18n.instructions.md"
+    }
+  ]
+}

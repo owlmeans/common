@@ -16,7 +16,7 @@ Auth-related UI packages (`web-oidc-rp`, `web-oidc-provider`, `client-auth`, `cl
 ## Layout
 
 ```
-packages/<pkg>/
+<your-package>/
 ├── src/...
 └── tests/
     ├── harness/              # per-package: components registry + mount config

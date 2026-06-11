@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/redis-resource",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.724Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "redis-resource",
+      "category": "package-specific",
+      "file": "skills/redis-resource/SKILL.md",
+      "canonicalPath": ".claude/skills/redis-resource/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "redis-resource",
+      "category": "package-specific",
+      "file": "instructions/redis-resource.instructions.md",
+      "canonicalPath": ".github/instructions/redis-resource.instructions.md"
+    }
+  ]
+}

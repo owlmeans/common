@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/kluster",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.729Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "kluster",
+      "category": "package-specific",
+      "file": "skills/kluster/SKILL.md",
+      "canonicalPath": ".claude/skills/kluster/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "kluster",
+      "category": "package-specific",
+      "file": "instructions/kluster.instructions.md",
+      "canonicalPath": ".github/instructions/kluster.instructions.md"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/auth",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.718Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "auth",
+      "category": "package-specific",
+      "file": "skills/auth/SKILL.md",
+      "canonicalPath": ".claude/skills/auth/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "auth-protocol",
+      "category": "multi-package",
+      "file": "skills/auth-protocol/SKILL.md",
+      "canonicalPath": ".claude/skills/auth-protocol/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "auth-protocol",
+      "category": "multi-package",
+      "file": "instructions/auth-protocol.instructions.md",
+      "canonicalPath": ".github/instructions/auth-protocol.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "auth",
+      "category": "package-specific",
+      "file": "instructions/auth.instructions.md",
+      "canonicalPath": ".github/instructions/auth.instructions.md"
+    }
+  ]
+}

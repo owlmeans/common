@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/basic-ids",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.728Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "basic-ids",
+      "category": "package-specific",
+      "file": "skills/basic-ids/SKILL.md",
+      "canonicalPath": ".claude/skills/basic-ids/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "basic-ids",
+      "category": "package-specific",
+      "file": "instructions/basic-ids.instructions.md",
+      "canonicalPath": ".github/instructions/basic-ids.instructions.md"
+    }
+  ]
+}

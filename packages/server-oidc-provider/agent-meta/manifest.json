@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-oidc-provider",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.728Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-oidc-provider",
+      "category": "package-specific",
+      "file": "skills/server-oidc-provider/SKILL.md",
+      "canonicalPath": ".claude/skills/server-oidc-provider/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-oidc-provider",
+      "category": "package-specific",
+      "file": "instructions/server-oidc-provider.instructions.md",
+      "canonicalPath": ".github/instructions/server-oidc-provider.instructions.md"
+    }
+  ]
+}

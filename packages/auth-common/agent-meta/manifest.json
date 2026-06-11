@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/auth-common",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.721Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "auth-common",
+      "category": "package-specific",
+      "file": "skills/auth-common/SKILL.md",
+      "canonicalPath": ".claude/skills/auth-common/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "auth-common",
+      "category": "package-specific",
+      "file": "instructions/auth-common.instructions.md",
+      "canonicalPath": ".github/instructions/auth-common.instructions.md"
+    }
+  ]
+}

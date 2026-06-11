@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/error",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.729Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "error",
+      "category": "package-specific",
+      "file": "skills/error/SKILL.md",
+      "canonicalPath": ".claude/skills/error/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "error",
+      "category": "package-specific",
+      "file": "instructions/error.instructions.md",
+      "canonicalPath": ".github/instructions/error.instructions.md"
+    }
+  ]
+}

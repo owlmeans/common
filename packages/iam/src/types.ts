@@ -55,6 +55,35 @@ export interface IamGrant {
   resources?: string[]
 }
 
+/** An end-user of an entity (customer-wide; shared across that entity's projects). */
+export interface IamUser {
+  /** Backend-specific subject id: integrated = IdentityProfile.profileId, keycloak = KC user id. */
+  profileId: string
+  /** Primary login identifier (email for the integrated OTP path). */
+  email?: string
+  name?: string
+  /** AuthRole value. */
+  role: string
+  disabled?: boolean
+  /** Convenience count of permission grants the user holds (across clients, or for one client). */
+  grantCount?: number
+}
+
+/** Args to invite/create an end-user under an entity. */
+export interface IamUserInvite {
+  email: string
+  name?: string
+  /** AuthRole value; defaults to the backend's standard end-user role. */
+  role?: string
+}
+
+/** Args to update an existing end-user. */
+export interface IamUserUpdate {
+  name?: string
+  role?: string
+  disabled?: boolean
+}
+
 /** Unified IAM provider interface — all platform/agent code calls only this, never a backend directly */
 export interface IamService extends InitializedService {
   // --- Admin config (backend → OIDC RP config, payment provisioning) ---
@@ -116,4 +145,24 @@ export interface IamService extends InitializedService {
 
   /** Lists grants for the entity's client, optionally for a single subject. */
   listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
+
+  // --- End-user management (customer-wide users, shared per entityId) ---
+
+  /**
+   * Lists the entity's end-users. With clientId, narrows to users holding at least
+   * one grant for that client (per-project view).
+   */
+  listUsers: (entityId: string, clientId?: string) => Promise<IamUser[]>
+
+  /** Loads a single end-user by subject id, or null when absent. */
+  getUser: (entityId: string, profileId: string) => Promise<IamUser | null>
+
+  /** Creates (or resolves, idempotently by email) an end-user under the entity. */
+  inviteUser: (entityId: string, invite: IamUserInvite) => Promise<IamUser>
+
+  /** Updates an end-user's mutable fields (name, role, disabled). */
+  updateUser: (entityId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
+
+  /** Removes an end-user from the entity (their grants go with them). */
+  removeUser: (entityId: string, profileId: string) => Promise<void>
 }

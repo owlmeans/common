@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-flow",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.717Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-flow",
+      "category": "package-specific",
+      "file": "skills/client-flow/SKILL.md",
+      "canonicalPath": ".claude/skills/client-flow/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-flow",
+      "category": "package-specific",
+      "file": "instructions/client-flow.instructions.md",
+      "canonicalPath": ".github/instructions/client-flow.instructions.md"
+    }
+  ]
+}

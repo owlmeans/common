@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-panel",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.729Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-panel",
+      "category": "package-specific",
+      "file": "skills/client-panel/SKILL.md",
+      "canonicalPath": ".claude/skills/client-panel/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-panel",
+      "category": "package-specific",
+      "file": "instructions/client-panel.instructions.md",
+      "canonicalPath": ".github/instructions/client-panel.instructions.md"
+    }
+  ]
+}

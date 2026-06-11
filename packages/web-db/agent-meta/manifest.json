@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/web-db",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.725Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-db",
+      "category": "package-specific",
+      "file": "skills/web-db/SKILL.md",
+      "canonicalPath": ".claude/skills/web-db/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "web-db",
+      "category": "package-specific",
+      "file": "instructions/web-db.instructions.md",
+      "canonicalPath": ".github/instructions/web-db.instructions.md"
+    }
+  ]
+}

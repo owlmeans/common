@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/flow",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.731Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "flow",
+      "category": "package-specific",
+      "file": "skills/flow/SKILL.md",
+      "canonicalPath": ".claude/skills/flow/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "flow",
+      "category": "package-specific",
+      "file": "instructions/flow.instructions.md",
+      "canonicalPath": ".github/instructions/flow.instructions.md"
+    }
+  ]
+}

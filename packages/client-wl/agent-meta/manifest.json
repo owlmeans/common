@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-wl",
+  "version": "0.1.7",
+  "generatedAt": "2026-06-11T10:14:58.730Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-wl",
+      "category": "package-specific",
+      "file": "skills/client-wl/SKILL.md",
+      "canonicalPath": ".claude/skills/client-wl/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-wl",
+      "category": "package-specific",
+      "file": "instructions/client-wl.instructions.md",
+      "canonicalPath": ".github/instructions/client-wl.instructions.md"
+    }
+  ]
+}

@@ -63,3 +63,20 @@ Returns middleware that mounts the OIDC authorize/token/userinfo/jwks endpoints 
 - [`@owlmeans/server-oidc-rp`](../server-oidc-rp) — relying-party counterpart for consuming external IdPs
 - [`@owlmeans/server-api`](../server-api) — the underlying server API the middleware mounts onto
 - [`@owlmeans/web-oidc-provider`](../web-oidc-provider) — browser UI for the provider's interaction screens
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded Claude Code skills and GitHub Copilot instructions under
+`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
+agent-skills installer to place them into your project's native locations
+(`.claude/skills/` and `.github/instructions/`):
+
+```sh
+npx @owlmeans/agent-skills
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

@@ -1,6 +1,6 @@
 ---
 name: nested-agent-context
-description: "MANDATORY when planning any work under libraries/* or apps/*. Runs the discovery script to enumerate per-project .github and .claude guidance files from linked OwlMeans monorepos, then loads all instruction and skill files relevant to the planned change."
+description: "MANDATORY when planning any work under libraries/* or apps/*. Runs the discovery script to enumerate per-project .github and .claude guidance files from linked OwlMeans monorepos, then loads all instruction and skill files relevant to the planned change. Embedded per-package agent-meta/ copies are reported as ignored — the linked monorepo's root guidance is authoritative."
 allowed-tools: Bash(sh *) Read
 user-invocable: true
 ---
@@ -77,7 +77,29 @@ instructions take precedence**.
     [skill]  libraries/common/.claude/skills/context/SKILL.md
              -- Context DI container skill
     [memory-index]  libraries/common/.claude/memory/MEMORY.md
+    [embedded]  76 package(s) ship packages/*/agent-meta/ — IGNORED here
+                -- linked context: the root skills/instructions above are authoritative; embedded copies serve standalone npm consumers only
 ```
+
+## Embedded agent-meta copies are ignored
+
+Published `@owlmeans/*` packages ship **embedded copies** of the canonical root
+skills/instructions under `packages/<pkg>/agent-meta/` (a generated,
+version-matched `manifest.json` + `skills/<name>/SKILL.md` +
+`instructions/<name>.instructions.md`). Those copies exist **only to serve
+standalone npm consumers** who install a package outside the monorepo.
+
+**In a linked context they are ignored.** When a monorepo is reached via a
+`libraries/` symlink, its **root** `.claude/skills/` and `.github/instructions/`
+are authoritative; the embedded per-package copies are redundant (and may lag the
+root between releases). The discovery script never opens them — it only **counts**
+them and prints a single `[embedded] … IGNORED` line so the omission is explicit.
+
+- Read and follow the `[skill]` / `[instruction]` / `[rule]` entries (root guidance).
+- Never open or act on a `packages/<pkg>/agent-meta/` copy in linked work.
+- Embedded copies are generated and read-only — guidance edits go to the canonical
+  **root** skill/instruction files at the monorepo root, which are re-embedded into
+  packages at publish time. The linked monorepo's own docs describe the full schema.
 
 ## Scope rules
 
@@ -86,6 +108,8 @@ instructions take precedence**.
   which prevents symlink loops.
 - `apps/` is included pre-emptively; the script no-ops gracefully if it
   doesn't exist.
+- `packages/<pkg>/agent-meta/` copies are detected one level deep
+  (`packages/*`) and reported as ignored; they are never opened.
 
 ## Sync note
 

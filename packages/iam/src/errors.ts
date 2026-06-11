@@ -45,8 +45,18 @@ export class IamUnsupported extends IamError {
   }
 }
 
+export class IamUserError extends IamError {
+  public static override typeName = `IamUser${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`user:${message}`)
+    this.type = IamUserError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(IamError)
 ResilientError.registerErrorClass(IamClientError)
 ResilientError.registerErrorClass(IamResourceError)
 ResilientError.registerErrorClass(IamGrantError)
 ResilientError.registerErrorClass(IamUnsupported)
+ResilientError.registerErrorClass(IamUserError)

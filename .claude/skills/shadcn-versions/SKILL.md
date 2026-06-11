@@ -26,32 +26,34 @@ Shadcn primitive `.tsx` files inside each package are **not** npm dependencies �
 
 ## Checking current versions
 
+To see what versions installed `@owlmeans/*` shadcn packages declare:
+
 ```bash
-# Which tailwind version are shadcn packages using?
-grep -r '"tailwindcss"' packages/*/package.json
+# Which tailwind version do installed OwlMeans shadcn packages use?
+grep -r '"tailwindcss"' node_modules/@owlmeans/*/package.json
 
 # Which tailwind-merge / clsx version?
-grep -r '"tailwind-merge"\|"clsx"\|"class-variance-authority"' packages/*/package.json
+grep -r '"tailwind-merge"\|"clsx"\|"class-variance-authority"' node_modules/@owlmeans/*/package.json
 
 # Which @radix-ui/* versions?
-grep -r '"@radix-ui/' packages/*/package.json
+grep -r '"@radix-ui/' node_modules/@owlmeans/*/package.json
 ```
 
 ## Bumping external UI lib versions
 
-Shadcn packages use caret ranges in peerDependencies (e.g. `"tailwindcss": "*"` or `"tailwindcss": "^4.x"`). To pin to a specific version across all shadcn packages:
+Shadcn packages use caret ranges in peerDependencies (e.g. `"tailwindcss": "*"` or `"tailwindcss": "^4.x"`). To pin to a specific version across all shadcn packages in the `@owlmeans/common` source repo, run these in the monorepo root (OwlMeans framework contributors):
 
 ```bash
 # Example: pin tailwindcss to ^4.1.0 across all shadcn packages
 OLD_TW='\*'   # or whatever the current range is
 NEW_TW='^4.1.0'
 
-# Update in all package.json files (adjust package names as the family grows)
-sed -i "s/\"tailwindcss\": \"$OLD_TW\"/\"tailwindcss\": \"$NEW_TW\"/g" packages/*/package.json
+# Update each shadcn package's package.json (run per package)
+sed -i "s/\"tailwindcss\": \"$OLD_TW\"/\"tailwindcss\": \"$NEW_TW\"/g" <shadcn-package>/package.json
 
 # Same pattern for other UI libs
-sed -i 's/"tailwind-merge": "\*"/"tailwind-merge": "^2.5.0"/g' packages/*/package.json
-sed -i 's/"clsx": "\*"/"clsx": "^2.1.0"/g' packages/*/package.json
+sed -i 's/"tailwind-merge": "\*"/"tailwind-merge": "^2.5.0"/g' <shadcn-package>/package.json
+sed -i 's/"clsx": "\*"/"clsx": "^2.1.0"/g' <shadcn-package>/package.json
 
 bun install
 ```
@@ -63,7 +65,7 @@ Always run `bun run build` and the category-D UI tests after bumping to catch br
 These are devDependencies only (used in the test harness, not production). Update them separately:
 
 ```bash
-sed -i 's/"@tailwindcss\/vite": "\*"/"@tailwindcss\/vite": "^4.1.0"/g' packages/*/package.json
+sed -i 's/"@tailwindcss\/vite": "\*"/"@tailwindcss\/vite": "^4.1.0"/g' <shadcn-package>/package.json
 bun install
 ```
 
@@ -81,7 +83,7 @@ bun install
 When shadcn upstream releases a new version, manually update the hand-copied primitives:
 
 1. **Find the changed component source** — check the shadcn GitHub diff or changelog.
-2. **Get the new source** — copy from `https://ui.shadcn.com/r/<name>.json` (the raw file URL) or from the shadcn GitHub (`packages/shadcn-ui/src/registry/new-york/ui/<name>.tsx`).
+2. **Get the new source** — copy from `https://ui.shadcn.com/r/<name>.json` (the raw file URL) or from the [shadcn GitHub](https://github.com/shadcn-ui/ui) (`registry/new-york/ui/<name>.tsx`).
 3. **Diff against the local copy** to identify any project-local modifications (custom classes, extra props, i18n tweaks) that must be preserved.
 4. **Apply changes**, preserving local modifications.
 5. **Update the version comment** at the top of the file: `// shadcn <name> — sourced from shadcn@<version> <date>`.
@@ -93,11 +95,11 @@ When shadcn upstream releases a new version, manually update the hand-copied pri
 Radix UI packages are added as peerDependencies when primitives are copied in. Keep them consistent across packages:
 
 ```bash
-# Check all radix versions in shadcn packages
-grep -r '"@radix-ui/' packages/*/package.json | grep -v node_modules
+# Check radix versions in installed OwlMeans shadcn packages
+grep -r '"@radix-ui/' node_modules/@owlmeans/*/package.json | grep -v node_modules
 
-# Bump a specific radix package
-sed -i 's/"@radix-ui\/react-slot": "[^"]*"/"@radix-ui\/react-slot": "^1.1.0"/g' packages/*/package.json
+# Bump a specific radix package (run per shadcn package in the source repo)
+sed -i 's/"@radix-ui\/react-slot": "[^"]*"/"@radix-ui\/react-slot": "^1.1.0"/g' <shadcn-package>/package.json
 bun install
 ```
 
@@ -109,8 +111,8 @@ After any version change:
 # Build all packages
 bun run build
 
-# Run category-D UI tests for shadcn packages (add package names as they are created)
-bun test --filter packages/<shadcn-pkg-name> ./tests
+# Run category-D UI tests for shadcn packages
+bun test --filter <shadcn-pkg-name> ./tests
 ```
 
 If category-D tests don't exist yet, at minimum load the harness URL manually to confirm components render without JS errors.
