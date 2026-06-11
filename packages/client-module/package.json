@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-module",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-entrypoint": "^0.1.7"
+    "@owlmeans/client-entrypoint": "^0.1.8"
   },
   "peerDependencies": {
     "ajv": "*"

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/did
 
 **Layer:** Core
-**Install:** `"@owlmeans/did": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/did": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

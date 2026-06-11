@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/static-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/static-resource": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/static-resource": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

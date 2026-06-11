@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

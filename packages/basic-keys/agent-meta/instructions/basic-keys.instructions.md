@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/basic-keys
 
 **Layer:** Core
-**Install:** `"@owlmeans/basic-keys": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/basic-keys": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

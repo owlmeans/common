@@ -7,7 +7,7 @@ applyTo: "**/config.ts, **/config.tsx, **/*.ts, **/*.tsx"
 # @owlmeans/config
 
 **Layer:** Core
-**Install:** `"@owlmeans/config": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/config": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

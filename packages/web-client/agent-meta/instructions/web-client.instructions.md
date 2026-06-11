@@ -7,7 +7,7 @@ applyTo: "**/index.tsx, **/modules.ts, **/modules.tsx, **/*.ts, **/*.tsx"
 # @owlmeans/web-client
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/web-client": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

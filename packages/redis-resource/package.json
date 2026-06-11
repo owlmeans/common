@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis-resource",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -25,10 +25,10 @@
     "ioredis": "*"
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.7",
-    "@owlmeans/context": "^0.1.7",
-    "@owlmeans/resource": "^0.1.7",
-    "@owlmeans/server-context": "^0.1.7"
+    "@owlmeans/basic-ids": "^0.1.8",
+    "@owlmeans/context": "^0.1.8",
+    "@owlmeans/resource": "^0.1.8",
+    "@owlmeans/server-context": "^0.1.8"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

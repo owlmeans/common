@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/kluster
 
 **Layer:** Infra
-**Install:** `"@owlmeans/kluster": "^0.1.7"` in `dependencies`
+**Install:** `"@owlmeans/kluster": "^0.1.8"` in `dependencies`
 
 ## Key Exports
 

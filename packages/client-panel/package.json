@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-panel",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -36,18 +36,18 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@owlmeans/client": "^0.1.7",
-    "@owlmeans/client-i18n": "^0.1.7",
-    "@owlmeans/client-entrypoint": "^0.1.7",
-    "@owlmeans/client-route": "^0.1.7",
-    "@owlmeans/error": "^0.1.7",
-    "@owlmeans/entrypoint": "^0.1.7"
+    "@owlmeans/client": "^0.1.8",
+    "@owlmeans/client-i18n": "^0.1.8",
+    "@owlmeans/client-entrypoint": "^0.1.8",
+    "@owlmeans/client-route": "^0.1.8",
+    "@owlmeans/error": "^0.1.8",
+    "@owlmeans/entrypoint": "^0.1.8"
   },
   "peerDependencies": {
-    "@owlmeans/auth": "^0.1.7",
-    "@owlmeans/client-auth": "^0.1.7",
-    "@owlmeans/i18n": "^0.1.7",
-    "@owlmeans/router": "^0.1.7",
+    "@owlmeans/auth": "^0.1.8",
+    "@owlmeans/client-auth": "^0.1.8",
+    "@owlmeans/i18n": "^0.1.8",
+    "@owlmeans/router": "^0.1.8",
     "ajv": "*",
     "react": "*",
     "react-hook-form": "*"
@@ -62,8 +62,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/auth": "^0.1.7",
-    "@owlmeans/client-auth": "^0.1.7",
+    "@owlmeans/auth": "^0.1.8",
+    "@owlmeans/client-auth": "^0.1.8",
     "@types/react": "^19.2.7",
     "nodemon": "^3.1.11",
     "npm-check": "^6.0.1",
