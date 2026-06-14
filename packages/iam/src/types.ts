@@ -15,6 +15,16 @@ export interface IamCredentialsPair {
   realm: string
 }
 
+export interface IamClientOptions {
+  /**
+   * Explicit allowed redirect URIs for the client. When omitted the backend keeps its
+   * permissive default (wildcard `*`) for back-compat. Pass concrete origins to harden a
+   * client — used for production/standalone clients whose callbacks are the production
+   * generated host, an attached custom domain, and owner-registered self-host origins.
+   */
+  redirectUris?: string[]
+}
+
 export interface IamPermissionArgs {
   /** Action name. When absent the permission is unscoped (project-wide). */
   permission?: string
@@ -91,7 +101,7 @@ export interface IamService extends InitializedService {
   getCredentialsPair: (entityId: string) => Promise<IamCredentialsPair>
 
   // --- Provisioning (agent → story development) ---
-  ensureClient: (entityId: string, clientId: string) => Promise<IamClient>
+  ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
 
   /**
    * Ensures a permission/resource exists in the entity's client.
