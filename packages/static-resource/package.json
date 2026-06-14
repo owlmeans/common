@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/static-resource",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.8",
-    "@owlmeans/error": "^0.1.8",
-    "@owlmeans/resource": "^0.1.8"
+    "@owlmeans/context": "^0.1.9",
+    "@owlmeans/error": "^0.1.9",
+    "@owlmeans/resource": "^0.1.9"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

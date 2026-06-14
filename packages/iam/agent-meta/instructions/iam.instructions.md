@@ -14,6 +14,7 @@ Provider-agnostic IAM abstraction. Defines `IamService` interface and related ty
 |--------|------|---------|
 | `IamService` | type | Unified IAM interface — all provisioning + authorization operations |
 | `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm? }` |
+| `IamClientOptions` | type | `{ redirectUris? }` — optional `ensureClient` hardening; omit → backend keeps its wildcard default |
 | `IamCredentialsPair` | type | `{ token: string; realm: string }` |
 | `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title? }` — `permission` absent means unscoped resource name |
 | `IamResourceSpec` | type | `{ name: string; displayName?: string }` |
@@ -53,8 +54,9 @@ interface IamService extends InitializedService {
   // Get an admin { token, realm } pair for raw low-level calls (avoid unless necessary)
   getCredentialsPair: (entityId: string) => Promise<IamCredentialsPair>
 
-  // Provision an OIDC client for a tenant and return its credentials
-  ensureClient: (entityId: string, clientId: string) => Promise<IamClient>
+  // Provision an OIDC client for a tenant and return its credentials.
+  // options.redirectUris hardens the client (production/standalone); omitted → wildcard default.
+  ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
 
   // Provision a named permission on a client resource; returns the resource name
   ensurePermission: (entityId: string, clientId: string, resource?: string, args?: IamPermissionArgs) => Promise<string>

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/payment",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -31,15 +31,15 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.8",
-    "@owlmeans/basic-envelope": "^0.1.8",
-    "@owlmeans/config": "^0.1.8",
-    "@owlmeans/context": "^0.1.8",
-    "@owlmeans/error": "^0.1.8",
-    "@owlmeans/i18n": "^0.1.8",
-    "@owlmeans/entrypoint": "^0.1.8",
-    "@owlmeans/resource": "^0.1.8",
-    "@owlmeans/route": "^0.1.8"
+    "@owlmeans/auth": "^0.1.9",
+    "@owlmeans/basic-envelope": "^0.1.9",
+    "@owlmeans/config": "^0.1.9",
+    "@owlmeans/context": "^0.1.9",
+    "@owlmeans/error": "^0.1.9",
+    "@owlmeans/i18n": "^0.1.9",
+    "@owlmeans/entrypoint": "^0.1.9",
+    "@owlmeans/resource": "^0.1.9",
+    "@owlmeans/route": "^0.1.9"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

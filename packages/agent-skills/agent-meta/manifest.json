@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.8",
-  "generatedAt": "2026-06-11T16:30:27.174Z",
+  "version": "0.1.9",
+  "generatedAt": "2026-06-14T13:34:06.135Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

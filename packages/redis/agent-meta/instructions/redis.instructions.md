@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/config.ts, **/*.ts, **/*.tsx"
 # @owlmeans/redis
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis": "^0.1.8"` in `dependencies`
+**Install:** `"@owlmeans/redis": "^0.1.9"` in `dependencies`
 
 ## Key Exports
 

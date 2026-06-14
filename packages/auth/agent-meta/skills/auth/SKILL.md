@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.8"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.9"` in `dependencies`
 
 ## Key Exports
 

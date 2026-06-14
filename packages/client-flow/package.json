@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-flow",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,18 +21,18 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.8",
-    "@owlmeans/client": "^0.1.8",
-    "@owlmeans/client-context": "^0.1.8",
-    "@owlmeans/client-entrypoint": "^0.1.8",
-    "@owlmeans/client-resource": "^0.1.8",
-    "@owlmeans/config": "^0.1.8",
-    "@owlmeans/context": "^0.1.8",
-    "@owlmeans/error": "^0.1.8",
-    "@owlmeans/flow": "^0.1.8",
-    "@owlmeans/entrypoint": "^0.1.8",
-    "@owlmeans/resource": "^0.1.8",
-    "@owlmeans/route": "^0.1.8"
+    "@owlmeans/auth-common": "^0.1.9",
+    "@owlmeans/client": "^0.1.9",
+    "@owlmeans/client-context": "^0.1.9",
+    "@owlmeans/client-entrypoint": "^0.1.9",
+    "@owlmeans/client-resource": "^0.1.9",
+    "@owlmeans/config": "^0.1.9",
+    "@owlmeans/context": "^0.1.9",
+    "@owlmeans/error": "^0.1.9",
+    "@owlmeans/flow": "^0.1.9",
+    "@owlmeans/entrypoint": "^0.1.9",
+    "@owlmeans/resource": "^0.1.9",
+    "@owlmeans/route": "^0.1.9"
   },
   "peerDependencies": {
     "react": "*"
