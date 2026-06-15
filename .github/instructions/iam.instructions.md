@@ -93,12 +93,12 @@ await meta.update('oidcRealm', (client as any)._realm)
 
 ## Selecting the IAM provider
 
-The platform wires the correct implementation via `IAM_MODE` environment variable. Default is `'keycloak'`. Do not read `IAM_MODE` directly from feature code — it belongs in the service-factory only:
+The platform wires the correct implementation via the `IAM_MODE` environment variable. The default is **`integrated`** (the internal IAM); `IAM_MODE=keycloak` is opt-in, used mainly for custom / standalone customer production setups. Do not read `IAM_MODE` directly from feature code — it belongs in the service-factory only (the platform exposes `resolveIamMode()` / `isIntegratedIam()` from `viable-common`):
 
 ```ts
-export const makeIamService = (mode = process.env.IAM_MODE ?? 'keycloak') => {
-  if (mode === 'integrated') return makeIamIntegratedService(VIABLE_IAM)
-  return makeIamKeycloakService(VIABLE_IAM, { oidcProductAlias: OIDC_PRODUCT })
+export const makeIamService = (mode = resolveIamMode()) => {
+  if (mode === IAM_MODE_KEYCLOAK) return makeIamKeycloakService(VIABLE_IAM, { oidcProductAlias: OIDC_PRODUCT })
+  return makeIamIntegratedService(VIABLE_IAM)
 }
 ```
 
