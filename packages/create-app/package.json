@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/create-app",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "license": "MIT",
   "description": "Scaffold a minimal fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource. Deploys agent skills via @owlmeans/agent-skills by default.",
   "type": "module",
