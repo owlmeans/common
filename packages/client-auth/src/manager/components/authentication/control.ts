@@ -5,12 +5,12 @@ import {
 import type { AllowanceResponse, AllowanceRequest, AuthToken, AuthCredentials } from '@owlmeans/auth'
 import type { ClientContext } from '@owlmeans/client'
 import type { ClientConfig } from '@owlmeans/client-context'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { AuthenCredError } from '../../errors.js'
 import { plugins } from '../../plugins/index.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { EnvelopeModel } from '@owlmeans/basic-envelope'
-import { ModuleOutcome } from '@owlmeans/module'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { DEFAULT_ALIAS as FLOW_SERVICE, FLOW_STATE } from '@owlmeans/client-flow'
 import type { FlowService, StateResource } from '@owlmeans/client-flow'
 import { CONTROL_STATE_ID } from './consts.js'
@@ -44,7 +44,7 @@ export const makeControl = (
       control.beforeAuthenticate = plugins[control.type].beforeAuthenticate
       control.afterAuthenticate = plugins[control.type].afterAuthenticate
 
-      const module = context.module<ClientModule<AllowanceResponse>>(AUTHEN_INIT)
+      const module = context.entrypoint<ClientEntrypoint<AllowanceResponse>>(AUTHEN_INIT)
       const [allowance] = await module.call({ body: control.request })
 
       control.allowance = allowance
@@ -89,10 +89,10 @@ export const makeControl = (
         // We return back unwrapped challenge
         credentials.challenge = control.allowance?.challenge
 
-        const [token, status] = await context.module<ClientModule<AuthToken>>(AUTHEN_AUTHEN)
+        const [token, status] = await context.entrypoint<ClientEntrypoint<AuthToken>>(AUTHEN_AUTHEN)
           .call({ body: credentials })
 
-        if (status === ModuleOutcome.Ok && token.token != null
+        if (status === EntrypointOutcome.Ok && token.token != null
           && token.token !== '' && control.afterAuthenticate != null) {
           const resultingCred = makeEnvelopeModel<AuthCredentials>(token.token, EnvelopeKind.Token).message()
           await control.afterAuthenticate(resultingCred, context)

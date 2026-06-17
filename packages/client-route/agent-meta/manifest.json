@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-route",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.341Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-route",
+      "category": "package-specific",
+      "file": "skills/client-route/SKILL.md",
+      "canonicalPath": ".claude/skills/client-route/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-route",
+      "category": "package-specific",
+      "file": "instructions/client-route.instructions.md",
+      "canonicalPath": ".github/instructions/client-route.instructions.md"
+    }
+  ]
+}

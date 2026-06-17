@@ -1,4 +1,4 @@
-import type { GuardService } from '@owlmeans/module'
+import type { GuardService } from '@owlmeans/entrypoint'
 
 export interface BasicEd25519Guard extends GuardService {
 }

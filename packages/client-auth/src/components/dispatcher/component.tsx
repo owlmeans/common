@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import type { DispatcherRendererProps, TDispatcherHOC } from './types.js'
 import type { AuthToken } from '@owlmeans/auth'
 import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { HOME } from '@owlmeans/context'
 import { DEFAULT_ALIAS, DEFAULT_ENTITY } from '../../consts.js'
 import type { AuthService } from '@owlmeans/auth-common'
 import { useNavigate } from '@owlmeans/client'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { FlowService } from '@owlmeans/client-flow'
 import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
@@ -19,7 +19,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
   const navigator = useNavigate()
   const navigate = useCallback(async () => {
     alias = alias == null || alias === DISPATCHER ? HOME : alias
-    const module = context.module<ClientModule<string>>(alias)
+    const module = context.module<ClientEntrypoint<string>>(alias)
     if (alias === HOME) {
       params = {}
       query = {}

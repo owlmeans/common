@@ -1,0 +1,9 @@
+[install]
+linker = "hoisted"
+
+[test]
+# Default per-spec timeout for `bun test` across the monorepo.
+# Integration packages (mongo-resource, redis-resource, etc.) override this
+# locally with their own bunfig.toml when network round-trips are involved.
+timeout = 15000
+

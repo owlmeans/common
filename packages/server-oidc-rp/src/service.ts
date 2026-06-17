@@ -1,6 +1,7 @@
 import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
-import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService, OidcClientAdapter } from './types.js'
+import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService, OidcClientAdapter, OidcTokenSet, OidcTokenSetParameters, OidcIntrospectionResponse } from './types.js'
+import type { AuthorizationCodeGrantChecks } from 'openid-client'
 import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import * as client from 'openid-client'
@@ -22,7 +23,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         throw new AuthManagerError('oidc.client.service')
       }
 
-      if (typeof clientId === 'object' && clientId.clientId == null) {
+      if (typeof clientId === 'object' && clientId.clientId == null && cfg.clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
@@ -82,8 +83,8 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
         makeAuthUrl: params => client.buildAuthorizationUrl(descriptor, params).toString(),
 
-        // grantWithCredentials: async () => client.clientCredentialsGrant(descriptor, { grant_type: 'client_credentials' }),
-        grantWithCredentials: async () => client.clientCredentialsGrant(descriptor),
+        grantWithCredentials: async () =>
+          client.clientCredentialsGrant(descriptor) as Promise<OidcTokenSet>,
 
         grantWithCode: async (url, checks, params) => {
           const urlObj = new URL(url)
@@ -97,9 +98,9 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
 
           checks.idTokenExpected ??= true
 
-          return await client.authorizationCodeGrant(
-            descriptor, urlObj, checks
-          )
+          return client.authorizationCodeGrant(
+            descriptor, urlObj, checks as AuthorizationCodeGrantChecks
+          ) as Promise<OidcTokenSet>
         },
 
         refresh: async tokenSet => {
@@ -107,11 +108,15 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           if (refreshToken == null) {
             throw new AuthManagerError('refresh-token')
           }
-          return await client.refreshTokenGrant(descriptor, refreshToken)
+          return client.refreshTokenGrant(descriptor, refreshToken) as Promise<OidcTokenSetParameters>
         },
 
-        introspect: async (tokenSet, type = 'access_token') =>
-          await client.tokenIntrospection(descriptor, tokenSet[type] as string),
+        introspect: async (tokenSet, type = 'access_token') => {
+          const tokenValue = type === 'refresh_token' ? tokenSet.refresh_token
+            : type === 'id_token' ? tokenSet.id_token
+            : tokenSet.access_token
+          return client.tokenIntrospection(descriptor, tokenValue as string) as Promise<OidcIntrospectionResponse>
+        },
 
       } satisfies OidcClientAdapter
     },
@@ -119,7 +124,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
     getConfig: async clientId => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
 
-      if (typeof clientId === 'object' && clientId.clientId == null) {
+      if (typeof clientId === 'object' && clientId.clientId == null && clientId.service == null) {
         throw new AuthManagerError('oidc.client.client-id')
       }
 
@@ -128,7 +133,7 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           return consumer.clientId === clientId
         }
         return Object.entries(clientId).every(
-          ([key, value]) => consumer[key as keyof typeof consumer] === value
+          ([key, value]) => value == null || consumer[key as keyof typeof consumer] === value
         )
       })
     },
@@ -157,6 +162,11 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
         return context.service<AccountLinkingService>(accountLinkingService)
       }
       return null
+    },
+
+    findProvider: predicate => {
+      const context = assertContext<Config, Context>(service.ctx as Context, alias)
+      return (context.cfg.oidc.providers ?? []).find(predicate)
     },
 
     hasProvider: params => {

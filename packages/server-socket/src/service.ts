@@ -2,13 +2,13 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { SocketService } from './types.js'
 import type { Config, Context, Request } from '@owlmeans/server-api'
 import { DEFAULT_ALIAS } from './consts.js'
-import type { FixerService, ServerModule } from '@owlmeans/server-module'
+import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { canServerModule } from './utils/server.js'
 import { fastifyWebsocket } from '@fastify/websocket'
 import type { WebSocket } from '@fastify/websocket'
 import { authorize, executeResponse, extractContext, handleError, populateContext, provideRequest } from '@owlmeans/server-api/utils'
-import { ModuleOutcome, provideResponse } from '@owlmeans/module'
-import type { AbstractRequest, GateService } from '@owlmeans/module'
+import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
+import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
 
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
@@ -23,7 +23,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
       await api.server.register(async server => {
         server.addHook('preHandler', async (req, reply) => {
           const context = extractContext(req, service.ctx as Context, alias)
-          await context?.modules<ServerModule<Request>>()
+          await context?.entrypoints<ServerEntrypoint<Request>>()
             .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
             .reduce<Promise<Context>>(async (ctx, module) => {
               let context = await ctx
@@ -68,7 +68,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             }, Promise.resolve(context))
         })
 
-        await Promise.all(ctx.modules<ServerModule<Request>>().filter(
+        await Promise.all(ctx.entrypoints<ServerEntrypoint<Request>>().filter(
           module => canServerModule(ctx, module) && !module.route.isIntermediate()
         ).map(async module => {
           await module.resolve()
@@ -92,7 +92,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
                 conn.send(typeof value === 'string' ? value : JSON.stringify(value))
-                if (outcome === ModuleOutcome.Ok) {
+                if (outcome === EntrypointOutcome.Ok) {
                   conn.close()
                 }
               },

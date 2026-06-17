@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/config",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.359Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "config",
+      "category": "package-specific",
+      "file": "skills/config/SKILL.md",
+      "canonicalPath": ".claude/skills/config/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "config",
+      "category": "package-specific",
+      "file": "instructions/config.instructions.md",
+      "canonicalPath": ".github/instructions/config.instructions.md"
+    }
+  ]
+}

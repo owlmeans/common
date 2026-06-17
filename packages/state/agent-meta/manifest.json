@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/state",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.345Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "state",
+      "category": "package-specific",
+      "file": "skills/state/SKILL.md",
+      "canonicalPath": ".claude/skills/state/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "state",
+      "category": "package-specific",
+      "file": "instructions/state.instructions.md",
+      "canonicalPath": ".github/instructions/state.instructions.md"
+    }
+  ]
+}

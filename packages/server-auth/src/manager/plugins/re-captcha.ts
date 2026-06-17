@@ -4,8 +4,8 @@ import type { AuthPlugin, RecaptchaRequest, RecpatchaResponse } from './types.js
 import { PLUGINS } from '@owlmeans/config'
 import type { PluginConfig } from '@owlmeans/config'
 import { PluginMissconfigured } from '@owlmeans/config'
-import type { ClientModule } from '@owlmeans/client-module'
-import { ModuleOutcome } from '@owlmeans/module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { assertType } from './utils.js'
@@ -28,7 +28,7 @@ export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context:
       if (config.value == null) {
         throw new PluginMissconfigured('value')
       }
-      const validateRecaptcha = context.module<ClientModule<RecpatchaResponse>>(MOD_RECAPTCHA)
+      const validateRecaptcha = context.entrypoint<ClientEntrypoint<RecpatchaResponse>>(MOD_RECAPTCHA)
       const [result, status] = await validateRecaptcha.call<RecpatchaResponse, RecaptchaRequest>({
         body: {
           secret: config.value,
@@ -36,7 +36,7 @@ export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context:
         },
         headers: { 'content-type': 'application/x-www-form-urlencoded' }
       })
-      if (status !== ModuleOutcome.Ok) {
+      if (status !== EntrypointOutcome.Ok) {
         throw new AuthPluginError('recaptcha:api')
       }
       if (!result.success) {

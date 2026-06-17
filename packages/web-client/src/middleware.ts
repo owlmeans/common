@@ -1,6 +1,6 @@
 import type { Middleware } from '@owlmeans/context'
 import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { AuthUnknown } from '@owlmeans/auth'
 import { ResilientError } from '@owlmeans/error'
 import { DEFAULT_ALIAS } from '@owlmeans/client-auth'
@@ -10,7 +10,7 @@ export const logoutMiddleware: Middleware = {
   type: MiddlewareType.Context,
   stage: MiddlewareStage.Loading,
   apply: async context => {
-    context.modules<Perked>().forEach(module => {
+    context.entrypoints<Perked>().forEach(module => {
       if (module.route.route.type === AppType.Backend && module.call != null) {
         const guards = module.getGuards()
         if (guards.length > 0) {
@@ -46,6 +46,6 @@ export const logoutMiddleware: Middleware = {
   }
 }
 
-interface Perked extends ClientModule<unknown> {
+interface Perked extends ClientEntrypoint<unknown> {
   _auth_web_middleware_applied?: boolean
 }

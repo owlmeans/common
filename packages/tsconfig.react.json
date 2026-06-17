@@ -1,9 +1,0 @@
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": [
-      "dom",
-      "esnext"
-    ]
-  }
-}

@@ -1,5 +1,5 @@
 import type { LazyService } from '@owlmeans/context'
-import type { KubeConfig, CoreV1Api, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node'
+import type { KubeConfig, CoreV1Api, NetworkingV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node'
 import type { ServerConfig } from '@owlmeans/server-context'
 
 export interface KlusterService extends LazyService {
@@ -16,6 +16,9 @@ export interface KlusterService extends LazyService {
   makeNetworkingApi: () => NetworkingV1Api
 
   makeAppsApi: () => AppsV1Api
+
+  // Gateway API resources are CRDs accessed via CustomObjectsApi.
+  makeCustomObjectsApi: () => CustomObjectsApi
 }
 
 export interface KlusterConfig extends ServerConfig {

@@ -5,7 +5,7 @@ import { assertContext, createService } from '@owlmeans/context'
 import type { ClientContext, ClientConfig } from '@owlmeans/client-context'
 import { AuthorizationError, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { authMiddleware } from '@owlmeans/auth-common'
 
@@ -21,7 +21,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     authenticate: async token => {
       const context = assertContext(service.ctx, location)
 
-      const [authToken] = await context.module<ClientModule<AuthToken>>(DISPATCHER_AUTHEN)
+      const [authToken] = await context.entrypoint<ClientEntrypoint<AuthToken>>(DISPATCHER_AUTHEN)
         .call({ body: token })
 
       await service.update(authToken.token)

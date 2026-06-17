@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-wl",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.355Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-wl",
+      "category": "package-specific",
+      "file": "skills/server-wl/SKILL.md",
+      "canonicalPath": ".claude/skills/server-wl/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-wl",
+      "category": "package-specific",
+      "file": "instructions/server-wl.instructions.md",
+      "canonicalPath": ".github/instructions/server-wl.instructions.md"
+    }
+  ]
+}

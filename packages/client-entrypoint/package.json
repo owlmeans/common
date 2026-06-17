@@ -1,0 +1,56 @@
+{
+  "name": "@owlmeans/client-entrypoint",
+  "version": "0.1.11",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 102 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./utils": {
+      "import": "./build/utils/index.js",
+      "require": "./build/utils/index.js",
+      "default": "./build/utils/index.js",
+      "module": "./build/utils/index.js",
+      "types": "./build/utils/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/api": "^0.1.11",
+    "@owlmeans/client-config": "^0.1.11",
+    "@owlmeans/client-context": "^0.1.11",
+    "@owlmeans/client-route": "^0.1.11",
+    "@owlmeans/config": "^0.1.11",
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/entrypoint": "^0.1.11",
+    "@owlmeans/error": "^0.1.11",
+    "@owlmeans/route": "^0.1.11",
+    "ajv-formats": "^3.0.1",
+    "qs": "^6.13.0"
+  },
+  "peerDependencies": {
+    "ajv": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/qs": "^6.9.16",
+    "nodemon": "^3.1.11",
+    "npm-check": "^6.0.1",
+    "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

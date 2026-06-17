@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/socket",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.347Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "socket",
+      "category": "package-specific",
+      "file": "skills/socket/SKILL.md",
+      "canonicalPath": ".claude/skills/socket/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "socket",
+      "category": "package-specific",
+      "file": "instructions/socket.instructions.md",
+      "canonicalPath": ".github/instructions/socket.instructions.md"
+    }
+  ]
+}

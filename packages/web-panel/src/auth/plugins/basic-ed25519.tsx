@@ -1,7 +1,7 @@
 import type { Ed22519BasicAuthUIPluginForm as FormData } from '@owlmeans/client-panel/auth/plugins'
 import type { AuthenticationControl, AuthenticationRenderer } from '@owlmeans/client-auth/manager'
 import type { AppContext } from '../types.js'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { AuthRequest } from '@owlmeans/auth-common'
 
 import { Ed22519BasicAuthUIPluginFormSchema as Schema } from '@owlmeans/client-panel/auth/plugins'
@@ -9,7 +9,7 @@ import { AuthenticationStage, DISPATCHER } from '@owlmeans/auth'
 import { Form } from '../../components/form/index.js'
 import { TextInput } from '../../components/form/text/index.js'
 import { useCallback } from 'react'
-import LinearProgress from '@mui/material/LinearProgress'
+import { Progress } from '@/components/ui/progress'
 import { BlockScaling } from '@owlmeans/client-panel'
 import { useContext } from '@owlmeans/web-client'
 
@@ -24,7 +24,7 @@ export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, 
           name => <TextInput key={name} name={name} label />
         )
       default:
-        return <LinearProgress />
+        return <Progress />
     }
   }, [stage])
 
@@ -46,7 +46,7 @@ const createSubmit = (context: AppContext, control: AuthenticationControl) => as
     return
   }
 
-  const [url] = await context.module<ClientModule<string, AuthRequest>>(DISPATCHER)
+  const [url] = await context.module<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
     .call({ query: token })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)

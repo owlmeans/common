@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/web-oidc-rp",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.344Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-oidc-rp",
+      "category": "package-specific",
+      "file": "skills/web-oidc-rp/SKILL.md",
+      "canonicalPath": ".claude/skills/web-oidc-rp/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "web-oidc-rp",
+      "category": "package-specific",
+      "file": "instructions/web-oidc-rp.instructions.md",
+      "canonicalPath": ".github/instructions/web-oidc-rp.instructions.md"
+    }
+  ]
+}

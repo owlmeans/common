@@ -1,0 +1,50 @@
+{
+  "basic-ed25519": {
+    "entityId": { "label": "Organisations-ID" },
+    "address": { "label": "Benutzer-DID" },
+    "privateKey": { "label": "Privater Schlüssel" },
+    "submit": "Authentifizieren"
+  },
+  "re-captcha": {
+    "guideline": "Wir müssen sicherstellen, dass Sie kein Roboter sind. Klicken Sie auf das weiße Feld unten, um zu beweisen, dass Sie ein Mensch sind."
+  },
+  "wallet-provider": {
+    "pin": {
+      "loading": "Wird geladen...",
+      "guideline": "Verwenden Sie diesen PIN-Code für jede Ressource, die Wallet-basierte Autorisierung unterstützt"
+    }
+  },
+  "wallet-consumer": {
+    "pin": {
+      "label": "PIN-Code",
+      "hint": "Scannen Sie den QR-Code oder erstellen Sie einen PIN-Code mit der OwlMeans ID-App"
+    },
+    "submit": "Mit PIN fortfahren"
+  },
+  "oidp-auth": {
+    "reset": "Zurücksetzen",
+    "error": {
+      "socket": {
+        "timeout": {
+          "rely": "Das Authentifizierungsfenster ist abgelaufen. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut."
+        }
+      }
+    }
+  },
+  "oidp-create-id": {
+    "error": {
+      "socket": {
+        "timeout": {
+          "call": "Zeitüberschreitung! Aus Sicherheitsgründen setzen wir ein Zeitlimit für Authentifizierungsaktionen. Bitte versuchen Sie es erneut.",
+          "rely": "Der Authentifizierungscode ist abgelaufen. Bitte versuchen Sie es erneut."
+        }
+      },
+      "auth": {
+        "authorization": {
+          "sequence": "Der Authentifizierungsprozess wurde durch die verwendete Authentifizierungsapp unterbrochen."
+        }
+      }
+    },
+    "reset": "Neu laden"
+  }
+}

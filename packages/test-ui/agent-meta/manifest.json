@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/test-ui",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.340Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "testing-ui",
+      "category": "package-specific",
+      "file": "skills/testing-ui/SKILL.md",
+      "canonicalPath": ".claude/skills/testing-ui/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "testing-ui",
+      "category": "package-specific",
+      "file": "instructions/testing-ui.instructions.md",
+      "canonicalPath": ".github/instructions/testing-ui.instructions.md"
+    }
+  ]
+}

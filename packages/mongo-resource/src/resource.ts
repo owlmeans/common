@@ -303,6 +303,13 @@ const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaTyp
     if (key === '_id') {
       return [key, new ObjectId(value as string)]
     }
+    // A null/undefined value has nothing to coerce — pass it through for any declared
+    // type. Without this guard the object-map and array branches below call
+    // `Object.entries`/`.map` on `undefined` and throw (and `new Date(null)` would
+    // silently produce an epoch/Invalid Date). Keeps nullable fields honest.
+    if (value == null) {
+      return [key, value]
+    }
     const type = schema.properties?.[key]
 
     if (type?.type === 'object') {
@@ -315,10 +322,6 @@ const _prepareValues = <T extends ResourceRecord>(obj: T, schema?: JSONSchemaTyp
           return [key, _prepareSingleValue(value, type.additionalProperties as JSONSchemaType<any>)]
         }))
 
-        return [key, value]
-      }
-
-      if (value == null) {
         return [key, value]
       }
 

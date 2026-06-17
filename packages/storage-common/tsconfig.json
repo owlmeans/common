@@ -1,11 +1,10 @@
 {
   "extends": [
-    "../tsconfig.default.json",
+    "@owlmeans/dep-config/tsconfig.base.json"
   ],
   "compilerOptions": {
-    "rootDir": "./src/", /* Specify the root folder within your source files. */
-    "outDir": "./build/", /* Specify an output folder for all emitted files. */
-    "moduleResolution": "Bundler",
+    "rootDir": "./src/",
+    "outDir": "./build/"
   },
   "exclude": [
     "./dist/**/*",

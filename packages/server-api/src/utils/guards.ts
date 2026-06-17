@@ -1,8 +1,8 @@
 import { isContextWithoutIds, Layer } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import type { ServerModule } from '@owlmeans/server-module'
-import type { GuardService } from '@owlmeans/module'
-import { provideResponse } from '@owlmeans/module'
+import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
+import type { GuardService } from '@owlmeans/entrypoint'
+import { provideResponse } from '@owlmeans/entrypoint'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { executeResponse, provideRequest } from './payload.js'
 import { AuthFailedError } from '../errors.js'
@@ -12,9 +12,9 @@ type Config = ServerConfig
 interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const authorize = async <C extends Config, T extends Context<C>>(
-  context: T, module: ServerModule<FastifyRequest>,
+  context: T, module: ServerEntrypoint<FastifyRequest>,
   req: FastifyRequest, reply: FastifyReply
-): Promise<[T, ServerModule<FastifyRequest>]> => {
+): Promise<[T, ServerEntrypoint<FastifyRequest>]> => {
   const guards = module.getGuards()
   if (guards.length > 0) {
     const response = provideResponse(reply)
@@ -64,7 +64,7 @@ export const authorize = async <C extends Config, T extends Context<C>>(
       await context.waitForInitialized()
 
       // We elevate module to the context level if it was changed
-      module = context.module(module.alias)
+      module = context.entrypoint(module.alias)
       await module.resolve()
     }
   }

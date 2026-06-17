@@ -1,0 +1,67 @@
+{
+  "createKey": {
+    "title": "Crear nueva clave",
+    "description": "Una organización o servicio le pide que cree una nueva clave criptográfica",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide crear una nueva clave.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "getEntityKey": {
+    "title": "Obtener clave pública de organización",
+    "description": "Un servicio solicita la clave pública y datos relacionados del perfil de la organización",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide proporcionar esta clave.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "sign": {
+    "title": "Firmar con clave",
+    "description": "Un servicio le pide que firme un documento con su clave",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide realizar esta firma.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "masterSign": {
+    "title": "Firmar con clave maestra",
+    "description": "Un servicio le pide que firme un documento con su clave maestra, que solo debe usarse con servicios OwlMeans",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide realizar esta firma.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "getMasterDid": {
+    "title": "Obtener su DID principal",
+    "description": "Un servicio solicita su dirección descentralizada principal, que solo debe compartirse con servicios OwlMeans",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide compartir su DID principal.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "selectKey": {
+    "title": "Elegir una clave",
+    "description": "Un servicio le pide que elija una clave para obtener sus detalles públicos",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide proporcionar información pública de una de sus claves.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "getPublicDetails": {
+    "title": "Obtener clave pública",
+    "description": "Un servicio solicita la clave pública vinculada al perfil de su organización",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide compartir su clave pública.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" }
+  },
+  "requestPermissions": {
+    "title": "Permisos solicitados",
+    "description": "Un servicio solicita realizar una secuencia de acciones con su billetera",
+    "unknown-reason": "¡Tenga cuidado! No sabemos por qué se le pide realizar estas acciones.",
+    "proceed": { "label": "Confirmar" },
+    "cancel": { "label": "Cancelar" },
+    "method": {
+      "createKey": "Crear nueva clave criptográfica",
+      "getEntityKey": "Obtener clave pública de organización",
+      "sign": "Firmar datos con su clave",
+      "masterSign": "Firmar datos con clave maestra",
+      "getMasterDid": "Obtener su identificador principal",
+      "selectKey": "Obtener una de sus claves públicas",
+      "getPublicDetails": "Obtener su clave pública"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/agent-skills",
+  "version": "0.1.12",
+  "generatedAt": "2026-06-17T14:51:24.131Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "getting-started",
+      "category": "general",
+      "file": "skills/getting-started/SKILL.md",
+      "canonicalPath": ".claude/skills/getting-started/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "shadcn-web",
+      "category": "general",
+      "file": "skills/shadcn-web/SKILL.md",
+      "canonicalPath": ".claude/skills/shadcn-web/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "agent-memory",
+      "category": "general",
+      "file": "skills/agent-memory/SKILL.md",
+      "canonicalPath": ".claude/skills/agent-memory/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "reuse-code",
+      "category": "general",
+      "file": "skills/reuse-code/SKILL.md",
+      "canonicalPath": ".claude/skills/reuse-code/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "scaffolding",
+      "category": "general",
+      "file": "skills/scaffolding/SKILL.md",
+      "canonicalPath": ".claude/skills/scaffolding/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "skill-authoring",
+      "category": "general",
+      "file": "skills/skill-authoring/SKILL.md",
+      "canonicalPath": ".claude/skills/skill-authoring/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "shadcn-versions",
+      "category": "general",
+      "file": "skills/shadcn-versions/SKILL.md",
+      "canonicalPath": ".claude/skills/shadcn-versions/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "reuse-code",
+      "category": "general",
+      "file": "instructions/reuse-code.instructions.md",
+      "canonicalPath": ".github/instructions/reuse-code.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "getting-started",
+      "category": "general",
+      "file": "instructions/getting-started.instructions.md",
+      "canonicalPath": ".github/instructions/getting-started.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "scaffolding",
+      "category": "general",
+      "file": "instructions/scaffolding.instructions.md",
+      "canonicalPath": ".github/instructions/scaffolding.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "skill-authoring",
+      "category": "general",
+      "file": "instructions/skill-authoring.instructions.md",
+      "canonicalPath": ".github/instructions/skill-authoring.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "shadcn-versions",
+      "category": "general",
+      "file": "instructions/shadcn-versions.instructions.md",
+      "canonicalPath": ".github/instructions/shadcn-versions.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "agent-memory",
+      "category": "general",
+      "file": "instructions/agent-memory.instructions.md",
+      "canonicalPath": ".github/instructions/agent-memory.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "shadcn-web",
+      "category": "general",
+      "file": "instructions/shadcn-web.instructions.md",
+      "canonicalPath": ".github/instructions/shadcn-web.instructions.md"
+    }
+  ]
+}

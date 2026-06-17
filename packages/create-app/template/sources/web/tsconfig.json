@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.react.json"
+  ],
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "./build/",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+}

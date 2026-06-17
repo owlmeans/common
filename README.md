@@ -1,6 +1,6 @@
 # OwlMeans Common — Fullstack TypeScript Framework
 
-**OwlMeans Common** is a comprehensive, security-first TypeScript framework designed for building scalable fullstack applications with modern microservices and microclients architecture. Built around the concept of unified modules, context-driven dependency injection, and "quadra" pattern implementations, it provides everything needed to develop secure, maintainable applications from authentication to UI components.
+**OwlMeans Common** is a comprehensive, security-first TypeScript framework designed for building scalable fullstack applications with modern microservices and microclients architecture. Built around the concept of unified entrypoints, context-driven dependency injection, and "quadra" pattern implementations, it provides everything needed to develop secure, maintainable applications from authentication to UI components.
 
 ## 🎯 **Framework Principles & Goals**
 
@@ -12,7 +12,7 @@
 - **Secure Communication**: Built-in WebSocket encryption and API request signing
 
 ### **Unified Fullstack Development**
-- **Single Source of Truth**: Shared modules defining routes, validation, and types across all environments
+- **Single Source of Truth**: Shared entrypoints defining routes, validation, and types across all environments
 - **Context-Driven Architecture**: Dependency injection system managing services, resources, and middleware
 - **Cross-Platform Consistency**: Unified APIs working across web browsers, React Native, and Node.js servers
 - **Type Safety**: Full TypeScript coverage with shared types between frontend and backend
@@ -32,10 +32,10 @@
 ## 📚 **Thesaurus & Core Concepts**
 
 ### **Context**
-An application instance that manages the lifecycle and dependencies of services, modules, and resources. Multiple contexts can exist within one application with different capabilities depending on the complexity of operation and its dependencies.
+An application instance that manages the lifecycle and dependencies of services, entrypoints, and resources. Multiple contexts can exist within one application with different capabilities depending on the complexity of operation and its dependencies.
 
-### **Module**
-A URL unit in the system that declares routes, nesting relationships, and transforms into API endpoints (backend) or navigation routes (frontend). Modules provide a centralized place where all possible routes are registered and maintain consistency across environments.
+### **Entrypoint** *(formerly Module)*
+A URL unit in the system that declares routes, nesting relationships, and transforms into API endpoints (backend) or navigation routes (frontend). Entrypoints provide a centralized place where all possible routes are registered and maintain consistency across environments.
 
 ### **Route**
 Cross-environment structure consisting of URLs, URIs, aliases, permissions, and validations. Routes are POJO (Plain Old JavaScript Objects) that define the navigation and API structure.
@@ -47,7 +47,7 @@ Components that provide functionality and can be initialized either immediately 
 Components that provide data or external functionality, representing stored or remote entity sets with unified CRUD operations across different storage backends.
 
 ### **Guards**
-Authentication and authorization middleware that protect routes and modules based on user roles, permissions, and cryptographic verification.
+Authentication and authorization middleware that protect routes and entrypoints based on user roles, permissions, and cryptographic verification.
 
 ### **Layers**
 Hierarchical organization system supporting System, Global, Service, Entity, and User levels for complex multi-tenant applications.
@@ -58,16 +58,58 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 - **Server packages**: Backend implementations with API and business logic  
 - **Client packages**: Platform-agnostic client logic and components
 - **Web packages**: Browser-specific React implementations with Material-UI
-- **Native packages**: React Native mobile implementations
+- **Native packages**: React Native mobile implementations — see [owlmeans/native](https://github.com/owlmeans/native)
+
+## 🤖 Agent guidance
+
+Every published `@owlmeans/*` package ships embedded Claude Code skills and GitHub Copilot instructions under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
+
+### Install agent guidance
+
+After installing OwlMeans packages, run the agent-skills installer once:
+
+```sh
+npx @owlmeans/agent-skills
+```
+
+This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into your project's native locations:
+- **Claude Code**: `.claude/skills/<name>/SKILL.md`
+- **GitHub Copilot**: `.github/instructions/<name>.instructions.md`
+
+Re-run after updating `@owlmeans/*` packages to pick up revised guidance.
+
+### Schema
+
+Each package's `agent-meta/` directory contains:
+
+```
+agent-meta/
+  manifest.json              # name, version, canonical GitHub paths, entries list
+  skills/<name>/
+    SKILL.md                 # Claude Code skill (auto-invoked on relevant context)
+  instructions/
+    <name>.instructions.md   # GitHub Copilot instruction
+```
+
+Embedded files are **generated and read-only**. To suggest edits, open a PR against [owlmeans/common](https://github.com/owlmeans/common).
 
 ## 🚀 **Quick Start**
+
+> **Building a new app?** The fastest path is to scaffold one:
+> ```sh
+> npm create @owlmeans/app@latest my-app   # or: bun create @owlmeans/app my-app
+> ```
+> This generates a minimal fullstack project (`common` + `api` + `web`) with shadcn UI navigation,
+> no authentication, and a session-scoped in-memory resource — and deploys the agent skills into it.
+> See **[docs/getting-started.md](docs/getting-started.md)** for both the scaffolded and the
+> step-by-step **manual** walkthrough.
 
 Get started with OwlMeans Common in just a few minutes by creating a simple "Hello World" application with a server endpoint and client.
 
 ### **Step 1: Install Dependencies**
 
 ```bash
-npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-module @owlmeans/client-config @owlmeans/client
+npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-entrypoint @owlmeans/client-config @owlmeans/client
 ```
 
 ### **Step 2: Create Server**
@@ -75,10 +117,10 @@ npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-module @o
 ```typescript
 // server.ts
 import { makeContext, main, modules, elevate, handleRequest } from '@owlmeans/server-app'
-import { module, route } from '@owlmeans/module'
+import { entrypoint, route } from '@owlmeans/entrypoint'
 
-// Define a simple hello endpoint
-const helloModule = module(
+// Define a simple hello entrypoint
+const helloModule = entrypoint(
   route('hello', '/api/hello', { method: 'GET' })
 )
 
@@ -99,24 +141,24 @@ main(context, [...modules, helloModule])
 import React, { useState, useEffect } from 'react'
 import { makeContext, render } from '@owlmeans/web-client'
 import { App } from '@owlmeans/client'
-import { module } from '@owlmeans/client-module'
+import { entrypoint } from '@owlmeans/client-entrypoint'
 import { route } from '@owlmeans/route'
 import { config, addWebService } from '@owlmeans/client-config'
 import { Button, Typography, Box } from '@mui/material'
 import { AppType, Layer } from '@owlmeans/context'
 
-// Create the hello module for client-side API calls
-const helloModule = module(route('hello', '/api/hello', { method: 'GET' }))
+// Create the hello entrypoint for client-side API calls
+const helloModule = entrypoint(route('hello', '/api/hello', { method: 'GET' }))
 
-// Create root component module 
-const rootModule = module(route('root', '/', { frontend: true }))
+// Create root component entrypoint
+const rootModule = entrypoint(route('root', '/', { frontend: true }))
 
 const HelloComponent = () => {
   const [message, setMessage] = useState('')
 
   const fetchHello = async () => {
     try {
-      // Use module system to make API call
+      // Use entrypoint system to make API call
       const [data, outcome] = await helloModule.call()
       setMessage(data.message)
     } catch (error) {
@@ -222,11 +264,11 @@ npm install react react-dom @mui/material @emotion/react @emotion/styled
 npm install typescript @types/node @types/react
 ```
 
-### **Step 2: Shared Module Definitions**
+### **Step 2: Shared Entrypoint Definitions**
 
 ```typescript
 // shared/modules.ts
-import { module, route, guard, filter, body } from '@owlmeans/server-app'
+import { entrypoint, route, guard, filter, body } from '@owlmeans/server-app'
 
 // User data validation schema
 export const userSchema = {
@@ -239,17 +281,17 @@ export const userSchema = {
   required: ['name', 'email', 'message']
 }
 
-// API modules shared between frontend and backend
-export const helloModule = module(
+// Entrypoints shared between frontend and backend
+export const helloModule = entrypoint(
   route('hello', '/api/hello', { method: 'GET' })
 )
 
-export const createGreetingModule = module(
+export const createGreetingModule = entrypoint(
   route('create-greeting', '/api/greeting', { method: 'POST' }),
   filter(body(userSchema), guard('authenticated'))
 )
 
-export const listGreetingsModule = module(
+export const listGreetingsModule = entrypoint(
   route('list-greetings', '/api/greetings', { method: 'GET' }),
   guard('authenticated')
 )
@@ -728,7 +770,16 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 ## 📦 **Complete Package Reference**
 
-OwlMeans Common provides 69 specialized packages organized into six categories following the "quadra" architectural pattern.
+OwlMeans Common provides ~71 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
+
+> **Need the full dependency map?** See [`tree.md`](tree.md) — every package, its direct `@owlmeans/*` dependencies, its architecture layer, and the topological build order, including the two known dependency cycles.
+
+### **⚙️ Configuration Packages (1 package)**
+Shared build tooling and TypeScript configuration.
+
+| Package | Description |
+|---------|-------------|
+| [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
 
 ### **🏗️ Core Packages (29 packages)**
 Foundational libraries providing environment-agnostic functionality.
@@ -748,7 +799,7 @@ Foundational libraries providing environment-agnostic functionality.
 | [`@owlmeans/i18n`](packages/i18n) | Multi-level internationalization with namespace-based organization |
 | [`@owlmeans/image-resource`](packages/image-resource) | Specialized image management for object storage systems |
 | [`@owlmeans/kluster`](packages/kluster) | Kubernetes integration for cloud-native service discovery |
-| [`@owlmeans/module`](packages/module) | URL unit system for fullstack route and component management |
+| [`@owlmeans/entrypoint`](packages/entrypoint) | URL unit system for fullstack route and component management |
 | [`@owlmeans/mongo`](packages/mongo) | MongoDB service integration with clustering and encryption |
 | [`@owlmeans/mongo-resource`](packages/mongo-resource) | MongoDB resource implementation with schema validation |
 | [`@owlmeans/oidc`](packages/oidc) | OpenID Connect integration with provider configuration |
@@ -793,7 +844,7 @@ Platform-agnostic client libraries for React applications.
 | [`@owlmeans/client-did`](packages/client-did) | Client-side DID wallet management and authentication |
 | [`@owlmeans/client-flow`](packages/client-flow) | Client-side user flow management with state persistence |
 | [`@owlmeans/client-i18n`](packages/client-i18n) | React-based internationalization functionality |
-| [`@owlmeans/client-module`](packages/client-module) | Client-side module system with API calls and URL generation |
+| [`@owlmeans/client-entrypoint`](packages/client-entrypoint) | Client-side entrypoint system with API calls and URL generation |
 | [`@owlmeans/client-panel`](packages/client-panel) | React panel library with UI components and form management |
 | [`@owlmeans/client-payment`](packages/client-payment) | Client-side payment functionality |
 | [`@owlmeans/client-resource`](packages/client-resource) | Client-side resource management with local database storage |
@@ -801,14 +852,8 @@ Platform-agnostic client libraries for React applications.
 | [`@owlmeans/client-socket`](packages/client-socket) | Client-side WebSocket integration for real-time communication |
 | [`@owlmeans/client-wl`](packages/client-wl) | Client-side whitelabeling functionality |
 
-### **📱 Native Packages (3 packages)**
-React Native implementations for mobile applications.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/native-client`](packages/native-client) | React Native client framework with authentication and database integration |
-| [`@owlmeans/native-db`](packages/native-db) | React Native database functionality using AsyncStorage |
-| [`@owlmeans/native-panel`](packages/native-panel) | React Native panel components with Material Design 3 support |
+### **📱 Native Packages**
+React Native implementations for mobile applications live in the **[owlmeans/native](https://github.com/owlmeans/native)** monorepo: `@owlmeans/native-client`, `@owlmeans/native-db`, `@owlmeans/native-panel`, `@owlmeans/native-router`.
 
 ### **🖥️ Server Packages (12 packages)**
 Backend implementations for API services and business logic.
@@ -821,7 +866,7 @@ Backend implementations for API services and business logic.
 | [`@owlmeans/server-config`](packages/server-config) | Server-specific configuration utilities |
 | [`@owlmeans/server-context`](packages/server-context) | Server-side context and dependency injection system |
 | [`@owlmeans/server-flow`](packages/server-flow) | Server-side flow management with persistence and API integrations |
-| [`@owlmeans/server-module`](packages/server-module) | Server-side module system for HTTP request handling |
+| [`@owlmeans/server-entrypoint`](packages/server-entrypoint) | Server-side entrypoint system for HTTP request handling |
 | [`@owlmeans/server-oidc-provider`](packages/server-oidc-provider) | Complete OIDC identity provider service |
 | [`@owlmeans/server-oidc-rp`](packages/server-oidc-rp) | Server-side OpenID Connect Relying Party functionality |
 | [`@owlmeans/server-route`](packages/server-route) | Server-side routing with request matching and path resolution |
@@ -852,14 +897,14 @@ Start with the two flagship packages:
 ### **For Specific Use Cases**
 
 - **Authentication Systems**: Start with [`@owlmeans/auth`](packages/auth) and [`@owlmeans/auth-common`](packages/auth-common)
-- **Mobile Applications**: Use [`@owlmeans/native-client`](packages/native-client) and [`@owlmeans/native-panel`](packages/native-panel)
+- **Mobile Applications**: Use packages from [owlmeans/native](https://github.com/owlmeans/native) — `@owlmeans/native-client`, `@owlmeans/native-panel`
 - **Microservices**: Begin with [`@owlmeans/context`](packages/context) and [`@owlmeans/config`](packages/config)
 - **Data Management**: Explore [`@owlmeans/resource`](packages/resource) with storage-specific implementations
 - **Real-time Communication**: Use [`@owlmeans/socket`](packages/socket) with client/server implementations
 
 ### **Development Workflow**
 
-1. **Design your modules** using [`@owlmeans/module`](packages/module) for shared route definitions
+1. **Design your entrypoints** using [`@owlmeans/entrypoint`](packages/entrypoint) for shared route definitions
 2. **Configure your context** with [`@owlmeans/config`](packages/config) for dependency management
 3. **Implement authentication** using the auth packages for security
 4. **Build your API** with server packages for backend logic

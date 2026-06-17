@@ -4,7 +4,7 @@ import type { Config, Context } from '@owlmeans/server-api'
 import {
   SocketUnsupported, createBasicConnection, MessageType, SocketInitializationError, SocketUnauthorized
 } from '@owlmeans/socket'
-import { AbstractRequest } from '@owlmeans/module'
+import { AbstractRequest } from '@owlmeans/entrypoint'
 import { AuthenticationStage, AUTH_QUERY } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { isAuth, isAuthCredentials, isAuthToken } from '@owlmeans/auth'

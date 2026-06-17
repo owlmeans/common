@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/web-panel",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.362Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-panel",
+      "category": "package-specific",
+      "file": "skills/web-panel/SKILL.md",
+      "canonicalPath": ".claude/skills/web-panel/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "web-panel",
+      "category": "package-specific",
+      "file": "instructions/web-panel.instructions.md",
+      "canonicalPath": ".github/instructions/web-panel.instructions.md"
+    }
+  ]
+}

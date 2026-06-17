@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/storage-common",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.352Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "storage-common",
+      "category": "package-specific",
+      "file": "skills/storage-common/SKILL.md",
+      "canonicalPath": ".claude/skills/storage-common/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "storage-common",
+      "category": "package-specific",
+      "file": "instructions/storage-common.instructions.md",
+      "canonicalPath": ".github/instructions/storage-common.instructions.md"
+    }
+  ]
+}

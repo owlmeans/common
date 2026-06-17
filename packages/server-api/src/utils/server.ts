@@ -1,10 +1,10 @@
 import { AppType } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { assertContext } from '@owlmeans/context'
-import type { FixerService, ServerModule } from '@owlmeans/server-module'
-import type { CommonModule } from '@owlmeans/module'
-import type { GateService } from '@owlmeans/module'
-import { provideResponse } from '@owlmeans/module'
+import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import type { GateService } from '@owlmeans/entrypoint'
+import { provideResponse } from '@owlmeans/entrypoint'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
@@ -16,7 +16,7 @@ import { RouteProtocols } from '@owlmeans/route'
 type Config = ServerConfig
 type Context = ServerContext<Config>
 
-export const canServeModule = (context: Context, module: CommonModule): module is ServerModule<unknown> => {
+export const canServeModule = (context: Context, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
   if (module.route.route.type !== AppType.Backend) {
     return false
   }
@@ -30,7 +30,7 @@ export const canServeModule = (context: Context, module: CommonModule): module i
   return 'isIntermediate' in module.route
 }
 
-export const createServerHandler = (module: ServerModule<FastifyRequest>, location: string) =>
+export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, location: string) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     // We passed context using fastify request object
     let context = assertContext<Config, Context>((req as any)._ctx, location)
@@ -51,8 +51,14 @@ export const createServerHandler = (module: ServerModule<FastifyRequest>, locati
 
       await module.handle(request, response)
 
-      executeResponse(response, reply, true)
-      if (!reply.sent) {
+      // Don't rely on `reply.sent` here: in fastify v5 it is backed by
+      // `raw.writableEnded`, which only becomes true once the socket has
+      // finished writing (asynchronously), so it still reads `false`
+      // synchronously right after `reply.send()`. Track the emitted state
+      // explicitly instead, and only fall back to a default response when
+      // neither `executeResponse` nor the handler itself (hijack) replied.
+      const responded = executeResponse(response, reply, true)
+      if (!responded && !reply.sent) {
         console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
         reply.code(OK).send(response.value)
       }

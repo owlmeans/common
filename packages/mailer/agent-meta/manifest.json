@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/mailer",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.366Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "instruction",
+      "name": "mailer",
+      "category": "package-specific",
+      "file": "instructions/mailer.instructions.md",
+      "canonicalPath": ".github/instructions/mailer.instructions.md"
+    }
+  ]
+}

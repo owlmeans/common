@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/context",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.362Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "context",
+      "category": "package-specific",
+      "file": "skills/context/SKILL.md",
+      "canonicalPath": ".claude/skills/context/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "context",
+      "category": "package-specific",
+      "file": "instructions/context.instructions.md",
+      "canonicalPath": ".github/instructions/context.instructions.md"
+    }
+  ]
+}

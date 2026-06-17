@@ -1,0 +1,67 @@
+{
+  "createKey": {
+    "title": "Neuen Schlüssel erstellen",
+    "description": "Eine Organisation oder ein Dienst bittet Sie, einen neuen kryptografischen Schlüssel zu erstellen",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, einen neuen Schlüssel zu erstellen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "getEntityKey": {
+    "title": "Öffentlichen Schlüssel der Organisation abrufen",
+    "description": "Ein Dienst fordert den öffentlichen Schlüssel und zugehörige Daten für das Organisationsprofil an",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, diesen Schlüssel bereitzustellen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "sign": {
+    "title": "Mit Schlüssel signieren",
+    "description": "Ein Dienst bittet Sie, ein Dokument mit Ihrem Schlüssel zu signieren",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, diese Signatur zu erstellen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "masterSign": {
+    "title": "Mit Hauptschlüssel signieren",
+    "description": "Ein Dienst bittet Sie, ein Dokument mit Ihrem Hauptschlüssel zu signieren, der nur mit OwlMeans-Diensten verwendet werden sollte",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, diese Signatur zu erstellen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "getMasterDid": {
+    "title": "Primäre DID abrufen",
+    "description": "Ein Dienst fordert Ihre primäre dezentralisierte Adresse an, die nur mit OwlMeans-Diensten geteilt werden sollte",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, Ihre primäre DID zu teilen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "selectKey": {
+    "title": "Schlüssel auswählen",
+    "description": "Ein Dienst bittet Sie, einen Schlüssel auszuwählen, um seine öffentlichen Details zu erhalten",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, öffentliche Informationen eines Ihrer Schlüssel bereitzustellen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "getPublicDetails": {
+    "title": "Öffentlichen Schlüssel abrufen",
+    "description": "Ein Dienst fordert den öffentlichen Schlüssel an, der mit dem Profil Ihrer Organisation verknüpft ist",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, Ihren öffentlichen Schlüssel zu teilen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" }
+  },
+  "requestPermissions": {
+    "title": "Angeforderte Berechtigungen",
+    "description": "Ein Dienst bittet darum, eine Aktionssequenz mit Ihrer Wallet durchzuführen",
+    "unknown-reason": "Vorsicht! Wir wissen nicht, warum Sie gebeten werden, diese Aktionen durchzuführen.",
+    "proceed": { "label": "Bestätigen" },
+    "cancel": { "label": "Abbrechen" },
+    "method": {
+      "createKey": "Neuen kryptografischen Schlüssel erstellen",
+      "getEntityKey": "Öffentlichen Schlüssel der Organisation abrufen",
+      "sign": "Daten mit Ihrem Schlüssel signieren",
+      "masterSign": "Daten mit Hauptschlüssel signieren",
+      "getMasterDid": "Primäre Identifikation abrufen",
+      "selectKey": "Einen Ihrer öffentlichen Schlüssel abrufen",
+      "getPublicDetails": "Ihren öffentlichen Schlüssel abrufen"
+    }
+  }
+}

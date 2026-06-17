@@ -10,6 +10,10 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Dependency only configuration
+yarn.lock
+bun.lock
+
 # Dependency directories
 node_modules/
 
@@ -35,6 +39,20 @@ node_modules/
 
 # Deployments
 dev.values.yaml
+.env
 
 # Typescript
 tsconfig.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+
+# Test source tree must remain TypeScript only — `tsc -b -w` must not emit
+# alongside *.spec.ts. Excludes set in each package's tsconfig.json prevent
+# emission, but a stale `dev`/`watch` started before the exclude was added
+# can still produce these. Belt-and-braces.
+/packages/*/tests/**/*.js
+/packages/*/tests/**/*.d.ts
+/packages/*/tests/**/*.js.map
+/packages/*/tests/**/*.d.ts.map

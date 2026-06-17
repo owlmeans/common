@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/router",
-  "version": "0.1.2",
+  "version": "0.1.11",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,16 +21,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.2"
+    "@owlmeans/context": "^0.1.11"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "nodemon": "^3.1.11",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.2"
   },
   "publishConfig": {
     "access": "public"

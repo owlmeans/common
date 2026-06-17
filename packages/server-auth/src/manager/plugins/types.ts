@@ -1,6 +1,6 @@
 import type { AllowanceResponse } from '@owlmeans/auth'
 import type { AuthModel } from '../types.js'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { RedisResource } from '@owlmeans/redis-resource'
 import type { ResourceRecord } from '@owlmeans/resource'
 

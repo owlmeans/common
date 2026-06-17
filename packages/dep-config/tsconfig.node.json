@@ -1,0 +1,6 @@
+{
+  "extends": ["@owlmeans/dep-config/tsconfig.server.json"],
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}

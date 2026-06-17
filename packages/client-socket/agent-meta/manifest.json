@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-socket",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.343Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-socket",
+      "category": "package-specific",
+      "file": "skills/client-socket/SKILL.md",
+      "canonicalPath": ".claude/skills/client-socket/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-socket",
+      "category": "package-specific",
+      "file": "instructions/client-socket.instructions.md",
+      "canonicalPath": ".github/instructions/client-socket.instructions.md"
+    }
+  ]
+}

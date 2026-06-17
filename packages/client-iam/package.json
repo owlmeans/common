@@ -1,0 +1,41 @@
+{
+  "name": "@owlmeans/client-iam",
+  "version": "0.1.11",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/iam": "^0.1.11",
+    "@owlmeans/oidc": "^0.1.11",
+    "@owlmeans/web-client": "^0.1.11",
+    "@owlmeans/web-oidc-rp": "^0.1.11"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.3.0",
+    "nodemon": "^3.1.11",
+    "npm-check": "^6.0.1",
+    "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

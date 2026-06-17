@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/client-auth",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.340Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-auth",
+      "category": "package-specific",
+      "file": "skills/client-auth/SKILL.md",
+      "canonicalPath": ".claude/skills/client-auth/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "client-auth",
+      "category": "package-specific",
+      "file": "instructions/client-auth.instructions.md",
+      "canonicalPath": ".github/instructions/client-auth.instructions.md"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/payment",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.358Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "payment",
+      "category": "package-specific",
+      "file": "skills/payment/SKILL.md",
+      "canonicalPath": ".claude/skills/payment/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "payment",
+      "category": "package-specific",
+      "file": "instructions/payment.instructions.md",
+      "canonicalPath": ".github/instructions/payment.instructions.md"
+    }
+  ]
+}

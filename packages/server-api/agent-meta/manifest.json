@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-api",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.337Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-api",
+      "category": "package-specific",
+      "file": "skills/server-api/SKILL.md",
+      "canonicalPath": ".claude/skills/server-api/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-api",
+      "category": "package-specific",
+      "file": "instructions/server-api.instructions.md",
+      "canonicalPath": ".github/instructions/server-api.instructions.md"
+    }
+  ]
+}

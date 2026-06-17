@@ -1,6 +1,7 @@
 import type { Context } from '../types.js'
 import type { Configuration } from 'oidc-provider'
 import { updateClient } from './client.js'
+import { PERMISSIONS_CLAIM, PERMISSIONS_SCOPE } from '@owlmeans/oidc'
 import * as jose from 'jose'
 
 export const combineConfig = async (context: Context, _unsecure: boolean): Promise<Configuration> => {
@@ -18,9 +19,14 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
         'username', 'family_name', 'given_name', 'locale', 'name', 'nickname', 'preferred_username',
         ...cfg.customConfiguration?.claims?.profile ?? []
       ],
+      // Inert unless the account service actually emits the claim (integrated IAM mode)
+      [PERMISSIONS_SCOPE]: [PERMISSIONS_CLAIM],
       ...cfg.customConfiguration?.claims,
     },
-    scopes: ['openid', 'profile', 'offline_access', ...cfg.customConfiguration?.scopes ?? []],
+    scopes: [
+      'openid', 'profile', 'offline_access', PERMISSIONS_SCOPE,
+      ...cfg.customConfiguration?.scopes ?? []
+    ],
     features: {
       ...cfg.customConfiguration?.features,
       devInteractions: { enabled: false }
@@ -34,7 +40,7 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
     },
     jwks: {
       keys: [
-        await jose.exportJWK(await jose.importPKCS8(cfg.defaultKeys.RS256.pk, 'RS256'))
+        await jose.exportJWK(await jose.importPKCS8(cfg.defaultKeys.RS256.pk, 'RS256', { extractable: true }))
       ]
     }
   }

@@ -1,5 +1,5 @@
 import { createService } from '@owlmeans/context'
-import type { AbstractRequest, AbstractResponse } from '@owlmeans/module'
+import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import { assertContext } from '@owlmeans/context'
 import {
   BED255_NONCE_HEADER, BED255_TIME_HEADER, BED255_CASHE_RESOURCE, GUARD_ED25519,

@@ -1,0 +1,95 @@
+{
+  "name": "@owlmeans/mui-panel",
+  "version": "0.1.11",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 384 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./auth": {
+      "import": "./build/auth/index.js",
+      "require": "./build/auth/index.js",
+      "default": "./build/auth/index.js",
+      "module": "./build/auth/index.js",
+      "types": "./build/auth/index.d.ts"
+    },
+    "./auth/modules": {
+      "import": "./build/auth/modules.js",
+      "require": "./build/auth/modules.js",
+      "default": "./build/auth/modules.js",
+      "module": "./build/auth/modules.js",
+      "types": "./build/auth/modules.d.ts"
+    }
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "@owlmeans/api-config-client": "^0.1.11",
+    "@owlmeans/auth": "^0.1.11",
+    "@owlmeans/auth-common": "^0.1.11",
+    "@owlmeans/basic-envelope": "^0.1.11",
+    "@owlmeans/client": "^0.1.11",
+    "@owlmeans/client-auth": "^0.1.11",
+    "@owlmeans/client-config": "^0.1.11",
+    "@owlmeans/client-context": "^0.1.11",
+    "@owlmeans/client-flow": "^0.1.11",
+    "@owlmeans/client-i18n": "^0.1.11",
+    "@owlmeans/client-entrypoint": "^0.1.11",
+    "@owlmeans/client-panel": "^0.1.11",
+    "@owlmeans/client-route": "^0.1.11",
+    "@owlmeans/config": "^0.1.11",
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/error": "^0.1.11",
+    "@owlmeans/flow": "^0.1.11",
+    "@owlmeans/i18n": "^0.1.11",
+    "@owlmeans/entrypoint": "^0.1.11",
+    "@owlmeans/route": "^0.1.11",
+    "@owlmeans/web-client": "^0.1.11",
+    "@owlmeans/web-db": "^0.1.11",
+    "@owlmeans/web-flow": "^0.1.11",
+    "@owlmeans/web-router": "^0.1.11",
+    "i18next-browser-languagedetector": "^8.0.0",
+    "qrcode.react": "^4.2.0",
+    "react-google-recaptcha": "^3.1.0"
+  },
+  "peerDependencies": {
+    "@emotion/react": "^11.*",
+    "@emotion/styled": "^11.*",
+    "@mui/icons-material": "^7.*",
+    "@mui/material": "^7.*",
+    "ajv": "*",
+    "react": "*",
+    "react-dom": "*",
+    "react-hook-form": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/test-ui": "^0.1.11",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-google-recaptcha": "^2.1.9",
+    "nodemon": "^3.1.11",
+    "npm-check": "^6.0.1",
+    "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

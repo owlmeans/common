@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/server-auth",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.343Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-auth",
+      "category": "package-specific",
+      "file": "skills/server-auth/SKILL.md",
+      "canonicalPath": ".claude/skills/server-auth/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "server-auth",
+      "category": "package-specific",
+      "file": "instructions/server-auth.instructions.md",
+      "canonicalPath": ".github/instructions/server-auth.instructions.md"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import type { Auth, AuthToken, PermissionSet, Profile } from '@owlmeans/auth'
 import type { ConfigRecord, InitializedService } from '@owlmeans/context'
-import type { AbstractRequest, GuardService } from '@owlmeans/module'
+import type { AbstractRequest, GuardService } from '@owlmeans/entrypoint'
 import type { Resource, ResourceRecord } from '@owlmeans/resource'
 
 export interface AuthRequest extends AbstractRequest {
@@ -35,4 +35,12 @@ export interface AuthorizationService extends InitializedService {
 
 export interface TrustedRecord extends ConfigRecord, Partial<Omit<Profile, "permissions" | "attributes">> {
   id: string
+}
+
+export interface ProfileToEntityIdRequest {
+  profileId: string
+}
+
+export interface ProfileToEntityIdResponse {
+  entityId: string
 }

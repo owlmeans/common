@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/basic-envelope",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.364Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "basic-envelope",
+      "category": "package-specific",
+      "file": "skills/basic-envelope/SKILL.md",
+      "canonicalPath": ".claude/skills/basic-envelope/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "basic-envelope",
+      "category": "package-specific",
+      "file": "instructions/basic-envelope.instructions.md",
+      "canonicalPath": ".github/instructions/basic-envelope.instructions.md"
+    }
+  ]
+}

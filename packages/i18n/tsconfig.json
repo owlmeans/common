@@ -1,16 +1,11 @@
 {
   "extends": [
-    "../tsconfig.default.json",
-    "../tsconfig.react.json",
+    "@owlmeans/dep-config/tsconfig.base.json",
+    "@owlmeans/dep-config/tsconfig.react.json"
   ],
   "compilerOptions": {
-    "rootDir": "./src/", /* Specify the root folder within your source files. */
-    "outDir": "./build/", /* Specify an output folder for all emitted files. */
-    "moduleResolution": "Bundler"
+    "rootDir": "./src/",
+    "outDir": "./build/"
   },
-  "exclude": [
-    "./dist/**/*",
-    "./build/**/*",
-    "./*.ts"
-  ]
+  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts", "./tests/**/*"]
 }

@@ -1,8 +1,8 @@
 import type { PropsWithChildren, FC, DependencyList } from 'react'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { ClientConfig, ClientContext as BasicClientContext } from '@owlmeans/client-context'
 import type { StateResourceAppend } from '@owlmeans/state'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { DebugServiceAppend, ModalServiceAppend } from './components/types.js'
 import type { ConfigResourceAppend } from '@owlmeans/config'
 import type { ConfigRecord } from '@owlmeans/context'
@@ -55,7 +55,7 @@ export interface NavRequest<T extends Record<string, any> = Record<string, any>>
 
 export interface Navigator {
   _navigate: NavigateFunction
-  navigate: <R extends NavRequest = NavRequest>(module: ClientModule<string, AbstractRequest>, request?: R) => Promise<void>
+  navigate: <R extends NavRequest = NavRequest>(module: ClientEntrypoint<string, AbstractRequest>, request?: R) => Promise<void>
   go: <R extends NavRequest = NavRequest>(alias: string, request?: R) => Promise<void>
   back: () => Promise<void>
   pressBack: () => () => void

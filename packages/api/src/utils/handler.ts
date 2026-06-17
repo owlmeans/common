@@ -1,5 +1,5 @@
-import type { AbstractResponse } from '@owlmeans/module'
-import { ModuleOutcome } from '@owlmeans/module'
+import type { AbstractResponse } from '@owlmeans/entrypoint'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import type { AxiosResponse } from 'axios'
 import { ACCEPTED, CREATED, FINISHED, FORBIDDEN_ERROR, OK, SERVER_ERROR, UNAUTHORIZED_ERROR } from '../consts.js'
 import { ResilientError } from '@owlmeans/error'
@@ -8,15 +8,15 @@ import { ApiClientError, ServerAuthError, ServerCrashedError } from '../errors.j
 export const processResponse = (response: AxiosResponse, reply: AbstractResponse<any>) => {
   switch (response.status) {
     case OK:
-      reply.resolve(response.data, ModuleOutcome.Ok)
+      reply.resolve(response.data, EntrypointOutcome.Ok)
       return
     case ACCEPTED:
-      reply.resolve(response.data, ModuleOutcome.Accepted)
+      reply.resolve(response.data, EntrypointOutcome.Accepted)
       return
     case CREATED:
-      return processEmptyResponse(response, reply, ModuleOutcome.Created)
+      return processEmptyResponse(response, reply, EntrypointOutcome.Created)
     case FINISHED:
-      return processEmptyResponse(response, reply, ModuleOutcome.Finished)
+      return processEmptyResponse(response, reply, EntrypointOutcome.Finished)
     default:
 
       console.error(response.status, response.statusText)
@@ -48,7 +48,7 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
   }
 }
 
-const processEmptyResponse = (response: AxiosResponse, reply: AbstractResponse<any>, outcome: ModuleOutcome) => {
+const processEmptyResponse = (response: AxiosResponse, reply: AbstractResponse<any>, outcome: EntrypointOutcome) => {
   if (response.data != null && response.data != '') {
     reply.resolve(response.data, outcome)
     return

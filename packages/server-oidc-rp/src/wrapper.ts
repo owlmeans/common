@@ -5,10 +5,13 @@ import { createService } from '@owlmeans/context'
 import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService } from '@owlmeans/oidc'
 import { OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '@owlmeans/oidc'
 import { cache, managedId } from './utils/cache.js'
-import type { Config, Context, OidcClientService, TokenSetParameters } from './types.js'
+import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
 import { authService, DEFAULT_ALIAS, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
-import type { ClientModule } from '@owlmeans/client-module'
+import { decodeJwt } from 'jose'
+import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
+import { extractPermissionSets } from './utils/permissions.js'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
@@ -38,8 +41,8 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
 
         record.validated = new Date()
 
-        if (ctx.hasModule(authService.auth.update)) {
-          const [update] = await ctx.module<ClientModule<OIDCTokenUpdate>>(authService.auth.update)
+        if (ctx.hasEntrypoint(authService.auth.update)) {
+          const [update] = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
             .call({ body: { token, tokenSet: record.payload } })
 
           const updateEnvelope = makeEnvelopeModel<AuthCredentials>(update.token, EnvelopeKind.Token)
@@ -70,7 +73,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
             .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
 
-          record.payload = update.tokenSet as TokenSetParameters
+          record.payload = update.tokenSet as OidcTokenSetParameters
 
           await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 
@@ -82,9 +85,9 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
             let tokenSet: CommonTokenSetParams = record.payload as CommonTokenSetParams
             const client = await oidc.getClient(defaultClientId)
             if (days.unix(tokenSet.expires_at ?? 0).isBefore()) {
-              tokenSet = await client.refresh(tokenSet as TokenSetParameters) as CommonTokenSetParams
+              tokenSet = await client.refresh(tokenSet as OidcTokenSetParameters) as CommonTokenSetParams
             } else {
-              const result = await client.introspect(tokenSet as TokenSetParameters, 'access_token')
+              const result = await client.introspect(tokenSet as OidcTokenSetParameters, 'access_token')
               if (!result.active) {
                 throw new AuthorizationError('access-token')
               }
@@ -95,11 +98,20 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
               createdAt: new Date()
             }
 
+            // Keep integrated-IAM permission grants fresh across token refreshes
+            if (tokenSet.id_token != null) {
+              const permissions = extractPermissionSets(decodeJwt(tokenSet.id_token)[PERMISSIONS_CLAIM])
+              if (permissions != null) {
+                updatedUser.permissions = permissions
+                updatedUser.permissioned = true
+              }
+            }
+
             const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
             const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
               .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
 
-            record.payload = tokenSet as TokenSetParameters
+            record.payload = tokenSet as OidcTokenSetParameters
 
             await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 

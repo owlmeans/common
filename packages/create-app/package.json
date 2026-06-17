@@ -1,0 +1,43 @@
+{
+  "name": "@owlmeans/create-app",
+  "version": "0.1.13",
+  "license": "MIT",
+  "description": "Scaffold a minimal fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource. Deploys agent skills via @owlmeans/agent-skills by default.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "bin": {
+    "create-app": "./build/bin.js"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "template"
+  ],
+  "dependencies": {
+    "@owlmeans/agent-skills": "^0.1.12"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/node": "^24.10.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

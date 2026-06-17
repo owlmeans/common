@@ -1,14 +1,27 @@
 import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
 import type { KlusterConfig, KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
-import { KubeConfig, CoreV1Api, HttpError, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node'
+import { KubeConfig, CoreV1Api, ApiException, NetworkingV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node'
 import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
 
-// import util from 'node:util'
-
 type Config = KlusterConfig
 type Context = ServerContext<Config>
+
+export const isNotFoundError = (e: unknown): boolean => {
+  if (e == null || typeof e !== 'object') return false
+  const err = e as Record<string, unknown>
+  // 1.4.0 ApiException uses .code
+  if (err['code'] === 404) return true
+  // 0.22.x HttpError used .statusCode
+  if (err['statusCode'] === 404) return true
+  // Some shapes nest status in .response or .body
+  const body = err['body'] as Record<string, unknown> | undefined
+  if (body?.['code'] === 404) return true
+  const response = err['response'] as Record<string, unknown> | undefined
+  if (response?.['statusCode'] === 404) return true
+  return false
+}
 
 export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterService => {
   const location = `kluster:${alias}`
@@ -23,13 +36,11 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
         const ctx = assertContext<Config, Context>(service.ctx as Context, location)
         namespace ??= ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
 
-        const { body } = await service.api!.listNamespacedPod(
-          namespace, undefined, undefined, undefined, undefined, selector
-        )
+        const result = await service.api!.listNamespacedPod({ namespace, labelSelector: selector })
 
-        return body.items.map(item => item.status?.podIP).filter(name => name != null)
+        return result.items.map(item => item.status?.podIP).filter(name => name != null)
       } catch (e) {
-        if (e instanceof HttpError) {
+        if (e instanceof ApiException) {
           console.error(e.name, e.cause, e.message, e.body)
         } else {
           throw e
@@ -43,13 +54,11 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
         const ctx = assertContext<Config, Context>(service.ctx as Context, location)
         namespace ??= ctx.cfg.kluster?.namespace ?? DEFAULT_NAMESPACE
 
-        const { body } = await service.api!.listNamespacedService(namespace, undefined, undefined, undefined, undefined, selector)
+        const result = await service.api!.listNamespacedService({ namespace, labelSelector: selector })
 
-        // console.log(util.inspect(body, { depth: null, colors: true }))
-
-        return body.items?.[0]?.spec?.clusterIP ?? null
+        return result.items?.[0]?.spec?.clusterIP ?? null
       } catch (e) {
-        if (e instanceof HttpError) {
+        if (e instanceof ApiException) {
           console.error(e.name, e.cause, e.message, e.body)
         } else {
           throw e
@@ -72,6 +81,8 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
     makeNetworkingApi: () => service.config!.makeApiClient(NetworkingV1Api),
 
     makeAppsApi: () => service.config!.makeApiClient(AppsV1Api),
+
+    makeCustomObjectsApi: () => service.config!.makeApiClient(CustomObjectsApi),
   }, service => async () => {
     if (service.config == null || service.api == null) {
       service.config = new KubeConfig()

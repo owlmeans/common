@@ -5,7 +5,7 @@ import { QUERY_PARAM } from './consts.js'
 import { FlowStepMissconfigured, makeFlowModel, UnknownTransition } from '@owlmeans/flow'
 import { ResilientError } from '@owlmeans/error'
 import { assertContext } from '@owlmeans/context'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { appendClientResource } from '@owlmeans/client-resource'
 
 export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
@@ -27,7 +27,7 @@ export const makeFlowService = (alias: string = DEFAULT_ALIAS): FlowService => {
     const cfg = service.config()
     const param = cfg.queryParam ?? QUERY_PARAM
 
-    const module = ctx.module<ClientModule<string>>(step.module)
+    const module = ctx.entrypoint<ClientEntrypoint<string>>(step.module)
     const [url] = await module.call<string>({
       ...req,
       params: { ...req?.params, [param]: flow.serialize() },

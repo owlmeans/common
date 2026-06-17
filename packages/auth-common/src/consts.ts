@@ -14,3 +14,25 @@ export const DEFAULT_GUARD = DEF_AUTH_SRV
 
 export const TOKEN_UPDATE = 'auth-token-refresh'
 
+export const WEB_API = 'web-auth-api'
+
+export const authApi = {
+  profile: {
+    base: 'api:profile',
+    toEntityId: 'api:profile:to-entity-id',
+  },
+  entity: {
+    base: 'api:entity',
+    get: 'api:entity:get',
+    profile: {
+      base: 'api:entity:profile',
+      list: 'api:entity:profile:list',
+      link: 'api:entity:profile:link',
+    }
+  },
+  auth: {
+    base: 'api:auth',
+    delegate: 'api:auth:delegate',
+  },
+}
+

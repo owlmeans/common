@@ -1,3 +1,3 @@
 
 export * from './types.js'
-export * from './context.js'
+export { I18nContext, composePrefix, useI18n, useI18nLib, useI18nApp, useLanguage } from './context.js'

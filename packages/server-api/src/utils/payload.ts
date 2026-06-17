@@ -1,5 +1,5 @@
-import { ModuleOutcome } from '@owlmeans/module'
-import type { AbstractResponse, AbstractRequest } from '@owlmeans/module'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
+import type { AbstractResponse, AbstractRequest } from '@owlmeans/entrypoint'
 import type { Request, Response } from '../types.js'
 import { ACCEPTED, CREATED, OK, SERVER_ERROR } from '@owlmeans/api'
 import type { AnySchemaObject } from 'ajv'
@@ -19,27 +19,37 @@ export const provideRequest = (alias: string, req: Request, provision?: boolean)
 }
 
 /**
- * @throws {Error} 
+ * Emits the response onto the fastify reply if the handler produced an
+ * error or an outcome. Returns `true` when something was actually sent so
+ * callers don't rely on `reply.sent`, which in fastify v5 only flips once
+ * the raw socket finishes writing (asynchronously) and therefore reads
+ * `false` synchronously right after `reply.send()`.
+ *
+ * @throws {Error}
  */
-export const executeResponse = <T>(response: AbstractResponse<T>, reply: Response, throwOnError?: boolean) => {
+export const executeResponse = <T>(response: AbstractResponse<T>, reply: Response, throwOnError?: boolean): boolean => {
   if (response.error != null) {
     if (throwOnError ?? false) {
       throw response.error
     }
     reply.code(SERVER_ERROR).send(response.error.message)
+    return true
   } else if (response.outcome != null) {
     switch (response.outcome) {
-      case ModuleOutcome.Accepted:
+      case EntrypointOutcome.Accepted:
         reply.code(ACCEPTED).send(response.value)
         break
-      case ModuleOutcome.Created:
+      case EntrypointOutcome.Created:
         reply.code(CREATED).send(response.value)
         break
-      case ModuleOutcome.Ok:
+      case EntrypointOutcome.Ok:
       default:
         reply.code(OK).send(response.value)
     }
+    return true
   }
+
+  return false
 }
 
 

@@ -1,17 +1,17 @@
 import type { ClientRoute } from '@owlmeans/client-route'
-import type { ClientModule } from '@owlmeans/client-module'
-import type { AbstractRequest } from '@owlmeans/module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { Location } from '@owlmeans/router'
 
 import { useContext } from '@owlmeans/client'
 import { usePanelI18n } from '../context.js'
 import { useMemo } from 'react'
 
-export const usePanelLayout = <T = {}, R extends AbstractRequest = AbstractRequest>(): ClientModule<T, R> => {
+export const usePanelLayout = <T = {}, R extends AbstractRequest = AbstractRequest>(): ClientEntrypoint<T, R> => {
   const context = useContext()
   const location: Location<ClientRoute> = context.router().useLocation()
 
-  return context.module(location.state.alias)
+  return context.entrypoint(location.state.alias)
 }
 
 export const useLayoutTitle = (name?: string, alias?: string): string => {

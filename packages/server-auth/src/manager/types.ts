@@ -1,6 +1,6 @@
 import type { AllowanceRequest, AllowanceResponse, Auth, AuthCredentials, AuthToken, RelyToken } from '@owlmeans/auth'
 import type { KlusterConfig } from '@owlmeans/kluster'
-import type { GuardService } from '@owlmeans/module'
+import type { GuardService } from '@owlmeans/entrypoint'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import type { ServiceRoute } from '@owlmeans/server-route'

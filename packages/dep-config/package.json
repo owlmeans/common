@@ -1,0 +1,20 @@
+{
+  "name": "@owlmeans/dep-config",
+  "version": "0.1.11",
+  "description": "Shared TypeScript configuration for @owlmeans packages",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.react.json": "./tsconfig.react.json",
+    "./tsconfig.server.json": "./tsconfig.server.json",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./tsconfig.bun.json": "./tsconfig.bun.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

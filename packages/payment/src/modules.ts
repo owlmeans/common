@@ -1,19 +1,19 @@
-import { body, filter, module } from '@owlmeans/module'
+import { body, filter, entrypoint } from '@owlmeans/entrypoint'
 import { route, backend, RouteMethod } from '@owlmeans/route'
 import { paymentApi } from './consts.js'
 import { SubscriptionPropagateBodySchema } from './model/subscription.js'
 import { CreateCheckoutBodySchema } from './model/checkout.js'
 
 export const modules = [
-  module(route(paymentApi.subscription.base, '/subscription', backend())),
-  module(
+  entrypoint(route(paymentApi.subscription.base, '/subscription', backend())),
+  entrypoint(
     route(paymentApi.subscription.propogate, '/propogate', backend(
       paymentApi.subscription.base,
       RouteMethod.POST
     )),
     filter(body(SubscriptionPropagateBodySchema))
   ),
-  module(
+  entrypoint(
     route(paymentApi.subscription.propagate, '/propagate', backend(
       paymentApi.subscription.base,
       RouteMethod.POST
@@ -23,17 +23,17 @@ export const modules = [
 ]
 
 export const serviceModules = [
-  module(route(paymentApi.service.base, '/payment-service', backend())),
-  module(
+  entrypoint(route(paymentApi.service.base, '/payment-service', backend())),
+  entrypoint(
     route(paymentApi.service.checkout.base, '/checkout', backend(paymentApi.service.base)),
   ),
-  module(
+  entrypoint(
     route(paymentApi.service.checkout.session.base, '/session', backend(paymentApi.service.checkout.base)),
   ),
-  module(
+  entrypoint(
     route(paymentApi.service.checkout.session.external.base, '/external', backend(paymentApi.service.checkout.session.base)),
   ),
-  module(
+  entrypoint(
     route(paymentApi.service.checkout.session.external.create, '/create', backend(
       paymentApi.service.checkout.session.external.base,
       RouteMethod.POST

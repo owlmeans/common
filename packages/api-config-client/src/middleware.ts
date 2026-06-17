@@ -1,6 +1,6 @@
 import type { Middleware } from '@owlmeans/context'
 import { MiddlewareType, MiddlewareStage, assertContext } from '@owlmeans/context'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { ApiConfig } from '@owlmeans/api-config'
 import { API_CONFIG } from '@owlmeans/api-config'
 import { mergeConfig } from '@owlmeans/config'
@@ -14,7 +14,7 @@ export const apiConfigMiddleware: Middleware = {
     const context = assertContext<ClientConfig, ClientContext<ClientConfig>>(
       ctx as any, 'api-config-middleware'
     )
-    const module = context.module<ClientModule<ApiConfig>>(API_CONFIG)
+    const module = context.entrypoint<ClientEntrypoint<ApiConfig>>(API_CONFIG)
     if (context.cfg.primaryHost != null) {
       module.route.route.host = context.cfg.primaryHost
       if (context.cfg.primaryPort != null) {

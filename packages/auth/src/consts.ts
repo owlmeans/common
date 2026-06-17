@@ -49,6 +49,9 @@ export enum AuthenticationType {
   // For OwlMeans Auth Manager Service (OwlMeans IAM) there is a propritary protocol 
   // that is used as provider type
   WalletProvider = 'wallet-provider',
+  // Google OAuth 2.0 authentication type - used for direct Google sign-in
+  // without a full OIDC relay party service in between.
+  Google = 'google-oauth',
 }
 
 export enum AuthroizationType {

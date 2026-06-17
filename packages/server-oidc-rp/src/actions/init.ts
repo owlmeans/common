@@ -1,10 +1,10 @@
-import type { RefedModuleHandler } from '@owlmeans/server-module'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { handleBody } from '@owlmeans/server-api'
 import type { OIDCAuthInitParams, OidcProviderDescriptor } from '@owlmeans/oidc'
 import { AuthenPayloadError, AuthUnknown, DISPATCHER } from '@owlmeans/auth'
 import { assertContext } from '@owlmeans/context'
 import type { Config, Context, OidcClientAdapter, OidcClientService } from '../types.js'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 // import {  PROVIDER_CACHE_TTL } from '../consts.js'
 // import type { Client } from 'openid-client'
@@ -15,7 +15,7 @@ import { sha256 } from '@noble/hashes/sha2'
 import { cache, verifierId } from '../utils/cache.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
-export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitParams, ctx) => {
+export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInitParams, ctx) => {
   if (body.entity == null) {
     throw new AuthenPayloadError('entity')
   }
@@ -37,7 +37,7 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
      */
-    const [providers] = await context.module<ClientModule<OidcProviderDescriptor[]>>(
+    const [providers] = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
       authService.provider.list
     ).call({
       params: { service: context.cfg.alias ?? context.cfg.service },
@@ -85,7 +85,7 @@ export const init: RefedModuleHandler = handleBody(async (body: OIDCAuthInitPara
     entityId,
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
-  const [dispatcherUrl] = await context.module<ClientModule<string>>(DISPATCHER).call()
+  const [dispatcherUrl] = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).call()
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({

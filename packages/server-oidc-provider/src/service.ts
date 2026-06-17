@@ -4,7 +4,7 @@ import { DEFAULT_PATH, INTERACTION } from '@owlmeans/oidc'
 import type { Config, Context, OidcAccountService, OidcAdapterService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
-import type { ClientModule } from '@owlmeans/client-module'
+import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
@@ -28,17 +28,20 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           ? name => context.service<OidcAdapterService>(cfg.adapterService!).instance(name)
           : undefined,
 
-        findAccount: async (_, id, _token) => {
+        findAccount: async (kctx, id, token) => {
           const accountSrv = context.service<OidcAccountService>(
             cfg.accountService ?? OIDC_ACCOUNT_SERVICE
           )
 
-          return accountSrv.loadById(context, id)
+          const clientId = (kctx as { oidc?: { client?: { clientId?: string } } })?.oidc?.client?.clientId
+            ?? (token as { clientId?: string } | undefined)?.clientId
+
+          return accountSrv.loadById(context, id, { clientId })
         },
 
         interactions: {
           url: async (_, interaction) => {
-            const module = context.module<ClientModule>(INTERACTION)
+            const module = context.entrypoint<ClientEntrypoint>(INTERACTION)
             const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
             return uri
           }
@@ -49,20 +52,25 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
       api.server.use(base, oidc.callback())
-      oidc.use(async (ctx, next) => {
-        await next()
-        const csp = ctx.response.headers['content-security-policy']
-        if (csp != null) {
-          // @TODO Make it a little bit nicer - preferably using helmet :)
 
-          ctx.response.set('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
+      // oidc-provider v9: provider.use() middleware no longer runs post-response after a matched
+      // route. CSP rewrite is handled at the Fastify layer via an onSend hook instead.
+      api.server.addHook('onSend', async (request, reply, payload) => {
+        if (!request.url.startsWith(base)) {
+          return payload
         }
+        const csp = reply.getHeader('content-security-policy')
+        if (typeof csp === 'string' && csp.includes("form-action 'self'")) {
+          reply.header('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
+        }
+        return payload
       })
+
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
 
         oidc.on('grant.error', (_, error) => {
           console.warn('GRANT ERROR .......: ')
-          console.info(oidc.issuer, _.request.toJSON(), _.body)
+          console.info(oidc.issuer)
           console.error('!!!! GRANT ERROR: ', error)
         })
 
@@ -76,16 +84,6 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
           console.warn('USER INFO ERROR .......: ', Object.getOwnPropertyNames(ctx.oidc))
           console.info((ctx.oidc as any).grant)
           console.error('!!!! USER INFO ERROR: ', error)
-        })
-
-        oidc.use(async (_, next) => {
-          console.log('OIDC REQ .......: ')
-          console.log(_.request.toJSON())
-          await next()
-          console.log(_.oidc)
-          console.log('OIDC RES .......: ')
-          console.log(_.response.toJSON())
-          console.log('OIDC RESPONSE BODY .......: ', _.response.body)
         })
 
       }

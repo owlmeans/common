@@ -1,45 +1,54 @@
 import type { FC } from 'react'
 import { useFormContext, Controller } from 'react-hook-form'
-import { TextInputProps } from './types.js'
-
-import TextField from '@mui/material/TextField'
-import { useFormError, useFormI18n } from '@owlmeans/client-panel'
-import { useClientFormContext } from '@owlmeans/client-panel'
+import type { TextInputProps } from './types.js'
+import { useFormError, useFormI18n, useClientFormContext } from '@owlmeans/client-panel'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, type, def, disableAutocomplete }) => {
   const { control } = useFormContext()
   const t = useFormI18n()
-  const key = name
-  if (typeof label === 'boolean' && label) {
-    label = t(`${key}.label`)
-  } else {
-    label = undefined
-  }
-  if (typeof placeholder === 'boolean' && placeholder) {
-    placeholder = t(`${key}.placeholder`)
-  } else {
-    placeholder = undefined
-  }
-  if (typeof hint === 'boolean' && hint) {
-    hint = t(`${key}.hint`)
-  } else {
-    hint = undefined
-  }
+
+  let resolvedLabel: string | undefined
+  let resolvedPlaceholder: string | undefined
+  let resolvedHint: string | undefined
+
+  if (typeof label === 'boolean' && label) resolvedLabel = t(`${name}.label`)
+  else if (typeof label === 'string') resolvedLabel = label
+
+  if (typeof placeholder === 'boolean' && placeholder) resolvedPlaceholder = t(`${name}.placeholder`)
+  else if (typeof placeholder === 'string') resolvedPlaceholder = placeholder
+
+  if (typeof hint === 'boolean' && hint) resolvedHint = t(`${name}.hint`)
+  else if (typeof hint === 'string') resolvedHint = hint
 
   return <Controller control={control} name={name} defaultValue={def} render={
     ({ field, fieldState }) => {
       const error = useFormError(name, fieldState.error)
       const { loader } = useClientFormContext()
+      const disabled = loader != null && loader.opened === true
 
-      return <TextField fullWidth {...field}
-        error={fieldState.error != null}
-        disabled={loader != null && loader.opened === true}
-        label={label}
-        type={type ?? 'text'}
-        placeholder={placeholder}
-        autoComplete={disableAutocomplete ? 'off' : 'on'}
-        helperText={error ?? hint}
-      />
+      return (
+        <div className="flex w-full flex-col gap-1.5">
+          {resolvedLabel != null && <Label htmlFor={name}>{resolvedLabel}</Label>}
+          <Input
+            id={name}
+            {...field}
+            type={type ?? 'text'}
+            placeholder={resolvedPlaceholder}
+            autoComplete={disableAutocomplete ? 'off' : 'on'}
+            disabled={disabled}
+            aria-invalid={fieldState.error != null}
+          />
+          {(error != null || resolvedHint != null) && (
+            <p className={
+              error != null
+                ? 'text-sm text-destructive'
+                : 'text-sm text-muted-foreground'
+            }>{error ?? resolvedHint}</p>
+          )}
+        </div>
+      )
     }
   } />
 }

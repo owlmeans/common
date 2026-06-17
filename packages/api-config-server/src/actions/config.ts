@@ -1,4 +1,4 @@
-import type { RefedModuleHandler } from '@owlmeans/server-module'
+import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import type { ApiConfig } from '@owlmeans/api-config'
 import type { ServerConfig } from '@owlmeans/server-context'
 import type { PluginConfig } from '@owlmeans/config'
@@ -8,7 +8,7 @@ import { PLUGINS } from '@owlmeans/config'
 import { AppType, CONFIG_RECORD } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
 
-export const advertise: RefedModuleHandler<ApiConfig> = handleRequest(async (_, ctx) => {
+export const advertise: RefedEntrypointHandler<ApiConfig> = handleRequest(async (_, ctx) => {
   const apiConfig: ApiConfig = {
     debug: ctx.cfg.debug ?? {},
     brand: {},

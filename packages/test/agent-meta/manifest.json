@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/test",
+  "version": "0.1.11",
+  "generatedAt": "2026-06-17T10:37:52.342Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "testing-overview",
+      "category": "multi-package",
+      "file": "skills/testing-overview/SKILL.md",
+      "canonicalPath": ".claude/skills/testing-overview/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "testing-unit",
+      "category": "package-specific",
+      "file": "skills/testing-unit/SKILL.md",
+      "canonicalPath": ".claude/skills/testing-unit/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "testing-unit",
+      "category": "package-specific",
+      "file": "instructions/testing-unit.instructions.md",
+      "canonicalPath": ".github/instructions/testing-unit.instructions.md"
+    }
+  ]
+}

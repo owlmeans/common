@@ -35,8 +35,13 @@ export interface OidcConfig extends OidcSharedConfig {
   adapterService?: string
 }
 
+export interface OidcAccountParams {
+  /** The OIDC client requesting the account — lets the account service scope claims (e.g. permissions) per client. */
+  clientId?: string
+}
+
 export interface OidcAccountService extends InitializedService {
-  loadById: <C extends Config, T extends Context<C>>(ctx: T, id: string) => Promise<Account | undefined>
+  loadById: <C extends Config, T extends Context<C>>(ctx: T, id: string, params?: OidcAccountParams) => Promise<Account | undefined>
 }
 
 export interface OidcAdapterService extends InitializedService {

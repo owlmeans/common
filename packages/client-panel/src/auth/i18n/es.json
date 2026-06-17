@@ -1,0 +1,50 @@
+{
+  "basic-ed25519": {
+    "entityId": { "label": "ID de organización" },
+    "address": { "label": "DID de usuario" },
+    "privateKey": { "label": "Clave privada" },
+    "submit": "Autenticar"
+  },
+  "re-captcha": {
+    "guideline": "Necesitamos asegurarnos de que no eres un robot. Haz clic en el cuadro blanco a continuación para demostrar que eres humano."
+  },
+  "wallet-provider": {
+    "pin": {
+      "loading": "Cargando...",
+      "guideline": "Use este código PIN en cualquier recurso que admita autorización basada en billetera"
+    }
+  },
+  "wallet-consumer": {
+    "pin": {
+      "label": "Código PIN",
+      "hint": "Escanee el código QR o genere un código PIN con la aplicación OwlMeans ID"
+    },
+    "submit": "Continuar con PIN"
+  },
+  "oidp-auth": {
+    "reset": "Restablecer",
+    "error": {
+      "socket": {
+        "timeout": {
+          "rely": "La ventana de autenticación ha expirado. Actualice la página para intentarlo de nuevo."
+        }
+      }
+    }
+  },
+  "oidp-create-id": {
+    "error": {
+      "socket": {
+        "timeout": {
+          "call": "¡Tiempo de espera agotado! Por razones de seguridad, establecemos un límite de tiempo en las acciones de autenticación. Por favor, inténtelo de nuevo.",
+          "rely": "El código de autenticación ha expirado. Por favor, inténtelo de nuevo."
+        }
+      },
+      "auth": {
+        "authorization": {
+          "sequence": "El proceso de autenticación fue interrumpido por la aplicación de autenticación que utiliza."
+        }
+      }
+    },
+    "reset": "Recargar"
+  }
+}
