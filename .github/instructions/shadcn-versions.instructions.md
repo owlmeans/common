@@ -1,6 +1,7 @@
 ---
 description: How to update Tailwind CSS, shadcn UI primitives, and related UI lib versions across shadcn-based OwlMeans packages. Distinct from the @owlmeans/* version sync (see versions.instructions.md).
 applyTo: "**/components.json"
+scope: general
 ---
 
 # shadcn + Tailwind version management

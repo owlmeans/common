@@ -2,34 +2,62 @@
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
   "version": "0.1.9",
-  "generatedAt": "2026-06-14T13:34:06.135Z",
+  "generatedAt": "2026-06-17T08:42:41.774Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
       "kind": "skill",
+      "name": "getting-started",
+      "category": "general",
+      "file": "skills/getting-started/SKILL.md",
+      "canonicalPath": ".claude/skills/getting-started/SKILL.md"
+    },
+    {
+      "kind": "skill",
       "name": "shadcn-web",
-      "category": "multi-package",
+      "category": "general",
       "file": "skills/shadcn-web/SKILL.md",
       "canonicalPath": ".claude/skills/shadcn-web/SKILL.md"
     },
     {
       "kind": "skill",
+      "name": "scaffolding",
+      "category": "general",
+      "file": "skills/scaffolding/SKILL.md",
+      "canonicalPath": ".claude/skills/scaffolding/SKILL.md"
+    },
+    {
+      "kind": "skill",
       "name": "shadcn-versions",
-      "category": "multi-package",
+      "category": "general",
       "file": "skills/shadcn-versions/SKILL.md",
       "canonicalPath": ".claude/skills/shadcn-versions/SKILL.md"
     },
     {
       "kind": "instruction",
+      "name": "getting-started",
+      "category": "general",
+      "file": "instructions/getting-started.instructions.md",
+      "canonicalPath": ".github/instructions/getting-started.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "scaffolding",
+      "category": "general",
+      "file": "instructions/scaffolding.instructions.md",
+      "canonicalPath": ".github/instructions/scaffolding.instructions.md"
+    },
+    {
+      "kind": "instruction",
       "name": "shadcn-versions",
-      "category": "multi-package",
+      "category": "general",
       "file": "instructions/shadcn-versions.instructions.md",
       "canonicalPath": ".github/instructions/shadcn-versions.instructions.md"
     },
     {
       "kind": "instruction",
       "name": "shadcn-web",
-      "category": "multi-package",
+      "category": "general",
       "file": "instructions/shadcn-web.instructions.md",
       "canonicalPath": ".github/instructions/shadcn-web.instructions.md"
     }

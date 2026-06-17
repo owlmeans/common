@@ -55,6 +55,7 @@ user-invocable: false             # set false for background knowledge only
 | `allowed-tools` | Skill needs to run specific commands without prompting |
 | `disable-model-invocation: true` | Skill has side effects (git push, deploy, etc.) — user must invoke manually |
 | `user-invocable: false` | Skill is background knowledge, not an action — hide from `/` menu |
+| `scope: general` | Skill is cross-cutting and should ship with `@owlmeans/agent-skills` installer — auto-routes to the installer bundle and is never pruned by any sync run |
 | `argument-hint` | Skill takes arguments — show hint in autocomplete |
 | `context: fork` | Skill should run in isolated subagent (long research, exploration) |
 

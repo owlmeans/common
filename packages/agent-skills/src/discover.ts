@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 export interface ManifestEntry {
   kind: 'skill' | 'instruction'
   name: string
-  category: 'package-specific' | 'multi-package'
+  category: 'package-specific' | 'multi-package' | 'general'
   file: string
   canonicalPath: string
 }
@@ -22,7 +22,7 @@ export interface Manifest {
 export interface DiscoveredEntry {
   kind: 'skill' | 'instruction'
   name: string
-  category: 'package-specific' | 'multi-package'
+  category: 'package-specific' | 'multi-package' | 'general'
   /** Absolute path to the embedded source file. */
   sourcePath: string
   canonicalPath: string

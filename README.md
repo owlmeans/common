@@ -95,6 +95,15 @@ Embedded files are **generated and read-only**. To suggest edits, open a PR agai
 
 ## 🚀 **Quick Start**
 
+> **Building a new app?** The fastest path is to scaffold one:
+> ```sh
+> npm create @owlmeans/app@latest my-app   # or: bun create @owlmeans/app my-app
+> ```
+> This generates a minimal fullstack project (`common` + `api` + `web`) with shadcn UI navigation,
+> no authentication, and a session-scoped in-memory resource — and deploys the agent skills into it.
+> See **[docs/getting-started.md](docs/getting-started.md)** for both the scaffolded and the
+> step-by-step **manual** walkthrough.
+
 Get started with OwlMeans Common in just a few minutes by creating a simple "Hello World" application with a server endpoint and client.
 
 ### **Step 1: Install Dependencies**

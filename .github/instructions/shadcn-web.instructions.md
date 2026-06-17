@@ -1,6 +1,7 @@
 ---
 description: How to build and maintain shadcn UI + Tailwind v4 web packages in OwlMeans Common. Load when editing components.json, tailwind.config.*, globals.css, or files under components/ui/.
 applyTo: "**/components.json, **/tailwind.config.{ts,js,mjs}, **/globals.css, **/components/ui/**, **/@/lib/utils.ts"
+scope: general
 ---
 
 # shadcn UI + Tailwind v4 — OwlMeans web packages

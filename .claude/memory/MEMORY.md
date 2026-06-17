@@ -21,6 +21,8 @@ Read this at the start of every conversation. Load files relevant to the current
 - [oidc-versions](./../skills/oidc-versions/SKILL.md) — OIDC/OAuth dependency version management: exact-pin policy, lib checklists, isolation principle, downstream verification
 - [server-auth-identity](./../skills/server-auth-identity/SKILL.md) — Mongo identity resources, linking service, provider account linking; auto-invoked for identity resource work
 - [dependency-tree](./../skills/dependency-tree/SKILL.md) — Pointer to `tree.md` (per-package `@owlmeans/*` deps, layer assignments, build order, known SCCs)
+- [getting-started](./../skills/getting-started/SKILL.md) — Fullstack app shape (common/api/web, context bootstrap, shared entrypoints + elevate, static-resource sessions, shadcn web); points to `docs/getting-started.md`. Ships as an `@owlmeans/agent-skills` extra.
+- [scaffolding](./../skills/scaffolding/SKILL.md) — How to scaffold a new project via `@owlmeans/create-app` (npm/bun/yarn create) or manually. Ships as an `@owlmeans/agent-skills` extra.
 
 ## Project facts
 - [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, deprecated shims, marker interop, context method renames, phase status
@@ -28,6 +30,7 @@ Read this at the start of every conversation. Load files relevant to the current
 - [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 - [shadcn-ui-strategy](./shadcn-ui-strategy.md) — Three durable decisions: no registries, `@` app-provides-at-integration, wrap client-panel
 - [oidc-deps](./oidc-deps.md) — Exact-pinned OIDC lib versions, two critical gotchas (v9 middleware + jose extractable), isolation principle, downstream symlinks
+- [sync-agent-meta-gotchas](./sync-agent-meta-gotchas.md) — library-manager sync script sharp edges: `--filter` is destructive (prunes non-matching agent-meta); README marker side effect; how to add an agent-skills installer extra surgically
 
 ## How to add new memory
 - Facts, decisions, gotchas → `.claude/memory/<topic>.md` + update this index

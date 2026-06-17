@@ -106,13 +106,18 @@ export const createApiServer = (alias: string): ApiServer => {
     await server.register(Middie)
 
     server.addHook('preHandler', async (request, reply) => {
-      const context = _assertContext(service.ctx as Context);
+      const context = _assertContext(service.ctx as Context)
+      // Track whether an intermediate already committed a response. We can't
+      // rely on `reply.sent` for this in fastify v5 — it is backed by the
+      // async `raw.writableEnded`, so it reads `false` synchronously right
+      // after `reply.send()` and would let the next intermediate reply again.
+      let responded = false;
       // We pass context further using fastify request object
       (request as any)._ctx = await context.entrypoints<ServerEntrypoint<FastifyRequest>>().filter(
         module => canServeModule(context, module) && module.route.isIntermediate()
       ).reduce<Promise<Context>>(async (promise, module) => {
         let context = await promise
-        if (reply.sent) {
+        if (responded || reply.sent) {
           return context
         }
 
@@ -127,7 +132,7 @@ export const createApiServer = (alias: string): ApiServer => {
           if (result != null) {
             context = result
           }
-          executeResponse(response, reply, true)
+          responded = executeResponse(response, reply, true) || responded
         }
         return context
       }, Promise.resolve(context))

@@ -51,8 +51,14 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
 
       await module.handle(request, response)
 
-      executeResponse(response, reply, true)
-      if (!reply.sent) {
+      // Don't rely on `reply.sent` here: in fastify v5 it is backed by
+      // `raw.writableEnded`, which only becomes true once the socket has
+      // finished writing (asynchronously), so it still reads `false`
+      // synchronously right after `reply.send()`. Track the emitted state
+      // explicitly instead, and only fall back to a default response when
+      // neither `executeResponse` nor the handler itself (hijack) replied.
+      const responded = executeResponse(response, reply, true)
+      if (!responded && !reply.sent) {
         console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
         reply.code(OK).send(response.value)
       }

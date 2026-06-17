@@ -1,0 +1,34 @@
+{
+  "name": "__APP_SLUG__-common",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts",
+      "default": "./build/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc -b -w --preserveWatchOutput --pretty",
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@owlmeans/config": "^0.1.9",
+    "@owlmeans/entrypoint": "^0.1.9",
+    "@owlmeans/error": "^0.1.9",
+    "@owlmeans/resource": "^0.1.9",
+    "@owlmeans/route": "^0.1.9",
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "^0.1.9",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.2"
+  }
+}
