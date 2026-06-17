@@ -69,7 +69,9 @@ The session demo stores items in `@owlmeans/static-resource`, namespaced by a cl
 real OwlMeans project, plus a **project-purpose placeholder** (`<!-- OWLMEANS:PROJECT-PURPOSE -->`).
 On the first agent session that block instructs the agent to ask the user what the project is for and
 replace it in both files. The deployed skills include the general management skills
-[[skill-authoring]] and [[agent-memory]] so the project can grow its own guidance. After adding any
+[[skill-authoring]], [[agent-memory]] and the mandatory [[reuse-code]] (find an existing `@owlmeans/*`
+package or code before proposing third-party libraries or custom solutions) so the project can grow its own guidance.
+`CLAUDE.md` and `.github/copilot-instructions.md` reference [[reuse-code]] as mandatory. After adding any
 `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills` — discovery scans **every**
 `node_modules/@owlmeans` in the workspace (root and nested under `sources/*`), so package-specific
 skills are picked up even though bun nests them.

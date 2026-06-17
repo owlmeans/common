@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.11",
-  "generatedAt": "2026-06-17T10:37:52.346Z",
+  "version": "0.1.12",
+  "generatedAt": "2026-06-17T14:51:24.131Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -28,6 +28,13 @@
     },
     {
       "kind": "skill",
+      "name": "reuse-code",
+      "category": "general",
+      "file": "skills/reuse-code/SKILL.md",
+      "canonicalPath": ".claude/skills/reuse-code/SKILL.md"
+    },
+    {
+      "kind": "skill",
       "name": "scaffolding",
       "category": "general",
       "file": "skills/scaffolding/SKILL.md",
@@ -46,6 +53,13 @@
       "category": "general",
       "file": "skills/shadcn-versions/SKILL.md",
       "canonicalPath": ".claude/skills/shadcn-versions/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "reuse-code",
+      "category": "general",
+      "file": "instructions/reuse-code.instructions.md",
+      "canonicalPath": ".github/instructions/reuse-code.instructions.md"
     },
     {
       "kind": "instruction",

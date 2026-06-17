@@ -48,6 +48,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 
 ## Additional Context
 
+- **Reuse before you build (mandatory)**: skill at `.claude/skills/reuse-code/SKILL.md` — before planning or writing any feature, find an existing `@owlmeans/*` package (research locally since this IS the common repo) or existing code that already solves the problem **before** proposing a third-party library or custom solution; extend before writing new; simplify what you write.
 - **Localization (i18n)**: skill at `.claude/skills/localization/SKILL.md` — tiered namespace model, compound-prefix keys, 7-language requirement (`SUPPORTED_LNGS`), override pattern, language switcher. Read **before** adding any UI string or translation file. Package-specific: `i18n` skill (core registry) and `client-i18n` skill (React hooks).
 - **Dependency tree (canonical map)**: [`tree.md`](tree.md) at the repo root — every package, its direct `@owlmeans/*` deps, its architecture layer, build order, and known SCCs. Skill at `.claude/skills/dependency-tree/SKILL.md` points to it.
 - **Bun (package manager & build)**: skill at `.claude/skills/bun/SKILL.md` — auto-invoked when doing install, build, or script work

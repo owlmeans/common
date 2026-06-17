@@ -15,6 +15,13 @@ monorepo with three packages under `sources/` — `common` (shared route entrypo
 `api` (`@owlmeans/server-app` backend), and `web` (`@owlmeans/web-panel` + shadcn UI). See the
 `getting-started.instructions.md` for how the pieces fit together.
 
+## Reuse before you build (mandatory)
+
+Before planning or writing any feature, follow `reuse-code.instructions.md`: search for an
+`@owlmeans/*` package (in the installed packages and at https://github.com/owlmeans/common) or existing
+code that already solves the problem **before** proposing a third-party library or a custom solution,
+and simplify whatever you do write. This is required for every planning and development task.
+
 ## Memory & Meta-file Rules
 
 All project memory and meta-information lives **inside this project**, never in `~/.copilot/`:

@@ -25,6 +25,7 @@ Read this at the start of every conversation. Load files relevant to the current
 - [scaffolding](./../skills/scaffolding/SKILL.md) — How to scaffold a new project via `@owlmeans/create-app` (npm/bun/yarn create) or manually. Ships as an `@owlmeans/agent-skills` extra.
 - [skill-authoring](./../skills/skill-authoring/SKILL.md) — Generic guide to authoring skills + Copilot instructions in any OwlMeans project. `scope: general`, ships as an `@owlmeans/agent-skills` extra.
 - [agent-memory](./../skills/agent-memory/SKILL.md) — Generic project-memory directive (where memory lives per tool, MEMORY.md index, when to read/write). `scope: general`, ships as an `@owlmeans/agent-skills` extra.
+- [reuse-code](./../skills/reuse-code/SKILL.md) — Mandatory discovery-first/reuse-first workflow: find an `@owlmeans/*` package or existing code before proposing libraries/custom solutions (local research when symlinked, GitHub otherwise), extend before writing new, simplify. `scope: general`, ships as an `@owlmeans/agent-skills` extra.
 
 ## Project facts
 - [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, deprecated shims, marker interop, context method renames, phase status
