@@ -142,6 +142,57 @@ describe('discover()', () => {
     const entries = discover(tmpDir, { extras: false, copilotOnly: true })
     expect(entries.every(e => e.kind === 'instruction')).toBe(true)
   })
+
+  it('discovers entries nested in workspace package node_modules (bun monorepo)', () => {
+    // Scaffolded bun workspace: root has no @owlmeans; deps live under sources/*.
+    writeFixturePackage(join(tmpDir, 'sources', 'web', 'node_modules'), '@owlmeans/web-panel', '0.1.9', [
+      { kind: 'skill', name: 'web-panel' },
+      { kind: 'instruction', name: 'web-panel' },
+    ])
+    writeFixturePackage(join(tmpDir, 'sources', 'api', 'node_modules'), '@owlmeans/server-app', '0.1.9', [
+      { kind: 'skill', name: 'server-app' },
+    ])
+    const entries = discover(tmpDir, { extras: false })
+    expect(entries.some(e => e.kind === 'skill' && e.name === 'web-panel')).toBe(true)
+    expect(entries.some(e => e.kind === 'instruction' && e.name === 'web-panel')).toBe(true)
+    expect(entries.some(e => e.kind === 'skill' && e.name === 'server-app')).toBe(true)
+  })
+
+  it('combines root and nested node_modules', () => {
+    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.9', [
+      { kind: 'skill', name: 'context' },
+    ])
+    writeFixturePackage(join(tmpDir, 'sources', 'web', 'node_modules'), '@owlmeans/web-panel', '0.1.9', [
+      { kind: 'skill', name: 'web-panel' },
+    ])
+    const entries = discover(tmpDir, { extras: false })
+    expect(entries.some(e => e.name === 'context')).toBe(true)
+    expect(entries.some(e => e.name === 'web-panel')).toBe(true)
+  })
+
+  it('does not double-count a package symlinked into multiple workspaces', () => {
+    // Physical package under the root store…
+    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.9', [
+      { kind: 'skill', name: 'context' },
+    ])
+    const realPkg = join(tmpDir, 'node_modules', '@owlmeans', 'context')
+    // …symlinked into a workspace's node_modules (as bun's store linker may do).
+    const nestedScope = join(tmpDir, 'sources', 'web', 'node_modules', '@owlmeans')
+    mkdirSync(nestedScope, { recursive: true })
+    symlinkSync(realPkg, join(nestedScope, 'context'))
+
+    const entries = discover(tmpDir, { extras: false })
+    expect(entries.filter(e => e.name === 'context')).toHaveLength(1)
+  })
+
+  it('ignores hidden directories while walking', () => {
+    // A stray manifest under a hidden dir must not be picked up.
+    writeFixturePackage(join(tmpDir, '.git', 'node_modules'), '@owlmeans/ghost', '0.1.9', [
+      { kind: 'skill', name: 'ghost' },
+    ])
+    const entries = discover(tmpDir, { extras: false })
+    expect(entries.some(e => e.name === 'ghost')).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

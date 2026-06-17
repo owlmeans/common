@@ -53,6 +53,12 @@ This generates the three-workspace project below, installs dependencies, and —
 (Claude Code skills under `.claude/skills/`, GitHub Copilot instructions under
 `.github/instructions/`).
 
+It also writes **`CLAUDE.md`** and **`.github/copilot-instructions.md`** (memory + skill directives,
+plus starter `.claude/memory/` and `.github/memory/` indexes). Both contain a project-purpose
+placeholder: the first time you open the project in Claude Code or Copilot, the agent will ask what
+the project is for and fill it in. The bundled general skills include `skill-authoring` and
+`agent-memory` so the project can grow its own guidance.
+
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
 `--yes`. See `npx @owlmeans/create-app --help`.
 
@@ -326,8 +332,9 @@ Install the OwlMeans Claude Code skills and Copilot instructions into the projec
 npx @owlmeans/agent-skills
 ```
 
-This scans `node_modules/@owlmeans/*/agent-meta/` and copies guidance into `.claude/skills/` and
-`.github/instructions/`. Re-run after upgrading `@owlmeans/*` packages.
+This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested
+under `sources/*` (bun often keeps workspace-only deps there) — and copies guidance into
+`.claude/skills/` and `.github/instructions/`. Re-run after upgrading `@owlmeans/*` packages.
 
 ---
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
   "version": "0.1.10",
-  "generatedAt": "2026-06-17T09:37:28.174Z",
+  "generatedAt": "2026-06-17T10:23:33.409Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -21,10 +21,24 @@
     },
     {
       "kind": "skill",
+      "name": "agent-memory",
+      "category": "general",
+      "file": "skills/agent-memory/SKILL.md",
+      "canonicalPath": ".claude/skills/agent-memory/SKILL.md"
+    },
+    {
+      "kind": "skill",
       "name": "scaffolding",
       "category": "general",
       "file": "skills/scaffolding/SKILL.md",
       "canonicalPath": ".claude/skills/scaffolding/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "skill-authoring",
+      "category": "general",
+      "file": "skills/skill-authoring/SKILL.md",
+      "canonicalPath": ".claude/skills/skill-authoring/SKILL.md"
     },
     {
       "kind": "skill",
@@ -49,10 +63,24 @@
     },
     {
       "kind": "instruction",
+      "name": "skill-authoring",
+      "category": "general",
+      "file": "instructions/skill-authoring.instructions.md",
+      "canonicalPath": ".github/instructions/skill-authoring.instructions.md"
+    },
+    {
+      "kind": "instruction",
       "name": "shadcn-versions",
       "category": "general",
       "file": "instructions/shadcn-versions.instructions.md",
       "canonicalPath": ".github/instructions/shadcn-versions.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "agent-memory",
+      "category": "general",
+      "file": "instructions/agent-memory.instructions.md",
+      "canonicalPath": ".github/instructions/agent-memory.instructions.md"
     },
     {
       "kind": "instruction",

@@ -23,6 +23,8 @@ Read this at the start of every conversation. Load files relevant to the current
 - [dependency-tree](./../skills/dependency-tree/SKILL.md) — Pointer to `tree.md` (per-package `@owlmeans/*` deps, layer assignments, build order, known SCCs)
 - [getting-started](./../skills/getting-started/SKILL.md) — Fullstack app shape (common/api/web, context bootstrap, shared entrypoints + elevate, static-resource sessions, shadcn web); points to `docs/getting-started.md`. Ships as an `@owlmeans/agent-skills` extra.
 - [scaffolding](./../skills/scaffolding/SKILL.md) — How to scaffold a new project via `@owlmeans/create-app` (npm/bun/yarn create) or manually. Ships as an `@owlmeans/agent-skills` extra.
+- [skill-authoring](./../skills/skill-authoring/SKILL.md) — Generic guide to authoring skills + Copilot instructions in any OwlMeans project. `scope: general`, ships as an `@owlmeans/agent-skills` extra.
+- [agent-memory](./../skills/agent-memory/SKILL.md) — Generic project-memory directive (where memory lives per tool, MEMORY.md index, when to read/write). `scope: general`, ships as an `@owlmeans/agent-skills` extra.
 
 ## Project facts
 - [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, deprecated shims, marker interop, context method renames, phase status

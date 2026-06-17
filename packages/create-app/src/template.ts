@@ -2,11 +2,13 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, s
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 
-/** Dotfiles are shipped with an underscore prefix so npm does not strip them from the tarball. */
+/** Dotfiles/dirs are shipped with an underscore prefix so npm does not strip them from the tarball. */
 const DOTFILE_RENAMES: Record<string, string> = {
   '_gitignore': '.gitignore',
   '_npmrc': '.npmrc',
   '_env': '.env',
+  '_github': '.github',
+  '_claude': '.claude',
 }
 
 /** Files whose contents are binary or must not be string-substituted. */

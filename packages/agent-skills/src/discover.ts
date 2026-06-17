@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -45,26 +45,91 @@ const parseManifest = (manifestPath: string): Manifest | null => {
   }
 }
 
-// Scan node_modules/@owlmeans/*/agent-meta/ for manifests.
-const scanNodeModules = (targetDir: string): DiscoveredEntry[] => {
-  const nmDir = join(targetDir, 'node_modules', '@owlmeans')
-  if (!existsSync(nmDir)) return []
+const OWLMEANS_SCOPE = '@owlmeans'
 
-  const entries: DiscoveredEntry[] = []
+/**
+ * Collect every existing `<...>/node_modules/@owlmeans` directory in the project
+ * tree. A scaffolded app is a bun workspace whose `@owlmeans/*` deps belong to its
+ * `sources/*` packages (the root has none), so bun may keep them under
+ * `sources/<pkg>/node_modules/@owlmeans` rather than at the root. Scanning only the
+ * root would miss them — so we walk the whole tree.
+ *
+ * The walk is bounded: it never descends into a `node_modules` directory (it just
+ * records its `@owlmeans` scope), skips hidden dirs (`.git`, `.github`, …), and
+ * tracks visited realpaths to avoid symlink cycles.
+ */
+const collectScopeDirs = (targetDir: string): string[] => {
+  const found: string[] = []
+  const seen = new Set<string>()
+
+  const walk = (dir: string): void => {
+    let real: string
+    try {
+      real = realpathSync(dir)
+    } catch {
+      return
+    }
+    if (seen.has(real)) return
+    seen.add(real)
+
+    let dirents: import('node:fs').Dirent[]
+    try {
+      dirents = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+
+    for (const dirent of dirents) {
+      const name = dirent.name
+      if (name === 'node_modules') {
+        const scope = join(dir, 'node_modules', OWLMEANS_SCOPE)
+        if (existsSync(scope)) found.push(scope)
+        // never descend into node_modules
+        continue
+      }
+      if (name.startsWith('.')) continue
+      if (!dirent.isDirectory()) continue
+      walk(join(dir, name))
+    }
+  }
+
+  walk(targetDir)
+  return found
+}
+
+interface ScopePackage {
+  /** Realpath of the package dir, used to dedup the same physical package read via
+   *  multiple (symlinked) locations. */
+  realDir: string
+  entries: DiscoveredEntry[]
+}
+
+/** Read all @owlmeans packages under a single `.../node_modules/@owlmeans` dir. */
+const scanScopeDir = (scopeDir: string): ScopePackage[] => {
   let pkgDirs: string[]
   try {
-    pkgDirs = readdirSync(nmDir)
+    pkgDirs = readdirSync(scopeDir)
   } catch {
     return []
   }
 
+  const packages: ScopePackage[] = []
   for (const pkgDir of pkgDirs) {
-    const manifestPath = join(nmDir, pkgDir, 'agent-meta', 'manifest.json')
+    const pkgPath = join(scopeDir, pkgDir)
+    const agentMetaDir = join(pkgPath, 'agent-meta')
+    const manifestPath = join(agentMetaDir, 'manifest.json')
     if (!existsSync(manifestPath)) continue
     const manifest = parseManifest(manifestPath)
     if (manifest == null) continue
 
-    const agentMetaDir = join(nmDir, pkgDir, 'agent-meta')
+    let realDir: string
+    try {
+      realDir = realpathSync(pkgPath)
+    } catch {
+      realDir = pkgPath
+    }
+
+    const entries: DiscoveredEntry[] = []
     for (const e of manifest.entries) {
       const sourcePath = join(agentMetaDir, e.file)
       if (!existsSync(sourcePath)) continue
@@ -78,6 +143,24 @@ const scanNodeModules = (targetDir: string): DiscoveredEntry[] => {
         version: manifest.version,
         isExtra: false,
       })
+    }
+    if (entries.length > 0) packages.push({ realDir, entries })
+  }
+
+  return packages
+}
+
+// Scan every node_modules/@owlmeans/*/agent-meta/ in the project tree for manifests.
+const scanNodeModules = (targetDir: string): DiscoveredEntry[] => {
+  const entries: DiscoveredEntry[] = []
+  const seenPkgDirs = new Set<string>()
+
+  for (const scopeDir of collectScopeDirs(targetDir)) {
+    for (const pkg of scanScopeDir(scopeDir)) {
+      // Skip a package already read via another (symlinked) location.
+      if (seenPkgDirs.has(pkg.realDir)) continue
+      seenPkgDirs.add(pkg.realDir)
+      entries.push(...pkg.entries)
     }
   }
 

@@ -14,6 +14,15 @@ export interface LinkedResult {
  *
  * A package is considered linked when its node_modules/@owlmeans/<pkg>
  * entry is a symlink whose real path escapes the node_modules tree.
+ *
+ * This intentionally scans only the ROOT node_modules, even though discovery
+ * (see discover.ts) now walks the whole tree. Dev-linked monorepos (e.g. a project
+ * that symlinks the common source under libraries/*) hoist @owlmeans/* to the root
+ * node_modules as escaping symlinks, so the root scan catches them. A standalone
+ * scaffolded app has no root @owlmeans scope at all (its deps nest under
+ * sources/*\/node_modules), so this correctly returns { linked: false } and the
+ * install proceeds. Scanning nested node_modules here would risk false positives on
+ * bun's in-tree store symlinks, so we deliberately do not.
  */
 export const detectLinked = (targetDir: string): LinkedResult => {
   const nmScope = join(targetDir, 'node_modules', '@owlmeans')

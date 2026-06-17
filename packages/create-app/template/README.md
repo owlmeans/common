@@ -42,9 +42,10 @@ for a full walkthrough and the manual (non-scaffolded) version of this project.
 
 ## Agent guidance
 
-This project ships Claude Code skills (`.claude/skills/`) and GitHub Copilot instructions
-(`.github/instructions/`) for the OwlMeans framework. Refresh them after upgrading
-`@owlmeans/*` packages:
+This project ships agent context in `CLAUDE.md` and `.github/copilot-instructions.md` (memory + skill
+directives, plus a project-purpose placeholder the agent fills in on its first session), and Claude
+Code skills (`.claude/skills/`) + GitHub Copilot instructions (`.github/instructions/`) for the
+OwlMeans framework. Refresh the skills after adding or upgrading `@owlmeans/*` packages:
 
 ```sh
 npx @owlmeans/agent-skills
