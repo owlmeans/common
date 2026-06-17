@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/state
 
 **Layer:** Core
-**Install:** `"@owlmeans/state": "^0.1.9"` in `dependencies`
+**Install:** `"@owlmeans/state": "^0.1.10"` in `dependencies`
 
 ## Key Exports
 

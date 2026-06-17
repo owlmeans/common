@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.9"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.10"` in `dependencies`
 
 ## Key Exports
 

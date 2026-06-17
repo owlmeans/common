@@ -7,7 +7,7 @@ applyTo: "**/modules.ts, **/modules.tsx, **/*.ts, **/*.tsx"
 # @owlmeans/entrypoint
 
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.9"` in `dependencies`
+**Install:** `"@owlmeans/entrypoint": "^0.1.10"` in `dependencies`
 
 ## Key Exports
 
