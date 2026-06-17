@@ -28,6 +28,10 @@ Open the **Session** page and add/remove items — they are stored per browser s
 (a `sid` kept in `localStorage`) in an in-memory resource on the API. Restarting the API
 clears them; opening a different browser/incognito window gets an isolated session.
 
+> **Note:** The API runs over plain HTTP in dev (`cfg.security = { unsecure: true }` in
+> `sources/common/src/config.ts`). If you edit `sources/common`, restart `bun run dev` to
+> rebuild it before the API and web pick up the changes.
+
 ## How it fits together
 
 1. **`sources/common`** declares the API routes as OwlMeans *entrypoints* (`session.list`,

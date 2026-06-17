@@ -5,7 +5,7 @@
   "type": "module",
   "main": "build/index.js",
   "scripts": {
-    "dev": "sleep 3 && bun --watch --preserve-symlinks src/index.ts",
+    "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "build": "tsc -b",
     "typecheck": "tsc -b"

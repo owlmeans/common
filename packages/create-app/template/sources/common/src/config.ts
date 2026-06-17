@@ -20,5 +20,8 @@ service({
 
 cfg.debug = { all: true }
 cfg.alias = APP
+// Local dev serves the API over plain HTTP. Without this the web client builds https:// URLs
+// and every call fails. In production put the API behind TLS and remove this line.
+cfg.security = { unsecure: true }
 
 export const commonConfig = cfg

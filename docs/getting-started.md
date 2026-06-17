@@ -95,7 +95,7 @@ git init
   "packageManager": "bun@1.3.10",
   "workspaces": ["sources/*"],
   "scripts": {
-    "dev": "bun run --filter './sources/*' --parallel dev",
+    "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
     "build": "bun run --filter './sources/*' build"
   },
   "overrides": { "react-router": "^7.*" }
@@ -152,7 +152,8 @@ export const sessionModules = [
 ```
 
 The shared config registers both services (so the web knows where the API lives). `base: 'api'`
-prefixes every API route with `/api`:
+prefixes every API route with `/api`. `security.unsecure` is required in local dev because the API
+serves plain HTTP — without it the web client builds `https://` URLs and every call fails:
 
 ```ts
 import { AppType, service } from '@owlmeans/config'
@@ -161,6 +162,9 @@ import { API_PORT, APP_API, APP_WEB, WEB_PORT } from './consts.js'
 const cfg = service({ type: AppType.Frontend, service: APP_WEB, host: 'localhost', port: WEB_PORT })
 service({ type: AppType.Backend, service: APP_API, host: 'localhost', port: API_PORT, base: 'api' }, cfg)
 cfg.debug = { all: true }
+cfg.alias = APP
+// Local dev serves the API over plain HTTP. Remove this in production (use TLS).
+cfg.security = { unsecure: true }
 export const commonConfig = cfg
 ```
 

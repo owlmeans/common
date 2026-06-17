@@ -8,7 +8,7 @@
     "sources/*"
   ],
   "scripts": {
-    "dev": "bun run --filter './sources/*' --parallel dev",
+    "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
     "build": "bun run --filter './sources/*' build",
     "typecheck": "bun run --filter './sources/*' typecheck"
   },
