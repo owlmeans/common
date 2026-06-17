@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-entrypoint",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.10",
-    "@owlmeans/entrypoint": "^0.1.10",
-    "@owlmeans/route": "^0.1.10",
-    "@owlmeans/server-route": "^0.1.10"
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/entrypoint": "^0.1.11",
+    "@owlmeans/route": "^0.1.11",
+    "@owlmeans/server-route": "^0.1.11"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

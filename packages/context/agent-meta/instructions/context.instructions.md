@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/context.tsx, **/*.ts, **/*.tsx"
 # @owlmeans/context
 
 **Layer:** Core
-**Install:** `"@owlmeans/context": "^0.1.10"` in `dependencies`
+**Install:** `"@owlmeans/context": "^0.1.11"` in `dependencies`
 
 ## Key Exports
 

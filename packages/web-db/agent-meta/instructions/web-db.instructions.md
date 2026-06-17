@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/web-db
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-db": "^0.1.10"` in `dependencies`
+**Install:** `"@owlmeans/web-db": "^0.1.11"` in `dependencies`
 
 ## Key Exports
 

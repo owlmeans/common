@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/*.ts, **/*.tsx"
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.10"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.11"` in `dependencies`
 
 ## Key Exports
 

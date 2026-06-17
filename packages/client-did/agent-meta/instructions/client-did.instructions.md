@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/client-did
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-did": "^0.1.10"` in `dependencies`
+**Install:** `"@owlmeans/client-did": "^0.1.11"` in `dependencies`
 
 ## Key Exports
 

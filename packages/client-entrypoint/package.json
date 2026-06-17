@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-entrypoint",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,15 +28,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.10",
-    "@owlmeans/client-config": "^0.1.10",
-    "@owlmeans/client-context": "^0.1.10",
-    "@owlmeans/client-route": "^0.1.10",
-    "@owlmeans/config": "^0.1.10",
-    "@owlmeans/context": "^0.1.10",
-    "@owlmeans/entrypoint": "^0.1.10",
-    "@owlmeans/error": "^0.1.10",
-    "@owlmeans/route": "^0.1.10",
+    "@owlmeans/api": "^0.1.11",
+    "@owlmeans/client-config": "^0.1.11",
+    "@owlmeans/client-context": "^0.1.11",
+    "@owlmeans/client-route": "^0.1.11",
+    "@owlmeans/config": "^0.1.11",
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/entrypoint": "^0.1.11",
+    "@owlmeans/error": "^0.1.11",
+    "@owlmeans/route": "^0.1.11",
     "ajv-formats": "^3.0.1",
     "qs": "^6.13.0"
   },

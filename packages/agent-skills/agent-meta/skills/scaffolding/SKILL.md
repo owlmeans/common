@@ -50,6 +50,11 @@ primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills` to ad
 ```
 my-app/
 ├── package.json            # bun workspaces: sources/*
+├── CLAUDE.md               # agent context: memory + skill directives + project-purpose placeholder
+├── .github/
+│   ├── copilot-instructions.md   # same directives for Copilot
+│   └── memory/MEMORY.md          # starter memory index
+├── .claude/memory/MEMORY.md      # starter memory index
 ├── sources/common/         # consts, types, schemas, config, modules (entrypoints)
 ├── sources/api/            # context.ts (appendStaticResource), app/session/*, modules.ts, index.ts
 └── sources/web/            # vite + tailwind v4, components/ui/*, layout, nav, screens, render.tsx
@@ -58,3 +63,14 @@ my-app/
 The session demo stores items in `@owlmeans/static-resource`, namespaced by a client-generated
 `sid` kept in `localStorage` — no database, no authentication. See [[static-resource]],
 [[server-app]], [[web-panel]].
+
+## Generated agent guidance
+
+`CLAUDE.md` and `.github/copilot-instructions.md` carry the same memory and skill directives as a
+real OwlMeans project, plus a **project-purpose placeholder** (`<!-- OWLMEANS:PROJECT-PURPOSE -->`).
+On the first agent session that block instructs the agent to ask the user what the project is for and
+replace it in both files. The deployed skills include the general management skills
+[[skill-authoring]] and [[agent-memory]] so the project can grow its own guidance. After adding any
+`@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills` — discovery scans **every**
+`node_modules/@owlmeans` in the workspace (root and nested under `sources/*`), so package-specific
+skills are picked up even though bun nests them.

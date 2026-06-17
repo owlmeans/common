@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,17 +28,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.10",
-    "@owlmeans/client-context": "^0.1.10",
-    "@owlmeans/client-entrypoint": "^0.1.10",
-    "@owlmeans/client-resource": "^0.1.10",
-    "@owlmeans/config": "^0.1.10",
-    "@owlmeans/context": "^0.1.10",
-    "@owlmeans/error": "^0.1.10",
-    "@owlmeans/entrypoint": "^0.1.10",
-    "@owlmeans/resource": "^0.1.10",
-    "@owlmeans/router": "^0.1.10",
-    "@owlmeans/state": "^0.1.10"
+    "@owlmeans/auth": "^0.1.11",
+    "@owlmeans/client-context": "^0.1.11",
+    "@owlmeans/client-entrypoint": "^0.1.11",
+    "@owlmeans/client-resource": "^0.1.11",
+    "@owlmeans/config": "^0.1.11",
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/error": "^0.1.11",
+    "@owlmeans/entrypoint": "^0.1.11",
+    "@owlmeans/resource": "^0.1.11",
+    "@owlmeans/router": "^0.1.11",
+    "@owlmeans/state": "^0.1.11"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
