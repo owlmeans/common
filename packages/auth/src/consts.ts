@@ -52,6 +52,11 @@ export enum AuthenticationType {
   // Google OAuth 2.0 authentication type - used for direct Google sign-in
   // without a full OIDC relay party service in between.
   Google = 'google-oauth',
+  // PK-based supervisor authentication. A privileged operator (or an e2e test)
+  // holds one of the project's trusted private keys and signs a challenge to mint
+  // a valid token for an arbitrary user id / email - bypassing external IdPs.
+  // Enabled in development only. See the `supervisor-auth` skill.
+  Supervisor = 'pk-supervisor',
 }
 
 export enum AuthroizationType {

@@ -71,6 +71,8 @@ export const apiCall: <
       host: req?.host,
       base: req?.base,
       path: ep.getPath(),
+      timeout: req?.timeout,
+      signal: req?.signal,
     }
     if (req?.cancel != null) {
       const cancel = req.cancel

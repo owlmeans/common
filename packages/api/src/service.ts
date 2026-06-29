@@ -71,6 +71,11 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         headers: request.headers,
         transformRequest: transformer,
         validateStatus: () => true,
+        // Per-request timeout (ms); axios aborts the request and rejects on expiry.
+        // Omitted/0 = no timeout (axios default), preserving existing callers.
+        timeout: request.timeout,
+        // Abort signal (e.g. a caller's timeout AbortController) — aborts in-flight.
+        signal: request.signal,
       })
 
       // @TODO Move somewhere else - desirably into auth package via some middleware

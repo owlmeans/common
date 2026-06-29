@@ -58,6 +58,12 @@ export interface AbstractRequest<T extends {} = {}> {
   host?: string
   base?: string | boolean
   unsecure?: boolean
+  // Per-request HTTP timeout (ms) forwarded to the transport (axios). Omit/0 = no
+  // timeout. Lets callers bound a single round-trip so a stuck peer can't hang forever.
+  timeout?: number
+  // Abort signal forwarded to the transport (axios) so a caller can cancel/abort an
+  // in-flight request (e.g. a timeout-driven AbortController).
+  signal?: AbortSignal
 }
 
 export interface AbstractResponse<T> {
