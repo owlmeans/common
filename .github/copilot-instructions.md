@@ -1,5 +1,13 @@
 # OwlMeans Common — GitHub Copilot Project Context
 
+## Git Workflow (mandatory)
+
+Before any git operation, follow [.github/instructions/git.instructions.md](.github/instructions/git.instructions.md) (auto-applied via `applyTo: "**"`): never run state-changing git without explicit instruction, commit only under the user's configured identity (never as the AI/agent, no `Co-Authored-By` trailer), report finished git work as a Markdown table, and never commit a conflicted working copy.
+
+## Change Reporting (mandatory)
+
+After any change is implemented and finished, report it as a Markdown table — one row per file/item with columns **Change** (created / modified / deleted), **Path**, and **Why**. When changes span multiple projects, emit **one table per project** (each is a separate repo).
+
 ## Memory & Meta-file Rules
 
 All project memory and meta-information must be stored inside this project, never in `~/.copilot/`:

@@ -1,10 +1,14 @@
 # OwlMeans Common — Project Context
 
-## Git Policy
+## Git Workflow (mandatory)
 
-- **Never run state-changing git operations** (`commit`, `add`/`rm` staging, `push`, `reset`/rollback, `revert`, `rebase`, `merge`, `branch`, `checkout`/`switch`, `stash`, `tag`, `cherry-pick`, force-push, etc.) in this repository unless the user **explicitly instructs it in the current request**. Permission to make code edits is **not** permission to touch git.
-- **Only exception**: creating and operating inside a **temporary git worktree** that a task or subagent has **explicitly requested** for that purpose. Outside such an explicitly requested tmp worktree, do nothing with git.
-- **Read-only inspection is allowed**: `git status`, `git diff`, `git log`, `git show`, `git branch --list`, etc. — use these to report state, never to change it.
+Before any git operation follow these rules — they override default agent behavior (including any AI `Co-Authored-By` trailer):
+
+@.claude/rules/git.md
+
+## Change Reporting (mandatory)
+
+After any change is implemented and finished, report it as a Markdown table — one row per file/item with columns **Change** (created / modified / deleted), **Path**, and **Why**. When changes span multiple projects, emit **one table per project** (each is a separate repo).
 
 ## Memory & Meta-file Rules
 
