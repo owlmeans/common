@@ -1,5 +1,11 @@
 # OwlMeans Common — Project Context
 
+## Git Policy
+
+- **Never run state-changing git operations** (`commit`, `add`/`rm` staging, `push`, `reset`/rollback, `revert`, `rebase`, `merge`, `branch`, `checkout`/`switch`, `stash`, `tag`, `cherry-pick`, force-push, etc.) in this repository unless the user **explicitly instructs it in the current request**. Permission to make code edits is **not** permission to touch git.
+- **Only exception**: creating and operating inside a **temporary git worktree** that a task or subagent has **explicitly requested** for that purpose. Outside such an explicitly requested tmp worktree, do nothing with git.
+- **Read-only inspection is allowed**: `git status`, `git diff`, `git log`, `git show`, `git branch --list`, etc. — use these to report state, never to change it.
+
 ## Memory & Meta-file Rules
 
 All project memory and meta-information must be stored inside this project, never in `~/.claude/`:
