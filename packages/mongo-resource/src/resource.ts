@@ -17,7 +17,7 @@ export const makeMongoResource = <
   R extends ResourceRecord, T extends MongoResource<R> = MongoResource<R>
 >(
   alias: string, dbAlias: string = DEFAULT_DB_ALIAS, serviceAlias: string = DEFAULT_DB_ALIAS,
-  makeCustomResource?: ResourceMaker<R, T>
+  makeCustomResource?: ResourceMaker<R, T>, collectionName?: string
 ): T => {
   const location = `mongo-resource:${alias}`
 
@@ -273,6 +273,13 @@ export const makeMongoResource = <
     }
   } as Partial<T>)
 
+  // Explicit collection name override (decoupled from the registration alias, which may
+  // contain characters that aren't valid in a collection name). Survives reinitializeContext
+  // because it's threaded back into the recursive makeMongoResource call below.
+  if (collectionName != null) {
+    resource.name = collectionName
+  }
+
   resource.init = async () => {
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     const mongo = context.service<MongoDbService>(serviceAlias ?? dbAlias)
@@ -284,7 +291,7 @@ export const makeMongoResource = <
 
   resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {
     const resource = (makeCustomResource?.(dbAlias, serviceAlias)
-      ?? makeMongoResource<R, T>(alias, dbAlias, serviceAlias)) as unknown as Type
+      ?? makeMongoResource<R, T>(alias, dbAlias, serviceAlias, makeCustomResource, collectionName)) as unknown as Type
 
     resource.ctx = context
 

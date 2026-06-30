@@ -2,6 +2,24 @@ import type { DbConfig } from '@owlmeans/resource'
 import type { RedisOptions, ClusterNode, ClusterOptions } from 'ioredis'
 import type { RedisMeta } from '../types.js'
 
+// Translate the configurable `dbIndex` (which may arrive as a string from a file-mounted
+// config value) into ioredis' numeric `db` option, and drop `dbIndex` from the spread so
+// it isn't forwarded as an unknown option.
+const normalizeRedisMeta = (meta?: RedisMeta): RedisOptions => {
+  if (meta == null) {
+    return {}
+  }
+  const { dbIndex, ...rest } = meta
+  if (dbIndex == null || `${dbIndex}` === '') {
+    return rest
+  }
+  const db = Number(dbIndex)
+  if (Number.isNaN(db)) {
+    throw new SyntaxError(`Invalid redis dbIndex: "${dbIndex}"`)
+  }
+  return { ...rest, db }
+}
+
 export const prepareSingleRedisOptions = (config: DbConfig<RedisMeta>, host?: string): RedisOptions => {
   host = (host != null ? host : config.host) as string
   if (typeof host !== 'string') {
@@ -11,7 +29,7 @@ export const prepareSingleRedisOptions = (config: DbConfig<RedisMeta>, host?: st
     host: host,
     port: config.port ?? 6379,
     password: config.secret,
-    ...config.meta
+    ...normalizeRedisMeta(config.meta)
   }
 }
 
@@ -28,7 +46,7 @@ export const prepareClusterRedisOptions = (config: DbConfig<RedisMeta>): { nodes
       redisOptions: {
         // tls: { rejectUnauthorized: false }, // @TODO check if it's working
         password: config.secret,
-        ...config.meta
+        ...normalizeRedisMeta(config.meta)
       }
     }
   }
