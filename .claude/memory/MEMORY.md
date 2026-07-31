@@ -28,7 +28,8 @@ Read this at the start of every conversation. Load files relevant to the current
 - [reuse-code](./../skills/reuse-code/SKILL.md) — Mandatory discovery-first/reuse-first workflow: find an `@owlmeans/*` package or existing code before proposing libraries/custom solutions (local research when symlinked, GitHub otherwise), extend before writing new, simplify. `scope: general`, ships as an `@owlmeans/agent-skills` extra.
 
 ## Project facts
-- [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, deprecated shims, marker interop, context method renames, phase status
+- [routing-plugins](./routing-plugins.md) — Pluggable UI routing: router=host+matcher, web-router=default OwlMeans browser plugin, web-router-react-router=opt-in RR, cascade, provide decoupling, native-safety
+- [entrypoint-rename](./entrypoint-rename.md) — Module→Entrypoint rename: new canonical packages, REMOVED shims, marker interop, context method renames, phase status
 - [versioning](./versioning.md) — Synchronized version convention, internal dep refs, dep-config as workspace:*
 - [auth-viable-usage](./auth-viable-usage.md) — How product-viable uses common auth/OIDC packages and local identity gates
 - [shadcn-ui-strategy](./shadcn-ui-strategy.md) — Three durable decisions: no registries, `@` app-provides-at-integration, wrap client-panel

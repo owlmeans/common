@@ -1,6 +1,5 @@
 
 import { DispatcherHOC } from '@owlmeans/client-auth'
-import { useSearchParams } from 'react-router'
 import { useEffect } from 'react'
 import { useContext } from '@owlmeans/web-client'
 import { useI18nLib } from '@owlmeans/client-i18n'
@@ -10,8 +9,8 @@ import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
-  const [query] = useSearchParams()
   const context = useContext()
+  const [query] = context.router().useSearchParams()
   const client = useFlow()
 
   const t = useI18nLib('auth', 'dispatcher')
