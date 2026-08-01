@@ -60,6 +60,26 @@ describe('@owlmeans/web-router — OwlMeans browser routing (chromium e2e)', () 
     })
   })
 
+  test('renders through a component-less group at the top of the chain', async () => {
+    await withPage(async page => {
+      await page.goto(at('group/leaf'))
+      await page.waitForSelector('#leaf')
+      expect(await page.locator('#leaf').textContent()).toContain('leaf-screen')
+      // the group carries no Component — it must not swallow the whole subtree
+      expect(await page.locator('#layout').count()).toBe(0)
+    })
+  })
+
+  test('outlet falls through a component-less group in the middle of the chain', async () => {
+    await withPage(async page => {
+      await page.goto(at('users/nested/deep'))
+      await page.waitForSelector('#deep')
+      expect(await page.locator('#layout').isVisible()).toBe(true)
+      expect(await page.locator('#users').textContent()).toContain('users-screen')
+      expect(await page.locator('#deep').textContent()).toContain('deep-screen')
+    })
+  })
+
   test('browser back/forward restores the matched route', async () => {
     await withPage(async page => {
       await page.goto(HARNESS_URL)

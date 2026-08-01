@@ -3,7 +3,8 @@ import { createElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryRouter, Location, NavigateFunction } from '@owlmeans/router'
 import { matchRoutes } from '@owlmeans/router'
 import { createBrowserHistory } from './history.js'
-import { RouterStateContext, OutletContext } from './context.js'
+import { RouterStateContext } from './context.js'
+import { RouteChain } from './chain.js'
 import type { OwlLibraryRouter } from './types.js'
 
 /**
@@ -44,15 +45,9 @@ export const BrowserRouterProvider: FC<{ router: LibraryRouter }> = ({ router })
     }
   }) as NavigateFunction, [history])
 
-  const Component = matches[0]?.route.Component
-
   return createElement(
     RouterStateContext.Provider,
     { value: { location, matches, navigate } },
-    createElement(
-      OutletContext.Provider,
-      { value: { depth: 0 } },
-      Component != null ? createElement(Component) : null
-    )
+    createElement(RouteChain, { depth: 0 })
   )
 }

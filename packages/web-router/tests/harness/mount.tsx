@@ -24,6 +24,8 @@ const Home = () => h('div', { id: 'home' }, 'home-screen')
 const Users = () => h('div', { id: 'users' }, 'users-screen', h(Outlet))
 const UsersIndex = () => h('div', { id: 'users-index' }, 'users-index-screen')
 const Settings = () => h('div', { id: 'settings' }, 'settings-screen')
+const Leaf = () => h('div', { id: 'leaf' }, 'leaf-screen')
+const Deep = () => h('div', { id: 'deep' }, 'deep-screen')
 const User = () => {
   const { id } = useParams()
   const [query] = useSearchParams()
@@ -38,11 +40,17 @@ const routes: RouteObject[] = [
         path: 'users', Component: Users, children: [
           { index: true, Component: UsersIndex },
           { path: 'settings', Component: Settings }, // static must outrank :id
+          // component-less grouping node between two rendered routes: <Outlet/> must
+          // fall through it instead of stopping (react-router's implicit outlet)
+          { path: 'nested', children: [{ path: 'deep', Component: Deep }] },
           { path: ':id', Component: User }
         ]
       }
     ]
-  }
+  },
+  // component-less grouping node at the very top of the chain — this is the shape
+  // `@owlmeans/client` emits for modules without a handler (e.g. `client-authentication`)
+  { path: 'group', children: [{ path: 'leaf', Component: Leaf }] }
 ]
 
 const plugin = makeBrowserRouterPlugin()

@@ -29,10 +29,19 @@ navigation idioms; we now own the router and make react-router (and future SSR/n
 - **`provide` decoupling:** `@owlmeans/client`'s `Router` defaults `provide` to `context.router().compile`
   when the prop is omitted; `App` mounts `<Router>` unless `noRouter` is set. `web-client`'s `provide`
   export is now a deprecated `undefined` (kept so downstream `<PanelApp provide={provide}/>` still compiles).
+- **Component-less matches must be pass-through.** `@owlmeans/client`'s `makeRouterModel` only attaches
+  a `Component` when the module has a `handle`, so grouping modules (`client-authentication`,
+  `client-authentication:authentication`, `manage:creation`, …) land in the match chain with no
+  `Component`. `web-router` therefore renders via `RouteChain`, which walks down to the first match
+  that *has* a `Component` (react-router's implicit `<Outlet/>` semantics) and publishes that match's
+  depth on `OutletContext`. Rendering `matches[depth]` literally blanks every screen sitting under a
+  handler-less group — that was the 2026-08-01 "manager-web renders nothing" regression
+  (`/authentication/login/:type` = `authentication`− > `login`− > `:type`✱).
 - **SSR** is pre-designed (`RouterEnv.{ssr,request}` + priority cascade) but NOT implemented — browser only.
 - Tests: routing is validated by a **Playwright chromium e2e** (Category-D), not unit tests —
   `packages/web-router/tests/routing.spec.ts` drives a real browser (vite harness + `mount.tsx`) through
-  index/nested/`:param`/static-vs-dynamic/deep-link/back-forward navigation. Needs `bunx playwright install
-  chromium`. (Per maintainer direction: no fast unit tests for routing — real-browser e2e only.)
+  index/nested/`:param`/static-vs-dynamic/deep-link/back-forward navigation **plus component-less
+  pass-through (top-of-chain and mid-chain)**. Needs `bunx playwright install chromium`. (Per maintainer
+  direction: no fast unit tests for routing — real-browser e2e only.)
 
 See [[entrypoint-rename]] (entrypoint model the route tree is built from) and root `tree.md`.
