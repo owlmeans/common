@@ -33,9 +33,9 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^24.10.1",
-    "nodemon": "^3.1.11",
-    "typescript": "^6.0.2"
+    "@types/node": "^26.1.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3"
   },
   "publishConfig": {
     "access": "public"

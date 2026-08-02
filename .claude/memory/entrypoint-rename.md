@@ -17,9 +17,14 @@ The OwlMeans "module" concept (a registered, addressable server-handler and/or U
 
 All three packages exist at version 0.1.2 under `packages/entrypoint/`, `packages/server-entrypoint/`, `packages/client-entrypoint/`.
 
-## Deprecated reexport shims (kept indefinitely)
+## Deprecated reexport shims — REMOVED (2026-07-01)
 
-`@owlmeans/module`, `@owlmeans/server-module`, `@owlmeans/client-module` remain as thin shims re-exporting everything from the new canonical packages, with `@deprecated` JSDoc on old symbol names. Protects the `native` monorepo and any external consumers without changes.
+`@owlmeans/module`, `@owlmeans/server-module`, `@owlmeans/client-module` (thin shims re-exporting the
+`*-entrypoint` packages) were **deleted** from this repo — they had zero source/package.json consumers
+across common, internal, viable, and viable-agent. **Caveat:** the separate `native` monorepo and any
+external npm consumers that still import `@owlmeans/*-module` will break if they upgrade past the last
+published shim version; they must migrate to `@owlmeans/*-entrypoint`. Published shim versions remain on
+npm, so pinned installs are unaffected.
 
 ## Marker interop rule
 

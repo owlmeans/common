@@ -6,13 +6,13 @@ applyTo: "**/index.tsx, **/modules.ts, **/modules.tsx, **/*.ts, **/*.tsx"
 # @owlmeans/web-client
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.2"` in `dependencies`
+**Install:** `"@owlmeans/web-client": "^0.1.11"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `renderApp<C, T>(context)` | Mount React app with React Router 7 |
+| `renderApp<C, T>(context)` | Mount React app (routing via the active router plugin — OwlMeans by default) |
 | `elevate(modules, alias, handler)` | Attach a React component to an entrypoint |
 | `handler(Component)` | Wrap a React component as an entrypoint handler |
 | `context.registerEntrypoints(modules)` | Register entrypoints on the context |
@@ -38,4 +38,4 @@ modules.push(entrypoint(route(HOME, '/', frontend({ default: true })), handler(H
 
 ## Depends On
 
-- `@owlmeans/client`, `@owlmeans/web-router`, `@owlmeans/web-panel`, `@owlmeans/client-i18n`, `@owlmeans/entrypoint`, `@owlmeans/route`, `react`, `react-dom`, `react-router`
+- `@owlmeans/client`, `@owlmeans/web-router` (default OwlMeans browser routing), `@owlmeans/web-panel`, `@owlmeans/client-i18n`, `@owlmeans/entrypoint`, `@owlmeans/route`, `react`, `react-dom`. No longer depends on `react-router` (opt in via `@owlmeans/web-router-react-router`). The former `provide` export is a deprecated `undefined`.

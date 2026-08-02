@@ -4,7 +4,7 @@ description: Package versioning conventions for the OwlMeans Common monorepo —
 type: project
 ---
 
-All ~75 packages are synchronized at the same version (currently `0.1.2`). Internal cross-package deps use caret range `^0.1.2`. The `@owlmeans/dep-config` package is always referenced as `workspace:*` because it has no runtime code (config files only).
+All packages are synchronized at the same version (currently `0.1.11`). Internal cross-package deps use caret range `^0.1.11`. The `@owlmeans/dep-config` package is always referenced as `workspace:*` because it has no runtime code (config files only).
 
 **Why:** Synchronized versioning simplifies releases and ensures packages in the monorepo always work together.
 

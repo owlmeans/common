@@ -40,12 +40,11 @@ Environment-agnostic primitives. Everything else builds on this layer. Within th
 - [`basic-ids`](packages/basic-ids) → *(no `@owlmeans/*` deps)*
 - [`error`](packages/error) → `i18n`
 - [`route`](packages/route) → `context`
-- [`router`](packages/router) → `context`
+- [`router`](packages/router) → `context` *(routing plugin host: `RouterService` registry + cascade selection + neutral route IR + pure matcher)*
 - [`auth`](packages/auth) → `error`
 - [`resource`](packages/resource) → `context`, `error`
 - [`basic-keys`](packages/basic-keys) → `auth`
 - [`entrypoint`](packages/entrypoint) → `auth`, `context`, `route`
-- [`module`](packages/module) → `entrypoint` *(deprecated shim — re-exports `@owlmeans/entrypoint`)*
 - [`state`](packages/state) → `context`, `resource`
 - [`socket`](packages/socket) → `auth`, `basic-ids`, `error`
 - [`basic-envelope`](packages/basic-envelope) → `basic-keys`
@@ -101,7 +100,6 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-config`](packages/server-config) → `config`, `server-route`
 - [`server-context`](packages/server-context) → `client-config`, `config`, `context`, `route`, `server-config`
 - [`server-entrypoint`](packages/server-entrypoint) → `context`, `entrypoint`, `route`, `server-route`
-- [`server-module`](packages/server-module) → `server-entrypoint` *(deprecated shim — re-exports `@owlmeans/server-entrypoint`)*
 - [`server-api`](packages/server-api) → `api`, `auth`, `auth-common`, `context`, `error`, `entrypoint`, `route`, `server-context`, `server-entrypoint`
 - [`server-wl`](packages/server-wl) → `context`, `server-api`, `server-context`, `server-entrypoint`, `wled`
 - [`server-oidc-provider`](packages/server-oidc-provider) → `client-entrypoint`, `config`, `context`, `oidc`, `route`, `server-api`, `server-context`
@@ -123,7 +121,6 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 - [`client-route`](packages/client-route) → `client-context`, `route`
 - [`client-resource`](packages/client-resource) → `client-context`, `context`, `resource`
 - [`client-entrypoint`](packages/client-entrypoint) → `api`, `client-config`, `client-context`, `client-route`, `config`, `context`, `entrypoint`, `error`, `route`
-- [`client-module`](packages/client-module) → `client-entrypoint` *(deprecated shim — re-exports `@owlmeans/client-entrypoint`)*
 - [`client-i18n`](packages/client-i18n) → `client`, `client-context`, `i18n`
 - [`client`](packages/client) → `auth`, `client-context`, `client-entrypoint`, `client-resource`, `config`, `context`, `error`, `entrypoint`, `resource`, `router`, `state`
 - [`client-did`](packages/client-did) → `auth`, `client`, `client-context`, `client-resource`, `context`, `did`, `state`
@@ -137,9 +134,10 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 
 ## 9. Web packages
 
-Browser-specific React (DOM, Material-UI, IndexedDB, react-router v7). Listed in dependency order.
+Browser-specific React (DOM, Material-UI, IndexedDB). Routing defaults to the OwlMeans in-browser plugin (`web-router`); react-router v7 is opt-in via `web-router-react-router`. Listed in dependency order.
 
-- [`web-router`](packages/web-router) → `router`
+- [`web-router`](packages/web-router) → `context`, `router` *(the default OwlMeans in-browser routing plugin: history + matcher-backed provider/outlet/hooks)*
+- [`web-router-react-router`](packages/web-router-react-router) → `context`, `router` *(opt-in react-router v7 plugin, extracted from the former web-router; register via `appendReactRouter`)*
 - [`web-db`](packages/web-db) → `client-context`, `client-resource`, `context`
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-i18n`, `client-entrypoint`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-flow`, `client-entrypoint`, `client-resource`, `context`, `error`, `flow`
@@ -179,12 +177,10 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `context`, `dep-config`, `i18n`, `queue`
 - **L1**: `error`, `route`, `router`
-- **L2**: `auth`, `resource`, `server-route`, `web-router`
+- **L2**: `auth`, `resource`, `server-route`, `web-router`, `web-router-react-router`
 - **L3**: `basic-keys`, `config`, `entrypoint`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
-- **L4 (shims)**: `module`, `server-module` *(deprecated — each re-exports its canonical counterpart)*
 - **L5**: `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L5 (shim)**: `client-module` *(deprecated — re-exports `@owlmeans/client-entrypoint`)*
 - **L6**: `api-config-client`, `client-resource`, `kluster`, `mongo-resource`, `oidc`, `redis-resource`, `server-api`, `storage-resource`
 - **L7**: `api-config-server`, `client`, `image-resource`, `mongo`, `redis`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `web-wl`, `{server-auth | server-socket}`

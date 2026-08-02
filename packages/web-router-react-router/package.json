@@ -1,0 +1,42 @@
+{
+  "name": "@owlmeans/web-router-react-router",
+  "version": "0.1.11",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 63 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-router": "^7.9.6"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "nodemon": "^3.1.14",
+    "react-router": "^7.9.6",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.11",
+    "@owlmeans/router": "^0.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
