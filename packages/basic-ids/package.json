@@ -23,13 +23,13 @@
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "@types/uuid": "^10.0.0",
-    "nodemon": "^3.1.11",
-    "typescript": "^6.0.2"
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
     "@scure/base": "^1.1.9",
-    "uuid": "^10.0.0"
+    "uuid": "^11.1.1"
   },
   "publishConfig": {
     "access": "public"

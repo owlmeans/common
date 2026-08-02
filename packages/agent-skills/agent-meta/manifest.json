@@ -2,9 +2,16 @@
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
   "version": "0.1.12",
-  "generatedAt": "2026-06-17T14:51:24.131Z",
+  "generatedAt": "2026-07-01T11:19:57.642Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "router-plugins",
+      "category": "general",
+      "file": "skills/router-plugins/SKILL.md",
+      "canonicalPath": ".claude/skills/router-plugins/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "getting-started",
@@ -81,6 +88,13 @@
       "category": "general",
       "file": "instructions/skill-authoring.instructions.md",
       "canonicalPath": ".github/instructions/skill-authoring.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "router-plugins",
+      "category": "general",
+      "file": "instructions/router-plugins.instructions.md",
+      "canonicalPath": ".github/instructions/router-plugins.instructions.md"
     },
     {
       "kind": "instruction",

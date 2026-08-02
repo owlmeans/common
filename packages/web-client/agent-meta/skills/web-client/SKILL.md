@@ -14,7 +14,7 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
-| `renderApp<C, T>(context)` | Mount the React app with React Router 7 |
+| `renderApp<C, T>(context)` | Mount the React app (routing via the active router plugin — OwlMeans by default) |
 | `elevate(modules, alias, handler)` | Attach a React component (or `handler(Component)`) to an entrypoint |
 | `handler(Component)` | Wrap a React component as an entrypoint handler |
 | `context.registerEntrypoints(modules)` | Register the full entrypoint list on the context |
@@ -54,6 +54,6 @@ modules.push(
 
 ## Depends On
 
-- `@owlmeans/client`, `@owlmeans/web-router`, `@owlmeans/web-panel` (typically), `@owlmeans/client-i18n`
+- `@owlmeans/client`, `@owlmeans/web-router` (default OwlMeans browser routing), `@owlmeans/web-panel` (typically), `@owlmeans/client-i18n`
 - `@owlmeans/entrypoint`, `@owlmeans/route`
-- `react`, `react-dom`, `react-router` (peer)
+- `react`, `react-dom` (peer). No longer depends on `react-router` — opt into it with `@owlmeans/web-router-react-router` (`appendReactRouter`). The former `provide` export is a deprecated `undefined`.

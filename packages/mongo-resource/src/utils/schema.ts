@@ -81,6 +81,9 @@ const convertToBsonType = (value: JSONSchemaType<unknown>): Document => {
   }
 
   return value.type === 'object'
-    ? value.format === 'date-time' ? { bsonType: 'date' } : schemaToMongoSchema(value)
+    // `DateSchema` is `{ type: 'object', format: 'date-time' }`, so a date is detected by
+    // format rather than type — but it still has to honor `nullable`, otherwise an optional
+    // date left unset (the driver writes `undefined` as `null`) fails collection validation.
+    ? value.format === 'date-time' ? { bsonType: value.nullable ? ['date', 'null'] : 'date' } : schemaToMongoSchema(value)
     : { bsonType: prepareScalarType(value) }
 }
