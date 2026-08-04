@@ -4,27 +4,41 @@
 
 Before any git operation, follow [.github/instructions/git.instructions.md](.github/instructions/git.instructions.md) (auto-applied via `applyTo: "**"`): never run state-changing git without explicit instruction, commit only under the user's configured identity (never as the AI/agent, no `Co-Authored-By` trailer), report finished git work as a Markdown table, and never commit a conflicted working copy.
 
-## Change Reporting (mandatory)
+## Reporting (mandatory)
 
-After any change is implemented and finished, report it as a Markdown table — one row per file/item with columns **Change** (created / modified / deleted), **Path**, and **Why**. When changes span multiple projects, emit **one table per project** (each is a separate repo).
+Always report concisely and briefly, in table format, about WHAT was done rather than why —
+unless the operator explicitly asks for another format, length, or level of detail.
 
-## Memory & Meta-file Rules
+- Changes: one row per file/item — **Change** (created / modified / deleted), **Path**,
+  **Why** (one short phrase). One table per affected project (each is a separate repo).
+- Findings / status / verification: a short table plus at most a few lines of prose.
+- No preamble, no narration of the process; expand on WHY only when asked.
 
-All project memory and meta-information must be stored inside this project, never in `~/.copilot/`:
+## Memory
 
-- **Always** write new memory files to `.github/memory/` in this project root
-- **Always** update `.github/memory/MEMORY.md` index when adding a new memory file
-- **Never** write project-related memory outside the project repository
-- For context that should load every session: add it to `.github/copilot-instructions.md`
-- For context loaded on demand: put it in `.github/instructions/<topic>.instructions.md`
-- When asked to remember something about this project, save it to `.github/memory/<topic>.md` and update `.github/memory/MEMORY.md`
+Single shared agent memory store: `.agents/memory/` — a graph of subsystem nodes with index
+`.agents/memory/MEMORY.md`. Protocol:
+[.github/instructions/agent-memory.instructions.md](.github/instructions/agent-memory.instructions.md).
 
-### When to read memory
+- Session start: read `.agents/memory/MEMORY.md`. Before non-trivial work: open the nodes whose
+  scope matches the task.
+- Every write merges into the matching subsystem node and compacts — record reusable knowledge,
+  never session events.
+- Procedure-shaped or repeatedly-touched memory must become an instruction/skill — follow
+  `.github/instructions/memory-promotion.instructions.md`.
+- If the store degrades (event logs, oversized nodes, bloated index) — follow
+  `.github/instructions/memory-recompact.instructions.md`.
+- Never write memory to `.claude/memory/`, `.github/memory/`, `~/.copilot/`, or anywhere outside
+  this repository.
 
-- **At the start of every conversation**: read `.github/memory/MEMORY.md` to see what memory files exist, then read any that are relevant to the current task
-- **Before starting any non-trivial task**: check if a relevant `.github/memory/*.md` or `.github/instructions/*.instructions.md` file exists and read it
-- **When a topic comes up** (e.g. bun, auth, deployment): read the corresponding file before acting
-- **After completing a task** that produced new knowledge: save it to the appropriate memory file
+## Self-Education (mandatory)
+
+Whenever development started from a plan agreed with the agent, the work is not complete until
+[.github/instructions/self-education.instructions.md](.github/instructions/self-education.instructions.md)
+has been applied: update the project instructions/skills the change touched, record external-doc
+findings (URL + gist) in the governing instruction, or add an instruction/skill for a new
+subsystem or technology. The completion report must include the self-education outcome — or
+state why none was needed.
 
 ## What This Is
 

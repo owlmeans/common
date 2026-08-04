@@ -54,7 +54,7 @@ my-app/
 ├── .github/
 │   ├── copilot-instructions.md   # same directives for Copilot
 │   └── memory/MEMORY.md          # starter memory index
-├── .claude/memory/MEMORY.md      # starter memory index
+├── .agents/memory/MEMORY.md      # starter shared memory index (both tools)
 ├── sources/common/         # consts, types, schemas, config, modules (entrypoints)
 ├── sources/api/            # context.ts (appendStaticResource), app/session/*, modules.ts, index.ts
 └── sources/web/            # vite + tailwind v4, components/ui/*, layout, nav, screens, render.tsx

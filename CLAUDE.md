@@ -6,27 +6,37 @@ Before any git operation follow these rules — they override default agent beha
 
 @.claude/rules/git.md
 
-## Change Reporting (mandatory)
+## Reporting (mandatory)
 
-After any change is implemented and finished, report it as a Markdown table — one row per file/item with columns **Change** (created / modified / deleted), **Path**, and **Why**. When changes span multiple projects, emit **one table per project** (each is a separate repo).
+Always report concisely and briefly, in table format, about WHAT was done rather than why —
+unless the operator explicitly asks for another format, length, or level of detail.
 
-## Memory & Meta-file Rules
+- Changes: one row per file/item — **Change** (created / modified / deleted), **Path**,
+  **Why** (one short phrase). One table per affected project (each is a separate repo).
+- Findings / status / verification: a short table plus at most a few lines of prose.
+- No preamble, no narration of the process; expand on WHY only when asked.
 
-All project memory and meta-information must be stored inside this project, never in `~/.claude/`:
+## Memory
 
-- **Always** write new memory files to `.claude/memory/` in this project root
-- **Always** update `.claude/memory/MEMORY.md` index when adding a new memory file
-- **Never** write project-related memory to `~/.claude/projects/*/memory/`
-- For context that should load every session: add it to `CLAUDE.md` or import it with `@.claude/filename.md`
-- For context loaded on demand: put it in `.claude/<topic>.md` and reference it from the "Additional Context" section below
-- When asked to remember something about this project, save it to `.claude/memory/<topic>.md` and update `.claude/memory/MEMORY.md`
+Single shared agent memory store: `.agents/memory/` — a graph of subsystem nodes with index
+`.agents/memory/MEMORY.md`. Protocol: `agent-memory` skill.
 
-### When to read memory
+- Session start: read `.agents/memory/MEMORY.md`. Before non-trivial work: open the nodes whose
+  scope matches the task.
+- Every write merges into the matching subsystem node and compacts — record reusable knowledge,
+  never session events.
+- Procedure-shaped or repeatedly-touched memory must become a skill — `memory-promotion`.
+- If the store degrades (event logs, oversized nodes, bloated index) — `memory-recompact`.
+- Never write memory to `.claude/memory/`, `.github/memory/`, `~/.claude/`, or anywhere outside
+  this repository.
 
-- **At the start of every conversation**: read `.claude/memory/MEMORY.md` to see what memory files exist, then read any that are relevant to the current task
-- **Before starting any non-trivial task**: check if a relevant `.claude/memory/*.md` or `.claude/<topic>.md` file exists and read it
-- **When a topic comes up** (e.g. bun, auth, deployment): read the corresponding file before acting, don't rely on assumptions
-- **After completing a task** that produced new knowledge (decisions made, patterns established, gotchas found): save it to the appropriate memory file
+## Self-Education (mandatory)
+
+Whenever development started from a plan agreed with the agent, the work is not complete until
+the `self-education` skill has been applied: update the project skills/instructions the change
+touched, record external-doc findings (URL + gist) in the governing skill, or add a
+skill/instruction for a new subsystem or technology. The completion report must include the
+self-education outcome — or state why none was needed.
 
 ## What This Is
 
