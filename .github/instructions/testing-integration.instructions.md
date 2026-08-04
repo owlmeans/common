@@ -1,5 +1,5 @@
 ---
-applyTo: "packages/{mongo,mongo-resource,redis,redis-resource,kluster,storage-common,storage-resource,image-resource,server-api,server-app,queue}/tests/**"
+applyTo: "packages/{mongo,mongo-resource,redis,redis-resource,kluster,storage-common,storage-resource,image-resource,server-api,server-app,queue,llm}/tests/**"
 ---
 
 # Category C — Integration Tests (env-gated)

@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All ~71 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All ~73 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration](#1-configuration) — shared TypeScript configs
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, wled
+3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, llm, wled
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Redis, S3, Kubernetes, file resources
@@ -56,6 +56,8 @@ Environment-agnostic primitives. Everything else builds on this layer. Within th
 Domain-level features that are themselves environment-agnostic but sit on top of multiple core primitives. Server, client, and web layers consume these directly.
 
 - [`queue`](packages/queue) → *(no `@owlmeans/*` deps — abstract interface)*
+- [`llm-common`](packages/llm-common) → *(no `@owlmeans/*` deps — serializable LLM/execution contracts)*
+- [`llm`](packages/llm) → `basic-ids`, `context`, `error`, `llm-common`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `error`, `i18n`, `entrypoint`, `resource`, `route`

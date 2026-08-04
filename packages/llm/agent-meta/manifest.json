@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/llm",
+  "version": "0.1.11",
+  "generatedAt": "2026-08-04T18:21:14.219Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "llm",
+      "category": "package-specific",
+      "file": "skills/llm/SKILL.md",
+      "canonicalPath": ".claude/skills/llm/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "llm",
+      "category": "package-specific",
+      "file": "instructions/llm.instructions.md",
+      "canonicalPath": ".github/instructions/llm.instructions.md"
+    }
+  ]
+}
