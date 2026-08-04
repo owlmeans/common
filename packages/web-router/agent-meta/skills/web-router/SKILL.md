@@ -23,6 +23,7 @@ separate opt-in `@owlmeans/web-router-react-router` package.)
 | `makeBrowserRouterPlugin()` | The `RouterPlugin` itself (alias `owlmeans-browser-router`, priority 0). |
 | `makeWebRouterService()` | Back-compat: a host pre-loaded with the browser plugin. |
 | `BrowserRouterProvider`, `Outlet` | React provider/outlet components. |
+| `RouteChain` | Renders the matched chain from a given depth, skipping `Component`-less matches (used by the provider and `Outlet`). |
 | `useParams` / `useLocation` / `useNavigate` / `useSearchParams` | The plugin's hooks (usually reached via `context.router().…`). |
 | `createBrowserHistory()` | History API wrapper (push/replace/go/popstate). |
 
@@ -30,9 +31,15 @@ separate opt-in `@owlmeans/web-router-react-router` package.)
 
 - `compile(routes)` flattens + ranks the neutral `RouteObject[]` into matchable branches (using the
   `@owlmeans/router` matcher). No async, no react-router.
-- `BrowserRouterProvider` subscribes to history, re-matches on navigation, renders the top match;
-  `<Outlet/>` renders the next-deeper match (depth tracked via context). Composes unchanged with the
-  `@owlmeans/client` route renderer (parent components emit `<Outlet/>`).
+- `BrowserRouterProvider` subscribes to history, re-matches on navigation, and renders the match
+  chain via `RouteChain`; `<Outlet/>` renders the next-deeper match (depth tracked via context).
+  Composes unchanged with the `@owlmeans/client` route renderer (parent components emit `<Outlet/>`).
+- **Component-less matches are pass-through** — exactly like react-router's implicit `<Outlet/>` for
+  element-less routes. `@owlmeans/client` emits `RouteObject`s with no `Component` for modules that
+  have no handler (grouping modules such as `client-authentication` →
+  `client-authentication:authentication`), so rendering only the exact node at a depth would blank
+  the whole subtree. `RouteChain` walks down to the first match that has a `Component`, and the
+  `OutletContext` depth it publishes is that match's depth, so nested outlets stay aligned.
 - Supported route syntax: static segments, `:param`, nested (parent/child), index (`default:true`).
   **No splat/optional yet** (a seam is reserved).
 

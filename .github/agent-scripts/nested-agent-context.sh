@@ -32,7 +32,7 @@
 #     [skill]  .claude/skills/context/SKILL.md
 #              -- Context DI container skill
 #     [rule]   .claude/rules/bun.md
-#     [memory] .claude/memory/MEMORY.md  (index only)
+#     [memory] .agents/memory/MEMORY.md  (index only; [legacy-memory] for old .claude/memory)
 #
 # NOTES
 #   - Symlinks are followed exactly one level; the child project's
@@ -208,13 +208,22 @@ EOF
         fi
     fi
 
-    # ---- .claude/memory/MEMORY.md (index only) ----
-    mem_index="$child_dir/.claude/memory/MEMORY.md"
+    # ---- .agents/memory/MEMORY.md (index only; legacy .claude/memory fallback) ----
+    mem_index="$child_dir/.agents/memory/MEMORY.md"
     if [ -f "$mem_index" ]; then
         print_header
         desc=$(extract_description "$mem_index")
         [ -z "$desc" ] && desc=$(extract_heading "$mem_index")
-        print_entry "[memory-index]" "$child_label/.claude/memory/MEMORY.md" "$desc"
+        print_entry "[memory-index]" "$child_label/.agents/memory/MEMORY.md" "$desc"
+    else
+        legacy_index="$child_dir/.claude/memory/MEMORY.md"
+        if [ -f "$legacy_index" ]; then
+            print_header
+            desc=$(extract_description "$legacy_index")
+            [ -z "$desc" ] && desc=$(extract_heading "$legacy_index")
+            print_entry "[legacy-memory]" "$child_label/.claude/memory/MEMORY.md" "$desc"
+            printf '                     -- legacy store: pending memory-recompact migration to .agents/memory/\n'
+        fi
     fi
 
     if [ "$found_anything" -eq 0 ]; then

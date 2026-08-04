@@ -51,10 +51,12 @@ Cross-reference related guidance by name.
 ## Skill vs memory
 
 - **Skill / instruction** — a reusable procedure or reference worth auto-invoking.
-- **Memory** (`.claude/memory/`, `.github/memory/`) — a fact, decision, or gotcha specific to this
-  project's history. See the `agent-memory` instruction.
+- **Memory** (shared `.agents/memory/` graph store, both tools) — a fact, decision, or gotcha
+  specific to this project's history. See the agent-memory instruction; promotion triggers live
+  in the memory-promotion instruction.
 
 ## After adding a skill
 
-List it in `.github/memory/MEMORY.md` (and `.claude/memory/MEMORY.md`), and reference it from
+If it absorbed memory content, shrink the source `.agents/memory/` node to a pointer line
+(memory-promotion instruction) — the memory index does not list skills. Reference it from
 `.github/copilot-instructions.md` / `CLAUDE.md` if it should be discoverable every session.

@@ -64,7 +64,8 @@ skill").
 - **Skill / instruction** — a reusable procedure or reference you (or the tools) will want again,
   worth auto-invoking. Lives in `.claude/skills/` + `.github/instructions/`.
 - **Memory** — a fact, decision, or gotcha specific to this project's history/state. Lives in
-  `.claude/memory/` + `.github/memory/`. See the `agent-memory` skill.
+  the shared `.agents/memory/` graph store (both tools). See the `agent-memory` skill; promotion
+  triggers and the update-vs-create rule live in `memory-promotion`.
 
 If you find yourself writing "last time we…", that is memory. If you are writing "to do X, do Y",
 that is a skill.
@@ -72,7 +73,7 @@ that is a skill.
 ## After adding a skill
 
 1. If it replaces an ad-hoc `.claude/<topic>.md`, remove that file.
-2. Mention it in `.claude/memory/MEMORY.md` (and `.github/memory/MEMORY.md`) so future sessions know
-   it exists.
+2. If it absorbed memory content, shrink the source `.agents/memory/` node to a pointer line
+   (`memory-promotion`) — the memory index does not list skills.
 3. Reference it from `CLAUDE.md` / `.github/copilot-instructions.md` if it should be discoverable
    every session.

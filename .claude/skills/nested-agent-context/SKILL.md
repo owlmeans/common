@@ -45,8 +45,10 @@ File paths in the output are relative to the repository root.
 ### Step 3 — Also read the child's memory index
 
 Open the `[memory-index]` file printed by the script
-(e.g. `libraries/common/.claude/memory/MEMORY.md`) to get the child
-project's current state and relevant history.
+(e.g. `libraries/common/.agents/memory/MEMORY.md`) to get the child
+project's current state and relevant knowledge. A `[legacy-memory]`
+entry means the child still uses the retired `.claude/memory/` store —
+read it the same way, but flag the child for `memory-recompact` migration.
 
 ### Step 4 — Follow nested instructions as authoritative
 
@@ -76,7 +78,7 @@ instructions take precedence**.
                    -- How to use @owlmeans/context ...
     [skill]  libraries/common/.claude/skills/context/SKILL.md
              -- Context DI container skill
-    [memory-index]  libraries/common/.claude/memory/MEMORY.md
+    [memory-index]  libraries/common/.agents/memory/MEMORY.md
     [embedded]  76 package(s) ship packages/*/agent-meta/ — IGNORED here
                 -- linked context: the root skills/instructions above are authoritative; embedded copies serve standalone npm consumers only
 ```

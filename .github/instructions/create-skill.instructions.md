@@ -39,11 +39,12 @@ applyTo: "**/pattern/**"   # glob: which files trigger this instruction
 
 ## After Creating an Instruction
 
-1. Update `.github/memory/MEMORY.md` to mention the instruction exists
+1. If the instruction absorbed memory content, shrink the source `.agents/memory/` node to a
+   pointer line (memory-promotion instruction) — the memory index does not list instructions
 2. Update `.github/copilot-instructions.md` Additional Context section if important
 3. Test that `description` accurately describes when Copilot should use it
 
 ## Instruction vs Memory File
 
 - **Instruction** (`.github/instructions/*.instructions.md`): reusable procedures, domain reference, coding conventions that Copilot should apply actively
-- **Memory file** (`.github/memory/*.md`): facts about decisions, history, or one-off project state
+- **Memory node** (`.agents/memory/*.md`): fact-shaped knowledge per the agent-memory instruction; procedure-shaped or repeatedly-touched memory promotes (memory-promotion instruction)

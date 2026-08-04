@@ -32,7 +32,7 @@ code that lives inside that child project.
    Root project instructions still apply to root `package.json` workspace entries,
    cross-package contracts, and deployment files.
 
-4. **Also read `.claude/memory/MEMORY.md`** of the child project (listed as
+4. **Also read `.agents/memory/MEMORY.md`** of the child project (listed as
    `[memory-index]`) to get the project's current state and relevant history.
 
 ## Script reference
