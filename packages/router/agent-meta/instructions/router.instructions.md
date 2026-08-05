@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/router
 
 **Layer:** Core (L1)
-**Install:** `"@owlmeans/router": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/router": "^0.1.14"` in `dependencies`
 
 The plugin **host** for OwlMeans UI routing. Defines the contract, holds a registry of routing
 plugins, and selects the active one by cascade. Concrete mechanics are plugins:

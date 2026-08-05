@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-config",
-  "version": "0.1.12",
+  "version": "0.1.14",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.12"
+    "@owlmeans/config": "^0.1.14"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/web-router
 
 **Layer:** Web (React), L2
-**Install:** `"@owlmeans/web-router": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/web-router": "^0.1.14"` in `dependencies`
 
 The **default OwlMeans in-browser router** — react-router-free standard URL routing over the
 History API, registered as a `RouterPlugin` on the `@owlmeans/router` host. (react-router now lives

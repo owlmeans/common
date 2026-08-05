@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/mongo-resource": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

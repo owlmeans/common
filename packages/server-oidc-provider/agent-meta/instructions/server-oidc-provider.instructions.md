@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

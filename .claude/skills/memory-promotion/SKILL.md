@@ -2,6 +2,7 @@
 name: memory-promotion
 description: Transform procedure-shaped or repeatedly-used memory into skills and instructions — the procedure-shape test, promote? repeated-touch flags, over-cap trigger, update-vs-create decision, and the post-promotion pointer state. Use when memory content reads as "how to", when a promote? flag is encountered again, or during recompaction.
 user-invocable: true
+scope: general
 ---
 
 # Memory promotion

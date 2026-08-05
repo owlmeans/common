@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-did",
-  "version": "0.1.12",
+  "version": "0.1.14",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,13 +21,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.12",
-    "@owlmeans/client": "^0.1.12",
-    "@owlmeans/client-context": "^0.1.12",
-    "@owlmeans/client-resource": "^0.1.12",
-    "@owlmeans/context": "^0.1.12",
-    "@owlmeans/did": "^0.1.12",
-    "@owlmeans/state": "^0.1.12"
+    "@owlmeans/auth": "^0.1.14",
+    "@owlmeans/client": "^0.1.14",
+    "@owlmeans/client-context": "^0.1.14",
+    "@owlmeans/client-resource": "^0.1.14",
+    "@owlmeans/context": "^0.1.14",
+    "@owlmeans/did": "^0.1.14",
+    "@owlmeans/state": "^0.1.14"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

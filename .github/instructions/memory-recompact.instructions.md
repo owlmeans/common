@@ -1,6 +1,7 @@
 ---
 description: "Whole-store memory recompaction and migration for .agents/memory/ — rebuild node map from project structure, merge records, enforce caps, regenerate the index, fold in and delete legacy .claude/memory and .github/memory stores. Apply when restructuring a memory store or migrating legacy stores."
 applyTo: "**/.agents/memory/**, **/.claude/memory/**, **/.github/memory/**"
+scope: general
 ---
 
 # Memory recompaction

@@ -2,6 +2,7 @@
 name: memory-recompact
 description: Recompact or migrate a whole .agents/memory/ store — rebuild the node map from project structure, merge event-shaped records into subsystem nodes, deduplicate, enforce caps, regenerate the MEMORY.md index, and fold in legacy .claude/memory and .github/memory stores. Use when a store degrades into event logs, indexes bloat or conflict, or for one-time migration.
 disable-model-invocation: true
+scope: general
 ---
 
 # Memory recompaction

@@ -2,6 +2,7 @@
 name: self-education
 description: Mandatory post-development guidance updating — after functionality is added or changed, update the project skills/instructions the work touched, record external-doc findings (URL + gist) in the governing skill, or add skills/instructions for new subsystems and technologies. Required before the completion report whenever development started from a plan agreed with the agent.
 user-invocable: true
+scope: general
 ---
 
 # Self-education

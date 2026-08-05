@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/router
 
 **Layer:** Core (L1)
-**Install:** `"@owlmeans/router": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/router": "^0.1.14"` in `dependencies`
 
 `@owlmeans/router` is the **plugin host** for OwlMeans UI routing. It does not talk to any
 concrete router; it defines the contract, holds a registry of routing plugins, and selects the

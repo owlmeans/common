@@ -55,28 +55,30 @@ export const run = async (args: CreateArgs): Promise<number> => {
   }
 
   if (args.skills) {
-    if (!args.install) {
-      log('\nSkipping agent-skills deploy (requires installed dependencies — re-run with install).')
-    } else {
-      log('\nDeploying agent skills via @owlmeans/agent-skills…')
-      try {
-        const result = await installSkills({
-          dir: dest,
-          yes: true,
-          only: [],
-          claudeOnly: false,
-          copilotOnly: false,
-          extras: true,
-          force: false,
-          dryRun: false,
-          help: false,
-        })
-        if (result.code !== 0) {
-          process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills\` later.\n`)
-        }
-      } catch (err) {
-        process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)
+    // Without an install the target has no node_modules/@owlmeans, so discovery falls back
+    // to the installer's own bundled agent-meta/ — the general harness guidance (memory,
+    // self-education, git, skill authoring) still lands; only package-specific skills wait.
+    log(args.install
+      ? '\nDeploying agent skills via @owlmeans/agent-skills…'
+      : '\nDeploying harness guidance via @owlmeans/agent-skills (general skills only — re-run'
+        + '\n`npx @owlmeans/agent-skills` after installing to add the package-specific ones)…')
+    try {
+      const result = await installSkills({
+        dir: dest,
+        yes: true,
+        only: [],
+        claudeOnly: false,
+        copilotOnly: false,
+        extras: true,
+        force: false,
+        dryRun: false,
+        help: false,
+      })
+      if (result.code !== 0) {
+        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills\` later.\n`)
       }
+    } catch (err) {
+      process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)
     }
   }
 
@@ -88,7 +90,8 @@ export const run = async (args: CreateArgs): Promise<number> => {
   log(`  ${runCmd}\n`)
   log('The web app starts on http://localhost:3001 and the API on http://localhost:3000.')
   log('Open the "Session" page to exercise the in-memory session resource.\n')
-  log('Agent guidance was scaffolded: CLAUDE.md and .github/copilot-instructions.md.')
+  log('Agent guidance was scaffolded: CLAUDE.md, .github/copilot-instructions.md and the')
+  log('shared memory store at .agents/memory/MEMORY.md.')
   log('Open the project in Claude Code or Copilot — on the first session the agent will ask')
   log('what the project is for and fill in its purpose for you.\n')
 

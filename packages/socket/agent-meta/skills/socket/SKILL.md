@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

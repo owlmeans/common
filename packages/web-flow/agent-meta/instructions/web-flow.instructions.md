@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/web-flow
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-flow": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/web-flow": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

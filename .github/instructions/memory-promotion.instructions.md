@@ -1,6 +1,7 @@
 ---
 description: "Promote procedure-shaped or hot memory into skills/instructions — triggers (procedure test, promote? flags, over-cap), update-vs-create rule, post-promotion pointer state. Apply when converting memory content into guidance files or when a promote? flag appears in a memory node."
 applyTo: "**/.agents/memory/**, **/.claude/skills/**, **/.github/instructions/**"
+scope: general
 ---
 
 # Memory promotion

@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/image-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/image-resource": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/image-resource": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

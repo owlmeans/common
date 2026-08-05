@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/web-oidc-provider
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-provider": "^0.1.12"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-provider": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

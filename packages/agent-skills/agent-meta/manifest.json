@@ -1,10 +1,17 @@
 {
   "schemaVersion": 1,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.12",
-  "generatedAt": "2026-08-04T16:25:56.358Z",
+  "version": "0.1.14",
+  "generatedAt": "2026-08-05T16:56:53.376Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "self-education",
+      "category": "general",
+      "file": "skills/self-education/SKILL.md",
+      "canonicalPath": ".claude/skills/self-education/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "router-plugins",
@@ -25,6 +32,20 @@
       "category": "general",
       "file": "skills/shadcn-web/SKILL.md",
       "canonicalPath": ".claude/skills/shadcn-web/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "memory-recompact",
+      "category": "general",
+      "file": "skills/memory-recompact/SKILL.md",
+      "canonicalPath": ".claude/skills/memory-recompact/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "git",
+      "category": "general",
+      "file": "skills/git/SKILL.md",
+      "canonicalPath": ".claude/skills/git/SKILL.md"
     },
     {
       "kind": "skill",
@@ -56,6 +77,13 @@
     },
     {
       "kind": "skill",
+      "name": "memory-promotion",
+      "category": "general",
+      "file": "skills/memory-promotion/SKILL.md",
+      "canonicalPath": ".claude/skills/memory-promotion/SKILL.md"
+    },
+    {
+      "kind": "skill",
       "name": "shadcn-versions",
       "category": "general",
       "file": "skills/shadcn-versions/SKILL.md",
@@ -74,6 +102,20 @@
       "category": "general",
       "file": "instructions/getting-started.instructions.md",
       "canonicalPath": ".github/instructions/getting-started.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "self-education",
+      "category": "general",
+      "file": "instructions/self-education.instructions.md",
+      "canonicalPath": ".github/instructions/self-education.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "memory-recompact",
+      "category": "general",
+      "file": "instructions/memory-recompact.instructions.md",
+      "canonicalPath": ".github/instructions/memory-recompact.instructions.md"
     },
     {
       "kind": "instruction",
@@ -105,6 +147,13 @@
     },
     {
       "kind": "instruction",
+      "name": "memory-promotion",
+      "category": "general",
+      "file": "instructions/memory-promotion.instructions.md",
+      "canonicalPath": ".github/instructions/memory-promotion.instructions.md"
+    },
+    {
+      "kind": "instruction",
       "name": "agent-memory",
       "category": "general",
       "file": "instructions/agent-memory.instructions.md",
@@ -116,6 +165,13 @@
       "category": "general",
       "file": "instructions/shadcn-web.instructions.md",
       "canonicalPath": ".github/instructions/shadcn-web.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "git",
+      "category": "general",
+      "file": "instructions/git.instructions.md",
+      "canonicalPath": ".github/instructions/git.instructions.md"
     }
   ]
 }

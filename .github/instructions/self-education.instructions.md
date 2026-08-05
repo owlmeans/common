@@ -1,6 +1,7 @@
 ---
 description: "Mandatory post-development skill/instruction updating — after adding or changing functionality, update touched project guidance, note external-doc findings in the governing instruction, or add instructions for new subsystems/technologies; required before the completion report when development started from an agreed plan. Apply when editing skills or instruction files after development."
 applyTo: "**/.claude/skills/**, **/.github/instructions/**"
+scope: general
 ---
 
 # Self-education

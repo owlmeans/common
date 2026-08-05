@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.12"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.14"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model owns only the
 provider-independent parts. Serializable contracts live in `@owlmeans/llm-common`.

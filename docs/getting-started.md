@@ -53,11 +53,16 @@ This generates the three-workspace project below, installs dependencies, and —
 (Claude Code skills under `.claude/skills/`, GitHub Copilot instructions under
 `.github/instructions/`).
 
-It also writes **`CLAUDE.md`** and **`.github/copilot-instructions.md`** (memory + skill directives,
-plus starter `.claude/memory/` and `.github/memory/` indexes). Both contain a project-purpose
-placeholder: the first time you open the project in Claude Code or Copilot, the agent will ask what
-the project is for and fill it in. The bundled general skills include `skill-authoring` and
-`agent-memory` so the project can grow its own guidance.
+It also writes **`CLAUDE.md`** and **`.github/copilot-instructions.md`** — each carrying the four
+mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory, Self-Education)
+plus a project-purpose placeholder: the first time you open the project in Claude Code or Copilot,
+the agent will ask what the project is for and fill it in. Agent memory is a single shared graph
+store at **`.agents/memory/`** (index `MEMORY.md`), used by both tools — the scaffold seeds the
+index for you.
+
+The harness guidance ships with the project itself (`agent-memory`, `memory-promotion`,
+`memory-recompact`, `self-education`, `skill-authoring`, `git`, `reuse-code`, `getting-started`), so
+it is present even with `--no-install`, and the project can grow its own guidance from day one.
 
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
 `--yes`. See `npx @owlmeans/create-app --help`.
