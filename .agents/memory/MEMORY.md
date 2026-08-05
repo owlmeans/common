@@ -11,6 +11,7 @@ Before non-trivial work, open every node whose scope matches the task's files or
 - [[auth]] `packages/*auth*/**` — viable's usage map; gate invariant; Resource.pick() gotcha
 - [[shadcn]] `**/components.json, packages/web-*/**` — three durable decisions for the shadcn package family
 - [[agent-meta]] `packages/*/agent-meta/**` — sync sharp edges; general-scope skills; strict lint
+- [[llm]] `packages/llm/**, packages/llm-common/**` — provider plugins (no ifs); registration order; helpers-vs-utils rule; langchain peer deps; state-nesting fix
 
 ## Cross-cutting
 

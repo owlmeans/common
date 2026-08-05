@@ -53,11 +53,12 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl` — current MUI-based packages; a new shadcn UI + Tailwind v4 family is being introduced alongside (wraps `client-panel`, uses the `@` app-provides contract — see `shadcn-web` skill)
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `redis`, `redis-resource`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
+- **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service)
 - **Other**: `oidc`, `payment`, `queue`, `flow`, `wled`
 
 ## Key Facts
 
-- ~71 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
+- ~73 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
 - TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
 - TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution), `tsconfig.react.json` (JSX+DOM), `tsconfig.server.json` (no DOM), `tsconfig.node.json` (server + Node globals), `tsconfig.bun.json` (server + Bun globals)
 - Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`; server packages extend `tsconfig.server.json`, `tsconfig.node.json`, or `tsconfig.bun.json` as appropriate

@@ -6,7 +6,7 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
-Category C applies to packages that integrate with external services: `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`, `storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`. These tests **never** mock the external service. They run only when the corresponding env vars are set, and they self-skip cleanly when those variables are missing.
+Category C applies to packages that integrate with external services: `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`, `storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`, `llm` (live inference providers). These tests **never** mock the external service. They run only when the corresponding env vars are set, and they self-skip cleanly when those variables are missing.
 
 ## Helpers from `@owlmeans/test-integration`
 

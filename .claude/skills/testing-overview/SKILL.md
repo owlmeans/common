@@ -20,7 +20,7 @@ Every package falls into exactly one of four testing categories. The category dr
 
 - **A** (~31): `basic-ids`, `context`, `config`, `error`, `flow`, `i18n`, `module`, `route`, `router`, `resource`, `socket`, `state`, `static-resource`, `client-route`, `client-config`, `client-context`, `client-resource`, `client-module`, `client-flow`, `client-socket`, `server-route`, `server-config`, `server-context`, `server-module`, `payment`, `api`, `api-config`, `api-config-client`, `api-config-server`, `web-router`, `web-db`
 - **B** (~13): `auth`, `auth-common`, `basic-keys`, `basic-envelope`, `did`, `client-auth`, `client-did`, `server-auth`, `oidc`, `server-oidc-rp`, `server-oidc-provider`, `web-oidc-rp`, `web-oidc-provider`, `wled`, `client-payment`
-- **C** (~10): `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`, `storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`
+- **C** (~11): `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`, `storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`, `llm` (live inference providers)
 - **D** (~8): `client`, `client-i18n`, `client-panel`, `client-wl`, `web-client`, `web-flow`, `web-panel`, `web-wl`
 - **None**: `dep-config`, `_tpl`
 

@@ -781,7 +781,7 @@ Shared build tooling and TypeScript configuration.
 |---------|-------------|
 | [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
 
-### **🏗️ Core Packages (29 packages)**
+### **🏗️ Core Packages (31 packages)**
 Foundational libraries providing environment-agnostic functionality.
 
 | Package | Description |
@@ -800,6 +800,8 @@ Foundational libraries providing environment-agnostic functionality.
 | [`@owlmeans/image-resource`](packages/image-resource) | Specialized image management for object storage systems |
 | [`@owlmeans/kluster`](packages/kluster) | Kubernetes integration for cloud-native service discovery |
 | [`@owlmeans/entrypoint`](packages/entrypoint) | URL unit system for fullstack route and component management |
+| [`@owlmeans/llm`](packages/llm) | LLM inference runtime: model, provider plugins (Anthropic/OpenAI/compatible), model factory, execution service |
+| [`@owlmeans/llm-common`](packages/llm-common) | Serializable LLM inference and execution contracts (no langchain runtime) |
 | [`@owlmeans/mongo`](packages/mongo) | MongoDB service integration with clustering and encryption |
 | [`@owlmeans/mongo-resource`](packages/mongo-resource) | MongoDB resource implementation with schema validation |
 | [`@owlmeans/oidc`](packages/oidc) | OpenID Connect integration with provider configuration |
