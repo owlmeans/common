@@ -135,3 +135,7 @@ each repo — fan every fix out to all copies; verify with `diff`. Correct re-ru
 Fact-shaped ("what is true") stays here. Procedure-shaped ("to do X, do Y") becomes a skill —
 follow `memory-promotion` where present, otherwise `skill-authoring`. Repeated use of a node to
 *perform* tasks, and over-cap nodes full of steps, are promotion triggers.
+
+Promotion is a **rewrite, never a move**: never paste node text into a skill. "Record the rule,
+not the story" and the size caps above bind skill bodies at least as tightly as they bind nodes
+(`memory-promotion` → Distillation).

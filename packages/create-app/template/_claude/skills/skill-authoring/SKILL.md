@@ -71,10 +71,14 @@ skill").
 If you find yourself writing "last time we…", that is memory. If you are writing "to do X, do Y",
 that is a skill.
 
+Never paste memory text into a skill. Memory content enters guidance only as a restated general
+rule — trigger, step, and the failure it prevents, with dates, phase/status markers, versions and
+incident narrative stripped (`memory-promotion` → Distillation).
+
 ## After adding a skill
 
 1. If it replaces an ad-hoc `.claude/<topic>.md`, remove that file.
-2. If it absorbed memory content, shrink the source `.agents/memory/` node to a pointer line
-   (`memory-promotion`) — the memory index does not list skills.
+2. If it distilled memory content into rules, shrink the source `.agents/memory/` node to a
+   pointer line (`memory-promotion`) — the memory index does not list skills.
 3. Reference it from `CLAUDE.md` / `.github/copilot-instructions.md` if it should be discoverable
    every session.

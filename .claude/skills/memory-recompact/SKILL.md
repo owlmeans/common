@@ -38,7 +38,8 @@ For each old file or section:
    genuinely in-flight state → `Status`, dated).
 3. On conflict between records, the version consistent with **current code** wins — check the
    code, don't average.
-4. Procedure-shaped survivors do not enter nodes — route them to `memory-promotion`.
+4. Procedure-shaped survivors do not enter nodes — route them to `memory-promotion`. Routing
+   means distilling them into general rules, never handing the text over verbatim.
 
 ## Legacy-store merge (migration)
 

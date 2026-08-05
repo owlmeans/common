@@ -55,8 +55,12 @@ Cross-reference related guidance by name.
   specific to this project's history. See the agent-memory instruction; promotion triggers live
   in the memory-promotion instruction.
 
+Never paste memory text into guidance. Memory content enters an instruction or skill only as a
+restated general rule — trigger, step, and the failure it prevents, with dates, phase/status
+markers, versions and incident narrative stripped (memory-promotion instruction → Distillation).
+
 ## After adding a skill
 
-If it absorbed memory content, shrink the source `.agents/memory/` node to a pointer line
+If it distilled memory content into rules, shrink the source `.agents/memory/` node to a pointer line
 (memory-promotion instruction) — the memory index does not list skills. Reference it from
 `.github/copilot-instructions.md` / `CLAUDE.md` if it should be discoverable every session.

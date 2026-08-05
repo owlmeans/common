@@ -48,7 +48,8 @@ Single shared agent memory store: `.agents/memory/` — a graph of subsystem nod
   scope matches the task.
 - Every write merges into the matching subsystem node and compacts — record reusable knowledge,
   never session events.
-- Procedure-shaped or repeatedly-touched memory must become an instruction/skill — follow
+- Procedure-shaped or repeatedly-touched memory must be **distilled into** an instruction/skill
+  as short general rules — never pasted in as memory text — follow
   `.github/instructions/memory-promotion.instructions.md`.
 - If the store degrades (event logs, oversized nodes, bloated index) — follow
   `.github/instructions/memory-recompact.instructions.md`.
@@ -61,10 +62,10 @@ Single shared agent memory store: `.agents/memory/` — a graph of subsystem nod
 
 Whenever development started from a plan agreed with the agent, the work is not complete until
 [.github/instructions/self-education.instructions.md](.github/instructions/self-education.instructions.md)
-has been applied: update the project instructions/skills the change touched, record external-doc
-findings (URL + gist) in the governing instruction, or add an instruction/skill for a new
-subsystem or technology. The completion report must include the self-education outcome — or
-state why none was needed.
+has been applied: rewrite the project instructions/skills the change touched so they state
+current rules (never a note about what changed), record external-doc findings (URL + gist)
+in the governing instruction, or add an instruction/skill for a new subsystem or technology.
+The completion report must include the self-education outcome — or state why none was needed.
 
 ## What this is
 

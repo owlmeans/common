@@ -87,7 +87,7 @@ match by construction. Do not add query-stripping here.
 - `setupAuthServiceModules(managerModules, AUTH_API)` exposes provider-list and token-update service modules protected by `GUARD_ED25519`.
 - When a downstream app uses OIDC/Google only for login and maps users into `@owlmeans/server-auth-identity`, do not reintroduce `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local identity data.
 
-## Integrated-IAM permissions claim (Phase 3)
+## Integrated-IAM permissions claim
 
 - `extractPermissionSets(claim)` (exported) shape-validates a `permissions` token claim into
   `PermissionSet[]`; non-conforming claims (e.g. anything Keycloak emits) return `undefined`.

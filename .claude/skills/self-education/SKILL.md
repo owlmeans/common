@@ -1,6 +1,6 @@
 ---
 name: self-education
-description: Mandatory post-development guidance updating — after functionality is added or changed, update the project skills/instructions the work touched, record external-doc findings (URL + gist) in the governing skill, or add skills/instructions for new subsystems and technologies. Required before the completion report whenever development started from a plan agreed with the agent.
+description: Mandatory post-development guidance updating — after functionality is added or changed, rewrite the project skills/instructions the work touched as current rules (never as change notes), record external-doc findings (URL + gist) in the governing skill, or add skills/instructions for new subsystems and technologies. Required before the completion report whenever development started from a plan agreed with the agent.
 user-invocable: true
 scope: general
 ---
@@ -28,7 +28,22 @@ For each area the work touched:
 1. Which existing skill/instruction covers it? (Check `.claude/skills/` +
    `.github/instructions/`.)
 2. Do its commands, paths, APIs, and behavior claims still hold after the change?
-3. Fix in place — and keep the skill and its instruction twin in sync.
+3. Fix in place — rewrite the affected lines so they describe current behavior; never append a
+   note about what this change did. Keep the skill and its instruction twin in sync.
+
+## Shape of an update
+
+Skills and instructions state **current rules, not what changed**. Every edit is a rewrite in
+place of the affected lines.
+
+Never write into a skill or instruction: dated bulletins ("2026-07-05 — …"), phase or migration
+status ("Phase 3 complete", "migration done", "landed"), "formerly X, now Y", incident
+narratives, fixed-bug logs, or point-in-time inventories. If a line only makes sense to someone
+who watched the change happen, it does not belong in guidance — the rule it taught does, stated
+timelessly. Facts too specific to generalize go to `.agents/memory/` (`agent-memory`); the
+rewrite recipe is `memory-promotion` → Distillation.
+
+Test: a finished skill reads as though the feature was always this way.
 
 ## Non-project skills
 

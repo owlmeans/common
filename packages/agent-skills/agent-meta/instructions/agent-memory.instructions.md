@@ -137,3 +137,7 @@ Fact-shaped ("what is true") stays here. Procedure-shaped ("to do X, do Y") beco
 instruction/skill — follow `.github/instructions/memory-promotion.instructions.md` where present,
 otherwise the skill-authoring guidance. Repeated use of a node to *perform* tasks, and over-cap
 nodes full of steps, are promotion triggers.
+
+Promotion is a **rewrite, never a move**: never paste node text into an instruction. "Record the
+rule, not the story" and the size caps above bind instruction bodies at least as tightly as they
+bind nodes (memory-promotion instruction → Distillation).
