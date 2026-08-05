@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.12"` in `dependencies`
 
 ## Key Exports
 

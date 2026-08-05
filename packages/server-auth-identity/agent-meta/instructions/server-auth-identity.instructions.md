@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/services/**/*.ts, **/*.ts, **/*.tsx"
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.12"` in `dependencies`
 
 ## Key Exports
 

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-did
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-did": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/client-did": "^0.1.12"` in `dependencies`
 
 ## Key Exports
 
