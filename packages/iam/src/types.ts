@@ -17,10 +17,15 @@ export interface IamCredentialsPair {
 
 export interface IamClientOptions {
   /**
-   * Explicit allowed redirect URIs for the client. When omitted the backend keeps its
-   * permissive default (wildcard `*`) for back-compat. Pass concrete origins to harden a
-   * client — used for production/standalone clients whose callbacks are the production
-   * generated host, an attached custom domain, and owner-registered self-host origins.
+   * Explicit allowed redirect URIs for the client. Pass the concrete callbacks a deployment
+   * may return to — the generated host, an attached custom domain, and owner-registered
+   * self-host origins.
+   *
+   * Omitting them is a **legacy keycloak-only** shape: Keycloak accepts a `*` wildcard, while
+   * the integrated provider does exact `redirect_uri` matching and rejects a wildcard outright
+   * (`oidc-provider` refuses a client whose `redirect_uris` are not absolute URIs). Backends
+   * that cannot honour a wildcard MUST throw `IamClientError` instead of registering an
+   * unusable client.
    */
   redirectUris?: string[]
 }
@@ -99,6 +104,20 @@ export interface IamService extends InitializedService {
   // --- Admin config (backend → OIDC RP config, payment provisioning) ---
   getEntityAdminConfig: (entityId: string) => Promise<OidcProviderConfig>
   getCredentialsPair: (entityId: string) => Promise<IamCredentialsPair>
+
+  /**
+   * The public, fully-qualified OIDC **issuer** URL a relying party of this entity must use for
+   * discovery — the single value a consumer needs (`OidcProviderDescriptor.discoveryUrl`). Each
+   * backend owns its own URL shape: keycloak `https://{iam-host}/realms/{entityId}`, integrated
+   * `https://{provider-host}/{basePath}`. Nothing outside an adapter may reassemble it.
+   *
+   * The returned string MUST equal, byte for byte, what the provider advertises as `issuer` in
+   * its discovery document: `openid-client` compares the two and fails the whole discovery when
+   * they differ. Implementations resolve it from configuration only — no remote admin call — and
+   * throw `IamClientError` when the provider's service route is not configured, so a
+   * misconfiguration is loud instead of yielding a silently wrong issuer.
+   */
+  getIssuerUrl: (entityId: string) => Promise<string>
 
   // --- Provisioning (agent → story development) ---
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
