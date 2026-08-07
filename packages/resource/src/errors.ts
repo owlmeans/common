@@ -69,6 +69,34 @@ export class UnsupportedMethodError extends ResourceError {
   }
 }
 
+/**
+ * A registered migration threw while being applied. Resource initialization aborts —
+ * a structure problem has to fail the boot loudly rather than leave the process
+ * running against a half-shaped database.
+ */
+export class MigrationError extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}MigrationError`
+
+  constructor(msg: string) {
+    super(`migration-failed:${msg}`)
+    this.type = MigrationError.typeName
+  }
+}
+
+/**
+ * A migration name was registered twice with different bodies, or an already applied
+ * migration's body has changed since it ran. Write a new migration instead of editing
+ * one that has already been applied somewhere.
+ */
+export class MigrationConflict extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}MigrationConflict`
+
+  constructor(msg: string) {
+    super(`migration-conflict:${msg}`)
+    this.type = MigrationConflict.typeName
+  }
+}
+
 ResilientError.registerErrorClass(ResourceError)
 ResilientError.registerErrorClass(UnknownRecordError)
 ResilientError.registerErrorClass(MisshapedRecord)
@@ -76,3 +104,5 @@ ResilientError.registerErrorClass(RecordExists)
 ResilientError.registerErrorClass(RecordUpdateFailed)
 ResilientError.registerErrorClass(UnsupportedArgumentError)
 ResilientError.registerErrorClass(UnsupportedMethodError)
+ResilientError.registerErrorClass(MigrationError)
+ResilientError.registerErrorClass(MigrationConflict)

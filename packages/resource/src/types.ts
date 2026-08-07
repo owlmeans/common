@@ -1,4 +1,5 @@
 import type { BasicConfig, BasicContext, BasicResource, LazyService } from '@owlmeans/context'
+import type { MigrationStage } from './consts.js'
 
 export interface Resource<T extends ResourceRecord> extends BasicResource {
   /**
@@ -119,6 +120,54 @@ export interface DbConfig<P extends {} = {}> {
   serviceSensitive?: boolean
   encryptionKey?: string
   meta?: P
+}
+
+export interface Migration<Tx = unknown> {
+  name: string
+  stage: MigrationStage
+  apply: (tx: Tx) => Promise<void>
+  /** Stable hash of the migration body — detects edits to an already applied migration. */
+  checksum: string
+}
+
+export interface MigrationRegistry<Tx = unknown> {
+  register: (name: string, apply: (tx: Tx) => Promise<void>, stage?: MigrationStage) => MigrationRegistry<Tx>
+  list: (stage?: MigrationStage) => Migration<Tx>[]
+  has: (name: string) => boolean
+}
+
+/**
+ * The database specific half of the migration subsystem. Postgres and Mongo each
+ * provide an implementation; {@link runMigrations} stays storage agnostic.
+ */
+export interface MigrationStore<Tx = unknown> {
+  /** Create the tracking structure if it's absent. */
+  ensure: () => Promise<void>
+  /** Names already applied for the given resource alias, mapped to their recorded checksum. */
+  applied: (alias: string) => Promise<Record<string, string | null>>
+  /** Record migrations as applied *without* running them — used on freshly created structures. */
+  baseline: (alias: string, migrations: Migration<Tx>[]) => Promise<void>
+  /** Run one migration and record it atomically. */
+  run: (alias: string, migration: Migration<Tx>) => Promise<void>
+}
+
+export interface MigrationRunOptions {
+  stage?: MigrationStage
+  /**
+   * The structure has just been created, so every registered migration is already
+   * satisfied by it — record them instead of running them.
+   */
+  baseline?: boolean
+  /** Throw when an already applied migration's body has changed. Defaults to `true`. */
+  strictChecksum?: boolean
+}
+
+export interface MigrationReport {
+  alias: string
+  stage: MigrationStage
+  applied: string[]
+  baselined: string[]
+  skipped: string[]
 }
 
 export interface Config extends BasicConfig {

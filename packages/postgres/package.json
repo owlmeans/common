@@ -1,0 +1,45 @@
+{
+  "name": "@owlmeans/postgres",
+  "version": "0.1.14",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 210 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/basic-keys": "^0.1.14",
+    "@owlmeans/context": "^0.1.14",
+    "@owlmeans/postgres-resource": "^0.1.14",
+    "@owlmeans/resource": "^0.1.14",
+    "@owlmeans/server-context": "^0.1.14",
+    "drizzle-orm": "~0.45.2",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/test-integration": "^0.1.14",
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.1.0",
+    "@types/pg": "^8.20.4",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
