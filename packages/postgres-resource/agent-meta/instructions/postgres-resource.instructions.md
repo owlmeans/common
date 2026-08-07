@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/postgres-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres-resource": "^0.1.14"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/postgres-resource": "^0.1.15"` in `dependencies` (peers `pg`, `ajv`)
 
 ## Key Exports
 
