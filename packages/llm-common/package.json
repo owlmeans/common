@@ -24,7 +24,7 @@
     "@langchain/core": "^1.1.39",
     "@owlmeans/dep-config": "workspace:*",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

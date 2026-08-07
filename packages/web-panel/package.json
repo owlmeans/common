@@ -94,12 +94,12 @@
     "@vitejs/plugin-react": "^6.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "lucide-react": "^0.460.0",
+    "lucide-react": "^1.28.0",
     "nodemon": "^3.1.14",
     "playwright": "^1.49.0",
-    "tailwind-merge": "^2.5.0",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "^8.1.2"
   },
   "publishConfig": {
