@@ -36,7 +36,7 @@
     "@owlmeans/dep-config": "workspace:*",
     "@types/qs": "^6.9.16",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"
