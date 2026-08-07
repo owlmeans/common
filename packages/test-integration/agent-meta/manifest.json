@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@owlmeans/test-integration",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "generatedAt": "2026-08-07T17:08:43.667Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
