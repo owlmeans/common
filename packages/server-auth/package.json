@@ -60,7 +60,7 @@
     "@owlmeans/server-socket": "^0.1.15",
     "@owlmeans/socket": "^0.1.15",
     "@owlmeans/static-resource": "^0.1.15",
-    "@scure/base": "^1.1.9"
+    "@scure/base": "^2.2.0"
   },
   "peerDependencies": {
     "ajv": "*"
