@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.14"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle or a queue worker. Dependency direction is one-way: a domain contracts

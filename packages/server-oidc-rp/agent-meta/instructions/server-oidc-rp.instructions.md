@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/modules.ts, **/*.ts, **/*.tsx"
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 
@@ -47,6 +47,40 @@ cfg.oidc.providers.push({
 })
 ```
 
+## Locating the provider: `discoveryUrl` vs `service` + `basePath`
+
+`makeOidcClientService().getConfiguration()` resolves the provider URL in one of two ways:
+
+```ts
+// PREFERRED — one fully-qualified value, no knowledge of the provider's URL layout
+cfg.oidc.providers.push({ discoveryUrl: process.env.OIDC_ISSUER_URL, clientId, secret, def: true })
+
+// LEGACY — reassembled from a registered service host + base path
+cfg.oidc.providers.push({ service: OIDC_PRODUCT, basePath: 'realms/my-org', clientId, secret })
+```
+
+- `basePath` and `service` are required **only** when `discoveryUrl` is absent. A `discoveryUrl`-only
+  provider is valid (this was not always true — the guards used to throw regardless).
+- Prefer `discoveryUrl`. Reassembly forces the relying party to know the provider's URL layout and to
+  stay in sync with it; when the two disagree the RP silently talks to the wrong provider. Note that
+  `server-oidc-provider` builds its own issuer with `makeUrl(route, basePath, { base: true })` while
+  the RP fallback omits `{ base: true }` — so a service route carrying a `base` yields two different
+  URLs from the same config.
+- **`discoveryUrl` must equal the provider's advertised `issuer` byte for byte.** `openid-client`
+  appends `/.well-known/openid-configuration` and then compares the returned `issuer` with the URL it
+  was given, failing discovery on any difference (trailing slash, scheme, host). Passing a URL that
+  already contains `/.well-known/` skips that check — use it only when the provider's issuer genuinely
+  cannot be known in advance.
+- There is **no discovery cache**: every `getConfiguration()` performs a fresh HTTP round-trip, and
+  `getClient()` calls it per authorize/exchange/refresh/gate check.
+
+## `redirect_uri` is the consumer's own dispatcher URL
+
+`actions/init.ts` builds `redirect_uri` from `context.entrypoint(DISPATCHER).call()` — the app's own
+frontend origin + `DISPATCHER_PATH`. It never involves the issuer, and `openid-client` v6 strips
+`search`/`hash` on the token-exchange side (`stripParams`), so the authorize and exchange values
+match by construction. Do not add query-stripping here.
+
 ## Product-Viable Usage Notes
 
 - Viable uses `makeOidcClientService()` to read provider descriptors from `cfg.oidc.providers`, including Google and internal admin providers.
@@ -54,7 +88,7 @@ cfg.oidc.providers.push({
 - `setupAuthServiceModules(managerModules, AUTH_API)` exposes provider-list and token-update service modules protected by `GUARD_ED25519`.
 - When a downstream app uses OIDC/Google only for login and maps users into `@owlmeans/server-auth-identity`, do not reintroduce `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local identity data.
 
-## Integrated-IAM permissions claim (Phase 3)
+## Integrated-IAM permissions claim
 
 - `extractPermissionSets(claim)` (exported) shape-validates a `permissions` token claim into
   `PermissionSet[]`; non-conforming claims (e.g. anything Keycloak emits) return `undefined`.

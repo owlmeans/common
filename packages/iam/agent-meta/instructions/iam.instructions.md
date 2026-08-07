@@ -14,7 +14,7 @@ Provider-agnostic IAM abstraction. Defines `IamService` interface and related ty
 |--------|------|---------|
 | `IamService` | type | Unified IAM interface — all provisioning + authorization operations |
 | `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm? }` |
-| `IamClientOptions` | type | `{ redirectUris? }` — optional `ensureClient` hardening; omit → backend keeps its wildcard default |
+| `IamClientOptions` | type | `{ redirectUris? }` — explicit `ensureClient` hardening; omitting is a keycloak-only legacy shape (see below) |
 | `IamCredentialsPair` | type | `{ token: string; realm: string }` |
 | `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title? }` — `permission` absent means unscoped resource name |
 | `IamResourceSpec` | type | `{ name: string; displayName?: string }` |
@@ -54,8 +54,12 @@ interface IamService extends InitializedService {
   // Get an admin { token, realm } pair for raw low-level calls (avoid unless necessary)
   getCredentialsPair: (entityId: string) => Promise<IamCredentialsPair>
 
+  // The tenant's public, fully-qualified OIDC issuer URL — the single value a relying party needs.
+  // Config-only (no remote call); throws IamClientError when the provider route is unconfigured.
+  getIssuerUrl: (entityId: string) => Promise<string>
+
   // Provision an OIDC client for a tenant and return its credentials.
-  // options.redirectUris hardens the client (production/standalone); omitted → wildcard default.
+  // options.redirectUris hardens the client; always pass them (see "Issuer & redirect URIs").
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
 
   // Provision a named permission on a client resource; returns the resource name
@@ -92,6 +96,30 @@ await meta.update('oidcRealm', client.realm ?? fallbackEntityId)
 await meta.update('oidcRealm', (client as any)._realm)
 ```
 
+## Issuer & redirect URIs
+
+**`getIssuerUrl(entityId)` is the only place an issuer URL may be composed.** Consumers pass the
+result straight through as `OidcProviderDescriptor.discoveryUrl`; they must never rebuild it from a
+host plus a base path. Each backend owns its own shape (keycloak `{iam-host}/realms/{entityId}`,
+integrated `{provider-host}/{basePath}`), and an implementation must:
+
+- resolve it from configuration only — no admin round-trip, so a consumer that just needs the issuer
+  never pays for or fails on a token grant;
+- return exactly what the provider advertises as `issuer` (`openid-client` compares the two and fails
+  discovery on any difference — build it with the same `makeUrl(..., { base: true })` call
+  `@owlmeans/server-oidc-provider` uses);
+- throw `IamClientError` when the provider's service route is missing, never fall back silently.
+
+`getEntityAdminConfig` additionally carries the same value as `discoveryUrl`, so the admin provider
+config is self-sufficient too.
+
+**Always pass `redirectUris`.** Omitting them is a keycloak-only legacy default (`['*']`, which
+Keycloak expands per-origin). The integrated provider does exact `redirect_uri` matching and
+`oidc-provider` refuses to load a client whose `redirect_uris` are not absolute URIs — so
+`iam-integrated.ensureClient` throws `IamClientError('redirect-uris')` on creation rather than
+registering a client that can never complete a callback. An omitted list never widens an existing
+hardened client.
+
 ## Selecting the IAM provider
 
 The platform wires the correct implementation via the `IAM_MODE` environment variable. The default is **`integrated`** (the internal IAM); `IAM_MODE=keycloak` is opt-in, used mainly for custom / standalone customer production setups. Do not read `IAM_MODE` directly from feature code — it belongs in the service-factory only (the platform exposes `resolveIamMode()` / `isIntegratedIam()` from `viable-common`):
@@ -99,9 +127,17 @@ The platform wires the correct implementation via the `IAM_MODE` environment var
 ```ts
 export const makeIamService = (mode = resolveIamMode()) => {
   if (mode === IAM_MODE_KEYCLOAK) return makeIamKeycloakService(VIABLE_IAM, { oidcProductAlias: OIDC_PRODUCT })
-  return makeIamIntegratedService(VIABLE_IAM)
+  // Pass the consumer's OWN service alias + base path: the package defaults ('manager-api',
+  // '/oidc') are placeholders, and a mismatch makes every cfg.services[...] lookup miss.
+  return makeIamIntegratedService(VIABLE_IAM, {
+    providerServiceAlias: MANAGER_API, providerBasePath: IAM_PROVIDER_BASE_PATH,
+  })
 }
 ```
+
+When a context hosts **more than one** `IamService` instance (the viable agent registers both
+`viable-backend`'s and the agent library's), every instance must be constructed with the same
+options — otherwise they disagree about the issuer.
 
 ## Rules
 

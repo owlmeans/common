@@ -1,6 +1,7 @@
 ---
-description: "Promote procedure-shaped or hot memory into skills/instructions — triggers (procedure test, promote? flags, over-cap), update-vs-create rule, post-promotion pointer state. Apply when converting memory content into guidance files or when a promote? flag appears in a memory node."
+description: "Promote procedure-shaped or hot memory into skills/instructions — triggers (procedure test, promote? flags, over-cap), the mandatory distillation rewrite, update-vs-create rule, post-promotion pointer state. Apply when converting memory content into guidance files or when a promote? flag appears in a memory node."
 applyTo: "**/.agents/memory/**, **/.claude/skills/**, **/.github/instructions/**"
+scope: general
 ---
 
 # Memory promotion
@@ -8,6 +9,9 @@ applyTo: "**/.agents/memory/**, **/.claude/skills/**, **/.github/instructions/**
 Memory holds **facts**; **procedures** belong in instructions/skills, where they auto-apply and
 stop consuming memory-read cycles. Promotion is how the store stays compact and the harness
 teaches itself.
+
+Promotion is a **rewrite, never a move**. Memory text pasted into an instruction is the single
+most common way this harness degrades — see Distillation below.
 
 ## Triggers
 
@@ -25,7 +29,44 @@ teaches itself.
 
 Procedure-shaped answers *how to do X*: ordered steps, imperative verbs, commands, action tables.
 Fact-shaped answers *what is true*: declarative structure, invariants, symptom→cause pairs.
-Mixed entries split — the fact stays in the node, the "then do" moves out.
+Mixed entries split — the fact stays in the node, the "then do" is distilled into a rule in the
+instruction.
+
+## Distillation (mandatory)
+
+**Never paste memory text into an instruction.** A promoted line leaves the node as prose about a
+past occurrence and enters the instruction as **one general rule**: *when this applies → do this
+→ or this breaks*, stated so it holds next time rather than describing last time.
+
+| Strip | Keep |
+|---|---|
+| dates, phase/status markers, "COMPLETE", "landed" | the condition that makes the rule apply |
+| versions, image tags, SHAs — unless the rule turns on the version | the step to take |
+| "was X, now Y", "the former X was removed" | the failure it prevents |
+| who did it, attempt sequences, incident narrative | the recognition fingerprint (symptom) |
+| point-in-time inventories, counts, snapshots | |
+
+Before (memory): "2026-07-05 — the control-board git card was removed; the dialog now owns all
+git actions."
+After (rule): "Git actions live in the git dialog; the control board holds none."
+
+Before (memory): "Phase 3 (COMPLETE, 2026-06-13): added the init-container build, publisher
+`src/build.ts`, kephemeral v0.1.5."
+After (rule): "Production images build in an init container driven by `publisher/src/build.ts`."
+
+**If the rule cannot be stated without saying when it happened, it is not promotable** — it stays
+a memory fact, or it is dropped.
+
+### Budget
+
+A promotion normally adds **1–5 lines** to an existing instruction, and a single rule is ≤ 3 lines.
+A whole new section, or more text added than the node lost, means the content was moved rather than
+distilled — redo it.
+
+An instruction may legitimately run long when it maps a large subsystem, so length alone is not the
+test: **every line must be a rule, a contract, or a pointer.** A section that reads as the story of
+how the code got there is pollution at any length. "Record the rule, not the story"
+(`agent-memory.instructions.md`) binds instruction bodies at least as tightly as it binds nodes.
 
 ## Flagging (how content earns promotion)
 
@@ -43,18 +84,22 @@ even partially; keep both twins in sync. Create a NEW pair only when:
   re-encountered ` → promote?` flag);
 - (c) an external technology required internet docs and has no governing instruction.
 
-New instructions multiply lookup cost — compactness applies to the guidance population too.
+New instructions multiply lookup cost — compactness applies to the guidance population *and* to
+each instruction's body.
 
 ## Procedure
 
 1. Collect the flagged / procedure-shaped memory lines.
-2. Author or extend the `.github/instructions/<name>.instructions.md` and its
+2. **Distill** each into a general rule (section above). Not optional — skipping it is the
+   failure mode this instruction exists to prevent.
+3. Author or extend the `.github/instructions/<name>.instructions.md` and its
    `.claude/skills/<name>/SKILL.md` twin, following the repo's skill-authoring / create-skill
-   conventions.
-3. Shrink the node: delete the promoted prose; leave one pointer line (format below).
-4. Remove the ` → promote?` flags.
-5. Update the node's index hook if its main value moved; bump `updated:`.
-6. Report per the Reporting rule.
+   conventions. Where an existing rule already covers the ground, **rewrite that rule in place**;
+   append only when nothing covers it.
+4. Shrink the node: delete the source lines; leave one pointer line (format below).
+5. Remove the ` → promote?` flags.
+6. Update the node's index hook if its main value moved; bump `updated:`.
+7. Report per the Reporting rule.
 
 ## Post-promotion state
 

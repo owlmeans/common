@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-router-react-router",
-  "version": "0.1.11",
+  "version": "0.1.14",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -33,8 +33,8 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.11",
-    "@owlmeans/router": "^0.1.11"
+    "@owlmeans/context": "^0.1.14",
+    "@owlmeans/router": "^0.1.14"
   },
   "publishConfig": {
     "access": "public"

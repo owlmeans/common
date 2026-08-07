@@ -1,6 +1,7 @@
 ---
 description: "Whole-store memory recompaction and migration for .agents/memory/ — rebuild node map from project structure, merge records, enforce caps, regenerate the index, fold in and delete legacy .claude/memory and .github/memory stores. Apply when restructuring a memory store or migrating legacy stores."
 applyTo: "**/.agents/memory/**, **/.claude/memory/**, **/.github/memory/**"
+scope: general
 ---
 
 # Memory recompaction
@@ -38,7 +39,8 @@ For each old file or section:
 3. On conflict between records, the version consistent with **current code** wins — check the
    code, don't average.
 4. Procedure-shaped survivors do not enter nodes — route them to
-   `.github/instructions/memory-promotion.instructions.md`.
+   `.github/instructions/memory-promotion.instructions.md`. Routing means distilling them into
+   general rules, never handing the text over verbatim.
 
 ## Legacy-store merge (migration)
 

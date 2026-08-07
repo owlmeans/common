@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth-otp",
-  "version": "0.1.11",
+  "version": "0.1.14",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,8 +22,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.11",
-    "@owlmeans/error": "^0.1.11"
+    "@owlmeans/context": "^0.1.14",
+    "@owlmeans/error": "^0.1.14"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

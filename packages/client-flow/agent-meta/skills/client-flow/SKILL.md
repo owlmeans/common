@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-flow
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-flow": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/client-flow": "^0.1.14"` in `dependencies`
 
 ## Key Exports
 

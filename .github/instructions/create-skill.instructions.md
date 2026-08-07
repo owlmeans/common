@@ -39,7 +39,7 @@ applyTo: "**/pattern/**"   # glob: which files trigger this instruction
 
 ## After Creating an Instruction
 
-1. If the instruction absorbed memory content, shrink the source `.agents/memory/` node to a
+1. If the instruction distilled memory content into rules, shrink the source `.agents/memory/` node to a
    pointer line (memory-promotion instruction) — the memory index does not list instructions
 2. Update `.github/copilot-instructions.md` Additional Context section if important
 3. Test that `description` accurately describes when Copilot should use it
@@ -48,3 +48,4 @@ applyTo: "**/pattern/**"   # glob: which files trigger this instruction
 
 - **Instruction** (`.github/instructions/*.instructions.md`): reusable procedures, domain reference, coding conventions that Copilot should apply actively
 - **Memory node** (`.agents/memory/*.md`): fact-shaped knowledge per the agent-memory instruction; procedure-shaped or repeatedly-touched memory promotes (memory-promotion instruction)
+- **Never paste memory text into an instruction** — restate it as a general rule (trigger → step → the failure it prevents), stripping dates, phase/status markers, versions and incident narrative (memory-promotion instruction → Distillation)

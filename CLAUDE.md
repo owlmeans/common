@@ -25,7 +25,8 @@ Single shared agent memory store: `.agents/memory/` — a graph of subsystem nod
   scope matches the task.
 - Every write merges into the matching subsystem node and compacts — record reusable knowledge,
   never session events.
-- Procedure-shaped or repeatedly-touched memory must become a skill — `memory-promotion`.
+- Procedure-shaped or repeatedly-touched memory must be **distilled into** a skill as short
+  general rules — never pasted in as memory text (`memory-promotion`).
 - If the store degrades (event logs, oversized nodes, bloated index) — `memory-recompact`.
 - Never write memory to `.claude/memory/`, `.github/memory/`, `~/.claude/`, or anywhere outside
   this repository.
@@ -33,10 +34,11 @@ Single shared agent memory store: `.agents/memory/` — a graph of subsystem nod
 ## Self-Education (mandatory)
 
 Whenever development started from a plan agreed with the agent, the work is not complete until
-the `self-education` skill has been applied: update the project skills/instructions the change
-touched, record external-doc findings (URL + gist) in the governing skill, or add a
-skill/instruction for a new subsystem or technology. The completion report must include the
-self-education outcome — or state why none was needed.
+the `self-education` skill has been applied: rewrite the project skills/instructions the change
+touched so they state current rules (never a note about what changed), record external-doc
+findings (URL + gist) in the governing skill, or add a skill/instruction for a new subsystem or
+technology. The completion report must include the self-education outcome — or state why none
+was needed.
 
 ## What This Is
 

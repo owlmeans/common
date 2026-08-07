@@ -1,6 +1,7 @@
 ---
 description: "Mandatory git rules — never run state-changing git without explicit instruction, commit only under the user's configured identity (never as the AI/agent, no Co-Authored-By trailer), report finished git work as a Markdown table, and never commit a conflicted working copy. Consult before any git operation."
 applyTo: "**"
+scope: general
 ---
 
 # Git Workflow Rules
