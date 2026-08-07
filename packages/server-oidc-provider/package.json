@@ -44,7 +44,7 @@
     "@owlmeans/server-context": "^0.1.15",
     "@scure/base": "^1.1.9",
     "jose": "6.2.3",
-    "oidc-provider": "9.8.4"
+    "oidc-provider": "9.11.1"
   },
   "publishConfig": {
     "access": "public"
