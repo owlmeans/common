@@ -32,7 +32,7 @@
     "@owlmeans/context": "^0.1.15",
     "@owlmeans/mongo-resource": "^0.1.15",
     "@owlmeans/server-context": "^0.1.15",
-    "@scure/base": "^1.1.9",
+    "@scure/base": "^2.2.0",
     "mongodb": "^6.9.0"
   },
   "publishConfig": {
