@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/oidc
 
 **Layer:** Core
-**Install:** `"@owlmeans/oidc": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/oidc": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 
