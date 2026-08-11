@@ -122,6 +122,31 @@ export interface DbConfig<P extends {} = {}> {
   meta?: P
 }
 
+/**
+ * Optional migration capability of a Resource implementation — optional the same way
+ * pub/sub is on redis resources: a backend that supports code migrations extends this
+ * interface (mongo, postgres), a backend with nothing to migrate simply never implements
+ * it. The base {@link Resource} contract stays migration free.
+ *
+ * The capability is automatic: implementations run the registered migrations during
+ * resource initialization (app setup), so a migration only has to be registered — never
+ * invoked. Backends with a durable structure also implement {@link MigrationStore}, the
+ * register that tracks which migrations have been applied.
+ */
+export interface MigratableResource<Tx = unknown> {
+  /**
+   * Register a migration, applied once per database in declaration order.
+   *
+   * Chainable and idempotent: re-registering the same name with the same body is a no-op,
+   * which is what makes it safe to call from a resource maker that `reinitializeContext`
+   * re-runs. Re-registering a *changed* body under a used name throws
+   * {@link MigrationConflict}.
+   */
+  migration: (name: string, apply: (tx: Tx) => Promise<void>, stage?: MigrationStage) => this
+  /** The registered migrations for this resource's alias. Read-only; use {@link MigratableResource.migration}. */
+  migrations: () => MigrationRegistry<Tx>
+}
+
 export interface Migration<Tx = unknown> {
   name: string
   stage: MigrationStage

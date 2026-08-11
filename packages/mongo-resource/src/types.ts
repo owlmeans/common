@@ -1,5 +1,5 @@
 import type {
-  Resource, ResourceRecord, ResourceDbService, DbLocker, ResourceLocker, MigrationRegistry, MigrationStage
+  Resource, ResourceRecord, ResourceDbService, DbLocker, ResourceLocker, MigratableResource
 } from '@owlmeans/resource'
 import type { Collection, CreateIndexesOptions, Db, IndexSpecification, MongoClient } from 'mongodb'
 import type { AnySchema } from 'ajv'
@@ -22,7 +22,29 @@ export interface MongoTx {
   ref: (alias?: string) => string
 }
 
-export interface MongoResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T> {
+/**
+ * A declared ObjectId reference — a record field that stores another record's id.
+ *
+ * The resource converts the field between the string ids records carry and the `ObjectId`
+ * the collection stores, exactly the way it already does for `_id`: strings in records and
+ * criteria, `ObjectId` on the wire. Declaring a reference also gives the field a mongo
+ * level index and registers the system migration that converts pre-existing string values.
+ */
+export interface MongoReference {
+  /** Top level record property holding the reference (a single id or an array of ids). */
+  field: string
+  /** Alias of the referenced resource. Informational — conversion never resolves it. */
+  resource?: string
+  /** Skip the automatic `{ [field]: 1 }` index. */
+  noIndex?: boolean
+}
+
+export interface MongoRefOptions {
+  resource?: string
+  noIndex?: boolean
+}
+
+export interface MongoResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T>, MigratableResource<MongoTx> {
   name?: string
   schema?: AnySchema
   indexes?: Array<{ name: string, index: IndexSpecification, options?: CreateIndexesOptions }>
@@ -31,17 +53,19 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T>, Re
   client: () => Promise<MongoClient>
   index: <Type extends MongoResource<T>>(name: string, index: IndexSpecification, options?: CreateIndexesOptions) => Type
   /**
-   * Register a migration, applied once per database in declaration order.
+   * Declare that a field stores another record's id.
    *
-   * Chainable and idempotent: re-registering the same name with the same body is a no-op,
-   * which is what makes it safe to call from a resource maker that `reinitializeContext`
-   * re-runs. Re-registering a *changed* body under a used name throws.
+   * Chainable and idempotent like {@link MigratableResource.migration}, and stored the same
+   * way — per alias at module scope — because losing the declaration to a context rebuild
+   * would silently stop the string/ObjectId conversion for the field.
+   *
+   * Declare only fields whose values really are mongo ids (assigned from another record's
+   * `id`). Composite keys, external provider ids, DIDs and business slugs must stay
+   * strings — converting them corrupts the collection.
    */
-  migration: <Type extends MongoResource<T>>(
-    name: string, apply: (tx: MongoTx) => Promise<void>, stage?: MigrationStage
-  ) => Type
-  /** The registered migrations for this alias. Read-only; use {@link MongoResource.migration}. */
-  migrations: () => MigrationRegistry<MongoTx>
+  reference: (field: string, opts?: string | MongoRefOptions) => this
+  /** The declared references of this alias. */
+  references: () => MongoReference[]
   getDefaults: () => Partial<T>
 }
 

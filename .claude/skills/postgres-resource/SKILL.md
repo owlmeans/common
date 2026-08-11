@@ -101,6 +101,9 @@ raises `PostgresCastRequired` instead of truncating.
 
 ## Migrations bracket the sync
 
+`migration`/`migrations()` implement the shared `MigratableResource` capability from
+[[resource]] — same contract as mongo.
+
 ```typescript
 resource.migration('0001-rescue-legacy', async tx => {
   await tx.execute(`UPDATE {{}} SET slug = legacy WHERE slug IS NULL`)

@@ -450,13 +450,14 @@ export const makePostgresResource = <
       return resource as unknown as Type
     },
 
-    migration: <Type extends PostgresResource<R>>(
-      name: string, apply: (tx: PostgresTx) => Promise<void>, stage?: MigrationStage
-    ) => {
+    /** `this`-returning in the interface — the implementation returns that very object. */
+    migration: ((name: string, apply: (tx: PostgresTx) => Promise<void>, stage?: MigrationStage) => {
       declaration.migrations.register(name, apply, stage)
 
-      return resource as unknown as Type
-    }
+      return resource
+    }) as T['migration'],
+
+    migrations: () => declaration.migrations
   } as Partial<T>)
 
   /**
@@ -478,11 +479,6 @@ export const makePostgresResource = <
   Object.defineProperty(resource, 'entity', {
     enumerable: true,
     get: (): PgRuntimeTable | undefined => entity
-  })
-
-  Object.defineProperty(resource, 'migrations', {
-    enumerable: true,
-    get: () => declaration.migrations
   })
 
   /**

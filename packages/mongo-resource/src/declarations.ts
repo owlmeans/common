@@ -1,10 +1,12 @@
 import { createMigrationRegistry } from '@owlmeans/resource'
 import type { MigrationRegistry } from '@owlmeans/resource'
 
-import type { MongoTx } from './types.js'
+import type { MongoReference, MongoTx } from './types.js'
 
 export interface MongoDeclaration {
   migrations: MigrationRegistry<MongoTx>
+  /** Declared ObjectId references, keyed by field. Registered via `resource.reference()`. */
+  references: Map<string, MongoReference>
 }
 
 /**
@@ -22,7 +24,7 @@ const declarations: Map<string, MongoDeclaration> = new Map()
 export const getDeclaration = (alias: string): MongoDeclaration => {
   let declaration = declarations.get(alias)
   if (declaration == null) {
-    declaration = { migrations: createMigrationRegistry<MongoTx>() }
+    declaration = { migrations: createMigrationRegistry<MongoTx>(), references: new Map() }
     declarations.set(alias, declaration)
   }
 

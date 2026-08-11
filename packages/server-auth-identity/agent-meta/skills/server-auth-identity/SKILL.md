@@ -92,10 +92,17 @@ interface ProviderProfileDetails {
 
 ## Key Derivation Conventions
 
+- **Profile userId**: the account's mongo id — a **declared ObjectId reference**
+  (`resource.reference('userId', AUTH_IDENTITY_ACCOUNT)`): stored as `ObjectId`, exchanged
+  as a string, auto-indexed and auto-migrated at boot. The only reference in the trio.
 - **Account credential**: unique Base58 slug (16 chars) — serves as the local `entityId`
-- **Profile profileId**: `"{type}:{accountId}"` — stable across provider re-links
-- **Credentials userId** (external key): `"{type}:{service}:{providerSub}"` — uniquely identifies the external account
+- **Profile profileId**: `"{type}:{accountId}"` — stable across provider re-links; a composite key, NOT a reference
+- **Credentials userId** (external key): `"{type}:{service}:{providerSub}"` — uniquely identifies the external account. Same name as `profile.userId`, entirely different meaning — never convert or compare across the two
 - **Credentials credential** (login-service key): `"service:{type}:{service}"` — groups credentials by provider
+
+`AuthPayload.userId` is emitted as `profile.userId ?? profile.profileId`, so a value flowing
+back into a `userId` query may be a composite key — criteria tolerate it (matches nothing)
+by the reference conversion's design.
 
 ## Resource Indexes
 

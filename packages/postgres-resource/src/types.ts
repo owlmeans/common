@@ -1,5 +1,5 @@
 import type {
-  DbLocker, ListCriteria, ListOptions, MigrationRegistry, MigrationStage, Resource,
+  DbLocker, ListCriteria, ListOptions, MigratableResource, Resource,
   ResourceDbService, ResourceLocker, ResourceRecord
 } from '@owlmeans/resource'
 import type { AnySchema } from 'ajv'
@@ -72,7 +72,7 @@ export interface PostgresTx {
   ref: (resourceAlias?: string) => string
 }
 
-export interface PostgresResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T> {
+export interface PostgresResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T>, MigratableResource<PostgresTx> {
   /** Physical table name override. Defaults to the resource alias, sanitized. */
   name?: string
   /** The AJV schema — single source of truth for the table structure. */
@@ -81,17 +81,12 @@ export interface PostgresResource<T extends ResourceRecord> extends Resource<T>,
   table: TableSpec
   /** The Drizzle runtime table built from {@link table}. */
   entity: PgRuntimeTable
-  migrations: MigrationRegistry<PostgresTx>
 
   db: () => Promise<PostgresDb>
   client: () => Promise<Pool>
 
   /** Declare an index the JSON schema can't express. Chainable. */
   index: <Type extends PostgresResource<T>>(name: string, spec: PgIndexSpec) => Type
-  /** Register a code migration. Chainable. */
-  migration: <Type extends PostgresResource<T>>(
-    name: string, apply: (tx: PostgresTx) => Promise<void>, stage?: MigrationStage
-  ) => Type
 
   getDefaults: () => Partial<T>
 

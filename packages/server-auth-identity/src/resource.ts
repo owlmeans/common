@@ -19,6 +19,12 @@ export const makeIdentityProfileResource = (dbAlias?: string): IdentityProfileRe
   const resource = makeMongoResource<IdentityProfile, IdentityProfileResource>(
     AUTH_IDENTITY_PROFILE, dbAlias, undefined, undefined, AUTH_IDENTITY_PROFILE_COLLECTION
   )
+  /**
+   * The account's mongo id — the ONLY ObjectId reference in the identity trio.
+   * `profileId` is a composite key (`"{type}:{accountId}"`), `entityId` is the Base58
+   * slug, and `credentials.userId` is an external provider key — none of them converts.
+   */
+  resource.reference('userId', AUTH_IDENTITY_ACCOUNT)
   resource.index('userId', { userId: 1 })
   resource.index('entityId', { entityId: 1 })
   resource.index('role', { role: 1, entityId: 1 })

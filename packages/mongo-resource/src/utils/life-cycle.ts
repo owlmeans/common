@@ -1,14 +1,15 @@
 import { MigrationStage, runMigrations } from '@owlmeans/resource'
 import type { DbConfig, MigrationReport, ResourceRecord } from '@owlmeans/resource'
 import type { BasicContext } from '@owlmeans/context'
-import type { MongoResource } from '../types.js'
-import type { Db, Collection, Document } from 'mongodb'
+import type { MongoReference, MongoResource } from '../types.js'
+import type { Db, Collection, Document, IndexSpecification } from 'mongodb'
 import { DEF_MIGRATIONS_COLLECTION } from '../consts.js'
 import { getDeclaration } from '../declarations.js'
 import { mongoCollectionName } from './name.js'
-import { schemaToMongoSchema } from './schema.js'
+import { applyReferenceTypes, schemaToMongoSchema } from './schema.js'
 import { updateIndexes } from './indexes.js'
 import { makeMongoMigrationStore, makeMongoTx } from './migrations.js'
+import { reconcileReferences } from './refs.js'
 
 /**
  * Bring a resource's collection to the shape its schema declares.
@@ -17,8 +18,12 @@ import { makeMongoMigrationStore, makeMongoTx } from './migrations.js'
  *
  *  1. probe for the collection
  *  2. absent → *baseline* every registered migration; present → run the `pre` ones
+ *     (including the system `$ref:` migrations that convert declared references)
  *  3. create the collection, or update its validator and indexes
  *  4. present → run the `post` migrations
+ *  5. reconcile declared references — the second half of their double check: the ledger
+ *     said whether the `$ref:` migration ran, this probes the collection itself and
+ *     converts whatever strings still slipped through
  *
  * Step 2 is what stops the two mechanisms colliding. A `pre` migration runs before the
  * validator is tightened, so it can reshape documents the new validator would reject. On a
@@ -36,6 +41,8 @@ export const initializeCollection = async (
   const name = mongoCollectionName(config, resource)
   const fresh = !await db.listCollections({ name }).hasNext()
 
+  appendReferenceIndexes(resource)
+
   const migrate = prepareMigrations(db, config, resource, name, context)
   await migrate(fresh ? { baseline: true } : { stage: MigrationStage.Pre })
 
@@ -45,9 +52,36 @@ export const initializeCollection = async (
 
   if (!fresh) {
     await migrate({ stage: MigrationStage.Post })
+    await reconcileReferences(collection, referencesOf(resource), resource.alias)
   }
 
   return collection
+}
+
+/** Tolerates hand-built resource objects that predate the reference capability. */
+const referencesOf = (resource: MongoResource<ResourceRecord>): MongoReference[] =>
+  resource.references?.() ?? []
+
+/**
+ * A declared reference is indexed at the mongo level — that's part of its contract. The
+ * index is appended unless the resource already declares one with the same key pattern
+ * (mongo refuses two indexes over identical keys, and the existing one — possibly
+ * unique — wins).
+ */
+const appendReferenceIndexes = (resource: MongoResource<ResourceRecord>): void => {
+  for (const ref of referencesOf(resource)) {
+    if (ref.noIndex === true) {
+      continue
+    }
+    resource.indexes = resource.indexes ?? []
+    const spec = JSON.stringify({ [ref.field]: 1 })
+    const present = resource.indexes.some(index =>
+      JSON.stringify(index.index as IndexSpecification) === spec || index.name === `ref_${ref.field}`
+    )
+    if (!present) {
+      resource.indexes.push({ name: `ref_${ref.field}`, index: { [ref.field]: 1 } })
+    }
+  }
 }
 
 /**
@@ -89,7 +123,9 @@ export const createCollection = async (db: Db, name: string, resource: MongoReso
   const collection = await db.createCollection(name, {
     ...(resource.schema != null ? {
       validator: {
-        $jsonSchema: patchJsonSchema(schemaToMongoSchema(resource.schema))
+        $jsonSchema: patchJsonSchema(applyReferenceTypes(
+          schemaToMongoSchema(resource.schema), resource.schema, resource.references()
+        ))
       }
     } : {})
   })
@@ -107,7 +143,9 @@ export const createCollection = async (db: Db, name: string, resource: MongoReso
 
 export const updateCollection = async (db: Db, name: string, resource: MongoResource<ResourceRecord>): Promise<Collection> => {
   if (resource.schema != null) {
-    const $jsonSchema = patchJsonSchema(schemaToMongoSchema(resource.schema))
+    const $jsonSchema = patchJsonSchema(applyReferenceTypes(
+      schemaToMongoSchema(resource.schema), resource.schema, resource.references()
+    ))
     await db.command({ collMod: name, validator: { $jsonSchema } })
   }
 

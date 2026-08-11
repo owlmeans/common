@@ -1,5 +1,5 @@
 ---
-description: "How to use @owlmeans/mongo — MongoDB client service factory (makeMongoService) registered on a server context."
+description: "How to use @owlmeans/mongo — MongoDB connection service (makeMongoDbService / appendMongo) registered on a server context; cluster setup, layer sensitivity, field encryption."
 applyTo: "**/context.ts, **/config.ts, **/*.ts, **/*.tsx"
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -7,23 +7,37 @@ applyTo: "**/context.ts, **/config.ts, **/*.ts, **/*.tsx"
 # @owlmeans/mongo
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/mongo": "^0.1.15"` in `dependencies` (peer `mongodb`)
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `makeMongoService()` | MongoDB connection service factory |
-| `Mongo` types | Service interface, db handle |
-| Constants | `DEFAULT_ALIAS` |
+| `makeMongoDbService(alias?)` | MongoDB connection service factory (implements `MongoDbService`) |
+| `appendMongo(context, alias?)` | Register the service on a server context |
+| `DEFAULT_ALIAS` | `'mongo'` |
 
 ## Usage
 
 ```typescript
-import { makeMongoService } from '@owlmeans/mongo'
-context.registerService(makeMongoService())
+import { appendMongo } from '@owlmeans/mongo'
+appendMongo(context)
+
+cfg.dbs = [{
+  service: 'mongo', alias: 'mongo',
+  host: '127.0.0.1', port: 27017,        // string[] host → replica set bootstrap
+  user: 'admin', secret: '...',
+  schema: 'my-app',                       // DATABASE name (layer-suffixed by dbName())
+  encryptionKey: '...',                   // enables lock()/unlock() field encryption
+  entitySensitive: true,                  // per-Entity-layer databases (each with its own migration ledger)
+}]
 ```
+
+## Tests
+
+Integration suites for the whole Mongo pair live here (`tests/migration.spec.ts`,
+`tests/references.spec.ts`), gated on `MONGO_URL`.
 
 ## Depends On
 
-- `@owlmeans/server-context`, `@owlmeans/resource`, `mongodb`
+- `@owlmeans/resource`, `@owlmeans/mongo-resource` (service contract), `@owlmeans/basic-keys`, peer `mongodb`
