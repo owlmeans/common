@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/static-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/static-resource": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/static-resource": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

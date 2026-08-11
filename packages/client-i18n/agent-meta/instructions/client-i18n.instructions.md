@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/client-i18n
 
 **Layer:** Client (React)
-**Version:** `"@owlmeans/client-i18n": "^0.1.15"`
+**Version:** `"@owlmeans/client-i18n": "^0.1.16-rc.0"`
 
 ## Key exports
 

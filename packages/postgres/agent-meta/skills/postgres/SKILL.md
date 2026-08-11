@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/postgres
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/postgres": "^0.1.16-rc.0"` in `dependencies`
 
 Pooled `pg` connections for a server context, plus the admin path that provisions the role, database
 and schema an app connects with. All DDL for application tables belongs to [[postgres-resource]] —

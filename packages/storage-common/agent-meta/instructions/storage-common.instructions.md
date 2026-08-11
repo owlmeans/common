@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/storage-common
 
 **Layer:** Infra
-**Install:** `"@owlmeans/storage-common": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/storage-common": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

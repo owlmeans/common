@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/modules.ts, **/*.ts, **/*.tsx"
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

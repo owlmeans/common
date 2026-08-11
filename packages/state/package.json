@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/state",
-  "version": "0.1.15",
+  "version": "0.1.16-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,8 +21,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.15",
-    "@owlmeans/resource": "^0.1.15"
+    "@owlmeans/context": "^0.1.16-rc.0",
+    "@owlmeans/resource": "^0.1.16-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

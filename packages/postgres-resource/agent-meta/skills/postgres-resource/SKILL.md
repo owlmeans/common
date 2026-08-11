@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/postgres-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres-resource": "^0.1.15"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/postgres-resource": "^0.1.16-rc.0"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres counterpart of [[mongo-resource]]. The difference that governs everything else: a
 Mongo collection has no structure, a Postgres table does — so **the resource layer owns the DDL**

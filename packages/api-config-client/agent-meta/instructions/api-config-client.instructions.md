@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/api-config-client
 
 **Layer:** Client
-**Install:** `"@owlmeans/api-config-client": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/api-config-client": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

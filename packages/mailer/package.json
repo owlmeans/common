@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mailer",
-  "version": "0.1.15",
+  "version": "0.1.16-rc.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,8 +22,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.15",
-    "@owlmeans/error": "^0.1.15"
+    "@owlmeans/context": "^0.1.16-rc.0",
+    "@owlmeans/error": "^0.1.16-rc.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

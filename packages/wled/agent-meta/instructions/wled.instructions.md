@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/wled
 
 **Layer:** Core
-**Install:** `"@owlmeans/wled": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/wled": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

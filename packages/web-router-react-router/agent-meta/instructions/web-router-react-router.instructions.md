@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/web-router-react-router
 
 **Layer:** Web (React), L2
-**Install:** `"@owlmeans/web-router-react-router": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/web-router-react-router": "^0.1.16-rc.0"` in `dependencies`
 
 React Router v7 as an OwlMeans routing plugin, extracted from the former `web-router` so react-router
 is opt-in. OwlMeans in-browser routing is the default.

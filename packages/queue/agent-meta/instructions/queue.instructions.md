@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.16-rc.0"` in `dependencies`
 
 ## Key Exports
 

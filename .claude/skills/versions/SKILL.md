@@ -8,10 +8,11 @@ allowed-tools: Bash(grep *), Bash(sed *), Bash(bun install)
 
 ## Version convention
 
-- All packages are **synchronized at the same version** — currently `0.1.2`
+- All packages are **synchronized at the same version** — check it, don't assume (see below)
 - All use `@owlmeans/*` namespace with MIT license
-- Version is set in each `packages/*/package.json` under the `"version"` field
-- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.2"`
+- Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`
+- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.16-rc.0"`
+- Release candidates use a prerelease suffix (`0.1.16-rc.0`); the caret range carries the suffix too, since a bare `^0.1.16` would not accept a prerelease
 
 ## Checking current version
 
@@ -25,20 +26,40 @@ grep '"version"' package.json
 
 Replace version in all `package.json` files at once:
 
+Rewrite the `version` fields and the internal caret ranges **in the same pass**, before running
+`bun install`. If an install happens while the two disagree, no workspace package satisfies the
+new ranges and Bun silently fetches the old published tarballs into
+`packages/*/node_modules/@owlmeans/*`, where they shadow the workspace symlinks and break every
+subsequent build (see the `bun` skill's troubleshooting section).
+
 ```bash
-# Example: bump from 0.1.2 to 0.2.0
-OLD=0.1.2
-NEW=0.2.0
+# Example: bump from 0.1.15 to 0.1.16-rc.0
+OLD=0.1.15
+NEW=0.1.16-rc.0
 
-# Update version field in all packages
-sed -i "s/\"version\": \"$OLD\"/\"version\": \"$NEW\"/g" packages/*/package.json
+# Version field — root and all packages
+sed -i "s/\"version\": \"$OLD\"/\"version\": \"$NEW\"/g" package.json packages/*/package.json
 
-# Update internal dep references (caret ranges)
+# Internal dep references (caret ranges)
 sed -i "s/\"\^$OLD\"/\"^$NEW\"/g" packages/*/package.json
 
-# Re-link workspace
+# Only now re-link the workspace
 bun install
 ```
+
+Verify the bump left nothing behind before building:
+
+```bash
+# every internal range must be the new one (dep-config's workspace:* aside)
+grep -ho '"@owlmeans/[a-z0-9-]*": "[^"]*"' packages/*/package.json \
+  | grep -v 'workspace:\*' | sed 's/.*: "//;s/"//' | sort -u
+
+# no old published copies shadowing the workspace — must print nothing
+find packages/*/node_modules/@owlmeans -maxdepth 1 -mindepth 1 -type d
+```
+
+A range left at an older version (`^0.1.11`) is the same trap: a prerelease workspace version does
+not satisfy it, so that dependency gets fetched from npm instead of linked.
 
 ## Internal dependency references
 
@@ -48,4 +69,4 @@ bun install
 
 ## dep-config special case
 
-`@owlmeans/dep-config` is referenced as `"workspace:*"` (not `^0.1.2`) in devDependencies of all packages, because it contains no runtime code — only TypeScript config files.
+`@owlmeans/dep-config` is referenced as `"workspace:*"` (not a caret range) in devDependencies of all packages, because it contains no runtime code — only TypeScript config files. Being version-independent, it is the one internal dep a bump never has to touch.
