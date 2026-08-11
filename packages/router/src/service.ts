@@ -1,4 +1,4 @@
-import { createService } from "@owlmeans/context"
+import { createLazyService } from "@owlmeans/context"
 import type { BasicContext } from "@owlmeans/context"
 import { DEFAULT_ALIAS } from "./consts.js"
 import { defaultRouterEnv } from "./env.js"
@@ -14,11 +14,18 @@ import type {
  * The facade methods stay ordinary writable properties (never getters) so that
  * non-plugin implementations — e.g. the native router — can keep overriding them
  * directly, exactly as `web-router` did before the plugin model.
+ *
+ * It is a LAZY service on purpose. The host carries no async setup, and plugin
+ * packages must be able to reach it from an app's `makeContext` — i.e. while the
+ * context is still in the Loading stage. `context.service()` throws for an
+ * uninitialized non-lazy service, which would make `ensureRouterService` (and
+ * therefore `appendReactRouter` / `appendWebRouter` on an existing host) fail
+ * exactly where apps are told to call them.
  */
 export const makeRouterService = (alias: string = DEFAULT_ALIAS): RouterService => {
   const plugins: RouterPlugin[] = []
 
-  const service: RouterService = createService<RouterService>(alias, {
+  const service: RouterService = createLazyService<RouterService>(alias, {
     registerPlugin: plugin => {
       const existing = plugins.findIndex(candidate => candidate.alias === plugin.alias)
       if (existing >= 0) {

@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/client-socket
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-socket": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/client-socket": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 

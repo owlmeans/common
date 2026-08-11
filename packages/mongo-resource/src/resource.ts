@@ -5,6 +5,7 @@ import type { ListCriteria, ResourceMaker, ResourceRecord } from '@owlmeans/reso
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { MongoDbService, MongoResource } from './types.js'
 import { initializeCollection } from './utils/life-cycle.js'
+import { getDeclaration } from './declarations.js'
 import { ObjectId } from 'mongodb'
 import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed, prepareListOptions } from '@owlmeans/resource'
 import type { JSONSchemaType } from 'ajv'
@@ -270,7 +271,14 @@ export const makeMongoResource = <
       resource.indexes = resource.indexes ?? []
       resource.indexes.push({ name, index, options })
       return resource
-    }
+    },
+
+    migration: (name, apply, stage) => {
+      getDeclaration(alias).migrations.register(name, apply, stage)
+      return resource
+    },
+
+    migrations: () => getDeclaration(alias).migrations
   } as Partial<T>)
 
   // Explicit collection name override (decoupled from the registration alias, which may
@@ -286,7 +294,9 @@ export const makeMongoResource = <
     await mongo.ready()
     const db = await mongo.db(dbAlias)
     const config = mongo.config(dbAlias)
-    resource.collection = await initializeCollection(db, config, resource as unknown as MongoResource<ResourceRecord>)
+    resource.collection = await initializeCollection(
+      db, config, resource as unknown as MongoResource<ResourceRecord>, context
+    )
   }
 
   resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {

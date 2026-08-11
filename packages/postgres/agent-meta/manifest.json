@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "package": "@owlmeans/postgres",
+  "version": "0.1.15",
+  "generatedAt": "2026-08-07T18:11:56.992Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "postgres",
+      "category": "package-specific",
+      "file": "skills/postgres/SKILL.md",
+      "canonicalPath": ".claude/skills/postgres/SKILL.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "postgres",
+      "category": "package-specific",
+      "file": "instructions/postgres.instructions.md",
+      "canonicalPath": ".github/instructions/postgres.instructions.md"
+    }
+  ]
+}

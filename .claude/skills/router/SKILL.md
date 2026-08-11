@@ -41,6 +41,15 @@ import { ROUTER_SERVICE } from '@owlmeans/router'
 const params = ctx.service(ROUTER_SERVICE).useParams()   // delegates to the active plugin
 ```
 
+## The host is a LAZY service
+
+`makeRouterService` builds a **lazy** service (`createLazyService`). The host carries no async
+setup, and plugin packages must be able to reach it from an app's `makeContext` — i.e. while the
+context is still in the Loading stage. `context.service()` throws for an uninitialized non-lazy
+service, which would make `ensureRouterService` (and therefore `appendReactRouter` /
+`appendWebRouter` on an existing host) fail exactly where apps are told to call them. Keep the host
+lazy when extending it.
+
 ## Native-safety invariant
 
 The facade methods are **plain writable instance properties**, never getters — the native router

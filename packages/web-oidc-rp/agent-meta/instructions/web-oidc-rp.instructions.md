@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/modules.ts, **/*.ts, **/*.tsx"
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 

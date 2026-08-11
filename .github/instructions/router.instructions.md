@@ -34,6 +34,14 @@ import { ROUTER_SERVICE } from '@owlmeans/router'
 ctx.service(ROUTER_SERVICE).useParams()   // delegates to the active plugin
 ```
 
+## The host is a LAZY service
+
+`makeRouterService` builds a **lazy** service (`createLazyService`) — the host has no async setup,
+and plugin packages must reach it from an app's `makeContext`, i.e. while the context is still in
+the Loading stage. `context.service()` throws for an uninitialized non-lazy service, which would
+break `ensureRouterService` (and every `appendXxxRouter` on an existing host) exactly where apps
+are told to call them. Keep it lazy when extending the host.
+
 ## Depends On
 
 - `@owlmeans/context`; peer `react` (types only — no react-router, no DOM here)

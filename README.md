@@ -770,7 +770,7 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 ## 📦 **Complete Package Reference**
 
-OwlMeans Common provides ~71 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
+OwlMeans Common provides ~73 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
 
 > **Need the full dependency map?** See [`tree.md`](tree.md) — every package, its direct `@owlmeans/*` dependencies, its architecture layer, and the topological build order, including the two known dependency cycles.
 
@@ -781,7 +781,7 @@ Shared build tooling and TypeScript configuration.
 |---------|-------------|
 | [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
 
-### **🏗️ Core Packages (31 packages)**
+### **🏗️ Core Packages (33 packages)**
 Foundational libraries providing environment-agnostic functionality.
 
 | Package | Description |
@@ -806,6 +806,8 @@ Foundational libraries providing environment-agnostic functionality.
 | [`@owlmeans/mongo-resource`](packages/mongo-resource) | MongoDB resource implementation with schema validation |
 | [`@owlmeans/oidc`](packages/oidc) | OpenID Connect integration with provider configuration |
 | [`@owlmeans/payment`](packages/payment) | Payment system with product management and subscriptions |
+| [`@owlmeans/postgres`](packages/postgres) | PostgreSQL service integration with pooling, readiness probing and least-privilege bootstrap |
+| [`@owlmeans/postgres-resource`](packages/postgres-resource) | PostgreSQL resource implementation with schema-driven tables, auto structure sync and migrations |
 | [`@owlmeans/queue`](packages/queue) | Message queue abstractions for distributed applications |
 | [`@owlmeans/redis`](packages/redis) | Redis service integration with clustering support |
 | [`@owlmeans/redis-resource`](packages/redis-resource) | Redis-based resource storage implementation |
