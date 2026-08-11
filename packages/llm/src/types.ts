@@ -4,8 +4,10 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  LlmPurpose, ModelProvider, NullCapture, SpectatorArgument, SpectatorEntryLogged,
+  FileProviderRef, LlmPurpose, ModelProvider, NullCapture, SpectatorArgument,
+  SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
+import type { PromptInput, PromptService } from './prompt/types.js'
 
 export type MaybeArray<T> = T | T[]
 
@@ -47,6 +49,20 @@ export interface LlmLogging {
 export interface LlmModelOptions extends LlmLogging {
   model: BaseChatModel
   retries?: number
+  /**
+   * Role and skills for every call this model makes. Composed into a cacheable system
+   * prompt by {@link PromptService}; ignored when no `prompts` resolver is supplied.
+   * Usually just `exec.prompt` from the helper execution.
+   */
+  prompt?: PromptInput
+  /**
+   * Late-bound resolver for the prompt service — a function, like `Execution.models`, so
+   * the service can be swapped or cloned. Without it the model behaves exactly as before
+   * this layer existed: the caller's messages are sent untouched.
+   */
+  prompts?: () => PromptService
+  /** File access offered to prompt plugins that resolve knowledge from disk. */
+  files?: FileProviderRef
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole
@@ -56,10 +72,23 @@ export type ModelInput = MaybeArray<ModelInputItem>
 export interface LlmCallOptions {
   /** Short name of the operation — used as the LangChain run name and in spectator entries. */
   action: string
-  /** Ask the provider to cache the prompt prefix (no-op for providers without prompt caching). */
+  /**
+   * Cache the leading MESSAGES too. The composed system prompt is cached by default and
+   * independently of this flag — this one is about the conversation prefix, which is only
+   * worth caching when the same leading messages recur across calls.
+   */
   useCache?: boolean
-  /** How many leading messages to mark as cacheable (capped by the provider's own limit). */
+  /**
+   * How many leading messages form the stable prefix. One breakpoint is placed at its
+   * end (not one per message), capped by whatever the system prompt left unspent.
+   */
   cacheMax?: number
+  /**
+   * Skill aliases for THIS call only. Rendered into the volatile `Context` block, so they
+   * never disturb the cached region — declare a skill on the execution instead when it
+   * should be part of the shared prefix.
+   */
+  skills?: string[]
 }
 
 export interface LlmAskOptions extends LlmCallOptions {
@@ -183,11 +212,33 @@ export interface ModelConfig {
    * rotating providers mid-call would flip the structured-output format.
    */
   fallback?: Partial<ModelConfig>
+  /**
+   * Per-model override of {@link MIN_CACHEABLE_TOKENS} — the shortest prefix worth a
+   * cache breakpoint. Anthropic's own minimum is model-dependent and NOT monotonic
+   * across generations (512 on the newest, 1024 on most, 4096 on a few older ones), so a
+   * preset that pins an old model should raise this rather than pay for markers that
+   * silently never cache.
+   */
+  cacheMinTokens?: number
+  /**
+   * Cache-routing key for providers whose prompt cache is automatic (OpenAI's
+   * `prompt_cache_key`): requests sharing a key are routed to the same backend, which
+   * raises the hit rate for a shared prefix. Must be STABLE and low-cardinality — one
+   * value per role, never per user or per request. Defaults to the config alias.
+   */
+  cacheKey?: string
 }
 
 export interface LlmServiceOptions {
   /** The full config list; resolved by `alias` on every `getModel` call. */
   models: () => ModelConfig[]
+  /**
+   * Idle deadline (ms) applied to every model this service builds, unless the model's own
+   * config overrides it. This is the knob an application sets where it composes its
+   * context — one place to tune how long the whole deployment waits on a silent provider,
+   * without touching a preset. Falls back to {@link MODEL_STREAM_TIMEOUT_MS}.
+   */
+  streamTimeout?: number
 }
 
 /**

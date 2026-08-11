@@ -24,6 +24,39 @@ const appendDirective = (msgs: MessageFieldWithRole[], text: string): void => {
 }
 
 /**
+ * Drop every `cache_control` marker from the messages.
+ *
+ * Markers are placed in-place, on the caller's own message objects — and a caller that
+ * carries its message array across calls (the coder's growing conversation, a fix loop
+ * re-sending the same sources) hands them back still marked. The provider counts markers
+ * per REQUEST, not per message: Anthropic rejects the fifth outright with
+ * `400 A maximum of 4 blocks with cache_control may be provided. Found 5.`, and since a
+ * 400 is fatal it burns the entire retry budget before surfacing.
+ *
+ * So the pipeline always starts from a clean slate and re-places its own markers, which
+ * makes the per-request count a function of THIS call alone.
+ */
+export const stripCacheMarkers = (msgs: MessageFieldWithRole[]): void => {
+  for (const msg of msgs) {
+    if (!Array.isArray(msg.content)) {
+      continue
+    }
+    let found = false
+    const blocks = msg.content.map(part => {
+      if (typeof part === 'object' && part !== null && 'cache_control' in part) {
+        found = true
+        const { cache_control: _dropped, ...rest } = part as Record<string, unknown>
+        return rest
+      }
+      return part
+    })
+    if (found) {
+      msg.content = blocks as unknown as typeof msg.content
+    }
+  }
+}
+
+/**
  * Ensure the word "json" appears somewhere in the prompt. Several providers refuse or
  * silently ignore a JSON mode unless it does; when it is missing the JSON instruction is
  * appended in place.

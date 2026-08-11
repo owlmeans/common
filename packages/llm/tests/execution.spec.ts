@@ -180,6 +180,48 @@ describe('@owlmeans/llm — snapshot and restore', () => {
   })
 })
 
+describe('@owlmeans/llm — prompt policy accumulation', () => {
+  const withPrompt = () => service.root({
+    models: makeService(),
+    policy: { effort: DEFAULT_EFFORT },
+    purpose: { type: 'spec' },
+    prompt: { role: 'project role', skills: ['base'] },
+  })
+
+  // Skills accumulate as work narrows — that is how a helper ends up knowing everything
+  // the project, the task and its own role declared, without any of them repeating it.
+  test('skills accumulate down the chain while the deepest role wins', () => {
+    const task = service.forTask(withPrompt(), { prompt: { skills: ['task'] } })
+    expect(task.prompt?.skills).toEqual(['base', 'task'])
+    expect(task.prompt?.role).toBe('project role')
+
+    const helper = service.forHelper(task, {
+      role: Role.Analyst, prompt: { role: 'helper role', skills: ['helper'] },
+    })
+    expect(helper.prompt?.skills).toEqual(['base', 'task', 'helper'])
+    expect(helper.prompt?.role).toBe('helper role')
+  })
+
+  // A skill declared twice must not render twice, or the composed prefix differs from the
+  // one a single declaration would have produced.
+  test('a repeated skill is unioned, not duplicated', () => {
+    const task = service.forTask(withPrompt(), { prompt: { skills: ['base', 'task'] } })
+    expect(task.prompt?.skills).toEqual(['base', 'task'])
+  })
+
+  test('levels that declare nothing inherit the policy untouched', () => {
+    const helper = service.forHelper(service.forTask(withPrompt(), {}), { role: Role.Analyst })
+    expect(helper.prompt).toEqual({ role: 'project role', skills: ['base'] })
+  })
+
+  // It is part of ExecutionState, so a resumed run rebuilds the same system prompt.
+  test('the policy survives a snapshot/restore round trip', () => {
+    const helper = service.forHelper(withPrompt(), { role: Role.Analyst })
+    const restored = service.restore(service.snapshot(helper), { models: makeService() })
+    expect(restored.prompt).toEqual({ role: 'project role', skills: ['base'] })
+  })
+})
+
 describe('@owlmeans/llm — resilience plugin seam', () => {
   test('checkpoint is a no-op until a plugin is registered', async () => {
     await expect(service.checkpoint(root, 'key')).resolves.toBeUndefined()

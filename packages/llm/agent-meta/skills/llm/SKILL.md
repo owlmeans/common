@@ -1,6 +1,6 @@
 ---
 name: llm
-description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, provider plugins, model factory service, policy-driven execution abstraction). Auto-invoked when importing the model, an LlmPlugin, the LlmService, or the execution service.
+description: How to use @owlmeans/llm — the LLM inference runtime (four-method model, provider plugins, model factory service, policy-driven execution abstraction, and the prompt/skill composition service). Auto-invoked when importing the model, an LlmPlugin, the LlmService, the execution service, or the prompt service.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -22,12 +22,17 @@ observability). Serializable contracts live in `@owlmeans/llm-common`.
 | `makeLlmService(options, alias?)` · `appendLlmService(ctx, options, alias?)` | Model factory/registry — resolves a `ModelConfig` by alias, memoized per alias+override. |
 | `llmServiceApi(options, self)` | The factory half WITHOUT `createService`, to compose into your own service (role accessors, domain helpers). |
 | `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` | Frozen 3-level executions + policy resolution + snapshot/restore/checkpoint. |
+| `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
+| `rolePlugin`, `skillsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
+| `renderSkill`, `sortSkills`, `joinChunks`, `compareAlias`, `prefixHash` | Deterministic rendering primitives — reuse them, never re-implement. |
+| `readCacheUsage`, `hasCacheActivity` | Normalized prompt-cache accounting from a completion. |
 | `executionServiceApi(options, self)` | The execution half without `createService`, for the same composition pattern. |
 | `plugins`, `registerLlmPlugin`, `resolvePlugin`, `pluginOf`, `pluginFor` | The provider-plugin registry. Also at `@owlmeans/llm/plugins`. |
 | `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily` | Built-in providers; `openAiFamily` is the shared OpenAI-client behaviour to spread into a new plugin. |
 | `withRetry`, `registerFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
 | `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
-| `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS`, `FALLBACK_AFTER_ATTEMPTS`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `LLM_SERVICE`, `EXECUTION_SERVICE` | Tuning + aliases. |
+| `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role. |
+| `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
 ## helpers/ vs utils/ — the rule this package follows
 
@@ -50,13 +55,28 @@ Adding a function? Decide which side it belongs to first, then place it. Do not 
 | `refine` | the per-provider retry rebuild (budget doubling, reasoning shrink) |
 | `structuredMode` | native `response_format` vs the forced-tool-call hack |
 | `toolChoice` / `responseFormat` | the provider-specific call shapes |
-| `patchCache` | prompt-cache markers |
+| `patchSystem` | how the composed system blocks are rendered and where their cache breakpoints go |
+| `patchCache` | the message-prefix cache marker |
+| `cacheKey` (via `ModelConfig.cacheKey`) | provider cache-routing hints such as OpenAI's `prompt_cache_key` |
 | `isFatal` | "this error can never be retried" |
 
 **Registration order is load-bearing.** Instance-based lookup (`pluginFor`) returns the
 FIRST plugin whose `owns` matches. `compatible` is registered before `openai` because both
 build a `ChatOpenAI`, and assuming the tool-calling hack for an unlabelled model is safe
 everywhere while assuming native JSON-schema support is not.
+
+## System prompts: a role and skills, never a hand-built message
+
+`makeLlmModel` takes `prompt` (a `PromptInput`) and a `prompts` resolver. The prompt service
+composes them into an ordered, cacheable system message; a caller's own leading
+`SystemMessage` is folded into the volatile `Context` block, so an unmigrated call site
+still works. **Do not build a persona as a `SystemMessage` in a helper** — declare it as
+`PromptPolicy.role` plus registered skills, or the knowledge duplicates and the cache
+prefix stops being stable.
+
+Skills accumulate down the execution chain (project → task → helper) and the deepest
+declared `role` wins — see `mergePrompt`. Full rules, breakpoint budget and the provider
+facts behind them: [[llm-prompt-caching]].
 
 ## Execution: policy in, model out
 
@@ -65,6 +85,9 @@ ProjectExecution   ← root: policy + purpose + models resolver
   └─ TaskExecution    ← + resumable state (phase/cursor/completed/data)
        └─ HelperExecution ← + a RESOLVED model + temperatureFactory, bound to a role
 ```
+
+`prompt` (role + skills) travels on `ExecutionState`, so it survives snapshot/restore;
+`prompts` and `files` are collaborators and never enter a snapshot.
 
 Every method returns a NEW `Object.freeze`d object. Resolution precedence in
 `model(exec, role, override)`: **roleOverride → modelOverride → effort tier →
@@ -78,6 +101,19 @@ inherited method signatures**, which would be a contravariance error.
 
 `snapshot` excludes `state` itself; without that, every `derive`/`escalate`/`withPurpose`
 on a task would nest another copy of the previous state.
+
+## Never `instanceof` an error from a provider SDK
+
+`@langchain/anthropic` and `@langchain/openai` bundle their OWN nested copies of the
+provider SDKs, so an error they throw is an instance of a DIFFERENT class than the one this
+package imports — `e instanceof BadRequestError` silently returns `false`. `isFatal` used
+that check, so every fatal `400` was classified retryable and burned all eight attempts,
+turning one malformed request into minutes of thrash with the real message buried under the
+retries.
+
+Match on the wire shape instead — `(e as { status?: unknown })?.status === 400`. The same
+trap applies to any cross-copy `instanceof`; it is the runtime face of the peer-dependency
+identity rule below.
 
 ## Peer-dependency rule (langchain identity)
 
@@ -99,6 +135,19 @@ const model = makeLlmModel(
 const spec = await model.invoke('Describe the app', SpecSchema, { action: 'spec' })
 ```
 
+## Hangs are bounded by an IDLE deadline, not a total one
+
+A stalled provider is aborted after `MODEL_STREAM_TIMEOUT_MS` (3 min) of SILENCE and
+surfaces as a retryable `LlmModelError`, so the escalator moves on. The timer re-arms on
+every token, so a long-but-productive generation is never cut off — which is why the value
+can be low. Set it for a whole deployment with `LlmServiceOptions.streamTimeout` where the
+application composes its context; a preset that names its own `ModelConfig.streamTimeout`
+keeps it.
+
+Note what this does NOT bound: a call that keeps streaming forever, and retries. A fatal
+error misclassified as retryable multiplies its own latency by `DEFAULT_MODEL_RETRIES` —
+see the `instanceof` trap above.
+
 ## Resilience already handled — do not reimplement
 
 Idle stream deadline · duplicate-final-chunk dedup · output-budget escalation · reasoning-cap
@@ -118,4 +167,5 @@ on `OPENROUTER_SECRET` / `ANTHROPIC_SECRET` in the repo-root `.env` and self-ski
 ## Related
 
 - [[llm-common]] — the serializable contracts
+- [[llm-prompt-caching]] — prompt composition, block order and the cache invariants
 - [[context]] — service registration · [[error]] — the `ResilientError` family

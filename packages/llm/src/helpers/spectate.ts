@@ -3,6 +3,7 @@ import type { UsageMetadata } from '@langchain/core/messages'
 import { SpectatorContentType } from '@owlmeans/llm-common'
 import type { SpectatorEntryMessage } from '@owlmeans/llm-common'
 import type { LlmSpectator, ModelInputItem } from '../types.js'
+import { hasCacheActivity, readCacheUsage } from './cache.js'
 
 /** Normalize one prompt message into the spectator's storage shape. */
 const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMessage => {
@@ -61,6 +62,15 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
       completion.contentType = SpectatorContentType.ToolCall
     } else {
       completion.content = message.content as unknown as string
+    }
+
+    // Silent unless the provider reported cache activity, so it costs nothing when
+    // caching is off — and is the one signal that tells a stable prefix from a broken one.
+    const cache = readCacheUsage(message)
+    if (hasCacheActivity(cache)) {
+      console.log(
+        `Prompt cache [${action}]: read ${cache.read}, written ${cache.creation}, uncached ${cache.input}`
+      )
     }
 
     return spectator.log({ action, retries, startedAt, messages: [...messages, completion] })

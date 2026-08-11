@@ -90,3 +90,27 @@ The embedded files are version-matched to this package release. Do not edit them
 directly — they are regenerated on each publish. To contribute guidance edits,
 open a PR against the source monorepo.
 <!-- owlmeans:agent-guidance:end -->
+
+## Package skills in a prompt (`@owlmeans/agent-skills/llm`)
+
+`owlmeansPackagesPlugin(options)` notices which `@owlmeans/*` packages a request mentions
+and loads their published skills into the `Packages` block. Everything a package documents
+is loaded — there is no relevance filtering, by design.
+
+Resolution order per package: the host's `LlmFileProvider` (the only path that sees a
+sandbox or remote workspace) → an installed copy under `node_modules` → the canonical
+repository over HTTPS. Every failure is a miss, never a throw. Results, including misses,
+are cached per plugin instance.
+
+```typescript
+ctx.prompts().use(owlmeansPackagesPlugin({
+  files: () => ctx.files(),      // tried first
+  exclude: ['@owlmeans/llm'],    // already covered by the static Skills block
+  fetch: false,                  // air-gapped: skip the repository fallback
+}))
+```
+
+The manifest deliberately carries no git ref — version-matching comes from shipping the
+copy inside the tarball, so for a package that is NOT installed the ref is a plugin option
+(`ref`, default `main`).
+

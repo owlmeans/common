@@ -9,7 +9,8 @@ import type {
   HelperExecution, TaskExecution, WithExecutionService,
 } from './types.js'
 import {
-  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy, resolveRole,
+  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
+  mergePrompt, resolveRole,
 } from './utils.js'
 
 /**
@@ -50,18 +51,21 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       level: ExecutionLevel.Project,
       purpose: { ...input.purpose },
       policy: { ...input.policy },
+      ...(input.prompt != null ? { prompt: { ...input.prompt } } : {}),
     }) as S['project'],
 
     forTask: (parent, input) => {
-      const { effort, phase, data, ...extras } = input
+      const { effort, phase, data, prompt, ...extras } = input
       const policy = effort != null
         ? mergePolicy(parent.policy, { effort })
         : { ...parent.policy }
+      const merged = mergePrompt(parent.prompt, prompt)
 
       // Spreading the parent carries every collaborator and domain field forward; the
       // task's own state is composed afterwards, from the seeded resumable fields.
       const taskExec = {
         ...parent, ...extras, level: ExecutionLevel.Task, purpose: { ...parent.purpose }, policy,
+        ...(merged != null ? { prompt: merged } : {}),
       } as unknown as TaskExecution
       ;(taskExec as { state: TaskExecutionState }).state = composeTaskState({
         ...taskExec,
@@ -78,9 +82,10 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
     },
 
     forHelper: (parent, input) => {
-      const { role, effort, dedication, ...extras } = input
+      const { role, effort, dedication, prompt, ...extras } = input
       const localPolicy = effort != null ? mergePolicy(parent.policy, { effort }) : parent.policy
       const scoped = { ...parent, policy: localPolicy } as S['exec']
+      const merged = mergePrompt(parent.prompt, prompt)
 
       const helperExec = {
         ...parent,
@@ -90,6 +95,7 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
           ? { ...parent.purpose, dedication }
           : { ...parent.purpose },
         policy: localPolicy,
+        ...(merged != null ? { prompt: merged } : {}),
         role: resolveRole(localPolicy, role),
         model: self().model(scoped, role),
         temperatureFactory: self().temperatureFactory(scoped, role),

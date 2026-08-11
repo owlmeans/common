@@ -1,7 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
-import type { MessageFieldWithRole } from '@langchain/core/messages'
-import type { StructuredMode } from '@owlmeans/llm-common'
+import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
+import type { CacheTtl, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
 
 export interface LlmBuildParams {
@@ -32,7 +32,32 @@ export interface LlmCacheParams {
   /** The ORIGINAL (unrefined) model — refined instances do not always keep the name. */
   model: BaseChatModel
   useCache: boolean
+  /** How many leading messages form the stable prefix worth caching. */
   cacheMax: number
+  /** Breakpoints the composed system prompt already spent on this request. */
+  reserved?: number
+  ttl?: CacheTtl
+}
+
+/** One rendered section of the composed system prompt, in emission order. */
+export interface LlmSystemBlock {
+  block: PromptBlock
+  text: string
+}
+
+export interface LlmSystemCacheParams {
+  /** The ORIGINAL (unrefined) model. */
+  model: BaseChatModel
+  /** Breakpoint budget the system prompt may spend. */
+  cacheMax: number
+  ttl: CacheTtl
+}
+
+/** Provider-native rendering of the composed system prompt. */
+export interface LlmSystemRender {
+  content: MessageContent
+  /** Breakpoints consumed — subtracted from the message-level budget. */
+  breakpoints: number
 }
 
 /**
@@ -78,11 +103,23 @@ export interface LlmPlugin {
   responseFormat?: (toolName: string, schema: unknown) => Record<string, unknown>
 
   /**
-   * Mark leading messages as cacheable in-place. Returns `true` when caching was
-   * actually applied (the model may not support it). Omit for providers with no
-   * explicit prompt-cache markers.
+   * Mark the stable message prefix as cacheable, in-place. ONE breakpoint at the end of
+   * that prefix — not one per message: the budget is four per request and the system
+   * prompt has first claim on it. Returns `true` when a marker was actually placed.
+   * Omit for providers with no explicit prompt-cache markers.
    */
   patchCache?: (msgs: MessageFieldWithRole[], params: LlmCacheParams) => boolean
+
+  /**
+   * Render the composed system blocks into provider-native content, placing cache
+   * breakpoints at the stability boundaries between blocks (see `PromptBlock`).
+   *
+   * Return `null` — or omit the method entirely — for providers whose prompt cache is
+   * automatic and prefix-based (OpenAI and friends): the service then joins the blocks
+   * into a plain string, which is all those providers need, since the block ORDER is
+   * what makes their prefix stable.
+   */
+  patchSystem?: (blocks: LlmSystemBlock[], params: LlmSystemCacheParams) => LlmSystemRender | null
 
   /**
    * Classify a thrown error as fatal for the retry loop. Return the error to throw

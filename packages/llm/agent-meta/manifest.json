@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "package": "@owlmeans/llm",
   "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.378Z",
+  "generatedAt": "2026-08-07T17:07:10.780Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -13,11 +13,25 @@
       "canonicalPath": ".claude/skills/llm/SKILL.md"
     },
     {
+      "kind": "skill",
+      "name": "llm-prompt-caching",
+      "category": "multi-package",
+      "file": "skills/llm-prompt-caching/SKILL.md",
+      "canonicalPath": ".claude/skills/llm-prompt-caching/SKILL.md"
+    },
+    {
       "kind": "instruction",
       "name": "llm",
       "category": "package-specific",
       "file": "instructions/llm.instructions.md",
       "canonicalPath": ".github/instructions/llm.instructions.md"
+    },
+    {
+      "kind": "instruction",
+      "name": "llm-prompt-caching",
+      "category": "multi-package",
+      "file": "instructions/llm-prompt-caching.instructions.md",
+      "canonicalPath": ".github/instructions/llm-prompt-caching.instructions.md"
     }
   ]
 }

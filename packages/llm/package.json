@@ -33,6 +33,13 @@
       "default": "./build/helpers/index.js",
       "module": "./build/helpers/index.js",
       "types": "./build/helpers/index.d.ts"
+    },
+    "./prompt": {
+      "import": "./build/prompt/index.js",
+      "require": "./build/prompt/index.js",
+      "default": "./build/prompt/index.js",
+      "module": "./build/prompt/index.js",
+      "types": "./build/prompt/index.d.ts"
     }
   },
   "devDependencies": {

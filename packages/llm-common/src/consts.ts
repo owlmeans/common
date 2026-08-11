@@ -59,3 +59,40 @@ export enum SpectatorContentType {
 
 /** Default spectator entry kind for consumers that do not classify their calls. */
 export const SPECTATOR_GENERAL = 'general'
+
+/**
+ * Ordered sections of a composed system prompt.
+ *
+ * The ordering is not cosmetic — it IS the prompt-cache design. Every provider caches
+ * a prompt by exact PREFIX match, so the sections are laid out most-stable first and a
+ * cache breakpoint is placed at each stability boundary:
+ *
+ * - `Role`     — the base system prompt defining who the model is. Stable per role.
+ * - `Skills`   — the statically declared capabilities, rendered in a deterministic
+ *                order. Stable per helper. A breakpoint closes `Role` + `Skills`.
+ * - `Packages` — capabilities resolved from whatever the request happens to mention.
+ *                Varies per request, so it gets its OWN breakpoint and can never
+ *                invalidate the two blocks above it.
+ * - `Context`  — volatile, caller-supplied system text. Never cached.
+ */
+export enum PromptBlock {
+  Role = 'role',
+  Skills = 'skills',
+  Packages = 'packages',
+  Context = 'context',
+}
+
+/**
+ * Emission order of {@link PromptBlock}. Declared explicitly rather than derived from
+ * the enum: the composed prompt must be byte-identical across processes and runtimes,
+ * and enum iteration order is not part of any contract worth betting a cache on.
+ */
+export const PROMPT_BLOCK_ORDER: readonly PromptBlock[] = [
+  PromptBlock.Role,
+  PromptBlock.Skills,
+  PromptBlock.Packages,
+  PromptBlock.Context,
+] as const
+
+/** Sort weight of a skill that declares none — see `SkillDefinition.order`. */
+export const DEFAULT_SKILL_ORDER = 100

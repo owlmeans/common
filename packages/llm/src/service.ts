@@ -51,6 +51,9 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
       throw new LlmMissconfiguredError(alias)
     }
     const config: ModelConfig = { ...baseConfig, ...override }
+    // The service-wide idle deadline is a floor, not an override: a preset that states its
+    // own `streamTimeout` knows something specific about that model and keeps it.
+    config.streamTimeout ??= options.streamTimeout
     const preset: Partial<ModelConfig> = config.preset != null
       ? { ...(models.find(m => m.alias === config.preset) ?? {}) }
       : {}

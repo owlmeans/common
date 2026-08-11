@@ -1,7 +1,7 @@
 import { ExecutionLevel } from '@owlmeans/llm-common'
 import type {
   ExecutionEffort, ExecutionState, ModelConfigOverride, ModelConfigPatch,
-  ModelPolicy, ModelRole, TaskExecutionState,
+  ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import { EFFORT_TABLE } from '../consts.js'
 import type { Execution, TaskExecution } from './types.js'
@@ -18,6 +18,33 @@ export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): Mod
     ? { ...base.modelOverrides, ...patch.modelOverrides }
     : undefined,
 })
+
+/**
+ * Overlay a prompt policy onto the one inherited from the parent level.
+ *
+ * Skills ACCUMULATE — a task adds to what the project declared, a helper adds to the
+ * task — because that is how a capability set is built up as work narrows. The role is
+ * replaced instead: the deepest level that names one owns the persona.
+ *
+ * The union preserves first-seen order and de-duplicates, so the composed prompt is
+ * byte-identical no matter how many levels contributed the same skill.
+ */
+export const mergePrompt = (
+  base: PromptPolicy | undefined,
+  patch: PromptPolicy | undefined,
+): PromptPolicy | undefined => {
+  if (base == null && patch == null) {
+    return undefined
+  }
+  const skills = [...new Set([...(base?.skills ?? []), ...(patch?.skills ?? [])])]
+
+  return {
+    ...base,
+    ...patch,
+    ...(base?.role != null || patch?.role != null ? { role: patch?.role ?? base?.role } : {}),
+    ...(skills.length > 0 ? { skills } : {}),
+  }
+}
 
 /** Apply the policy's role→role remap. */
 export const resolveRole = (policy: ModelPolicy, role: ModelRole): ModelRole =>

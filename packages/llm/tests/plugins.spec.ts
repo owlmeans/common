@@ -2,13 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatOpenAI } from '@langchain/openai'
 import { BadRequestError } from '@anthropic-ai/sdk'
-import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
+import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import {
   anthropicPlugin, compatiblePlugin, makeLlmService, openAiPlugin, pluginFor, pluginOf,
   registerLlmPlugin, resolvePlugin,
 } from '@owlmeans/llm'
 import type { LlmPlugin, ModelConfig } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
+import { stripCacheMarkers } from '../src/utils/prompt.js'
 
 const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
   plugin.build({
@@ -164,26 +165,251 @@ describe('@owlmeans/llm — retry escalation behaviour', () => {
   })
 })
 
-describe('@owlmeans/llm — prompt caching', () => {
-  test('anthropic marks up to the requested number of leading messages', () => {
+describe('@owlmeans/llm — message prompt caching', () => {
+  /** `cacheMinTokens: 1` puts the minimum at 4 characters so fixtures stay readable. */
+  const cheap = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
+
+  // The budget is four breakpoints for the WHOLE request, and the composed system prompt
+  // has first claim on it — so the messages get one marker at the end of their stable
+  // prefix, not one marker each.
+  test('anthropic places a single breakpoint at the end of the stable prefix', () => {
+    const msgs = [
+      { role: 'system' as const, content: 'aaaa' },
+      { role: 'user' as const, content: 'bbbb' },
+      { role: 'user' as const, content: 'cccc' },
+    ]
+    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 2 })).toBe(true)
+    expect(msgs[0]!.content).toBe('aaaa')
+    expect(msgs[1]!.content).toEqual([{ type: 'text', text: 'bbbb', cache_control: { type: 'ephemeral' } }])
+    expect(msgs[2]!.content).toBe('cccc')
+  })
+
+  // The last message is the per-call payload (and `ensureJsonMention` / `applyNoThink`
+  // append to it) — caching it would write a fresh entry every call and read none.
+  test('the final message is never part of the cached prefix', () => {
+    const msgs = [
+      { role: 'system' as const, content: 'aaaa' },
+      { role: 'user' as const, content: 'bbbb' },
+    ]
+    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 9 })).toBe(true)
+    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'aaaa', cache_control: { type: 'ephemeral' } }])
+    expect(msgs[1]!.content).toBe('bbbb')
+
+    const single = [{ role: 'user' as const, content: 'aaaa' }]
+    expect(anthropicPlugin.patchCache?.(single, { model: cheap(), useCache: true, cacheMax: 4 })).toBe(false)
+    expect(single[0]!.content).toBe('aaaa')
+  })
+
+  test('a marker is appended to block content rather than replacing it, and is idempotent', () => {
+    const msgs = [
+      { role: 'system' as const, content: [{ type: 'text', text: 'aa' }, { type: 'text', text: 'bb' }] },
+      { role: 'user' as const, content: 'cccc' },
+    ]
+    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 1 })).toBe(true)
+    expect(msgs[0]!.content).toEqual([
+      { type: 'text', text: 'aa' },
+      { type: 'text', text: 'bb', cache_control: { type: 'ephemeral' } },
+    ])
+
+    const before = JSON.stringify(msgs[0]!.content)
+    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 1 })).toBe(true)
+    expect(JSON.stringify(msgs[0]!.content)).toBe(before)
+  })
+
+  // A prefix under the provider's own minimum is silently never cached, so a marker there
+  // buys nothing and costs one of the four breakpoints.
+  test('a prefix below the cacheable minimum is left unmarked', () => {
     const model = build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001' })
     const msgs = [
-      { role: 'system' as const, content: 'a' },
-      { role: 'user' as const, content: 'b' },
-      { role: 'user' as const, content: 'c' },
+      { role: 'system' as const, content: 'short' },
+      { role: 'user' as const, content: 'also short' },
     ]
-    expect(anthropicPlugin.patchCache?.(msgs, { model, useCache: true, cacheMax: 2 })).toBe(true)
-    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'a', cache_control: { type: 'ephemeral' } }])
-    expect(msgs[1]!.content).toEqual([{ type: 'text', text: 'b', cache_control: { type: 'ephemeral' } }])
-    expect(msgs[2]!.content).toBe('c')
+    expect(anthropicPlugin.patchCache?.(msgs, { model, useCache: true, cacheMax: 4 })).toBe(false)
+    expect(msgs[0]!.content).toBe('short')
+  })
+
+  test('the message budget yields to whatever the system prompt already spent', () => {
+    const msgs = [
+      { role: 'system' as const, content: 'aaaa' },
+      { role: 'user' as const, content: 'bbbb' },
+    ]
+    expect(anthropicPlugin.patchCache?.(
+      msgs, { model: cheap(), useCache: true, cacheMax: 4, reserved: 4 }
+    )).toBe(false)
+    expect(msgs[0]!.content).toBe('aaaa')
   })
 
   test('caching is a no-op when not requested, and for providers without it', () => {
-    const model = build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001' })
-    const msgs = [{ role: 'user' as const, content: 'a' }]
-    expect(anthropicPlugin.patchCache?.(msgs, { model, useCache: false, cacheMax: 4 })).toBe(false)
-    expect(msgs[0]!.content).toBe('a')
+    const msgs = [{ role: 'user' as const, content: 'aaaa' }, { role: 'user' as const, content: 'bbbb' }]
+    expect(anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: false, cacheMax: 4 })).toBe(false)
+    expect(msgs[0]!.content).toBe('aaaa')
     expect(openAiPlugin.patchCache).toBeUndefined()
+    expect(openAiPlugin.patchSystem).toBeUndefined()
+  })
+})
+
+describe('@owlmeans/llm — system prompt caching', () => {
+  const model = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
+  const blocks = (...pairs: Array<[PromptBlock, string]>) =>
+    pairs.map(([block, text]) => ({ block, text }))
+
+  const marks = (content: unknown): boolean[] =>
+    (content as Array<Record<string, unknown>>).map(part => part.cache_control != null)
+
+  // Role + skills is the region every call of this role shares; packages vary with the
+  // request. Two boundaries, so a changing package block can never invalidate the skills.
+  test('breakpoints land on the stability boundaries, not on every block', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks(
+        [PromptBlock.Role, 'role text'],
+        [PromptBlock.Skills, 'skill text'],
+        [PromptBlock.Packages, 'package text'],
+      ),
+      { model: model(), cacheMax: 3, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(2)
+    expect(marks(render?.content)).toEqual([false, true, true])
+  })
+
+  // "Fully cached by default" also has to hold for a caller that has not migrated and
+  // still hands over a single system message of its own.
+  test('a lone context block is still cached', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks([PromptBlock.Context, 'legacy system message']),
+      { model: model(), cacheMax: 3, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(1)
+    expect(marks(render?.content)).toEqual([true])
+  })
+
+  test('marking stops at the budget, earliest boundary first', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks(
+        [PromptBlock.Skills, 'skill text'],
+        [PromptBlock.Packages, 'package text'],
+        [PromptBlock.Context, 'context text'],
+      ),
+      { model: model(), cacheMax: 1, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(1)
+    expect(marks(render?.content)).toEqual([true, false, false])
+  })
+
+  // An explicit `"ttl": "5m"` is different BYTES from no ttl at all, and a prefix cached
+  // one way would not match the other.
+  test('the default ttl is omitted from the marker, and 1h is spelled out', () => {
+    const short = anthropicPlugin.patchSystem?.(
+      blocks([PromptBlock.Skills, 'skill text']), { model: model(), cacheMax: 3, ttl: '5m' }
+    )
+    expect((short?.content as Array<Record<string, unknown>>)[0]!.cache_control)
+      .toEqual({ type: 'ephemeral' })
+
+    const long = anthropicPlugin.patchSystem?.(
+      blocks([PromptBlock.Skills, 'skill text']), { model: model(), cacheMax: 3, ttl: '1h' }
+    )
+    expect((long?.content as Array<Record<string, unknown>>)[0]!.cache_control)
+      .toEqual({ type: 'ephemeral', ttl: '1h' })
+  })
+
+  // A trailing context block changes every call. Marking it would pay a cache WRITE per
+  // call and never read one back — a breakpoint spent to buy nothing.
+  test('a trailing context block is never marked when stable blocks precede it', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks(
+        [PromptBlock.Role, 'role text'],
+        [PromptBlock.Skills, 'skill text'],
+        [PromptBlock.Context, 'per-call text'],
+      ),
+      { model: model(), cacheMax: 2, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(1)
+    expect(marks(render?.content)).toEqual([false, true, false])
+  })
+
+  test('the packages boundary is still marked with context trailing behind it', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks(
+        [PromptBlock.Role, 'role text'],
+        [PromptBlock.Skills, 'skill text'],
+        [PromptBlock.Packages, 'package text'],
+        [PromptBlock.Context, 'per-call text'],
+      ),
+      { model: model(), cacheMax: 2, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(2)
+    expect(marks(render?.content)).toEqual([false, true, true, false])
+  })
+
+  test('a non-claude model still renders the blocks, just without markers', () => {
+    const render = anthropicPlugin.patchSystem?.(
+      blocks([PromptBlock.Role, 'role text']),
+      { model: build(anthropicPlugin, { model: 'some-other-model' }), cacheMax: 3, ttl: '5m' },
+    )
+    expect(render?.breakpoints).toBe(0)
+    expect(render?.content).toEqual([{ type: 'text', text: 'role text' }])
+  })
+})
+
+describe('@owlmeans/llm — the four-breakpoint request budget', () => {
+  const cheap = () => build(anthropicPlugin, { model: 'claude-haiku-4-5-20251001', cacheMinTokens: 1 })
+
+  const markers = (msgs: Array<{ content: unknown }>): number =>
+    msgs.reduce((sum, msg) => sum + (Array.isArray(msg.content)
+      ? (msg.content as Array<Record<string, unknown>>).filter(b => b.cache_control != null).length
+      : 0), 0)
+
+  // The live failure: a caller that carries its message array across calls hands back
+  // messages this pipeline already marked. They accumulate until Anthropic rejects the
+  // request with `400 A maximum of 4 blocks with cache_control may be provided. Found 5.`
+  test('markers left over from a previous call are cleared before new ones are placed', () => {
+    const msgs = [
+      { role: 'system' as const, content: 'aaaa' },
+      { role: 'user' as const, content: 'bbbb' },
+      { role: 'user' as const, content: 'cccc' },
+    ]
+    // Call one marks the stable prefix.
+    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 2 })
+    expect(markers(msgs)).toBe(1)
+
+    // Call two: the caller appends a turn and re-sends the SAME objects.
+    msgs.push({ role: 'user' as const, content: 'dddd' })
+    stripCacheMarkers(msgs)
+    expect(markers(msgs)).toBe(0)
+
+    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 3 })
+    expect(markers(msgs)).toBe(1)
+  })
+
+  test('the system prompt plus the message prefix never exceed the provider limit', () => {
+    // Worst case: every stability boundary distinct, so the system claims its full share.
+    const system = anthropicPlugin.patchSystem?.(
+      [
+        { block: PromptBlock.Role, text: 'role text' },
+        { block: PromptBlock.Skills, text: 'skill text' },
+        { block: PromptBlock.Packages, text: 'package text' },
+        { block: PromptBlock.Context, text: 'context text' },
+      ],
+      { model: cheap(), cacheMax: 3, ttl: '5m' },
+    )
+    const reserved = system?.breakpoints ?? 0
+    expect(reserved).toBeLessThanOrEqual(3)
+
+    const msgs = [
+      { role: 'system' as const, content: system?.content as never },
+      { role: 'user' as const, content: 'bbbb' },
+      { role: 'user' as const, content: 'cccc' },
+    ]
+    anthropicPlugin.patchCache?.(msgs, { model: cheap(), useCache: true, cacheMax: 4, reserved })
+    expect(markers(msgs)).toBeLessThanOrEqual(4)
+  })
+
+  test('stripping leaves the rest of a content block untouched', () => {
+    const msgs = [{
+      role: 'user' as const,
+      content: [{ type: 'text', text: 'keep me', cache_control: { type: 'ephemeral' } }] as never,
+    }]
+    stripCacheMarkers(msgs)
+    expect(msgs[0]!.content).toEqual([{ type: 'text', text: 'keep me' }] as never)
   })
 })
 
@@ -193,6 +419,22 @@ describe('@owlmeans/llm — fatal error classification', () => {
     expect(anthropicPlugin.isFatal?.(bad)).toBe(bad)
     expect(anthropicPlugin.isFatal?.(new Error('transient'))).toBeNull()
   })
+
+  // `@langchain/anthropic` bundles its OWN nested copy of `@anthropic-ai/sdk`, so the
+  // error it throws is an instance of a different class than the one imported here and
+  // `instanceof` silently misses. That turned every fatal 400 into eight full retries.
+  test('a 400 from a foreign SDK copy is still fatal', () => {
+    const foreign = Object.assign(new Error('400 too many cache_control blocks'), { status: 400 })
+    expect(anthropicPlugin.isFatal?.(foreign)).toBe(foreign)
+    expect(openAiPlugin.isFatal?.(foreign)).toBe(foreign)
+    expect(compatiblePlugin.isFatal?.(foreign)).toBe(foreign)
+  })
+
+  test('a retryable status is not treated as fatal', () => {
+    const overloaded = Object.assign(new Error('529'), { status: 529 })
+    expect(anthropicPlugin.isFatal?.(overloaded)).toBeNull()
+    expect(openAiPlugin.isFatal?.(overloaded)).toBeNull()
+  })
 })
 
 describe('@owlmeans/llm — service', () => {
@@ -201,6 +443,29 @@ describe('@owlmeans/llm — service', () => {
     const first = service.getModel(Role.Analyst)
     expect(service.getModel(Role.Analyst)).toBe(first)
     expect(service.getModel(Role.Analyst, {}, true)).not.toBe(first)
+  })
+
+  // The knob an application sets where it composes its context: one place to bound how
+  // long the whole deployment waits on a silent provider.
+  test('a service-wide idle deadline reaches every model it builds', () => {
+    const service = makeLlmService(
+      { models: offlineConfigs, streamTimeout: 90_000 }, 'spec-llm-timeout'
+    )
+    const config = (service.getModel(Role.Analyst) as unknown as {
+      metadata: { config: ModelConfig }
+    }).metadata.config
+    expect(config.streamTimeout).toBe(90_000)
+  })
+
+  // A preset that names its own deadline knows something specific about that model.
+  test('a model config keeps its own deadline over the service default', () => {
+    const configs = (): ModelConfig[] =>
+      offlineConfigs().map(c => c.alias === Role.Analyst ? { ...c, streamTimeout: 12_000 } : c)
+    const service = makeLlmService({ models: configs, streamTimeout: 90_000 }, 'spec-llm-timeout-2')
+    const config = (service.getModel(Role.Analyst) as unknown as {
+      metadata: { config: ModelConfig }
+    }).metadata.config
+    expect(config.streamTimeout).toBe(12_000)
   })
 
   test('an override participates in the cache key', () => {

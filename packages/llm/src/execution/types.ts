@@ -1,10 +1,11 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  ExecutionEffort, ExecutionLevel, ExecutionState, LlmPurpose, ModelConfigOverride,
-  ModelPolicy, ModelRole, TaskExecutionState,
+  ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, LlmPurpose,
+  ModelConfigOverride, ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import type { LlmService, TemperatureFactory } from '../types.js'
+import type { PromptService } from '../prompt/types.js'
 
 /**
  * Runtime execution = serializable {@link ExecutionState} + attached collaborators.
@@ -18,6 +19,10 @@ import type { LlmService, TemperatureFactory } from '../types.js'
 export interface Execution extends ExecutionState {
   /** Resolver for the model factory — a function so the service can be swapped/cloned. */
   models: () => LlmService
+  /** Resolver for the skill registry / prompt composer. Same late-binding rationale. */
+  prompts?: () => PromptService
+  /** File access offered to prompt plugins. Declared a collaborator, never snapshotted. */
+  files?: FileProviderRef
   outputErrors?: boolean
   captureNull?: boolean
 }
@@ -42,8 +47,12 @@ export interface HelperExecution extends Execution {
 
 export interface ProjectExecutionInput {
   models: () => LlmService
+  prompts?: () => PromptService
+  files?: FileProviderRef
   policy: ModelPolicy
   purpose: LlmPurpose
+  /** Baseline role and skills for the whole run. */
+  prompt?: PromptPolicy
   outputErrors?: boolean
   captureNull?: boolean
 }
@@ -51,15 +60,23 @@ export interface ProjectExecutionInput {
 export interface TaskExecutionInput {
   /** Raise (or lower) the effort tier for this task and everything derived from it. */
   effort?: ExecutionEffort
+  /** Skills (and optionally a role) layered on top of the project's. Skills accumulate. */
+  prompt?: PromptPolicy
   /** Optional seeds for the resumable task state. */
   phase?: string
   data?: Record<string, unknown>
 }
 
 export interface HelperExecutionInput {
+  /**
+   * Which MODEL to use. Distinct from `prompt.role`, which is the system-prompt text
+   * defining the persona — one selects hardware, the other writes the job description.
+   */
   role: ModelRole
   /** Local effort bump without escalating the whole branch. */
   effort?: ExecutionEffort
+  /** The helper's persona and its own skills, layered on top of the task's. */
+  prompt?: PromptPolicy
   /** Refines `purpose.dedication`. */
   dedication?: string
 }
@@ -67,6 +84,8 @@ export interface HelperExecutionInput {
 /** Collaborators re-attached to a state that was restored from storage. */
 export interface RestoreCollaborators {
   models?: () => LlmService
+  prompts?: () => PromptService
+  files?: FileProviderRef
 }
 
 /**
