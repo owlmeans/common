@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-skills",
-  "version": "0.1.12",
+  "version": "0.1.15",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,14 +22,36 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./llm": {
+      "import": "./build/llm/index.js",
+      "require": "./build/llm/index.js",
+      "default": "./build/llm/index.js",
+      "module": "./build/llm/index.js",
+      "types": "./build/llm/index.d.ts"
     }
   },
   "devDependencies": {
+    "@langchain/core": "^1.1.39",
     "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/llm": "^0.1.14",
+    "@owlmeans/llm-common": "^0.1.14",
     "@types/bun": "^1.3.14",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
     "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "@owlmeans/llm": "^0.1.14",
+    "@owlmeans/llm-common": "^0.1.14"
+  },
+  "peerDependenciesMeta": {
+    "@owlmeans/llm": {
+      "optional": true
+    },
+    "@owlmeans/llm-common": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public"

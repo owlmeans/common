@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-iam",
-  "version": "0.1.11",
+  "version": "0.1.15",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,13 +22,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.11",
-    "@owlmeans/context": "^0.1.11",
-    "@owlmeans/entrypoint": "^0.1.11",
-    "@owlmeans/iam": "^0.1.11",
-    "@owlmeans/oidc": "^0.1.11",
-    "@owlmeans/server-context": "^0.1.11",
-    "@owlmeans/server-oidc-rp": "^0.1.11"
+    "@owlmeans/auth": "^0.1.15",
+    "@owlmeans/context": "^0.1.15",
+    "@owlmeans/entrypoint": "^0.1.15",
+    "@owlmeans/iam": "^0.1.15",
+    "@owlmeans/oidc": "^0.1.15",
+    "@owlmeans/server-context": "^0.1.15",
+    "@owlmeans/server-oidc-rp": "^0.1.15"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

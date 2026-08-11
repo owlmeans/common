@@ -7,7 +7,7 @@ applyTo: "**/*.ts, **/*.tsx"
 # @owlmeans/server-entrypoint
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-entrypoint": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/server-entrypoint": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 

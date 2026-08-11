@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-flow
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-flow": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/web-flow": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 

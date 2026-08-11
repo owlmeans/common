@@ -8,6 +8,9 @@ const DOTFILE_RENAMES: Record<string, string> = {
   '_npmrc': '.npmrc',
   '_env': '.env',
   '_github': '.github',
+  '_agents': '.agents',
+  // Entries whose source dir is absent are inert — `_claude` is kept because the
+  // template seed (sync-agent-meta) writes `_claude/skills/` into this tree.
   '_claude': '.claude',
 }
 

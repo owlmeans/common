@@ -65,7 +65,7 @@ const result: ListResult<ProjectRecord> = await ctx.project().list({
 - `save(record, opts?)` — upsert by ID
 - `update(record, opts?)` — update; throws `UnknownRecordError` if missing
 - `delete(id, opts?)` — remove; returns the deleted record or `null`
-- `pick(id, opts?)` — like `get` but optimized for existence checks
+- `pick(id, opts?)` — **delete and return** the record; throws `UnknownRecordError` if missing. Never use it for read-only checks
 
 ### `ResourceMaker<R, T>`
 
@@ -75,10 +75,31 @@ interface ResourceMaker<R extends ResourceRecord, T extends Resource<R> = Resour
 }
 ```
 
+### Migration framework
+
+Storage-agnostic and optional — a backend that supports code migrations (mongo, postgres)
+extends `MigratableResource<Tx>`; backends with nothing to migrate simply don't (the same way
+pub/sub is an optional capability of redis resources). Migrations run **automatically during
+resource initialization** (app setup) — registering one is all an app ever does.
+
+- `MigratableResource<Tx>` — `migration(name, apply, stage?): this` + `migrations()`
+- `createMigrationRegistry<Tx>()` — per-alias ledger of registered migrations; declaration
+  order is application order; identical re-registration is a no-op, a changed body under a
+  used name throws `MigrationConflict`
+- `MigrationStore<Tx>` — the *migration register* a database implements to track applied
+  migrations (`ensure` / `applied` / `baseline` / `run`); both mongo and postgres persist it
+  as `_owlmeans_migrations`
+- `runMigrations(alias, registry, store, opts?)` — the storage-agnostic runner; with
+  `baseline: true` migrations are recorded instead of run (used on just-created structures);
+  `strictChecksum` (default) rejects edited applied bodies
+- `MigrationStage.Pre` / `MigrationStage.Post` — run before / after the backend's structure
+  reconciliation
+
 ### Helpers
 
 - `prepareListOptions(defPageSize, criteria?, opts?)` — normalize list criteria + pager
 - `filterObject(obj, keep?)` — strip null/undefined fields from a record before saving
+- `createDbService(alias, override, init?)` — base plumbing for `ResourceDbService` implementations
 
 ### Error Classes
 
@@ -86,6 +107,8 @@ interface ResourceMaker<R extends ResourceRecord, T extends Resource<R> = Resour
 - `UnknownRecordError` — record not found (has `.id` getter)
 - `RecordExists` — duplicate record on `create`
 - `MisshapedRecord` — invalid record structure
+- `MigrationError` — a migration body threw; initialization aborts
+- `MigrationConflict` — an already applied migration's body changed, or a name was redeclared with a different body
 
 ## Related Packages
 

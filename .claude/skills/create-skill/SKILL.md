@@ -82,7 +82,7 @@ Current branch: !`git rev-parse --abbrev-ref HEAD`
 ## After Creating a Skill
 
 1. Remove any redundant `.claude/<topic>.md` file the skill replaces
-2. If the skill absorbed memory content, shrink the source `.agents/memory/` node to a pointer
+2. If the skill distilled memory content into rules, shrink the source `.agents/memory/` node to a pointer
    line (`memory-promotion` where present) — the memory index does not list skills
 3. Update `CLAUDE.md` Additional Context section if the old file was referenced there
 4. Test by typing `/skill-name` in Claude Code
@@ -91,3 +91,4 @@ Current branch: !`git rev-parse --abbrev-ref HEAD`
 
 - **Skill**: reusable procedure or reference that benefits from being a slash command, or that Claude should auto-invoke based on context
 - **Memory node** (`.agents/memory/*.md`): fact-shaped knowledge per the `agent-memory` protocol; procedure-shaped or repeatedly-touched memory promotes into a skill (`memory-promotion` where present)
+- **Never paste memory text into a skill** — restate it as a general rule (trigger → step → the failure it prevents), stripping dates, phase/status markers, versions and incident narrative (`memory-promotion` → Distillation)

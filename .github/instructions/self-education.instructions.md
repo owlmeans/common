@@ -1,6 +1,7 @@
 ---
-description: "Mandatory post-development skill/instruction updating — after adding or changing functionality, update touched project guidance, note external-doc findings in the governing instruction, or add instructions for new subsystems/technologies; required before the completion report when development started from an agreed plan. Apply when editing skills or instruction files after development."
+description: "Mandatory post-development skill/instruction updating — after adding or changing functionality, rewrite touched project guidance as current rules (never as change notes), note external-doc findings in the governing instruction, or add instructions for new subsystems/technologies; required before the completion report when development started from an agreed plan. Apply when editing skills or instruction files after development."
 applyTo: "**/.claude/skills/**, **/.github/instructions/**"
+scope: general
 ---
 
 # Self-education
@@ -26,7 +27,23 @@ For each area the work touched:
 1. Which existing instruction/skill covers it? (Check `.github/instructions/` +
    `.claude/skills/`.)
 2. Do its commands, paths, APIs, and behavior claims still hold after the change?
-3. Fix in place — and keep the instruction and its skill twin in sync.
+3. Fix in place — rewrite the affected lines so they describe current behavior; never append a
+   note about what this change did. Keep the instruction and its skill twin in sync.
+
+## Shape of an update
+
+Instructions and skills state **current rules, not what changed**. Every edit is a rewrite in
+place of the affected lines.
+
+Never write into an instruction or skill: dated bulletins ("2026-07-05 — …"), phase or migration
+status ("Phase 3 complete", "migration done", "landed"), "formerly X, now Y", incident
+narratives, fixed-bug logs, or point-in-time inventories. If a line only makes sense to someone
+who watched the change happen, it does not belong in guidance — the rule it taught does, stated
+timelessly. Facts too specific to generalize go to `.agents/memory/`
+(`.github/instructions/agent-memory.instructions.md`); the rewrite recipe is
+`.github/instructions/memory-promotion.instructions.md` → Distillation.
+
+Test: a finished instruction reads as though the feature was always this way.
 
 ## Non-project instructions
 

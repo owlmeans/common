@@ -1,6 +1,38 @@
 import type { AnySchema, JSONSchemaType } from 'ajv'
 import type { Document } from 'mongodb'
 
+import type { MongoReference } from '../types.js'
+
+/**
+ * Declared references are stored as `ObjectId`s while the AJV schema — which describes
+ * the records the app exchanges — keeps calling them strings. The collection validator
+ * describes what's stored, so the reference fields are overridden here after the plain
+ * conversion. Nullability and array shape carry over from the declared property.
+ */
+export const applyReferenceTypes = (
+  mongoSchema: Document, schema: AnySchema, refs: MongoReference[]
+): Document => {
+  if (mongoSchema.properties == null || refs.length < 1) {
+    return mongoSchema
+  }
+  const properties: Record<string, JSONSchemaType<unknown>> =
+    (schema as JSONSchemaType<unknown>).properties ?? {}
+  for (const ref of refs) {
+    const declared = properties[ref.field]
+    if (declared == null || mongoSchema.properties[ref.field] == null) {
+      continue
+    }
+    mongoSchema.properties[ref.field] = declared.type === 'array'
+      ? {
+        bsonType: declared.nullable ? ['array', 'null'] : 'array',
+        items: { bsonType: 'objectId' }
+      }
+      : { bsonType: declared.nullable ? ['objectId', 'null'] : 'objectId' }
+  }
+
+  return mongoSchema
+}
+
 export const schemaToMongoSchema = (schema: AnySchema): Document => {
   const _schema = schema as JSONSchemaType<unknown>
 

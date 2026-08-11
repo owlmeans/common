@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/wled",
-  "version": "0.1.11",
+  "version": "0.1.15",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -24,9 +24,9 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.11",
-    "@owlmeans/entrypoint": "^0.1.11",
-    "@owlmeans/route": "^0.1.11"
+    "@owlmeans/auth": "^0.1.15",
+    "@owlmeans/entrypoint": "^0.1.15",
+    "@owlmeans/route": "^0.1.15"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

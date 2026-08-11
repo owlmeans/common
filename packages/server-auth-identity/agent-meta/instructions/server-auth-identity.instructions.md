@@ -7,7 +7,7 @@ applyTo: "**/context.ts, **/services/**/*.ts, **/*.ts, **/*.tsx"
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.11"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.15"` in `dependencies`
 
 ## Key Exports
 
@@ -75,10 +75,12 @@ const payload = await linking.linkProfile(providerDetails, { username })
 
 ## Key Derivation Conventions
 
+- **Profile userId**: the account's mongo id — a declared ObjectId reference (`resource.reference('userId', AUTH_IDENTITY_ACCOUNT)`): stored as `ObjectId`, exchanged as a string, auto-indexed and auto-migrated at boot. The only reference in the trio.
 - **Account credential**: unique Base58 slug (16 chars) — serves as the local `entityId`
-- **Profile profileId**: `"{type}:{accountId}"` — stable across provider re-links
-- **Credentials userId** (external key): `"{type}:{service}:{providerSub}"` — uniquely identifies the external account
+- **Profile profileId**: `"{type}:{accountId}"` — stable across provider re-links; a composite key, NOT a reference
+- **Credentials userId** (external key): `"{type}:{service}:{providerSub}"` — same name as `profile.userId`, entirely different meaning; never convert or compare across the two
 - **Credentials credential** (login-service key): `"service:{type}:{service}"` — groups credentials by provider
+- `AuthPayload.userId` = `profile.userId ?? profile.profileId` — a value flowing back into a `userId` query may be a composite key; reference criteria tolerate it (matches nothing)
 
 ## Resource Indexes
 
