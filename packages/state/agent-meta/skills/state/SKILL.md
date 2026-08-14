@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/state
 
 **Layer:** Core
-**Install:** `"@owlmeans/state": "^0.1.16-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/state": "^0.1.16"` in `dependencies`
 
 ## Key Exports
 

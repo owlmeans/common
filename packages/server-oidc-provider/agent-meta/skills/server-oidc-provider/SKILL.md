@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.16-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.16"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.8.4` (exact), `jose@6.2.3` (exact)
 
 ## Key Exports
@@ -30,6 +30,24 @@ appendOidcProviderService<C, T>(context)
 ```
 
 The service mounts the oidc-provider Koa app onto Fastify via `api.server.use(base, oidc.callback())`. It wires `findAccount`, `interactions.url`, the JWKS, and optional adapter.
+
+## Building the interaction URL (server context, frontend route)
+
+`interactions.url` must return the fully-qualified address of the `INTERACTION` screen, which is a
+**frontend** route resolved from a **server** context. `call()` does not exist there — it is attached
+only by `@owlmeans/client-entrypoint` — so the URL is assembled the way `urlCall` does it in the
+browser: resolve the route, substitute the `INTERACTION_UID` path param, then `makeSecurityHelper().makeUrl(route, path)`
+so the frontend service's host and base are applied. Pass the entrypoint's own `getPath()` as the
+path and let `makeUrl` supply the base — do not prepend it twice.
+
+## Scopes are derived from `claims`
+
+`oidc-provider` adds every key of the `claims` configuration to the supported-scope set
+(`collectScopes`). Declaring `claims.email` therefore makes `email` a **static** scope, and static
+scopes are checked against each client's own `scope` allowlist: a client that omits one fails the
+whole authorization request with `invalid_scope`. Whatever provisions clients for this provider must
+allow every scope the RP requests (`OIDC_RP_BASE_SCOPES`), and the account service must emit the
+matching claims — a granted scope with no claim behind it is silently empty.
 
 ## oidc-provider v9 notes (important)
 

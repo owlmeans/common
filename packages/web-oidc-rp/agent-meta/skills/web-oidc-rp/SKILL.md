@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.16-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.16"` in `dependencies`
 
 ## Key Exports
 
@@ -42,6 +42,15 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 import { setupOidcGuard } from '@owlmeans/web-oidc-rp'
 setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 ```
+
+## Dispatcher and authorization errors
+
+The `Dispatcher` component is the redirect URI: the provider returns **both** outcomes to it — a
+`code` on success and `error` / `error_description` (`OIDC_ERROR_QUERY`, `OIDC_ERROR_DESCRIPTION_QUERY`
+from `@owlmeans/oidc`) on failure. It must check for the error params **before** re-entering the
+flow and render the message instead: starting authorization again would rebuild the request that
+just failed, so the browser bounces between dispatcher and provider forever and the actual reason
+never reaches the user. The same rule holds for the MUI dispatcher in `@owlmeans/mui-oidc-rp`.
 
 ## Product-Viable Usage Notes
 
