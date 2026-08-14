@@ -40,39 +40,66 @@ Migrated from Yarn v4 to **Bun 1.3.10** (April 2026). Always use `bun`, never `y
 - Negation filter alone (`'!@owlmeans/_tpl'`) matches nothing — always pair with a positive filter
 - `_tpl` package is named `@owlmeans/_tpl` in its `package.json` — always exclude it from builds
 - No `.yarnrc.yml` — removed during migration
-- Peer dep warning about `@mui/material` is expected and non-blocking
+- `bun install` should finish with **no** peer-dependency warnings — treat one as a range to fix,
+  not noise (see the shadowing section below)
 - `bun run --filter` does **not** order builds topologically here — the workspace graph has SCCs
   (see `tree.md`), so every package's `tsc -b` starts in parallel. Incremental builds are fine
   because `build/` already exists; a build from clean needs the command repeated until it exits 0
   (typically 2–3 passes). Never read a single failing pass from clean as a source error.
-- `build/` holds a tracked `.gitkeep` per package — when clearing build output, delete the
-  contents and keep that file:
-  `for d in packages/*/build; do find "$d" -mindepth 1 -not -name .gitkeep -delete; done`
+- A clean rebuild must delete **two** kinds of artifact. `build/` holds a tracked `.gitkeep` per
+  package (keep it), and each package's incremental state lives at
+  `packages/<pkg>/tsconfig.tsbuildinfo` — **outside** `build/`. Leaving the `tsbuildinfo` behind
+  makes `tsc -b` skip work, so the build is not really from scratch:
 
-## Troubleshooting: bogus "has no exported member" errors across many packages
+  ```bash
+  for d in packages/*/build; do find "$d" -mindepth 1 -not -name .gitkeep -delete; done
+  find packages -name 'tsconfig.tsbuildinfo' -not -path '*/node_modules/*' -delete
+  ```
 
-Symptom: `tsc -b` reports `TS2305 Module '@owlmeans/x' has no exported member 'Y'` for symbols
-that plainly exist in `packages/x/src`, and `packages/x/build/*.d.ts` is fresh and correct.
+  A genuine from-clean run converges in about three passes (order of ~2700 → single digits → 0).
+- `bun.lock` is **gitignored**, so it never appears in a merge conflict and any `bun install`
+  silently re-resolves every floating range. After one, re-check the versions that matter rather
+  than assuming the tree is unchanged.
+- Expect `packages/client-module` and `packages/server-module` to hold nothing but empty `build/`
+  and `node_modules/` — untracked leftovers, not packages. `dep-config` is config-only and has no
+  `build` script. Everything else builds.
+- Several packages declare a `test` script but ship no `tests/` directory, so `bun run test` reports
+  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
+  `server-auth-identity`, `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a
+  regression — read the per-package pass/fail counts, not the aggregate exit code.
+- The repo pins `packageManager: bun@1.3.14`. On an older Bun, `mongodb`/`bson` fails at **import**
+  time with `NotImplementedError: node:v8 isBuildingSnapshot is not yet implemented in Bun` — which
+  crashes the `mongo` and `mongo-resource` suites before their env gate can skip them. Check
+  `bun --version` against `packageManager` before blaming the code.
 
-Cause: real (non-symlink) directories under `packages/<pkg>/node_modules/@owlmeans/*` holding
-**published tarballs of an older version**. They shadow the workspace symlinks in root
-`node_modules/@owlmeans/`, so consumers typecheck against the old published API. Bun creates them
-when a dependency range cannot be satisfied by the workspace — e.g. mid-version-bump, when deps
-already say `^<new>` but the workspace `package.json` files still say `<old>` — and a later
-`bun install` links the workspace at root without ever pruning them.
+## Troubleshooting: nested `node_modules` copies that shadow the root
 
-Diagnose:
+**The single most common cause of inexplicable build and test failures in this repo.** Bun puts a
+real directory in `packages/<pkg>/node_modules/<dep>` whenever that package's declared range cannot
+be served by the hoisted root copy. It wins over the root for anything resolved from inside that
+package, and a later `bun install` will not prune it. Three faces of the same bug, all observed:
+
+| Symptom | Shadowed dep | Real cause |
+|---|---|---|
+| `TS2305 Module '@owlmeans/x' has no exported member 'Y'` — but `packages/x/build/*.d.ts` is fresh and correct | `@owlmeans/*` | published tarball of an older version, from a mid-version-bump install |
+| `TS2769 No overload matches this call` on MUI `Stack`/`Box` props in one package only | `@mui/material` | a `devDependencies` range that outran the `peerDependencies` range — the package typechecks against a major it does not declare support for |
+| Browser specs all fail with `Target page, context or browser has been closed`, browser log shows `Incompatible React versions` | `react-dom` | stale nested copy left one patch behind the root, and React demands exact-equal `react`/`react-dom` |
+
+Diagnose — list every duplicate, not just the one you suspect:
 
 ```bash
-find packages/*/node_modules/@owlmeans -maxdepth 1 -mindepth 1 -type d   # should be empty
-grep -c 'owlmeans/[a-z-]*@0\.' bun.lock                                  # should be 0 (workspace only)
-tsc --traceResolution --noEmit | grep 'was successfully resolved'        # confirm the winning path
+find packages/*/node_modules -maxdepth 2 -name package.json \
+  | while read f; do echo "$(bun -e "console.log(require('$f').name, require('$f').version)") <- $f"; done
+grep -c 'owlmeans/[a-z-]*@0\.' bun.lock   # should be 0 (workspace only)
 ```
 
-Fix — the nested copies are extraneous (`bun install` will not recreate them):
+Fix — delete the nested copy and reinstall; then fix the range that invited it, or it comes back:
 
 ```bash
-rm -rf packages/*/node_modules/@owlmeans
+rm -rf packages/*/node_modules/<dep>
 bun install
-bun run build   # repeat until exit 0
 ```
+
+**Keep `devDependencies` inside the `peerDependencies` range.** A package declaring
+`peerDependencies: { "@mui/material": "^7.*" }` must dev-depend on `^7.*` too. Dependabot's
+dev-dependency group bumps do not respect peer ranges, so check that pairing whenever one lands.

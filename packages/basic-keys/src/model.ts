@@ -92,7 +92,16 @@ export const makeKeyPairModel: KeyPairModelMaker = input => {
       )
     },
 
-    decrypt: async data => utf8.encode(await _model.dcrpt(data)),
+    decrypt: async data => {
+      const plain = await _model.dcrpt(data)
+      try {
+        // @scure/base v2 decodes utf8 with { fatal: true } — a wrong key or a
+        // binary payload throws here instead of yielding replacement characters.
+        return utf8.encode(plain)
+      } catch {
+        throw new Error('basic.keys:decrypt-not-utf8')
+      }
+    },
 
     dcrpt: async data => {
       data = data instanceof Uint8Array ? data : base64urlnopad.decode(data as string)

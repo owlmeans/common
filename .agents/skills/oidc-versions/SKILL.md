@@ -12,8 +12,8 @@ This skill is the sibling of [[versions]] (internal `@owlmeans/*` version sync) 
 
 | Library | Owner package(s) | Policy | Current pin |
 |---------|-----------------|--------|-------------|
-| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.8.4` |
-| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` | **exact** | `6.2.3` |
+| `oidc-provider` | `@owlmeans/server-oidc-provider` | **exact** | `9.11.1` |
+| `jose` | `@owlmeans/server-oidc-provider`, `@owlmeans/server-oidc-rp` | **exact** | `6.2.5` |
 | `openid-client` | `@owlmeans/server-oidc-rp` | **exact** | `6.8.4` |
 | `oidc-client-ts` | `@owlmeans/web-oidc-rp`, `@owlmeans/mui-oidc-rp` | **exact** | `3.5.0` |
 
