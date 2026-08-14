@@ -50,14 +50,14 @@ npx @owlmeans/create-app my-app
 This generates the three-workspace project below, installs dependencies, and — by default —
 **deploys agent guidance** into the project via
 [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills)
-(Claude Code skills under `.claude/skills/`, GitHub Copilot instructions under
-`.github/instructions/`).
+(agent skills under `.agents/skills/`).
 
-It also writes **`CLAUDE.md`** and **`.github/copilot-instructions.md`** — each carrying the four
-mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory, Self-Education)
-plus a project-purpose placeholder: the first time you open the project in Claude Code or Copilot,
-the agent will ask what the project is for and fill it in. Agent memory is a single shared graph
-store at **`.agents/memory/`** (index `MEMORY.md`), used by both tools — the scaffold seeds the
+It also writes **`AGENTS.md`** — the always-on project context every coding agent reads — carrying
+the four mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory,
+Self-Education) plus a project-purpose placeholder: the first time you open the project in an
+agent, it will ask what the project is for and fill it in. A thin **`CLAUDE.md`** imports
+`AGENTS.md` and keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
+single shared graph store at **`.agents/memory/`** (index `MEMORY.md`) — the scaffold seeds the
 index for you.
 
 The harness guidance ships with the project itself (`agent-memory`, `memory-promotion`,
@@ -343,7 +343,7 @@ npx @owlmeans/agent-skills
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested
 under `sources/*` (bun often keeps workspace-only deps there) — and copies guidance into
-`.claude/skills/` and `.github/instructions/`. Re-run after upgrading `@owlmeans/*` packages.
+`.agents/skills/`. Re-run after upgrading `@owlmeans/*` packages.
 
 ---
 
@@ -367,5 +367,5 @@ schema once and both sides stay in sync.
   `@owlmeans/redis` + `@owlmeans/redis-resource`) instead of `@owlmeans/static-resource`.
 - Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth` and `guard(...)` on
   entrypoints.
-- Per-package guidance lives in each package's skill (`.claude/skills/<name>/SKILL.md`) — installed
+- Per-package guidance lives in each package's skill (`.agents/skills/<name>/SKILL.md`) — installed
   into your project by `@owlmeans/agent-skills`.

@@ -8,9 +8,12 @@ const DOTFILE_RENAMES: Record<string, string> = {
   '_npmrc': '.npmrc',
   '_env': '.env',
   '_github': '.github',
+  // `_agents` carries the canonical harness — AGENTS.md's skills, the shared memory
+  // store and the link-skills bridge; the template seed (sync-agent-meta) writes
+  // `_agents/skills/` into this tree. `_claude` carries only the Claude Code bridge
+  // (SessionStart hook + the gitkept symlink dir). Entries whose source dir is
+  // absent are inert.
   '_agents': '.agents',
-  // Entries whose source dir is absent are inert — `_claude` is kept because the
-  // template seed (sync-agent-meta) writes `_claude/skills/` into this tree.
   '_claude': '.claude',
 }
 

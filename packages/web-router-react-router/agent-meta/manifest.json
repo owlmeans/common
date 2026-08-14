@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/web-router-react-router",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:34.980Z",
+  "generatedAt": "2026-08-11T16:10:01.303Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "web-router-react-router",
       "category": "package-specific",
       "file": "skills/web-router-react-router/SKILL.md",
-      "canonicalPath": ".claude/skills/web-router-react-router/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "web-router-react-router",
-      "category": "package-specific",
-      "file": "instructions/web-router-react-router.instructions.md",
-      "canonicalPath": ".github/instructions/web-router-react-router.instructions.md"
+      "canonicalPath": ".agents/skills/web-router-react-router/SKILL.md"
     }
   ]
 }

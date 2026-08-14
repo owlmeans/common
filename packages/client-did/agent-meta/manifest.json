@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-did",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:34.968Z",
+  "generatedAt": "2026-08-11T16:10:01.296Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-did",
       "category": "package-specific",
       "file": "skills/client-did/SKILL.md",
-      "canonicalPath": ".claude/skills/client-did/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-did",
-      "category": "package-specific",
-      "file": "instructions/client-did.instructions.md",
-      "canonicalPath": ".github/instructions/client-did.instructions.md"
+      "canonicalPath": ".agents/skills/client-did/SKILL.md"
     }
   ]
 }

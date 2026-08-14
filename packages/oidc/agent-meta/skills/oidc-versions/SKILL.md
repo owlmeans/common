@@ -1,7 +1,7 @@
 ---
 name: oidc-versions
 description: How to manage and upgrade the four OIDC/OAuth third-party dependencies used by OwlMeans OIDC packages. Covers exact-pin policy, official doc anchors, breaking-change checklists for each lib, the OwlMeans isolation principle, and the verification flow across common and downstream repos. Auto-invoked when touching oidc-provider, openid-client, jose, or oidc-client-ts version strings in package.json files.
-allowed-tools: Bash(npm view *), Bash(grep *), Bash(bun *)
+allowed-tools: Bash(npm view *) Bash(grep *) Bash(bun *)
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:34.977Z",
+  "generatedAt": "2026-08-11T16:10:01.301Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,168 +10,84 @@
       "name": "self-education",
       "category": "general",
       "file": "skills/self-education/SKILL.md",
-      "canonicalPath": ".claude/skills/self-education/SKILL.md"
+      "canonicalPath": ".agents/skills/self-education/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "router-plugins",
       "category": "general",
       "file": "skills/router-plugins/SKILL.md",
-      "canonicalPath": ".claude/skills/router-plugins/SKILL.md"
+      "canonicalPath": ".agents/skills/router-plugins/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "getting-started",
       "category": "general",
       "file": "skills/getting-started/SKILL.md",
-      "canonicalPath": ".claude/skills/getting-started/SKILL.md"
+      "canonicalPath": ".agents/skills/getting-started/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "shadcn-web",
       "category": "general",
       "file": "skills/shadcn-web/SKILL.md",
-      "canonicalPath": ".claude/skills/shadcn-web/SKILL.md"
+      "canonicalPath": ".agents/skills/shadcn-web/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "memory-recompact",
       "category": "general",
       "file": "skills/memory-recompact/SKILL.md",
-      "canonicalPath": ".claude/skills/memory-recompact/SKILL.md"
+      "canonicalPath": ".agents/skills/memory-recompact/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "git",
       "category": "general",
       "file": "skills/git/SKILL.md",
-      "canonicalPath": ".claude/skills/git/SKILL.md"
+      "canonicalPath": ".agents/skills/git/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "agent-memory",
       "category": "general",
       "file": "skills/agent-memory/SKILL.md",
-      "canonicalPath": ".claude/skills/agent-memory/SKILL.md"
+      "canonicalPath": ".agents/skills/agent-memory/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "reuse-code",
       "category": "general",
       "file": "skills/reuse-code/SKILL.md",
-      "canonicalPath": ".claude/skills/reuse-code/SKILL.md"
+      "canonicalPath": ".agents/skills/reuse-code/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "scaffolding",
       "category": "general",
       "file": "skills/scaffolding/SKILL.md",
-      "canonicalPath": ".claude/skills/scaffolding/SKILL.md"
+      "canonicalPath": ".agents/skills/scaffolding/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "skill-authoring",
       "category": "general",
       "file": "skills/skill-authoring/SKILL.md",
-      "canonicalPath": ".claude/skills/skill-authoring/SKILL.md"
+      "canonicalPath": ".agents/skills/skill-authoring/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "memory-promotion",
       "category": "general",
       "file": "skills/memory-promotion/SKILL.md",
-      "canonicalPath": ".claude/skills/memory-promotion/SKILL.md"
+      "canonicalPath": ".agents/skills/memory-promotion/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "shadcn-versions",
       "category": "general",
       "file": "skills/shadcn-versions/SKILL.md",
-      "canonicalPath": ".claude/skills/shadcn-versions/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "reuse-code",
-      "category": "general",
-      "file": "instructions/reuse-code.instructions.md",
-      "canonicalPath": ".github/instructions/reuse-code.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "getting-started",
-      "category": "general",
-      "file": "instructions/getting-started.instructions.md",
-      "canonicalPath": ".github/instructions/getting-started.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "self-education",
-      "category": "general",
-      "file": "instructions/self-education.instructions.md",
-      "canonicalPath": ".github/instructions/self-education.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "memory-recompact",
-      "category": "general",
-      "file": "instructions/memory-recompact.instructions.md",
-      "canonicalPath": ".github/instructions/memory-recompact.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "scaffolding",
-      "category": "general",
-      "file": "instructions/scaffolding.instructions.md",
-      "canonicalPath": ".github/instructions/scaffolding.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "skill-authoring",
-      "category": "general",
-      "file": "instructions/skill-authoring.instructions.md",
-      "canonicalPath": ".github/instructions/skill-authoring.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "router-plugins",
-      "category": "general",
-      "file": "instructions/router-plugins.instructions.md",
-      "canonicalPath": ".github/instructions/router-plugins.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "shadcn-versions",
-      "category": "general",
-      "file": "instructions/shadcn-versions.instructions.md",
-      "canonicalPath": ".github/instructions/shadcn-versions.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "memory-promotion",
-      "category": "general",
-      "file": "instructions/memory-promotion.instructions.md",
-      "canonicalPath": ".github/instructions/memory-promotion.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "agent-memory",
-      "category": "general",
-      "file": "instructions/agent-memory.instructions.md",
-      "canonicalPath": ".github/instructions/agent-memory.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "shadcn-web",
-      "category": "general",
-      "file": "instructions/shadcn-web.instructions.md",
-      "canonicalPath": ".github/instructions/shadcn-web.instructions.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "git",
-      "category": "general",
-      "file": "instructions/git.instructions.md",
-      "canonicalPath": ".github/instructions/git.instructions.md"
+      "canonicalPath": ".agents/skills/shadcn-versions/SKILL.md"
     }
   ]
 }

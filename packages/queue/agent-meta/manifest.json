@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/queue",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:35.006Z",
+  "generatedAt": "2026-08-11T16:10:01.313Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "queue",
       "category": "package-specific",
       "file": "skills/queue/SKILL.md",
-      "canonicalPath": ".claude/skills/queue/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "queue",
-      "category": "package-specific",
-      "file": "instructions/queue.instructions.md",
-      "canonicalPath": ".github/instructions/queue.instructions.md"
+      "canonicalPath": ".agents/skills/queue/SKILL.md"
     }
   ]
 }

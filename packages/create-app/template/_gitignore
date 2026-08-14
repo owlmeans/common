@@ -5,3 +5,7 @@ dist
 .DS_Store
 bun.lock
 bun.lockb
+
+# Generated Claude Code skill symlinks (canonical skills live in .agents/skills/)
+.claude/skills/*
+!.claude/skills/.gitkeep

@@ -35,9 +35,9 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/client-entrypoint": "^0.1.16-rc.0",
     "@owlmeans/config": "^0.1.16-rc.0",
     "@owlmeans/context": "^0.1.16-rc.0",
+    "@owlmeans/entrypoint": "^0.1.16-rc.0",
     "@owlmeans/oidc": "^0.1.16-rc.0",
     "@owlmeans/route": "^0.1.16-rc.0",
     "@owlmeans/server-api": "^0.1.16-rc.0",

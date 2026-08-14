@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/image-resource",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:34.981Z",
+  "generatedAt": "2026-08-11T16:10:01.304Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "image-resource",
       "category": "package-specific",
       "file": "skills/image-resource/SKILL.md",
-      "canonicalPath": ".claude/skills/image-resource/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "image-resource",
-      "category": "package-specific",
-      "file": "instructions/image-resource.instructions.md",
-      "canonicalPath": ".github/instructions/image-resource.instructions.md"
+      "canonicalPath": ".agents/skills/image-resource/SKILL.md"
     }
   ]
 }

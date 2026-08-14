@@ -2,7 +2,8 @@
 name: shadcn-web
 description: How to build and maintain shadcn UI + Tailwind v4 web packages in the OwlMeans framework. Auto-invoked when editing components.json, tailwind.config.*, globals.css, or files under components/ui/. Use when creating a new shadcn-based web package or adding shadcn components.
 user-invocable: false
-scope: general
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 

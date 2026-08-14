@@ -1,11 +1,11 @@
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_ALIAS, OIDC_ACCOUNT_SERVICE } from './consts.js'
-import { DEFAULT_PATH, INTERACTION } from '@owlmeans/oidc'
+import { DEFAULT_PATH, INTERACTION, INTERACTION_UID } from '@owlmeans/oidc'
 import type { Config, Context, OidcAccountService, OidcAdapterService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { SEP } from '@owlmeans/route'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import { PARAM, SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
 
@@ -41,9 +41,18 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
         interactions: {
           url: async (_, interaction) => {
-            const module = context.entrypoint<ClientEntrypoint>(INTERACTION)
-            const [uri] = await module.call<string>({ params: { uid: interaction.uid } })
-            return uri
+            // The interaction screen is a FRONTEND route, and this is a server context — the
+            // entrypoint registered here has no `call()` (that helper is attached by
+            // `@owlmeans/client-entrypoint` only). So the URL is assembled the way `urlCall` does
+            // it in the browser: resolve the route, substitute the path params, then qualify it
+            // with the frontend service's host.
+            const entry = context.entrypoint<CommonEntrypoint>(INTERACTION)
+            const route = await entry.route.resolve<Config, Context>(context)
+            const path = entry.getPath().split(SEP)
+              .map(part => part === `${PARAM}${INTERACTION_UID}` ? interaction.uid : part)
+              .join(SEP)
+
+            return helper.makeUrl(route, path)
           }
         }
       })

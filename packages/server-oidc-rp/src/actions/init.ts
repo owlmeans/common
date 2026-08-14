@@ -13,6 +13,7 @@ import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha2'
 import { cache, verifierId } from '../utils/cache.js'
+import { requestedScope } from '../utils/scope.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
 export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInitParams, ctx) => {
@@ -89,7 +90,7 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({
-    scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
+    scope: requestedScope(cfg?.extraScopes),
     code_challenge: challenge,
     code_challenge_method: 'S256',
     redirect_uri: dispatcherUrl,

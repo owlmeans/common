@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/did",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:35.008Z",
+  "generatedAt": "2026-08-11T16:10:01.314Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "did",
       "category": "package-specific",
       "file": "skills/did/SKILL.md",
-      "canonicalPath": ".claude/skills/did/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "did",
-      "category": "package-specific",
-      "file": "instructions/did.instructions.md",
-      "canonicalPath": ".github/instructions/did.instructions.md"
+      "canonicalPath": ".agents/skills/did/SKILL.md"
     }
   ]
 }

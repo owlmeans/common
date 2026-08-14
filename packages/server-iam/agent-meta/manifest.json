@@ -1,16 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-iam",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:35.010Z",
+  "generatedAt": "2026-08-11T16:10:01.299Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
-      "kind": "instruction",
+      "kind": "skill",
       "name": "server-iam",
       "category": "package-specific",
-      "file": "instructions/server-iam.instructions.md",
-      "canonicalPath": ".github/instructions/server-iam.instructions.md"
+      "file": "skills/server-iam/SKILL.md",
+      "canonicalPath": ".agents/skills/server-iam/SKILL.md"
     }
   ]
 }

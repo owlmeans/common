@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/web-flow",
   "version": "0.1.16-rc.0",
-  "generatedAt": "2026-08-11T14:02:35.005Z",
+  "generatedAt": "2026-08-11T16:10:01.313Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "web-flow",
       "category": "package-specific",
       "file": "skills/web-flow/SKILL.md",
-      "canonicalPath": ".claude/skills/web-flow/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "web-flow",
-      "category": "package-specific",
-      "file": "instructions/web-flow.instructions.md",
-      "canonicalPath": ".github/instructions/web-flow.instructions.md"
+      "canonicalPath": ".agents/skills/web-flow/SKILL.md"
     }
   ]
 }

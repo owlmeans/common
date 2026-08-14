@@ -62,7 +62,7 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 
 ## 🤖 Agent guidance
 
-Every published `@owlmeans/*` package ships embedded Claude Code skills and GitHub Copilot instructions under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
+Every published `@owlmeans/*` package ships embedded agent skills under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
 
 ### Install agent guidance
 
@@ -72,9 +72,7 @@ After installing OwlMeans packages, run the agent-skills installer once:
 npx @owlmeans/agent-skills
 ```
 
-This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into your project's native locations:
-- **Claude Code**: `.claude/skills/<name>/SKILL.md`
-- **GitHub Copilot**: `.github/instructions/<name>.instructions.md`
+This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into `.agents/skills/<name>/SKILL.md` — the [Agent Skills](https://agentskills.io) standard location read by GitHub Copilot, Codex and others. A project that also uses Claude Code gets the per-skill symlinks it needs under `.claude/skills/`.
 
 Re-run after updating `@owlmeans/*` packages to pick up revised guidance.
 
@@ -86,9 +84,7 @@ Each package's `agent-meta/` directory contains:
 agent-meta/
   manifest.json              # name, version, canonical GitHub paths, entries list
   skills/<name>/
-    SKILL.md                 # Claude Code skill (auto-invoked on relevant context)
-  instructions/
-    <name>.instructions.md   # GitHub Copilot instruction
+    SKILL.md                 # agent skill (loaded on relevant context)
 ```
 
 Embedded files are **generated and read-only**. To suggest edits, open a PR against [owlmeans/common](https://github.com/owlmeans/common).
