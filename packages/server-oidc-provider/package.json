@@ -28,7 +28,7 @@
     "@types/node": "^26.1.0",
     "@types/oidc-provider": "9.5.0",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "fastify": "*"
