@@ -43,6 +43,29 @@ reads — the value must never reach a log, a report, or a committed file:
 POSTGRES_URL="$(<build it from the secret file, without echoing>)" bun test ./tests
 ```
 
+### Where the real credentials come from
+
+The dev-cluster secrets are the source of truth; `../viable/.env.dev.secrets` holds the same
+values under kebab-case keys (`mongo-secret`, `redis-secret`, `s3-storage`, …) for
+`kubectl create secret --from-env-file`. Read the cluster secret directly rather than transcribing:
+
+```bash
+kubectl get secret mongo-owlmeans-mongo-main-db-admin-admin -o jsonpath='{.data.password}' | base64 -d
+```
+
+Two things that will bite:
+
+- **URL-escape the password before putting it in a connection string.** These generated passwords
+  contain reserved characters; an unescaped one fails with `MongoParseError: Password contains
+  unescaped characters`. Escape with `urllib.parse.quote(pw, safe='')`.
+- **The port-forward may already be running** — the slots share one cluster, so
+  `bind: address already in use` on 27017/5432/6379 usually means another checkout forwards the
+  same service. Reuse it; never kill another environment's process.
+
+The suites namespace every database/schema (`MONGO_TEST_DB_PREFIX`, default `omt`) and drop it on
+completion, so they are safe against the shared cluster. Confirm nothing was left behind after a
+run that aborted mid-way.
+
 ## Where the specs live
 
 A resource package (`*-resource`) owns the `Resource<T>` contract; the db package

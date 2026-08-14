@@ -67,10 +67,18 @@ Migrated from Yarn v4 to **Bun 1.3.10** (April 2026). Always use `bun`, never `y
   `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
   `server-auth-identity`, `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a
   regression — read the per-package pass/fail counts, not the aggregate exit code.
-- The repo pins `packageManager: bun@1.3.14`. On an older Bun, `mongodb`/`bson` fails at **import**
-  time with `NotImplementedError: node:v8 isBuildingSnapshot is not yet implemented in Bun` — which
-  crashes the `mongo` and `mongo-resource` suites before their env gate can skip them. Check
-  `bun --version` against `packageManager` before blaming the code.
+- **`bson` is pinned to `7.2.0` in the root `overrides` and must stay there.** From `bson@7.3.0`
+  on, a static initializer calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`,
+  which no Bun implements (checked through 1.3.14) — so `import 'mongodb'` throws
+  `NotImplementedError: node:v8 isBuildingSnapshot is not yet implemented in Bun` before any
+  OwlMeans code runs. That breaks the server runtime, not just tests: the `mongo`/`mongo-resource`
+  suites die at import, before their env gate can skip them. `mongodb@7.5.0` declares `bson: ^7.2.0`,
+  so the pin sits inside the driver's own supported range. Re-test with a real Bun before relaxing
+  it:
+
+  ```bash
+  bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"
+  ```
 
 ## Troubleshooting: nested `node_modules` copies that shadow the root
 

@@ -26,6 +26,11 @@ updated: 2026-08
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
 - `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
   silently re-resolves floating ranges.
+- Root `overrides` pins `bson` to `7.2.0`. `bson >= 7.3.0` calls
+  `v8.startupSnapshot.isBuildingSnapshot()` in a static initializer, unimplemented in every Bun
+  through 1.3.14, so `import 'mongodb'` throws before any OwlMeans code runs — a **runtime** break
+  under Bun, not just a test one. `mongodb@7.5.0` allows `^7.2.0`, so the pin is in-range. Downstream
+  `viable` is still on `mongodb@6.21.0`/`bson@6.10.4` and unaffected.
 - Dependabot branches are cut from stale bases, so their conflicts are always "stale neighbour"
   lines (old `@owlmeans/*` ranges, old sibling deps) rather than real disagreements. Resolve by
   taking `main` for every line and applying only the one dependency the branch exists to bump.
