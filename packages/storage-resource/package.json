@@ -30,7 +30,7 @@
     "@owlmeans/resource": "^0.1.16",
     "@owlmeans/server-context": "^0.1.16",
     "@owlmeans/storage-common": "^0.1.16",
-    "file-type": "^21.3.1"
+    "file-type": "^22.0.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
