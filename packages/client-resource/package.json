@@ -25,7 +25,7 @@
     "@owlmeans/client-context": "^0.1.16",
     "@owlmeans/context": "^0.1.16",
     "@owlmeans/resource": "^0.1.16",
-    "@scure/base": "^1.1.9"
+    "@scure/base": "^2.3.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

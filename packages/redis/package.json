@@ -32,7 +32,7 @@
     "@owlmeans/redis-resource": "^0.1.16",
     "@owlmeans/resource": "^0.1.16",
     "@owlmeans/server-context": "^0.1.16",
-    "@scure/base": "^1.1.9",
+    "@scure/base": "^2.3.0",
     "ioredis": "^5.4.1"
   },
   "publishConfig": {
