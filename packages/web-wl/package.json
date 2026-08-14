@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-wl",
-  "version": "0.1.16-rc.0",
+  "version": "0.1.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.16-rc.0",
-    "@owlmeans/client-entrypoint": "^0.1.16-rc.0",
-    "@owlmeans/context": "^0.1.16-rc.0",
-    "@owlmeans/wled": "^0.1.16-rc.0"
+    "@owlmeans/client": "^0.1.16",
+    "@owlmeans/client-entrypoint": "^0.1.16",
+    "@owlmeans/context": "^0.1.16",
+    "@owlmeans/wled": "^0.1.16"
   },
   "peerDependencies": {
     "react": "*"

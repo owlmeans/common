@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/auth",
-  "version": "0.1.16-rc.0",
+  "version": "0.1.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.16-rc.0",
+    "@owlmeans/error": "^0.1.16",
     "ajv-formats": "^3.0.1"
   },
   "peerDependencies": {
