@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/did",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,11 +23,11 @@
   "dependencies": {
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/auth": "^0.1.16",
-    "@owlmeans/basic-keys": "^0.1.16",
-    "@owlmeans/error": "^0.1.16",
-    "@owlmeans/i18n": "^0.1.16",
-    "@owlmeans/resource": "^0.1.16",
+    "@owlmeans/auth": "^0.1.17",
+    "@owlmeans/basic-keys": "^0.1.17",
+    "@owlmeans/error": "^0.1.17",
+    "@owlmeans/i18n": "^0.1.17",
+    "@owlmeans/resource": "^0.1.17",
     "@scure/base": "^2.3.0",
     "@scure/bip39": "^1.4.0"
   },

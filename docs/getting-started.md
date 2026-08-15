@@ -97,13 +97,12 @@ git init
   "name": "my-app",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.10",
+  "packageManager": "bun@1.3.14",
   "workspaces": ["sources/*"],
   "scripts": {
     "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
     "build": "bun run --filter './sources/*' build"
-  },
-  "overrides": { "react-router": "^7.*" }
+  }
 }
 ```
 
@@ -270,14 +269,15 @@ export default defineConfig({
 `@owlmeans/owl-theme` would provide — `--color-background`, `--color-primary`, … and a `.dark`
 variant).
 
-Render with `provide` from `web-client`:
+Render with `render` from `web-client`. Routing resolves itself from the active router plugin —
+`makeContext` already registered `@owlmeans/web-router`, so `PanelApp` takes no router prop:
 
 ```tsx
-import { render as basicRender, provide } from '@owlmeans/web-client'
+import { render as basicRender } from '@owlmeans/web-client'
 import { PanelApp } from '@owlmeans/web-panel'
 
 export const render = (context) =>
-  basicRender(<PanelApp context={context} provide={provide} />)
+  basicRender(<PanelApp context={context} />)
 ```
 
 Wire routes to components in `src/modules.ts`. A parent `BASE` route renders the layout; `HOME` is
@@ -354,7 +354,7 @@ under `sources/*` (bun often keeps workspace-only deps there) — and copies gui
 | Shared routes + validation + types | `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/config` | `sources/common` |
 | Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `elevate`, `main` |
 | In-memory session store | `@owlmeans/static-resource` | `appendStaticResource` + `getStaticResource` |
-| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `provide`, `elevate(handler(...))` |
+| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `elevate(handler(...))` |
 | shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts` |
 
 **The single source of truth is `sources/common`.** The api elevates its entrypoints with handlers;

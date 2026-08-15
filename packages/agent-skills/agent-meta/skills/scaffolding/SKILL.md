@@ -66,6 +66,13 @@ my-app/
 Memory lives **only** in `.agents/memory/` — the legacy `.claude/memory/` and `.github/memory/`
 starters are gone (see [[agent-memory]]; [[memory-recompact]] migrates a project that still has them).
 
+**Routing is OwlMeans-native.** The generated app has no `react-router` dependency and no
+`react-router` override: `makeContext` registers `@owlmeans/web-router` and `PanelApp` resolves
+its compiler from the active plugin, so `render.tsx` passes no `provide` prop. Layouts take
+`children` — the renderer supplies the plugin's `Outlet` — and navigation is `useNavigate()` from
+`@owlmeans/web-panel`. An app that genuinely wants react-router opts in per [[router-plugins]];
+never re-add it to the template.
+
 The session demo stores items in `@owlmeans/static-resource`, namespaced by a client-generated
 `sid` kept in `localStorage` — no database, no authentication. See [[static-resource]],
 [[server-app]], [[web-panel]].

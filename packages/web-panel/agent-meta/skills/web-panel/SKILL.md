@@ -1,6 +1,6 @@
 ---
 name: web-panel
-description: How to use @owlmeans/web-panel — base browser context factory (makeContext) with Material-UI + React Router 7 wired in, plus form/panel components. Auto-invoked when building a web app's makeContext or importing web panel components.
+description: How to use @owlmeans/web-panel — base browser context factory (makeContext) with shadcn/Radix + Tailwind and the default OwlMeans router wired in, plus form/panel components. Auto-invoked when building a web app's makeContext or importing web panel components.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,14 +8,14 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.16"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `makeContext<C, T>(cfg)` | Base web context factory (MUI + React Router) |
-| `components` submodule | Material-UI panel/form components |
+| `makeContext<C, T>(cfg)` | Base web context factory (shadcn/Radix + default OwlMeans router) |
+| `components` submodule | shadcn/Radix panel/form components |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives |
 | `main`, `exports`, `context`, `modules`, `types` | Wiring helpers |
 
@@ -44,4 +44,6 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 ## Depends On
 
 - `@owlmeans/web-client`, `@owlmeans/client-panel`, `@owlmeans/client-i18n`, `@owlmeans/web-router`
-- `@mui/material`, `react`, `react-router` (peer)
+- Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
+  `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
+  (`label`, `progress`, `separator`, `slot`). No MUI, no react-router.

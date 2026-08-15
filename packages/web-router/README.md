@@ -1,10 +1,12 @@
 # @owlmeans/web-router
 
-React Router DOM integration for the OwlMeans context system.
+The default OwlMeans in-browser routing plugin for the OwlMeans context system. It depends on no
+third-party router — react-router is a separate opt-in plugin,
+[`@owlmeans/web-router-react-router`](../web-router-react-router).
 
 ## Overview
 
-- `makeWebRouterService()` — creates a router service backed by React Router DOM
+- `makeWebRouterService()` — creates a router service backed by the OwlMeans browser router
 - `appendWebRouter(ctx)` — registers the web router service in the context
 - Provides `useParams`, `useLocation`, `useNavigate`, `outlet()`, `provider()` via the service
 - Used internally by `@owlmeans/web-client`'s `makeContext` — not typically used directly
@@ -29,7 +31,7 @@ appendWebRouter(context)
 
 ### `makeWebRouterService(): RouterService`
 
-Creates a router service with React Router DOM hooks and components.
+Creates a router service with the OwlMeans browser router hooks and components.
 
 ### `appendWebRouter<C, T>(ctx): void`
 

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-auth
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-auth": "^0.1.16"` in `dependencies`
+**Install:** `"@owlmeans/web-auth": "^0.1.17"` in `dependencies`
 
 Web-side auth UI plugins that register into the shared `@owlmeans/client-auth/manager` plugin registry
 (mirrors `@owlmeans/web-oidc-rp`). Currently ships the **PK-based supervisor** login form.

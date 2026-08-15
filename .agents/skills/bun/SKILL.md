@@ -6,7 +6,8 @@ allowed-tools: Bash(bun *)
 
 # Bun — OwlMeans Monorepo
 
-Migrated from Yarn v4 to **Bun 1.3.10** (April 2026). Always use `bun`, never `yarn` or `npm`.
+Migrated from Yarn v4 to **Bun** (April 2026). Always use `bun`, never `yarn` or `npm`. The repo
+pins `packageManager: bun@1.3.14`; every linked consumer repo pins the same version.
 
 ## Package Management
 
@@ -80,6 +81,13 @@ Migrated from Yarn v4 to **Bun 1.3.10** (April 2026). Always use `bun`, never `y
   bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"
   ```
 
+  **`overrides` do not cross a repo boundary.** A linked consumer (`internal`, `viable-agent`,
+  `viable`) resolves its own tree, so it needs the identical `"bson": "7.2.0"` entry in its own
+  root `overrides` — common's pin does nothing for it. Without it the consumer silently installs
+  `bson@7.3.x` and the failure surfaces only at runtime, in the pod, as the crash above; the build
+  and every unit suite still pass. Verify per repo with
+  `node -p "require('./node_modules/bson/package.json').version"`.
+
 ## Troubleshooting: nested `node_modules` copies that shadow the root
 
 **The single most common cause of inexplicable build and test failures in this repo.** Bun puts a
@@ -92,6 +100,8 @@ package, and a later `bun install` will not prune it. Three faces of the same bu
 | `TS2305 Module '@owlmeans/x' has no exported member 'Y'` — but `packages/x/build/*.d.ts` is fresh and correct | `@owlmeans/*` | published tarball of an older version, from a mid-version-bump install |
 | `TS2769 No overload matches this call` on MUI `Stack`/`Box` props in one package only | `@mui/material` | a `devDependencies` range that outran the `peerDependencies` range — the package typechecks against a major it does not declare support for |
 | Browser specs all fail with `Target page, context or browser has been closed`, browser log shows `Incompatible React versions` | `react-dom` | stale nested copy left one patch behind the root, and React demands exact-equal `react`/`react-dom` |
+| One nested copy per linked package — `libraries/common/packages/*/node_modules/typescript` ×90 | `typescript` | a **build-time** dep whose range differs across the repo boundary (common `^7.0.2`, consumer `^5.9.2`). Nothing fails loudly: each package compiles with its own `tsc`, so the split only shows up as consumers typechecking upstream `.d.ts` with an older compiler |
+| `TS2322 … Two different types with this name exist, but they are unrelated` on plain `<div>` props or `CSSProperties` | `@types/react` | the two repos resolved different patches of the same `^` range (19.2.17 vs 19.2.18). Type identity is per-declaration-file, so one patch apart is enough. `bun update @types/react @types/react-dom` in **every** repo, then confirm they match |
 
 Diagnose — list every duplicate, not just the one you suspect:
 

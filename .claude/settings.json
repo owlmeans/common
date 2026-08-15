@@ -1,8 +1,55 @@
 {
-  "env": {
-    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
-  },
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/infra/hooks/claude-tg.sh '✅ done'"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/infra/hooks/claude-tg.sh '🚨 failure'"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/infra/hooks/claude-tg.sh '⏳ needs input'"
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/infra/hooks/claude-tg.sh '🚧 mcp interaction'"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/infra/hooks/claude-tg.sh '🛑 permission denied'"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

@@ -105,6 +105,19 @@ import myErrors from './i18n/en.json'  // with { type: 'json' }
 addI18nApp('en', 'errors', myErrors)
 ```
 
+## Resource JSON format
+
+The shared instance runs i18next's **v4** JSON format — `compatibilityJSON` is not set and must
+not be, because i18next >= 26 accepts only `'v4'` and rejects `'v3'` at compile time. Plurals
+therefore use Intl.PluralRules suffixes (`key_one` / `key_other`), never the v3 `key_plural` /
+`key_0` / `key_1` forms. No resource in the ecosystem carries a plural-suffixed key today;
+`{{count}}` in a message is plain interpolation and is unaffected.
+
+Keep `i18next` and `react-i18next` in step — `react-i18next@17` requires `i18next >= 26.2.0`, and
+a dependabot bump of one without the other leaves an unmet peer that installs fine and only
+misbehaves at runtime.
+
 ## Depends On
 
-`@owlmeans/i18n`, `@owlmeans/client-context`, `i18next`, `react-i18next`, `react` (peer)
+`@owlmeans/i18n`, `@owlmeans/client-context`, `i18next` (>= 26.2), `react-i18next` (>= 17),
+`react` (peer)

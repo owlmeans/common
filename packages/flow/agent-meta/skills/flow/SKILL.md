@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/flow
 
 **Layer:** Core
-**Install:** `"@owlmeans/flow": "^0.1.16"` in `dependencies`
+**Install:** `"@owlmeans/flow": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 

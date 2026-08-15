@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-i18n",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -37,10 +37,10 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.16",
-    "@owlmeans/client-context": "^0.1.16",
-    "@owlmeans/i18n": "^0.1.16",
-    "i18next": "^23.15.1",
+    "@owlmeans/client": "^0.1.17",
+    "@owlmeans/client-context": "^0.1.17",
+    "@owlmeans/i18n": "^0.1.17",
+    "i18next": "^26.2.0",
     "react-i18next": "^17.0.11"
   },
   "publishConfig": {

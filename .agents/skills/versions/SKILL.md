@@ -11,8 +11,8 @@ allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
 - All packages are **synchronized at the same version** — check it, don't assume (see below)
 - All use `@owlmeans/*` namespace with MIT license
 - Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`
-- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.16-rc.0"`
-- Release candidates use a prerelease suffix (`0.1.16-rc.0`); the caret range carries the suffix too, since a bare `^0.1.16` would not accept a prerelease
+- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.16"`
+- Release candidates use a prerelease suffix (`0.1.17-rc.0`); the caret range carries the suffix too, since a bare `^0.1.17` would not accept a prerelease. Once the final ships, the ranges must lose the suffix again — a downstream repo left on `^0.1.16-rc.0` keeps pulling prereleases
 
 ## Checking current version
 
@@ -33,9 +33,9 @@ new ranges and Bun silently fetches the old published tarballs into
 subsequent build (see the `bun` skill's troubleshooting section).
 
 ```bash
-# Example: bump from 0.1.15 to 0.1.16-rc.0
-OLD=0.1.15
-NEW=0.1.16-rc.0
+# Example: bump from 0.1.16 to 0.1.17-rc.0
+OLD=0.1.16
+NEW=0.1.17-rc.0
 
 # Version field — root and all packages
 sed -i "s/\"version\": \"$OLD\"/\"version\": \"$NEW\"/g" package.json packages/*/package.json

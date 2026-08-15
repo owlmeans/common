@@ -29,6 +29,13 @@ unless the operator explicitly asks for another format, length, or level of deta
   **Why** (one short phrase). One table per affected project (each is a separate repo).
 - Findings / status / verification: a short table plus at most a few lines of prose.
 - No preamble, no narration of the process; expand on WHY only when asked.
+- At most **one phrase per issue** — until the operator asks otherwise.
+- Findings and advice **not acted on** go in their own explicit separate section, kept as short
+  as possible — never mixed with what was done.
+- Explaining an issue = a table with **Where | Cause | Effects | Code details**. Code details and
+  explanation are never one sentence — always two separate sentences.
+- Modes aimed **"to impress"** (from LLM training or agent defaults): forget and avoid them — at
+  minimum keep them out of reports — until the operator explicitly asks.
 
 ## Memory
 
@@ -77,7 +84,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
 - TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution), `tsconfig.react.json` (JSX+DOM), `tsconfig.server.json` (no DOM), `tsconfig.node.json` (server + Node globals), `tsconfig.bun.json` (server + Bun globals)
 - Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`; server packages extend `tsconfig.server.json`, `tsconfig.node.json`, or `tsconfig.bun.json` as appropriate
-- React is a peer dependency, pinned to react-router v7
+- React is a peer dependency; UI routing is the OwlMeans plugin host (`@owlmeans/router` + default `@owlmeans/web-router`), react-router only through the opt-in `@owlmeans/web-router-react-router` plugin
 - Cryptography: `@noble/curves`, `@noble/hashes`, `@scure/base`, `@scure/bip39`
 - Validation: AJV with ajv-formats
 - **UI strategy**: MUI-based `web-panel` is the current Web UI layer; new shadcn UI + Tailwind CSS v4 packages are being developed alongside to replace it — see `shadcn-web` and `shadcn-versions` skills

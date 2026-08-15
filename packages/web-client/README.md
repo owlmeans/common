@@ -73,7 +73,7 @@ Component that handles authentication routing (redirect to login, etc.).
 ## Related Packages
 
 - [`@owlmeans/client-context`](../client-context) — `ClientContext` base extended by `makeContext`
-- [`@owlmeans/web-router`](../web-router) — React Router integration registered by `makeContext`
+- [`@owlmeans/web-router`](../web-router) — default OwlMeans browser routing plugin registered by `makeContext`
 - [`@owlmeans/web-db`](../web-db) — IndexedDB service registered by `makeContext`
 - [`@owlmeans/client-module`](../client-module) — `ClientModule<T>` / `Module<T>` implementation
 

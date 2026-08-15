@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-mailer-mailgun",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,9 +22,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.16",
-    "@owlmeans/error": "^0.1.16",
-    "@owlmeans/mailer": "^0.1.16"
+    "@owlmeans/context": "^0.1.17",
+    "@owlmeans/error": "^0.1.17",
+    "@owlmeans/mailer": "^0.1.17"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

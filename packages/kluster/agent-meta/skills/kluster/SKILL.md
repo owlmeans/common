@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/kluster
 
 **Layer:** Infra
-**Install:** `"@owlmeans/kluster": "^0.1.16"` in `dependencies`
+**Install:** `"@owlmeans/kluster": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 
