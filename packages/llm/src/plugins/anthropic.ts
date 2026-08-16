@@ -7,7 +7,7 @@ import type { CacheTtl } from '@owlmeans/llm-common'
 import type { LlmPlugin } from './types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
 import { readConfig } from '../utils/config.js'
-import { escalateMaxTokens, makeClientOptions } from './utils.js'
+import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
 
 /** Model-name prefix that supports prompt caching through `cache_control` markers. */
 const CACHEABLE_PREFIX = 'claude-'
@@ -221,16 +221,17 @@ export const anthropicPlugin: LlmPlugin = {
 
   /**
    * A malformed request (bad schema, unsupported parameter, oversized `max_tokens`, too
-   * many cache breakpoints) cannot be fixed by retrying — surface it immediately instead
-   * of burning the budget.
+   * many cache breakpoints, an input past the context window) cannot be fixed by retrying —
+   * surface it immediately instead of burning the budget.
    *
-   * The `status` check is not redundant with the `instanceof`: `@langchain/anthropic`
-   * carries its OWN nested copy of `@anthropic-ai/sdk`, so the error it throws is an
-   * instance of a DIFFERENT `BadRequestError` class than the one imported here and the
-   * `instanceof` silently fails. That turned every fatal 400 into eight full retries —
-   * a single malformed request became minutes of thrash with the real cause buried.
+   * The `isBadRequest` walk is not redundant with the `instanceof`, and neither is a plain
+   * `e.status === 400`. `@langchain/anthropic` carries its OWN nested copy of
+   * `@anthropic-ai/sdk`, so the error it throws is an instance of a DIFFERENT
+   * `BadRequestError` class than the one imported here; and langchain additionally re-wraps
+   * the failure in its own typed error (`ContextOverflowError` for an oversized prompt),
+   * which holds the 400 only under `cause`. Each layer alone turned a fatal 400 into eight
+   * full retries — a single unfixable request became minutes of thrash with the real cause
+   * buried under the repeats.
    */
-  isFatal: e => e instanceof BadRequestError || (e as { status?: unknown })?.status === 400
-    ? e as Error
-    : null,
+  isFatal: e => e instanceof BadRequestError || isBadRequest(e) ? e as Error : null,
 }

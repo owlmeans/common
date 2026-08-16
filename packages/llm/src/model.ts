@@ -18,7 +18,7 @@ import { spectate } from './helpers/spectate.js'
 import { idleTimeout, readConfig } from './utils/config.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report.js'
-import { applyNoThink, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
+import { applyNoThink, dropBlankContent, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
 import { resolveSchemaValidator, toToolName, unwrapNamed } from './utils/schema.js'
 import { streamWithDeadline } from './utils/stream.js'
 import type {
@@ -121,6 +121,7 @@ export const makeLlmModel = ({
     // markers live on its own objects. The budget is per request, so clear them and
     // re-place our own below; otherwise they accumulate until the provider 400s.
     stripCacheMarkers(msgs)
+    dropBlankContent(msgs)
     let reserved = 0
 
     if (prompts != null) {

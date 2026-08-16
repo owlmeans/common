@@ -19,6 +19,22 @@ export const makeRedisResource = <
 ): T => {
   const location = `redis-resource:${alias}`
 
+  /**
+   * A number (or its string form) is seconds from now; a `Date` is the absolute instant to
+   * expire at.
+   *
+   * The absolute form needs PEXPIREAT, not EXPIREAT: `Date.getTime()` is milliseconds while
+   * EXPIREAT reads its argument as seconds, so the timestamp landed tens of thousands of years
+   * out and the record never expired.
+   */
+  const applyTtl = async (key: string, ttl: number | string | Date): Promise<void> => {
+    if (ttl instanceof Date) {
+      await resource.db.client.pexpireat(key, ttl.getTime())
+    } else {
+      await resource.db.client.expire(key, ttl)
+    }
+  }
+
   const resource: T = appendContextual<T>(alias, {
     key: key => `${resource.db.prefix}:${key ?? '*'}`,
 
@@ -83,11 +99,7 @@ export const makeRedisResource = <
       const updated = { ...existing, ...record }
       await resource.db.client.set(resource.key(id), JSON.stringify(updated))
       if (_opts.ttl != null) {
-        if (_opts.ttl instanceof Date) {
-          await resource.db.client.expireat(resource.key(id), _opts.ttl.getTime())
-        } else {
-          await resource.db.client.expire(resource.key(id), _opts.ttl)
-        }
+        await applyTtl(resource.key(id), _opts.ttl)
       }
 
       return updated
@@ -104,11 +116,7 @@ export const makeRedisResource = <
       const id = record.id
       await resource.db.client.set(resource.key(id), JSON.stringify(record))
       if (opts?.ttl != null) {
-        if (opts.ttl instanceof Date) {
-          await resource.db.client.expireat(resource.key(id), opts.ttl.getTime())
-        } else {
-          await resource.db.client.expire(resource.key(id), opts.ttl)
-        }
+        await applyTtl(resource.key(id), opts.ttl)
       }
 
       return record
@@ -121,7 +129,9 @@ export const makeRedisResource = <
           throw new MisshapedRecord('id')
         }
         record = await resource.load(id.id)
-      } else if (typeof opts === 'string') {
+      } else {
+        // `opts` is optional in the contract: without this branch `delete(id)` — the plain,
+        // by-id form every caller uses — left `record` null and returned without touching redis.
         record = await resource.load(id, opts)
       }
 

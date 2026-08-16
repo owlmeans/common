@@ -27,11 +27,16 @@ export const makeMailgunMailerService = (alias = MAILGUN_MAILER): MailerService 
       const url = `${baseUrl}/${domain}/messages`
 
       const body = new URLSearchParams()
-      body.set('from', from)
+      body.set('from', message.from ?? from)
       body.set('to', message.to)
       body.set('subject', message.subject)
       if (message.text) body.set('text', message.text)
       if (message.html) body.set('html', message.html)
+      // Mailgun carries arbitrary headers under the `h:` prefix.
+      if (message.replyTo) body.set('h:Reply-To', message.replyTo)
+      for (const [name, value] of Object.entries(message.headers ?? {})) {
+        body.set(`h:${name}`, value)
+      }
 
       const res = await fetch(url, {
         method: 'POST',

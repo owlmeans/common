@@ -102,18 +102,32 @@ inherited method signatures**, which would be a contravariance error.
 `snapshot` excludes `state` itself; without that, every `derive`/`escalate`/`withPurpose`
 on a task would nest another copy of the previous state.
 
-## Never `instanceof` an error from a provider SDK
+## Classify a provider error by walking `cause`, never by `instanceof` or a surface read
 
-`@langchain/anthropic` and `@langchain/openai` bundle their OWN nested copies of the
-provider SDKs, so an error they throw is an instance of a DIFFERENT class than the one this
-package imports — `e instanceof BadRequestError` silently returns `false`. `isFatal` used
-that check, so every fatal `400` was classified retryable and burned all eight attempts,
-turning one malformed request into minutes of thrash with the real message buried under the
-retries.
+Two independent layers hide the wire shape of a provider failure, and each one alone is
+enough to make a fatal error look retryable — which costs all eight attempts with the real
+message buried under the repeats.
 
-Match on the wire shape instead — `(e as { status?: unknown })?.status === 400`. The same
-trap applies to any cross-copy `instanceof`; it is the runtime face of the peer-dependency
-identity rule below.
+1. **Nested SDK copies.** `@langchain/anthropic` and `@langchain/openai` bundle their OWN
+   copies of the provider SDKs, so an error they throw is an instance of a DIFFERENT class
+   than the one this package imports — `e instanceof BadRequestError` silently returns
+   `false`.
+2. **Langchain's own error wrappers.** A failure is re-wrapped in a typed langchain error
+   (`ContextOverflowError` for an input past the context window, and its siblings) that
+   carries the original **only under `cause`** and has no `status` of its own — so
+   `e.status === 400` misses it too.
+
+Use `isBadRequest` from `plugins/utils.ts`: it walks the `cause` chain looking for
+`status === 400`, bounded in depth so a self-referential chain terminates. Both built-in
+`isFatal` implementations go through it.
+
+A context overflow is the case that makes this urgent rather than merely untidy: `refine`
+escalates the **output** budget on each retry, so an over-limit **input** can never improve —
+every attempt re-sends the identical oversized request. Consumers hold their locks for the
+whole loop, so a single unfixable call becomes minutes of thrash on the caller's side.
+
+The same trap applies to any cross-copy `instanceof`; it is the runtime face of the
+peer-dependency identity rule below.
 
 ## Peer-dependency rule (langchain identity)
 
@@ -152,7 +166,10 @@ see the `instanceof` trap above.
 
 Idle stream deadline · duplicate-final-chunk dedup · output-budget escalation · reasoning-cap
 shrink · same-family fallback model · schema coercion · JSON salvage from prose · `NullCapture`
-diagnostics · fatal-error short-circuit. Details: package `README.md`.
+diagnostics · fatal-error short-circuit · blank-content sanitization (whitespace-only text
+blocks are dropped before every call — a blank block, e.g. an empty file read pasted into a
+prompt, is otherwise a fatal Anthropic 400; blank tool results are stubbed to keep their
+`tool_use` pairing). Details: package `README.md`.
 
 ## Tests
 

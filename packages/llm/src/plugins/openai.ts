@@ -3,7 +3,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
 import type { LlmPlugin, LlmRefineParams } from './types.js'
 import type { ModelConfig } from '../types.js'
-import { escalateMaxTokens, makeConfiguration } from './utils.js'
+import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
 
 /** Model families served through OpenAI's Responses API rather than chat completions. */
 const RESPONSES_API_PREFIXES = ['gpt-5', 'codex-']
@@ -35,14 +35,15 @@ export const openAiFamily = {
 
   /**
    * A 400 means the request itself is malformed — a schema the endpoint rejects, an
-   * unsupported parameter, a `max_tokens` above the model's per-request limit. Retrying
-   * re-sends the same shape (and the escalator raises `max_tokens`, making the last case
-   * strictly worse), so eight attempts only bury the real message. Matched on `status`
-   * rather than an SDK class: aggregators and nested SDK copies throw their own error
-   * types, and an `instanceof` against one of them silently never matches.
+   * unsupported parameter, a `max_tokens` above the model's per-request limit, an input
+   * past the context window. Retrying re-sends the same shape (and the escalator raises
+   * `max_tokens`, making some of those strictly worse), so eight attempts only bury the
+   * real message. Matched through `isBadRequest` rather than an SDK class: aggregators and
+   * nested SDK copies throw their own error types, and langchain re-wraps the failure in a
+   * typed error that keeps the 400 only under `cause` — so both an `instanceof` and a
+   * surface `status` read silently miss it.
    */
-  isFatal: (e: unknown): Error | null =>
-    (e as { status?: unknown })?.status === 400 ? e as Error : null,
+  isFatal: (e: unknown): Error | null => isBadRequest(e) ? e as Error : null,
 
   refine: ({ base, attempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
     const model = base as ChatOpenAI

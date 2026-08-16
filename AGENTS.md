@@ -146,7 +146,7 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **TypeScript configs**: `tsconfig` — how to configure tsconfig in packages, which configs to extend
 - **shadcn UI + Tailwind v4 web packages**: `shadcn-web` (development & maintenance, the `@` alias contract, Tailwind wiring, MUI→shadcn mapping) + `shadcn-versions` (version management). `testing-ui` covers Playwright tests for shadcn packages.
 - **Auth protocol and local identity**: `auth-protocol` and `server-auth-identity`
-- **Email OTP authentication**: `server-auth-otp`; mailer transports: `mailer` and `server-mailer-mailgun`
+- **Email OTP authentication**: `server-auth-otp`; mailer transports: `mailer` (contract + console/dev), `mailer-smtp` (SMTP/nodemailer — the production default) and `server-mailer-mailgun` (Mailgun HTTP API)
 - **OIDC/OAuth dependency versions**: `oidc-versions` — exact-pin policy, upgrade checklists for oidc-provider, jose, openid-client, oidc-client-ts, isolation principle, downstream verification
 - **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).
 

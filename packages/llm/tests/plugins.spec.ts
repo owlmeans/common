@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatOpenAI } from '@langchain/openai'
 import { BadRequestError } from '@anthropic-ai/sdk'
+import { ContextOverflowError } from '@langchain/core/errors'
 import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import {
   anthropicPlugin, compatiblePlugin, makeLlmService, openAiPlugin, pluginFor, pluginOf,
@@ -430,10 +431,32 @@ describe('@owlmeans/llm — fatal error classification', () => {
     expect(compatiblePlugin.isFatal?.(foreign)).toBe(foreign)
   })
 
+  // langchain re-wraps a provider failure in its own typed error and keeps the original
+  // only under `cause`, so the wrapper carries no `status` of its own. An oversized prompt
+  // arrives this way — and since the retry escalator raises only the OUTPUT budget, every
+  // one of the eight attempts re-sent the same over-limit input and failed identically.
+  test('a 400 wrapped in a langchain error is still fatal', () => {
+    const raw = Object.assign(new Error('prompt is too long: 323182 tokens > 200000 maximum'), { status: 400 })
+    const wrapped = ContextOverflowError.fromError(raw)
+    expect(anthropicPlugin.isFatal?.(wrapped)).toBe(wrapped)
+    expect(openAiPlugin.isFatal?.(wrapped)).toBe(wrapped)
+    expect(compatiblePlugin.isFatal?.(wrapped)).toBe(wrapped)
+
+    const nested = Object.assign(new Error('outer'), { cause: wrapped })
+    expect(anthropicPlugin.isFatal?.(nested)).toBe(nested)
+  })
+
   test('a retryable status is not treated as fatal', () => {
     const overloaded = Object.assign(new Error('529'), { status: 529 })
     expect(anthropicPlugin.isFatal?.(overloaded)).toBeNull()
     expect(openAiPlugin.isFatal?.(overloaded)).toBeNull()
+  })
+
+  // The cause walk must terminate on a chain that points back at itself.
+  test('a self-referential cause chain does not hang', () => {
+    const looped: Error & { cause?: unknown } = new Error('loop')
+    looped.cause = looped
+    expect(anthropicPlugin.isFatal?.(looped)).toBeNull()
   })
 })
 
