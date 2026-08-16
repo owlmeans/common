@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/entrypoint
 
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/entrypoint": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 

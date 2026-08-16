@@ -1,16 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-auth-otp",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.921Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.932Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
-      "kind": "instruction",
+      "kind": "skill",
       "name": "server-auth-otp",
       "category": "package-specific",
-      "file": "instructions/server-auth-otp.instructions.md",
-      "canonicalPath": ".github/instructions/server-auth-otp.instructions.md"
+      "file": "skills/server-auth-otp/SKILL.md",
+      "canonicalPath": ".agents/skills/server-auth-otp/SKILL.md"
     }
   ]
 }

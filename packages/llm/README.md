@@ -140,6 +140,7 @@ spectator entry), `filter` (reject a result and force a retry), `useCache` / `ca
 | A weak cheap model keeps failing | Escalates to `ModelConfig.fallback` after `FALLBACK_AFTER_ATTEMPTS`, within one plugin family |
 | Model stringifies arrays / over-wraps scalars | `coerceToSchema` reconciles the answer with the schema before validation |
 | Model ignores the tool and answers in prose | `parseJsonContent` salvages JSON from fences and surrounding text |
+| A blank message poisons the request (Anthropic 400 `text content blocks must contain non-whitespace text`, typically an empty file read pasted into a prompt) | Whitespace-only text blocks are dropped before every call; blank tool results are stubbed to keep their `tool_use` pairing, and an all-blank input becomes one stub user message |
 | Nothing usable came back | `NullCapture` — request, response, token accounting and finish reason, to the spectator |
 | An error no retry can fix | `registerFatalError` / `LlmPlugin.isFatal` abort the loop immediately |
 
@@ -178,10 +179,9 @@ root `.env`. With none set they self-skip with a printed reason — never a fail
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
-This package ships embedded Claude Code skills and GitHub Copilot instructions under
-`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
-agent-skills installer to place them into your project's native locations
-(`.claude/skills/` and `.github/instructions/`):
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
 
 ```sh
 npx @owlmeans/agent-skills

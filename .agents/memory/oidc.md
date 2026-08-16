@@ -10,7 +10,7 @@ Upgrades consult the `oidc-versions` skill. Viable-side usage: [[auth]].
 
 ## Facts
 
-- Exact pins (deliberate-bump policy): `oidc-provider` 9.8.4 (server-oidc-provider); `jose` 6.2.3
+- Exact pins (deliberate-bump policy): `oidc-provider` 9.11.1 (server-oidc-provider); `jose` 6.2.5
   (server-oidc-provider, server-oidc-rp); `openid-client` 6.8.4 (server-oidc-rp);
   `oidc-client-ts` 3.5.0 (web-oidc-rp, mui-oidc-rp); `@types/oidc-provider` 9.5.0 (dev).
 

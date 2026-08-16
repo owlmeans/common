@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/mongo",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-11T12:32:27.418Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.935Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "mongo",
       "category": "package-specific",
       "file": "skills/mongo/SKILL.md",
-      "canonicalPath": ".claude/skills/mongo/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "mongo",
-      "category": "package-specific",
-      "file": "instructions/mongo.instructions.md",
-      "canonicalPath": ".github/instructions/mongo.instructions.md"
+      "canonicalPath": ".agents/skills/mongo/SKILL.md"
     }
   ]
 }

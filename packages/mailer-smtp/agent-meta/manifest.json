@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/mailer-smtp",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-16T10:21:42.542Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "mailer-smtp",
+      "category": "package-specific",
+      "file": "skills/mailer-smtp/SKILL.md",
+      "canonicalPath": ".agents/skills/mailer-smtp/SKILL.md"
+    }
+  ]
+}

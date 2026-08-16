@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/oidc",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.903Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.933Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,21 +10,14 @@
       "name": "oidc-versions",
       "category": "multi-package",
       "file": "skills/oidc-versions/SKILL.md",
-      "canonicalPath": ".claude/skills/oidc-versions/SKILL.md"
+      "canonicalPath": ".agents/skills/oidc-versions/SKILL.md"
     },
     {
       "kind": "skill",
       "name": "oidc",
       "category": "package-specific",
       "file": "skills/oidc/SKILL.md",
-      "canonicalPath": ".claude/skills/oidc/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "oidc",
-      "category": "package-specific",
-      "file": "instructions/oidc.instructions.md",
-      "canonicalPath": ".github/instructions/oidc.instructions.md"
+      "canonicalPath": ".agents/skills/oidc/SKILL.md"
     }
   ]
 }

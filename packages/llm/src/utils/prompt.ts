@@ -1,5 +1,6 @@
+import { BaseMessage } from '@langchain/core/messages'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
-import { JSON_INSTRUCTION, NO_THINK_DIRECTIVE } from '../consts.js'
+import { EMPTY_CONTENT_STUB, JSON_INSTRUCTION, NO_THINK_DIRECTIVE } from '../consts.js'
 
 const messageMentions = (msg: MessageFieldWithRole, needle: string): boolean => {
   if (typeof msg.content === 'string') return msg.content.toLowerCase().includes(needle)
@@ -53,6 +54,55 @@ export const stripCacheMarkers = (msgs: MessageFieldWithRole[]): void => {
     if (found) {
       msg.content = blocks as unknown as typeof msg.content
     }
+  }
+}
+
+const isBlankTextBlock = (part: unknown): boolean =>
+  typeof part === 'object' && part !== null
+  && (part as Record<string, unknown>).type === 'text'
+  && typeof (part as Record<string, unknown>).text === 'string'
+  && (part as Record<string, string>).text.trim() === ''
+
+/**
+ * Remove whitespace-only text content so no request carries a blank text block.
+ *
+ * Anthropic rejects one outright (`400 messages: text content blocks must contain
+ * non-whitespace text`), and a 400 is fatal — a single blank block, typically a file
+ * read that returned nothing, kills the whole call with no retry. Blank text blocks
+ * are dropped from block arrays; a message left without content is removed, with two
+ * exceptions: a tool result keeps its `tool_use` pairing by carrying a stub instead,
+ * and an AI message that still holds tool calls keeps an empty string, which
+ * serializes without a text block. An input that loses every message gets one stub
+ * user message so the request stays valid.
+ */
+export const dropBlankContent = (msgs: MessageFieldWithRole[]): void => {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i]
+    let content = msg.content
+    if (Array.isArray(content)) {
+      const kept = content.filter(part => !isBlankTextBlock(part))
+      if (kept.length !== content.length) {
+        msg.content = kept as unknown as typeof msg.content
+      }
+      if (kept.length > 0) {
+        continue
+      }
+      content = ''
+    }
+    if (typeof content === 'string' && content.trim() === '') {
+      const role = msg instanceof BaseMessage ? msg.getType() : `${msg.role}`
+      const toolCalls = (msg as { tool_calls?: unknown[] }).tool_calls
+      if (role === 'tool') {
+        msg.content = EMPTY_CONTENT_STUB
+      } else if (toolCalls != null && toolCalls.length > 0) {
+        msg.content = ''
+      } else {
+        msgs.splice(i, 1)
+      }
+    }
+  }
+  if (msgs.length === 0) {
+    msgs.push({ role: 'user', content: EMPTY_CONTENT_STUB })
   }
 }
 

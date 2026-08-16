@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-payment",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.899Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.931Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-payment",
       "category": "package-specific",
       "file": "skills/client-payment/SKILL.md",
-      "canonicalPath": ".claude/skills/client-payment/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-payment",
-      "category": "package-specific",
-      "file": "instructions/client-payment.instructions.md",
-      "canonicalPath": ".github/instructions/client-payment.instructions.md"
+      "canonicalPath": ".agents/skills/client-payment/SKILL.md"
     }
   ]
 }

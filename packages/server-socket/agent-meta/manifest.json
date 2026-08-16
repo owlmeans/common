@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-socket",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.909Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.937Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "server-socket",
       "category": "package-specific",
       "file": "skills/server-socket/SKILL.md",
-      "canonicalPath": ".claude/skills/server-socket/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "server-socket",
-      "category": "package-specific",
-      "file": "instructions/server-socket.instructions.md",
-      "canonicalPath": ".github/instructions/server-socket.instructions.md"
+      "canonicalPath": ".agents/skills/server-socket/SKILL.md"
     }
   ]
 }

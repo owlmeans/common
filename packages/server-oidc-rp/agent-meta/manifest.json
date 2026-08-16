@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-oidc-rp",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.907Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.935Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "server-oidc-rp",
       "category": "package-specific",
       "file": "skills/server-oidc-rp/SKILL.md",
-      "canonicalPath": ".claude/skills/server-oidc-rp/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "server-oidc-rp",
-      "category": "package-specific",
-      "file": "instructions/server-oidc-rp.instructions.md",
-      "canonicalPath": ".github/instructions/server-oidc-rp.instructions.md"
+      "canonicalPath": ".agents/skills/server-oidc-rp/SKILL.md"
     }
   ]
 }

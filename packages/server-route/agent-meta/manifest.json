@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-route",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.915Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.940Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "server-route",
       "category": "package-specific",
       "file": "skills/server-route/SKILL.md",
-      "canonicalPath": ".claude/skills/server-route/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "server-route",
-      "category": "package-specific",
-      "file": "instructions/server-route.instructions.md",
-      "canonicalPath": ".github/instructions/server-route.instructions.md"
+      "canonicalPath": ".agents/skills/server-route/SKILL.md"
     }
   ]
 }

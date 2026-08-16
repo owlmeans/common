@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/api",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.920Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.944Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "api",
       "category": "package-specific",
       "file": "skills/api/SKILL.md",
-      "canonicalPath": ".claude/skills/api/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "api",
-      "category": "package-specific",
-      "file": "instructions/api.instructions.md",
-      "canonicalPath": ".github/instructions/api.instructions.md"
+      "canonicalPath": ".agents/skills/api/SKILL.md"
     }
   ]
 }

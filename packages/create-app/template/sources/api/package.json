@@ -11,13 +11,13 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@owlmeans/server-app": "^0.1.9",
-    "@owlmeans/static-resource": "^0.1.9",
+    "@owlmeans/server-app": "^0.1.16",
+    "@owlmeans/static-resource": "^0.1.16",
     "__APP_SLUG__-common": "workspace:^"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.9",
+    "@owlmeans/dep-config": "^0.1.16",
     "@types/node": "^24.10.1",
-    "typescript": "^5.9.2"
+    "typescript": "^7.0.2"
   }
 }

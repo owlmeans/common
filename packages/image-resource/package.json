@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/image-resource",
   "type": "module",
-  "version": "0.1.15",
+  "version": "0.1.17",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -24,13 +24,13 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/storage-resource": "^0.1.15"
+    "@owlmeans/storage-resource": "^0.1.17"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

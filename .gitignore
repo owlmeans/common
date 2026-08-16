@@ -56,3 +56,7 @@ playwright-report/
 /packages/*/tests/**/*.d.ts
 /packages/*/tests/**/*.js.map
 /packages/*/tests/**/*.d.ts.map
+
+# Generated Claude Code skill symlinks (canonical skills live in .agents/skills/)
+.claude/skills/*
+!.claude/skills/.gitkeep

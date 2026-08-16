@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-context",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.914Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.940Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-context",
       "category": "package-specific",
       "file": "skills/client-context/SKILL.md",
-      "canonicalPath": ".claude/skills/client-context/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-context",
-      "category": "package-specific",
-      "file": "instructions/client-context.instructions.md",
-      "canonicalPath": ".github/instructions/client-context.instructions.md"
+      "canonicalPath": ".agents/skills/client-context/SKILL.md"
     }
   ]
 }

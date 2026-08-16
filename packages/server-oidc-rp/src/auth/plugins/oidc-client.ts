@@ -14,6 +14,7 @@ import { decodeJwt } from 'jose'
 import { KEY_OWL } from '@owlmeans/did'
 import { cache, verifierId } from '../../utils/cache.js'
 import { makeOidcAuthentication } from '../../utils/auth.js'
+import { requestedScope } from '../../utils/scope.js'
 // import { URL } from 'url'
 
 /**
@@ -115,7 +116,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       const client = await oidc.getClient(entityId)
       const cfg = client.getConfig()
       const url = client.makeAuthUrl({
-        scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
+        scope: requestedScope(cfg?.extraScopes),
         code_challenge: challenge,
         code_challenge_method: 'S256',
         redirect_uri: request.source,

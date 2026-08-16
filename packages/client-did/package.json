@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-did",
-  "version": "0.1.15",
+  "version": "0.1.17",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,18 +21,18 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.15",
-    "@owlmeans/client": "^0.1.15",
-    "@owlmeans/client-context": "^0.1.15",
-    "@owlmeans/client-resource": "^0.1.15",
-    "@owlmeans/context": "^0.1.15",
-    "@owlmeans/did": "^0.1.15",
-    "@owlmeans/state": "^0.1.15"
+    "@owlmeans/auth": "^0.1.17",
+    "@owlmeans/client": "^0.1.17",
+    "@owlmeans/client-context": "^0.1.17",
+    "@owlmeans/client-resource": "^0.1.17",
+    "@owlmeans/context": "^0.1.17",
+    "@owlmeans/did": "^0.1.17",
+    "@owlmeans/state": "^0.1.17"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

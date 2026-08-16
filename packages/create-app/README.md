@@ -18,9 +18,10 @@ A bun-workspace monorepo with three packages and **no authentication**:
 
 ```
 my-app/
-├── CLAUDE.md                       # agent context for Claude Code
-├── .github/copilot-instructions.md # the same for GitHub Copilot
-├── .agents/memory/MEMORY.md        # shared agent memory index (both tools)
+├── AGENTS.md                       # agent context, read by every coding agent
+├── CLAUDE.md                       # thin bridge: imports AGENTS.md, links skills for Claude Code
+├── .agents/skills/<name>/SKILL.md  # deployed agent skills
+├── .agents/memory/MEMORY.md        # shared agent memory index
 ├── sources/
 │   ├── common/   # shared entrypoints (routes), schemas and types
 │   ├── api/      # @owlmeans/server-app backend; session data in an in-memory static resource
@@ -33,14 +34,15 @@ that creates, lists and removes items held in a **session-scoped in-memory resou
 
 By default the scaffolder also installs dependencies and **deploys agent guidance**
 into the project via [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills)
-(`.claude/skills/` + `.github/instructions/`).
+(`.agents/skills/`).
 
-`CLAUDE.md` and `.github/copilot-instructions.md` carry the four mandatory sections a real OwlMeans
-monorepo uses — **Git Workflow**, **Reporting**, **Memory**, **Self-Education** — plus a
-project-purpose placeholder your agent fills in on its first session. Project memory is one shared
-graph store at `.agents/memory/` for both tools. The harness guidance (memory protocol, self-education,
-git policy, skill authoring, reuse-first) ships with the template, so it is present even with
-`--no-install`.
+`AGENTS.md` carries the four mandatory sections a real OwlMeans monorepo uses — **Git Workflow**,
+**Reporting**, **Memory**, **Self-Education** — plus a project-purpose placeholder your agent fills
+in on its first session. GitHub Copilot and Codex read `AGENTS.md` and `.agents/skills/` natively;
+Claude Code reads `CLAUDE.md`, which imports `AGENTS.md` and keeps per-skill symlinks in
+`.claude/skills/` fresh through `sh .agents/scripts/link-skills.sh`. The harness guidance (memory
+protocol, self-education, git policy, skill authoring, reuse-first) ships with the template, so it
+is present even with `--no-install`.
 
 ## Options
 

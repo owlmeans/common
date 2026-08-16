@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/mongo
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo": "^0.1.15"` in `dependencies` (peer `mongodb`)
+**Install:** `"@owlmeans/mongo": "^0.1.17"` in `dependencies` (peer `mongodb`)
 
 ## Key Exports
 
@@ -57,7 +57,12 @@ port-forward to the cluster mongo.
 
 - `@owlmeans/resource` (`createDbService`) · `@owlmeans/mongo-resource` (service contract)
 - `@owlmeans/basic-keys` — field encryption
-- peer `mongodb`
+- peer `mongodb` (currently `^7.5.0`)
+
+An app consuming this package under Bun must carry `"bson": "7.2.0"` in its root `overrides`, as
+this repo does. `bson >= 7.3.0` throws `ERR_NOT_IMPLEMENTED` (`v8.startupSnapshot.isBuildingSnapshot`)
+the moment `mongodb` is imported, on every Bun through 1.3.14 — so the server never starts. The pin
+is inside the driver's declared `bson: ^7.2.0` range. Details in the `bun` skill.
 
 ## Related
 

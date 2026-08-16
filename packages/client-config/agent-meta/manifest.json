@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-config",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.919Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.943Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-config",
       "category": "package-specific",
       "file": "skills/client-config/SKILL.md",
-      "canonicalPath": ".claude/skills/client-config/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-config",
-      "category": "package-specific",
-      "file": "instructions/client-config.instructions.md",
-      "canonicalPath": ".github/instructions/client-config.instructions.md"
+      "canonicalPath": ".agents/skills/client-config/SKILL.md"
     }
   ]
 }

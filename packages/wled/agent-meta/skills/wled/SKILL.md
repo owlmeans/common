@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/wled
 
 **Layer:** Core
-**Install:** `"@owlmeans/wled": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/wled": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 

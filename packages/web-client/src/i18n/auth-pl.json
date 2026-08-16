@@ -1,5 +1,6 @@
 {
   "dispatcher": {
-    "loading": "Ładowanie..."
+    "loading": "Ładowanie...",
+    "error": "Uwierzytelnianie nie powiodło się: {{error}}"
   }
 }

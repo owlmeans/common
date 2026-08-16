@@ -112,5 +112,11 @@ const suite = (name: string, configs: () => ModelConfig[], skip: string | null) 
   })
 }
 
-suite('openrouter', openRouterConfigs, 'skip' in gates.openrouter ? gates.openrouter.reason : null)
+// The live OpenRouter suite is DISABLED unconditionally: OpenRouter is an aggregator outside
+// the main model set (OpenAI + Anthropic), so it bills a separate account and serves models no
+// deployment runs — a `402 requires more credits` there reads as a failure of the code under
+// test. The gate alone was not enough, since it runs the moment OPENROUTER_SECRET is present in
+// any developer's .env. The `Compatible` provider itself stays covered offline by plugins.spec.ts
+// (baseUrl/kwargs shaping). Drop the literal below back to the gate expression to re-enable.
+suite('openrouter', openRouterConfigs, 'disabled: OpenRouter is outside the main model set')
 suite('anthropic', anthropicConfigs, 'skip' in gates.anthropic ? gates.anthropic.reason : null)

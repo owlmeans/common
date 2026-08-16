@@ -99,6 +99,14 @@ export const NO_THINK_DIRECTIVE = '/no_think'
 /** Tool name used for structured output when a schema carries no usable title/name. */
 export const DEFAULT_TOOL_NAME = 'extract'
 
+/**
+ * Placeholder content for a message that must survive blank-content sanitization —
+ * a tool result whose `tool_use` pairing may not be broken, or an input whose every
+ * message was blank. Providers reject whitespace-only text outright, so the stub is
+ * the smallest honest signal that the caller supplied nothing.
+ */
+export const EMPTY_CONTENT_STUB = '(empty)'
+
 /** Default effort tier when a policy does not specify one. */
 export const DEFAULT_EFFORT = ExecutionEffort.Standard
 

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/mongo-resource",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-11T12:32:27.417Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.929Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "mongo-resource",
       "category": "package-specific",
       "file": "skills/mongo-resource/SKILL.md",
-      "canonicalPath": ".claude/skills/mongo-resource/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "mongo-resource",
-      "category": "package-specific",
-      "file": "instructions/mongo-resource.instructions.md",
-      "canonicalPath": ".github/instructions/mongo-resource.instructions.md"
+      "canonicalPath": ".agents/skills/mongo-resource/SKILL.md"
     }
   ]
 }

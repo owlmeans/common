@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.15"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.17"` in `dependencies`
 
 ## Key Exports
 
@@ -18,8 +18,23 @@ user-invocable: false
 | `makeOidcWrappingService()` | OIDC token service factory |
 | `makeOidcGate()` | OIDC gate factory (used by guards) |
 | `setupOidcGuard(modules, options?)` | Wire OIDC guard onto module declarations |
+| `requestedScope(extraScopes?)` | The `scope` of an authorization request — base scopes + provider extras |
 | Constants | OIDC service / guard aliases |
 | `OidcRp` types | RP-side config and token shapes |
+
+## Requested scope
+
+Every authorization request this package builds gets its `scope` from `requestedScope(cfg.extraScopes)`
+— `OIDC_RP_BASE_SCOPES` (`@owlmeans/oidc`) plus the provider descriptor's `extraScopes`, deduplicated.
+Both request sites (`actions/init.ts` for the browser-starts-server-finishes flow, and the
+`oidc-client` auth plugin) call it; never write a scope literal at a call site, and never let the two
+drift apart.
+
+The provider's client registration must allow every scope this yields. A provider supports `email`
+as soon as it declares `claims.email` — and then rejects the whole request with
+`invalid_scope: requested scope is not allowed` if the client's own allowlist omits it, rather than
+dropping the scope. A client provisioned by an older revision therefore stays broken until its
+allowlist is backfilled.
 
 ## Subpath Exports
 

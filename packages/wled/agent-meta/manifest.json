@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/wled",
-  "version": "0.1.15",
-  "generatedAt": "2026-08-07T17:06:32.908Z",
+  "version": "0.1.17",
+  "generatedAt": "2026-08-15T13:01:19.936Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "wled",
       "category": "package-specific",
       "file": "skills/wled/SKILL.md",
-      "canonicalPath": ".claude/skills/wled/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "wled",
-      "category": "package-specific",
-      "file": "instructions/wled.instructions.md",
-      "canonicalPath": ".github/instructions/wled.instructions.md"
+      "canonicalPath": ".agents/skills/wled/SKILL.md"
     }
   ]
 }

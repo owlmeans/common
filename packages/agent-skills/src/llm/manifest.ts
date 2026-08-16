@@ -43,8 +43,9 @@ export const stripMeta = (content: string): string => {
 /**
  * Skill entries worth loading, in a deterministic order.
  *
- * Instruction entries are dropped: they are the Copilot twin of the same knowledge, so
- * including both would double the token cost of every package for no added information.
+ * Instruction entries appear only in manifests published before schema v2 and are
+ * dropped: they are the Copilot twin of the same knowledge, so including both would
+ * double the token cost of every package for no added information.
  */
 export const skillEntries = (
   manifest: Manifest,
