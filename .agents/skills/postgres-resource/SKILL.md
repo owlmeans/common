@@ -83,6 +83,14 @@ For what JSON Schema can't say. Per property: `column`, `type`, `length`, `preci
 The compiler reads the raw schema object and never validates through AJV, so `pg:` costs nothing at
 runtime — but a consumer compiling that schema in **strict mode** must `ajv.addKeyword(pgKeyword)`.
 
+**Index and unique specs are deduplicated by resolved name, first declaration wins.** Three
+declaration sites merge into one `TableSpec` — the schema root, a per-property override, and
+`resource.index()` — and a consumer that declares one index in two of them is expressing a style,
+not an error. Two entries under one name would emit the same `CREATE INDEX` twice in a single DDL
+transaction, and Postgres answers the second with `42P07`, rolling back the plan that created the
+table: the resource then fails every boot with an error naming an index that does not exist.
+`byName` in `utils/schema.ts` collapses them and warns.
+
 ## Reconciliation is authoritative — `PgAutoSync`
 
 At `init()`: introspect → diff → apply the whole `DdlPlan` in one transaction under

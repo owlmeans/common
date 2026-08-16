@@ -229,6 +229,34 @@ const collectProperties = (schema: RawSchema): { properties: Record<string, RawP
 }
 
 /**
+ * Collapse specs that resolved to the same object name, first declaration wins.
+ *
+ * The same index can legitimately be declared twice — a schema-root `pg.indexes` entry, a
+ * per-property `pg: { index: ... }` override and a `resource.index()` call all land in one
+ * list, and nothing stops a declaration from repeating one of the others. Two entries with
+ * one name emit the same `CREATE INDEX` twice inside a single DDL transaction, and Postgres
+ * answers the second with `42P07 already exists` — which rolls back the whole plan, so the
+ * table the first statement created never lands and the resource can never initialize.
+ * Duplicates are a declaration style, not a schema error: dedupe them, don't fail the boot.
+ */
+const byName = <T extends { name?: string }>(specs: T[], alias: string, kind: string): T[] => {
+  const seen = new Map<string, T>()
+  for (const spec of specs) {
+    const name = spec.name!
+    if (seen.has(name)) {
+      console.warn(
+        `@owlmeans/postgres-resource: ${alias} declares ${kind} "${name}" more than once —`
+        + ' keeping the first declaration.'
+      )
+      continue
+    }
+    seen.set(name, spec)
+  }
+
+  return [...seen.values()]
+}
+
+/**
  * Compile a resource's AJV schema into the table specification that drives both DDL
  * emission and drift detection.
  *
@@ -376,7 +404,7 @@ export const schemaToTableSpec = (
     return column.column
   })
 
-  const resolvedIndexes: PgIndexSpec[] = indexes.map(spec => {
+  const resolvedIndexes: PgIndexSpec[] = byName(indexes.map(spec => {
     const list = spec.columns == null
       ? []
       : mapColumns(Array.isArray(spec.columns) ? spec.columns : [spec.columns])
@@ -388,13 +416,13 @@ export const schemaToTableSpec = (
       method: spec.method ?? PgIndexMethod.BTree,
       name: pgIdentifier(spec.name ?? `${resolvedTable}_${list.join('_')}_${suffix}`)
     }
-  })
+  }), alias, 'index')
 
-  const resolvedUniques: PgUniqueSpec[] = uniques.map(spec => {
+  const resolvedUniques: PgUniqueSpec[] = byName(uniques.map(spec => {
     const list = mapColumns(spec.columns)
 
     return { columns: list, name: pgIdentifier(spec.name ?? `${resolvedTable}_${list.join('_')}_key`) }
-  })
+  }), alias, 'unique')
 
   return {
     alias,

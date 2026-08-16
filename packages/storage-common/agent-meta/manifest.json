@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/storage-common",
-  "version": "0.1.17",
-  "generatedAt": "2026-08-15T13:01:19.937Z",
+  "version": "0.1.18-rc.0",
+  "generatedAt": "2026-08-16T22:20:50.511Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

@@ -178,6 +178,32 @@ describe('@owlmeans/postgres-resource — schemaToTableSpec', () => {
       .toEqual(['email', 'ownerId'])
   })
 
+  test('collapses an index declared both in the schema and through resource.index()', () => {
+    const spec = schemaToTableSpec('things', {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        status: { type: 'string' },
+        ownerId: { type: 'string', pg: { index: [{ name: 'idx_things_owner' }] } }
+      },
+      required: ['id', 'status'],
+      pg: { indexes: [{ name: 'idx_things_status', columns: ['status'] }] }
+    } as AnySchema, 'app', 'things', true, [
+      /** What `resource.index()` contributes — here repeating both schema-borne declarations. */
+      { name: 'idx_things_status', columns: ['status'] },
+      { name: 'idx_things_owner', columns: ['ownerId'] }
+    ])
+
+    /**
+     * One entry per name. Two would emit the same CREATE INDEX twice in one DDL transaction,
+     * and Postgres rolls the whole plan back on the second — taking the CREATE TABLE with it.
+     */
+    expect(spec.indexes.map(index => index.name).sort())
+      .toEqual(['idx_things_owner', 'idx_things_status'])
+    expect(spec.indexes.find(index => index.name === 'idx_things_status')?.columns).toEqual(['status'])
+    expect(spec.indexes.find(index => index.name === 'idx_things_owner')?.columns).toEqual(['ownerId'])
+  })
+
   test('turns a string enum into a CHECK that tolerates NULL when the column does', () => {
     const spec = compile({
       type: 'object',
