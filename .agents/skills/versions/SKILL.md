@@ -61,6 +61,18 @@ find packages/*/node_modules/@owlmeans -maxdepth 1 -mindepth 1 -type d
 A range left at an older version (`^0.1.11`) is the same trap: a prerelease workspace version does
 not satisfy it, so that dependency gets fetched from npm instead of linked.
 
+## Publishing after a bump
+
+`npm publish` refuses a prerelease version (`X.Y.Z-rc.N`) without an explicit `--tag`, and the
+existing convention here is to publish prereleases straight to `latest` (check first —
+`npm view @owlmeans/<any-package> dist-tags --json` — before assuming): `npm publish --access
+public --tag latest`. There is no root publish script; loop `packages/*/`, skip anything with
+`"private": true` (`_tpl`), and dry-run (`--dry-run`) the whole batch before the real one — with 90+
+packages a single bad `package.json` is easy to miss otherwise. Existing internal caret ranges
+(`^X.Y.Z-rc.N`) resolve a same-triple prerelease bump (`-rc.N` → `-rc.N+1`) automatically; no
+downstream `package.json` needs editing for a same-triple prerelease bump, in this monorepo or in
+any consumer (e.g. a target-project template) already pinned that way.
+
 ## Internal dependency references
 
 - Internal packages reference each other as `"@owlmeans/xxx": "^X.Y.Z"` (caret, matching monorepo version)

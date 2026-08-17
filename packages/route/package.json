@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/route",
-  "version": "0.1.18-rc.0",
+  "version": "0.1.18-rc.4",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.0"
+    "@owlmeans/context": "^0.1.18-rc.4"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-socket",
-  "version": "0.1.18-rc.0",
+  "version": "0.1.18-rc.4",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,14 +30,14 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.0",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.0",
-    "@owlmeans/client": "^0.1.18-rc.0",
-    "@owlmeans/client-context": "^0.1.18-rc.0",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.0",
-    "@owlmeans/context": "^0.1.18-rc.0",
-    "@owlmeans/entrypoint": "^0.1.18-rc.0",
-    "@owlmeans/socket": "^0.1.18-rc.0"
+    "@owlmeans/auth": "^0.1.18-rc.4",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.4",
+    "@owlmeans/client": "^0.1.18-rc.4",
+    "@owlmeans/client-context": "^0.1.18-rc.4",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.4",
+    "@owlmeans/context": "^0.1.18-rc.4",
+    "@owlmeans/entrypoint": "^0.1.18-rc.4",
+    "@owlmeans/socket": "^0.1.18-rc.4"
   },
   "publishConfig": {
     "access": "public"

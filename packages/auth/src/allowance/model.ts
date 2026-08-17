@@ -41,7 +41,10 @@ export const AuthCredentialsSchema: JSONSchemaType<AuthCredentials> = {
   type: 'object',
   properties: {
     challenge: { type: 'string', minLength: 32, maxLength: 1024 },
-    credential: { type: 'string', minLength: 16, maxLength: 4096 },
+    // Not every plugin's credential is a long token/signature — email-OTP submits a short
+    // numeric code (see @owlmeans/auth-otp OTP_CODE_LENGTH). Security here comes from the
+    // signed challenge envelope plus each plugin's own credential check, not this length floor.
+    credential: { type: 'string', minLength: 1, maxLength: 4096 },
     publicKey: { type: 'string', minLength: 16, maxLength: 1024, nullable: true },
     ...AuthPayloadSchema.properties
   },

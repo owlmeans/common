@@ -59,18 +59,11 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
 
   await cache(context).delete(exchangeId(token))
 
-  console.log(
-    'List provided user permisssions',
-    decodeJwt(tokenSet.access_token)
-  )
-
+  // Only the id_token is guaranteed to be a JWT. An access token's format is provider-private —
+  // `oidc-provider` issues opaque ones by default — so decoding it throws `JWTInvalid` and, from
+  // inside this handler, fails the whole exchange after it has already succeeded. Nothing here
+  // needs it either: the permission grant is read from the id_token below.
   const id = decodeJwt(tokenSet.id_token)
-  console.log(
-    'token set',
-    tokenSet,
-    tokenSet.claims(),
-    id
-  )
 
   // Integrated IAM mode: the provider mints the subject's PermissionSet[] into the id_token
   const permissions = extractPermissionSets(id[PERMISSIONS_CLAIM])
