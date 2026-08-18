@@ -43,7 +43,7 @@
     "@owlmeans/server-api": "^0.1.18-rc.6",
     "@owlmeans/server-context": "^0.1.18-rc.6",
     "@scure/base": "^2.3.0",
-    "jose": "6.2.5",
+    "jose": "6.2.9",
     "oidc-provider": "9.11.1"
   },
   "publishConfig": {
