@@ -8,10 +8,8 @@ import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FlowStepMissconfigured, OidcAuthStep, STD_OIDC_FLOW, UnknownFlow } from '@owlmeans/flow'
 import type { Module } from '@owlmeans/web-client'
 import { DISPATCHER_OIDC, DISPATCHER_OIDC_INIT, OIDC_CODE_QUERY } from '@owlmeans/oidc'
-import type { Auth, AuthToken } from '@owlmeans/auth'
-import { AUTH_RESOURCE, USER_ID } from '@owlmeans/client-auth'
-import type { ClientAuthResource } from '@owlmeans/client-auth'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
+import type { AuthToken } from '@owlmeans/auth'
+import { applyAuthToken } from './popup.js'
 
 export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthService => {
   const store = (context: Context) => context.auth().store<OidcInteraction>()
@@ -39,14 +37,7 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
         .call({ body: params })
 
       if (authToken.token != null && authToken.token !== '') {
-        const authResource = ctx.resource<ClientAuthResource>(AUTH_RESOURCE)
-        await authResource.save({ id: USER_ID, token: authToken.token })
-
-        const [, authorization] = authToken.token.split(' ')
-        const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
-
-        ctx.auth().auth = envelope.message()
-        ctx.auth().token = authToken.token
+        await applyAuthToken<Config, Context>(ctx, authToken.token)
 
         return true
       }

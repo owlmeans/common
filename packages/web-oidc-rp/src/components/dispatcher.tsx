@@ -1,6 +1,6 @@
 
 import { DispatcherHOC } from '@owlmeans/client-auth'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useContext } from '@owlmeans/web-client'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { AUTH_QUERY } from '@owlmeans/auth'
@@ -8,6 +8,7 @@ import { OIDC_ERROR_DESCRIPTION_QUERY, OIDC_ERROR_QUERY } from '@owlmeans/oidc'
 import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
+import { handBackOidcToken, isFramed, isOidcLoginPopup, loginViaPopup } from '../popup.js'
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
@@ -29,6 +30,21 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   // second run always fails (`resource:unknown-record`) even though the first one succeeded. Guard
   // it explicitly rather than relying on the effect only firing once.
   const dispatchedRef = useRef(false)
+
+  // Set when authorization can only continue in a popup: a framed document cannot be navigated to
+  // the provider (it answers `frame-ancestors 'self'`), and opening the popup here would be a
+  // blocked one — `window.open` needs the user's gesture, which an effect does not have.
+  const [popupRequired, setPopupRequired] = useState(false)
+
+  const onPopupLogin = useCallback(() => {
+    // Reloading this very URL inside the popup replays the flow one window up, where it is
+    // top-level and first-party, and keeps whatever flow parameters the address already carries.
+    void loginViaPopup(context, window.location.href).then(async authenticated => {
+      if (authenticated) {
+        await navigate()
+      }
+    })
+  }, [context, navigate])
 
   useEffect(() => {
     if (client == null) {
@@ -58,6 +74,11 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
       oidc.dispatch(params).then(async dispatched => {
         if (dispatched) {
+          // Running as the login popup: the opener is an embedded frame with its own storage
+          // partition, so it cannot see the token just stored here — pass it over and close.
+          if (handBackOidcToken(context.auth().token)) {
+            return
+          }
           return await navigate()
         }
         if (client == null) {
@@ -65,6 +86,10 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         }
         const redirect = await oidc.authenticate(client.flow(), params)
         if (redirect != null && redirect !== '') {
+          if (isFramed() && !isOidcLoginPopup()) {
+            setPopupRequired(true)
+            return
+          }
           document.location.href = redirect
           return
         }
@@ -80,6 +105,12 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
 
   if (error != null) {
     return <div>{t('error', { error: errorDescription ?? error })}</div>
+  }
+
+  if (popupRequired) {
+    return <button type="button" onClick={onPopupLogin}>
+      {t('popup-login', { defaultValue: 'Sign in' })}
+    </button>
   }
 
   return query.has(AUTH_QUERY)

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/common-root",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.5",
   "scripts": {
     "dev": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' --parallel dev",
     "build": "bun run --filter '@owlmeans/*' --filter '!@owlmeans/_tpl' build",

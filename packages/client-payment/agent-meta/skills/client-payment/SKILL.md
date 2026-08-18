@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-payment
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.6"` in `dependencies`
 
 ## Key Exports
 
