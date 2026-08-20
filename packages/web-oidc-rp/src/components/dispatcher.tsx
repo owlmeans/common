@@ -8,7 +8,9 @@ import { OIDC_ERROR_DESCRIPTION_QUERY, OIDC_ERROR_QUERY } from '@owlmeans/oidc'
 import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
-import { handBackOidcToken, isFramed, isOidcLoginPopup, loginViaPopup } from '../popup.js'
+import {
+  handBackOidcToken, isFramed, isOidcLoginPopup, loginViaPopup, markOidcLoginPopup
+} from '../popup.js'
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
@@ -36,6 +38,11 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   // blocked one — `window.open` needs the user's gesture, which an effect does not have.
   const [popupRequired, setPopupRequired] = useState(false)
 
+  // Authenticated inside the popup, but with no way to tell the window that started the flow —
+  // the opener was severed. Better to say so than to silently present a second, logged-in copy
+  // of the application in a window the user never asked to browse in.
+  const [popupOrphaned, setPopupOrphaned] = useState(false)
+
   const onPopupLogin = useCallback(() => {
     // Reloading this very URL inside the popup replays the flow one window up, where it is
     // top-level and first-party, and keeps whatever flow parameters the address already carries.
@@ -47,6 +54,10 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   }, [context, navigate])
 
   useEffect(() => {
+    // First statement in the effect on purpose: everything below can navigate this window to the
+    // provider, and after that the evidence that this is the popup is gone.
+    markOidcLoginPopup()
+
     if (client == null) {
       return
     }
@@ -79,6 +90,10 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
           if (handBackOidcToken(context.auth().token)) {
             return
           }
+          if (isOidcLoginPopup()) {
+            setPopupOrphaned(true)
+            return
+          }
           return await navigate()
         }
         if (client == null) {
@@ -105,6 +120,12 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
 
   if (error != null) {
     return <div>{t('error', { error: errorDescription ?? error })}</div>
+  }
+
+  if (popupOrphaned) {
+    return <div>{t('popup-orphaned', {
+      defaultValue: 'Signed in. You can close this window and continue in the application.'
+    })}</div>
   }
 
   if (popupRequired) {

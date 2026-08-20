@@ -264,6 +264,13 @@ const hashPublished = async (name: string, spec: string): Promise<string | null>
   }
 }
 
+/** The version the registry currently serves for a spec, or null when it was never published. */
+const publishedVersion = async (name: string, spec: string): Promise<string | null> => {
+  const viewed = await run(['npm', 'view', `${name}@${spec}`, 'version'], ROOT)
+
+  return viewed.ok && viewed.stdout.trim() !== '' ? viewed.stdout.trim() : null
+}
+
 /** Increment the trailing number of a prerelease, else the patch. */
 const bump = (version: string): string => {
   const [core, pre] = version.split('-', 2)
@@ -350,6 +357,8 @@ const main = async (): Promise<number> => {
   // --- 1. what changed -----------------------------------------------------------------------
   let changed: Set<string>
   const unpublished: string[] = []
+  /** What the registry currently holds, so an already-staged bump is not bumped a second time. */
+  const registryVersion = new Map<string, string>()
 
   if (args.all) {
     changed = new Set(publishable.map(pkg => pkg.name))
@@ -367,7 +376,12 @@ const main = async (): Promise<number> => {
     }
     const verdicts = await pooled(publishable, args.concurrency, async pkg => {
       const spec = args.baseline ?? args.tag
-      const [local, published] = await Promise.all([hashLocal(pkg), hashPublished(pkg.name, spec)])
+      const [local, published, remoteVersion] = await Promise.all([
+        hashLocal(pkg), hashPublished(pkg.name, spec), publishedVersion(pkg.name, spec),
+      ])
+      if (remoteVersion != null) {
+        registryVersion.set(pkg.name, remoteVersion)
+      }
       if (published == null) {
         unpublished.push(pkg.name)
         return { name: pkg.name, changed: true }
@@ -384,7 +398,11 @@ const main = async (): Promise<number> => {
   const nextVersion = new Map<string, string>()
   for (const name of affected) {
     const pkg = byName.get(name)!
-    nextVersion.set(name, args.set ?? bump(pkg.version))
+    // A local version already ahead of the registry is a release someone staged and has not
+    // shipped yet — publish exactly that. Bumping again here is what would turn the documented
+    // `--apply` then `--publish` sequence into two increments for one release.
+    const staged = registryVersion.get(name) != null && registryVersion.get(name) !== pkg.version
+    nextVersion.set(name, args.set ?? (staged ? pkg.version : bump(pkg.version)))
   }
 
   // --- 2. report -----------------------------------------------------------------------------

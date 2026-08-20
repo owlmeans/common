@@ -4,7 +4,8 @@ import { AUTH_RESOURCE, USER_ID } from '@owlmeans/client-auth'
 import type { ClientAuthResource } from '@owlmeans/client-auth'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
 import {
-  OIDC_POPUP_FEATURES, OIDC_POPUP_NAME, OIDC_POPUP_TOKEN, OIDC_POPUP_WATCH_INTERVAL
+  OIDC_POPUP_FEATURES, OIDC_POPUP_MARKER, OIDC_POPUP_NAME, OIDC_POPUP_TOKEN,
+  OIDC_POPUP_WATCH_INTERVAL
 } from './consts.js'
 
 /**
@@ -21,9 +22,39 @@ export const isFramed = (): boolean => {
   }
 }
 
+/**
+ * Record that this window is the login popup, while that is still knowable.
+ *
+ * Must be called on the popup's **first** load, before the flow navigates to the provider:
+ * `window.name` is the only evidence at that point, and browsers clear it as soon as a top-level
+ * context goes cross-origin — so by the time the provider redirects back, the name is gone and
+ * this window would look like an ordinary tab.
+ *
+ * Idempotent, and a no-op in every window that is not the popup.
+ */
+export const markOidcLoginPopup = (): void => {
+  if (window.name !== OIDC_POPUP_NAME) {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(OIDC_POPUP_MARKER, '1')
+  } catch {
+    // Storage can be unavailable (private modes, blocked cookies). The `window.name` check still
+    // covers the case where nothing cross-origin happened in between.
+  }
+}
+
 /** Whether this document is the login popup opened by {@link loginViaPopup}. */
-export const isOidcLoginPopup = (): boolean =>
-  window.opener != null && window.name === OIDC_POPUP_NAME
+export const isOidcLoginPopup = (): boolean => {
+  if (window.name === OIDC_POPUP_NAME) {
+    return true
+  }
+  try {
+    return window.sessionStorage.getItem(OIDC_POPUP_MARKER) === '1'
+  } catch {
+    return false
+  }
+}
 
 /**
  * Adopt an issued bearer token as this context's authentication.
@@ -53,9 +84,15 @@ export const applyAuthToken = async <C extends AppConfig, T extends AppContext<C
  * the value explicitly is what bridges the two.
  */
 export const handBackOidcToken = (token: string | null | undefined): boolean => {
-  if (!isOidcLoginPopup() || token == null || token === '') {
+  // `window.opener` is required, not merely expected: it is the one channel out of this window,
+  // because the opener is an embedded frame whose storage is partitioned away from this one.
+  if (!isOidcLoginPopup() || window.opener == null || token == null || token === '') {
     return false
   }
+
+  try {
+    window.sessionStorage.removeItem(OIDC_POPUP_MARKER)
+  } catch { /* nothing to clean up if storage was never available */ }
 
   // Both windows are the same origin (the popup is this application's own dispatcher), so the
   // origin is pinned rather than passed as `*` — the message carries a bearer token.

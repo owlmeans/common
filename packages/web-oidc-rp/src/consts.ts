@@ -14,6 +14,15 @@ export const OIDC_POPUP_TOKEN = 'owlmeans:oidc:popup-token'
 /** Popup geometry — big enough for a provider's own login and consent screens. */
 export const OIDC_POPUP_FEATURES = 'popup=yes,width=520,height=760'
 
+/**
+ * `sessionStorage` key marking this window as the login popup.
+ *
+ * `window.name` cannot carry that fact on its own: browsers clear it whenever a top-level context
+ * navigates cross-origin, and this flow leaves for the provider and comes back. sessionStorage is
+ * scoped to this window *and* this origin, so it survives that round trip.
+ */
+export const OIDC_POPUP_MARKER = '_owlmeans-oidc-popup'
+
 /** How often the opener checks whether the popup was closed without completing (ms). */
 export const OIDC_POPUP_WATCH_INTERVAL = 500
 
