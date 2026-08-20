@@ -14,9 +14,9 @@ user-invocable: false
 | Export | Description |
 |--------|-------------|
 | `renderApp<C, T>(context)` | Mount the React app (routing via the active router plugin — OwlMeans by default) |
-| `elevate(modules, alias, handler)` | Attach a React component (or `handler(Component)`) to an entrypoint |
+| `elevate(entrypoints, alias, handler)` | Attach a React component (or `handler(Component)`) to an entrypoint |
 | `handler(Component)` | Wrap a React component as an entrypoint handler |
-| `context.registerEntrypoints(modules)` | Register the full entrypoint list on the context |
+| `context.registerEntrypoints(entrypoints)` | Register the full entrypoint list on the context |
 | `context.serviceRoute(alias, isDefault?)` | Mark a service's routing root |
 | `router`, `components`, `service`, `i18n`, `helpers`, `errors` | Web-specific helpers |
 | Constants | Default aliases (BASE, HOME) |
@@ -28,27 +28,40 @@ user-invocable: false
 // index.tsx
 import { renderApp } from '@owlmeans/web-client'
 import { makeContext } from './context.js'
-import { appModules } from './modules.js'
+import { appEntrypoints } from './entrypoints.js'
 import { MANAGER, MANAGER_API } from 'my-common'
 import config from './config.js'
 
 const context = makeContext(config)
-context.registerEntrypoints(appModules)
+context.registerEntrypoints(appEntrypoints)
 context.serviceRoute(MANAGER, true)
 context.serviceRoute(MANAGER_API, true)
 renderApp<Config, Context>(context)
 ```
 
-### Module elevation with React components
+### Entrypoint elevation with React components
 ```typescript
-import { elevate, route, frontend, handler, entrypoint, guard } from '@owlmeans/web-client'
+import { elevate, route, frontend, handler, entrypoint } from '@owlmeans/web-client'
 import { HomeScreen, ProjectDashboardScreen } from './screens/index.js'
 
-elevate(modules, manager.front.project.dashboard, handler(ProjectDashboardScreen))
+elevate(entrypoints, manager.front.project.dashboard, handler(ProjectDashboardScreen))
 
-modules.push(
+entrypoints.push(
   entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen))
 )
+```
+
+A **backend** alias the client calls needs a bare `elevate(entrypoints, alias)` — no handler. That
+makes `context.entrypoint<ClientEntrypoint<T>>(alias).call({ params, body, query })` work; the auth
+header is attached automatically for guarded entrypoints.
+
+### Navigation
+```typescript
+import { useNavigate } from '@owlmeans/client'   // not re-exported by web-client
+
+const nav = useNavigate()
+<Button onClick={nav.press(manager.front.project.dashboard, { params: { projectId } })}>Open</Button>
+await nav.go(alias, { params })   // programmatic; nav.back() to go back
 ```
 
 ## Depends On

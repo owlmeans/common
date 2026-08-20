@@ -40,6 +40,32 @@ const projects = ctx.resource<Resource<Project>>('projects')
 const { items } = await projects.list({ entityId: 'abc' })
 ```
 
+### Calling the CRUD surface
+
+A **write** takes the record as its only data argument, and the id travels inside it. There is no
+`(id, changes)` overload on any of them — passing an id first fails to compile with
+`TS2559: Type 'string' has no properties in common with type 'Partial<...>'`.
+
+| Call | Signature | Notes |
+|---|---|---|
+| `create(record, opts?)` | `Partial<T> → T` | throws `RecordExists`; implementations may refuse a caller-supplied id |
+| `save(record, opts?)` | `Partial<T> → T` | create-or-replace |
+| `update(record, opts?)` | `Partial<T> → T` | replaces the whole record; throws `UnknownRecordError` |
+
+A **read** takes the id first, plus an optional field to look it up by (`opts` is that field name,
+or `{ field, ttl }`):
+
+| Call | Signature | Notes |
+|---|---|---|
+| `load(id, field?, opts?)` | `string → T \| null` | the miss-tolerant read |
+| `get(id, field?, opts?)` | `string → T` | throws `UnknownRecordError` instead of returning `null` |
+| `list(criteria?, opts?)` | `→ { items, pager }` | |
+| `delete(id \| record, opts?)` | `→ T \| null` | returns what it removed |
+| `pick(id \| record, opts?)` | `→ T` | **also deletes** — it is `delete` that throws on a miss, never a read |
+
+Every method returns the record(s) themselves, never a driver result object — there is no
+`rowsAffected`/`rowCount` anywhere on this contract.
+
 ## The migration framework
 
 Migrations are **automatic on app setup**: a backend runs them inside the resource's

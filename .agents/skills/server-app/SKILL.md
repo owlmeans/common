@@ -13,13 +13,13 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
-| `main<E, C, T>(context, modules)` | Entry point — boots Express, registers all entrypoints as routes |
+| `main<E, C, T>(context, entrypoints)` | Entry point — registers all entrypoints, configures/inits the context, then boots the Fastify API server (`@owlmeans/server-api`) |
 | `handleRequest(fn)` | Wrap an async function as a server handler `(req, context) => result` |
 | `handleBody<T>(fn)` | Wrap an async function with validated body — `(payload, context, req) => result` |
 | `elevate(modules, alias, handler)` | Attach a handler to an entrypoint declaration |
 | `celevate(modules, alias, handler)` | Conditional elevate — only if entrypoint exists |
 | `sservice(options, cfg)` | Register a server-side service entry in the config |
-| `modules` | Built-in system entrypoints — spread into `appModules` |
+| `modules` | Built-in system entrypoints — spread into `appEntrypoints` |
 | `Context`, `Config`, `ClientEntrypoint` re-exports | Common types |
 
 ## Usage
@@ -30,10 +30,10 @@ user-invocable: false
 import { main } from '@owlmeans/server-app'
 import config from './config.js'
 import { makeContext } from './context.js'
-import { appModules } from './modules.js'
+import { appEntrypoints } from './entrypoints.js'
 
 const context = makeContext(config)
-main<{}, Config, Context>(context, appModules)
+main<{}, Config, Context>(context, appEntrypoints)
 ```
 
 ### Handlers
@@ -58,20 +58,24 @@ export const create = handleBody<CreateProject>(async (payload, context, req) =>
 })
 ```
 
-### Module elevation
+### Entrypoint elevation
 ```typescript
-import { elevate, modules } from '@owlmeans/server-app'
-import { managerModules } from 'my-common'
+// entrypoints.ts
+import { elevate, modules as systemEntrypoints } from '@owlmeans/server-app'
+import { managerEntrypoints } from 'my-common'
 import { create, list } from './app/project/index.js'
 
-elevate(managerModules, manager.back.project.create, create)
-elevate(managerModules, manager.back.project.list, list)
+elevate(managerEntrypoints, manager.back.project.create, create)
+elevate(managerEntrypoints, manager.back.project.list, list)
 
-export const appModules = [...modules, ...paymentModules, ...managerModules]
+export const appEntrypoints = [...systemEntrypoints, ...paymentEntrypoints, ...managerEntrypoints]
 ```
+
+A backend alias that carries only a `guard()`/`gate()` for its children still needs a **bare**
+`elevate(entrypoints, alias)` — that is what makes the declaration a live server route group.
 
 ## Depends On
 
 - `@owlmeans/server-context`, `@owlmeans/server-entrypoint`, `@owlmeans/server-route`, `@owlmeans/server-api`
 - `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`, `@owlmeans/error`
-- `express` / `fastify` (server runtime)
+- `fastify` (server runtime — the HTTP server is created by `@owlmeans/server-api`; there is no Express here)
