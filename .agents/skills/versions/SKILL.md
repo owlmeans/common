@@ -1,6 +1,6 @@
 ---
 name: versions
-description: How to manage package versions in the OwlMeans Common monorepo. All packages are synchronized at the same version. Use this when bumping versions, checking current version, or updating internal dependency references.
+description: Version format and internal dependency ranges in the OwlMeans Common monorepo. Versions are per package and intentionally uneven — releasing is the publishing skill. Use when checking a version, editing internal ranges, or doing a rare whole-repo bump.
 allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
 ---
 
@@ -8,7 +8,10 @@ allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
 
 ## Version convention
 
-- All packages are **synchronized at the same version** — check it, don't assume (see below)
+- Versions are **per package and deliberately uneven** — a release bumps only what changed plus its
+  dependents, so untouched packages stay behind. That is the intended state; never "resynchronise"
+  them. Cutting a release is the `publishing` skill — this one covers the version format itself.
+- Check a version, don't assume it (see below)
 - All use `@owlmeans/*` namespace with MIT license
 - Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`
 - Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.16"`
@@ -22,7 +25,11 @@ grep '"version"' packages/auth/package.json
 grep '"version"' package.json
 ```
 
-## Bumping all packages to a new version
+## Bumping every package at once (rare)
+
+Only for a deliberate whole-repo release — a normal release bumps a subset via the `publishing`
+harness (`release.ts --apply`), which also realigns dependent ranges for you. Reach for the manual
+sweep below only when every package genuinely must move, e.g. a major/minor rebase of the line.
 
 Replace version in all `package.json` files at once:
 
@@ -60,6 +67,19 @@ find packages/*/node_modules/@owlmeans -maxdepth 1 -mindepth 1 -type d
 
 A range left at an older version (`^0.1.11`) is the same trap: a prerelease workspace version does
 not satisfy it, so that dependency gets fetched from npm instead of linked.
+
+## Publishing after a bump
+
+**Publishing requires the operator's explicit agreement, every time** — see the `publishing` skill,
+which owns the release procedure and the harness that enforces it.
+
+Two constraints the harness already handles, worth knowing when publishing by hand:
+`npm publish` refuses a prerelease (`X.Y.Z-rc.N`) without an explicit `--tag`, and the convention
+here is to publish prereleases straight to `latest` (verify before assuming —
+`npm view @owlmeans/<any-package> dist-tags --json`). Anything with `"private": true` (`_tpl`) is
+skipped. A same-triple prerelease bump (`-rc.N` → `-rc.N+1`) satisfies existing `^X.Y.Z-rc.N`
+ranges, so no consumer manifest needs editing for one — in this monorepo or in a downstream
+repo (e.g. a target-project template) already pinned that way.
 
 ## Internal dependency references
 

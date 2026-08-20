@@ -194,7 +194,31 @@ export const planSync = (
       continue
     }
 
+    /**
+     * A retype drops the column's default first.
+     *
+     * Postgres refuses `ALTER COLUMN … TYPE` outright when the column carries a DEFAULT it cannot
+     * cast to the new type — `42804 default for column "x" cannot be cast automatically` — and it
+     * refuses it before looking at a single row, so the `USING` clause never gets a chance to
+     * help. The whole plan runs in one transaction, so that refusal aborts the entire
+     * reconciliation: the table keeps its old shape and the resource fails every boot with an
+     * error about a column it is trying to fix. The standard remedy is to take the default out of
+     * the way, retype, and put it back — which is what the default-drift block below does, from
+     * the spec rather than from whatever the column happened to be carrying.
+     *
+     * The `id` column is the one that meets this in practice: it is created with a
+     * `gen_random_uuid()::text` default, so any change to its declared type hits this path.
+     */
+    let defaultDropped = false
     if (!additive && existing.type !== column.sqlType) {
+      if (existing.defaultExpr != null) {
+        statements.push({
+          kind: 'set-default',
+          target: column.column,
+          sql: `ALTER TABLE ${spec.qualified} ALTER COLUMN ${quoteIdent(column.column)} DROP DEFAULT`
+        })
+        defaultDropped = true
+      }
       const using = column.using ?? `${quoteIdent(column.column)}::${column.sqlType}`
       statements.push({
         kind: 'alter-type',
@@ -205,7 +229,13 @@ export const planSync = (
     }
 
     const expression = defaultExpression(column)
-    if (normalizeDefault(expression) !== normalizeDefault(existing.defaultExpr)) {
+    // Once the retype has dropped it, the default has to be re-stated even when it matches what
+    // the column used to carry: the comparison is against the pre-plan introspection, which stops
+    // describing the column the moment the plan drops its default.
+    const defaultDrifted = defaultDropped
+      ? expression != null
+      : normalizeDefault(expression) !== normalizeDefault(existing.defaultExpr)
+    if (defaultDrifted) {
       statements.push(expression != null
         ? {
           kind: 'set-default',

@@ -48,13 +48,18 @@ appendOtpPlugin(context)
 
 **Init** — client sends `{ type: 'email-otp', userId: 'user@email.com' }`:
 - OTP service generates a 6-digit code, stores it in Redis with 10 min TTL, emails it.
-- Returns `{ challenge: email }` in a signed envelope.
+- Returns `{ challenge: '<email>::<nonce>' }` in a signed envelope — see Gotchas below for why the
+  nonce is required, not optional.
 
-**Authenticate** — client sends `{ challenge: <signed-envelope>, userId: email, credential: '123456', entityId: 'the-entity' }`:
-- Envelope is opened → email is extracted.
+**Authenticate** — client sends `{ challenge: <signed-envelope>, userId: email, credential: '123456', type: 'email-otp', role: AuthRole.User, scopes: [ALL_SCOPES] }`:
+- Envelope is opened → `email::nonce` is extracted, split on `::` to recover the email (the nonce
+  itself is discarded — it only exists to make the challenge unique, see Gotchas).
 - OTP service verifies the code (throws `AuthenFailed` if wrong or expired), then deletes it.
 - `IdentityLinkingService` finds or creates the user profile scoped to `entityId`.
 - Sets `credential.type = AuthenticationType.OneTimeToken` and returns the signed auth token.
+- `type`, `role`, `scopes` are required by the shared `AuthCredentialsSchema` (spread from
+  `AuthPayloadSchema.required`) even though the OTP plugin overwrites `role`/`scopes`/`type` on
+  success — a caller that omits them never reaches the plugin at all (see Gotchas).
 
 ## Config overrides (optional)
 
@@ -75,6 +80,31 @@ cfg.otp = {
 - The `credential.entityId` in the authenticate request determines which entity the resulting identity profile is scoped to. Pass it from the OIDC interaction.
 - Errors from this plugin are `AuthenFailed` (from `@owlmeans/auth`) — callers catch that, not raw `Error`.
 - For tests, use `makeConsoleMailerService()` and read `svc.captured[n].text` to extract the code.
+
+## Gotchas
+
+- **The challenge must never be just the plaintext email.** The auth manager's anti-replay guard
+  (`AUTH_CACHE` in `@owlmeans/server-auth`) burns the *decoded* challenge into a Redis
+  create-once record before the plugin's own credential check runs. If `init()` returned the bare
+  email, that decoded value would be identical across every independent login attempt for the same
+  address, so a second legitimate login within the cache TTL (`AUTHEN_TIMEFRAME`, 10 min) — right
+  code or wrong — collides with the still-cached prior attempt and throws
+  `AuthenFailed('challenge')` (a `RecordExists` underneath), not an OTP-specific error. Fix: `init()`
+  appends a fresh `createIdOfLength(16, IdStyle.Base58)` nonce (`'<email>::<nonce>'`); `authenticate()`
+  splits it back apart. Never revert to a bare-email challenge.
+- **`AuthCredentialsSchema.credential` has a `minLength` floor** (from `@owlmeans/auth`) sized for
+  long tokens/signatures from other plugins (Ed25519 signature, OAuth code). A 6-digit OTP code is
+  legitimately shorter — the schema's floor must stay low enough (`minLength: 1` as of this
+  writing) to admit it, or every authenticate call 400s before the plugin ever runs.
+- **`scopes`/`role`/`type` are schema-required on the authenticate body**, spread from
+  `AuthPayloadSchema.required` into `AuthCredentialsSchema` — even though this plugin overwrites
+  all three on success. A caller built without going through `@owlmeans/client-auth`'s
+  `AuthenticationControl` (which fills them automatically) must set them explicitly or the request
+  fails Fastify schema validation (`FST_ERR_VALIDATION`) before reaching this plugin at all.
+- **The resulting auth token can exceed 1024 characters** — it wraps the full `AuthCredentials`
+  envelope, including the original allowance challenge, base64-encoded. A consumer route that
+  accepts this token (e.g. an OIDC `PROVIDER_INTERACTION` finalizer) must size its own `token`
+  field schema accordingly; the generic `AuthTokenSchema` (`maxLength: 1024`) is too small.
 
 ## Related instructions
 

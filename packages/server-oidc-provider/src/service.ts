@@ -1,6 +1,7 @@
 import { assertContext, createService } from '@owlmeans/context'
 import { DEFAULT_ALIAS, OIDC_ACCOUNT_SERVICE } from './consts.js'
 import { DEFAULT_PATH, INTERACTION, INTERACTION_UID } from '@owlmeans/oidc'
+import type { ServerResponse } from 'node:http'
 import type { Config, Context, OidcAccountService, OidcAdapterService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
 import type { BasicRoute } from '@owlmeans/route'
@@ -60,20 +61,36 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       oidc.proxy = cfg.behindProxy ?? unsecure
       const base = SEP + (cfg.basePath ?? DEFAULT_PATH)
 
-      api.server.use(base, oidc.callback())
+      /**
+       * Response headers the hardened defaults get wrong for an authorization endpoint.
+       *
+       * This runs as middleware, ahead of the provider in the same chain, and writes to the raw
+       * response — deliberately, not as a Fastify `onSend` hook. `oidc.callback()` is a Koa
+       * handler mounted through Middie: it ends the response itself, outside Fastify's reply
+       * lifecycle, so `onSend` never fires for any route the provider answers and anything set
+       * there silently never reaches the wire. The security defaults are already on the raw
+       * response by this point (`@fastify/helmet` applies them in `onRequest`), so overriding
+       * them here is what actually takes effect.
+       */
+      api.server.use(base, (_req: unknown, res: ServerResponse, next: () => void) => {
+        // `Cross-Origin-Opener-Policy: same-origin` puts this document in a fresh browsing
+        // context group, which severs `window.opener` **permanently** — navigating back to the
+        // relying party afterwards does not restore it. Popup-based login is the standard way an
+        // embedded application authenticates and the opener is its only channel home, so an
+        // authorization endpoint must not be the thing that cuts it.
+        res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none')
 
-      // oidc-provider v9: provider.use() middleware no longer runs post-response after a matched
-      // route. CSP rewrite is handled at the Fastify layer via an onSend hook instead.
-      api.server.addHook('onSend', async (request, reply, payload) => {
-        if (!request.url.startsWith(base)) {
-          return payload
-        }
-        const csp = reply.getHeader('content-security-policy')
+        // The provider posts its own interaction forms across origins; `form-action 'self'`
+        // would block the submission.
+        const csp = res.getHeader('Content-Security-Policy')
         if (typeof csp === 'string' && csp.includes("form-action 'self'")) {
-          reply.header('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
+          res.setHeader('Content-Security-Policy', csp.replace(/form-action 'self'/, 'form-action *'))
         }
-        return payload
+
+        next()
       })
+
+      api.server.use(base, oidc.callback())
 
       if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
 

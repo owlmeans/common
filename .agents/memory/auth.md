@@ -28,3 +28,9 @@ updated: 2026-08
 
 - `Resource.pick()` DELETES the record it finds — never use it in auth gates or read-only
   identity checks.
+- `makeAuthModel().authenticate()` (`server-auth`) burns the *decoded* challenge into `AUTH_CACHE`
+  as a create-once anti-replay guard, before the plugin's own credential check runs. Any
+  `AuthPlugin.init()` whose challenge isn't unique per request (e.g. a bare identity string) makes
+  every second legitimate attempt within the cache TTL collide and 500 with `AuthenFailed`
+  wrapping `RecordExists` — not the plugin's own error. Full incident + fix: `server-auth-otp`
+  skill.

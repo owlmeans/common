@@ -13,7 +13,7 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
-| `Resource<T>` | Generic resource contract: `get`/`load`/`list`/`save`/`create`/`update`/`delete`/`pick`. |
+| `Resource<T>` | Generic resource contract: `get`/`load`/`list`/`save`/`create`/`update`/`delete`/`pick`. `list(criteria?, opts?)` paginates through `opts.pager: { page, size, sort }` — there is no `limit`. |
 | `MigratableResource<Tx>` | **Optional migration capability** — `migration(name, apply, stage?)` (chainable) + `migrations()`. Optional the way pub/sub is on redis resources: mongo and postgres extend it, backends with nothing to migrate don't. |
 | `Migration`, `MigrationRegistry`, `MigrationStore`, `MigrationReport`, `MigrationRunOptions` | The framework's contracts. `MigrationStore` is the *migration register* a database implements to track applied migrations (`ensure`/`applied`/`baseline`/`run`). |
 | `createMigrationRegistry<Tx>()` | Storage-agnostic ledger of code-registered migrations per alias. Declaration order = application order; re-registering an identical body is a no-op, a changed body under a used name throws `MigrationConflict`. |
@@ -37,6 +37,14 @@ import type { Resource } from '@owlmeans/resource'
 interface Project { id: string; name: string; entityId: string }
 const projects = ctx.resource<Resource<Project>>('projects')
 const { items } = await projects.list({ entityId: 'abc' })
+
+// Pagination and sort ride under `pager` in the SECOND argument — there is NO `limit`,
+// and neither `page` nor `size` exists at the top level of either argument:
+const page2 = await projects.list(
+  { entityId: 'abc' },
+  { pager: { page: 1, size: 20, sort: ['createdAt'] } }
+)
+// page2.pager echoes { page, size, total } for building pagination UI.
 ```
 
 ### Calling the CRUD surface

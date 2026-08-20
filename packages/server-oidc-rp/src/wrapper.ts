@@ -84,9 +84,25 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           if (defaultClientId != null) {
             let tokenSet: CommonTokenSetParams = record.payload as CommonTokenSetParams
             const client = await oidc.getClient(defaultClientId)
-            if (days.unix(tokenSet.expires_at ?? 0).isBefore()) {
+
+            // Revalidate using only what this session and this provider actually support.
+            // `expires_at` is the token set's own absolute expiry; **absent is not expired** —
+            // reading a missing value as the epoch (the former `?? 0`) sent every single
+            // validation, including one moments after login, down the refresh path. That path
+            // cannot work for a session granted without `offline_access`, because such a token
+            // set carries no refresh token at all, so a valid login died as a 403.
+            const expiresAt = tokenSet.expires_at
+            if (expiresAt != null && days.unix(expiresAt).isBefore()) {
+              if (tokenSet.refresh_token == null) {
+                // Expired with nothing to renew it — the user has to authenticate again.
+                throw new AuthorizationError('access-token')
+              }
               tokenSet = await client.refresh(tokenSet as OidcTokenSetParameters) as CommonTokenSetParams
-            } else {
+            } else if (client.getMetadata().introspection_endpoint != null) {
+              // Introspection is the only way to notice a revocation that happened before the
+              // token's own expiry, so it stays the check of choice — but it is an optional
+              // provider feature. Calling an endpoint the discovery document never advertised
+              // throws, which would fail the session for the opposite reason to the one above.
               const result = await client.introspect(tokenSet as OidcTokenSetParameters, 'access_token')
               if (!result.active) {
                 throw new AuthorizationError('access-token')

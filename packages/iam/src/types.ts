@@ -120,7 +120,34 @@ export interface IamService extends InitializedService {
   getIssuerUrl: (entityId: string) => Promise<string>
 
   // --- Provisioning (agent → story development) ---
+
+  /**
+   * Find-or-create the entity's OIDC client.
+   *
+   * A client id is globally unique — a provider resolves it from the bare `client_id` a relying
+   * party sends, with no tenant context — so an implementation MUST refuse an existing record
+   * that belongs to a different entity (`IamClientError('client:entity-mismatch')`) rather than
+   * returning it. Silently adopting one hands the caller another tenant's secret and overwrites
+   * that tenant's redirect URIs.
+   */
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
+
+  /**
+   * Reserve a client id for the entity without provisioning it, so a caller can find a free name
+   * before committing to it. Returns false when the id is already taken — by this entity or any
+   * other — and true when the reservation is now held.
+   *
+   * This exists because the id is minted from a name that may later be released (a project alias
+   * moves when its hostname is refused), so the naming index cannot answer whether an id is free.
+   * The registry is the only authority.
+   */
+  claimClient: (entityId: string, clientId: string) => Promise<boolean>
+
+  /**
+   * Release a client id and everything keyed by it. Called when a project or slot is deleted —
+   * without it a recreated project can inherit a stale registration.
+   */
+  deleteClient: (entityId: string, clientId: string) => Promise<void>
 
   /**
    * Ensures a permission/resource exists in the entity's client.
@@ -178,8 +205,11 @@ export interface IamService extends InitializedService {
   // --- End-user management (customer-wide users, shared per entityId) ---
 
   /**
-   * Lists the entity's end-users. With clientId, narrows to users holding at least
-   * one grant for that client (per-project view).
+   * Lists the entity's end-users. End-users are customer-wide — shared across every project of
+   * the entity — so `clientId` scopes the reported `grantCount` to one project's client and does
+   * **not** filter the set: a user who has authenticated against a project but holds no grant
+   * there is still that project's user, and the screen that manages grants is exactly where they
+   * must be visible.
    */
   listUsers: (entityId: string, clientId?: string) => Promise<IamUser[]>
 

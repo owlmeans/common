@@ -142,7 +142,11 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **Bun (package manager & build)**: `bun` — install, build, script, and workspace-filter work
 - **Scaffolding a new app / getting started**: guide at [`docs/getting-started.md`](docs/getting-started.md) (linked from root README) shows how to build a minimal fullstack app (`common`/`api`/`web`, shadcn UI, no auth, session-scoped in-memory `static-resource`) two ways — via `@owlmeans/create-app` (`packages/create-app`, the `npm create @owlmeans/app` scaffolder that also deploys agent-skills) or manually. General skills `getting-started` and `scaffolding` carry this knowledge and route to `@owlmeans/agent-skills` as installer extras.
 - **Authoring skills**: `skill-authoring` (add guidance to any OwlMeans project) and `create-skill` (this monorepo's own conventions)
-- **Versioning**: `versions` — how to bump package versions across the monorepo
+- **Releasing / publishing**: `publishing` — detect what actually changed against the registry, bump
+  only that plus its dependents, publish exactly that set. **Never publish without the operator's
+  explicit agreement.**
+- **Versioning**: `versions` — version format and internal ranges (versions are per package and
+  intentionally uneven; releasing is the `publishing` skill)
 - **TypeScript configs**: `tsconfig` — how to configure tsconfig in packages, which configs to extend
 - **shadcn UI + Tailwind v4 web packages**: `shadcn-web` (development & maintenance, the `@` alias contract, Tailwind wiring, MUI→shadcn mapping) + `shadcn-versions` (version management). `testing-ui` covers Playwright tests for shadcn packages.
 - **Auth protocol and local identity**: `auth-protocol` and `server-auth-identity`

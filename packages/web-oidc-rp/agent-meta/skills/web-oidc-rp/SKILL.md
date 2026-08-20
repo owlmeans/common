@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.17"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.6"` in `dependencies`
 
 ## Key Exports
 
@@ -51,6 +51,35 @@ from `@owlmeans/oidc`) on failure. It must check for the error params **before**
 flow and render the message instead: starting authorization again would rebuild the request that
 just failed, so the browser bounces between dispatcher and provider forever and the actual reason
 never reaches the user. The same rule holds for the MUI dispatcher in `@owlmeans/mui-oidc-rp`.
+
+## Login from an embedded (framed) app
+
+A redirect-based OIDC login cannot complete inside an iframe: the provider answers
+`frame-ancestors 'self'` / `X-Frame-Options`, and its session cookies are third-party there, so
+neither relaxing one nor the other alone is enough. Run the flow **one window up** instead — a
+popup is top-level and first-party on the app's own origin, where none of those restrictions apply.
+
+| Export | Role |
+|--------|------|
+| `isFramed()` | True when embedded — a cross-origin `window.top` read throws, and that throw counts as framed |
+| `loginViaPopup(context, dispatcherUrl)` | Opens the dispatcher in a popup, adopts the handed-back token; resolves `false` if blocked or closed |
+| `handBackOidcToken(token)` | Called by the popup to `postMessage` the token to its opener and close; `false` when not a popup |
+| `applyAuthToken(context, token)` | Adopts a token into `AUTH_RESOURCE` + the auth service — the one path both code-exchange and popup handback use |
+| `isOidcLoginPopup()` | Whether this document is that popup (`window.name` marker, not `window.opener` alone) |
+
+Three rules make this work, and each one is a real failure when broken:
+
+- **Open the popup synchronously inside the click handler.** `window.open` escapes the popup
+  blocker only while the gesture is being handled, so nothing may be awaited first — this is why
+  `loginViaPopup` is not `async` and opens the window before returning its promise.
+- **The token must be passed back explicitly.** The popup writes to the *first-party* storage
+  partition while the framed opener has its own, so the opener cannot see what the popup stored;
+  `postMessage` (same-origin, origin pinned — it carries a bearer token) is what bridges them.
+- **Never auto-open a popup from an effect.** With no gesture it is blocked, so `Dispatcher`
+  renders a sign-in button when it is framed and would otherwise redirect.
+
+Unframed behaviour is unchanged: `isFramed()` is false, the click navigates to the dispatcher, and
+the classic redirect runs. Nothing here requires weakening helmet or setting `SameSite=None`.
 
 ## Product-Viable Usage Notes
 
