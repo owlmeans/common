@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/postgres-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.6"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.7"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres counterpart of [[mongo-resource]]. The difference that governs everything else: a
 Mongo collection has no structure, a Postgres table does — so **the resource layer owns the DDL**
@@ -107,6 +107,16 @@ At `init()`: introspect → diff → apply the whole `DdlPlan` in one transactio
 boot once with `Additive`, confirm the plan comes out empty, then flip to `Full`. Columns listed in
 `pg.unmanaged` stay outside reconciliation's authority permanently. A cast Postgres cannot perform
 raises `PostgresCastRequired` instead of truncating.
+
+**A retype drops the column's default first and restores it after.** Postgres refuses
+`ALTER COLUMN … TYPE` outright when the column carries a DEFAULT it cannot cast to the new type
+(`42804 default for column "x" cannot be cast automatically`), and it refuses before reading a
+single row, so `USING` never gets a chance to help. Since the plan is one transaction, that refusal
+aborts the whole reconciliation and the resource then fails *every* boot with an error naming the
+column it is trying to fix. The plan therefore emits `DROP DEFAULT` → `ALTER … TYPE … USING` →
+`SET DEFAULT`, restoring the default from the spec rather than from what the column was carrying.
+The `id` column is where this shows up in practice: it is created with a `gen_random_uuid()::text`
+default, so any change to its declared type takes this path.
 
 ## Migrations bracket the sync
 

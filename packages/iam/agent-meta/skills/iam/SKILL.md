@@ -23,6 +23,9 @@ Provider-agnostic IAM abstraction. Defines `IamService` interface and related ty
 | `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, title? }` |
 | `IamGrantArgs` | type | `{ resources?: string[] }` — present = resource-scoped grant form |
 | `IamGrant` | type | `{ profileId, clientId, permission, resources? }` |
+| `IamUser` | type | End-user of an entity `{ profileId, email?, name?, role, disabled?, grantCount? }` |
+| `IamUserInvite` | type | `{ email, name?, role? }` — find-or-create args |
+| `IamUserUpdate` | type | `{ name?, role?, disabled? }` |
 | `hasPermission` | fn | `(auth, permission, { scope?, resourceId? }?)` — checks `Authorization.permissions` PermissionSet[]; an unscoped set satisfies a resourceId check |
 | `DEFAULT_ALIAS` | const | Default service alias `'iam-service'` |
 | `IAM_MODE_KEYCLOAK` | const | `'keycloak'` |
@@ -62,7 +65,14 @@ interface IamService extends InitializedService {
 
   // Provision an OIDC client for a tenant and return its credentials.
   // options.redirectUris hardens the client; always pass them (see "Issuer & redirect URIs").
+  // MUST refuse an existing record owned by another entity — see "A client id is a global name".
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
+
+  // Reserve a free client id without provisioning it; false when anyone else holds it.
+  claimClient: (entityId: string, clientId: string) => Promise<boolean>
+
+  // Release a client id and everything keyed by it (called when a project/slot is deleted).
+  deleteClient: (entityId: string, clientId: string) => Promise<void>
 
   // Provision a named permission on a client resource; returns the resource name
   ensurePermission: (entityId: string, clientId: string, resource?: string, args?: IamPermissionArgs) => Promise<string>
@@ -83,8 +93,48 @@ interface IamService extends InitializedService {
 
   // List grants for the client, optionally for one subject
   listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
+
+  // --- End-user management (customer-wide users, shared per entityId) ---
+
+  // Every end-user of the entity. clientId scopes the reported grantCount — it does NOT filter.
+  listUsers: (entityId: string, clientId?: string) => Promise<IamUser[]>
+  getUser: (entityId: string, profileId: string) => Promise<IamUser | null>
+  // Find-or-create by email — the one way an end-user record comes into existence.
+  inviteUser: (entityId: string, invite: IamUserInvite) => Promise<IamUser>
+  updateUser: (entityId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
+  removeUser: (entityId: string, profileId: string) => Promise<void>
 }
 ```
+
+## End-users are customer-wide
+
+An end-user belongs to the **entity**, not to a project: one customer's users are shared across every
+project they own. `listUsers` therefore returns the entity's whole set and `clientId` only scopes the
+reported `grantCount` to one project's client. Do not reintroduce a per-client filter — a person who
+has authenticated against a project but holds no grant there is still that project's user, and the
+screen that hands out grants is exactly where they have to be visible.
+
+`inviteUser` is idempotent by email, which is what lets an invitation and a first sign-in converge on
+one record instead of accumulating twins. Backends that have no user store of their own (keycloak,
+where the customer manages realm users in its console) throw `IamUnsupported('user-management')` from
+all five methods; callers turn that into an "external console" fallback rather than an error.
+
+## A client id is a global name
+
+A provider resolves a client from the bare `client_id` a relying party sends — the adapter gets no
+tenant context — so the id is unique across the whole deployment, not per entity, and the store
+cannot namespace it on a consumer's behalf. Uniqueness has to be *in the id*.
+
+- Compose it with the owning entity in it. A name derived from a project's own name alone lets two
+  organizations share one registration: one secret, one redirect-URI list, one permission-definition
+  set, and one grant namespace, because `PermissionSet.scope` is that same string.
+- `ensureClient` refuses a record belonging to another entity rather than returning it. The failure
+  is deliberate — a loud provisioning error is the only alternative to a silent cross-tenant handover.
+- Assign an id **once** and reserve it with `claimClient`. Whatever a consumer derives ids from
+  (a project alias, a slug) may later be released and re-used by a sibling, so only the registry can
+  say whether an id is free. `deleteClient` gives it back, or a deleted project's name is burned.
+- Backends whose clients are already per-tenant (keycloak realms) satisfy this by construction:
+  `claimClient` returns true and `deleteClient` may be `IamUnsupported`.
 
 ## `IamClient.realm` field
 

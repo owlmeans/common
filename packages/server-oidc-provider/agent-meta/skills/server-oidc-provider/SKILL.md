@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.8"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.8.4` (exact), `jose@6.2.3` (exact)
 
 ## Key Exports
@@ -66,6 +66,26 @@ matching claims — a granted scope with no claim behind it is silently empty.
 const key = await jose.importPKCS8(pkcs8Pem, 'RS256', { extractable: true })
 const jwk = await jose.exportJWK(key)
 ```
+
+## Response headers the hardened defaults get wrong
+
+`@fastify/helmet` runs with its defaults on every OwlMeans server, and two of them break an
+authorization endpoint. Both are corrected by middleware this package mounts ahead of the provider.
+
+- **`Cross-Origin-Opener-Policy: same-origin`** puts the authorization document in a fresh browsing
+  context group, severing `window.opener` **permanently** — navigating back to the relying party
+  afterwards does not restore it. That kills popup-based login, which is how an app embedded in an
+  iframe must authenticate (see the `web-oidc-rp` skill). The provider sends `unsafe-none`.
+- **`form-action 'self'`** blocks the provider's own interaction form posting across origins, so it
+  is rewritten to `form-action *`.
+
+**Set these as middleware, never as a Fastify `onSend` hook.** `oidc.callback()` is a Koa handler
+mounted through Middie: it ends the response itself, outside Fastify's reply lifecycle, so `onSend`
+never fires for any route the provider answers and anything set there silently never reaches the
+wire — the header looks configured in code and is absent in production. Middleware registered
+before the provider writes to the raw response, where helmet has already put its defaults, so the
+override is what ships. Verify with `curl -D -` against `/<basePath>/.well-known/openid-configuration`
+rather than by reading the code.
 
 ## Depends On
 
