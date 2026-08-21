@@ -44,7 +44,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
+    "@noble/hashes": "^2.3.0",
     "@owlmeans/auth": "^0.1.18-rc.6",
     "@owlmeans/auth-common": "^0.1.18-rc.6",
     "@owlmeans/basic-envelope": "^0.1.18-rc.6",
