@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/basic-envelope
 
 **Layer:** Core
-**Install:** `"@owlmeans/basic-envelope": "^0.1.2"` in `dependencies`
+**Install:** `"@owlmeans/basic-envelope": "^0.1.18-rc.6"` in `dependencies`
 
 ## Key Exports
 

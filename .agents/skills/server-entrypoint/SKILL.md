@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-entrypoint
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-entrypoint": "^0.1.2"` in `dependencies`
+**Install:** `"@owlmeans/server-entrypoint": "^0.1.18-rc.6"` in `dependencies`
 
 ## Key Exports
 

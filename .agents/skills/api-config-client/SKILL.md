@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api-config-client
 
 **Layer:** Client
-**Install:** `"@owlmeans/api-config-client": "^0.1.2"` in `dependencies`
+**Install:** `"@owlmeans/api-config-client": "^0.1.18-rc.6"` in `dependencies`
 
 ## Key Exports
 

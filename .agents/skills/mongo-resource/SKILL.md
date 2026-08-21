@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.15"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.6"` in `dependencies` (peers `mongodb`, `ajv`)
 
 The Mongo counterpart of [[postgres-resource]]. A collection has no structure of its own, so
 here the resource layer owns the *validator* (`$jsonSchema` from the AJV schema), the indexes,

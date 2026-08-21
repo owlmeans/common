@@ -90,3 +90,11 @@ repo (e.g. a target-project template) already pinned that way.
 ## dep-config special case
 
 `@owlmeans/dep-config` is referenced as `"workspace:*"` (not a caret range) in devDependencies of all packages, because it contains no runtime code — only TypeScript config files. Being version-independent, it is the one internal dep a bump never has to touch.
+
+## Install lines in skills
+
+The `**Install:**` line of every package skill states the package's **current** version, and it is
+kept true mechanically: `release.ts --apply` (the `publishing` skill) rewrites every such line to
+`^<current version>` on each release. Never hand-edit the version in an Install line — state
+changes flow from `packages/*/package.json`, through the release apply, into the skill and then
+into the embedded agent-meta copies.

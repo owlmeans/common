@@ -32,7 +32,8 @@ downstream lockfile churns for nothing.
 # 1. What would ship? (default; safe, read-only)
 bun .agents/skills/publishing/scripts/release.ts
 
-# 2. Write the new versions and realign dependent ranges (no registry writes)
+# 2. Write the new versions, realign dependent ranges, and reconcile every canonical
+#    skill's **Install:** line with its package's current version (no registry writes)
 bun .agents/skills/publishing/scripts/release.ts --apply
 
 # 3. Rebuild against the new versions, then verify
@@ -54,6 +55,12 @@ bun .agents/skills/publishing/scripts/release.ts --publish --confirm
 
 Whole-repo comparison takes well under a minute, so run the plan rather than reasoning about what
 you think changed.
+
+`--apply` also sweeps `.agents/skills/*/SKILL.md`: every `**Install:**` line naming an
+`@owlmeans/*` package is rewritten to `^<that package's current version>`, across ALL skills, not
+only the bumped set. Install lines are therefore **generated bookkeeping — never hand-maintain a
+version there**, and never "fix" one in a docs-only change: the next `--apply` is what fixes it.
+After an apply, re-run the agent-meta sync so the embedded copies follow the canonical text.
 
 ## How "changed" is decided
 

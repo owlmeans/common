@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.11"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.8.4` (exact), `jose@6.2.3` (exact)
 
 ## Key Exports

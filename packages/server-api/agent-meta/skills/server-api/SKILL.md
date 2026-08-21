@@ -8,13 +8,14 @@ user-invocable: false
 # @owlmeans/server-api
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/server-api": "^0.1.18-rc.10"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
 | `makeServer()` | Factory for the Fastify-based API server |
+| `holdApiPort(cfg, { okPath?, payload? })` | Own the app's port during boot; released by the real `listen()` |
 | `Server`, `ServerRequest`, `ServerResponse` types | Runtime shapes |
 | Errors | Typed transport errors |
 | Constants | Default ports, paths |
@@ -33,6 +34,32 @@ import { makeServer } from '@owlmeans/server-api'
 const server = makeServer({ port: 8080 })
 context.registerService(server)
 ```
+
+## Holding the port through the boot
+
+The server builds its route table from the entrypoints the context knows about, so it can only
+bind **after** `init()` resolves — and Fastify refuses new routes once it is listening. That
+leaves every way a boot can fail with nothing on the port: the edge answers a bare upstream
+connect error naming neither the app nor the reason.
+
+`holdApiPort` closes that window: a minimal Fastify instance binds the app's socket immediately —
+resolving port and host from the same `cfg.services[cfg.service]` declaration `listen()` uses —
+answers `okPath` with 200 and everything else with **503, not 404** (the real routes do not exist
+yet, and "no such route" would be a lie that outlives the boot), evaluating `payload()` per
+request so a changing boot phase is reported live.
+
+```typescript
+const hold = await holdApiPort(ctx.cfg, { okPath: '/healtz', payload: bootPayload })
+try { await initialize() } catch (e) { recordFailure(e); return }   // hold keeps answering
+await hold.release()          // awaited — listen() binds on the next line
+await ctx.getApiServer().listen()
+```
+
+Two rules the caller owns: a **bind failure is fatal and loud** — name it (EADDRINUSE above all)
+and `process.exit(1)`, because carrying on ends the boot with nothing listening and nothing
+holding the event loop, a clean exit 0 while a stale predecessor keeps serving; and a **failed
+init returns without exiting** — the hold keeps the loop open and is the only thing that can say
+why.
 
 ## Error → HTTP status
 

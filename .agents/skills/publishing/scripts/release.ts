@@ -477,6 +477,48 @@ const main = async (): Promise<number> => {
     }
   }
   console.log(`Wrote versions for ${affected.size} package(s) and realigned dependent ranges.`)
+
+  // --- 3b. reconcile canonical skill Install lines --------------------------------------------
+  // Every package-specific skill under .agents/skills opens with an `**Install:**` line naming
+  // its package and a caret range. Those lines are hand-written prose, so nothing bumped them and
+  // they rot to whatever version the skill was authored against — while the embedded copies under
+  // packages/*/agent-meta are regenerated with the current version and silently disagree with the
+  // canonical text they were generated from. Reconciling here, on every --apply, makes the stated
+  // rule true by construction: an Install line always carries the named package's CURRENT version.
+  // Deliberately a full sweep rather than only the bumped set, so a line that rotted before this
+  // step existed is repaired by the next release that touches anything.
+  const versionOf = new Map<string, string>()
+  for (const pkg of packages) {
+    versionOf.set(pkg.name, nextVersion.get(pkg.name) ?? pkg.version)
+  }
+
+  const skillsDir = path.join(ROOT, '.agents', 'skills')
+  let reconciled = 0
+  if (existsSync(skillsDir)) {
+    for (const entry of await readdir(skillsDir, { withFileTypes: true })) {
+      const skillPath = path.join(skillsDir, entry.name, 'SKILL.md')
+      if (!entry.isDirectory() || !existsSync(skillPath)) {
+        continue
+      }
+      const raw = await readFile(skillPath, 'utf8')
+      const updated = raw.replace(
+        /^(\*\*Install:\*\*.*?"(@owlmeans\/[a-z0-9-]+)":\s*")[^"]*(")/gm,
+        (line, head: string, name: string, tail: string) => {
+          const current = versionOf.get(name)
+          return current == null ? line : `${head}^${current}${tail}`
+        }
+      )
+      if (updated !== raw) {
+        await writeFile(skillPath, updated)
+        reconciled += 1
+      }
+    }
+  }
+  if (reconciled > 0) {
+    console.log(`Reconciled the Install line in ${reconciled} skill(s) with current package versions.`)
+    console.log('Re-run the agent-meta sync so the embedded copies follow.')
+  }
+
   console.log('Run `bun install` and `bun run build` before publishing.')
 
   if (!args.publish) {
