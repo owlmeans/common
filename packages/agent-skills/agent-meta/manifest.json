@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
   "version": "0.1.18-rc.6",
-  "generatedAt": "2026-08-18T14:48:00.512Z",
+  "generatedAt": "2026-08-21T10:17:05.639Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -53,6 +53,13 @@
       "category": "general",
       "file": "skills/agent-memory/SKILL.md",
       "canonicalPath": ".agents/skills/agent-memory/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "login-plugins",
+      "category": "general",
+      "file": "skills/login-plugins/SKILL.md",
+      "canonicalPath": ".agents/skills/login-plugins/SKILL.md"
     },
     {
       "kind": "skill",

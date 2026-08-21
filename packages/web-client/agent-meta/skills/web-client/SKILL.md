@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-client
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/web-client": "^0.1.18-rc.8"` in `dependencies`
 
 ## Key Exports
 
@@ -19,8 +19,10 @@ user-invocable: false
 | `handler(Component)` | Wrap a React component as an entrypoint handler |
 | `context.registerEntrypoints(entrypoints)` | Register the full entrypoint list on the context |
 | `context.serviceRoute(alias, isDefault?)` | Mark a service's routing root |
+| `makeContext(cfg)` | Build the browser context — auth, web db, client resource, router and login are all appended here |
+| `appendWebLogin(context)` | Register the login host plus the redirect and surrogate-window plugins |
 | `router`, `components`, `service`, `i18n`, `helpers`, `errors` | Web-specific helpers |
-| Constants | Default aliases (BASE, HOME) |
+| Constants | Default aliases (BASE, HOME), `REDIRECT_LOGIN`, `SURROGATE_LOGIN` |
 
 ## Usage
 
@@ -56,6 +58,24 @@ A **backend** alias the client calls needs a bare `elevate(entrypoints, alias)` 
 makes `context.entrypoint<ClientEntrypoint<T>>(alias).call({ params, body, query })` work; the auth
 header is attached automatically for guarded entrypoints.
 
+### Login comes with the context
+
+`makeContext` calls `appendWebLogin`, which registers the login host (`@owlmeans/client-auth/login`)
+and both browser plugins on it — redirect (`REDIRECT_LOGIN`, priority 0, applies always) and
+surrogate window (`SURROGATE_LOGIN`, priority 100, applies in a frame or in the surrogate itself).
+So every web app — and everything built on `web-panel` or `mui-panel` — has working sign-in,
+including from an embedded app, with nothing registered by hand:
+
+```typescript
+import { useLogin, useLogout } from '@owlmeans/client-auth/login'
+
+const [, onLogIn] = useLogin()   // one control, one handler, no environment checks
+```
+
+An app that needs a different mechanic registers its own plugin at a higher priority after building
+the base context (`context.login().registerPlugin(...)`); it never replaces these. The contract, the
+cascade and the invariants are the `login-plugins` skill.
+
 ### Navigation
 ```typescript
 import { useNavigate } from '@owlmeans/client'   // not re-exported by web-client
@@ -68,5 +88,6 @@ await nav.go(alias, { params })   // programmatic; nav.back() to go back
 ## Depends On
 
 - `@owlmeans/client`, `@owlmeans/web-router` (default OwlMeans browser routing), `@owlmeans/web-panel` (typically), `@owlmeans/client-i18n`
+- `@owlmeans/client-auth` — `AUTH_RESOURCE` and the `./login` host the browser plugins register on
 - `@owlmeans/entrypoint`, `@owlmeans/route`
 - `react`, `react-dom` (peer). No longer depends on `react-router` — opt into it with `@owlmeans/web-router-react-router` (`appendReactRouter`). The former `provide` export is a deprecated `undefined`.

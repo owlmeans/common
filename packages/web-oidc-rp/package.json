@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-rp",
-  "version": "0.1.18-rc.8",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -32,7 +32,7 @@
     "@owlmeans/auth": "^0.1.18-rc.6",
     "@owlmeans/basic-envelope": "^0.1.18-rc.6",
     "@owlmeans/client": "^0.1.18-rc.6",
-    "@owlmeans/client-auth": "^0.1.18-rc.7",
+    "@owlmeans/client-auth": "^0.1.18-rc.8",
     "@owlmeans/client-flow": "^0.1.18-rc.6",
     "@owlmeans/client-i18n": "^0.1.18-rc.6",
     "@owlmeans/context": "^0.1.18-rc.6",
@@ -40,7 +40,7 @@
     "@owlmeans/entrypoint": "^0.1.18-rc.6",
     "@owlmeans/oidc": "^0.1.18-rc.6",
     "@owlmeans/resource": "^0.1.18-rc.6",
-    "@owlmeans/web-client": "^0.1.18-rc.7",
+    "@owlmeans/web-client": "^0.1.18-rc.8",
     "@owlmeans/web-flow": "^0.1.18-rc.6",
     "oidc-client-ts": "3.5.0"
   },
