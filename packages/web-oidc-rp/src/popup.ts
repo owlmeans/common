@@ -1,166 +1,51 @@
-import type { Auth } from '@owlmeans/auth'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { AUTH_RESOURCE, USER_ID } from '@owlmeans/client-auth'
-import type { ClientAuthResource } from '@owlmeans/client-auth'
-import type { AppConfig, AppContext } from '@owlmeans/web-client'
 import {
-  OIDC_POPUP_FEATURES, OIDC_POPUP_MARKER, OIDC_POPUP_NAME, OIDC_POPUP_TOKEN,
-  OIDC_POPUP_WATCH_INTERVAL
-} from './consts.js'
+  adoptToken, clearSurrogate, isEmbedded, isSurrogate, markSurrogate,
+  LOGIN_TOKEN_MESSAGE,
+} from '@owlmeans/client-auth/login'
+import type { AppConfig, AppContext } from '@owlmeans/web-client'
+import { LoginOutcome } from '@owlmeans/client-auth/login'
 
 /**
- * Whether this document is embedded in a frame.
+ * Compatibility surface for the framed-login helpers.
  *
- * Reading `window.top` across origins throws, and that throw is itself the answer: a `top` that
- * differs and a `top` that cannot be reached both mean "framed".
+ * The mechanics they used to implement now live in the login-plugin host
+ * (`@owlmeans/client-auth/login`) and the browser plugins that `@owlmeans/web-client` registers,
+ * so a relying party no longer has to know about frames, popups or storage partitions to support
+ * them. These are kept, and kept working, because a generated target app carries a COPY of the
+ * code that calls them: a template fix reaches new projects only, and the ones already running
+ * must not break under a framework upgrade.
+ *
+ * New code should use `context.login()` and `useLogin()` instead.
  */
-export const isFramed = (): boolean => {
-  try {
-    return window.self !== window.top
-  } catch {
-    return true
-  }
-}
 
-/**
- * Record that this window is the login popup, while that is still knowable.
- *
- * Must be called on the popup's **first** load, before the flow navigates to the provider:
- * `window.name` is the only evidence at that point, and browsers clear it as soon as a top-level
- * context goes cross-origin — so by the time the provider redirects back, the name is gone and
- * this window would look like an ordinary tab.
- *
- * Idempotent, and a no-op in every window that is not the popup.
- */
-export const markOidcLoginPopup = (): void => {
-  if (window.name !== OIDC_POPUP_NAME) {
-    return
-  }
-  try {
-    window.sessionStorage.setItem(OIDC_POPUP_MARKER, '1')
-  } catch {
-    // Storage can be unavailable (private modes, blocked cookies). The `window.name` check still
-    // covers the case where nothing cross-origin happened in between.
-  }
-}
+/** @deprecated Read `LoginEnv.embedded` from the login service, or let a plugin's `match` decide. */
+export const isFramed = isEmbedded
 
-/** Whether this document is the login popup opened by {@link loginViaPopup}. */
-export const isOidcLoginPopup = (): boolean => {
-  if (window.name === OIDC_POPUP_NAME) {
-    return true
-  }
-  try {
-    return window.sessionStorage.getItem(OIDC_POPUP_MARKER) === '1'
-  } catch {
-    return false
-  }
-}
+/** @deprecated The surrogate plugin records this in its `enter` stage. */
+export const markOidcLoginPopup = markSurrogate
 
-/**
- * Adopt an issued bearer token as this context's authentication.
- *
- * Shared by the two ways a token arrives — the dispatcher's own code exchange and a popup handing
- * one back — so both leave the client in the same state.
- */
+/** @deprecated Read `LoginEnv.surrogate` from the login service. */
+export const isOidcLoginPopup = isSurrogate
+
+/** @deprecated Use `context.login().adopt(token)` — the single token-adoption path. */
 export const applyAuthToken = async <C extends AppConfig, T extends AppContext<C>>(
   context: T, token: string
-): Promise<void> => {
-  const authResource = context.resource<ClientAuthResource>(AUTH_RESOURCE)
-  await authResource.save({ id: USER_ID, token })
+): Promise<void> => { await adoptToken(context, token) }
 
-  const [, authorization] = token.split(' ')
-  context.auth().auth = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token).message()
-  context.auth().token = token
-}
-
-/**
- * Hand the issued token back to the window that opened this popup, then close.
- *
- * Returns `false` when this document is not a login popup, so the caller can carry on with the
- * ordinary in-page continuation instead.
- *
- * The popup owns a *first-party* storage partition while the opener — an embedded frame — owns a
- * separate, partitioned one, so the token this document just stored is invisible there. Passing
- * the value explicitly is what bridges the two.
- */
+/** @deprecated Use `context.login().complete(token)`. */
 export const handBackOidcToken = (token: string | null | undefined): boolean => {
-  // `window.opener` is required, not merely expected: it is the one channel out of this window,
-  // because the opener is an embedded frame whose storage is partitioned away from this one.
-  if (!isOidcLoginPopup() || window.opener == null || token == null || token === '') {
+  if (!isSurrogate() || window.opener == null || token == null || token === '') {
     return false
   }
-
-  try {
-    window.sessionStorage.removeItem(OIDC_POPUP_MARKER)
-  } catch { /* nothing to clean up if storage was never available */ }
-
-  // Both windows are the same origin (the popup is this application's own dispatcher), so the
-  // origin is pinned rather than passed as `*` — the message carries a bearer token.
-  window.opener.postMessage({ type: OIDC_POPUP_TOKEN, token }, window.location.origin)
+  clearSurrogate()
+  window.opener.postMessage({ type: LOGIN_TOKEN_MESSAGE, token }, window.location.origin)
   window.close()
 
   return true
 }
 
-/**
- * Run OIDC login in a popup and adopt the token it hands back.
- *
- * **Call this synchronously from the user gesture that starts login.** `window.open` escapes the
- * popup blocker only while the gesture is still being handled, and any `await` before it ends
- * that window — which is why the popup is opened first and this is not an `async` function.
- *
- * The popup is a *top-level* context on the application's own origin, so the provider's
- * `frame-ancestors` / `X-Frame-Options` restrictions do not apply to it and its cookies are
- * first-party again. That is the whole point: the same flow that cannot complete inside a frame
- * completes normally one window up.
- *
- * Resolves `true` once the token has been adopted, `false` if the popup was blocked or the user
- * closed it first.
- */
-export const loginViaPopup = <C extends AppConfig, T extends AppContext<C>>(
+/** @deprecated Use `context.login().begin({ url })`. */
+export const loginViaPopup = async <C extends AppConfig, T extends AppContext<C>>(
   context: T, dispatcherUrl: string
-): Promise<boolean> => {
-  const popup = window.open(dispatcherUrl, OIDC_POPUP_NAME, OIDC_POPUP_FEATURES)
-  if (popup == null) {
-    return Promise.resolve(false)
-  }
-
-  return new Promise<boolean>(resolve => {
-    let settled = false
-    let watch: ReturnType<typeof setInterval> | undefined
-
-    const finish = (result: boolean): void => {
-      if (settled) {
-        return
-      }
-      settled = true
-      window.removeEventListener('message', onMessage)
-      if (watch != null) {
-        clearInterval(watch)
-      }
-      resolve(result)
-    }
-
-    function onMessage(event: MessageEvent): void {
-      if (event.origin !== window.location.origin) {
-        return
-      }
-      const data = event.data as { type?: string, token?: string } | null
-      if (data?.type !== OIDC_POPUP_TOKEN || data.token == null || data.token === '') {
-        return
-      }
-      void applyAuthToken<C, T>(context, data.token)
-        .then(() => finish(true))
-        .catch(() => finish(false))
-    }
-
-    window.addEventListener('message', onMessage)
-    // A popup the user simply closes announces nothing, so the only way to stop waiting on it is
-    // to watch for it going away.
-    watch = setInterval(() => {
-      if (popup.closed) {
-        finish(false)
-      }
-    }, OIDC_POPUP_WATCH_INTERVAL)
-  })
-}
+): Promise<boolean> =>
+  await context.login().begin({ url: dispatcherUrl }) === LoginOutcome.Handled

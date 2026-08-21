@@ -9,7 +9,7 @@ import { FlowStepMissconfigured, OidcAuthStep, STD_OIDC_FLOW, UnknownFlow } from
 import type { Module } from '@owlmeans/web-client'
 import { DISPATCHER_OIDC, DISPATCHER_OIDC_INIT, OIDC_CODE_QUERY } from '@owlmeans/oidc'
 import type { AuthToken } from '@owlmeans/auth'
-import { applyAuthToken } from './popup.js'
+import { adoptToken } from '@owlmeans/client-auth/login'
 
 export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthService => {
   const store = (context: Context) => context.auth().store<OidcInteraction>()
@@ -37,7 +37,7 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
         .call({ body: params })
 
       if (authToken.token != null && authToken.token !== '') {
-        await applyAuthToken<Config, Context>(ctx, authToken.token)
+        await adoptToken(ctx, authToken.token)
 
         return true
       }

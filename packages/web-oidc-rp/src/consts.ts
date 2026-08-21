@@ -2,29 +2,20 @@
 export const DEFAULT_ALIAS = 'oidc-rp'
 
 /**
- * `window.name` of the login popup — how the dispatcher loaded inside it recognises that it is the
- * popup rather than the page that opened it, without depending on `window.opener` alone (an opener
- * exists for plenty of windows this flow did not create).
- */
-export const OIDC_POPUP_NAME = 'owlmeans-oidc-login'
-
-/** `postMessage` type carrying the issued bearer token from the login popup back to its opener. */
-export const OIDC_POPUP_TOKEN = 'owlmeans:oidc:popup-token'
-
-/** Popup geometry — big enough for a provider's own login and consent screens. */
-export const OIDC_POPUP_FEATURES = 'popup=yes,width=520,height=760'
-
-/**
- * `sessionStorage` key marking this window as the login popup.
+ * The surrogate-window protocol values.
  *
- * `window.name` cannot carry that fact on its own: browsers clear it whenever a top-level context
- * navigates cross-origin, and this flow leaves for the provider and comes back. sessionStorage is
- * scoped to this window *and* this origin, so it survives that round trip.
+ * @deprecated Import the `LOGIN_*` names from `@owlmeans/client-auth/login`. These are re-exported
+ * under their original names, with their original values, because they are a wire protocol between
+ * two documents that may be running different builds — an opener on an older bundle and a freshly
+ * loaded surrogate, or the reverse.
  */
-export const OIDC_POPUP_MARKER = '_owlmeans-oidc-popup'
-
-/** How often the opener checks whether the popup was closed without completing (ms). */
-export const OIDC_POPUP_WATCH_INTERVAL = 500
+export {
+  LOGIN_SURROGATE_NAME as OIDC_POPUP_NAME,
+  LOGIN_TOKEN_MESSAGE as OIDC_POPUP_TOKEN,
+  LOGIN_SURROGATE_FEATURES as OIDC_POPUP_FEATURES,
+  LOGIN_SURROGATE_MARKER as OIDC_POPUP_MARKER,
+  LOGIN_WATCH_INTERVAL as OIDC_POPUP_WATCH_INTERVAL,
+} from '@owlmeans/client-auth/login'
 
 export enum OidcAuthPurposes {
   Unknown = 'unknown',

@@ -22,7 +22,9 @@
     }
   },
   "dependencies": {
+    "@owlmeans/client-auth": "^0.1.18-rc.6",
     "@owlmeans/context": "^0.1.18-rc.6",
+    "@owlmeans/entrypoint": "^0.1.18-rc.6",
     "@owlmeans/iam": "^0.1.18-rc.7",
     "@owlmeans/oidc": "^0.1.18-rc.6",
     "@owlmeans/web-client": "^0.1.18-rc.6",

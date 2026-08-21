@@ -40,6 +40,13 @@
       "default": "./build/manager/plugins/exports.js",
       "module": "./build/manager/plugins/exports.js",
       "types": "./build/manager/plugins/exports.d.ts"
+    },
+    "./login": {
+      "import": "./build/login/index.js",
+      "require": "./build/login/index.js",
+      "default": "./build/login/index.js",
+      "module": "./build/login/index.js",
+      "types": "./build/login/index.d.ts"
     }
   },
   "dependencies": {

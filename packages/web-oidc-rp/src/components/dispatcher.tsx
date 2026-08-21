@@ -8,9 +8,7 @@ import { OIDC_ERROR_DESCRIPTION_QUERY, OIDC_ERROR_QUERY } from '@owlmeans/oidc'
 import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
-import {
-  handBackOidcToken, isFramed, isOidcLoginPopup, loginViaPopup, markOidcLoginPopup
-} from '../popup.js'
+import { LoginOutcome } from '@owlmeans/client-auth/login'
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
@@ -33,21 +31,16 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   // it explicitly rather than relying on the effect only firing once.
   const dispatchedRef = useRef(false)
 
-  // Set when authorization can only continue in a popup: a framed document cannot be navigated to
-  // the provider (it answers `frame-ancestors 'self'`), and opening the popup here would be a
-  // blocked one — `window.open` needs the user's gesture, which an effect does not have.
-  const [popupRequired, setPopupRequired] = useState(false)
+  // What the login service said about this document, when it said anything the user must see.
+  // `Gesture` — authorization needs a user gesture this effect does not have. `Orphaned` — signed
+  // in, with no channel back to the window that started the flow.
+  const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
 
-  // Authenticated inside the popup, but with no way to tell the window that started the flow —
-  // the opener was severed. Better to say so than to silently present a second, logged-in copy
-  // of the application in a window the user never asked to browse in.
-  const [popupOrphaned, setPopupOrphaned] = useState(false)
-
-  const onPopupLogin = useCallback(() => {
-    // Reloading this very URL inside the popup replays the flow one window up, where it is
-    // top-level and first-party, and keeps whatever flow parameters the address already carries.
-    void loginViaPopup(context, window.location.href).then(async authenticated => {
-      if (authenticated) {
+  const onLogin = useCallback(() => {
+    // Replays this very URL through the login service from inside the gesture, keeping whatever
+    // flow parameters the address already carries.
+    void context.login().begin({ url: window.location.href }).then(async result => {
+      if (result === LoginOutcome.Handled) {
         await navigate()
       }
     })
@@ -55,8 +48,8 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
 
   useEffect(() => {
     // First statement in the effect on purpose: everything below can navigate this window to the
-    // provider, and after that the evidence that this is the popup is gone.
-    markOidcLoginPopup()
+    // provider, and after that the evidence of what this window is would be gone.
+    context.login().enter()
 
     if (client == null) {
       return
@@ -85,13 +78,15 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
       oidc.dispatch(params).then(async dispatched => {
         if (dispatched) {
-          // Running as the login popup: the opener is an embedded frame with its own storage
-          // partition, so it cannot see the token just stored here — pass it over and close.
-          if (handBackOidcToken(context.auth().token)) {
+          // A token was issued in this document. Where it belongs is the login service's call: in
+          // an ordinary tab it stays here, in a surrogate window it is handed back to the opener,
+          // whose storage partition cannot see it.
+          const completed = await context.login().complete(context.auth().token ?? '')
+          if (completed === LoginOutcome.Handled) {
             return
           }
-          if (isOidcLoginPopup()) {
-            setPopupOrphaned(true)
+          if (completed === LoginOutcome.Orphaned) {
+            setOutcome(LoginOutcome.Orphaned)
             return
           }
           return await navigate()
@@ -101,11 +96,10 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         }
         const redirect = await oidc.authenticate(client.flow(), params)
         if (redirect != null && redirect !== '') {
-          if (isFramed() && !isOidcLoginPopup()) {
-            setPopupRequired(true)
-            return
+          const authorized = await context.login().authorize(redirect)
+          if (authorized === LoginOutcome.Gesture) {
+            setOutcome(LoginOutcome.Gesture)
           }
-          document.location.href = redirect
           return
         }
         const authzToken = await context.auth().authenticated()
@@ -122,14 +116,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
     return <div>{t('error', { error: errorDescription ?? error })}</div>
   }
 
-  if (popupOrphaned) {
+  if (outcome === LoginOutcome.Orphaned) {
     return <div>{t('popup-orphaned', {
       defaultValue: 'Signed in. You can close this window and continue in the application.'
     })}</div>
   }
 
-  if (popupRequired) {
-    return <button type="button" onClick={onPopupLogin}>
+  if (outcome === LoginOutcome.Gesture) {
+    return <button type="button" onClick={onLogin}>
       {t('popup-login', { defaultValue: 'Sign in' })}
     </button>
   }
