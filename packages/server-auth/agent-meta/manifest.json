@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "package": "@owlmeans/server-auth",
   "version": "0.1.18-rc.10",
-  "generatedAt": "2026-08-21T11:29:52.833Z",
+  "generatedAt": "2026-08-22T09:55:49.531Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -11,6 +11,13 @@
       "category": "package-specific",
       "file": "skills/server-auth/SKILL.md",
       "canonicalPath": ".agents/skills/server-auth/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "supervisor-auth",
+      "category": "multi-package",
+      "file": "skills/supervisor-auth/SKILL.md",
+      "canonicalPath": ".agents/skills/supervisor-auth/SKILL.md"
     }
   ]
 }
