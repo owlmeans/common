@@ -90,6 +90,24 @@ itself a dependent and therefore also being released, so a package left behind k
 still resolve. `workspace:` / `file:` / `link:` ranges — notably `@owlmeans/dep-config` — carry no
 version and are never touched.
 
+## Exit 8 — a skill cites a monorepo path
+
+Each package ships its guidance under `agent-meta/`, read by consumers who installed from npm and
+have no monorepo, so a `packages/`-rooted reference points at a tree they do not have. The agent-meta
+sync and the publish pre-flight both refuse on it **by default**, listing
+`<package>: monorepo paths in <canonical file>: <matches>`.
+
+Fix and re-run the same command — a normal step, not a blocker:
+
+1. Open the **canonical** file named (root `.agents/skills/…`), never a generated `agent-meta/` copy.
+2. Name the package and symbol instead of the path — ``see `makeContext` in `@owlmeans/web-client` ``
+   rather than a `packages/`-rooted path to that module. Paths inside the consumer's own project
+   (`src/…`) are fine.
+3. Re-run; each run lists at most 5 matches per file, so repeat until clean.
+
+Fenced code blocks are scanned too. Do not bypass with `--no-strict` / `--skip-agent-meta-check`:
+that ships a pointer to a directory the reader does not have.
+
 ## After a release
 
 Downstream repos do **not** pick this up on their own. A consumer with a lockfile pinning older
