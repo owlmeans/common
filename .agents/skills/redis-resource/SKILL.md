@@ -67,6 +67,6 @@ renewal must pass one again — otherwise the key keeps whatever expiry it had.
 
 ## Tests
 
-Integration specs live in `@owlmeans/redis` (`packages/redis/tests/`) — the db package that backs
+Integration specs live in the `@owlmeans/redis` package's own `tests/` — the db package that backs
 this contract; putting them here would need a devDependency on this package's own dependent.
 Gated on `REDIS_URL` (see `/.env.example`); each suite namespaces its keys and flushes them.
