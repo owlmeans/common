@@ -61,6 +61,7 @@ my-app/
 ├── sources/common/         # consts, types, schemas, config, modules (entrypoints)
 ├── sources/api/            # context.ts (appendStaticResource), app/session/*, modules.ts, index.ts
 └── sources/web/            # vite + tailwind v4, components/ui/*, layout, nav, screens, render.tsx
+                            # context.ts registers a @owlmeans/state resource the screens read
 ```
 
 Memory lives **only** in `.agents/memory/` — the legacy `.claude/memory/` and `.github/memory/`
@@ -73,9 +74,11 @@ its compiler from the active plugin, so `render.tsx` passes no `provide` prop. L
 `@owlmeans/web-panel`. An app that genuinely wants react-router opts in per [[router-plugins]];
 never re-add it to the template.
 
-The session demo stores items in `@owlmeans/static-resource`, namespaced by a client-generated
-`sid` kept in `localStorage` — no database, no authentication. See [[static-resource]],
-[[server-app]], [[web-panel]].
+The session demo stores items server-side in `@owlmeans/static-resource`, namespaced by a
+client-generated `sid` kept in `localStorage` — no database, no authentication. On the client the
+screen reads a `@owlmeans/state` resource registered by `makeContext`, subscribed as a live query
+through `useStoreList`; the fetch writes what it gets into that store rather than into component
+state. See [[static-resource]], [[state]], [[server-app]], [[web-panel]].
 
 ## Generated agent guidance
 

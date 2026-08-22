@@ -79,6 +79,7 @@ cascade and the invariants are the `login-plugins` skill.
 ### Navigation
 ```typescript
 import { useNavigate } from '@owlmeans/client'   // not re-exported by web-client
+import { useStoreList, useStoreModel } from '@owlmeans/client'   // client state — also not re-exported
 
 const nav = useNavigate()
 <Button onClick={nav.press(manager.front.project.dashboard, { params: { projectId } })}>Open</Button>
