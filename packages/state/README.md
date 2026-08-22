@@ -59,9 +59,31 @@ Creates an in-memory resource with subscription support. Registers under `alias`
 
 ### `StateResource<T>` (extends `Resource<T>`)
 
-- `subscribe(params): [unsubscribe, StateModel<T>[]]` — subscribe to record changes; returns current records
+- `subscribe(params): [unsubscribe, StateModel<T>[]]` — subscribe to records by `id`, or to a live
+  `query`; returns the current records
 - `listen(listener)` — global listener for any change in the resource
 - `erase()` — clear all records
+- `all(): Promise<T[]>` — every record, as a plain array
+- `match(criteria?): Promise<T[]>` — the records the criteria accepts, as a plain array
+- `list(criteria?, opts?)` — the `Resource` envelope `{ items, pager }`. Unpaged unless a pager is
+  given, so `list()` returns everything
+
+### Criteria
+
+`list`, `match` and a `query` subscription share the criteria language of the server resources — a
+bare value is equality, a bare array means "any of these", and `$eq $ne $gt $gte $lt $lte $in $nin
+$exists $null $like $ilike $regex $startsWith $endsWith $between $contains $contained $overlaps`
+combine under `$and` / `$or` / `$not`. A dotted key reaches into the record; a value of `undefined`
+is skipped. `matchCriteria`, `filterRecords` and `sortRecords` are exported for filtering a list
+already in hand.
+
+```typescript
+const open = await resource.match({ status: 'open' })
+const [unsubscribe] = resource.subscribe({
+  query: { status: 'open' },
+  listener: models => { /* re-runs on every write that changes the answer */ }
+})
+```
 
 ### `StateModel<T>`
 

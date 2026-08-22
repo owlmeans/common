@@ -6,5 +6,10 @@
     "rootDir": "./src/",
     "outDir": "./build/"
   },
-  "exclude": ["./dist/**/*", "./build/**/*", "./*.ts"]
+  "exclude": [
+    "./dist/**/*",
+    "./build/**/*",
+    "./tests/**/*",
+    "./*.ts"
+  ]
 }

@@ -19,15 +19,15 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.16",
-    "@owlmeans/entrypoint": "^0.1.16",
-    "@owlmeans/error": "^0.1.16",
-    "@owlmeans/resource": "^0.1.16",
-    "@owlmeans/route": "^0.1.16",
+    "@owlmeans/config": "^0.1.18-rc.0",
+    "@owlmeans/entrypoint": "^0.1.18-rc.0",
+    "@owlmeans/error": "^0.1.18-rc.0",
+    "@owlmeans/resource": "^0.1.18-rc.0",
+    "@owlmeans/route": "^0.1.18-rc.0",
     "ajv": "^8.17.1"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.16",
+    "@owlmeans/dep-config": "^0.1.18-rc.0",
     "@types/node": "^24.10.1",
     "typescript": "^7.0.2"
   }

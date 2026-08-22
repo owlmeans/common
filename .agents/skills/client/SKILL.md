@@ -17,7 +17,7 @@ user-invocable: false
 | `useNavigate` | Hook returning the `Navigator` — programmatic navigation by entrypoint alias |
 | `RoutedComponent` | Type of a component elevated on a frontend entrypoint (`{ alias, path, params, context }` props) |
 | `entrypoint` helpers | Resolve entrypoints by alias |
-| `store` helpers | Client store integration |
+| `useStoreModel` / `useStoreList` | React hooks over a `@owlmeans/state` resource — one record by id, or a live query. Not re-exported by `@owlmeans/web-client`; import them from here |
 | `components` | Cross-platform components (e.g. error boundaries) |
 | `value`, `debug` | Render-time helpers |
 | Errors | Client-side typed errors |
@@ -53,6 +53,20 @@ export const ProjectScreen: RoutedComponent = ({ params }) => {
 `nav.back()` / `nav.pressBack()` go one entry back, and `nav.location()` reads the current one.
 An elevated screen receives `{ alias, path, params, context }` as props — read path parameters
 from `params` and pass them down; a nested component never resolves route parameters itself.
+
+## Client state
+
+State lives on the context as a `@owlmeans/state` resource; these hooks subscribe to it.
+
+```typescript
+import { useStoreList, useStoreModel } from '@owlmeans/client'
+
+const task = useStoreModel<Task>(id, TASK_STATE)                              // one record
+const open = useStoreList<Task>({ query: { status: 'open' }, resource: TASK_STATE })  // live query
+```
+
+`useStoreModel` returns a `StateModel` — read `model.record`, write with `model.update({ ... })`.
+Assigning to `model.record` directly is a silent no-op. Full contract: [[state]].
 
 ## Depends On
 

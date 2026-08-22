@@ -33,7 +33,12 @@ export const useStoreList: UseStoreListHelper = (ids, opts) => {
 
   const deps = [
     Array.isArray(params.id) ? params.id.join(',') : params.id,
-    params.query == null,
+    /**
+     * The query's CONTENT, not merely whether one was given. A subscription is to the criteria,
+     * so a screen that narrows its filter has to re-subscribe — keyed on `query == null` it kept
+     * answering the first filter it ever saw, and nothing indicated the list had gone stale.
+     */
+    JSON.stringify(params.query),
     JSON.stringify(params.default),
     params.listen
   ]
