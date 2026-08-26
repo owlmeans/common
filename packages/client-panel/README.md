@@ -1,6 +1,7 @@
 # @owlmeans/client-panel
 
-Schema-driven React form components with react-hook-form integration, i18n, and action buttons.
+Schema-driven React form components with react-hook-form integration, i18n, action buttons, and the
+headless navigation model.
 
 ## Overview
 
@@ -9,6 +10,7 @@ Schema-driven React form components with react-hook-form integration, i18n, and 
 - `InputCtrl` — labeled input field component backed by react-hook-form
 - `useFormRef()` — hook to get a ref for programmatic form operations
 - `FormOnSubmit` — type for form submission handler functions
+- `usePanelNav()` — the model behind a two-layer navigation menu (no JSX)
 - Platform-agnostic: used by React web and React Native frontends
 
 ## Installation
@@ -80,6 +82,62 @@ type FormOnSubmit<T> = (data: T) => void | Promise<void>
 ### `schemaToFormDefault(schema): Record<string, any>`
 
 Derives default form values from an AJV schema's `default` fields.
+
+## Navigation model
+
+Navigation is declared as data and rendered by the platform package
+(`@owlmeans/web-panel` ships `NavLayout` / `TopNav` / `SideNav` / `Footer`). This package holds only
+the model, so both levels of the menu agree on what is active.
+
+```typescript
+import { usePanelNav } from '@owlmeans/client-panel'
+import type { PanelNavConfig } from '@owlmeans/client-panel'
+
+const config: PanelNavConfig = {
+  sections: [
+    { name: 'home', label: 'Home', items: [{ alias: HOME, label: 'Overview' }] },
+    { name: 'demo', items: [{ alias: web.session }, { alias: web.about }] },
+  ],
+}
+
+const model = usePanelNav(config)
+```
+
+### Types
+
+- `PanelNavItem` — `{ alias, label?, Icon?, hidden? }`; one screen, addressed by entrypoint alias,
+  never by URL.
+- `PanelNavSection` — `{ name, label?, items, hidden? }`; the first menu level. Pressing it goes to
+  the first visible item.
+- `PanelNavConfig` — `{ sections }`.
+- `PanelNavLink` — `{ alias? | href?, label?, open? }`; a footer link.
+- `NavTranslate` — `(key, defaultValue) => string`.
+
+### `usePanelNav(config): PanelNavModel`
+
+Returns `sections` (with `hidden` filtered out), `current` (the active screen's alias or null),
+`active` (its section), `showSide`, `isSectionActive` / `isItemActive`, `goSection` / `goItem`
+(each returning a handler), and `hrefOf(target)`.
+
+- `showSide` is false when the active section holds a single screen — that is where the "one screen,
+  no second level" rule lives; a renderer asks the model rather than counting items.
+- The current screen resolves from the router's `location.state.alias` when present, and otherwise
+  from the pathname matched against resolved entrypoint paths — exact first, then longest prefix.
+  Both are needed: `state` is `window.history.state`, so it is empty on a hard load or deep link. A
+  screen listed in no section resolves its section by walking `getParentAlias()` upward.
+- `hrefOf` resolves a real URL synchronously so a menu entry can be a proper link (focusable,
+  keyboard-operable, openable in a new tab). It returns `undefined` for a path carrying route
+  parameters.
+
+### `resolveNavLabel(translate, label, key, alias)`
+
+Resolves a label as literal `label` → `translate(key, defaultNavLabel(alias))` → the humanized
+alias. `translate` always reaches a component as a **prop**, defaulting to `defaultNavTranslate`
+(which returns the fallback) — a menu must never read an i18n context implicitly, because an app
+mounted without an i18n provider throws inside render and blanks the page. `defaultNavLabel`
+humanizes the last alias segment
+(`my-app:web:user-list` → `User list`). Default key families are `nav.<section>` and
+`modules.<alias>`.
 
 ## Related Packages
 

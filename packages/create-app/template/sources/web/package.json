@@ -22,6 +22,7 @@
     "@owlmeans/web-client": "^0.1.18-rc.0",
     "@owlmeans/web-panel": "^0.1.18-rc.0",
     "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-navigation-menu": "^1.2.14",
     "@radix-ui/react-progress": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "__APP_SLUG__-common": "workspace:^",

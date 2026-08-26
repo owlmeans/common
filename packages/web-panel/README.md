@@ -36,8 +36,11 @@ Generate the matching primitives in your app once. You can either copy them
 from this package's `src/@/components/ui/` or use the shadcn CLI:
 
 ```sh
-npx shadcn add button card input label progress alert separator
+npx shadcn add button card input label progress alert separator navigation-menu
 ```
+
+`navigation-menu` also needs `@radix-ui/react-navigation-menu` in your app's
+dependencies — the `TopNav` section menu is built on it.
 
 This package was authored against the shadcn `new-york` style with
 `baseColor: neutral`. See `components.json` for the exact config.
@@ -68,6 +71,85 @@ A working set is shipped at `src/@/globals.css` (for dev/test only).
 // vite.config.ts
 resolve: { alias: { '@': fileURLToPath(new URL('./src/@', import.meta.url)) } }
 ```
+
+### 4. Tailwind `@source` for this package
+
+Tailwind's scanner reads your CSS root plus its `@source` directives, and it
+excludes `node_modules`. Classes that exist only inside this package's
+components — the whole navigation shell and footer — therefore never reach your
+stylesheet unless you point Tailwind at the built package:
+
+```css
+@import "tailwindcss";
+
+@source "../../../node_modules/@owlmeans/web-panel/build";
+```
+
+Adjust the relative depth to your own layout; the target is this package's
+installed `build` directory.
+
+## Navigation shell
+
+`NavLayout` is the standard application shell — header, section menu, the active
+section's screen menu, content, footer. A layout entrypoint elevates a component
+that renders it and nothing else; the matched screen arrives as `children`.
+
+```tsx
+import { NavLayout, HOME } from '@owlmeans/web-panel'
+import type { PanelNavConfig, PanelNavLink } from '@owlmeans/web-panel'
+
+const navConfig: PanelNavConfig = {
+  sections: [
+    { name: 'home', label: 'Home', items: [{ alias: HOME, label: 'Overview' }] },
+    {
+      name: 'demo', label: 'Demo', items: [
+        { alias: web.session, label: 'Session' },
+        { alias: web.about, label: 'About' },
+      ]
+    },
+  ],
+}
+
+const footerLinks: PanelNavLink[] = [
+  { alias: HOME, label: 'My App' },
+  { href: 'https://owlmeans.com', label: 'OwlMeans', open: true },
+]
+
+export const MainLayout: FC<PropsWithChildren> = ({ children }) => (
+  <NavLayout nav={navConfig} title="My App" footer={footerLinks}>
+    {children}
+  </NavLayout>
+)
+```
+
+Navigation is **two-layer**: the top menu lists sections, the side menu lists the
+active section's screens. A section holding a single screen renders **no side
+menu at all**. `NavLayout` mounts `SideNav` twice — a `hidden md:block` column
+beside the content and a `md:hidden` strip under the header — so the same items
+serve wide and narrow viewports.
+
+| Component | Props |
+|---|---|
+| `NavLayout` | `nav`, `translate?`, `title?`, `home?` (brand target; defaults to the first section's first item), `actions?`, `footer?` (`PanelNavLink[]` renders the standard footer, a node replaces it), `contentClassName?`, `className?`, `style?` |
+| `TopNav` | `config`, `translate?`, `ariaLabel?`, `className?`, `style?` |
+| `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
+| `Footer` | `links?`, `translate?`, `children?`, `className?`, `style?` |
+
+The navigation model itself (`usePanelNav`, `PanelNavConfig`, `PanelNavItem`,
+`PanelNavSection`, `PanelNavLink`, `NavTranslate`) is headless and lives in
+[`@owlmeans/client-panel`](../client-panel); these components are its shadcn
+rendering.
+
+Two things to know when wiring it:
+
+- **Labels do not use i18n unless you pass a resolver.** `translate` is a prop
+  (`NavTranslate`), defaulting to one that returns the fallback, because an app
+  rendered without an i18n provider throws if a menu reads the panel i18n
+  context. Labels resolve as literal `label` → `translate(key, humanized)` →
+  humanized alias, with default keys `nav.<section>` and `modules.<alias>`.
+- **A parent route needs a `default: true` child.** A frontend entrypoint with
+  children but no default child renders blank at its own path — give a grouping
+  screen an index child at `'/'`.
 
 ## Breaking changes vs `@owlmeans/mui-panel`
 
@@ -103,7 +185,8 @@ Consumers that need the previous MUI behaviour should swap to
 
 ```ts
 import {
-  PanelApp, Layout, Form, TextInput, SubmitButton, Button, ButtonSelector,
+  PanelApp, Layout, NavLayout, TopNav, SideNav, Footer,
+  Form, TextInput, SubmitButton, Button, ButtonSelector,
   Block, Text, Link, Status, ImageUploader,
   scalingToStyles, useBreakPoint, useMapBreakpoint,
   render,
