@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-db",
-  "version": "0.1.18-rc.6",
-  "generatedAt": "2026-08-18T14:48:00.527Z",
+  "version": "0.1.18-rc.7",
+  "generatedAt": "2026-08-24T21:14:00.128Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
