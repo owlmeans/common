@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-common",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,7 +21,7 @@
     }
   },
   "devDependencies": {
-    "@langchain/core": "^1.1.39",
+    "@langchain/core": "^1.2.9",
     "@owlmeans/dep-config": "workspace:*",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

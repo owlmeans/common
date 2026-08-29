@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration](#1-configuration) — shared TypeScript configs
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, llm, wled
+3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, llm, agent, wled
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, Kubernetes, file resources
@@ -58,6 +58,8 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`queue`](packages/queue) → *(no `@owlmeans/*` deps — abstract interface)*
 - [`llm-common`](packages/llm-common) → *(no `@owlmeans/*` deps — serializable LLM/execution contracts)*
 - [`llm`](packages/llm) → `basic-ids`, `context`, `error`, `llm-common`
+- [`agent-common`](packages/agent-common) → `error`, `flow`, `llm-common`, `resource`
+- [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `error`, `i18n`, `entrypoint`, `resource`, `route`

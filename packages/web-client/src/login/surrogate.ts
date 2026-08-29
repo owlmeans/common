@@ -72,7 +72,16 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => ({
           return
         }
         void adoptToken(ctx as LoginContext, data.token)
-          .then(() => finish(LoginOutcome.Handled))
+          .then(async () => {
+            // Adopting the token is not the end of the flow — running the caller's continuation
+            // is, exactly as the redirect plugin does before it reports `Handled`. Without it the
+            // token lands in the auth service and nothing else happens: the framed app keeps
+            // rendering its signed-out tree, and the user watches the login window close over a
+            // preview that never changes. `Handled` promises the caller there is nothing left to
+            // do, so it has to be true before it is returned.
+            await request.navigate?.()
+            finish(LoginOutcome.Handled)
+          })
           .catch(() => finish(LoginOutcome.Failed))
       }
 

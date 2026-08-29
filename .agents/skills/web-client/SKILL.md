@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-client
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/web-client": "^0.1.18-rc.13"` in `dependencies`
 
 ## Key Exports
 

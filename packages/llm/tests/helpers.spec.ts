@@ -187,6 +187,9 @@ describe('helpers/spectate', () => {
 
     const last = spectator.entries[0]!.messages.at(-1)!
     expect(last.contentType).toBe('tool_call')
-    expect(last.content).toEqual([{ id: '1', name: 'extract', args: { a: 1 } }] as unknown as string)
+    // Serialized, not the raw array: a trace row is a string column, and handing it an object
+    // is what stored `[object Object]` for every tool call until this was fixed.
+    expect(typeof last.content).toBe('string')
+    expect(JSON.parse(last.content)).toEqual([{ id: '1', name: 'extract', args: { a: 1 } }])
   })
 })

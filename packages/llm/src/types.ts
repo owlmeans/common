@@ -89,6 +89,27 @@ export interface LlmCallOptions {
    * should be part of the shared prefix.
    */
   skills?: string[]
+  /**
+   * How many failures of this SAME piece of work the caller has already observed — the
+   * per-call escalator starts that far up its ladder instead of at the bottom.
+   *
+   * A caller that validates the OUTPUT (a diff that must apply, a file that must not come
+   * back truncated) runs its own retry loop around whole calls, and every one of those
+   * calls used to start at attempt 0: same model, same output budget, same answer. Passing
+   * the outer attempt here advances both rungs the escalator owns — the `maxTokens`
+   * doubling and the {@link FALLBACK_AFTER_ATTEMPTS} switch to `ModelConfig.fallback` — so
+   * a repeatedly-rejected call actually reaches the stronger model.
+   *
+   * Clamped to `retries - 1`; it moves the STARTING rung only and never changes how many
+   * attempts this call makes. Unrelated to `ExecutionService.escalate`, which raises the
+   * effort tier of an execution before any model is resolved.
+   */
+  escalation?: number
+  /**
+   * Abort THIS call's retry loop for an error no retry can fix. Consulted before the
+   * globally registered resolvers and the provider plugin's `isFatal`.
+   */
+  fatal?: (e: unknown) => Error | null
 }
 
 export interface LlmAskOptions extends LlmCallOptions {
@@ -156,15 +177,50 @@ export interface ModelConfig {
   preset?: string
   model?: string
   temperature?: number
-  /** Initial output-token budget per request (`max_tokens`). */
+  /**
+   * Initial output-token budget per request (`max_tokens`) — what THIS deployment asks
+   * for first, not what the model can do. Clamped to {@link ModelConfig.maxOutput}.
+   */
   maxTokens?: number
   /**
    * Hard ceiling for output tokens used by the retry escalator. Each retry doubles
    * `maxTokens` toward this cap; without it the escalator uses
    * {@link DEFAULT_MAX_OUTPUT_CAP}, which exceeds many models' real per-request output
    * limit and turns retries into 400 "max_tokens exceeds model limit" errors.
+   *
+   * This is the budget the PRESET chooses; {@link ModelConfig.maxOutput} is what the
+   * provider allows. The effective ceiling is the smaller of the two, so a preset that
+   * over-declares is corrected at refine time rather than at the provider.
    */
   maxTokensCap?: number
+  /**
+   * Total context window the model accepts — input plus output. Informational: it is
+   * never sent to the provider and the runtime cannot enforce it (the input size is not
+   * known at config time). It documents the model and lets the preset test catch a
+   * `maxOutput` that could not possibly fit.
+   */
+  contextWindow?: number
+  /**
+   * What the PROVIDER accepts as output in a single request. Unlike `maxTokens` and
+   * `maxTokensCap` — both deployment choices — this is a property of the model behind
+   * this alias, and for an aggregated model it is the limit of the `inferenceProvider`
+   * actually pinned here, which is often well below what the model can do elsewhere.
+   *
+   * Hard ceiling: `maxTokens` is clamped to it at build time and the escalator's cap is
+   * `min(maxTokensCap, maxOutput)`.
+   *
+   * A `fallback` that changes `model` MUST redeclare this (and `contextWindow`), because
+   * the fallback config inherits every field the patch does not name — otherwise the
+   * escalator would size the fallback by the primary's capability.
+   */
+  maxOutput?: number
+  /**
+   * The context window is SHARED between input and output rather than being an input
+   * allowance with a separate output limit (MiniMax M2.x, gpt-oss). Nothing enforces it
+   * at runtime; it marks the entry so `maxOutput` is read as "spends the same budget the
+   * prompt spends" and keeps presets honest about leaving room for input.
+   */
+  combinedWindow?: boolean
   topP?: number
   baseUrl?: string
   organization?: string

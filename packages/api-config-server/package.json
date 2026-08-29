@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/api-config-server",
-  "version": "0.1.18-rc.11",
+  "version": "0.1.18-rc.12",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@owlmeans/api-config": "^0.1.18-rc.7",
-    "@owlmeans/server-api": "^0.1.18-rc.11",
+    "@owlmeans/server-api": "^0.1.18-rc.12",
     "@owlmeans/server-context": "^0.1.18-rc.7",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.7"
   },

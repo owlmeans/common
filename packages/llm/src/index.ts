@@ -9,6 +9,8 @@ export * from './execution/index.js'
 export * from './prompt/index.js'
 export type * from './plugins/types.js'
 export { plugins, registerLlmPlugin, pluginOf, pluginFor, resolvePlugin } from './plugins/index.js'
-export { anthropicPlugin, ANTHROPIC_FAMILY } from './plugins/anthropic.js'
+export { anthropicPlugin, ANTHROPIC_FAMILY, NO_SAMPLING_PREFIXES, rejectsSampling } from './plugins/anthropic.js'
 export { compatiblePlugin } from './plugins/compatible.js'
-export { openAiPlugin, openAiFamily, OPENAI_FAMILY } from './plugins/openai.js'
+export {
+  openAiPlugin, openAiFamily, OPENAI_FAMILY, RESPONSES_API_PREFIXES, usesResponsesApi,
+} from './plugins/openai.js'

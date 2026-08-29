@@ -32,6 +32,12 @@ export interface ModelConfigPatch {
   maxTokensCap?: number
   topP?: number
   disableThinking?: boolean
+  /** Total window the model accepts (input + output). Informational / validation only. */
+  contextWindow?: number
+  /** What the PROVIDER can emit in one request. Hard ceiling for `maxTokens`/`maxTokensCap`. */
+  maxOutput?: number
+  /** The window is shared between input and output rather than input-only. */
+  combinedWindow?: boolean
 }
 
 /** A JSON-safe model override: a config alias, or a partial config patch. */
