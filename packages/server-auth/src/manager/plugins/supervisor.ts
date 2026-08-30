@@ -71,8 +71,8 @@ export const makeSupervisorPlugin = (
 
       credential.userId = resolution.userId
       credential.profileId = resolution.profileId ?? resolution.userId
-      if (resolution.entityId != null) {
-        credential.entityId = resolution.entityId
+      if (resolution.entitySlug != null) {
+        credential.entitySlug = resolution.entitySlug
       }
       credential.scopes = resolution.scopes ?? credential.scopes ?? [ALL_SCOPES]
       credential.role = resolution.role ?? AuthRole.User

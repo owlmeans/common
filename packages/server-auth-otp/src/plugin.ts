@@ -47,13 +47,16 @@ const otpPlugin = <C extends OtpConfig, T extends OtpContext<C>>(context: T): Au
     const identityAlias = (context.cfg as any).otp?.identityAlias ?? AUTH_IDENTITY_LINKING
     const identity = context.service<IdentityLinkingService>(identityAlias)
 
-    const entityId = credential.entityId
+    // What arrives on the credential is the organization SLUG the user is logging into — it is
+    // what a person can be asked to type. The linked profile below answers with the canonical
+    // slug, which is what the token ends up carrying.
+    const entitySlug = credential.entitySlug
     const details = {
       type: OTP_AUTH_TYPE,
       service: 'email',
-      clientId: entityId ?? 'default',
+      clientId: entitySlug ?? 'default',
       userId: email,
-      entityId,
+      entityId: entitySlug,
     }
 
     let payload = await identity.getLinkedProfile(details)
@@ -65,7 +68,7 @@ const otpPlugin = <C extends OtpConfig, T extends OtpContext<C>>(context: T): Au
     credential.type = AuthenticationType.OneTimeToken
     credential.userId = payload.userId
     credential.profileId = payload.profileId
-    credential.entityId = payload.entityId
+    credential.entitySlug = payload.entitySlug
     credential.role = payload.role ?? AuthRole.User
     credential.scopes = payload.scopes ?? [ALL_SCOPES]
 

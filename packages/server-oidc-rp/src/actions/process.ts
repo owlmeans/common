@@ -88,7 +88,7 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead
     // profileId: user?.userId,
-    entityId: cfg.entityId,
+    entitySlug: cfg.entityId,
     ...(permissions != null ? { permissions, permissioned: true } : {}),
     isUser: true,
     createdAt: new Date(),

@@ -1,5 +1,6 @@
 import { createLazyService } from '@owlmeans/context'
 import type { GateService, AbstractRequest, CommonEntrypoint } from '@owlmeans/entrypoint'
+import { entitySlugOf } from '@owlmeans/auth'
 import { OIDC_GATE } from '@owlmeans/oidc'
 import { AuthForbidden } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
@@ -129,7 +130,10 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
 
         const granted = params.some(param => {
           const { permission, resource, error } = parseGateParam(param)
-          const fixed = permission.replaceAll('{entity}', auth.entityId ?? '-')
+          // Grants are stored against the entity's stable id wherever one is resolvable; the
+          // slug is only a fallback for deployments with no organization store of their own,
+          // where the slug IS the identifier.
+          const fixed = permission.replaceAll('{entity}', req.entity?.id ?? entitySlugOf(auth) ?? '-')
 
           if (error != null) {
             structural.push(`"${param}" does not parse [${error.code}]: ${error.detail}`)

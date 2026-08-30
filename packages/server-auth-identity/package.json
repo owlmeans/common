@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.6",
+    "@owlmeans/auth-common": "^0.1.18-rc.6",
     "@owlmeans/basic-ids": "^0.1.18-rc.6",
     "@owlmeans/context": "^0.1.18-rc.6",
     "@owlmeans/mongo-resource": "^0.1.18-rc.7",
