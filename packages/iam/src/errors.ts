@@ -36,6 +36,24 @@ export class IamGrantError extends IamError {
   }
 }
 
+/**
+ * A refusal about a permission DEFINITION, as opposed to a grant.
+ *
+ * Separate from `IamGrantError`, which means a grant's subject is missing or its entity does not
+ * match — reusing it for a definition-level refusal is a category error the next reader has to unpick.
+ *
+ * Codes: `permission:held:<name>` (still granted to someone, under a policy that refuses),
+ * `permission:managed:<name>` (platform-owned, deleted only with an explicit second key).
+ */
+export class IamPermissionError extends IamError {
+  public static override typeName = `IamPermission${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`permission:${message}`)
+    this.type = IamPermissionError.typeName
+  }
+}
+
 export class IamUnsupported extends IamError {
   public static override typeName = `IamUnsupported${ResilientError.typeName}`
 
@@ -58,5 +76,6 @@ ResilientError.registerErrorClass(IamError)
 ResilientError.registerErrorClass(IamClientError)
 ResilientError.registerErrorClass(IamResourceError)
 ResilientError.registerErrorClass(IamGrantError)
+ResilientError.registerErrorClass(IamPermissionError)
 ResilientError.registerErrorClass(IamUnsupported)
 ResilientError.registerErrorClass(IamUserError)

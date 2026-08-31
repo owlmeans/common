@@ -1,21 +1,18 @@
 import type { FC, PropsWithChildren } from 'react'
-import { HOME, useNavigate } from '@owlmeans/web-panel'
-import { MainNavigation } from '@/components/nav/main'
+import { NavLayout } from '@owlmeans/web-panel'
+import { footerLinks, navConfig } from '@/nav'
 
-export const MainLayout: FC<PropsWithChildren> = ({ children }) => {
-  const nav = useNavigate()
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
-          <a onClick={nav.press(HOME)} className="cursor-pointer text-lg font-semibold">
-            __APP_NAME__
-          </a>
-          <MainNavigation />
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
-    </div>
-  )
-}
+/**
+ * The application shell. `NavLayout` renders the header with the section menu, the side menu
+ * of the active section (hidden when that section has a single screen), the content, and the
+ * footer — the screen arrives as `children`.
+ *
+ * The page width comes from the shell, which applies it to the header, the content and the
+ * footer alike; set `containerClassName` to change it for all three at once, never a width on
+ * the content alone.
+ */
+export const MainLayout: FC<PropsWithChildren> = ({ children }) => (
+  <NavLayout nav={navConfig} title="__APP_NAME__" footer={footerLinks}>
+    {children}
+  </NavLayout>
+)

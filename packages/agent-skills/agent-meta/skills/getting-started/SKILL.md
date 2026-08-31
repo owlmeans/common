@@ -2,7 +2,8 @@
 name: getting-started
 description: How to build a fullstack OwlMeans Common app from scratch — the common/api/web three-workspace pattern, context bootstrap on server and web, shared entrypoints + elevate(), and a session-scoped in-memory resource with @owlmeans/static-resource. Use when starting a new OwlMeans project, wiring web↔api, or asked how the pieces fit together.
 user-invocable: true
-scope: general
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 

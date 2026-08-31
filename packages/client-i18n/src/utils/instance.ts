@@ -48,7 +48,10 @@ const createI18nInstance = (config: ClientConfig): i18n => {
     : fallbackLng
 
   const instance = createInstance({
-    compatibilityJSON: 'v3',
+    // No `compatibilityJSON` — i18next >= 26 accepts only the v4 JSON format
+    // (Intl.PluralRules suffixes `_one`/`_other`, not the v3 `_plural`/`_0`/`_1`).
+    // No resource in the ecosystem uses plural-suffixed keys; `{{count}}` is plain
+    // interpolation, so the v4 default is a no-op here.
     defaultNS: config.i18n?.defaultNs ?? DEFAULT_NAMESPACE,
     fallbackLng,
     lng,
