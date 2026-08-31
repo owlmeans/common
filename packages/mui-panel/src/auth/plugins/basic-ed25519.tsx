@@ -37,7 +37,7 @@ export const Ed22519BasicAuthUIPlugin: AuthenticationRenderer = ({ type, stage, 
 
 const createSubmit = (context: AppContext, control: AuthenticationControl) => async (data: FormData) => {
   const token = await control.authenticate({
-    entityId: data.entityId,
+    entitySlug: data.entityId,
     userId: data.address,
     credential: data.privateKey
   })

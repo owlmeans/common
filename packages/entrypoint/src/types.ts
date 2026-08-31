@@ -47,6 +47,17 @@ export interface EntrypointAssert {
 export interface AbstractRequest<T extends {} = {}> {
   alias: string
   auth?: Auth
+  /**
+   * The organization entity this request acts for, resolved from `auth.entitySlug` once, at the
+   * server boundary.
+   *
+   * The slug on the token is renameable and therefore unusable as a key; `entity.id` is the stable
+   * value that records, grants and minted infrastructure names are keyed by. Resolving it here —
+   * rather than in each handler — is what keeps a rename from meaning a sweep of every call site,
+   * and it is absent whenever no resolver is registered (an implementation that has no notion of
+   * an organization store), so consumers must handle that rather than assume it.
+   */
+  entity?: ResolvedEntity
   params: Record<string, string | number | undefined | null> | Partial<T>
   body?: Record<string, any> | Partial<T>
   headers: Record<string, string[] | string | undefined>
@@ -64,6 +75,21 @@ export interface AbstractRequest<T extends {} = {}> {
   // Abort signal forwarded to the transport (axios) so a caller can cancel/abort an
   // in-flight request (e.g. a timeout-driven AbortController).
   signal?: AbortSignal
+}
+
+/**
+ * An organization entity as request handlers see it: the stable id to key by, the current slug to
+ * compose user-facing names from, and the frozen key that external systems already know it under.
+ */
+export interface ResolvedEntity {
+  id: string
+  slug: string
+  /**
+   * The identifier this organization is known by in systems whose names cannot be rewritten —
+   * an IAM realm, an object-storage prefix, a cluster object. Minted once and never recomputed,
+   * so it stays valid across every later rename.
+   */
+  iamKey: string
 }
 
 export interface AbstractResponse<T> {

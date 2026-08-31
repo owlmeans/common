@@ -2,7 +2,8 @@
 name: reuse-code
 description: Discovery-first, reuse-first workflow for OwlMeans projects. Use BEFORE planning or building any feature, before proposing a third-party library or a custom solution, and after writing code. Find an existing @owlmeans/* package or existing code first; extend before writing new; simplify what you write.
 user-invocable: true
-scope: general
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -18,7 +19,7 @@ Before suggesting any external library or writing custom code, look for an `@owl
 already solves the problem.
 
 - **Consult the deployed skills.** Each installed `@owlmeans/*` package ships a skill at
-  `.claude/skills/<pkg>/SKILL.md` (and `.github/instructions/<pkg>.instructions.md`) describing what it
+  `.agents/skills/<pkg>/SKILL.md` describing what it
   does. Read those first — they are your local catalogue of installed capabilities.
 - **Scan installed packages.** Look in `node_modules/@owlmeans/*` **and**, in a workspace monorepo,
   the nested `sources/*/node_modules/@owlmeans/*` (bun nests workspace deps).
@@ -32,7 +33,7 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
 - Run `ls -la node_modules/@owlmeans/<pkg>` (try a package you know is installed). If it is a **symlink
   whose target escapes `node_modules`** — or if the project's *own* workspace publishes `@owlmeans/*`
   packages (i.e. **this is the common repo**) — you have the source locally. **Research locally:** read
-  `tree.md`, browse the framework's package sources, and read the canonical `.claude/skills/`. **Do
+  `tree.md`, browse the framework's package sources, and read the canonical `.agents/skills/`. **Do
   not** use the internet.
 - Otherwise (a clean install from npm), **research the web**: fetch/search
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
