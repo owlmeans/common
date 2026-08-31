@@ -1,4 +1,5 @@
 import type { Auth } from '@owlmeans/auth'
+import { entitySlugOf } from '@owlmeans/auth'
 import type { StateResource } from '@owlmeans/client-flow'
 import { EXTRA_FLOW, FLOW_STATE } from '@owlmeans/client-flow'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
@@ -85,7 +86,7 @@ export const makeAuthStateModel = <C extends AppConfig, T extends AppContext<C>>
         model.state.add(OidcAuthState.Authenticated)
       }
 
-      if (model.entityId === user?.entityId) {
+      if (model.entityId === entitySlugOf(user)) {
         model.state.add(OidcAuthState.SameEntity)
       }
 

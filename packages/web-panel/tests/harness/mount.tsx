@@ -8,8 +8,9 @@ import { BASE, HOME } from '@owlmeans/context'
 import { entrypoint } from '@owlmeans/client-entrypoint'
 import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
+import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
-import { makeContext, modules as baseModules, NavLayout, PanelApp } from '../../src/index.js'
+import { makeContext, modules as baseModules, NavLayout, PanelApp, Toaster } from '../../src/index.js'
 
 // A real app: a context, a layout entrypoint rendering NavLayout, and screens under it.
 // The nav model resolves the active screen from the router, so nothing here may be faked.
@@ -48,22 +49,34 @@ const footerLinks: PanelNavLink[] = [
 
 const screen = (id: string, text: string): FC => () => <div id={id}>{text}</div>
 
-const Layout: FC<PropsWithChildren> = ({ children }) => <NavLayout
-  nav={navConfig}
-  title="Harness"
-  actions={<button id="action-slot">action</button>}
-  footer={footerLinks}
-  // A DARK APPLICATION SHELL, which is what a themed app does to the root: a contrasting
-  // surface pair, both halves correct. The header paints its own opaque background, so it is
-  // a different surface, and everything in it must stay legible against `--background`
-  // rather than against this. The harness carries it permanently so every navigation test
-  // runs against the hostile case instead of a default-coloured page.
-  className="bg-primary text-primary-foreground"
-  // A WIDTH-ONLY rhythm override, which is what a design pass writes when it wants a wider
-  // page. It names the width and nothing else, so the centring and the side padding must
-  // survive it — substituting this for the default is a page running flush to the window edge.
-  containerClassName="max-w-[1280px]"
->{children}</NavLayout>
+const Layout: FC<PropsWithChildren> = ({ children }) => <>
+  <NavLayout
+    nav={navConfig}
+    title="Harness"
+    actions={<button id="action-slot">action</button>}
+    footer={footerLinks}
+    // A DARK APPLICATION SHELL, which is what a themed app does to the root: a contrasting
+    // surface pair, both halves correct. The header paints its own opaque background, so it is
+    // a different surface, and everything in it must stay legible against `--background`
+    // rather than against this. The harness carries it permanently so every navigation test
+    // runs against the hostile case instead of a default-coloured page.
+    className="bg-primary text-primary-foreground"
+    // A WIDTH-ONLY rhythm override, which is what a design pass writes when it wants a wider
+    // page. It names the width and nothing else, so the centring and the side padding must
+    // survive it — substituting this for the default is a page running flush to the window edge.
+    containerClassName="max-w-[1280px]"
+  >{children}</NavLayout>
+  {/* Mounted ONCE, in the layout — exactly where an application mounts it. */}
+  <Toaster />
+</>
+
+/** The toast surface's exercise: a screen action that reports its outcome. */
+const PrefsScreen: FC = () => <div id="prefs">
+  prefs-screen
+  <button id="fire-toast" onClick={() => toast.success('preferences saved')}>save</button>
+  {/* Outlives any assertion — a theme check must not race the 5s default dismissal. */}
+  <button id="fire-sticky" onClick={() => toast.error('sticky failure', { duration: 600_000 })}>fail</button>
+</div>
 
 /** A grouping screen — it renders whichever child the router matched. */
 const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-group">{children}</div>
@@ -115,7 +128,7 @@ const modules = [
     route(alias.reportDetail, '/detail', frontend({ parent: alias.reports })),
     handler(screen('detail', 'detail-screen'))
   ),
-  entrypoint(route(alias.prefs, '/prefs', frontend({ parent: BASE })), handler(screen('prefs', 'prefs-screen'))),
+  entrypoint(route(alias.prefs, '/prefs', frontend({ parent: BASE })), handler(PrefsScreen)),
 ]
 
 context.registerEntrypoints(modules)

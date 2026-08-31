@@ -10,7 +10,7 @@ import { makeSupervisorPlugin } from './plugins/supervisor.js'
  * token will represent. Only `userId` is required - the rest default sensibly.
  */
 export interface SupervisorUserResolution extends Partial<Pick<AuthPayload,
-  'profileId' | 'entityId' | 'role' | 'scopes'>> {
+  'profileId' | 'entitySlug' | 'role' | 'scopes'>> {
   userId: string
 }
 

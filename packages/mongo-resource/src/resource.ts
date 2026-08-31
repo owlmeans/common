@@ -313,6 +313,8 @@ export const makeMongoResource = <
   if (collectionName != null) {
     resource.name = collectionName
   }
+  resource.dbAlias = dbAlias
+  resource.serviceAlias = serviceAlias
 
   resource.init = async () => {
     const context = assertContext<Config, Context>(resource.ctx as Context, location)

@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import type { AuthPayload, AuthToken, Authorization, ProfilePayload } from '../types.js'
 import {
-  EntityValueSchema, EnumValueSchema, GroupValueSchema, IdValueSchema, DateSchema, ScopeValueSchema,
+  EntitySlugValueSchema, EnumValueSchema, GroupValueSchema, IdValueSchema, DateSchema, ScopeValueSchema,
   TypeNameSchema
 } from '../consts.js'
 import { AttributeSetSchema, PermissionSetSchema } from '../permission/model.js'
@@ -9,7 +9,7 @@ import { AttributeSetSchema, PermissionSetSchema } from '../permission/model.js'
 export const AuthorizationSchema: JSONSchemaType<Authorization> = {
   type: 'object',
   properties: {
-    entityId: { ...EntityValueSchema, nullable: true },
+    entitySlug: { ...EntitySlugValueSchema, nullable: true },
     scopes: { type: 'array', items: ScopeValueSchema },
     permissions: { type: 'array', nullable: true, items: PermissionSetSchema },
     attributes: { type: 'array', nullable: true, items: AttributeSetSchema },

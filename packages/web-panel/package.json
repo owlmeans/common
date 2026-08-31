@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-panel",
-  "version": "0.1.18-rc.17",
+  "version": "0.1.18-rc.19",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -63,7 +63,8 @@
     "@owlmeans/web-router": "^0.1.18-rc.8",
     "i18next-browser-languagedetector": "^8.0.0",
     "qrcode.react": "^4.2.0",
-    "react-google-recaptcha": "^3.1.0"
+    "react-google-recaptcha": "^3.1.0",
+    "sonner": "^2.0.7"
   },
   "peerDependencies": {
     "@radix-ui/react-label": "*",

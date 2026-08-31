@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.19"` in `dependencies`
 
 ## Key Exports
 
@@ -17,6 +17,7 @@ user-invocable: false
 | `makeContext<C, T>(cfg)` | Base web context factory (shadcn/Radix + default OwlMeans router) |
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
+| `Toaster` | The application's toast surface — mounted once, in the layout |
 | `components` submodule | shadcn/Radix panel/form components |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
 | `main`, `exports`, `context`, `modules`, `types` | Wiring helpers |
@@ -145,6 +146,33 @@ Rules that make the shell behave:
   child at `'/'`.
 - **Vendor `navigation-menu`.** `SideNav` builds on the existing `Button`; `TopNav` uses the shadcn
   `navigation-menu` primitive — see the `@` contract below.
+
+### Toasts — `Toaster`
+
+An action that succeeded or failed says so in a toast. The surface is `Toaster`; the messages are
+`toast.success(...)` / `toast.error(...)` imported from **`sonner`** by whatever raised them.
+
+```tsx
+import { NavLayout, Toaster } from '@owlmeans/web-panel'
+
+export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
+  <NavLayout nav={navConfig} title="My App">{children}</NavLayout>
+  <Toaster />
+</>
+```
+
+- **Mount it exactly once, in the layout.** `toast()` writes to a module-global store, so two
+  mounted `Toaster`s render every message twice and none renders any of them — both failures are
+  silent, which is why `tests/toaster.spec.ts` asserts the count rather than the presence.
+- **Colours come from the app's own tokens** — `--popover`, `--popover-foreground`, `--border` —
+  so a toast matches every other floating surface. A caller's `style` merges over them.
+- **The theme follows the `.dark` class on the document element**, not a theme provider: the
+  package reads the class an app's `next-themes`, the owl theme provider, or a hand-written
+  toggle all set, and depends on none of them. Pass `theme` explicitly to override.
+- Defaults are `richColors`, `closeButton`, `duration={5000}`, `position="top-right"`; every one
+  of them, and every other `ToasterProps` field, is overridable per app.
+- `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
+  raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
 
 ## Consumer setup — the `@` contract and Tailwind
 

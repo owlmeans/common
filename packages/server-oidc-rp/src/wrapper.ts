@@ -58,7 +58,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
             role: updatedAuth.role ?? AuthRole.Guest,
             userId: updatedAuth.userId ?? user.userId,
             profileId: updatedAuth.profileId,
-            entityId: updatedAuth.entityId ?? user.entityId,
+            entitySlug: updatedAuth.entitySlug ?? user.entitySlug,
             createdAt: new Date()
           }
 

@@ -1,7 +1,7 @@
 
 import type { JSONSchemaType } from 'ajv'
 import type { Profile } from '../types.js'
-import { EntityValueSchema, IdValueSchema } from '../consts.js'
+import { EntitySlugValueSchema, IdValueSchema } from '../consts.js'
 import { PermissionSetSchema, AttributeSetSchema } from '../permission/model.js'
 
 export const ProfileSchema: JSONSchemaType<Profile> = {
@@ -12,7 +12,7 @@ export const ProfileSchema: JSONSchemaType<Profile> = {
     credential: { type: 'string', nullable: true },
     secret: { type: 'string', nullable: true },
     groups: { type: 'array', items: { type: 'string' }, nullable: true },
-    entityId: {...EntityValueSchema, nullable: true},
+    entitySlug: {...EntitySlugValueSchema, nullable: true},
     scopes: { type: 'array', items: { type: 'string' } },
     permissions: { type: 'array', items: PermissionSetSchema, nullable: true },
     attributes: { type: 'array', items: AttributeSetSchema, nullable: true },

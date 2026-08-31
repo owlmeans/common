@@ -25,6 +25,10 @@ export const getHarnessUrl = async (): Promise<string> => {
       alias: { '@': resolve(here, '../src/@') },
       dedupe: ['react', 'react-dom'],
     },
+    // Pre-bundled at server start rather than discovered while the first request is being
+    // served: a dependency found mid-transform re-optimizes and reloads the page underneath
+    // the navigation, which the first `goto` of a cold run pays for as a timeout.
+    optimizeDeps: { include: ['sonner'] },
     server: { port: 0 },
     logLevel: 'warn'
   })

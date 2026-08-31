@@ -46,6 +46,16 @@ export interface MongoRefOptions {
 
 export interface MongoResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T>, MigratableResource<MongoTx> {
   name?: string
+  /**
+   * The db-config alias this resource was registered against.
+   *
+   * Exposed because a collection's NAME depends on it: two resources in one database can carry
+   * different `resourcePrefix`es, so anything naming a collection on another resource's behalf —
+   * a migration reaching across aliases, for one — has to read that resource's own config rather
+   * than assume its caller's.
+   */
+  dbAlias?: string
+  serviceAlias?: string
   schema?: AnySchema
   indexes?: Array<{ name: string, index: IndexSpecification, options?: CreateIndexesOptions }>
   collection: Collection

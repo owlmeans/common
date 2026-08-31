@@ -179,7 +179,7 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       credential.type = GOOGLE_CLIENT_AUTH
       credential.userId = profile.userId
       credential.profileId = profile.profileId
-      credential.entityId = profile.entityId
+      credential.entitySlug = profile.entitySlug
 
       return { token: exchangeToken }
     }

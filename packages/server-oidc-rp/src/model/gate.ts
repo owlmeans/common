@@ -1,4 +1,4 @@
-import { AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthUnknown } from '@owlmeans/auth'
+import { AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthUnknown, entitySlugOf } from '@owlmeans/auth'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 import type { Config, Context, OidcClientService } from '../types.js'
 import { cache, managedId } from '../utils/cache.js'
@@ -13,8 +13,8 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
       const oidc = ctx.service<OidcClientService>(DEFAULT_ALIAS)
       try {
         return await oidc.getClient({
-          entityId: user.entityId,
-          clientId: oidc.entityToClientId({ entityId: user.entityId })
+          entityId: entitySlugOf(user),
+          clientId: oidc.entityToClientId({ entityId: entitySlugOf(user) })
         })
       } catch (e) {
         if (e instanceof AuthManagerError) {
@@ -22,7 +22,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
             authService.provider.list
           ).call({
             params: { service: ctx.cfg.alias ?? ctx.cfg.service },
-            query: { entityId: user.entityId }
+            query: { entityId: entitySlugOf(user) }
           })
           if (providers.length < 1) {
             throw new AuthUnknown()
@@ -83,7 +83,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     fixPermissions: (permissions, user) => permissions.map(
-      perm => perm.replaceAll('{entity}', user.entityId ?? '-')
+      perm => perm.replaceAll('{entity}', entitySlugOf(user) ?? '-')
     ),
 
     prepareRequest: async (client, request) => {

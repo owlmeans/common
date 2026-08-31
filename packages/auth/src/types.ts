@@ -15,7 +15,7 @@ export interface AuthCredentials extends AuthPayload {
     ProfilePayload:
       groups?: string[]
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
@@ -47,7 +47,7 @@ export interface AuthPayload extends ProfilePayload {
     ProfilePayload:
       groups?: string[]
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
@@ -65,7 +65,7 @@ export interface ProfilePayload extends Authorization {
   groups?: string[]
   /**
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
@@ -75,7 +75,17 @@ export interface ProfilePayload extends Authorization {
 }
 
 export interface Authorization {
-  entityId?: string
+  /**
+   * The organization entity's slug — renameable, and the ONLY entity value that travels on the
+   * wire: in tokens, in URLs and in request bodies.
+   *
+   * It is deliberately NOT a database key. An implementation that stores things per organization
+   * keeps its own stable `entityId` on its records and resolves this slug to it at the boundary,
+   * so a rename costs one registry write instead of a migration of every collection, object name
+   * and third-party record that ever referenced the organization. Basic auth knows nothing about
+   * that id — see `@owlmeans/auth-common`'s entity resolver for the contract that does.
+   */
+  entitySlug?: string
   scopes: string[]
   permissions?: PermissionSet[]
   attributes?: AttributeSet[]
@@ -98,7 +108,7 @@ export interface Profile extends ProfilePayload {
     ProfilePayload:
       groups?: string[]
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
@@ -122,7 +132,7 @@ export interface Auth extends AuthPayload {
     ProfilePayload:
       groups?: string[]
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
@@ -160,7 +170,7 @@ export interface AllowanceRequest extends Partial<AuthPayload> {
     ProfilePayload:
       groups?: string[]
     Authorization:
-      entityId?: string
+      entitySlug?: string
       scopes?: string[]
       permissions?: PermissionSet[]
       attributes?: AttributeSet[]
