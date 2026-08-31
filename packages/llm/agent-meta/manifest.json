@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/llm",
-  "version": "0.1.18-rc.6",
-  "generatedAt": "2026-08-18T14:48:00.516Z",
+  "version": "0.1.18-rc.9",
+  "generatedAt": "2026-08-29T20:14:44.155Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

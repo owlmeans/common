@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mongo-resource",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.7",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -27,8 +27,8 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/resource": "^0.1.18-rc.6",
-    "@owlmeans/server-context": "^0.1.18-rc.6"
+    "@owlmeans/resource": "^0.1.18-rc.7",
+    "@owlmeans/server-context": "^0.1.18-rc.7"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

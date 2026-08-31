@@ -14,13 +14,28 @@ See `reference.md` in this skill folder for full code examples (components.json,
 
 ## The `@` contract — core rule
 
-Three invariants govern every shadcn-based OwlMeans package:
+Four invariants govern every shadcn-based OwlMeans package:
 
 1. **No shadcn registries.** Primitives (Button, Input, Card, …) are **hand-copied** into `src/@/components/ui/` and committed. The `registries` field in `components.json` is always empty/absent.
 
 2. **Same `@` import prefix as the final app.** Components inside the package import shadcn primitives as `@/components/ui/button`, `@/lib/utils`, etc. The build leaves `@/…` specifiers **verbatim** (TypeScript Bundler resolution never rewrites them). The downstream app's bundler resolves `@` to **its own** shadcn copy + theme. The package never ships its primitives as a public import.
 
 3. **Local copy is dev/test-only.** Each package keeps its own copy under `src/@/` so it can build and test in isolation. The `package.json` `exports` map must **not** expose `./@/*` — consumers never accidentally import the package's copy.
+
+4. **The consumer must add an `@source` for the package's build.** Tailwind's oxide scanner reads
+   the CSS root plus `@source` directives only, and it excludes `node_modules` — so a class that
+   exists **only** inside the package's own components never reaches the app's stylesheet, and the
+   feature renders unstyled with nothing in the app's own sources to blame. Every app consuming
+   `@owlmeans/web-panel` (or any other shadcn OwlMeans package) adds a line to its Tailwind entry:
+
+   ```css
+   @import "tailwindcss";
+
+   @source "../../../node_modules/@owlmeans/web-panel/build";
+   ```
+
+   The relative depth follows the app's layout; the target is the installed package's `build`
+   directory. This is a **general consumer rule**, not a scaffolding detail.
 
 ## Package skeleton (mirrors `web-panel`)
 
@@ -140,6 +155,15 @@ Three invariants govern every shadcn-based OwlMeans package:
 4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`.
 5. Add a comment at the top: `// shadcn <name> — sourced from shadcn@<version> <date>`.
 6. Run `bun install` and `bun run build` to verify.
+7. Document it: a consumer must vendor **every** primitive the package imports. `@owlmeans/web-panel`
+   currently imports `alert`, `button`, `card`, `input`, `label`, `navigation-menu` and `progress`
+   (`separator` is vendored for consumers that use it) — so its Radix peers include
+   `@radix-ui/react-navigation-menu`.
+
+Prefer a light custom component over a heavyweight block when only part of it is needed. The
+two-level navigation shell deliberately renders its second level with the existing `Button` rather
+than pulling in the shadcn `sidebar` block: that block drags in `sheet`, `tooltip`, `skeleton` and
+`use-mobile`, plus eight `--color-sidebar-*` tokens every consumer theme would then have to define.
 
 ## Wrapping `@owlmeans/client-panel`
 

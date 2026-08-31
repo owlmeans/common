@@ -5,7 +5,8 @@ import type { Collection, Db } from 'mongodb'
 import {
   DEF_MIGRATION_POLL, DEF_MIGRATION_WAIT, DEF_MIGRATIONS_COLLECTION, MONGO_DUPLICATE_KEY
 } from '../consts.js'
-import type { MongoResource, MongoTx } from '../types.js'
+import type { MongoDbService, MongoResource, MongoTx } from '../types.js'
+import { DEFAULT_DB_ALIAS } from '../consts.js'
 import { mongoCollectionName } from './name.js'
 
 interface LedgerRecord {
@@ -40,7 +41,21 @@ export const makeMongoTx = (
       return collection.collectionName
     }
 
-    return mongoCollectionName(config, context.resource<MongoResource<ResourceRecord>>(alias))
+    // Name the target's collection from the target's OWN db config. Resources registered under
+    // different db aliases can share one database while carrying different `resourcePrefix`es, and
+    // naming one of them with this migration's config silently addresses a collection that does not
+    // exist — reads come back empty and writes create a decoy beside the real thing.
+    const target = context.resource<MongoResource<ResourceRecord>>(alias)
+    let targetConfig = config
+    try {
+      const mongo = context.service<MongoDbService>(target.serviceAlias ?? target.dbAlias ?? DEFAULT_DB_ALIAS)
+      targetConfig = mongo.config(target.dbAlias ?? DEFAULT_DB_ALIAS) ?? config
+    } catch {
+      // A resource whose service is not reachable from here keeps the caller's config — the
+      // historical behaviour, and correct whenever both share one alias.
+    }
+
+    return mongoCollectionName(targetConfig, target)
   }
 
   return {

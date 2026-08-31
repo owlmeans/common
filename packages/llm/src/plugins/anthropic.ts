@@ -12,6 +12,30 @@ import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
 /** Model-name prefix that supports prompt caching through `cache_control` markers. */
 const CACHEABLE_PREFIX = 'claude-'
 
+/**
+ * Model families that REJECT the sampling parameters — Claude 4.7 and later, and the whole
+ * 5 family. `temperature`, `top_p` and `top_k` were removed there, and sending any of them
+ * is a 400, not a silently ignored field. Matched with `startsWith`, so a dated snapshot
+ * (`claude-sonnet-5-20260114`) is covered by its base id.
+ *
+ * This is the Anthropic counterpart of the OpenAI plugin's `RESPONSES_API_PREFIXES`: the
+ * older models below the line (`claude-sonnet-4-6`, `claude-haiku-4-5`, and earlier) still
+ * accept sampling and still want the deterministic `temperature: 0` default.
+ */
+export const NO_SAMPLING_PREFIXES = [
+  'claude-fable-5',
+  'claude-mythos-5',
+  'claude-mythos-preview',
+  'claude-opus-5',
+  'claude-opus-4-8',
+  'claude-opus-4-7',
+  'claude-sonnet-5',
+]
+
+/** Whether this model id rejects `temperature`/`top_p`/`top_k`. */
+export const rejectsSampling = (model: string | undefined): boolean =>
+  model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
+
 export const ANTHROPIC_FAMILY = 'anthropic'
 
 type ContentBlock = Record<string, unknown>
@@ -92,18 +116,26 @@ export const anthropicPlugin: LlmPlugin = {
   toolChoice: (toolName: string): unknown => ({ type: 'tool', name: toolName }),
 
   build: ({ config, secret, callbacks }) => {
-    const model = config.model ??= 'claude-haiku-4-5-20251001'
+    const model = config.model ??= 'claude-haiku-4-5'
+    // Claude 4.7+ took the sampling knobs away: not "ignored", a 400. A configured
+    // `temperature` on such a model is a preset bug, and dropping it here is the only
+    // reading that keeps the call alive — there is nothing to translate it into.
+    const sampling = rejectsSampling(model)
+      ? {}
+      : {
+        // Neither knob set → pin temperature to 0 for determinism.
+        ...(config.temperature == null && config.topP == null ? { temperature: 0 } : {}),
+        ...(config.temperature != null ? { temperature: config.temperature } : {}),
+        ...(config.topP != null && config.temperature == null ? { topP: config.topP } : {}),
+      }
     const cfg = {
       model,
       apiKey: secret,
-      // Neither knob set → pin temperature to 0 for determinism.
-      ...(config.temperature == null && config.topP == null ? { temperature: 0 } : {}),
       maxTokens: config.maxTokens ?? 4096,
       maxRetries: 5,
       metadata: { config },
       callbacks,
-      ...(config.temperature != null ? { temperature: config.temperature } : {}),
-      ...(config.topP != null && config.temperature == null ? { topP: config.topP } : {}),
+      ...sampling,
       ...makeClientOptions({ headers: config.headers }),
     }
     // Anthropic rejects temperature and top_p together.
@@ -118,6 +150,15 @@ export const anthropicPlugin: LlmPlugin = {
     const model = base as ChatAnthropic
     const currentTemperature = temperature ?? model.temperature ?? 0
     const maxTokens = escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
+    // `lc_kwargs` carries whatever `build` put there, so a no-sampling model arrives clean;
+    // what has to be suppressed is the escalator's own re-application of a temperature.
+    if (rejectsSampling(model.modelName ?? model.model)) {
+      const cfg = { ...(model.lc_kwargs as Partial<ChatAnthropic>), maxTokens }
+      delete cfg.temperature
+      delete cfg.topP
+
+      return new ChatAnthropic(cfg as Partial<ChatAnthropic>)
+    }
     const cfg: Partial<ChatAnthropic> = {
       ...(model.lc_kwargs as Partial<ChatAnthropic>), temperature: currentTemperature, maxTokens,
     }

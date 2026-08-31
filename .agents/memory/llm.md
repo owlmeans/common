@@ -33,6 +33,25 @@ model factory service and the generic execution service. Related: [[versioning]]
   for an unlabelled model is safe everywhere while assuming native JSON-schema support is not.
 - Retry escalation switches to `ModelConfig.fallback` only WITHIN one plugin `family`: a
   cross-provider switch mid-call would change the structured-output call shape.
+- **`refine` runs on EVERY call, attempt 0 included** — it is the instance the provider is
+  actually asked with, not a retry-only rebuild. A parameter a model rejects must therefore be
+  gated in `build` AND `refine`: gating only `build` put `temperature` back on every request and
+  400'd the whole `gpt-5*` family (`Unsupported parameter: 'temperature'`) — fatal by `isFatal`,
+  so the first call of a run died. Predicates are exported, one per family, never re-typed by a
+  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-5*`/`codex-*`).
+- The ladder is per CALL, so a caller whose own loop validates the OUTPUT must pass
+  `LlmCallOptions.escalation` (its outer attempt) or every call restarts at rung 0 — same
+  model, same budget, same deterministic answer. Clamped to `retries - 1`; start rung only.
+- `maxTokensCap` is what the deployment budgets, `maxOutput` what the provider allows;
+  `resolveOutputCap` takes the declared cap and trims it by the capability. A `fallback` that
+  changes `model` must restate `contextWindow`/`maxOutput` — it inherits every unnamed field
+  from a different model.
+- `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
+  A preset is a BASE; assigning it last (the old order) silently voided a role's own fields
+  and the caller's override, including effort-tier caps. One level deep, never a chain.
+- `ExecutionPlugin` has `onCheckpoint`/`onRestore` AND `advise`; `checkpoint` dispatches on
+  plugins declaring `onCheckpoint`, never on the plugin count, so an advise-only plugin does
+  not start composing unused snapshots.
 - `composeExecState` excludes `state` itself. Without it every `derive`/`escalate`/`withPurpose`
   on a task nests another copy of the previous state (regression-tested in `execution.spec.ts`).
 - `@langchain/*` are **peer** dependencies: model instances cross the package boundary and two

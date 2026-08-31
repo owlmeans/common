@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/web-router": "^0.1.18-rc.8"` in `dependencies`
 
 As of the pluggable-routing rework this package **is the default OwlMeans in-browser router** — a
 minimal, react-router-free implementation of standard URL routing over the browser History API. It

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/state
 
 **Layer:** Core
-**Install:** `"@owlmeans/state": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/state": "^0.1.18-rc.8"` in `dependencies`
 
 The framework's client store. A state resource is a `Resource` like any other, registered **on the
 context** — which is what separates it from a store held beside the app: a screen, a service and a

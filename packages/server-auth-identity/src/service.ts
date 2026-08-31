@@ -5,7 +5,10 @@ import { ALL_SCOPES, AuthRole } from '@owlmeans/auth'
 import type { ProviderProfileDetails } from '@owlmeans/oidc'
 import { createIdOfLength, IdStyle } from '@owlmeans/basic-ids'
 import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService } from './types.js'
-import { AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, LOGIN_SERVICE_PREFIX, EXTERNAL_KEY_DELIMITER } from './consts.js'
+import type { OrgEntity, OrgEntityResource } from './types.js'
+import type { EntityResolverService } from '@owlmeans/auth-common'
+import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
+import { AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, AUTH_IDENTITY_ORG_ENTITY, LOGIN_SERVICE_PREFIX, EXTERNAL_KEY_DELIMITER } from './consts.js'
 
 type Context = ServerContext<ServerConfig>
 
@@ -20,6 +23,21 @@ const loginService = (details: ProviderProfileDetails): string =>
   [LOGIN_SERVICE_PREFIX, details.type, details.service].join(EXTERNAL_KEY_DELIMITER)
 
 export const makeIdentityLinkingService = (): IdentityLinkingService => {
+  /**
+   * The wire value for a stored entity id.
+   *
+   * Records key on the id; everything this service hands back is an auth payload, and payloads
+   * carry the slug. An id that no longer resolves yields undefined rather than leaking the raw
+   * id onto the wire, where a consumer would mistake it for a slug and compose names from it.
+   */
+  const slugOf = async (entityId?: string): Promise<string | undefined> => {
+    if (entityId == null || entityId === '') return undefined
+    const ctx = service.ctx as Context
+    const entity = await ctx.service<EntityResolverService>(ENTITY_RESOLVER).byId(entityId)
+
+    return entity?.slug
+  }
+
   const service: IdentityLinkingService = appendContextual<IdentityLinkingService>(AUTH_IDENTITY_LINKING, {
     getLinkedProfile: async (details: ProviderProfileDetails): Promise<AuthPayload | null> => {
       const ctx = service.ctx as Context
@@ -44,7 +62,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         role: profile.role,
         userId: profile.userId ?? profile.profileId,
         profileId: profile.profileId,
-        entityId: profile.entityId,
+        entitySlug: await slugOf(profile.entityId),
         scopes: profile.scopes,
       }
     },
@@ -54,20 +72,33 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       const accountResource = ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT)
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
       const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
+      const entityResource = ctx.resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
+      const resolver = ctx.service<EntityResolverService>(ENTITY_RESOLVER)
 
-      // Generate a unique local entity slug stored as the account credential.
+      // Every account gets its own organization. The entity record is created FIRST because it
+      // owns the two values that outlive everything else here: the id the account and its profiles
+      // are keyed by, and the frozen `iamKey` that realms and object names are minted from.
+      const entity: OrgEntity = await entityResource.create({
+        slug: await resolver.mintSlug(),
+        formerSlugs: [],
+        // Frozen at birth and never recomputed. It cannot be the slug — the slug moves — and it
+        // cannot be the record id, which does not exist until this create returns.
+        iamKey: createIdOfLength(16, IdStyle.Base58),
+        names: {},
+        createdAt: new Date(),
+      })
+      const entityId = entity.id!
+
       let accountId: string | null = null
-      let entityId: string | null = null
       for (let i = 0; i < MAX_SLUG_RETRIES; i++) {
         const credential = createIdOfLength(16, IdStyle.Base58)
         try {
           const account = await accountResource.create({
             credential,
             name: meta.username,
-            entityId: credential,
+            entityId,
           })
           accountId = account.id
-          entityId = account.credential
           break
         } catch (err: any) {
           if (err?.code === 11000 || err?.message?.includes('duplicate')) continue
@@ -75,7 +106,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         }
       }
 
-      if (accountId == null || entityId == null) {
+      if (accountId == null) {
         throw new Error('Failed to generate unique account credential after retries')
       }
 
@@ -114,7 +145,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         role: profile.role,
         userId: profile.userId ?? profile.profileId,
         profileId: profile.profileId,
-        entityId: profile.entityId,
+        entitySlug: await slugOf(profile.entityId),
         scopes: profile.scopes,
       }
     },
@@ -145,16 +176,16 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
       const { items: profiles } = await profileResource.list({ criteria: { entityId } })
 
-      return profiles.map(p => ({
+      return await Promise.all(profiles.map(async p => ({
         id: p.profileId,
         name: p.name,
         credential: p.credential,
-        entityId: p.entityId,
+        entitySlug: await slugOf(p.entityId),
         scopes: p.scopes,
         groups: p.groups,
         permissions: p.permissions,
         attributes: p.attributes,
-      }))
+      })))
     },
 
     getOwnerCredentials: async (userId: string, entityId?: string, type?: string): Promise<AuthCredentials | undefined> => {
@@ -182,7 +213,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         role: profile.role,
         userId: profile.userId ?? profile.profileId,
         profileId: profile.profileId,
-        entityId: profile.entityId,
+        entitySlug: await slugOf(profile.entityId),
         scopes: profile.scopes,
         challenge: cred.challenge,
         credential: cred.credential,

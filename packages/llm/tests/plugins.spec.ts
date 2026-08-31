@@ -9,8 +9,11 @@ import {
   registerLlmPlugin, resolvePlugin,
 } from '@owlmeans/llm'
 import type { LlmPlugin, ModelConfig } from '@owlmeans/llm'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import { DEFAULT_MAX_OUTPUT_CAP } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
 import { stripCacheMarkers } from '../src/utils/prompt.js'
+import { resolveOutputCap } from '../src/utils/config.js'
 
 const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
   plugin.build({
@@ -144,6 +147,30 @@ describe('@owlmeans/llm — retry escalation behaviour', () => {
     expect((openAiPlugin.refine({ base, attempt: 0, maxOutputCap: 5000 }) as ChatOpenAI).maxTokens).toBe(1000)
     expect((openAiPlugin.refine({ base, attempt: 2, maxOutputCap: 5000 }) as ChatOpenAI).maxTokens).toBe(4000)
     expect((openAiPlugin.refine({ base, attempt: 8, maxOutputCap: 5000 }) as ChatOpenAI).maxTokens).toBe(5000)
+  })
+
+  /**
+   * `refine` rebuilds the model for EVERY attempt, attempt 0 included, so a parameter the
+   * Responses API rejects has to be suppressed in both hooks: omitting it in `build` alone
+   * still put `temperature` on every single request and 400'd the whole gpt-5 family.
+   */
+  test('refine never restores sampling knobs on a Responses-API model', () => {
+    const base = build(openAiPlugin, { model: 'gpt-5.6-terra', maxTokens: 1000 })
+    const read = (model: unknown) => model as ChatOpenAI & { topP?: number }
+
+    for (const attempt of [0, 1, 4]) {
+      const refined = read(openAiPlugin.refine({ base, attempt, temperature: 0.7, maxOutputCap: 8000 }))
+      expect(refined.temperature).toBeUndefined()
+      expect(refined.topP).toBeUndefined()
+      expect((refined.lc_kwargs as { useResponsesApi?: boolean }).useResponsesApi).toBe(true)
+    }
+
+    // The chat-completions families still get the deterministic default and the escalator.
+    const chat = read(openAiPlugin.refine({
+      base: build(openAiPlugin, { model: 'gpt-4.1-mini', maxTokens: 1000 }),
+      attempt: 0, maxOutputCap: 8000,
+    }))
+    expect(chat.temperature).toBe(0)
   })
 
   // Extra budget must become visible output, not more hidden reasoning.
@@ -511,5 +538,119 @@ describe('@owlmeans/llm — service', () => {
   test('an unknown alias is reported as a misconfiguration', () => {
     const service = makeLlmService({ models: offlineConfigs }, 'spec-llm-unknown')
     expect(() => service.getModel('no-such-role')).toThrow()
+  })
+})
+
+/**
+ * A `preset` is a BASE its referent refines, not a final word. Asserted as a full ladder
+ * because the failure it guards was silent: with the preset assigned last, a role that
+ * declared one discarded its own fields AND the caller's override, so effort-tier token
+ * caps and a temperature refinement simply vanished.
+ */
+describe('@owlmeans/llm — config precedence', () => {
+  const layered = (): ModelConfig[] => [
+    {
+      alias: 'base', provider: ModelProvider.OpenAI, model: 'base-model', secret: 'sk-test',
+      maxTokens: 1000, temperature: 0.3, topP: 0.5,
+    },
+    { alias: 'role', preset: 'base', provider: ModelProvider.OpenAI, secret: 'sk-test', maxTokens: 2000 },
+    {
+      alias: 'other', provider: ModelProvider.OpenAI, model: 'other-model', secret: 'sk-test',
+      maxTokens: 500,
+    },
+  ]
+  const configOf = (model: BaseChatModel) =>
+    (model as unknown as { metadata: { config: ModelConfig } }).metadata.config
+
+  test('an alias refines its preset instead of being overwritten by it', () => {
+    const service = makeLlmService({ models: layered }, 'spec-prec-alias')
+    const config = configOf(service.getModel('role'))
+
+    expect(config.model).toBe('base-model')   // inherited
+    expect(config.maxTokens).toBe(2000)       // the alias's own field wins
+    expect(config.temperature).toBe(0.3)      // inherited
+  })
+
+  test('a call override outranks both the alias and its preset', () => {
+    const service = makeLlmService({ models: layered }, 'spec-prec-override')
+    const config = configOf(service.getModel('role', { maxTokens: 3000, temperature: 0.1 }))
+
+    expect(config.maxTokens).toBe(3000)
+    expect(config.temperature).toBe(0.1)
+    expect(config.model).toBe('base-model')
+  })
+
+  test('an override naming a preset picks that model but yields to explicit fields', () => {
+    const service = makeLlmService({ models: layered }, 'spec-prec-pin')
+    const config = configOf(service.getModel('other', { preset: 'base', maxTokensCap: 32000 }))
+
+    expect(config.model).toBe('base-model')   // the pin outranks the alias's own model
+    expect(config.maxTokensCap).toBe(32000)   // explicit override field survives the pin
+    expect(config.alias).toBe('other')        // the alias asked for is what is built
+  })
+
+  test('preset resolution stays one level deep', () => {
+    // `role` inherits its model FROM `base`, so pinning `role` contributes only the
+    // fields `role` itself declares. One level is the long-standing rule; the layering
+    // fix did not make it a chain, and a preset meant to carry a model must name one.
+    const service = makeLlmService({ models: layered }, 'spec-prec-depth')
+    const config = configOf(service.getModel('other', { preset: 'role' }))
+
+    expect(config.model).toBe('other-model')
+    expect(config.maxTokens).toBe(2000)
+  })
+
+  test('an undefined override value does not shadow the layer below', () => {
+    const service = makeLlmService({ models: layered }, 'spec-prec-undef')
+    const config = configOf(service.getModel('role', { maxTokens: undefined }))
+
+    expect(config.maxTokens).toBe(2000)
+  })
+
+  test('the service-wide stream timeout stays a floor under the merge', () => {
+    const service = makeLlmService(
+      { models: layered, streamTimeout: 12_000 }, 'spec-prec-timeout'
+    )
+    expect(configOf(service.getModel('role')).streamTimeout).toBe(12_000)
+  })
+})
+
+describe('@owlmeans/llm — output capability', () => {
+  const capped = (): ModelConfig[] => [
+    {
+      alias: 'small', provider: ModelProvider.OpenAI, model: 'small-model', secret: 'sk-test',
+      maxTokens: 16000, maxTokensCap: 64000, maxOutput: 8000, contextWindow: 200_000,
+    },
+    {
+      alias: 'honest', provider: ModelProvider.OpenAI, model: 'honest-model', secret: 'sk-test',
+      maxTokens: 4000, maxTokensCap: 32000, maxOutput: 64000, contextWindow: 200_000,
+      fallback: { model: 'big-model', maxOutput: 128_000, contextWindow: 1_000_000 },
+    },
+  ]
+
+  test('the declared cap chooses the ceiling and the capability trims it', () => {
+    expect(resolveOutputCap({ maxTokensCap: 32000 })).toBe(32000)
+    expect(resolveOutputCap({ maxOutput: 64000 })).toBe(64000)
+    expect(resolveOutputCap({ maxTokensCap: 64000, maxOutput: 8000 })).toBe(8000)
+    expect(resolveOutputCap({ maxTokensCap: 16000, maxOutput: 64000 })).toBe(16000)
+    expect(resolveOutputCap({})).toBe(DEFAULT_MAX_OUTPUT_CAP)
+  })
+
+  test('an initial budget above the provider capability is clamped at build time', () => {
+    const service = makeLlmService({ models: capped }, 'spec-cap-clamp')
+    const config = (service.getModel('small') as unknown as { metadata: { config: ModelConfig } })
+      .metadata.config
+
+    expect(config.maxTokens).toBe(8000)
+  })
+
+  test('a fallback carries its own capability rather than the primary\'s', () => {
+    const service = makeLlmService({ models: capped }, 'spec-cap-fallback')
+    const primary = service.getModel('honest')
+    const fallback = (primary as unknown as { __fallbackModel?: BaseChatModel }).__fallbackModel!
+    const config = (fallback as unknown as { metadata: { config: ModelConfig } }).metadata.config
+
+    expect(config.maxOutput).toBe(128_000)
+    expect(resolveOutputCap(config)).toBe(32000)
   })
 })

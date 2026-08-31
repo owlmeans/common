@@ -5,8 +5,20 @@ import type { LlmPlugin, LlmRefineParams } from './types.js'
 import type { ModelConfig } from '../types.js'
 import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
 
-/** Model families served through OpenAI's Responses API rather than chat completions. */
-const RESPONSES_API_PREFIXES = ['gpt-5', 'codex-']
+/**
+ * Model families served through OpenAI's Responses API rather than chat completions. That
+ * endpoint REJECTS `temperature`/`top_p` — a 400 naming the parameter, not a silently
+ * ignored field. Matched with `startsWith`, so a dated snapshot (`gpt-5.6-terra-2026-08`)
+ * is covered by its base id.
+ *
+ * This is the OpenAI counterpart of the anthropic plugin's `NO_SAMPLING_PREFIXES`, and it
+ * gates BOTH hooks for the same reason: see `refine`.
+ */
+export const RESPONSES_API_PREFIXES = ['gpt-5', 'codex-']
+
+/** Whether this model id goes through the Responses API and therefore rejects sampling. */
+export const usesResponsesApi = (model: string | undefined): boolean =>
+  model != null && RESPONSES_API_PREFIXES.some(prefix => model.startsWith(prefix))
 
 export const OPENAI_FAMILY = 'openai'
 
@@ -52,6 +64,8 @@ export const openAiFamily = {
     const baseKwargs = model.lc_kwargs as ConstructorParameters<typeof ChatOpenAI>[0] & {
       modelKwargs?: { reasoning?: { max_tokens?: number } } & Record<string, unknown>
     }
+    const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
+      || baseKwargs.useResponsesApi === true
     // The dominant cause of an empty response is a reasoning model spending the whole
     // budget on hidden thinking (finish_reason=length, empty content). The retry already
     // raises maxTokens; ALSO shrink the absolute reasoning cap so the extra budget becomes
@@ -64,6 +78,22 @@ export const openAiFamily = {
         reasoning: { ...reasoning, max_tokens: Math.max(256, Math.floor(reasoning.max_tokens / Math.pow(2, attempt))) },
       }
       : baseKwargs.modelKwargs
+
+    // `build` hands a Responses-API model over without sampling knobs, but EVERY call is
+    // made on the instance `refine` returns — attempt 0 included — so re-applying a
+    // temperature here puts it on the wire for every single request, not just a retry.
+    // Suppressing it in one hook and restoring it in the other ships the parameter anyway.
+    if (responsesApi) {
+      const cfg = {
+        ...baseKwargs,
+        maxTokens,
+        ...(modelKwargs != null ? { modelKwargs } : {}),
+      }
+      delete cfg.temperature
+      delete cfg.topP
+
+      return new ChatOpenAI(cfg)
+    }
 
     return new ChatOpenAI({
       ...baseKwargs,
@@ -104,7 +134,7 @@ export const openAiPlugin: LlmPlugin = {
     const modelKwargs = { prompt_cache_key: config.cacheKey ?? alias }
 
     // The Responses API models reject `temperature`/`topP`.
-    if (RESPONSES_API_PREFIXES.some(prefix => model.startsWith(prefix))) {
+    if (usesResponsesApi(model)) {
       return new ChatOpenAI({
         model,
         apiKey: secret,

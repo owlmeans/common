@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.8"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -24,7 +24,7 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |
-| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. |
+| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`) alongside the budget ones — see the `llm` skill for what each means. |
 | `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides? }` — inherited by every refinement. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, plus `phase`/`completed`/`cursor`/`data`). |
 | `LlmPurpose` | `{ type?, dedication? }` — metadata carried on every model call. |

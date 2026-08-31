@@ -6,7 +6,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { StructuredMode } from '@owlmeans/llm-common'
 import type { NullKind } from '@owlmeans/llm-common'
 import {
-  DEFAULT_MAX_OUTPUT_CAP, DEFAULT_MODEL_RETRIES, FALLBACK_AFTER_ATTEMPTS, MAX_CACHE_BREAKPOINTS,
+  DEFAULT_MODEL_RETRIES, FALLBACK_AFTER_ATTEMPTS, MAX_CACHE_BREAKPOINTS,
 } from './consts.js'
 import { LlmModelError } from './errors.js'
 import { pluginFor, pluginOf } from './plugins/index.js'
@@ -15,7 +15,7 @@ import { coerceToSchema, parseJsonContent } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
 import { withRetry } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
-import { idleTimeout, readConfig } from './utils/config.js'
+import { idleTimeout, readConfig, resolveOutputCap } from './utils/config.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report.js'
 import { applyNoThink, dropBlankContent, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
@@ -97,6 +97,17 @@ export const makeLlmModel = ({
   const config = readConfig(model)
   const plugin: LlmPlugin | undefined = pluginOf(config.provider) ?? pluginFor(model)
   const timeout = idleTimeout(config)
+
+  /**
+   * Where on the escalation ladder this call starts.
+   *
+   * The ladder has exactly `retries` rungs, so a seed past the last one buys nothing and
+   * would only inflate the attempt number handed to `refine`. Clamped, `refineModel` sees
+   * at most `2 * (retries - 1)` — the escalator's own doubling stays bounded by the
+   * output cap either way.
+   */
+  const ladderSeed = (escalation?: number): number =>
+    Math.max(0, Math.min(Math.floor(escalation ?? 0), retries - 1))
 
   /**
    * Normalize, compose the system prompt, then apply every in-place prompt adaptation, in
@@ -216,9 +227,9 @@ export const makeLlmModel = ({
     const basePlugin = pluginOf(baseConfig.provider) ?? pluginFor(base)
     if (basePlugin == null) return base
 
-    const maxOutputCap = typeof baseConfig.maxTokensCap === 'number' && baseConfig.maxTokensCap > 0
-      ? baseConfig.maxTokensCap
-      : DEFAULT_MAX_OUTPUT_CAP
+    // Read from the ACTIVE base — after the fallback swap that is the fallback's own
+    // config, so the escalator sizes the model it is actually talking to.
+    const maxOutputCap = resolveOutputCap(baseConfig)
     const refined = basePlugin.refine({ base, attempt, temperature, maxOutputCap })
 
     if (attempt > 0) {
@@ -297,11 +308,15 @@ export const makeLlmModel = ({
   const helper: LlmModel = {
     ask: async (
       input,
-      { ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills }: LlmAskOptions
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmAskOptions
     ) => {
       const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model to ask: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
@@ -345,11 +360,15 @@ export const makeLlmModel = ({
 
     talk: async (
       input,
-      { ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills }: LlmTalkOptions
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmTalkOptions
     ) => {
       const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model to talk: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
@@ -381,14 +400,18 @@ export const makeLlmModel = ({
     invoke: async <T>(
       input: ModelInput,
       schema: JSONSchemaType<T>,
-      { temperature, ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills }: LlmInvokeOptions<T>
+      {
+        temperature, ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS,
+        skills, escalation, fatal,
+      }: LlmInvokeOptions<T>
     ) => {
       const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
       const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
       const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i, temperature)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i, temperature)
         console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(refined, msgs, innerSchema, toolName, action)
@@ -429,14 +452,18 @@ export const makeLlmModel = ({
     request: async <T>(
       input: ModelInput,
       schema: JSONSchemaType<T>,
-      { ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills }: LlmRequestOptions
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmRequestOptions
     ) => {
       const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
       const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
       const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(refined, msgs, innerSchema, toolName, action)

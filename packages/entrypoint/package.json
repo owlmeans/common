@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/entrypoint",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.7",
   "license": "MIT",
   "type": "module",
   "scripts": {

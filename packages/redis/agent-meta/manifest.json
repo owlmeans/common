@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/redis",
-  "version": "0.1.18-rc.6",
-  "generatedAt": "2026-08-18T14:48:00.553Z",
+  "version": "0.1.18-rc.7",
+  "generatedAt": "2026-08-24T21:14:00.141Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

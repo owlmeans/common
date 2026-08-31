@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-otp",
-  "version": "0.1.18-rc.10",
+  "version": "0.1.18-rc.12",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -27,12 +27,12 @@
     "@owlmeans/basic-ids": "^0.1.18-rc.6",
     "@owlmeans/context": "^0.1.18-rc.6",
     "@owlmeans/mailer": "^0.1.18-rc.6",
-    "@owlmeans/oidc": "^0.1.18-rc.6",
-    "@owlmeans/redis-resource": "^0.1.18-rc.6",
-    "@owlmeans/resource": "^0.1.18-rc.6",
-    "@owlmeans/server-auth": "^0.1.18-rc.10",
-    "@owlmeans/server-auth-identity": "^0.1.18-rc.6",
-    "@owlmeans/server-context": "^0.1.18-rc.6"
+    "@owlmeans/oidc": "^0.1.18-rc.8",
+    "@owlmeans/redis-resource": "^0.1.18-rc.7",
+    "@owlmeans/resource": "^0.1.18-rc.7",
+    "@owlmeans/server-auth": "^0.1.18-rc.12",
+    "@owlmeans/server-auth-identity": "^0.1.18-rc.8",
+    "@owlmeans/server-context": "^0.1.18-rc.7"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

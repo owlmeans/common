@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.6"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.7"` in `dependencies` (peers `mongodb`, `ajv`)
 
 The Mongo counterpart of [[postgres-resource]]. A collection has no structure of its own, so
 here the resource layer owns the *validator* (`$jsonSchema` from the AJV schema), the indexes,
@@ -118,6 +118,16 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 
 - `Pre` runs **before** the validator is updated and indexes reconcile; `Post` after. A `Pre`
   body writes shapes the *old* validator allows; a `Post` body the *new* one.
+- **A `Pre` body that removes an indexed field must drop that index itself.** Indexes reconcile
+  *after* `Pre`, so the old one is still live and still enforcing while the body writes. Renaming
+  the field in the `index()` declaration does not help when the index **name** stays the same:
+  `updateIndexes` matches by name, sees one already there, and leaves the old key spec alone —
+  so the declaration says `{ entityId, slug, kind }` while the collection enforces
+  `{ entity, slug, kind }`. `$unset`ing the field then collapses every row onto `{ <field>: null,
+  … }`, and on a `unique` index the second row dies with E11000 — mid-migration, after earlier
+  collections were already rewritten, leaving the database half-migrated and the boot aborting on
+  every restart. Drop the stale index by name in the body first (guard on the key spec so the
+  drop is idempotent), and let the reconcile recreate it from the declaration.
 - On a collection this boot just created, every registered migration is **baselined**
   (recorded, not run) — a fresh collection is born at head.
 - **No transactions**: a standalone `mongod` (the dev/CI target) rejects multi-document

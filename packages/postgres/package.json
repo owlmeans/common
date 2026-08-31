@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/postgres",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,11 +22,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-keys": "^0.1.18-rc.6",
+    "@owlmeans/basic-keys": "^0.1.18-rc.8",
     "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/postgres-resource": "^0.1.18-rc.7",
-    "@owlmeans/resource": "^0.1.18-rc.6",
-    "@owlmeans/server-context": "^0.1.18-rc.6",
+    "@owlmeans/postgres-resource": "^0.1.18-rc.8",
+    "@owlmeans/resource": "^0.1.18-rc.7",
+    "@owlmeans/server-context": "^0.1.18-rc.7",
     "drizzle-orm": "~0.45.2",
     "pg": "^8.22.0"
   },

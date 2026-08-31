@@ -1,6 +1,8 @@
 import type { AuthModel, AppConfig, AppContext } from './types.js'
-import { AuthenFailed, AuthenPayloadError } from '@owlmeans/auth'
+import { AuthenFailed, AuthenPayloadError, entitySlugOf } from '@owlmeans/auth'
 import type { AuthCredentials } from '@owlmeans/auth'
+import type { EntityResolverService } from '@owlmeans/auth-common'
+import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
 import { getPlugin } from './plugins/utils.js'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -74,6 +76,19 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
       const challenge = credential.challenge
       const { token } = await plugin.authenticate(Object.assign(credential, { challenge: msg }))
       credential.challenge = token === '' ? challenge : token
+
+      // Plugins accept whatever the caller typed — a current slug, a slug the organization has
+      // since retired, or (for a token minted before slugs existed) its stable key. The token is
+      // signed once and read for as long as it lives, so the value is canonicalized here rather
+      // than at every place that later reads it back.
+      const entitySlug = entitySlugOf(credential)
+      if (entitySlug != null && context.hasService(ENTITY_RESOLVER)) {
+        const entity = await context.service<EntityResolverService>(ENTITY_RESOLVER).resolve(entitySlug)
+        if (entity == null) {
+          throw new AuthenFailed('entity')
+        }
+        credential.entitySlug = entity.slug
+      }
 
       credential.credential = trustedUser.id
 

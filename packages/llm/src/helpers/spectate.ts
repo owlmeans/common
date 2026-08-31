@@ -5,6 +5,15 @@ import type { SpectatorEntryMessage } from '@owlmeans/llm-common'
 import type { LlmSpectator, ModelInputItem } from '../types.js'
 import { hasCacheActivity, readCacheUsage } from './cache.js'
 
+/**
+ * The trace's `content` column is a string; LangChain content is a string-or-blocks union, and
+ * tool calls are arrays. Anything non-string must be stored as JSON — a plain string coercion
+ * downstream turns it into `[object Object]` and destroys the readable half of the trace
+ * (`raw` keeps the payload, but `content` is what trace readers query).
+ */
+const asText = (content: unknown): string =>
+  typeof content === 'string' ? content : JSON.stringify(content) ?? ''
+
 /** Normalize one prompt message into the spectator's storage shape. */
 const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMessage => {
   const entry: SpectatorEntryMessage = {
@@ -16,17 +25,17 @@ const describeInput = (msg: ModelInputItem, callType: string): SpectatorEntryMes
 
   if (msg instanceof BaseMessage) {
     entry.type = msg.type
-    entry.content = msg.content as unknown as string
+    entry.content = asText(msg.content)
     entry.name = msg.name
     entry.contentType = typeof msg.content === 'string' ? SpectatorContentType.Text : SpectatorContentType.Json
     entry.usage = 'usage_metadata' in msg ? msg.usage_metadata as UsageMetadata : undefined
     entry.raw = JSON.stringify({ message: msg, content: msg.content, meta: msg.response_metadata })
   } else if (typeof msg === 'object' && 'content' in msg) {
     entry.type = msg.role as string ?? 'unknown'
-    entry.content = msg.content as string ?? msg as unknown as string
+    entry.content = asText(msg.content ?? msg)
     entry.raw = JSON.stringify(msg)
   } else {
-    entry.content = msg as unknown as string
+    entry.content = asText(msg)
     entry.raw = JSON.stringify(msg)
   }
 
@@ -58,10 +67,10 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
     }
 
     if (message.tool_calls != null && message.tool_calls.length > 0) {
-      completion.content = message.tool_calls as unknown as string
+      completion.content = asText(message.tool_calls)
       completion.contentType = SpectatorContentType.ToolCall
     } else {
-      completion.content = message.content as unknown as string
+      completion.content = asText(message.content)
     }
 
     // Silent unless the provider reported cache activity, so it costs nothing when

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-ui",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,11 +23,11 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.6",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.6",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.8",
     "@owlmeans/basic-ids": "^0.1.18-rc.6",
-    "@owlmeans/basic-keys": "^0.1.18-rc.6",
+    "@owlmeans/basic-keys": "^0.1.18-rc.8",
     "@owlmeans/test": "^0.1.18-rc.6",
-    "@owlmeans/test-auth": "^0.1.18-rc.6",
+    "@owlmeans/test-auth": "^0.1.18-rc.8",
     "playwright": "^1.61.1"
   },
   "peerDependencies": {
