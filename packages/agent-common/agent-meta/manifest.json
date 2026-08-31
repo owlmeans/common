@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/agent-common",
+  "version": "0.1.18-rc.11",
+  "generatedAt": "2026-08-29T20:14:44.153Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "agent-common",
+      "category": "package-specific",
+      "file": "skills/agent-common/SKILL.md",
+      "canonicalPath": ".agents/skills/agent-common/SKILL.md"
+    }
+  ]
+}

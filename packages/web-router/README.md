@@ -1,10 +1,12 @@
 # @owlmeans/web-router
 
-React Router DOM integration for the OwlMeans context system.
+The default OwlMeans in-browser routing plugin for the OwlMeans context system. It depends on no
+third-party router — react-router is a separate opt-in plugin,
+[`@owlmeans/web-router-react-router`](../web-router-react-router).
 
 ## Overview
 
-- `makeWebRouterService()` — creates a router service backed by React Router DOM
+- `makeWebRouterService()` — creates a router service backed by the OwlMeans browser router
 - `appendWebRouter(ctx)` — registers the web router service in the context
 - Provides `useParams`, `useLocation`, `useNavigate`, `outlet()`, `provider()` via the service
 - Used internally by `@owlmeans/web-client`'s `makeContext` — not typically used directly
@@ -29,7 +31,7 @@ appendWebRouter(context)
 
 ### `makeWebRouterService(): RouterService`
 
-Creates a router service with React Router DOM hooks and components.
+Creates a router service with the OwlMeans browser router hooks and components.
 
 ### `appendWebRouter<C, T>(ctx): void`
 
@@ -43,10 +45,9 @@ Registers the web router service in the given context.
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
 
-This package ships embedded Claude Code skills and GitHub Copilot instructions under
-`agent-meta/`. After installing your `@owlmeans/*` packages, run the OwlMeans
-agent-skills installer to place them into your project's native locations
-(`.claude/skills/` and `.github/instructions/`):
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
 
 ```sh
 npx @owlmeans/agent-skills

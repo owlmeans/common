@@ -89,6 +89,18 @@ export const createApiServer = (alias: string): ApiServer => {
     // @TODO It's quite unsafe and should be properly configured
     await server.register(cors, {
       origin: '*',
+      // `@fastify/cors` v11 narrowed its default `methods` to 'GET,HEAD,POST'
+      // (v10 defaulted to the full set). `RouteMethod` also declares PUT, PATCH
+      // and DELETE, so relying on the default makes the preflight answer
+      // `Access-Control-Allow-Methods: GET,HEAD,POST` and the browser rejects
+      // every non-GET/POST call with "Method PUT is not allowed by
+      // Access-Control-Allow-Methods in preflight response". Server-to-server
+      // callers are unaffected, so this only ever breaks the browser — declare
+      // the framework's full method set explicitly instead of inheriting a default.
+      methods: [
+        ...Object.values(RouteMethod).map(method => method.toUpperCase()),
+        'HEAD', 'OPTIONS'
+      ],
       exposedHeaders: [TOKEN_UPDATE]
     })
 
