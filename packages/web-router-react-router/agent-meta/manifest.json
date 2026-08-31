@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-router-react-router",
+  "version": "0.1.18-rc.6",
+  "generatedAt": "2026-08-18T14:48:00.518Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-router-react-router",
+      "category": "package-specific",
+      "file": "skills/web-router-react-router/SKILL.md",
+      "canonicalPath": ".agents/skills/web-router-react-router/SKILL.md"
+    }
+  ]
+}

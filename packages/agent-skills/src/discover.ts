@@ -211,17 +211,20 @@ export interface DiscoverOptions {
   extras?: boolean
   /** Restrict to entries from these package names. */
   only?: string[]
-  /** Install only skills. */
-  claudeOnly?: boolean
-  /** Install only instructions. */
-  copilotOnly?: boolean
 }
 
-/** Collect all DiscoveredEntries, deduplicated by (kind, name). */
+/**
+ * Collect all DiscoveredEntries, deduplicated by name.
+ *
+ * Only `kind: 'skill'` entries are installed. Packages published before schema v2
+ * also carry `kind: 'instruction'` twins of the same knowledge (the Copilot format
+ * that predates the Agent Skills standard); they are dropped here so a mixed
+ * node_modules never installs both halves.
+ */
 export const discover = (targetDir: string, opts: DiscoverOptions = {}): DiscoveredEntry[] => {
-  const { extras = true, only, claudeOnly = false, copilotOnly = false } = opts
+  const { extras = true, only } = opts
 
-  const allEntries = scanNodeModules(targetDir)
+  const allEntries = scanNodeModules(targetDir).filter(e => e.kind === 'skill')
 
   if (extras) {
     // Get installer's own package name+version from its package.json
@@ -235,13 +238,13 @@ export const discover = (targetDir: string, opts: DiscoverOptions = {}): Discove
         if (pkg.version) selfVersion = pkg.version
       }
     } catch { /* use defaults */ }
-    allEntries.push(...scanSelfExtras(selfName, selfVersion))
+    allEntries.push(...scanSelfExtras(selfName, selfVersion).filter(e => e.kind === 'skill'))
   }
 
-  // Deduplicate by (kind, name): prefer highest semver version
+  // Deduplicate by name: prefer highest semver version
   const byKey = new Map<string, DiscoveredEntry>()
   for (const e of allEntries) {
-    const key = `${e.kind}:${e.name}`
+    const key = e.name
     const existing = byKey.get(key)
     if (existing == null) {
       byKey.set(key, e)
@@ -256,10 +259,6 @@ export const discover = (targetDir: string, opts: DiscoverOptions = {}): Discove
   if (only != null && only.length > 0) {
     result = result.filter(e => only.some(n => matchPkgName(n, e.packageName)))
   }
-
-  // Apply tool filters
-  if (claudeOnly) result = result.filter(e => e.kind === 'skill')
-  if (copilotOnly) result = result.filter(e => e.kind === 'instruction')
 
   return result
 }

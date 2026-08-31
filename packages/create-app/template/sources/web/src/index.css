@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 /*
+ * Tailwind scans this app's sources for class names, and node_modules is excluded from that
+ * scan by default — so the classes that exist ONLY inside @owlmeans/web-panel components
+ * (the navigation shell, the footer) would never reach the stylesheet. This line adds them.
+ */
+@source "../../../node_modules/@owlmeans/web-panel/build";
+
+/*
  * shadcn / Tailwind v4 design tokens (new-york, neutral). The app owns these — they
  * replace what @owlmeans/owl-theme would otherwise provide. The shadcn primitives in
  * components/ui and the @owlmeans web components consume them via `bg-background`, etc.

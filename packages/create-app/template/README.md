@@ -46,10 +46,19 @@ for a full walkthrough and the manual (non-scaffolded) version of this project.
 
 ## Agent guidance
 
-This project ships agent context in `CLAUDE.md` and `.github/copilot-instructions.md` (memory + skill
-directives, plus a project-purpose placeholder the agent fills in on its first session), and Claude
-Code skills (`.claude/skills/`) + GitHub Copilot instructions (`.github/instructions/`) for the
-OwlMeans framework. Refresh the skills after adding or upgrading `@owlmeans/*` packages:
+This project ships agent context in `CLAUDE.md` and `.github/copilot-instructions.md`. Both carry the
+same four mandatory sections a real OwlMeans monorepo uses — **Git Workflow**, **Reporting**,
+**Memory**, **Self-Education** — plus a project-purpose placeholder the agent fills in on its first
+session.
+
+Project memory is a single shared graph store at `.agents/memory/` (index `MEMORY.md`), used by both
+Claude Code and Copilot — never write memory anywhere else.
+
+Reusable guidance lives in `.claude/skills/` (Claude Code) and `.github/instructions/` (Copilot).
+Files carrying an `AUTO-GENERATED` banner are managed by
+[`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills) — don't hand-edit
+them; write your own guidance as separate, un-bannered files. Refresh after adding or upgrading
+`@owlmeans/*` packages:
 
 ```sh
 npx @owlmeans/agent-skills

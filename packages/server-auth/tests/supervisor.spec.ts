@@ -61,7 +61,7 @@ describe('@owlmeans/server-auth — supervisor plugin', () => {
     const plugin = makeSupervisorPlugin(context, {
       supervisors: [SUPERVISOR],
       allowRegistration: true,
-      resolveUser: async (userId) => ({ userId: 'internal-id', profileId: 'profile-1', entityId: 'entity-1', scopes: ['project'] })
+      resolveUser: async (userId) => ({ userId: 'internal-id', profileId: 'profile-1', entitySlug: 'entity-1', scopes: ['project'] })
     })
 
     const challenge = 'challenge-' + Date.now()
@@ -72,7 +72,7 @@ describe('@owlmeans/server-auth — supervisor plugin', () => {
 
     expect(credential.userId).toBe('internal-id')
     expect(credential.profileId).toBe('profile-1')
-    expect(credential.entityId).toBe('entity-1')
+    expect(credential.entitySlug).toBe('entity-1')
     expect(credential.scopes).toEqual(['project'])
   })
 

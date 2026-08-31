@@ -1,0 +1,15 @@
+{
+  "extends": ["@owlmeans/dep-config/tsconfig.base.json"],
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./build/",
+    "moduleResolution": "Bundler"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "./dist/**/*",
+    "./build/**/*"
+  ]
+}

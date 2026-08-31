@@ -13,24 +13,38 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
   const service: OidcClientService = createService<OidcClientService>(alias, {
     getConfiguration: async clientId => {
       const context = assertContext<Config, Context>(service.ctx as Context, alias)
-      let cfg = await service.getConfig(clientId)
+      const cfg = await service.getConfig(clientId)
 
-      if (cfg?.basePath == null) {
-        throw new AuthManagerError('oidc.client.basepath')
+      // `discoveryUrl` is the canonical, fully-qualified issuer locator: when it is present the
+      // provider URL is used verbatim and `service`/`basePath` are irrelevant. Those two are only
+      // required by the legacy fallback that reassembles the issuer from a registered service host
+      // plus a base path — a shape that forces the relying party to know the provider's URL layout
+      // (and to keep it in sync with however the provider itself builds its issuer).
+      const discoveryUrl = cfg?.discoveryUrl != null && cfg.discoveryUrl !== ''
+        ? cfg.discoveryUrl : null
+
+      if (discoveryUrl == null) {
+        if (cfg?.basePath == null) {
+          throw new AuthManagerError('oidc.client.basepath')
+        }
+
+        if (cfg.service == null) {
+          throw new AuthManagerError('oidc.client.service')
+        }
       }
 
-      if (cfg.service == null) {
-        throw new AuthManagerError('oidc.client.service')
-      }
-
-      if (typeof clientId === 'object' && clientId.clientId == null && cfg.clientId == null) {
+      if (typeof clientId === 'object' && clientId.clientId == null && cfg?.clientId == null) {
         throw new AuthManagerError('oidc.client.client-id')
+      }
+
+      if (cfg == null) {
+        throw new AuthManagerError('oidc.client.config')
       }
 
       // @TODO Add support for any domain (not just registered services)
       const security = makeSecurityHelper<Config, Context>(context)
-      const url = cfg.discoveryUrl
-        ?? security.makeUrl(context.cfg.services[cfg.service], cfg.basePath)
+      const url = discoveryUrl
+        ?? security.makeUrl(context.cfg.services[cfg.service!], cfg.basePath!)
 
       return await client.discovery(
         new URL(url) as URL,

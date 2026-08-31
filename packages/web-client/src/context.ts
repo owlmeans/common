@@ -8,6 +8,7 @@ import { useContext as useCtx } from '@owlmeans/client'
 import { extractPrimaryHost } from './helper.js'
 import { appendWebAuthService } from './service.js'
 import { appendWebRouter } from '@owlmeans/web-router'
+import { appendWebLogin } from './login/service.js'
 
 export const makeContext = <C extends AppConfig = AppConfig, T extends AppContext<C> = AppContext<C>>(
   cfg: C
@@ -19,6 +20,7 @@ export const makeContext = <C extends AppConfig = AppConfig, T extends AppContex
   appendWebDbService<C, T>(context)
   appendClientResource<C, T>(context, AUTH_RESOURCE)
   appendWebRouter<C, T>(context)
+  appendWebLogin<C, T>(context)
 
   context.makeContext = makeContext as typeof context.makeContext
 

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/i18n",
-  "version": "0.1.11",
+  "version": "0.1.18-rc.6",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,8 +30,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "nodemon": "^3.1.11",
-    "typescript": "^6.0.2"
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

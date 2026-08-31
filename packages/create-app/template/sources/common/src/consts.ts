@@ -18,4 +18,5 @@ export const session = {
 /** Frontend (web) entrypoint identifiers. */
 export const web = {
   session: '__APP_SLUG__:web:session',
+  about: '__APP_SLUG__:web:about',
 }

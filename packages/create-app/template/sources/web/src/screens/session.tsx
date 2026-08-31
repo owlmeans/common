@@ -1,7 +1,8 @@
 import { useEffect, useState, type FC } from 'react'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { useStoreList } from '@owlmeans/client'
 import { session, type SessionItem } from '__APP_SLUG__-common'
-import { useContext } from '../context.js'
+import { SESSION_STATE, useContext } from '../context.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -20,15 +21,27 @@ const sessionId = (): string => {
 export const SessionScreen: FC = () => {
   const ctx = useContext()
   const sid = sessionId()
-  const [items, setItems] = useState<SessionItem[]>([])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const store = ctx.getStateResource<SessionItem>(SESSION_STATE)
+
+  /**
+   * The list is a live subscription to the state resource, not a piece of component state.
+   * Anything that writes a record — this screen or another one — re-renders it, so adding and
+   * removing never re-fetch to stay in step. `{}` matches every record; a real filter goes here.
+   */
+  const items = useStoreList<SessionItem>({ query: {}, resource: SESSION_STATE })
+
+  // The server is the source of truth; the store is what the screen reads. Fetch once, write
+  // what came back into the store, and let the subscription render it.
   const load = async () => {
     const [data] = await ctx
       .entrypoint<ClientEntrypoint<SessionItem[]>>(session.list)
       .call({ params: { sid } })
-    setItems(data ?? [])
+    for (const item of data ?? []) {
+      await store.save(item)
+    }
   }
 
   useEffect(() => { void load() }, [])
@@ -37,11 +50,13 @@ export const SessionScreen: FC = () => {
     if (text.trim() === '') return
     setBusy(true)
     try {
-      await ctx
+      const [item] = await ctx
         .entrypoint<ClientEntrypoint<SessionItem>>(session.add)
         .call({ params: { sid }, body: { text } })
       setText('')
-      await load()
+      if (item != null) {
+        await store.save(item)
+      }
     } finally {
       setBusy(false)
     }
@@ -51,7 +66,7 @@ export const SessionScreen: FC = () => {
     await ctx
       .entrypoint<ClientEntrypoint<{ removed: boolean }>>(session.remove)
       .call({ params: { sid, id } })
-    await load()
+    await store.delete(id)
   }
 
   return (
@@ -75,11 +90,11 @@ export const SessionScreen: FC = () => {
         <ul className="flex flex-col gap-2">
           {items.map(item => (
             <li
-              key={item.id}
+              key={item.record.id}
               className="flex items-center justify-between rounded-md border px-3 py-2"
             >
-              <span>{item.text}</span>
-              <Button variant="ghost" size="sm" onClick={() => void remove(item.id)}>
+              <span>{item.record.text}</span>
+              <Button variant="ghost" size="sm" onClick={() => void remove(item.record.id)}>
                 Remove
               </Button>
             </li>

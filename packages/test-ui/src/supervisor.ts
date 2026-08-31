@@ -41,7 +41,7 @@ export const pregenerateAuthToken = async (opts: PregenerateAuthTokenOptions): P
     token: createIdOfLength(32),
     userId: opts.userId,
     profileId: opts.profileId ?? opts.userId,
-    entityId: opts.entityId,
+    entitySlug: opts.entityId,
     scopes: opts.scopes ?? ['*'],
     role: opts.role ?? Role.User,
     type: AuthroizationType.Ed25519BasicToken,

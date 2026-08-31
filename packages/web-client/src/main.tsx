@@ -4,7 +4,6 @@ import { createRoot, hydrateRoot } from 'react-dom/client'
 import { DEFAULT_ROOT } from './consts.js'
 import type { AppConfig, AppContext, RenderOptions } from './types.js'
 import { WebApp } from './components/index.js'
-import { provide } from './router.js'
 
 export const render = (node: ReactNode, opts?: RenderOptions) => {
   const _callback = () => {
@@ -27,4 +26,4 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
 }
 
 export const renderApp = <C extends AppConfig, T extends AppContext<C>>(context: T, opts?: RenderOptions) =>
-  render(<WebApp context={context} provide={provide} />, opts)
+  render(<WebApp context={context} />, opts)

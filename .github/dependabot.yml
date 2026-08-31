@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # npm/bun workspace at the repo root. Grouped, weekly, so security advisories
+  # and routine bumps surface as PRs instead of manual `bun audit` sweeps.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      types:
+        patterns:
+          - "@types/*"
+    ignore:
+      # Internal packages are version-synced across the monorepo by hand.
+      - dependency-name: "@owlmeans/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
