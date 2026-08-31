@@ -21,12 +21,16 @@ const makeGate = async (): Promise<GateService> => {
   return ctx.service<GateService>(OIDC_GATE)
 }
 
-const makeRequest = (params: Record<string, string> = {}): AbstractRequest => ({
+const makeRequest = (
+  params: Record<string, string> = {},
+  rest: Partial<Pick<AbstractRequest, 'query' | 'body' | 'headers'>> = {}
+): AbstractRequest => ({
   alias: 'test',
   headers: {},
   params,
   query: {},
   body: {},
+  ...rest,
   path: '/',
   auth: {
     type: 'oidc-wrapped-token',
@@ -70,6 +74,55 @@ describe('@owlmeans/server-iam — makeIamGate (claims mode)', () => {
     const gate = await makeGate()
     expect(
       gate.assert(makeRequest({ depId: 'dep-87654321' }), res, ['department--modify@depId'])
+    ).rejects.toBeInstanceOf(AuthForbidden)
+  })
+
+  test('resolves a resource id from an explicitly named source', async () => {
+    const gate = await makeGate()
+    await gate.assert(
+      makeRequest({}, { body: { department: { id: 'dep-12345678' } } }), res,
+      ['department--modify@body:department.id']
+    )
+  })
+
+  test('resolves a resource id from the auth object', async () => {
+    const gate = await makeGate()
+    // `entity-1` is this subject's own entityId, and the unscoped grant covers every resource.
+    await gate.assert(makeRequest(), res, ['article--modify@auth:entityId'])
+  })
+
+  /**
+   * Params are OR'd, so a param the gate cannot even evaluate must contribute nothing. Letting one
+   * throw would turn a typo in an unrelated sibling into a denial of a grant the subject really has.
+   */
+  test('a malformed param does not refuse a sibling that passes', async () => {
+    const gate = await makeGate()
+    await gate.assert(makeRequest(), res, ['article--modify@cookies:sid', 'article--modify'])
+  })
+
+  test('an unresolvable selector refuses without breaking the OR', async () => {
+    const gate = await makeGate()
+    await gate.assert(makeRequest(), res, ['department--modify@missingParam', 'article--modify'])
+
+    expect(
+      gate.assert(makeRequest(), res, ['department--modify@missingParam'])
+    ).rejects.toBeInstanceOf(AuthForbidden)
+  })
+
+  /**
+   * The stored grant is keyed `department--modify`; the gate splits the selector off before looking
+   * it up. A grant written under the whole string — the corruption this grammar exists to stop —
+   * is a key nothing reads.
+   */
+  test('a permission granted WITH the selector in its name never satisfies the gate', async () => {
+    const gate = await makeGate()
+    const req = makeRequest({ depId: 'dep-1' })
+    ;(req.auth as unknown as Auth).permissions = [
+      { scope: 'my-project', permissions: { 'department--modify@depId': true } }
+    ]
+
+    expect(
+      gate.assert(req, res, ['department--modify@depId'])
     ).rejects.toBeInstanceOf(AuthForbidden)
   })
 })
