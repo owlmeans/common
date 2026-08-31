@@ -57,6 +57,13 @@ playwright-report/
 /packages/*/tests/**/*.js.map
 /packages/*/tests/**/*.d.ts.map
 
+# Same for maintenance scripts kept beside the sources they regenerate — a build
+# emits next to them and none of that output is ever committed.
+/packages/*/scripts/**/*.js
+/packages/*/scripts/**/*.d.ts
+/packages/*/scripts/**/*.js.map
+/packages/*/scripts/**/*.d.ts.map
+
 # Generated Claude Code skill symlinks (canonical skills live in .agents/skills/)
 .claude/skills/*
 !.claude/skills/.gitkeep
