@@ -109,7 +109,7 @@ The per-package `tests/harness/mount.tsx` reads `?component=<name>` and `?props=
 
 ## Smoke-only baseline
 
-For a package that only needs to prove the bun-test + chromium pipeline works (e.g. `web-panel`'s pilot), skip the Vite harness and serve a `data:text/html` URL inline:
+For a package that only needs to prove the bun-test + chromium pipeline works, skip the Vite harness and serve a `data:text/html` URL inline. Use this for a first spec in a package that has no harness yet — `web-panel` keeps one alongside a full Vite + chromium harness (`tests/harness/` plus a `tests/context.ts` wiring the Tailwind plugin, the `@` alias and a react dedupe), and that harness is the reference to copy for any package rendering real components:
 
 ```ts
 import { afterAll, describe, expect, test } from 'bun:test'
@@ -142,7 +142,7 @@ Same line as categories A/B/C. No `playwright.config.ts`, no `bun x playwright t
 
 ## Tailwind + shadcn packages
 
-For shadcn-based OwlMeans packages the `tests/context.ts` Vite config needs two additions beyond the standard setup:
+For shadcn-based OwlMeans packages the `tests/context.ts` Vite config needs three additions beyond the standard setup:
 
 ```ts
 import tailwindcss from '@tailwindcss/vite'
@@ -154,10 +154,13 @@ const server = await createServer({
   plugins: [react(), tailwindcss()],               // add Tailwind v4 Vite plugin
   resolve: {
     alias: { '@': resolve(here, '../src/@') },     // resolve @/ to the package's local copy
+    dedupe: ['react', 'react-dom'],                // one React across the workspace links
   },
   server: { port: 0 },
 })
 ```
+
+`dedupe` is not optional in a workspace: symlinked sibling packages otherwise resolve their own React copy and every hook throws.
 
 `tests/harness/mount.tsx` imports the package CSS so components render with Tailwind styles:
 
@@ -165,6 +168,15 @@ const server = await createServer({
 import '../../src/@/globals.css'
 // ... dynamic component mounting ...
 ```
+
+### Testing routed UI (navigation, layouts)
+
+A spec that exercises navigation opens a **path** on the harness origin instead of a `?component=` query, and `mount.tsx` builds a real context with real entrypoints — the OwlMeans router drives the History API, so nothing about the routing may be faked. Two shapes the harness must get right, because a spec that trips them fails obscurely:
+
+- **Leave the context un-initialized** (`ready` false). The Router compiles the entrypoint tree into routes only while the context is un-initialized; a pre-readied context renders a blank page.
+- **Give every entrypoint that has children one child declared `default: true`**, or the parent's own path renders blank.
+
+Include the framework's own `modules` in the harness entrypoint list: the panel context registers the api-config middleware, which resolves one of them during init and throws before any route is compiled if they are missing.
 
 Shadcn components are plain React — no theme provider needed. Assert via `getByRole` / text as usual. To verify that Tailwind classes took visual effect, read computed styles:
 
