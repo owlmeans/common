@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -14,12 +14,16 @@ import { applyInstall } from '../src/apply.js'
 
 const BANNER = AUTO_GENERATED_BANNER
 
+/** Where a skill lands in the target project. */
+const skillTarget = (root: string, name: string): string =>
+  join(root, '.agents', 'skills', name, 'SKILL.md')
+
 const makeFixtureManifest = (pkgName: string, version: string, entries: Array<{
   kind: 'skill' | 'instruction'
   name: string
   category?: 'package-specific' | 'multi-package'
-}>) => ({
-  schemaVersion: 1,
+}>, schemaVersion = 2) => ({
+  schemaVersion,
   package: pkgName,
   version,
   generatedAt: '2026-06-10T00:00:00Z',
@@ -32,7 +36,7 @@ const makeFixtureManifest = (pkgName: string, version: string, entries: Array<{
       ? `skills/${e.name}/SKILL.md`
       : `instructions/${e.name}.instructions.md`,
     canonicalPath: e.kind === 'skill'
-      ? `.claude/skills/${e.name}/SKILL.md`
+      ? `.agents/skills/${e.name}/SKILL.md`
       : `.github/instructions/${e.name}.instructions.md`,
   })),
 })
@@ -42,13 +46,14 @@ const writeFixturePackage = (
   pkgName: string,
   version: string,
   entries: Array<{ kind: 'skill' | 'instruction'; name: string }>,
+  schemaVersion = 2,
 ): void => {
   const pkgDir = join(nmDir, '@owlmeans', pkgName.replace('@owlmeans/', ''))
   const agentMetaDir = join(pkgDir, 'agent-meta')
   mkdirSync(join(agentMetaDir, 'skills'), { recursive: true })
   mkdirSync(join(agentMetaDir, 'instructions'), { recursive: true })
 
-  const manifest = makeFixtureManifest(pkgName, version, entries)
+  const manifest = makeFixtureManifest(pkgName, version, entries, schemaVersion)
   writeFileSync(join(agentMetaDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8')
 
   for (const e of entries) {
@@ -90,18 +95,26 @@ describe('discover()', () => {
     expect(entries).toEqual([])
   })
 
-  it('discovers entries from node_modules', () => {
+  it('discovers skills from node_modules', () => {
+    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
+      { kind: 'skill', name: 'context' },
+    ])
+    const entries = discover(tmpDir, { extras: false })
+    expect(entries).toHaveLength(1)
+    expect(entries[0].name).toBe('context')
+  })
+
+  it('drops instruction entries published by pre-v2 packages', () => {
     writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
       { kind: 'skill', name: 'context' },
       { kind: 'instruction', name: 'context' },
-    ])
+    ], 1)
     const entries = discover(tmpDir, { extras: false })
-    expect(entries).toHaveLength(2)
-    expect(entries.some(e => e.kind === 'skill' && e.name === 'context')).toBe(true)
-    expect(entries.some(e => e.kind === 'instruction' && e.name === 'context')).toBe(true)
+    expect(entries).toHaveLength(1)
+    expect(entries.every(e => e.kind === 'skill')).toBe(true)
   })
 
-  it('deduplicates by (kind, name), keeping highest version', () => {
+  it('deduplicates by name, keeping highest version', () => {
     writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.5', [
       { kind: 'skill', name: 'context' },
     ])
@@ -125,37 +138,17 @@ describe('discover()', () => {
     expect(entries[0].name).toBe('context')
   })
 
-  it('--claude-only filter', () => {
-    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
-      { kind: 'skill', name: 'context' },
-      { kind: 'instruction', name: 'context' },
-    ])
-    const entries = discover(tmpDir, { extras: false, claudeOnly: true })
-    expect(entries.every(e => e.kind === 'skill')).toBe(true)
-  })
-
-  it('--copilot-only filter', () => {
-    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
-      { kind: 'skill', name: 'context' },
-      { kind: 'instruction', name: 'context' },
-    ])
-    const entries = discover(tmpDir, { extras: false, copilotOnly: true })
-    expect(entries.every(e => e.kind === 'instruction')).toBe(true)
-  })
-
   it('discovers entries nested in workspace package node_modules (bun monorepo)', () => {
     // Scaffolded bun workspace: root has no @owlmeans; deps live under sources/*.
     writeFixturePackage(join(tmpDir, 'sources', 'web', 'node_modules'), '@owlmeans/web-panel', '0.1.9', [
       { kind: 'skill', name: 'web-panel' },
-      { kind: 'instruction', name: 'web-panel' },
     ])
     writeFixturePackage(join(tmpDir, 'sources', 'api', 'node_modules'), '@owlmeans/server-app', '0.1.9', [
       { kind: 'skill', name: 'server-app' },
     ])
     const entries = discover(tmpDir, { extras: false })
-    expect(entries.some(e => e.kind === 'skill' && e.name === 'web-panel')).toBe(true)
-    expect(entries.some(e => e.kind === 'instruction' && e.name === 'web-panel')).toBe(true)
-    expect(entries.some(e => e.kind === 'skill' && e.name === 'server-app')).toBe(true)
+    expect(entries.some(e => e.name === 'web-panel')).toBe(true)
+    expect(entries.some(e => e.name === 'server-app')).toBe(true)
   })
 
   it('combines root and nested node_modules', () => {
@@ -231,7 +224,7 @@ describe('detectLinked()', () => {
 // ---------------------------------------------------------------------------
 
 describe('planInstall()', () => {
-  it('marks missing targets as install', () => {
+  it('targets .agents/skills and marks missing targets as install', () => {
     writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
       { kind: 'skill', name: 'context' },
     ])
@@ -239,6 +232,7 @@ describe('planInstall()', () => {
     const items = planInstall(entries, tmpDir)
     expect(items).toHaveLength(1)
     expect(items[0].action).toBe('install')
+    expect(items[0].targetPath).toBe(skillTarget(tmpDir, 'context'))
   })
 
   it('marks identical files as skip-uptodate', () => {
@@ -247,7 +241,7 @@ describe('planInstall()', () => {
     ])
     const entries = discover(tmpDir, { extras: false })
     // Write same content to target
-    const targetDir = join(tmpDir, '.claude', 'skills', 'context')
+    const targetDir = join(tmpDir, '.agents', 'skills', 'context')
     mkdirSync(targetDir, { recursive: true })
     const source = readFileSync(entries[0].sourcePath, 'utf8')
     writeFileSync(join(targetDir, 'SKILL.md'), source, 'utf8')
@@ -261,7 +255,7 @@ describe('planInstall()', () => {
       { kind: 'skill', name: 'context' },
     ])
     const entries = discover(tmpDir, { extras: false })
-    const targetDir = join(tmpDir, '.claude', 'skills', 'context')
+    const targetDir = join(tmpDir, '.agents', 'skills', 'context')
     mkdirSync(targetDir, { recursive: true })
     // Write old managed content (has banner, but different)
     writeFileSync(join(targetDir, 'SKILL.md'), `${BANNER}\n# Old content\n`, 'utf8')
@@ -275,7 +269,7 @@ describe('planInstall()', () => {
       { kind: 'skill', name: 'context' },
     ])
     const entries = discover(tmpDir, { extras: false })
-    const targetDir = join(tmpDir, '.claude', 'skills', 'context')
+    const targetDir = join(tmpDir, '.agents', 'skills', 'context')
     mkdirSync(targetDir, { recursive: true })
     writeFileSync(join(targetDir, 'SKILL.md'), '# My custom skill\n', 'utf8')
 
@@ -288,7 +282,7 @@ describe('planInstall()', () => {
       { kind: 'skill', name: 'context' },
     ])
     const entries = discover(tmpDir, { extras: false })
-    const targetDir = join(tmpDir, '.claude', 'skills', 'context')
+    const targetDir = join(tmpDir, '.agents', 'skills', 'context')
     mkdirSync(targetDir, { recursive: true })
     writeFileSync(join(targetDir, 'SKILL.md'), '# My custom skill\n', 'utf8')
 
@@ -298,21 +292,19 @@ describe('planInstall()', () => {
 })
 
 // ---------------------------------------------------------------------------
-// applyInstall() — idempotency
+// applyInstall() — idempotency and the Claude Code bridge
 // ---------------------------------------------------------------------------
 
 describe('applyInstall()', () => {
-  it('writes install items', () => {
+  it('writes install items into .agents/skills', () => {
     writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
       { kind: 'skill', name: 'context' },
-      { kind: 'instruction', name: 'context' },
     ])
     const entries = discover(tmpDir, { extras: false })
     const items = planInstall(entries, tmpDir)
     const result = applyInstall(items)
-    expect(result.installed).toBe(2)
-    expect(existsSync(join(tmpDir, '.claude', 'skills', 'context', 'SKILL.md'))).toBe(true)
-    expect(existsSync(join(tmpDir, '.github', 'instructions', 'context.instructions.md'))).toBe(true)
+    expect(result.installed).toBe(1)
+    expect(existsSync(skillTarget(tmpDir, 'context'))).toBe(true)
   })
 
   it('is idempotent — second run yields all skip-uptodate', () => {
@@ -335,7 +327,7 @@ describe('applyInstall()', () => {
       { kind: 'skill', name: 'context' },
     ])
     const entries = discover(tmpDir, { extras: false })
-    const targetDir = join(tmpDir, '.claude', 'skills', 'context')
+    const targetDir = join(tmpDir, '.agents', 'skills', 'context')
     mkdirSync(targetDir, { recursive: true })
     const localContent = '# My custom skill\n'
     writeFileSync(join(targetDir, 'SKILL.md'), localContent, 'utf8')
@@ -344,5 +336,29 @@ describe('applyInstall()', () => {
     applyInstall(items)
     // File should remain unchanged
     expect(readFileSync(join(targetDir, 'SKILL.md'), 'utf8')).toBe(localContent)
+  })
+
+  it('symlinks installed skills into .claude/skills when the project uses Claude Code', () => {
+    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
+      { kind: 'skill', name: 'context' },
+    ])
+    mkdirSync(join(tmpDir, '.claude'), { recursive: true })
+    const entries = discover(tmpDir, { extras: false })
+    const result = applyInstall(planInstall(entries, tmpDir), tmpDir)
+
+    const link = join(tmpDir, '.claude', 'skills', 'context')
+    expect(result.linked).toBe(1)
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(link)).toBe(join('..', '..', '.agents', 'skills', 'context'))
+  })
+
+  it('leaves a project without .claude/ untouched', () => {
+    writeFixturePackage(join(tmpDir, 'node_modules'), '@owlmeans/context', '0.1.7', [
+      { kind: 'skill', name: 'context' },
+    ])
+    const entries = discover(tmpDir, { extras: false })
+    const result = applyInstall(planInstall(entries, tmpDir), tmpDir)
+    expect(result.linked).toBe(0)
+    expect(existsSync(join(tmpDir, '.claude'))).toBe(false)
   })
 })

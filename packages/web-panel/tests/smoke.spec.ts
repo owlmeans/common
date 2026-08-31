@@ -8,6 +8,10 @@ const harness = `data:text/html,${encodeURIComponent(`
 </body></html>
 `)}`
 
+// Browser work does not fit the 5s default — and the nav suite boots a Vite harness in the same
+// process, which the first test to run pays for.
+const TIMEOUT = 30_000
+
 afterAll(async () => {
   await closeBrowser()
 })
@@ -20,5 +24,5 @@ describe('@owlmeans/web-panel — Playwright-library smoke', () => {
     } finally {
       await close()
     }
-  })
+  }, TIMEOUT)
 })
