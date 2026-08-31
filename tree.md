@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All ~73 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All ~75 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -14,10 +14,10 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration](#1-configuration) — shared TypeScript configs
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, llm, wled
+3. [Cross-cutting domain](#3-cross-cutting-domain) — flow, payment, oidc, queue, llm, agent, wled
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
-6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Redis, S3, Kubernetes, file resources
+6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, Kubernetes, file resources
 7. [Server packages](#7-server-packages) — backend (Fastify, Node/Bun)
 8. [Client packages (platform-agnostic)](#8-client-packages-platform-agnostic) — React without DOM/Native specifics
 9. [Web packages](#9-web-packages) — browser/React DOM
@@ -58,6 +58,8 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`queue`](packages/queue) → *(no `@owlmeans/*` deps — abstract interface)*
 - [`llm-common`](packages/llm-common) → *(no `@owlmeans/*` deps — serializable LLM/execution contracts)*
 - [`llm`](packages/llm) → `basic-ids`, `context`, `error`, `llm-common`
+- [`agent-common`](packages/agent-common) → `error`, `flow`, `llm-common`, `resource`
+- [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `error`, `i18n`, `entrypoint`, `resource`, `route`
@@ -82,7 +84,7 @@ HTTP client and the runtime API-config endpoint that lets clients discover backe
 
 ## 6. Storage & infrastructure
 
-External-system integrations: Mongo, Redis, S3-compatible object storage, Kubernetes. Most of these depend on `server-context` because they are server-only services.
+External-system integrations: Mongo, Postgres, Redis, S3-compatible object storage, Kubernetes. Most of these depend on `server-context` because they are server-only services.
 
 - [`storage-common`](packages/storage-common) → `auth`, `error`
 - [`static-resource`](packages/static-resource) → `context`, `error`, `resource`
@@ -92,6 +94,8 @@ External-system integrations: Mongo, Redis, S3-compatible object storage, Kubern
 - [`mongo`](packages/mongo) → `basic-keys`, `context`, `mongo-resource`, `server-context`
 - [`redis-resource`](packages/redis-resource) → `basic-ids`, `context`, `resource`, `server-context`
 - [`redis`](packages/redis) → `context`, `redis-resource`, `resource`, `server-context`
+- [`postgres-resource`](packages/postgres-resource) → `basic-ids`, `context`, `resource`, `server-context`
+- [`postgres`](packages/postgres) → `basic-keys`, `context`, `postgres-resource`, `resource`, `server-context`
 - [`kluster`](packages/kluster) → `config`, `context`, `server-config`, `server-context`
 
 ## 7. Server packages
@@ -183,8 +187,8 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L3**: `basic-keys`, `config`, `entrypoint`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L6**: `api-config-client`, `client-resource`, `kluster`, `mongo-resource`, `oidc`, `redis-resource`, `server-api`, `storage-resource`
-- **L7**: `api-config-server`, `client`, `image-resource`, `mongo`, `redis`, `server-oidc-provider`, `server-wl`, `web-db`
+- **L6**: `api-config-client`, `client-resource`, `kluster`, `mongo-resource`, `oidc`, `postgres-resource`, `redis-resource`, `server-api`, `storage-resource`
+- **L7**: `api-config-server`, `client`, `image-resource`, `mongo`, `postgres`, `redis`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-oidc-rp`, `web-flow`
 - **L10**: `client-auth`
@@ -228,7 +232,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║                                                                              ║
  ║  mongo            mongo-resource  redis            redis-resource            ║
  ║  storage-resource image-resource  storage-common   static-resource           ║
- ║  kluster                                                                     ║
+ ║  kluster          postgres        postgres-resource                          ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  API & API-CONFIG  (HTTP client + runtime config plumbing)         L5–L6    ║
  ║                                                                              ║
@@ -264,10 +268,10 @@ Dependencies flow downward: every package can only import from the layers below 
    L9  ███ server-app  server-oidc-rp  web-flow
    L8  ██████ client-did  client-flow  client-i18n  client-socket  web-wl
         ████ {server-auth ↔ server-socket}
-   L7  ████████ api-config-server  client  image-resource  mongo  redis
-                server-oidc-provider  server-wl  web-db
+   L7  ████████ api-config-server  client  image-resource  mongo  postgres
+                redis  server-oidc-provider  server-wl  web-db
    L6  ████████ api-config-client  client-resource  kluster  mongo-resource
-                oidc  redis-resource  server-api  storage-resource
+                oidc  postgres-resource  redis-resource  server-api  storage-resource
    L5  ████████ payment  server-context
         █████████████ {api ↔ auth-common ↔ client-context ↔ client-entrypoint ↔ client-route}
    L4  ████████ api-config  basic-envelope  client-config  did  flow

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/server-auth-identity",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.371Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.461Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "server-auth-identity",
       "category": "package-specific",
       "file": "skills/server-auth-identity/SKILL.md",
-      "canonicalPath": ".claude/skills/server-auth-identity/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "server-auth-identity",
-      "category": "package-specific",
-      "file": "instructions/server-auth-identity.instructions.md",
-      "canonicalPath": ".github/instructions/server-auth-identity.instructions.md"
+      "canonicalPath": ".agents/skills/server-auth-identity/SKILL.md"
     }
   ]
 }

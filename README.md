@@ -62,7 +62,7 @@ OwlMeans' architectural pattern providing four implementations for comprehensive
 
 ## 🤖 Agent guidance
 
-Every published `@owlmeans/*` package ships embedded Claude Code skills and GitHub Copilot instructions under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
+Every published `@owlmeans/*` package ships embedded agent skills under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
 
 ### Install agent guidance
 
@@ -72,9 +72,7 @@ After installing OwlMeans packages, run the agent-skills installer once:
 npx @owlmeans/agent-skills
 ```
 
-This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into your project's native locations:
-- **Claude Code**: `.claude/skills/<name>/SKILL.md`
-- **GitHub Copilot**: `.github/instructions/<name>.instructions.md`
+This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into `.agents/skills/<name>/SKILL.md` — the [Agent Skills](https://agentskills.io) standard location read by GitHub Copilot, Codex and others. A project that also uses Claude Code gets the per-skill symlinks it needs under `.claude/skills/`.
 
 Re-run after updating `@owlmeans/*` packages to pick up revised guidance.
 
@@ -86,9 +84,7 @@ Each package's `agent-meta/` directory contains:
 agent-meta/
   manifest.json              # name, version, canonical GitHub paths, entries list
   skills/<name>/
-    SKILL.md                 # Claude Code skill (auto-invoked on relevant context)
-  instructions/
-    <name>.instructions.md   # GitHub Copilot instruction
+    SKILL.md                 # agent skill (loaded on relevant context)
 ```
 
 Embedded files are **generated and read-only**. To suggest edits, open a PR against [owlmeans/common](https://github.com/owlmeans/common).
@@ -770,7 +766,7 @@ This example showcases the power of OwlMeans Common's unified approach to fullst
 
 ## 📦 **Complete Package Reference**
 
-OwlMeans Common provides ~71 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
+OwlMeans Common provides ~73 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
 
 > **Need the full dependency map?** See [`tree.md`](tree.md) — every package, its direct `@owlmeans/*` dependencies, its architecture layer, and the topological build order, including the two known dependency cycles.
 
@@ -781,7 +777,7 @@ Shared build tooling and TypeScript configuration.
 |---------|-------------|
 | [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
 
-### **🏗️ Core Packages (31 packages)**
+### **🏗️ Core Packages (33 packages)**
 Foundational libraries providing environment-agnostic functionality.
 
 | Package | Description |
@@ -806,6 +802,8 @@ Foundational libraries providing environment-agnostic functionality.
 | [`@owlmeans/mongo-resource`](packages/mongo-resource) | MongoDB resource implementation with schema validation |
 | [`@owlmeans/oidc`](packages/oidc) | OpenID Connect integration with provider configuration |
 | [`@owlmeans/payment`](packages/payment) | Payment system with product management and subscriptions |
+| [`@owlmeans/postgres`](packages/postgres) | PostgreSQL service integration with pooling, readiness probing and least-privilege bootstrap |
+| [`@owlmeans/postgres-resource`](packages/postgres-resource) | PostgreSQL resource implementation with schema-driven tables, auto structure sync and migrations |
 | [`@owlmeans/queue`](packages/queue) | Message queue abstractions for distributed applications |
 | [`@owlmeans/redis`](packages/redis) | Redis service integration with clustering support |
 | [`@owlmeans/redis-resource`](packages/redis-resource) | Redis-based resource storage implementation |

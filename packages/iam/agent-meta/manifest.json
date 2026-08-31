@@ -1,16 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/iam",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.396Z",
+  "version": "0.1.18-rc.11",
+  "generatedAt": "2026-08-29T20:14:19.668Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
-      "kind": "instruction",
+      "kind": "skill",
       "name": "iam",
       "category": "package-specific",
-      "file": "instructions/iam.instructions.md",
-      "canonicalPath": ".github/instructions/iam.instructions.md"
+      "file": "skills/iam/SKILL.md",
+      "canonicalPath": ".agents/skills/iam/SKILL.md"
     }
   ]
 }

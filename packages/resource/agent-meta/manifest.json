@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/resource",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.373Z",
+  "version": "0.1.18-rc.7",
+  "generatedAt": "2026-08-24T21:14:00.098Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "resource",
       "category": "package-specific",
       "file": "skills/resource/SKILL.md",
-      "canonicalPath": ".claude/skills/resource/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "resource",
-      "category": "package-specific",
-      "file": "instructions/resource.instructions.md",
-      "canonicalPath": ".github/instructions/resource.instructions.md"
+      "canonicalPath": ".agents/skills/resource/SKILL.md"
     }
   ]
 }

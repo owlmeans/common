@@ -180,6 +180,48 @@ describe('@owlmeans/llm — snapshot and restore', () => {
   })
 })
 
+describe('@owlmeans/llm — prompt policy accumulation', () => {
+  const withPrompt = () => service.root({
+    models: makeService(),
+    policy: { effort: DEFAULT_EFFORT },
+    purpose: { type: 'spec' },
+    prompt: { role: 'project role', skills: ['base'] },
+  })
+
+  // Skills accumulate as work narrows — that is how a helper ends up knowing everything
+  // the project, the task and its own role declared, without any of them repeating it.
+  test('skills accumulate down the chain while the deepest role wins', () => {
+    const task = service.forTask(withPrompt(), { prompt: { skills: ['task'] } })
+    expect(task.prompt?.skills).toEqual(['base', 'task'])
+    expect(task.prompt?.role).toBe('project role')
+
+    const helper = service.forHelper(task, {
+      role: Role.Analyst, prompt: { role: 'helper role', skills: ['helper'] },
+    })
+    expect(helper.prompt?.skills).toEqual(['base', 'task', 'helper'])
+    expect(helper.prompt?.role).toBe('helper role')
+  })
+
+  // A skill declared twice must not render twice, or the composed prefix differs from the
+  // one a single declaration would have produced.
+  test('a repeated skill is unioned, not duplicated', () => {
+    const task = service.forTask(withPrompt(), { prompt: { skills: ['base', 'task'] } })
+    expect(task.prompt?.skills).toEqual(['base', 'task'])
+  })
+
+  test('levels that declare nothing inherit the policy untouched', () => {
+    const helper = service.forHelper(service.forTask(withPrompt(), {}), { role: Role.Analyst })
+    expect(helper.prompt).toEqual({ role: 'project role', skills: ['base'] })
+  })
+
+  // It is part of ExecutionState, so a resumed run rebuilds the same system prompt.
+  test('the policy survives a snapshot/restore round trip', () => {
+    const helper = service.forHelper(withPrompt(), { role: Role.Analyst })
+    const restored = service.restore(service.snapshot(helper), { models: makeService() })
+    expect(restored.prompt).toEqual({ role: 'project role', skills: ['base'] })
+  })
+})
+
 describe('@owlmeans/llm — resilience plugin seam', () => {
   test('checkpoint is a no-op until a plugin is registered', async () => {
     await expect(service.checkpoint(root, 'key')).resolves.toBeUndefined()
@@ -196,5 +238,86 @@ describe('@owlmeans/llm — resilience plugin seam', () => {
     expect(seen[0]!.key).toBe('project-1')
     expect((seen[0]!.state as TaskExecutionState).phase).toBe('draft')
     expect((seen[0]!.state as unknown as { models?: unknown }).models).toBeUndefined()
+  })
+
+  test('an advise-only plugin leaves checkpoint a no-op', async () => {
+    let snapshotted = false
+    service.use({ advise: async () => 'advice' })
+    // Reaching `snapshot` at all would mean an advisor made checkpointing do work.
+    const guarded = { ...service, snapshot: (exec: never) => { snapshotted = true; return service.snapshot(exec) } }
+
+    await expect(guarded.checkpoint(root, 'key')).resolves.toBeUndefined()
+    expect(snapshotted).toBe(false)
+  })
+})
+
+describe('@owlmeans/llm — advice seam', () => {
+  test('advise resolves to null when no plugin is registered', async () => {
+    await expect(service.advise(root, { kind: 'files', task: 'x' })).resolves.toBeNull()
+  })
+
+  test('an advisor receives the execution and the request', async () => {
+    const seen: Array<{ kind: string, task: string, level: string }> = []
+    service.use({
+      advise: async (exec, request) => {
+        seen.push({ kind: request.kind, task: request.task, level: exec.level })
+        return 'the card'
+      },
+    })
+
+    const helper = service.forHelper(root, { role: Role.Analyst })
+    await expect(service.advise(helper, { kind: 'files', task: 'implement X' })).resolves.toBe('the card')
+    expect(seen).toEqual([{ kind: 'files', task: 'implement X', level: ExecutionLevel.Helper }])
+  })
+
+  test('the first usable answer wins and later advisors are not consulted', async () => {
+    let secondCalled = false
+    service.use({ advise: async () => null })
+    service.use({ advise: async () => '   ' })
+    service.use({ advise: async () => 'first real' })
+    service.use({ advise: async () => { secondCalled = true; return 'second' } })
+
+    await expect(service.advise(root, { kind: 'k', task: 't' })).resolves.toBe('first real')
+    expect(secondCalled).toBe(false)
+  })
+
+  test('a throwing advisor is skipped rather than failing the work', async () => {
+    service.use({ advise: async () => { throw new Error('advisor down') } })
+    service.use({ advise: async () => 'survived' })
+
+    await expect(service.advise(root, { kind: 'k', task: 't' })).resolves.toBe('survived')
+  })
+
+  test('a plugin without advise is ignored', async () => {
+    service.use({ onCheckpoint: async () => {} })
+    await expect(service.advise(root, { kind: 'k', task: 't' })).resolves.toBeNull()
+  })
+})
+
+describe('@owlmeans/llm — per-helper output sizing', () => {
+  test('output becomes the resolved model\'s initial maxTokens', () => {
+    service.forHelper(root, { role: Role.Analyst, output: 24000 })
+
+    const call = resolved.at(-1)!
+    expect(call.override?.maxTokens).toBe(24000)
+  })
+
+  test('output is not carried onto the helper as a field', () => {
+    const helper = service.forHelper(root, { role: Role.Analyst, output: 24000 })
+    expect((helper as unknown as { output?: unknown }).output).toBeUndefined()
+  })
+
+  test('a temperature refinement keeps the helper\'s output budget', () => {
+    const helper = service.forHelper(root, { role: Role.Analyst, output: 24000 })
+    helper.temperatureFactory(0.7)
+
+    const call = resolved.at(-1)!
+    expect(call.override?.maxTokens).toBe(24000)
+    expect(call.override?.temperature).toBe(0.7)
+  })
+
+  test('without output the override carries no token sizing', () => {
+    service.forHelper(root, { role: Role.Analyst })
+    expect(resolved.at(-1)!.override?.maxTokens).toBeUndefined()
   })
 })

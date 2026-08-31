@@ -120,7 +120,7 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
         token: authorization,
         userId: trusted.user.id,
         profileId: trusted.user.id,
-        entityId: trusted.user.entityId,
+        entitySlug: trusted.user.entitySlug,
         scopes: trusted.user.name != null ? [trusted.user.name] : [],
         type: AuthroizationType.Ed25519BasicSignature,
         source: context.cfg.service,

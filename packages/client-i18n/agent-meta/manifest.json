@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-i18n",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.382Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.502Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-i18n",
       "category": "package-specific",
       "file": "skills/client-i18n/SKILL.md",
-      "canonicalPath": ".claude/skills/client-i18n/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-i18n",
-      "category": "package-specific",
-      "file": "instructions/client-i18n.instructions.md",
-      "canonicalPath": ".github/instructions/client-i18n.instructions.md"
+      "canonicalPath": ".agents/skills/client-i18n/SKILL.md"
     }
   ]
 }

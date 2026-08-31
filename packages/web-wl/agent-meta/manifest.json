@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/web-wl",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.387Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.506Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "web-wl",
       "category": "package-specific",
       "file": "skills/web-wl/SKILL.md",
-      "canonicalPath": ".claude/skills/web-wl/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "web-wl",
-      "category": "package-specific",
-      "file": "instructions/web-wl.instructions.md",
-      "canonicalPath": ".github/instructions/web-wl.instructions.md"
+      "canonicalPath": ".agents/skills/web-wl/SKILL.md"
     }
   ]
 }

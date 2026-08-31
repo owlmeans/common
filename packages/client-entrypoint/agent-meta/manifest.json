@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/client-entrypoint",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.373Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.468Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "client-entrypoint",
       "category": "package-specific",
       "file": "skills/client-entrypoint/SKILL.md",
-      "canonicalPath": ".claude/skills/client-entrypoint/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "client-entrypoint",
-      "category": "package-specific",
-      "file": "instructions/client-entrypoint.instructions.md",
-      "canonicalPath": ".github/instructions/client-entrypoint.instructions.md"
+      "canonicalPath": ".agents/skills/client-entrypoint/SKILL.md"
     }
   ]
 }

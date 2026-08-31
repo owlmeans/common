@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/router
 
 **Layer:** Core (L1)
-**Install:** `"@owlmeans/router": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/router": "^0.1.18-rc.6"` in `dependencies`
 
 `@owlmeans/router` is the **plugin host** for OwlMeans UI routing. It does not talk to any
 concrete router; it defines the contract, holds a registry of routing plugins, and selects the
@@ -41,6 +41,15 @@ time (e.g. `appendReactRouter(ctx)` outranks the default).
 import { ROUTER_SERVICE } from '@owlmeans/router'
 const params = ctx.service(ROUTER_SERVICE).useParams()   // delegates to the active plugin
 ```
+
+## The host is a LAZY service
+
+`makeRouterService` builds a **lazy** service (`createLazyService`). The host carries no async
+setup, and plugin packages must be able to reach it from an app's `makeContext` — i.e. while the
+context is still in the Loading stage. `context.service()` throws for an uninitialized non-lazy
+service, which would make `ensureRouterService` (and therefore `appendReactRouter` /
+`appendWebRouter` on an existing host) fail exactly where apps are told to call them. Keep the host
+lazy when extending it.
 
 ## Native-safety invariant
 

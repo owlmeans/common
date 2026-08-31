@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/queue",
-  "version": "0.1.14",
+  "version": "0.1.18-rc.6",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -24,7 +24,7 @@
     "@owlmeans/dep-config": "workspace:*",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

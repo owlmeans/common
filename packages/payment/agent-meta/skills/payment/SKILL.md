@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.8"` in `dependencies`
 
 ## Key Exports
 

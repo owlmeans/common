@@ -1,12 +1,12 @@
 import { Ajv } from 'ajv'
 import type { JSONSchemaType } from 'ajv'
-import { AIMessage } from '@langchain/core/messages'
-import type { AIMessageChunk, MessageFieldWithRole } from '@langchain/core/messages'
+import { AIMessage, BaseMessage } from '@langchain/core/messages'
+import type { AIMessageChunk, MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { StructuredMode } from '@owlmeans/llm-common'
 import type { NullKind } from '@owlmeans/llm-common'
 import {
-  DEFAULT_MAX_OUTPUT_CAP, DEFAULT_MODEL_RETRIES, FALLBACK_AFTER_ATTEMPTS,
+  DEFAULT_MODEL_RETRIES, FALLBACK_AFTER_ATTEMPTS, MAX_CACHE_BREAKPOINTS,
 } from './consts.js'
 import { LlmModelError } from './errors.js'
 import { pluginFor, pluginOf } from './plugins/index.js'
@@ -15,10 +15,10 @@ import { coerceToSchema, parseJsonContent } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
 import { withRetry } from './helpers/retry.js'
 import { spectate } from './helpers/spectate.js'
-import { idleTimeout, readConfig } from './utils/config.js'
+import { idleTimeout, readConfig, resolveOutputCap } from './utils/config.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report.js'
-import { applyNoThink, ensureJsonMention } from './utils/prompt.js'
+import { applyNoThink, dropBlankContent, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
 import { resolveSchemaValidator, toToolName, unwrapNamed } from './utils/schema.js'
 import { streamWithDeadline } from './utils/stream.js'
 import type {
@@ -27,6 +27,48 @@ import type {
 } from './types.js'
 
 type StreamOptions = Parameters<BaseChatModel['stream']>[1]
+
+const isSystem = (msg: MessageFieldWithRole): boolean =>
+  msg instanceof BaseMessage ? msg.getType() === 'system' : `${msg.role}` === 'system'
+
+const textOf = (content: MessageContent | undefined): string => {
+  if (typeof content === 'string') {
+    return content.trim()
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map(part => {
+        const text = (part as unknown as { text?: unknown }).text
+        return typeof text === 'string' ? text : ''
+      })
+      .filter(text => text !== '')
+      .join('\n\n')
+      .trim()
+  }
+  return ''
+}
+
+/**
+ * Detach the caller's LEADING system messages and return their text.
+ *
+ * They are re-emitted as the `Context` block of the composed prompt, which is what keeps
+ * a caller that still builds its own `SystemMessage` working unchanged — the text simply
+ * travels a different route and lands in the same place. Only the leading run is taken:
+ * a system message deliberately placed mid-conversation is an operator instruction whose
+ * position carries meaning, and moving it would change what the model sees.
+ */
+const takeLeadingSystem = (msgs: MessageFieldWithRole[]): string[] => {
+  const carried: string[] = []
+  while (msgs.length > 0 && isSystem(msgs[0])) {
+    const [msg] = msgs.splice(0, 1)
+    const text = textOf(msg.content)
+    if (text !== '') {
+      carried.push(text)
+    }
+  }
+
+  return carried
+}
 
 /**
  * Build the four-method model API on top of a LangChain chat model.
@@ -43,6 +85,9 @@ export const makeLlmModel = ({
   captureNull = false,
   retries = DEFAULT_MODEL_RETRIES,
   purpose,
+  prompt,
+  prompts,
+  files,
 }: LlmModelOptions, spectator: LlmSpectator): LlmModel => {
 
   const ajv = new Ajv({ strict: false })
@@ -53,15 +98,79 @@ export const makeLlmModel = ({
   const plugin: LlmPlugin | undefined = pluginOf(config.provider) ?? pluginFor(model)
   const timeout = idleTimeout(config)
 
-  /** Normalize, then apply every in-place prompt adaptation, in dependency order. */
-  const prepare = (input: ModelInput, useCache: boolean, cacheMax: number, json: boolean): MessageFieldWithRole[] => {
+  /**
+   * Where on the escalation ladder this call starts.
+   *
+   * The ladder has exactly `retries` rungs, so a seed past the last one buys nothing and
+   * would only inflate the attempt number handed to `refine`. Clamped, `refineModel` sees
+   * at most `2 * (retries - 1)` — the escalator's own doubling stays bounded by the
+   * output cap either way.
+   */
+  const ladderSeed = (escalation?: number): number =>
+    Math.max(0, Math.min(Math.floor(escalation ?? 0), retries - 1))
+
+  /**
+   * Normalize, compose the system prompt, then apply every in-place prompt adaptation, in
+   * dependency order.
+   *
+   * With no prompt service wired this is exactly what it always was — the caller's
+   * messages, a JSON nudge, `/no_think`, cache markers. With one, the caller's leading
+   * system text is folded into a composed prompt whose stable sections come first, which
+   * is the whole point: a prompt cache is a PREFIX match, so the bytes every call shares
+   * have to be physically ahead of the bytes that differ.
+   */
+  const prepare = async (
+    input: ModelInput,
+    action: string,
+    useCache: boolean,
+    cacheMax: number,
+    json: boolean,
+    callSkills?: string[],
+  ): Promise<MessageFieldWithRole[]> => {
     const msgs = normalizeInput(input)
+    // The caller may hand back messages this pipeline marked on a PREVIOUS call — the
+    // markers live on its own objects. The budget is per request, so clear them and
+    // re-place our own below; otherwise they accumulate until the provider 400s.
+    stripCacheMarkers(msgs)
+    dropBlankContent(msgs)
+    let reserved = 0
+
+    if (prompts != null) {
+      const carried = takeLeadingSystem(msgs)
+      const composed = await prompts().compose(
+        {
+          ...prompt,
+          context: [...(prompt?.context ?? []), ...carried],
+          callSkills: callSkills ?? prompt?.callSkills,
+        },
+        msgs,
+        { model, provider: plugin, purpose, action, cacheMax, files },
+      )
+      if (composed.system != null) {
+        msgs.unshift(composed.system)
+        reserved = composed.breakpoints
+      } else {
+        // Defensive: nothing was contributed, so hand the caller's own text straight back.
+        for (let i = carried.length - 1; i >= 0; i--) {
+          msgs.unshift({ role: 'system', content: carried[i] })
+        }
+      }
+    }
+
     if (json) ensureJsonMention(msgs)
     applyNoThink(msgs, config.disableThinking)
     // Cache markers replace string content with content blocks, so they must go last.
-    if (plugin?.patchCache?.(msgs, { model, useCache, cacheMax }) === true) {
-      console.log(`Prompt caching enabled for ${plugin.type} (up to ${cacheMax} breakpoints)`)
+    const ttl = prompt?.cacheTtl
+    const marked = plugin?.patchCache?.(msgs, {
+      model, useCache, cacheMax, reserved, ...(ttl != null ? { ttl } : {}),
+    })
+    if (reserved > 0 || marked === true) {
+      console.log(
+        `Prompt caching for ${plugin?.type}: ${reserved} system breakpoint(s)`
+        + `${marked === true ? ', 1 message breakpoint' : ''}`
+      )
     }
+
     return msgs
   }
 
@@ -118,9 +227,9 @@ export const makeLlmModel = ({
     const basePlugin = pluginOf(baseConfig.provider) ?? pluginFor(base)
     if (basePlugin == null) return base
 
-    const maxOutputCap = typeof baseConfig.maxTokensCap === 'number' && baseConfig.maxTokensCap > 0
-      ? baseConfig.maxTokensCap
-      : DEFAULT_MAX_OUTPUT_CAP
+    // Read from the ACTIVE base — after the fallback swap that is the fallback's own
+    // config, so the escalator sizes the model it is actually talking to.
+    const maxOutputCap = resolveOutputCap(baseConfig)
     const refined = basePlugin.refine({ base, attempt, temperature, maxOutputCap })
 
     if (attempt > 0) {
@@ -197,10 +306,17 @@ export const makeLlmModel = ({
   }
 
   const helper: LlmModel = {
-    ask: async (input, { ref, filter, action, useCache = false, cacheMax = 4 }: LlmAskOptions) => {
-      const msgs = prepare(input, useCache, cacheMax, false)
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+    ask: async (
+      input,
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmAskOptions
+    ) => {
+      const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model to ask: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
@@ -242,10 +358,17 @@ export const makeLlmModel = ({
       })
     },
 
-    talk: async (input, { ref, filter, action, useCache = false, cacheMax = 4 }: LlmTalkOptions) => {
-      const msgs = prepare(input, useCache, cacheMax, false)
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+    talk: async (
+      input,
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmTalkOptions
+    ) => {
+      const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model to talk: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
@@ -277,14 +400,18 @@ export const makeLlmModel = ({
     invoke: async <T>(
       input: ModelInput,
       schema: JSONSchemaType<T>,
-      { temperature, ref, filter, action, useCache = false, cacheMax = 4 }: LlmInvokeOptions<T>
+      {
+        temperature, ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS,
+        skills, escalation, fatal,
+      }: LlmInvokeOptions<T>
     ) => {
-      const msgs = prepare(input, useCache, cacheMax, true)
+      const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
       const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
       const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i, temperature)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i, temperature)
         console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(refined, msgs, innerSchema, toolName, action)
@@ -325,14 +452,18 @@ export const makeLlmModel = ({
     request: async <T>(
       input: ModelInput,
       schema: JSONSchemaType<T>,
-      { ref, filter, action, useCache = false, cacheMax = 4 }: LlmRequestOptions
+      {
+        ref, filter, action, useCache = false, cacheMax = MAX_CACHE_BREAKPOINTS, skills,
+        escalation, fatal,
+      }: LlmRequestOptions
     ) => {
-      const msgs = prepare(input, useCache, cacheMax, true)
+      const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
       const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
       const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      return withRetry({ retries, outputErrors }, async i => {
-        const refined = refineModel(i)
+      const seed = ladderSeed(escalation)
+      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const refined = refineModel(seed + i)
         console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(refined, msgs, innerSchema, toolName, action)

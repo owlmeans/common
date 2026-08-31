@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/create-app",
-  "version": "0.1.14",
+  "version": "0.1.18-rc.12",
   "license": "MIT",
   "description": "Scaffold a minimal fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource. Deploys agent skills via @owlmeans/agent-skills by default.",
   "type": "module",
@@ -29,13 +29,13 @@
     "template"
   ],
   "dependencies": {
-    "@owlmeans/agent-skills": "^0.1.14"
+    "@owlmeans/agent-skills": "^0.1.18-rc.9"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"

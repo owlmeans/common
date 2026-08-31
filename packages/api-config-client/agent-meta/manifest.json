@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/api-config-client",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.383Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.503Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "api-config-client",
       "category": "package-specific",
       "file": "skills/api-config-client/SKILL.md",
-      "canonicalPath": ".claude/skills/api-config-client/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "api-config-client",
-      "category": "package-specific",
-      "file": "instructions/api-config-client.instructions.md",
-      "canonicalPath": ".github/instructions/api-config-client.instructions.md"
+      "canonicalPath": ".agents/skills/api-config-client/SKILL.md"
     }
   ]
 }

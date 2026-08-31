@@ -8,12 +8,13 @@ import type { OidcUserDetails, ProviderProfileDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
-import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole } from '@owlmeans/auth'
+import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole, entitySlugOf } from '@owlmeans/auth'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import { decodeJwt } from 'jose'
 import { KEY_OWL } from '@owlmeans/did'
 import { cache, verifierId } from '../../utils/cache.js'
 import { makeOidcAuthentication } from '../../utils/auth.js'
+import { requestedScope } from '../../utils/scope.js'
 // import { URL } from 'url'
 
 /**
@@ -77,7 +78,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       
       // @TODO Actually think about how to make oidc service configurable
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-      let entityId = request.entityId ?? oidc.getDefault()
+      let entityId = entitySlugOf(request) ?? oidc.getDefault()
 
       if (entityId == null) {
         throw new AuthenPayloadError('client')
@@ -115,7 +116,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       const client = await oidc.getClient(entityId)
       const cfg = client.getConfig()
       const url = client.makeAuthUrl({
-        scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
+        scope: requestedScope(cfg?.extraScopes),
         code_challenge: challenge,
         code_challenge_method: 'S256',
         redirect_uri: request.source,
@@ -236,7 +237,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       credential.type = OIDC_CLIENT_AUTH
       credential.userId = profile.userId
       credential.profileId = profile.profileId
-      credential.entityId = profile.entityId
+      credential.entitySlug = profile.entitySlug
 
       return { token: exchangeToken }
     }

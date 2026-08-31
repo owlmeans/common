@@ -9,7 +9,8 @@ import type {
   HelperExecution, TaskExecution, WithExecutionService,
 } from './types.js'
 import {
-  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy, resolveRole,
+  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
+  mergePrompt, resolveRole,
 } from './utils.js'
 
 /**
@@ -50,18 +51,21 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       level: ExecutionLevel.Project,
       purpose: { ...input.purpose },
       policy: { ...input.policy },
+      ...(input.prompt != null ? { prompt: { ...input.prompt } } : {}),
     }) as S['project'],
 
     forTask: (parent, input) => {
-      const { effort, phase, data, ...extras } = input
+      const { effort, phase, data, prompt, ...extras } = input
       const policy = effort != null
         ? mergePolicy(parent.policy, { effort })
         : { ...parent.policy }
+      const merged = mergePrompt(parent.prompt, prompt)
 
       // Spreading the parent carries every collaborator and domain field forward; the
       // task's own state is composed afterwards, from the seeded resumable fields.
       const taskExec = {
         ...parent, ...extras, level: ExecutionLevel.Task, purpose: { ...parent.purpose }, policy,
+        ...(merged != null ? { prompt: merged } : {}),
       } as unknown as TaskExecution
       ;(taskExec as { state: TaskExecutionState }).state = composeTaskState({
         ...taskExec,
@@ -78,9 +82,13 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
     },
 
     forHelper: (parent, input) => {
-      const { role, effort, dedication, ...extras } = input
+      const { role, effort, dedication, prompt, output, ...extras } = input
       const localPolicy = effort != null ? mergePolicy(parent.policy, { effort }) : parent.policy
       const scoped = { ...parent, policy: localPolicy } as S['exec']
+      const merged = mergePrompt(parent.prompt, prompt)
+      // Destructured out of `extras` deliberately: `output` selects a model budget, it is
+      // not a field the helper carries around.
+      const sizing = output != null ? { maxTokens: output } : undefined
 
       const helperExec = {
         ...parent,
@@ -90,9 +98,10 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
           ? { ...parent.purpose, dedication }
           : { ...parent.purpose },
         policy: localPolicy,
+        ...(merged != null ? { prompt: merged } : {}),
         role: resolveRole(localPolicy, role),
-        model: self().model(scoped, role),
-        temperatureFactory: self().temperatureFactory(scoped, role),
+        model: self().model(scoped, role, sizing),
+        temperatureFactory: self().temperatureFactory(scoped, role, sizing),
       } as unknown as HelperExecution
       // A helper is not resumable — drop a parent task's composed state.
       delete (helperExec as { state?: unknown }).state
@@ -120,9 +129,12 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       return exec.models().getModel(effectiveRole, clean)
     },
 
-    temperatureFactory: (exec, role): TemperatureFactory =>
+    temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
       temperature =>
         self().model(exec, role, {
+          // A budget the helper was built with survives a temperature refinement — the
+          // work is the same size whether or not it is being retried creatively.
+          ...(typeof baseOverride === 'object' ? baseOverride : {}),
           ...(temperature != null ? { temperature } : {}),
           ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
         }),
@@ -132,11 +144,30 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
     },
 
     checkpoint: async (exec, key) => {
-      if (plugins.length === 0) {
+      // Guarded on the HOOK, not on the plugin count: a plugin registered for `advise`
+      // alone must not make checkpointing start composing snapshots nobody consumes.
+      if (!plugins.some(plugin => plugin.onCheckpoint != null)) {
         return
       }
       const state = self().snapshot(exec)
       await Promise.all(plugins.map(plugin => plugin.onCheckpoint?.(state, exec, key)))
+    },
+
+    advise: async (exec, request) => {
+      for (const plugin of plugins) {
+        if (plugin.advise == null) continue
+        try {
+          const advice = await plugin.advise(exec, request)
+          if (advice != null && advice.trim() !== '') {
+            return advice
+          }
+        } catch (e) {
+          // Advice is an optimization. A broken advisor must never take the work with it.
+          console.warn(`Execution advisor failed for "${request.kind}":`, e)
+        }
+      }
+
+      return null
     },
 
     snapshot: exec => {

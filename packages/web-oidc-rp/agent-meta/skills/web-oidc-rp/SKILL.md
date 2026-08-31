@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.14"` in `dependencies`
 
 ## Key Exports
 
@@ -42,6 +42,51 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 import { setupOidcGuard } from '@owlmeans/web-oidc-rp'
 setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 ```
+
+**Call `setupOidcGuard` exactly once per entrypoint list.** It appends to the list it is given
+rather than returning a new one, and it elevates `DISPATCHER_OIDC_INIT`, `DISPATCHER_OIDC` and
+`DISPATCHER` — so a second call adds the same entrypoints twice and the elevation throws
+`Entrypoint with alias … is already elevated`. An app that wires IAM through
+`setupIam` (`@owlmeans/client-iam`) has already made that call and must not repeat it.
+
+## Dispatcher and authorization errors
+
+The `Dispatcher` component is the redirect URI: the provider returns **both** outcomes to it — a
+`code` on success and `error` / `error_description` (`OIDC_ERROR_QUERY`, `OIDC_ERROR_DESCRIPTION_QUERY`
+from `@owlmeans/oidc`) on failure. It must check for the error params **before** re-entering the
+flow and render the message instead: starting authorization again would rebuild the request that
+just failed, so the browser bounces between dispatcher and provider forever and the actual reason
+never reaches the user. The same rule holds for the MUI dispatcher in `@owlmeans/mui-oidc-rp`.
+
+## Where the round trip runs is not this package's decision
+
+The relying party knows about `code`, `state` and token exchange. *Which browsing context the
+authorization round trip can complete in* — an ordinary tab, or one window up because this document
+is framed — belongs to the login-plugin host (`@owlmeans/client-auth/login`). See the
+`login-plugins` skill for the contract, the shipped plugins and the invariants; none of it is
+restated here.
+
+`Dispatcher` therefore drives the flow through `context.login()` and renders off the returned
+`LoginOutcome`:
+
+- `context.login().enter()` is the **first statement** of its effect — everything after it can
+  navigate away, and the evidence the surrogate flow needs is gone once that happens.
+- `authorize(url)` is how the browser reaches the provider — never a direct `window.location`
+  assignment. `Gesture` means the flow needs a fresh user gesture, so the component renders a
+  sign-in button that replays the current URL through `begin()`.
+- `complete(token)` decides where a token issued in *this* document belongs. `Handled` means the
+  plugin placed it and nothing more is due; `Orphaned` means the user is authenticated with no
+  channel back to the window that started the flow, and the component says so instead of navigating.
+
+`@owlmeans/web-client`'s `makeContext` registers the browser plugins, so a dispatcher works framed
+and unframed with nothing extra wired. Adopt an issued token only through `adoptToken` /
+`context.login().adopt(token)`.
+
+`isFramed`, `loginViaPopup`, `handBackOidcToken`, `applyAuthToken`, `markOidcLoginPopup` and
+`isOidcLoginPopup` are `@deprecated` compatibility exports that delegate to that host, and their
+wire values (`OIDC_POPUP_*`) are fixed: a generated target app carries a **copy** of the code that
+calls them, so a running project must keep working across a framework upgrade. New code uses
+`context.login()` and `useLogin()`.
 
 ## Product-Viable Usage Notes
 

@@ -67,8 +67,6 @@ export const run = async (args: CreateArgs): Promise<number> => {
         dir: dest,
         yes: true,
         only: [],
-        claudeOnly: false,
-        copilotOnly: false,
         extras: true,
         force: false,
         dryRun: false,
@@ -90,10 +88,10 @@ export const run = async (args: CreateArgs): Promise<number> => {
   log(`  ${runCmd}\n`)
   log('The web app starts on http://localhost:3001 and the API on http://localhost:3000.')
   log('Open the "Session" page to exercise the in-memory session resource.\n')
-  log('Agent guidance was scaffolded: CLAUDE.md, .github/copilot-instructions.md and the')
-  log('shared memory store at .agents/memory/MEMORY.md.')
-  log('Open the project in Claude Code or Copilot — on the first session the agent will ask')
-  log('what the project is for and fill in its purpose for you.\n')
+  log('Agent guidance was scaffolded: AGENTS.md (with a CLAUDE.md bridge), the skills in')
+  log('.agents/skills/ and the shared memory store at .agents/memory/MEMORY.md.')
+  log('Open the project in any coding agent — on the first session it will ask what the')
+  log('project is for and fill in its purpose for you.\n')
 
   return 0
 }

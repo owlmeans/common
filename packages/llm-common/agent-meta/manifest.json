@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/llm-common",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.384Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-29T20:14:44.155Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "llm-common",
       "category": "package-specific",
       "file": "skills/llm-common/SKILL.md",
-      "canonicalPath": ".claude/skills/llm-common/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "llm-common",
-      "category": "package-specific",
-      "file": "instructions/llm-common.instructions.md",
-      "canonicalPath": ".github/instructions/llm-common.instructions.md"
+      "canonicalPath": ".agents/skills/llm-common/SKILL.md"
     }
   ]
 }

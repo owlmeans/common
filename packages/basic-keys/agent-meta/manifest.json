@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/basic-keys",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.370Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.460Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "basic-keys",
       "category": "package-specific",
       "file": "skills/basic-keys/SKILL.md",
-      "canonicalPath": ".claude/skills/basic-keys/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "basic-keys",
-      "category": "package-specific",
-      "file": "instructions/basic-keys.instructions.md",
-      "canonicalPath": ".github/instructions/basic-keys.instructions.md"
+      "canonicalPath": ".agents/skills/basic-keys/SKILL.md"
     }
   ]
 }

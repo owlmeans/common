@@ -2,8 +2,10 @@ export interface CliArgs {
   dir: string
   yes: boolean
   only: string[]
-  claudeOnly: boolean
-  copilotOnly: boolean
+  /** @deprecated no-op — skills install to `.agents/skills/` for every agent. */
+  claudeOnly?: boolean
+  /** @deprecated no-op — skills install to `.agents/skills/` for every agent. */
+  copilotOnly?: boolean
   extras: boolean
   force: boolean
   dryRun: boolean
@@ -12,14 +14,16 @@ export interface CliArgs {
 
 const HELP = `owlmeans-agent-skills — install embedded @owlmeans/* agent guidance
 
+Skills are written to .agents/skills/<name>/SKILL.md — the Agent Skills standard
+location read by Copilot, Codex and other agents. Projects with a .claude/
+directory also get the per-skill symlinks Claude Code needs.
+
 Usage: npx @owlmeans/agent-skills [options]
 
 Options:
   --dir <path>        target project directory (default: cwd)
   --yes, -y           skip interactive confirmation
   --only <pkg,...>    comma-separated @owlmeans/* package names to install from
-  --claude-only       install only Claude Code skills
-  --copilot-only      install only Copilot instructions
   --extras            include extras bundled with the installer (default: on)
   --no-extras         skip installer-bundled extras
   --force             overwrite locally-edited files (no AUTO-GENERATED banner)
@@ -27,14 +31,15 @@ Options:
   --help, -h          show this help
 `
 
+const OBSOLETE_TOOL_FLAG =
+  'note: %s is obsolete — skills install to .agents/skills/ for every agent.\n'
+
 export const parseArgs = (argv: string[]): CliArgs | null => {
   const args = argv.slice(2) // strip node + script
   const result: CliArgs = {
     dir: process.cwd(),
     yes: false,
     only: [],
-    claudeOnly: false,
-    copilotOnly: false,
     extras: true,
     force: false,
     dryRun: false,
@@ -60,10 +65,8 @@ export const parseArgs = (argv: string[]): CliArgs | null => {
         result.dryRun = true
         break
       case '--claude-only':
-        result.claudeOnly = true
-        break
       case '--copilot-only':
-        result.copilotOnly = true
+        process.stderr.write(OBSOLETE_TOOL_FLAG.replace('%s', a))
         break
       case '--extras':
         result.extras = true

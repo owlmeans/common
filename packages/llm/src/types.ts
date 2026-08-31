@@ -4,8 +4,10 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  LlmPurpose, ModelProvider, NullCapture, SpectatorArgument, SpectatorEntryLogged,
+  FileProviderRef, LlmPurpose, ModelProvider, NullCapture, SpectatorArgument,
+  SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
+import type { PromptInput, PromptService } from './prompt/types.js'
 
 export type MaybeArray<T> = T | T[]
 
@@ -47,6 +49,20 @@ export interface LlmLogging {
 export interface LlmModelOptions extends LlmLogging {
   model: BaseChatModel
   retries?: number
+  /**
+   * Role and skills for every call this model makes. Composed into a cacheable system
+   * prompt by {@link PromptService}; ignored when no `prompts` resolver is supplied.
+   * Usually just `exec.prompt` from the helper execution.
+   */
+  prompt?: PromptInput
+  /**
+   * Late-bound resolver for the prompt service — a function, like `Execution.models`, so
+   * the service can be swapped or cloned. Without it the model behaves exactly as before
+   * this layer existed: the caller's messages are sent untouched.
+   */
+  prompts?: () => PromptService
+  /** File access offered to prompt plugins that resolve knowledge from disk. */
+  files?: FileProviderRef
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole
@@ -56,10 +72,44 @@ export type ModelInput = MaybeArray<ModelInputItem>
 export interface LlmCallOptions {
   /** Short name of the operation — used as the LangChain run name and in spectator entries. */
   action: string
-  /** Ask the provider to cache the prompt prefix (no-op for providers without prompt caching). */
+  /**
+   * Cache the leading MESSAGES too. The composed system prompt is cached by default and
+   * independently of this flag — this one is about the conversation prefix, which is only
+   * worth caching when the same leading messages recur across calls.
+   */
   useCache?: boolean
-  /** How many leading messages to mark as cacheable (capped by the provider's own limit). */
+  /**
+   * How many leading messages form the stable prefix. One breakpoint is placed at its
+   * end (not one per message), capped by whatever the system prompt left unspent.
+   */
   cacheMax?: number
+  /**
+   * Skill aliases for THIS call only. Rendered into the volatile `Context` block, so they
+   * never disturb the cached region — declare a skill on the execution instead when it
+   * should be part of the shared prefix.
+   */
+  skills?: string[]
+  /**
+   * How many failures of this SAME piece of work the caller has already observed — the
+   * per-call escalator starts that far up its ladder instead of at the bottom.
+   *
+   * A caller that validates the OUTPUT (a diff that must apply, a file that must not come
+   * back truncated) runs its own retry loop around whole calls, and every one of those
+   * calls used to start at attempt 0: same model, same output budget, same answer. Passing
+   * the outer attempt here advances both rungs the escalator owns — the `maxTokens`
+   * doubling and the {@link FALLBACK_AFTER_ATTEMPTS} switch to `ModelConfig.fallback` — so
+   * a repeatedly-rejected call actually reaches the stronger model.
+   *
+   * Clamped to `retries - 1`; it moves the STARTING rung only and never changes how many
+   * attempts this call makes. Unrelated to `ExecutionService.escalate`, which raises the
+   * effort tier of an execution before any model is resolved.
+   */
+  escalation?: number
+  /**
+   * Abort THIS call's retry loop for an error no retry can fix. Consulted before the
+   * globally registered resolvers and the provider plugin's `isFatal`.
+   */
+  fatal?: (e: unknown) => Error | null
 }
 
 export interface LlmAskOptions extends LlmCallOptions {
@@ -127,15 +177,50 @@ export interface ModelConfig {
   preset?: string
   model?: string
   temperature?: number
-  /** Initial output-token budget per request (`max_tokens`). */
+  /**
+   * Initial output-token budget per request (`max_tokens`) — what THIS deployment asks
+   * for first, not what the model can do. Clamped to {@link ModelConfig.maxOutput}.
+   */
   maxTokens?: number
   /**
    * Hard ceiling for output tokens used by the retry escalator. Each retry doubles
    * `maxTokens` toward this cap; without it the escalator uses
    * {@link DEFAULT_MAX_OUTPUT_CAP}, which exceeds many models' real per-request output
    * limit and turns retries into 400 "max_tokens exceeds model limit" errors.
+   *
+   * This is the budget the PRESET chooses; {@link ModelConfig.maxOutput} is what the
+   * provider allows. The effective ceiling is the smaller of the two, so a preset that
+   * over-declares is corrected at refine time rather than at the provider.
    */
   maxTokensCap?: number
+  /**
+   * Total context window the model accepts — input plus output. Informational: it is
+   * never sent to the provider and the runtime cannot enforce it (the input size is not
+   * known at config time). It documents the model and lets the preset test catch a
+   * `maxOutput` that could not possibly fit.
+   */
+  contextWindow?: number
+  /**
+   * What the PROVIDER accepts as output in a single request. Unlike `maxTokens` and
+   * `maxTokensCap` — both deployment choices — this is a property of the model behind
+   * this alias, and for an aggregated model it is the limit of the `inferenceProvider`
+   * actually pinned here, which is often well below what the model can do elsewhere.
+   *
+   * Hard ceiling: `maxTokens` is clamped to it at build time and the escalator's cap is
+   * `min(maxTokensCap, maxOutput)`.
+   *
+   * A `fallback` that changes `model` MUST redeclare this (and `contextWindow`), because
+   * the fallback config inherits every field the patch does not name — otherwise the
+   * escalator would size the fallback by the primary's capability.
+   */
+  maxOutput?: number
+  /**
+   * The context window is SHARED between input and output rather than being an input
+   * allowance with a separate output limit (MiniMax M2.x, gpt-oss). Nothing enforces it
+   * at runtime; it marks the entry so `maxOutput` is read as "spends the same budget the
+   * prompt spends" and keeps presets honest about leaving room for input.
+   */
+  combinedWindow?: boolean
   topP?: number
   baseUrl?: string
   organization?: string
@@ -183,11 +268,33 @@ export interface ModelConfig {
    * rotating providers mid-call would flip the structured-output format.
    */
   fallback?: Partial<ModelConfig>
+  /**
+   * Per-model override of {@link MIN_CACHEABLE_TOKENS} — the shortest prefix worth a
+   * cache breakpoint. Anthropic's own minimum is model-dependent and NOT monotonic
+   * across generations (512 on the newest, 1024 on most, 4096 on a few older ones), so a
+   * preset that pins an old model should raise this rather than pay for markers that
+   * silently never cache.
+   */
+  cacheMinTokens?: number
+  /**
+   * Cache-routing key for providers whose prompt cache is automatic (OpenAI's
+   * `prompt_cache_key`): requests sharing a key are routed to the same backend, which
+   * raises the hit rate for a shared prefix. Must be STABLE and low-cardinality — one
+   * value per role, never per user or per request. Defaults to the config alias.
+   */
+  cacheKey?: string
 }
 
 export interface LlmServiceOptions {
   /** The full config list; resolved by `alias` on every `getModel` call. */
   models: () => ModelConfig[]
+  /**
+   * Idle deadline (ms) applied to every model this service builds, unless the model's own
+   * config overrides it. This is the knob an application sets where it composes its
+   * context — one place to tune how long the whole deployment waits on a silent provider,
+   * without touching a preset. Falls back to {@link MODEL_STREAM_TIMEOUT_MS}.
+   */
+  streamTimeout?: number
 }
 
 /**

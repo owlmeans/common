@@ -1,6 +1,6 @@
 ---
 name: llm-common
-description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, ExecutionState, spectator records, NullCapture). Auto-invoked when importing those contracts or extending them for a domain.
+description: How to use @owlmeans/llm-common — runtime-free serializable contracts for LLM inference and execution (ModelProvider, ExecutionEffort/Level, ModelPolicy, PromptPolicy, SkillDefinition, ExecutionState, spectator records, NullCapture, LlmFileProvider). Auto-invoked when importing those contracts or extending them for a domain.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.8"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -25,10 +25,15 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |
-| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. |
+| `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`) alongside the budget ones — see the `llm` skill for what each means. |
 | `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides? }` — inherited by every refinement. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, plus `phase`/`completed`/`cursor`/`data`). |
 | `LlmPurpose` | `{ type?, dedication? }` — metadata carried on every model call. |
+| `PromptBlock`, `PROMPT_BLOCK_ORDER`, `DEFAULT_SKILL_ORDER` | The ordered sections of a composed system prompt — the order IS the cache key. |
+| `SkillDefinition` | One named block of reusable prompt knowledge. `body` must be a pure constant. |
+| `PromptPolicy` | `{ role?, skills?, cacheSystem?, cacheTtl? }` — carried on `ExecutionState`, merged downward. |
+| `CacheTtl`, `CacheUsage` | `'5m' \| '1h'`; normalized prompt-cache accounting. |
+| `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The minimal read/write file contract prompt plugins work against. |
 | `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
 | `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. |
 

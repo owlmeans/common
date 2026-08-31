@@ -1,4 +1,4 @@
-import type { InitializedService, BasicContext } from "@owlmeans/context"
+import type { LazyService, BasicContext } from "@owlmeans/context"
 import type { ComponentType } from 'react'
 export type { ComponentType }
 
@@ -51,7 +51,7 @@ export interface RouterPlugin {
   useSearchParams: UseSearchParamsHook
 }
 
-export interface RouterService extends InitializedService {
+export interface RouterService extends LazyService {
   registerPlugin: (plugin: RouterPlugin) => void
   /** Select the active plugin for the given (or default) environment. */
   plugin: (env?: RouterEnv) => RouterPlugin

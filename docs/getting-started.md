@@ -7,8 +7,8 @@ database, no external service, and **no authentication** to set up. You get:
 - a **shared contract** (`common`): routes/entrypoints, schemas and types used by both sides;
 - a **backend** (`api`) built on `@owlmeans/server-app` that keeps session data in an
   **in-memory static resource** (`@owlmeans/static-resource`);
-- a **web UI** (`web`) built on `@owlmeans/web-panel` with **shadcn UI** navigation, a layout, and
-  a couple of screens.
+- a **web UI** (`web`) built on `@owlmeans/web-panel` with **shadcn UI**, a two-layer navigation
+  shell declared as data, and a few screens.
 
 The result is a working app whose **Session** screen creates, lists and removes items stored
 **per browser session** in process memory on the API.
@@ -50,14 +50,14 @@ npx @owlmeans/create-app my-app
 This generates the three-workspace project below, installs dependencies, and — by default —
 **deploys agent guidance** into the project via
 [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills)
-(Claude Code skills under `.claude/skills/`, GitHub Copilot instructions under
-`.github/instructions/`).
+(agent skills under `.agents/skills/`).
 
-It also writes **`CLAUDE.md`** and **`.github/copilot-instructions.md`** — each carrying the four
-mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory, Self-Education)
-plus a project-purpose placeholder: the first time you open the project in Claude Code or Copilot,
-the agent will ask what the project is for and fill it in. Agent memory is a single shared graph
-store at **`.agents/memory/`** (index `MEMORY.md`), used by both tools — the scaffold seeds the
+It also writes **`AGENTS.md`** — the always-on project context every coding agent reads — carrying
+the four mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory,
+Self-Education) plus a project-purpose placeholder: the first time you open the project in an
+agent, it will ask what the project is for and fill it in. A thin **`CLAUDE.md`** imports
+`AGENTS.md` and keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
+single shared graph store at **`.agents/memory/`** (index `MEMORY.md`) — the scaffold seeds the
 index for you.
 
 The harness guidance ships with the project itself (`agent-memory`, `memory-promotion`,
@@ -97,13 +97,12 @@ git init
   "name": "my-app",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.10",
+  "packageManager": "bun@1.3.14",
   "workspaces": ["sources/*"],
   "scripts": {
     "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
     "build": "bun run --filter './sources/*' build"
-  },
-  "overrides": { "react-router": "^7.*" }
+  }
 }
 ```
 
@@ -133,7 +132,7 @@ export const session = {
   add: 'my-app:api:session:add',
   remove: 'my-app:api:session:remove',
 }
-export const web = { session: 'my-app:web:session' }
+export const web = { session: 'my-app:web:session', about: 'my-app:web:about' }
 ```
 
 `sources/common/src/modules.ts`:
@@ -244,8 +243,10 @@ main(makeContext(config), appModules)
 
 The web layer wraps `@owlmeans/web-panel`'s `PanelApp` (already shadcn/Tailwind v4 — no MUI). The
 **app provides** the shadcn primitives at the `@` alias. `web-panel` references exactly these:
-`@/lib/utils` and `@/components/ui/{alert,button,card,input,label,progress}` — copy those files
-(and `cn()`) into `src/` from the shadcn registry or from `@owlmeans/web-panel`'s own copies.
+`@/lib/utils` and `@/components/ui/{alert,button,card,input,label,navigation-menu,progress}` — copy
+those files (and `cn()`) into `src/` from the shadcn registry or from `@owlmeans/web-panel`'s own
+copies. `navigation-menu` also needs `@radix-ui/react-navigation-menu` in the app's dependencies,
+alongside the other Radix peers.
 
 `vite.config.ts` wires the `@` alias, Tailwind v4 and React:
 
@@ -268,26 +269,39 @@ export default defineConfig({
 
 `src/index.css` is `@import "tailwindcss";` plus a shadcn `@theme` token block (this replaces what
 `@owlmeans/owl-theme` would provide — `--color-background`, `--color-primary`, … and a `.dark`
-variant).
+variant) — and one `@source` line:
 
-Render with `provide` from `web-client`:
+```css
+@import "tailwindcss";
+
+@source "../../../node_modules/@owlmeans/web-panel/build";
+```
+
+Tailwind scans this app's sources plus whatever `@source` names, and `node_modules` is excluded from
+that scan by default. Without the line, the classes that exist **only** inside `@owlmeans/web-panel`
+components — the whole navigation shell and footer — never reach the stylesheet and the app renders
+an unstyled menu. Every consumer of `web-panel` needs it, not just this scaffold.
+
+Render with `render` from `web-client`. Routing resolves itself from the active router plugin —
+`makeContext` already registered `@owlmeans/web-router`, so `PanelApp` takes no router prop:
 
 ```tsx
-import { render as basicRender, provide } from '@owlmeans/web-client'
+import { render as basicRender } from '@owlmeans/web-client'
 import { PanelApp } from '@owlmeans/web-panel'
 
 export const render = (context) =>
-  basicRender(<PanelApp context={context} provide={provide} />)
+  basicRender(<PanelApp context={context} />)
 ```
 
 Wire routes to components in `src/modules.ts`. A parent `BASE` route renders the layout; `HOME` is
-its default child; the session screen is another child. `elevate` the backend entrypoints (no
-component) so the client can call them:
+its default child; the session and about screens are further children. `elevate` the backend
+entrypoints (no component) so the client can call them:
 
 ```ts
 import { BASE, elevate, entrypoint, frontend, handler, HOME, modules as baseModules, route } from '@owlmeans/web-panel'
 import { session, sessionModules, web } from 'my-app-common'
 import { MainLayout } from './layout/main.js'
+import { AboutScreen } from './screens/about.js'
 import { HomeScreen } from './screens/home.js'
 import { SessionScreen } from './screens/session.js'
 
@@ -298,9 +312,13 @@ elevate(modules, session.add);  elevate(modules, session.remove)
 modules.push(entrypoint(route(BASE, '/', frontend()), handler(MainLayout)))
 modules.push(entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen)))
 modules.push(entrypoint(route(web.session, '/session', frontend({ parent: BASE })), handler(SessionScreen)))
+modules.push(entrypoint(route(web.about, '/about', frontend({ parent: BASE })), handler(AboutScreen)))
 
 export const appModules = modules
 ```
+
+A frontend entrypoint that **has children needs one of them declared `default: true`** — that is
+why `BASE` gets `HOME`. Without a default child a parent route renders blank at its own path.
 
 A screen calls the backend with `context.entrypoint(alias).call({ params, body })`, which returns
 `[data, outcome]`:
@@ -310,8 +328,57 @@ const [items] = await ctx.entrypoint(session.list).call({ params: { sid } })
 await ctx.entrypoint(session.add).call({ params: { sid }, body: { text } })
 ```
 
-The layout is plain shadcn JSX (a header with the app name + a `MainNavigation` of `Button`s using
-`useNavigate().press(routeId)`), and renders `{children}` (the matched child screen).
+Navigation is **data**, kept in `src/nav.ts`. Sections are the top menu; a section's items are the
+side menu shown while that section is active:
+
+```ts
+import { HOME } from '@owlmeans/web-panel'
+import type { PanelNavConfig, PanelNavLink } from '@owlmeans/web-panel'
+import { web } from 'my-app-common'
+
+export const navConfig: PanelNavConfig = {
+  sections: [
+    { name: 'home', label: 'Home', items: [{ alias: HOME, label: 'Overview' }] },
+    {
+      name: 'demo', label: 'Demo', items: [
+        { alias: web.session, label: 'Session' },
+        { alias: web.about, label: 'About' },
+      ]
+    },
+  ],
+}
+
+export const footerLinks: PanelNavLink[] = [
+  { alias: HOME, label: 'My App' },
+  { href: 'https://owlmeans.com', label: 'OwlMeans', open: true },
+]
+```
+
+An item addresses a screen by **entrypoint alias**, never by URL — the router resolves the path, so
+it stays correct when a route changes shape. Note the two shapes above: **Demo** holds two screens,
+so its side menu renders; **Home** holds one, and a section with a single screen renders **no side
+menu at all**.
+
+`src/layout/main.tsx` is then just the shell — `NavLayout` draws the header, the section menu, the
+active section's screen menu, the content and the footer, and the matched child screen arrives as
+`children`:
+
+```tsx
+import type { FC, PropsWithChildren } from 'react'
+import { NavLayout } from '@owlmeans/web-panel'
+import { footerLinks, navConfig } from '@/nav'
+
+export const MainLayout: FC<PropsWithChildren> = ({ children }) => (
+  <NavLayout nav={navConfig} title="My App" footer={footerLinks} contentClassName="mx-auto w-full max-w-4xl">
+    {children}
+  </NavLayout>
+)
+```
+
+Labels above are literal. Drop them and they resolve through the panel i18n keys instead
+(`nav.<section>` for sections, `modules.<alias>` for items and footer links), falling back to a
+humanized alias — `NavLayout` takes a `translate` prop for that and never reads an i18n context on
+its own, so this app, which mounts no i18n provider, still renders.
 
 Finally `src/index.tsx` registers entrypoints and service routes, then renders:
 
@@ -343,7 +410,7 @@ npx @owlmeans/agent-skills
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested
 under `sources/*` (bun often keeps workspace-only deps there) — and copies guidance into
-`.claude/skills/` and `.github/instructions/`. Re-run after upgrading `@owlmeans/*` packages.
+`.agents/skills/`. Re-run after upgrading `@owlmeans/*` packages.
 
 ---
 
@@ -354,8 +421,9 @@ under `sources/*` (bun often keeps workspace-only deps there) — and copies gui
 | Shared routes + validation + types | `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/config` | `sources/common` |
 | Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `elevate`, `main` |
 | In-memory session store | `@owlmeans/static-resource` | `appendStaticResource` + `getStaticResource` |
-| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `provide`, `elevate(handler(...))` |
-| shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts` |
+| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `elevate(handler(...))` |
+| Two-layer navigation + footer | `@owlmeans/web-panel` (model: `@owlmeans/client-panel`) | `src/nav.ts`, `NavLayout` in `src/layout/main.tsx` |
+| shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts`, the `@source` line in `src/index.css` |
 
 **The single source of truth is `sources/common`.** The api elevates its entrypoints with handlers;
 the web elevates the same entrypoints with screen components and calls them. Change a route or
@@ -367,5 +435,5 @@ schema once and both sides stay in sync.
   `@owlmeans/redis` + `@owlmeans/redis-resource`) instead of `@owlmeans/static-resource`.
 - Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth` and `guard(...)` on
   entrypoints.
-- Per-package guidance lives in each package's skill (`.claude/skills/<name>/SKILL.md`) — installed
+- Per-package guidance lives in each package's skill (`.agents/skills/<name>/SKILL.md`) — installed
   into your project by `@owlmeans/agent-skills`.

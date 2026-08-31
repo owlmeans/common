@@ -5,12 +5,14 @@ export const prepareListOptions = (defPageSize: number = 10, criteria?: ListOpti
     if (criteria == null) {
       criteria = {}
       opts = {}
-    } else if ('criteria' in criteria) {
-      criteria = criteria.criteria as ListCriteria
-      opts = { pager: criteria.pager as ListPager | undefined }
-    } else if ('pager' in criteria) {
-      opts = { pager: criteria.pager as ListPager | undefined }
-      criteria = {}
+    } else if ('criteria' in criteria || 'pager' in criteria) {
+      /**
+       * Both keys have to be read off the original object before it's reassigned —
+       * reading `pager` after narrowing to `.criteria` silently drops the pager.
+       */
+      const options = criteria as ListOptions
+      opts = { pager: options.pager }
+      criteria = (options.criteria ?? {}) as ListCriteria
     }
   }
 

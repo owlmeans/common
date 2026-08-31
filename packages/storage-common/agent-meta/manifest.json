@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/storage-common",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.385Z",
+  "version": "0.1.18-rc.6",
+  "generatedAt": "2026-08-18T14:48:00.536Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "storage-common",
       "category": "package-specific",
       "file": "skills/storage-common/SKILL.md",
-      "canonicalPath": ".claude/skills/storage-common/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "storage-common",
-      "category": "package-specific",
-      "file": "instructions/storage-common.instructions.md",
-      "canonicalPath": ".github/instructions/storage-common.instructions.md"
+      "canonicalPath": ".agents/skills/storage-common/SKILL.md"
     }
   ]
 }

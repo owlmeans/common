@@ -38,11 +38,39 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
     })
   }
 
+  /** A named alias's config, ready to be layered under something else. */
+  const presetOf = (
+    models: ModelConfig[], name: string | undefined
+  ): Partial<ModelConfig> => {
+    if (name == null) return {}
+    const { alias: _alias, ...rest } = { ...(models.find(m => m.alias === name) ?? {}) }
+    return rest
+  }
+
+  /**
+   * Drop keys that are present but `undefined` — they must not shadow a layer below.
+   * `mergeOverride` in the execution layer strips these already; a hand-built override
+   * need not.
+   */
+  const defined = (config: Partial<ModelConfig>): Partial<ModelConfig> =>
+    Object.fromEntries(
+      Object.entries(config).filter(([, value]) => value !== undefined)
+    ) as Partial<ModelConfig>
+
   /**
    * Resolve `alias` → config (inheriting a `preset`, applying `override`) and build it.
    * A declared `fallback` is built as well and attached to the primary as a
    * non-enumerable `__fallbackModel`, which the model's retry escalator reads. The
    * fallback spec is merged OVER the primary config, so it inherits secret/headers.
+   *
+   * Four layers, lowest first — the alias's own preset, the alias, the override's preset,
+   * the override. A `preset` is a BASE that its referent refines, so it has to sit under
+   * the config naming it; the previous order assigned it last, which meant a role
+   * declaring `preset:` silently discarded both its own fields and the caller's override —
+   * effort-tier token caps and `temperatureFactory`'s temperature among them. An override
+   * naming a preset (how the execution layer delivers a `modelOverrides` string pin) still
+   * outranks the alias, because picking a different model is a stronger statement than the
+   * role's default; explicit override fields stay on top of everything.
    */
   const createModel = (alias: string, override: Partial<ModelConfig> = {}): BaseChatModel => {
     const models = options.models()
@@ -50,14 +78,35 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
     if (baseConfig == null) {
       throw new LlmMissconfiguredError(alias)
     }
-    const config: ModelConfig = { ...baseConfig, ...override }
-    const preset: Partial<ModelConfig> = config.preset != null
-      ? { ...(models.find(m => m.alias === config.preset) ?? {}) }
-      : {}
-    if (preset.alias != null) {
-      delete preset.alias
+    const config: ModelConfig = {
+      ...presetOf(models, baseConfig.preset),
+      ...defined(baseConfig),
+      ...presetOf(models, override.preset),
+      ...defined(override),
+      alias: baseConfig.alias,
     }
-    Object.assign(config, preset)
+    // The service-wide idle deadline is a floor, not an override: a preset that states its
+    // own `streamTimeout` knows something specific about that model and keeps it.
+    config.streamTimeout ??= options.streamTimeout
+
+    // What the provider accepts bounds what we may ask for. A preset that over-declares is
+    // corrected here rather than at the provider, where it surfaces as a fatal 400 on the
+    // one call that finally escalated far enough to exceed the limit.
+    if (config.maxOutput != null && config.maxOutput > 0) {
+      if (config.maxTokensCap != null && config.maxTokensCap > config.maxOutput) {
+        console.warn(
+          `Model "${alias}" declares maxTokensCap ${config.maxTokensCap} above the provider's`
+          + ` maxOutput ${config.maxOutput}; the escalator will stop at ${config.maxOutput}.`
+        )
+      }
+      if (config.maxTokens != null && config.maxTokens > config.maxOutput) {
+        console.warn(
+          `Model "${alias}" declares maxTokens ${config.maxTokens} above the provider's`
+          + ` maxOutput ${config.maxOutput}; clamping.`
+        )
+        config.maxTokens = config.maxOutput
+      }
+    }
 
     const { fallback, ...primaryConfig } = config
     const primary = buildModel(alias, primaryConfig)

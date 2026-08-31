@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/web-oidc-provider",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.386Z",
+  "version": "0.1.18-rc.13",
+  "generatedAt": "2026-08-27T21:18:31.381Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "web-oidc-provider",
       "category": "package-specific",
       "file": "skills/web-oidc-provider/SKILL.md",
-      "canonicalPath": ".claude/skills/web-oidc-provider/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "web-oidc-provider",
-      "category": "package-specific",
-      "file": "instructions/web-oidc-provider.instructions.md",
-      "canonicalPath": ".github/instructions/web-oidc-provider.instructions.md"
+      "canonicalPath": ".agents/skills/web-oidc-provider/SKILL.md"
     }
   ]
 }

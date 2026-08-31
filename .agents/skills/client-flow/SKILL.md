@@ -1,0 +1,29 @@
+---
+name: client-flow
+description: How to use @owlmeans/client-flow — client-side flow execution service that drives @owlmeans/flow definitions through state transitions. Auto-invoked when importing client flow primitives.
+user-invocable: false
+---
+
+# @owlmeans/client-flow
+
+**Layer:** Client
+**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.10"` in `dependencies`
+
+## Key Exports
+
+| Export | Description |
+|--------|-------------|
+| `makeFlowService()` | Client flow execution service factory |
+| `client` helpers | Client-side flow client/runner |
+| Constants | Flow service aliases |
+
+## Usage
+
+```typescript
+import { makeFlowService } from '@owlmeans/client-flow'
+context.registerService(makeFlowService())
+```
+
+## Depends On
+
+- `@owlmeans/flow`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`

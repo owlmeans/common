@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "package": "@owlmeans/test-auth",
-  "version": "0.1.14",
-  "generatedAt": "2026-08-05T16:56:53.372Z",
+  "version": "0.1.18-rc.8",
+  "generatedAt": "2026-08-27T16:32:18.461Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -10,14 +10,7 @@
       "name": "testing-auth-unit",
       "category": "package-specific",
       "file": "skills/testing-auth-unit/SKILL.md",
-      "canonicalPath": ".claude/skills/testing-auth-unit/SKILL.md"
-    },
-    {
-      "kind": "instruction",
-      "name": "testing-auth-unit",
-      "category": "package-specific",
-      "file": "instructions/testing-auth-unit.instructions.md",
-      "canonicalPath": ".github/instructions/testing-auth-unit.instructions.md"
+      "canonicalPath": ".agents/skills/testing-auth-unit/SKILL.md"
     }
   ]
 }

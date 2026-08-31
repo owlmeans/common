@@ -8,22 +8,36 @@ user-invocable: false
 # @owlmeans/entrypoint
 
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.7"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `entrypoint(...builders)` | Compose an entrypoint declaration from builders |
-| `guard(alias, ...gates)` | Attach a security guard |
-| `gate(alias, scopes[])` | Define an auth gate (used inside a guard) |
-| `filter(...validators)` | Attach request validators |
+| `entrypoint(route, opts?)` | Declare an entrypoint on a route |
+| `guard(alias, opts?)` | Require a guard; returns options, so it wraps rather than takes them |
+| `gate(alias, params, opts?)` | Require a gate; passed as the `opts` of `guard(...)` |
+| `filter(filter, opts?)` | Attach request validators |
 | `body(Schema)` | AJV body validator |
 | `params(Schema)` | URL params validator |
 | `query(Schema)` | Query string validator |
 | `ClientEntrypoint<T>` types | Resolved entrypoint type used for `ctx.entrypoint<...>(alias).call(...)` |
 | `EntrypointOutcome` | Enum: Ok, Accepted, Created, Finished |
 | Constants | Built-in entrypoint aliases |
+
+`guard`, `gate` and `filter` are **options-object combinators, not variadic composers**. Each
+returns a `CommonEntrypointOptions` and takes the next one as its final argument, so they nest:
+
+```typescript
+entrypoint(
+  route(app.api.item.remove, '/:id', { parent: app.api.item, method: RouteMethod.DELETE }),
+  guard(DEFAULT_GUARD, gate(OIDC_GATE, ['item--delete@id']))
+)
+```
+
+Guards and gates are **inherited by child entrypoints** and enforced by the framework before a
+handler runs — a handler that re-checks them is duplicating an enforced rule, and is wrong even
+when it agrees.
 
 ## Subpath Exports
 

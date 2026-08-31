@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/oidc
 
 **Layer:** Core
-**Install:** `"@owlmeans/oidc": "^0.1.14"` in `dependencies`
+**Install:** `"@owlmeans/oidc": "^0.1.18-rc.8"` in `dependencies`
 
 ## Key Exports
 
@@ -17,6 +17,10 @@ user-invocable: false
 | `OIDC_GATE` | Gate alias to pass to `gate(...)` inside `guard(...)` |
 | `GOOGLE_CLIENT_AUTH` | Client auth plugin type for Google OAuth |
 | `GOOGLE_SERVICE` | Provider service key for Google (`'google'`) |
+| `OIDC_RP_BASE_SCOPES` / `OIDC_RP_BASE_SCOPE` | The scopes every OwlMeans RP requests, as array / space-delimited string |
+| `EMAIL_SCOPE`, `PERMISSIONS_SCOPE`, `PERMISSIONS_CLAIM` | Standard email scope; the integrated-IAM grant scope and its claim |
+| `OIDC_ERROR_QUERY`, `OIDC_ERROR_DESCRIPTION_QUERY` | Redirect-URI params an authorization server sets on failure |
+| `INTERACTION`, `INTERACTION_PATH`, `INTERACTION_UID` | Interaction screen entrypoint alias, path, and its uid path param |
 | `OidcProviderDescriptor` | Shared provider config shape, including service, endpoints, redirect URI, and optional default flag |
 | `OidcGuard` types | Guard payload shapes |
 | Modules | Shared OIDC module declarations |
@@ -37,6 +41,19 @@ entrypoint(
 ```
 
 The actual OIDC verification happens in `@owlmeans/server-oidc-rp` (server) and `@owlmeans/web-oidc-rp` (browser). The `oidc` package gives both sides a shared name to refer to.
+
+## Scope names are a cross-package contract
+
+`OIDC_RP_BASE_SCOPES` is the one definition of what an OwlMeans relying party asks an authorization
+server for. Two sides must agree on it and both read it from here:
+
+- the **RP** builds its request from it (`requestedScope()` in `@owlmeans/server-oidc-rp`);
+- whoever **registers the client** must allow at least these scopes — an authorization server
+  rejects the entire request with `invalid_scope` when a requested scope is one it supports but
+  the client is not allowed to use (see `@owlmeans/iam-integrated`'s `INTEGRATED_CLIENT_SCOPES`).
+
+Never hardcode a scope string on either side; adding one to `OIDC_RP_BASE_SCOPES` must widen every
+client allowlist derived from it in the same change.
 
 ## Product-Viable Usage Notes
 

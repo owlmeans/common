@@ -1,8 +1,9 @@
 ---
 name: router-plugins
 description: How OwlMeans UI routing plugins work — the RouterPlugin contract, cascade selection, choosing/switching the router at context provisioning (default OwlMeans vs opt-in react-router), and authoring a new plugin (e.g. SSR). Read before wiring routing in an app or writing a routing plugin.
-scope: general
 user-invocable: false
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
