@@ -17,12 +17,14 @@ export interface InstallItem {
 /** The banner text injected by sync-agent-meta into every generated file. */
 export const AUTO_GENERATED_BANNER = '<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->'
 
-const targetPath = (targetDir: string, entry: DiscoveredEntry): string => {
-  if (entry.kind === 'skill') {
-    return join(targetDir, '.claude', 'skills', entry.name, 'SKILL.md')
-  }
-  return join(targetDir, '.github', 'instructions', `${entry.name}.instructions.md`)
-}
+/**
+ * Skills install into `.agents/skills/<name>/SKILL.md` — the canonical store of the
+ * Agent Skills standard, discovered natively by Copilot and Codex. Claude Code reads
+ * them through the per-skill symlinks in `.claude/skills/` that {@link applyInstall}
+ * maintains.
+ */
+const targetPath = (targetDir: string, entry: DiscoveredEntry): string =>
+  join(targetDir, '.agents', 'skills', entry.name, 'SKILL.md')
 
 export interface PlanOptions {
   /** Treat conflicts as 'overwrite' (--force). */
