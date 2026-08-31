@@ -26,13 +26,13 @@ updated: 2026-08
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
 - `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
   silently re-resolves floating ranges.
-- Root `overrides` pins `bson` to `7.2.0`. `bson >= 7.3.0` calls
+- `bson` carries **no override** — it resolves freely (7.3.x) inside `mongodb`'s `^7.2.0` range,
+  in common, internal, viable and viable-agent alike. It could not before: `bson >= 7.3.0` calls
   `v8.startupSnapshot.isBuildingSnapshot()` in a static initializer, unimplemented in every Bun
-  through 1.3.14, so `import 'mongodb'` throws before any OwlMeans code runs — a **runtime** break
-  under Bun, not just a test one. `mongodb@7.5.0` allows `^7.2.0`, so the pin is in-range. Downstream
-  `viable` is still on `mongodb@6.21.0`/`bson@6.10.4` and unaffected.
-  Bun **1.4.0** (the pinned toolchain since this repo moved off 1.3.14) implements the call, so the
-  override no longer decides whether the server boots — it is retained for older runtimes only.
+  through 1.3.14, so `import 'mongodb'` threw before any OwlMeans code ran — a **runtime** break,
+  not just a test one. Bun **1.4.0** implements it, which is what made the pin removable. The
+  dependency is now on the Bun floor: drop a runtime below 1.4.0 and the crash returns, with builds
+  and unit suites still green.
 - Dependabot branches are cut from stale bases, so their conflicts are always "stale neighbour"
   lines (old `@owlmeans/*` ranges, old sibling deps) rather than real disagreements. Resolve by
   taking `main` for every line and applying only the one dependency the branch exists to bump.

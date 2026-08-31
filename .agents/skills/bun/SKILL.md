@@ -68,30 +68,28 @@ pins `packageManager: bun@1.4.0`; every linked consumer repo pins the same versi
   `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
   `server-auth-identity`, `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a
   regression — read the per-package pass/fail counts, not the aggregate exit code.
-- **`bson` is pinned to `7.2.0` in the root `overrides`.** From `bson@7.3.0` on, a static
-  initializer calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, which no
-  Bun **through 1.3.14** implements — so `import 'mongodb'` throws
+- **`bson` floats — there is no override, and Bun 1.4.0 is why.** From `bson@7.3.0` on, a static
+  initializer calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`. No Bun
+  **through 1.3.14** implements it, so on those `import 'mongodb'` throws
   `NotImplementedError: node:v8 isBuildingSnapshot is not yet implemented in Bun` before any
-  OwlMeans code runs. That breaks the server runtime, not just tests: the `mongo`/`mongo-resource`
-  suites die at import, before their env gate can skip them. `mongodb@7.5.0` declares `bson: ^7.2.0`,
-  so the pin sits inside the driver's own supported range.
+  OwlMeans code runs — a server-runtime break, not just a test one: the `mongo`/`mongo-resource`
+  suites die at import, before their env gate can skip them. **Bun 1.4.0 implements the call**, so
+  with `packageManager: bun@1.4.0` the driver's own `bson: ^7.2.0` range is safe to resolve freely
+  and every repo here runs `bson@7.3.x`.
 
-  **Bun 1.4.0 implements it** — `require('bson')` at 7.3.2 succeeds there, verified directly — so on
-  the pinned toolchain the override is no longer load-bearing and is kept only because nothing
-  depends on lifting it. Anything still running an older Bun (a stale image, a slot that never
-  upgraded) breaks without it, so do not drop it as a tidy-up; drop it when the floor is raised
-  deliberately, and re-test then. The check, on whatever Bun you are about to require:
+  This makes the Bun floor load-bearing: **dropping any runtime below 1.4.0 reintroduces the crash**
+  — a rolled-back `oven/bun` image, or a checkout whose `packageManager` was not raised. Check the
+  runtime, not the lockfile, before lowering one:
 
   ```bash
   bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"
   ```
 
-  **`overrides` do not cross a repo boundary.** A linked consumer (`internal`, `viable-agent`,
-  `viable`) resolves its own tree, so it needs the identical `"bson": "7.2.0"` entry in its own
-  root `overrides` — common's pin does nothing for it. Without it the consumer silently installs
-  `bson@7.3.x` and the failure surfaces only at runtime, in the pod, as the crash above; the build
-  and every unit suite still pass. Verify per repo with
-  `node -p "require('./node_modules/bson/package.json').version"`.
+  If a repo ever has to run an older Bun again, the fix is `"bson": "7.2.0"` in **that repo's own**
+  root `overrides` — `overrides` do not cross a repo boundary, so a linked consumer (`internal`,
+  `viable-agent`, `viable`) resolves its own tree and common's entry does nothing for it. Such a
+  failure surfaces only at runtime, in the pod; the build and every unit suite still pass. Check per
+  repo with `node -p "require('./node_modules/bson/package.json').version"`.
 
 ## Troubleshooting: nested `node_modules` copies that shadow the root
 
