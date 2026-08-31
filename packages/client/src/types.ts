@@ -19,12 +19,20 @@ export interface RouterProvider {
 }
 
 export interface RouterProps {
-  provide: RouterProvider | LibraryRouter
+  /**
+   * How to turn the resolved route IR into a library router. When omitted, the
+   * active router plugin's `compile` (via `context.router().compile`) is used —
+   * the default OwlMeans routing path. A function receives the routes; a value is
+   * treated as an already-built library router.
+   */
+  provide?: RouterProvider | LibraryRouter
 }
 
 export interface AppProps extends PropsWithChildren {
   context: ClientContext<any>
   provide?: RouterProvider | LibraryRouter
+  /** Opt out of mounting the router (e.g. when routing is hosted elsewhere). */
+  noRouter?: boolean
 }
 
 export interface RoutedComponent<ExtraProps = {}> extends FC<PropsWithChildren<ModuleContextParams & ExtraProps>> {

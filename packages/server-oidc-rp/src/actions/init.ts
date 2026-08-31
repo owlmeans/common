@@ -13,6 +13,7 @@ import { base64urlnopad as base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha2'
 import { cache, verifierId } from '../utils/cache.js'
+import { requestedScope } from '../utils/scope.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
 export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInitParams, ctx) => {
@@ -26,12 +27,19 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
   const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
 
   let client: OidcClientAdapter | null = null
+  // Only the remote-lookup branch below actually resolves the client BY entityId. The default
+  // provider is picked by `def: true` alone, so persisting the caller-supplied entityId
+  // unconditionally records a value that was never verified against the registered provider —
+  // and the exchange step (utils/auth.ts) later requires an exact match on it, failing even
+  // though the very same default provider is trivially available there too.
+  let entityIdUsedForResolution = false
 
   const defaultClientId = oidc.getDefault()
   if (defaultClientId != null) {
     client = await oidc.getClient(defaultClientId)
   }
   if (client == null) {
+    entityIdUsedForResolution = true
     // if (!oidc.hasProvider({ entityId })) {
     /**
      * @TODO We need to move it to some remote resource.
@@ -82,14 +90,14 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     id: verifierId(challenge),
     verifier,
     client: client.getClientId(),
-    entityId,
+    ...(entityIdUsedForResolution ? { entityId } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
   const [dispatcherUrl] = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).call()
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({
-    scope: `openid profile email ${cfg?.extraScopes ?? ''}`,
+    scope: requestedScope(cfg?.extraScopes),
     code_challenge: challenge,
     code_challenge_method: 'S256',
     redirect_uri: dispatcherUrl,

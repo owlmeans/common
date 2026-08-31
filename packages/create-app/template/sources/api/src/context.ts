@@ -10,5 +10,9 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   // data lives in process memory and is cleared when the api restarts.
   appendStaticResource<C, T>(context, SESSION_ITEMS)
 
+  // A child context has to inherit THIS factory, not the layer's — otherwise a derived context
+  // is built without the resource registered above and every lookup on it throws.
+  context.makeContext = makeContext as typeof context.makeContext
+
   return context
 }
