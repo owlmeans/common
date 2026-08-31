@@ -7,7 +7,7 @@ allowed-tools: Bash(bun *)
 # Bun — OwlMeans Monorepo
 
 Migrated from Yarn v4 to **Bun** (April 2026). Always use `bun`, never `yarn` or `npm`. The repo
-pins `packageManager: bun@1.3.14`; every linked consumer repo pins the same version.
+pins `packageManager: bun@1.4.0`; every linked consumer repo pins the same version.
 
 ## Package Management
 
@@ -68,14 +68,19 @@ pins `packageManager: bun@1.3.14`; every linked consumer repo pins the same vers
   `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
   `server-auth-identity`, `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a
   regression — read the per-package pass/fail counts, not the aggregate exit code.
-- **`bson` is pinned to `7.2.0` in the root `overrides` and must stay there.** From `bson@7.3.0`
-  on, a static initializer calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`,
-  which no Bun implements (checked through 1.3.14) — so `import 'mongodb'` throws
+- **`bson` is pinned to `7.2.0` in the root `overrides`.** From `bson@7.3.0` on, a static
+  initializer calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, which no
+  Bun **through 1.3.14** implements — so `import 'mongodb'` throws
   `NotImplementedError: node:v8 isBuildingSnapshot is not yet implemented in Bun` before any
   OwlMeans code runs. That breaks the server runtime, not just tests: the `mongo`/`mongo-resource`
   suites die at import, before their env gate can skip them. `mongodb@7.5.0` declares `bson: ^7.2.0`,
-  so the pin sits inside the driver's own supported range. Re-test with a real Bun before relaxing
-  it:
+  so the pin sits inside the driver's own supported range.
+
+  **Bun 1.4.0 implements it** — `require('bson')` at 7.3.2 succeeds there, verified directly — so on
+  the pinned toolchain the override is no longer load-bearing and is kept only because nothing
+  depends on lifting it. Anything still running an older Bun (a stale image, a slot that never
+  upgraded) breaks without it, so do not drop it as a tidy-up; drop it when the floor is raised
+  deliberately, and re-test then. The check, on whatever Bun you are about to require:
 
   ```bash
   bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"

@@ -59,10 +59,12 @@ port-forward to the cluster mongo.
 - `@owlmeans/basic-keys` — field encryption
 - peer `mongodb` (currently `^7.5.0`)
 
-An app consuming this package under Bun must carry `"bson": "7.2.0"` in its root `overrides`, as
-this repo does. `bson >= 7.3.0` throws `ERR_NOT_IMPLEMENTED` (`v8.startupSnapshot.isBuildingSnapshot`)
-the moment `mongodb` is imported, on every Bun through 1.3.14 — so the server never starts. The pin
-is inside the driver's declared `bson: ^7.2.0` range. Details in the `bun` skill.
+An app consuming this package on a Bun **older than 1.4.0** must carry `"bson": "7.2.0"` in its root
+`overrides`, as this repo does. On those versions `bson >= 7.3.0` throws `ERR_NOT_IMPLEMENTED`
+(`v8.startupSnapshot.isBuildingSnapshot`) the moment `mongodb` is imported, so the server never
+starts. Bun 1.4.0 implements the call and the override stops being load-bearing, but it is kept
+because it costs nothing and still protects anything left on an older runtime. The pin is inside the
+driver's declared `bson: ^7.2.0` range. Details in the `bun` skill.
 
 ## Related
 
