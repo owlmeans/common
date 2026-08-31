@@ -7,6 +7,7 @@ export const AUTH_IDENTITY_ACCOUNT = 'auth-identity:account'
 export const AUTH_IDENTITY_PROFILE = 'auth-identity:profile'
 export const AUTH_IDENTITY_CREDENTIALS = 'auth-identity:credentials'
 export const AUTH_IDENTITY_LINKING = 'auth-identity:linking'
+export const AUTH_IDENTITY_ORG_ENTITY = 'auth-identity:org-entity'
 
 // Colon-free Mongo collection base names. The final collection name is
 // `${resourcePrefix}${collection}` — e.g. with the project prefix 'viam-' this yields
@@ -15,10 +16,15 @@ export const AUTH_IDENTITY_LINKING = 'auth-identity:linking'
 export const AUTH_IDENTITY_ACCOUNT_COLLECTION = 'account'
 export const AUTH_IDENTITY_PROFILE_COLLECTION = 'profile'
 export const AUTH_IDENTITY_CREDENTIALS_COLLECTION = 'credentials'
+export const AUTH_IDENTITY_ORG_ENTITY_COLLECTION = 'org-entity'
 
 // Suggested db-config alias for a dedicated config whose resourcePrefix scopes the
 // collection prefix to identity collections only (not the whole database).
 export const AUTH_IDENTITY_DB_ALIAS = 'auth-identity'
+
+// How many slugs to try before giving up on minting a free one. Collisions are settled against a
+// unique index, so this bounds a retry loop rather than a probability.
+export const MAX_ENTITY_SLUG_ATTEMPTS = 8
 
 // Helper prefixes for stable key derivation
 export const LOGIN_SERVICE_PREFIX = 'service'

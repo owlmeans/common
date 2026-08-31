@@ -16,6 +16,19 @@ export const TOKEN_UPDATE = 'auth-token-refresh'
 
 export const WEB_API = 'web-auth-api'
 
+/** Service alias of the organization-entity resolver, when an implementation registers one. */
+export const ENTITY_RESOLVER = 'entity-resolver'
+
+/**
+ * What an organization slug may look like: a DNS label, lowercase.
+ *
+ * The constraint is not cosmetic. The same slug is used to compose hostnames, Kubernetes object
+ * names and OIDC client ids, so anything that would need sanitising before it could address one of
+ * those is rejected at the point it is chosen instead — a slug that survives this pattern passes
+ * through every downstream name unchanged.
+ */
+export const ENTITY_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/
+
 export const authApi = {
   profile: {
     base: 'api:profile',

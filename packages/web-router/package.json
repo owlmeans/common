@@ -1,12 +1,13 @@
 {
   "name": "@owlmeans/web-router",
-  "version": "0.1.11",
+  "version": "0.1.18-rc.8",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 63 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -21,18 +22,24 @@
     }
   },
   "peerDependencies": {
-    "react": "*",
-    "react-router": "^7.9.6"
+    "react": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
-    "nodemon": "^3.1.11",
-    "typescript": "^6.0.2"
+    "@owlmeans/test-ui": "^0.1.18-rc.8",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@vitejs/plugin-react": "^6.0.3",
+    "nodemon": "^3.1.14",
+    "playwright": "^1.61.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.2"
   },
   "dependencies": {
-    "@owlmeans/router": "^0.1.11"
+    "@owlmeans/context": "^0.1.18-rc.6",
+    "@owlmeans/router": "^0.1.18-rc.6"
   },
   "publishConfig": {
     "access": "public"

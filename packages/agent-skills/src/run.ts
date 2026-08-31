@@ -18,25 +18,21 @@ const padEnd = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - 
 
 const printTable = (items: InstallItem[]): void => {
   const colWidths = {
-    kind: 11,
-    name: Math.max(...items.map(i => i.entry.name.length), 4) + 2,
+    name: Math.max(...items.map(i => i.entry.name.length), 5) + 2,
     pkg: Math.max(...items.map(i => i.entry.packageName.length), 7) + 2,
     action: 10,
   }
 
   const header =
-    padEnd('kind', colWidths.kind) +
-    padEnd('name', colWidths.name) +
+    padEnd('skill', colWidths.name) +
     padEnd('package', colWidths.pkg) +
     'action'
   process.stdout.write(header + '\n')
   process.stdout.write('-'.repeat(header.length) + '\n')
 
   for (const item of items) {
-    const kindLabel = item.entry.kind === 'skill' ? 'skill' : 'instruction'
     const actionLabel = ACTION_LABEL[item.action]
     process.stdout.write(
-      padEnd(kindLabel, colWidths.kind) +
       padEnd(item.entry.name, colWidths.name) +
       padEnd(item.entry.packageName, colWidths.pkg) +
       actionLabel +
@@ -65,8 +61,8 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
       process.stderr.write(
         `\nerror: linked monorepo detected — ${pkgList}${more} are symlinked.\n\n` +
         `In this setup, agents already load guidance from the linked monorepo's\n` +
-        `root .claude/skills/ and .github/instructions/. Installing embedded copies\n` +
-        `would place stale duplicates that conflict with the canonical live files.\n\n` +
+        `root AGENTS.md and .agents/skills/. Installing embedded copies would place\n` +
+        `stale duplicates that conflict with the canonical live files.\n\n` +
         `Pass --force only if you understand this and want to proceed anyway.\n\n`,
       )
       return { code: 4, message: 'linked monorepo' }
@@ -77,8 +73,6 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
   const entries = discover(targetDir, {
     extras: args.extras,
     only: args.only.length > 0 ? args.only : undefined,
-    claudeOnly: args.claudeOnly,
-    copilotOnly: args.copilotOnly,
   })
 
   if (entries.length === 0) {
@@ -156,12 +150,15 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
   }
 
   // 7. Apply
-  const result = applyInstall(resolvedItems)
+  const result = applyInstall(resolvedItems, targetDir)
 
   process.stdout.write(
     `Done: ${result.installed} installed, ${result.updated} updated, ` +
     `${result.skipped} up-to-date, ${result.conflicts} skipped (conflicts).\n`,
   )
+  if (result.linked > 0) {
+    process.stdout.write(`Linked ${result.linked} skill(s) into .claude/skills/ for Claude Code.\n`)
+  }
 
   return { code: 0 }
 }

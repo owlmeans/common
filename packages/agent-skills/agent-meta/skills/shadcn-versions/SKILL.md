@@ -1,8 +1,9 @@
 ---
 name: shadcn-versions
 description: How to update versions of shadcn UI primitives, Tailwind CSS v4, and related UI libs across all shadcn-based OwlMeans web packages. Distinct from the @owlmeans/* package version sync (see [[versions]] skill). Use when bumping tailwind, shadcn components, or utility libs.
-allowed-tools: Bash(grep *), Bash(sed *), Bash(bun install)
-scope: general
+allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
