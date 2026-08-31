@@ -1,5 +1,6 @@
 {
   "dispatcher": {
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "error": "Error de autenticación: {{error}}"
   }
 }

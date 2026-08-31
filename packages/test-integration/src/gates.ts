@@ -69,3 +69,20 @@ export interface PostgresEnv {
 
 export const postgresGate = (): IntegrationGate<PostgresEnv> =>
   toIntegrationGate<PostgresEnv>(['POSTGRES_URL'], ['POSTGRES_TEST_DB_PREFIX'])
+
+export interface SmtpEnv {
+  SMTP_HOST: string
+  SMTP_PORT: string
+  SMTP_SECURE: string
+  SMTP_USER: string
+  SMTP_PASSWORD: string
+  SMTP_FROM: string
+  /** Mailbox the specs deliver to. Required — these tests send real mail. */
+  SMTP_TEST_TO: string
+}
+
+export const smtpGate = (): IntegrationGate<SmtpEnv> =>
+  toIntegrationGate<SmtpEnv>(
+    ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_TEST_TO'],
+    ['SMTP_PORT', 'SMTP_SECURE']
+  )

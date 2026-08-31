@@ -14,7 +14,8 @@ export const makeConsoleMailerService = (alias = CONSOLE_MAILER): MailerService 
   const service = createService<MailerService>(alias, {
     send: async (message: MailMessage): Promise<void> => {
       captured.push(message)
-      console.log(`[console-mailer] to=${message.to} subject="${message.subject}"`)
+      const from = message.from != null ? ` from=${message.from}` : ''
+      console.log(`[console-mailer]${from} to=${message.to} subject="${message.subject}"`)
       console.log(`[console-mailer] body=${message.text ?? message.html ?? ''}`)
     },
   }) as MailerService & { captured: MailMessage[] }

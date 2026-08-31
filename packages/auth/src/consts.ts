@@ -98,7 +98,10 @@ export const ResourceValueSchema: JSONSchemaType<string> = { type: 'string', min
 
 export const AttributeValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 8, maxLength: 128 }
 
-export const EntityValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 3, maxLength: 256 }
+export const EntitySlugValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 3, maxLength: 256 }
+
+/** @deprecated The organization value on the wire is a slug — use {@link EntitySlugValueSchema}. */
+export const EntityValueSchema: JSONSchemaType<string> = EntitySlugValueSchema
 
 export const GroupValueSchema: JSONSchemaType<string> = { type: 'string', minLength: 1, maxLength: 128 }
 
@@ -119,7 +122,7 @@ export const AUTHEN_RELY = `${AUTHEN}-rely`
 
 export const AUTH_HEADER = 'authorization'
 export const AUTH_QUERY = 'token'
-export const ENTITY_QUERY = 'entity'
+export const ENTITY_QUERY = 'entitySlug'
 export const PROFILE_QUERY = 'profile'
 
 export const MOD_RECAPTCHA = '_external:re-captcha'
