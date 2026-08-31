@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PROJECT_DIR:-.}\"/.agents/scripts/link-skills.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

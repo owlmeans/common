@@ -9,6 +9,9 @@ export const provideRequest = (alias: string, req: Request, provision?: boolean)
   return {
     alias,
     auth: (req as any)._auth ?? undefined,
+    // Resolved once by `authorize` and carried by reference, exactly like `_auth`, so a handler
+    // reached through any path sees the same entity the guard admitted.
+    entity: (req as any)._entity ?? undefined,
     params: req.params as Record<string, string | number | undefined | null>,
     body: req.body as Record<string, any>,
     headers: req.headers,

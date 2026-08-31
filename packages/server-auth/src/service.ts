@@ -92,7 +92,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         type: AuthroizationType.Ed25519BasicToken,
         source: context.cfg.service,
         profileId: credentials.profileId,
-        entityId: credentials.entityId,
+        entitySlug: credentials.entitySlug,
         isUser: true,
         createdAt: new Date()
       }

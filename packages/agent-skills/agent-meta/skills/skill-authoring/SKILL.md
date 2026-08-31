@@ -1,79 +1,89 @@
 ---
 name: skill-authoring
-description: How to add agent guidance to an OwlMeans project — author a Claude Code skill (.claude/skills/<name>/SKILL.md) and its matching GitHub Copilot instruction (.github/instructions/<name>.instructions.md), keep the two in sync, choose frontmatter, and decide skill vs memory. Use when asked to capture knowledge as a skill, add a slash command, or document a repeatable procedure.
+description: How to add agent guidance to an OwlMeans project — author one skill at .agents/skills/<name>/SKILL.md that every agent reads, choose frontmatter that validates across Claude Code, Copilot and Codex, refresh the Claude Code symlinks, and decide skill vs memory. Use when asked to capture knowledge as a skill, add a slash command, or document a repeatable procedure.
 user-invocable: true
-scope: general
+metadata:
+  scope: general
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
-# Authoring agent guidance (skills + instructions)
+# Authoring agent guidance (skills)
 
-OwlMeans projects carry agent guidance in two parallel places so both Claude Code and GitHub
-Copilot can use it:
+OwlMeans projects carry agent guidance in two places, and only two:
 
-| Tool | Location | Shape |
+| What | Where | Loaded |
 |---|---|---|
-| Claude Code | `.claude/skills/<name>/SKILL.md` | one directory per skill, `SKILL.md` is the entrypoint |
-| GitHub Copilot | `.github/instructions/<name>.instructions.md` | one file per topic |
+| Always-on project context | `AGENTS.md` at the repo root | every session |
+| Topic guidance | `.agents/skills/<name>/SKILL.md` | on demand, by topic or `/<name>` |
 
-Author **both** for any guidance you want available to either tool. Keep the same `<name>` on both
-sides so they read as one topic.
+`.agents/skills/` is the [Agent Skills](https://agentskills.io) standard location: GitHub Copilot
+and Codex discover it natively. Claude Code reads skills only from `.claude/skills/`, so each skill
+is bridged there by a generated symlink — see "Refresh the Claude Code links" below. **Write a skill
+once; never author a per-agent copy** (`.github/instructions/*.instructions.md`,
+`.github/copilot-instructions.md`, or a real file under `.claude/skills/`).
 
-## SKILL.md (Claude Code)
+## Skill layout
 
 ```
-.claude/skills/<name>/
+.agents/skills/<name>/
 ├── SKILL.md          # required — frontmatter + body
 ├── reference.md      # optional — deeper detail loaded on demand
 └── scripts/          # optional — shell scripts the skill runs
 ```
 
-Frontmatter:
+## Frontmatter
 
 ```yaml
 ---
-name: my-skill                  # the /slash-command (lowercase, hyphens)
-description: What it does and WHEN to use it.  # primary auto-invocation signal
+name: my-skill                  # REQUIRED, must equal the directory name (lowercase, hyphens, ≤64 chars)
+description: What it does and WHEN to use it.   # REQUIRED, ≤1024 chars — the auto-invocation signal
 user-invocable: true            # false = background knowledge only, hidden from the / menu
-allowed-tools: Bash(bun *) Read # optional — tools usable without per-call approval
+allowed-tools: Bash(bun *) Read # optional — space-separated; tools usable without per-call approval
+metadata:                       # optional — anything non-standard goes here
+  scope: general
 ---
 ```
 
-The `description` is the most important field: Claude uses it to decide when to auto-invoke the
-skill, so describe both the topic and the trigger ("Use when …").
+The `description` is the most important field: every agent uses it to decide when to load the
+skill, so state both the topic and the trigger ("Use when …"). Keep it under 1024 characters —
+Copilot rejects longer ones.
 
-## <name>.instructions.md (Copilot)
+Only the fields above (plus `license` and `compatibility`) are portable. Anything else — including
+this monorepo's `scope: general` routing marker — belongs under `metadata:`, so a skill stays valid
+in every agent that reads it. Claude Code additionally understands `disable-model-invocation`,
+`argument-hint` and `context: fork`; use them only when the skill genuinely needs them.
 
-```yaml
----
-description: "Short summary — apply when …"
-applyTo: "**/*.ts, **/relevant/**"   # globs that auto-attach this instruction
----
+## Refresh the Claude Code links
+
+After creating, renaming, or deleting a skill, run:
+
+```sh
+sh .agents/scripts/link-skills.sh
 ```
 
-`applyTo` controls when Copilot pulls the instruction in. Use the file patterns the guidance is
-actually about; fall back to `**/*.ts, **/*.tsx` if it is broadly relevant.
-
-## Keep the pair in sync
-
-When you change one side, change the other. They do not have to be identical prose, but they must
-not contradict each other. Cross-reference related guidance by name (e.g. "see the `getting-started`
-skill").
+It creates `.claude/skills/<name>` → `../../.agents/skills/<name>` for every skill and prunes links
+whose skill is gone. The links are gitignored and are recreated at session start, but a skill added
+mid-session is invisible to Claude Code until the script runs.
 
 ## Skill vs memory
 
-- **Skill / instruction** — a reusable procedure or reference you (or the tools) will want again,
-  worth auto-invoking. Lives in `.claude/skills/` + `.github/instructions/`.
-- **Memory** — a fact, decision, or gotcha specific to this project's history/state. Lives in
-  `.claude/memory/` + `.github/memory/`. See the `agent-memory` skill.
+- **Skill** — a reusable procedure or reference you (or the agents) will want again, worth loading
+  automatically. Lives in `.agents/skills/`.
+- **Memory** — a fact, decision, or gotcha specific to this project's history/state. Lives in the
+  shared `.agents/memory/` graph store. See the `agent-memory` skill; promotion triggers and the
+  update-vs-create rule live in `memory-promotion`.
 
 If you find yourself writing "last time we…", that is memory. If you are writing "to do X, do Y",
 that is a skill.
 
+Never paste memory text into a skill. Memory content enters guidance only as a restated general
+rule — trigger, step, and the failure it prevents, with dates, phase/status markers, versions and
+incident narrative stripped (`memory-promotion` → Distillation).
+
 ## After adding a skill
 
-1. If it replaces an ad-hoc `.claude/<topic>.md`, remove that file.
-2. Mention it in `.claude/memory/MEMORY.md` (and `.github/memory/MEMORY.md`) so future sessions know
-   it exists.
-3. Reference it from `CLAUDE.md` / `.github/copilot-instructions.md` if it should be discoverable
-   every session.
+1. If it replaces an ad-hoc `.agents/<topic>.md`, remove that file.
+2. If it distilled memory content into rules, shrink the source `.agents/memory/` node to a
+   pointer line (`memory-promotion`) — the memory index does not list skills.
+3. Reference it from `AGENTS.md` if it should be discoverable every session.
+4. Run `sh .agents/scripts/link-skills.sh`.
