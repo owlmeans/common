@@ -65,7 +65,7 @@ describe('@owlmeans/basic-keys — packAuthCredentials', () => {
 - **Mocks only for auth/authz.** No mocks for databases, network, or any sibling package. If you need one, move the spec to category C and write an integration test.
 - **Don't replicate `@owlmeans/test-auth` helpers in your package.** If you need a new mocking primitive (e.g. an OIDC userinfo endpoint stub), add it to `@owlmeans/test-auth` and its skill — never to a per-package `tests/`.
 - **Use deterministic seeds.** `makeFixtureKeyPair('<seed>')` keeps signatures stable run-to-run; random keypairs break snapshot-style assertions.
-- **Cover SKILL.md cases first.** The package's `.claude/skills/<pkg>/SKILL.md` documents the consumer-facing surface — that's the test priority order.
+- **Cover SKILL.md cases first.** The package's `.agents/skills/<pkg>/SKILL.md` documents the consumer-facing surface — that's the test priority order.
 - **Max 3-4 tests per method/function.** Same as category A.
 - **Don't test types or utils.**
 
