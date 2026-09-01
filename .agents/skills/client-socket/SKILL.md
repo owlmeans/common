@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-socket
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-socket": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/client-socket": "^0.1.18-rc.9"` in `dependencies`
 
 ## Key Exports
 

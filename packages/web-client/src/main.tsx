@@ -25,5 +25,14 @@ export const render = (node: ReactNode, opts?: RenderOptions) => {
   opts?.onReady ?? true ? window.addEventListener('DOMContentLoaded', _callback) : _callback()
 }
 
-export const renderApp = <C extends AppConfig, T extends AppContext<C>>(context: T, opts?: RenderOptions) =>
-  render(<WebApp context={context} />, opts)
+/**
+ * Mount the application.
+ *
+ * `children` are rendered inside the context provider and BEFORE the router, which makes them the
+ * app's global overlay slot: a consent dialog, a toast surface, anything that must exist on every
+ * route and outlive navigation. A component mounted inside a route instead is torn down and
+ * rebuilt on every navigation, which for a dialog means it closes itself.
+ */
+export const renderApp = <C extends AppConfig, T extends AppContext<C>>(
+  context: T, opts?: RenderOptions, children?: ReactNode
+) => render(<WebApp context={context}>{children}</WebApp>, opts)

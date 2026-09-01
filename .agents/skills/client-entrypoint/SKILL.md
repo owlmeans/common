@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-entrypoint
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-entrypoint": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/client-entrypoint": "^0.1.18-rc.9"` in `dependencies`
 
 ## Key Exports
 

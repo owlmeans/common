@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/mongo-resource",
-  "version": "0.1.18-rc.7",
-  "generatedAt": "2026-08-31T17:16:04.969Z",
+  "version": "0.1.18-rc.9",
+  "generatedAt": "2026-09-01T12:04:42.728Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

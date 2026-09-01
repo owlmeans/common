@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/flow
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/flow": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/flow": "^0.1.18-rc.10"` in `dependencies`
 
 A flow is a set of named **steps**, each offering named **transitions** to other steps. What makes
 it worth using over a hand-rolled switch is that the whole live state — flow, step, previous step,

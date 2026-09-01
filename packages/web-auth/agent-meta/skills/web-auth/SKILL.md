@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-auth
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-auth": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/web-auth": "^0.1.18-rc.20"` in `dependencies`
 
 Web-side auth UI plugins that register into the shared `@owlmeans/client-auth/manager` plugin registry
 (mirrors `@owlmeans/web-oidc-rp`). Currently ships the **PK-based supervisor** login form.
@@ -29,8 +29,19 @@ Web-side auth UI plugins that register into the shared `@owlmeans/client-auth/ma
 ```ts
 import { appendSupervisorAuth } from '@owlmeans/web-auth'
 // in your web client makeContext():
-appendSupervisorAuth(context) // enabled in development only (cfg.debug)
+appendSupervisorAuth(context) // enabled where cfg.debug.supervisor === true
 ```
+
+**It reads `cfg.debug.supervisor`, and deliberately NOT `cfg.debug.all`.** Whole families of
+OwlMeans applications set `debug.all` for reasons that have nothing to do with authentication — a
+Viable-generated target sets it for itself — so gating on it put an operator login on every one of
+them, in production, reachable by anyone who typed the URL. `{ enabled: true }` forces it on for a
+consumer that relied on the old default.
+
+Registering the plugin is not enough to make it OFFERED: `supervisorClientPlugin` carries
+`restricted: true`, so the sign-in screen shows it only where the configuration names it. That is
+what `appendSupervisorAuth` writes into `cfg.security.auth.login.overrides` when it enables the
+plugin — pass `{ offer: false }` to register it without advertising it.
 The form renders at `SUPERVISOR_LOGIN_PATH` via the standard `CAUTHEN_AUTHEN_TYPED` route — no extra
 route registration needed. Test ids: `supervisor-auth-form`, `supervisor-user-id`, `supervisor-pk`,
 `supervisor-submit`, `supervisor-error`.

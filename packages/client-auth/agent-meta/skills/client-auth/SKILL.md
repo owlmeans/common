@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.16"` in `dependencies`
 
 ## Key Exports
 
@@ -44,6 +44,12 @@ can complete at all. Do not conflate them.
 | Export | Description |
 |--------|-------------|
 | `appendLogin(ctx)` | Register the host and expose it as `context.login()` |
+| `registerMethodSource`, `resolveLoginMethods`, `primaryLoginMethod` | Which sign-in methods are offered — see `login-methods` |
+| `resolveTerms`, `termsAccepted`, `acceptTerms`, `resolveCredit` | The confirmation and the credit line |
+| `FallbackLoginScreen` | The plain sign-in screen a relying party renders when no UI family registered one |
+| `surrogatePath(ctx, target)` | Where a surrogate login window opens; `null` on an older entrypoint list |
+| `resumeAction(outcome)` | The one reading of a `resume` outcome, shared by three dispatchers |
+| `revokeToken(ctx)` | The single de-adoption path, mirroring `adoptToken` |
 | `ensureLoginService(ctx)` | Idempotently obtain the host — what a plugin package calls before `registerPlugin` |
 | `makeLoginService(alias?)` | The host itself: a **lazy** service, so `makeContext` can reach it at the Loading stage |
 | `LoginPlugin`, `LoginEnv`, `LoginRequest`, `LoginOutcome`, `LoginService` | The contract |

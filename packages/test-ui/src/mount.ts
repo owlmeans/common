@@ -20,6 +20,19 @@ export interface MountOptions {
    * URL as `?props=<json>` for the harness's `mount.tsx` to read.
    */
   props?: Record<string, unknown>
+  /**
+   * What counts as "arrived". Defaults to `domcontentloaded`.
+   *
+   * NOT `load`, which is playwright's own default and is wrong for any page that is a real
+   * application: `load` waits for EVERY subresource, and an analytics beacon, a long-poll or a
+   * third-party pixel that never settles holds it open until the navigation times out — with the
+   * page fully rendered and working the whole time. The failure reads as "the site is down".
+   *
+   * A spec waits for the selector it actually needs; that is the assertion, not the load event.
+   */
+  waitUntil?: 'commit' | 'domcontentloaded' | 'load' | 'networkidle'
+  /** Navigation timeout in ms. */
+  timeout?: number
 }
 
 export interface Mounted {
@@ -54,7 +67,10 @@ export const mountComponent = async (opts: MountOptions): Promise<Mounted> => {
   const browser = await launchBrowser()
   const context = await browser.newContext()
   const page = await context.newPage()
-  await page.goto(buildUrl(opts))
+  await page.goto(buildUrl(opts), {
+    waitUntil: opts.waitUntil ?? 'domcontentloaded',
+    ...(opts.timeout != null ? { timeout: opts.timeout } : {}),
+  })
   return {
     page,
     close: async () => { await context.close() },

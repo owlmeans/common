@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.19"` in `dependencies`
 
 ## Key Exports
 
@@ -22,8 +22,13 @@ user-invocable: false
 
 ## Subpath Exports
 
-- `./auth` — auth-related panel components
+- `./auth` — auth-related panel components, plus `useLoginMethods`
 - `./auth/plugins` — pluggable auth panel pieces
+
+`useLoginMethods` is the headless model behind a sign-in screen: which methods are offered, whether
+the terms are confirmed, what the credit line says, and a `select` that is deliberately NOT async
+(the flow may have to open a window inside the click). The rendering lives in `web-panel` — the
+same split the form and navigation models already use. See `login-methods`.
 
 ## Usage
 

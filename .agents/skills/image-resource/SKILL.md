@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/image-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/image-resource": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/image-resource": "^0.1.18-rc.8"` in `dependencies`
 
 ## Key Exports
 

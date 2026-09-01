@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.10"` in `dependencies`
 
 ## Key Exports
 

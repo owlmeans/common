@@ -195,3 +195,37 @@ See `[[shadcn-web]]` for the full `@` alias contract and `tests/context.ts` patt
 - **Max 3-4 tests per component**: render, primary interaction, one edge case.
 - **Always `close()` the page and `closeBrowser()` in `afterAll`.** A leaked context blocks the bun process from exiting.
 - **Chromium only by default.** Add `firefox` or `webkit` per package only when the feature has documented cross-browser concerns — call `chromium.launch` / `firefox.launch` explicitly in that case.
+
+## `mountComponent` waits for `domcontentloaded`, not `load`
+
+Playwright's own default is `load`, and it is wrong for any page that is a real application:
+`load` waits for EVERY subresource, so one analytics beacon, long-poll or third-party pixel that
+never settles holds the navigation open until it times out — with the page fully rendered and
+working the whole time. The failure reads as "the site is down", and the first instinct is to go
+looking at the server.
+
+`mountComponent` therefore navigates with `domcontentloaded` and lets the spec wait for the
+selector it actually needs. That wait IS the assertion; the load event never was. Pass
+`waitUntil` explicitly for the rare case that wants otherwise.
+
+The rule is not `mountComponent`'s alone — **every** navigation helper here follows it, and
+`loginViaSupervisorForm` / `loginViaDispatcher` are the ones that bit: they kept playwright's
+default long after `mountComponent` was fixed, so adding a tag manager to an app broke its whole
+login-driven suite while the browser showed a working login form.
+
+## The consent dialog blocks the login form, and the failure blames the button
+
+An OwlMeans app asks for cookie consent **before** it will start an authentication flow, and the
+dialog is a modal with no dismissal — a decision is what the gate is waiting for. Until it is
+answered the overlay intercepts pointer events, so a login form renders, resolves, reports itself
+`visible, enabled and stable`, and still cannot be clicked. Playwright retries for the full timeout
+and then reports `click: Timeout … waiting for getByTestId('supervisor-submit')`, naming the
+button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
+names `[data-consent-dialog]`.
+
+`loginViaSupervisorForm` therefore calls `acceptConsent(page)` after navigating. `acceptConsent` is
+exported for specs that drive their own login: it clicks `[data-consent-accept-all]`, waits for the
+dialog to detach, and returns `false` at once when there is no dialog, so an app without the widget
+is unaffected. It accepts **all** categories deliberately — a spec asserting a narrower decision
+must make that decision itself rather than inherit a silent minimum. Pass `consent: 'ignore'` to
+answer the dialog in the spec instead.
