@@ -14,6 +14,10 @@ import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
 export const googleClientPlugin: AuthenticationPlugin = {
   type: GOOGLE_CLIENT_AUTH,
 
+  // `i18nKey` rather than the default (the plugin's own type): the type is `google-oauth`, the
+  // translated key is `google`, and without this the button printed the machine id at the user.
+  method: { order: 10, icon: 'google', i18nKey: 'google', emphasis: 'primary' },
+
   Implementation: Renderer => ({ type, stage, control }) => {
     const context = useContext()
     Renderer = Renderer ?? googleClientPlugin.Renderer

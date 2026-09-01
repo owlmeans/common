@@ -2,12 +2,13 @@
 import {
   AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, AllowanceRequestSchema, AuthCredentialsSchema,
   AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER,
-  DISPATCHER_AUTHEN, OptionalAuthTokenSchema, CAUTHEN_FLOW_ENTER
+  DISPATCHER_AUTHEN, DISPATCHER_SURROGATE, OptionalAuthTokenSchema, CAUTHEN_FLOW_ENTER
 } from '@owlmeans/auth'
 // import { AppType } from '@owlmeans/context'
 import { body, filter, entrypoint, query } from '@owlmeans/entrypoint'
 import { route, RouteMethod, frontend, backend, socket } from '@owlmeans/route'
-import { DISPATCHER_PATH, WEB_API, authApi } from './consts.js'
+import { DISPATCHER_PATH, SURROGATE_PATH, WEB_API, authApi } from './consts.js'
+import { SurrogateQuerySchema } from './schemas.js'
 
 export const modules = [
   entrypoint(route(AUTHEN, '/authentication', backend())),
@@ -28,6 +29,17 @@ export const modules = [
     // It's required here cause every web app needs dispatcher route to authorize
     // rediected users.
     filter(query(AuthTokenSchema), { sticky: true })
+  ),
+  // The login window an embedded application opens one level up.
+  //
+  // Top level and with no parent, so it renders outside every application layout — a popup must
+  // never show the application, with its navigation, inside itself. Sticky for the same reason the
+  // dispatcher is: it must attach to the client router regardless of service selection. It carries
+  // no `service`, unlike the dispatcher, because nothing server-side ever addresses it — the
+  // provider's callback goes to the dispatcher. And no guard: it is where a signed-out user lands.
+  entrypoint(
+    route(DISPATCHER_SURROGATE, SURROGATE_PATH, frontend()),
+    filter(query(SurrogateQuerySchema), { sticky: true })
   ),
   // This is a helper route that representes a API endpoint of service provider that wants to authenticate
   // a user with OwlMeans server-auth library.

@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.6",
+    "@owlmeans/auth": "^0.1.18-rc.7",
     "@owlmeans/context": "^0.1.18-rc.6",
     "@owlmeans/error": "^0.1.18-rc.6",
     "@owlmeans/resource": "^0.1.18-rc.7",

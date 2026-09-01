@@ -26,6 +26,11 @@ import { createIdOfLength } from '@owlmeans/basic-ids'
 export const supervisorClientPlugin: AuthenticationPlugin = {
   type: AuthenticationType.Supervisor,
 
+  // `restricted`, so registering the plugin is not enough to put an operator login on the sign-in
+  // screen of a production application — the configuration has to name it. Last in the order and
+  // rendered as a link, because it is a tool, not a way in.
+  method: { order: 900, icon: 'key', emphasis: 'link', restricted: true },
+
   Implementation: () => ({ type, control }) => {
     const context = useContext()
     const [userId, setUserId] = useState('')

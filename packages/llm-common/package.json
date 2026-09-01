@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-common",
-  "version": "0.1.18-rc.8",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "type": "module",
   "scripts": {

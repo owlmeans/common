@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-flow",
-  "version": "0.1.18-rc.10",
-  "generatedAt": "2026-08-27T21:18:31.382Z",
+  "version": "0.1.18-rc.13",
+  "generatedAt": "2026-09-01T12:04:42.802Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

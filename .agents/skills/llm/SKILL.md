@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.9"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.10"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only
 owns the provider-independent parts (streaming discipline, retries, validation,

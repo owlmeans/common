@@ -4,6 +4,7 @@ export * from './panel-app/index.js'
 export * from './layout/index.js'
 export * from './nav/index.js'
 export * from './footer/index.js'
+export * from './login/index.js'
 
 export * from './form/index.js'
 export * from './form/text/index.js'

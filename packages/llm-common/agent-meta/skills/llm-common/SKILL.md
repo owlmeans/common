@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.9"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.

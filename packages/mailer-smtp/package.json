@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mailer-smtp",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -24,7 +24,7 @@
   "dependencies": {
     "@owlmeans/context": "^0.1.18-rc.6",
     "@owlmeans/mailer": "^0.1.18-rc.6",
-    "@owlmeans/server-context": "^0.1.18-rc.7",
+    "@owlmeans/server-context": "^0.1.18-rc.8",
     "nodemailer": "^9.0.5"
   },
   "devDependencies": {

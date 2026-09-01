@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.28"` in `dependencies`
 
 ## Key Exports
 
@@ -18,6 +18,7 @@ user-invocable: false
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
+| `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
 | `components` submodule | shadcn/Radix panel/form components |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
 | `main`, `exports`, `context`, `modules`, `types` | Wiring helpers |
@@ -173,6 +174,15 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
   of them, and every other `ToasterProps` field, is overridable per app.
 - `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
   raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
+
+## Subpath: `./consent`
+
+`PanelCookieConsent` and `PanelCookiePolicy` — `@owlmeans/web-consent`'s components bound to this
+app's language and translations, falling through to the package's own seven-language bundle for
+every key the app has not overridden. See the `consent` skill.
+
+A re-export does not move Tailwind class strings, so a consumer still adds an `@source` for
+`@owlmeans/web-consent/build` as well as for this package's.
 
 ## Consumer setup — the `@` contract and Tailwind
 

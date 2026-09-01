@@ -4,10 +4,10 @@ import { useContext, useNavigate } from '@owlmeans/client'
 import type { ClientContext } from '@owlmeans/client-context'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DISPATCHER } from '@owlmeans/auth'
-import { DEFAULT_ALIAS as AUTH_ALIAS } from '../consts.js'
-import type { AuthService } from '@owlmeans/auth-common'
-import type { LoginService } from './types.js'
+import type { LoginContext, LoginService } from './types.js'
+import { LoginIntent } from './types.js'
 import { LOGIN_SERVICE } from './consts.js'
+import { surrogatePath } from './surrogate.js'
 
 /**
  * Wiring for a "Log in" control: where it points, and what it does when clicked.
@@ -49,15 +49,32 @@ export const useLogin = (target?: string): readonly [string, (event?: MouseEvent
 /**
  * Wiring for a "Log out" control.
  *
- * `update(undefined)` — not `null`. The declared clearing value is `undefined`, and on the web the
- * auth service reacts to it by navigating to the dispatcher, so this is the whole logout.
+ * One control, one handler, no decision — the mirror of {@link useLogin}. Where the session has to
+ * be ended (here, or one window up in a surrogate whose storage partition this document cannot
+ * reach) is the login plugin's call.
+ *
+ * NOT async, and nothing is awaited before delegating: logging out of a framed application opens a
+ * window, and a window opened after the gesture has finished being handled is eaten by the popup
+ * blocker. The surrogate entrypoint is resolved INSIDE the hook for the same reason `useLogin`
+ * resolves the dispatcher there.
+ *
+ * The return shape stays a bare handler rather than `useLogin`'s tuple: a logout control has no
+ * address to point at, and every generated application carries a copy of a component that writes
+ * `const onLogOut = useLogout()`. `(event?: MouseEvent) => void` is assignable to `() => void`, so
+ * `onClick={onLogOut}` keeps compiling everywhere.
  */
-export const useLogout = (): (() => void) => {
+export const useLogout = (target?: string): ((event?: MouseEvent) => void) => {
   const context = useContext() as unknown as ClientContext
+  const nav = useNavigate()
+  const path = surrogatePath(context as unknown as LoginContext, { intent: LoginIntent.Logout })
 
-  return useCallback(() => {
-    void context.service<AuthService>(AUTH_ALIAS).update(undefined)
-      .then(() => { window.location.reload() })
-      .catch(console.error)
-  }, [context])
+  return useCallback((event?: MouseEvent) => {
+    event?.preventDefault()
+    const login = context.service<LoginService>(LOGIN_SERVICE)
+    void login.logout({
+      // An application whose entrypoint list predates the surrogate route logs out in place.
+      url: path ?? '',
+      ...(target != null ? { navigate: () => { nav.go(target) } } : {}),
+    })
+  }, [context, path, target])
 }
