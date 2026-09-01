@@ -97,7 +97,7 @@ git init
   "name": "my-app",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.0",
   "workspaces": ["sources/*"],
   "scripts": {
     "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
