@@ -1,5 +1,7 @@
 # __APP_NAME__
 
+__APP_DESCRIPTION__
+
 A minimal fullstack [OwlMeans Common](https://github.com/owlmeans/common) app, scaffolded with
 [`@owlmeans/create-app`](https://www.npmjs.com/package/@owlmeans/create-app).
 
@@ -61,5 +63,5 @@ them; write your own guidance as separate, un-bannered files. Refresh after addi
 `@owlmeans/*` packages:
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```

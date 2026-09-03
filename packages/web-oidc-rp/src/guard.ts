@@ -30,12 +30,12 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
+export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
   const DispatcherCom = extras ? parametriseDispatcher(extras, Dispatcher) : Dispatcher
 
-  setupBasicOidcGuard(modules, coguards)
+  setupBasicOidcGuard(entrypoints, coguards)
 
-  elevate(modules, DISPATCHER_OIDC_INIT)
-  elevate(modules, DISPATCHER_OIDC)
-  elevate(modules, DISPATCHER, handler(DispatcherCom), { force: true })
+  elevate(entrypoints, DISPATCHER_OIDC_INIT)
+  elevate(entrypoints, DISPATCHER_OIDC)
+  elevate(entrypoints, DISPATCHER, handler(DispatcherCom))
 }

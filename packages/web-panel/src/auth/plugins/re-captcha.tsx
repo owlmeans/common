@@ -53,8 +53,8 @@ const createFinish = (context: AppContext, control: AuthenticationControl) => as
     console.timeLog('empty token')
     return
   }
-  const [url] = await context.module<Module<string, AuthRequest>>(DISPATCHER)
-    .call({ query: authToken })
+  const url = await context.entrypoint<Module<string, AuthRequest>>(DISPATCHER)
+    .url({ query: authToken })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)
 

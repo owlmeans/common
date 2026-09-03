@@ -6,15 +6,15 @@ Server-side OIDC relying party — registers the OIDC guard, wrapping service, g
 
 - `appendOidcGuard(context)` — registers the OIDC guard service
 - `makeOidcWrappingService()` / `makeOidcGate()` — token wrapping service and gate factory
-- `setupOidcGuard(modules, coguards?, extras?)` — attaches the OIDC guard to module declarations
-- `setupAuthServiceModules(...)` — wires external auth modules
+- `setupOidcGuard(entrypoints, coguards?, extras?)` — attaches the OIDC guard to entrypoint declarations
+- `setupAuthServiceEntrypoints(...)` — wires external auth entrypoints
 - `makeOidcClientService()` / `OidcClientService` — IdP-side client (e.g., Keycloak admin)
 - Subpath `./auth` — admin-client constants like `OIDC_ADMIN_CLIENT`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oidc-rp
+bun add @owlmeans/server-oidc-rp@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -32,13 +32,13 @@ context.registerService(makeOidcClientService())
 appendOidcGuard<C, T>(context)
 ```
 
-Wire onto modules in `modules.ts`:
+Wire onto entrypoints in `entrypoints.ts`:
 
 ```typescript
-import { setupOidcGuard, setupAuthServiceModules } from '@owlmeans/server-oidc-rp'
+import { setupOidcGuard, setupAuthServiceEntrypoints } from '@owlmeans/server-oidc-rp'
 
-setupOidcGuard(appModules)
-setupAuthServiceModules(appModules)
+setupOidcGuard(appEntrypoints)
+setupAuthServiceEntrypoints(appEntrypoints)
 ```
 
 Configure providers in `config.ts`:
@@ -75,10 +75,10 @@ const oidc = context.service<OidcClientService>(OIDC_SERVICE)
 - `makeOidcGate(alias?)` — gate factory
 - `makeOidcClientService(alias?)` — IdP-side client (used to call OIDC admin API)
 
-### Module wiring
+### Entrypoint wiring
 
-- `setupOidcGuard(modules, coguards?, extras?)` — attach guard to module declarations
-- `setupAuthServiceModules(modules, ...)` — register external auth modules
+- `setupOidcGuard(entrypoints, coguards?, extras?)` — attach guard to entrypoint declarations
+- `setupAuthServiceEntrypoints(entrypoints, ...)` — register external auth entrypoints
 
 ### Constants
 
@@ -112,7 +112,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

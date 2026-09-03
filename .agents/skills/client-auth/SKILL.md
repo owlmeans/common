@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.19"` in `dependencies`
 
 ## Key Exports
 

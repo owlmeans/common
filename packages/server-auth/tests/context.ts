@@ -1,4 +1,4 @@
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { makeMemoryTrustedResource, makeFixtureKeyPair } from '@owlmeans/test-auth'
@@ -39,7 +39,6 @@ export const makeTestContext = () => {
   const cfg: BasicConfig = {
     ready: false,
     service: SERVICE_NAME,
-    layer: Layer.Service,
     type: AppType.Backend,
     services: {},
   }

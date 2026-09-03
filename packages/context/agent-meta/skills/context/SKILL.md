@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/context
 
 **Layer:** Core
-**Install:** `"@owlmeans/context": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/context": "^0.1.18-rc.8"` in `dependencies`
 
 ## Key Exports
 
@@ -24,15 +24,18 @@ user-invocable: false
 
 ## Usage
 
-Always extend a layer-specific factory (`@owlmeans/server-context`, `@owlmeans/web-panel`, etc.) rather than calling the basic factory directly. Always reassign `context.makeContext` so child contexts inherit the typed factory:
+A context is created ONCE per process by ONE factory. Extend a layer-specific factory
+(`@owlmeans/server-context`, `@owlmeans/web-panel`, etc.) rather than calling the basic factory
+directly: your factory calls the factory below it, applies its own idempotent `append*(context)`
+mixins and service registrations, and returns that same context. Nothing is stored for re-creation —
+a service, a resource and an entrypoint each bind to exactly one context.
 
 ```typescript
-import { makeBackendContext } from '@owlmeans/server-context'
+import { makeServerContext } from '@owlmeans/server-context'
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
-  const context = makeBackendContext<C, T>(cfg)
+  const context = makeServerContext<C, T>(cfg)
   context.registerService(makeMyService())
-  context.makeContext = makeContext as typeof context.makeContext
   return context
 }
 ```

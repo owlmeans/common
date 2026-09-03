@@ -9,7 +9,7 @@ This package is a reserved namespace for client-side whitelabeling functionality
 ## Installation
 
 ```bash
-bun add @owlmeans/client-wl
+bun add @owlmeans/client-wl@^0.1.18-rc.6
 ```
 
 ## Related Packages
@@ -25,7 +25,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

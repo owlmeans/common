@@ -1,83 +1,55 @@
 import type { CommonEntrypoint } from './types.js'
 import { appendContextual } from '@owlmeans/context'
+import {
+  isLocalRoute, resolveAddress, resolveMount, resolvePath, resolveService
+} from '@owlmeans/route/utils'
 import type { CreateEntrypointSignature } from './utils/types.js'
 
 export const entrypoint: CreateEntrypointSignature<CommonEntrypoint> = (route, opts) => {
-  let guards: string[] | null = null
-  let gates: [string, string[]][] | null = null
   const ep: CommonEntrypoint = appendContextual<CommonEntrypoint>(route.route.alias, {
     _entrypoint: true,
-    _module: true,
 
     sticky: false,
 
     route,
 
-    getAlias: () => ep.route.route.alias,
-    getPath: () => ep.route.route.path,
-    getParentAlias: () => ep.route.route.parent ?? null,
-    hasParent: () => ep.getParentAlias() != null,
+    segment: () => ep.route.route.path,
 
-    resolve: async <M extends CommonEntrypoint>() => {
-      if (ep.ctx == null) {
-        throw new SyntaxError(`Entrypoint has no context yet - ${ep.getAlias()}`)
-      }
+    path: () => resolvePath(ep.assertCtx(), ep.route.route),
 
-      await ep.route.resolve(ep.ctx)
+    mount: () => resolveMount(ep.assertCtx(), ep.route.route),
 
-      return ep as M
-    },
+    service: () => resolveService(ep.assertCtx(), ep.route.route),
 
-    getParent: () => {
-      const parentAlias = ep.getParentAlias()
-      if (parentAlias == null) {
-        throw new SyntaxError(`Entrypoint has no parent - ${ep.getAlias()}`)
-      }
-      if (ep.ctx == null) {
-        throw new SyntaxError(`Entrypoint has no context yet - ${ep.getAlias()}`)
-      }
+    address: () => resolveAddress(ep.assertCtx(), ep.route.route),
 
-      return ep.ctx.entrypoint(parentAlias)
-    },
+    isLocal: () => isLocalRoute(ep.assertCtx(), ep.route.route),
 
-    setService: service => {
-      if (ep.route.route.resolved) {
-        throw new SyntaxError(`Cannot update a resolved entrypoint - ${ep.getAlias()}`)
-      }
-      ep.route.route.service = service
-    },
+    parent: () => ep.route.route.parent == null ? null
+      : ep.assertCtx().entrypoint<CommonEntrypoint>(ep.route.route.parent),
 
+    // Walked afresh on every call: a guard attached to an ancestor after this entrypoint was first
+    // asked still has to count.
     getGuards: () => {
-      if (guards != null) {
-        return guards
-      }
-      guards = ep.guards ?? []
-
-      if (ep.hasParent()) {
-        guards.push(
-          ...ep.getParent().getGuards().filter(guard => !guards?.includes(guard))
-        )
+      const guards = [...ep.guards ?? []]
+      const parent = ep.parent()
+      if (parent != null) {
+        guards.push(...parent.getGuards().filter(guard => !guards.includes(guard)))
       }
 
       return guards
     },
 
     getGates: () => {
-      if (gates != null) {
-        return gates
-      }
-
-      gates = ep.gate != null ? [[
+      const gates: [string, string[]][] = ep.gate != null ? [[
         ep.gate, ep.gateParams == null
           ? [] : Array.isArray(ep.gateParams)
             ? ep.gateParams : [ep.gateParams]
       ]] : []
 
-      if (ep.hasParent()) {
-        gates.push(
-          ...ep.getParent().getGates()
-            .filter(([gate]) => !gates?.some(([g]) => g === gate))
-        )
+      const parent = ep.parent()
+      if (parent != null) {
+        gates.push(...parent.getGates().filter(([gate]) => !gates.some(([g]) => g === gate)))
       }
 
       return gates
@@ -85,22 +57,6 @@ export const entrypoint: CreateEntrypointSignature<CommonEntrypoint> = (route, o
 
     ...opts
   })
-
-  return ep
-}
-
-export const parent = <T extends CommonEntrypoint | CommonEntrypoint[]>(ep: T, aliasOrParent: string, _parent?: string): T => {
-  if (Array.isArray(ep)) {
-    if (_parent == null) {
-      throw SyntaxError('Elevating parent requires parent name to be specified')
-    }
-    ep = ep.find(e => e.route.route.alias === aliasOrParent) as T
-    if (ep == null) {
-      throw SyntaxError(`Entrypoint not found ${aliasOrParent}`)
-    }
-    return parent(ep, _parent)
-  }
-  ep.route.route.parent = aliasOrParent
 
   return ep
 }

@@ -2,13 +2,12 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { gate, makeSuite } from './context.js'
 
 /**
- * `delete` regression coverage.
+ * `delete` / `take` coverage.
  *
- * The by-id form silently did nothing: `delete(id, opts)` only loaded the record when `id`
- * was an object or `opts` was a field name, so the plain `delete(id)` every caller uses fell
- * through to `record == null` and returned before touching redis. It surfaced as
- * `RecordExists` on the second email-OTP request for one address inside the code's TTL —
- * `issueChallenge` upserts by deleting first — and left consumed codes alive in the store.
+ * Both drop the key with GETDEL and hand back what was under it; they differ only in what an
+ * absent id means — `delete` answers `null`, `take` throws. The by-id form carries the whole
+ * contract: a `delete(id)` that returns without touching redis leaves consumed OTP codes alive
+ * in the store and turns the next `create` under that id into `RecordExists`.
  */
 describe('@owlmeans/redis — resource delete', () => {
   if (gate.skip) {
@@ -22,7 +21,7 @@ describe('@owlmeans/redis — resource delete', () => {
     await suite.teardown()
   })
 
-  test('removes the record when called by id alone', async () => {
+  test('removes the record when called by id', async () => {
     const { resource } = await suite.boot()
     await resource.create({ id: 'by-id', value: 'first' })
 
@@ -46,11 +45,24 @@ describe('@owlmeans/redis — resource delete', () => {
     expect((await resource.load('otp'))?.value).toBe('second-code')
   })
 
-  test('removes the record when handed the record itself', async () => {
+  test('take hands back the record it removed', async () => {
     const { resource } = await suite.boot()
-    const record = await resource.create({ id: 'by-record', value: 'x' })
+    await resource.create({ id: 'taken', value: 'once' })
 
-    expect(await resource.delete(record)).toMatchObject({ id: 'by-record' })
-    expect(await resource.load('by-record')).toBeNull()
+    expect(await resource.take('taken')).toMatchObject({ value: 'once' })
+    expect(await resource.load('taken')).toBeNull()
+  })
+
+  test('take throws for an id that is not there', async () => {
+    const { resource } = await suite.boot()
+
+    await expect(resource.take('never-taken')).rejects.toThrow()
+  })
+
+  test('create refuses an id that is already taken', async () => {
+    const { resource } = await suite.boot()
+    await resource.create({ id: 'occupied', value: 'first' })
+
+    await expect(resource.create({ id: 'occupied', value: 'second' })).rejects.toThrow()
   })
 })

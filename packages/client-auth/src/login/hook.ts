@@ -29,7 +29,7 @@ export const useLogin = (target?: string): readonly [string, (event?: MouseEvent
   const context = useContext() as unknown as ClientContext
   const nav = useNavigate()
   const dispatcher = context.entrypoint<ClientEntrypoint>(DISPATCHER)
-  const path = dispatcher.getPath()
+  const path = dispatcher.path()
 
   const onLogin = useCallback((event?: MouseEvent) => {
     event?.preventDefault()

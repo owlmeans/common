@@ -1,7 +1,7 @@
 ---
 node: auth
 scope: "packages/auth/**, packages/client-auth/**, packages/server-auth/**, packages/server-auth-identity/**, packages/web-client/src/login/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 # Auth (product-viable usage of common auth/OIDC)
@@ -36,8 +36,9 @@ updated: 2026-08
 
 ## Gotchas
 
-- `Resource.pick()` DELETES the record it finds — never use it in auth gates or read-only
-  identity checks.
+- `Resource.take()` is the delete-and-return read — the name says the record is gone once it has
+  been handed over, so it never belongs in an auth gate or a read-only identity check;
+  `load(where)` answers a multi-field lookup in one call ([[resources]]).
 - `makeAuthModel().authenticate()` (`server-auth`) burns the *decoded* challenge into `AUTH_CACHE`
   as a create-once anti-replay guard, before the plugin's own credential check runs. Any
   `AuthPlugin.init()` whose challenge isn't unique per request (e.g. a bare identity string) makes

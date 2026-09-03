@@ -13,11 +13,11 @@ export interface PostgresDeclaration {
 /**
  * Per-alias declaration store, held at module scope rather than on the resource object.
  *
- * `reinitializeContext` rebuilds every resource, which drops anything a caller attached
- * by chaining. Mongo lives with that by requiring the app to pass `makeCustomResource`
- * and re-run the whole maker; migrations can't depend on that discipline, because losing
- * one silently means a data transformation never runs. Keying the declarations by alias
- * makes them survive any number of context switches.
+ * A maker may run more than once for the same alias — a custom maker wrapping the built-in
+ * one, a maker called again by an app or a spec. Keying the declarations by alias makes that
+ * a no-op: every run reads and extends the same schema, indexes and migrations, so nothing a
+ * caller chained onto an earlier resource object is lost. Losing a migration is silent — the
+ * data transformation simply never runs — which is why the store cannot live on the object.
  */
 const declarations: Map<string, PostgresDeclaration> = new Map()
 

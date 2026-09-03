@@ -8,6 +8,8 @@ metadata:
 
 # Using `@owlmeans/iam`
 
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.16"` in `dependencies`
+
 Provider-agnostic IAM abstraction. Defines `IamService` interface and related types. Used by both the platform backend (`viable-backend`) and the agent library (`@owlmeans/viable`). Concrete implementations live in `@owlmeans/iam-keycloak` (full proxy) and `@owlmeans/iam-integrated`.
 
 ## Public API surface

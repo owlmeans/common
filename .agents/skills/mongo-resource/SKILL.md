@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.8"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.11"` in `dependencies` (peers `mongodb`, `ajv`)
 
 The Mongo counterpart of [[postgres-resource]]. A collection has no structure of its own, so
 here the resource layer owns the *validator* (`$jsonSchema` from the AJV schema), the indexes,
@@ -18,11 +18,12 @@ reference**.
 
 | Export | Description |
 |--------|-------------|
-| `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, collectionName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'mongo'`). `collectionName` overrides the collection (else `resourcePrefix + alias`). |
+| `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, collectionName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'mongo'`). `collectionName` overrides the collection (else `resourcePrefix + alias`). |
 | `MongoResource<T>` | `Resource<T>` + `collection`, `index`, `reference`/`references`, `migration`/`migrations` (the shared `MigratableResource` capability), `lock`/`unlock`, `getDefaults`. |
 | `MongoDbService`, `MongoTx` | Service contract implemented by `@owlmeans/mongo`; the façade handed to migrations (`db`, `collection`, `use(alias)`, `ref(alias)`). |
 | `MongoReference`, `MongoRefOptions` | A declared ObjectId reference and the `reference()` options (`resource`, `noIndex`). |
 | `marshalReference`, `demarshalReference`, `marshalCriteria`, `identityCriteria`, `isObjectIdHex` | The conversion layer — reuse these wherever raw driver access bypasses the resource. |
+| `criteriaToFilter`, `sortToMongo` | `Criteria<T>` → a mongo filter (references converted, every shared operator rewritten into a mongo expression) and `Sort<T>` → a mongo sort spec. |
 | `convertReferenceField`, `reconcileReferences`, `refMigrationName` | The system reference migration's machinery. |
 | `makeMongoTx`, `makeMongoMigrationStore` | The migration store (ledger) implementation. |
 | `getDeclaration`, `resetDeclarations` | Module-scope migration/reference declarations, keyed by alias. |
@@ -35,7 +36,7 @@ reference**.
 export const makeProjectStoryResource: ResourceMaker<ProjectStoryRecord, ProjectStoryResource> =
   (dbAlias, serviceAlias) => {
     const resource = makeMongoResource<ProjectStoryRecord, ProjectStoryResource>(
-      RES_PROJECT_STORY, dbAlias, serviceAlias, makeProjectStoryResource
+      RES_PROJECT_STORY, dbAlias, serviceAlias
     )
     resource.schema = ProjectStorySchema
     resource.reference('projectId', RES_PROJECT)
@@ -47,10 +48,9 @@ export const makeProjectStoryResource: ResourceMaker<ProjectStoryRecord, Project
 context.registerResource(makeProjectStoryResource())
 ```
 
-Pass the maker itself as the 4th argument — `reinitializeContext` re-runs it, which is what
-carries `schema` and `index()` calls across context switches. `migration()` and `reference()`
-survive regardless: they live in module-scope declarations keyed by alias, because losing one
-silently loses a data transformation.
+`migration()` and `reference()` live in module-scope declarations keyed by alias, so a maker
+that runs more than once for the same alias (a custom maker, a test) re-declares the same
+entries and loses nothing — losing one would silently lose a data transformation.
 
 ## ObjectId references
 
@@ -58,18 +58,18 @@ A field that stores **another record's id** is declared with `reference(field, t
 The resource then behaves for that field exactly as it does for `_id`:
 
 - **Records and criteria carry strings; the collection stores `ObjectId`s.** Conversion is
-  automatic in `create`/`update`/`save` (write), `get`/`load`/`list`/`delete`/`pick` (read and
-  lookup), and in `list` criteria — including `$in`/`$ne`-style operator objects, `$and`/`$or`/
-  `$nor` branches, and arrays of ids (elementwise). `$regex`/`$type`-style operands are left
-  alone.
+  automatic in `create`/`update`/`save` (write), `get`/`load`/`list`/`count`/`delete`/`take`/
+  `purge` (read and lookup), and in every criteria object — including operator objects,
+  `$and`/`$or`/`$not` branches, and arrays of ids (elementwise). `$regex`-style operands are
+  left alone.
 - **Writes are strict**: storing a non-24-hex value in a declared reference throws
   `MisshapedRecord('ref:<field>')` — a silent string would reintroduce the mixed-type state.
   Reads and criteria are tolerant: an unconverted legacy string comes back as-is; a non-id
   criteria value simply matches nothing (the auth `userId ?? profileId` fallback relies on
   this).
 - **`id` criteria address `_id`.** Documents never store an `id` field, so `list({ id })` and
-  `load(x, 'id')` are mapped onto `_id` with conversion — before this mapping they silently
-  matched nothing.
+  `load(id)` map onto `_id` with conversion; a criteria key naming a declared reference converts
+  the same way.
 - **The field is indexed** automatically (`ref_<field>`), unless `noIndex: true` or the
   resource already declares an index with the identical key pattern (mongo forbids two
   indexes over the same keys; a declared unique index wins).
@@ -114,7 +114,7 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 
 `resource.migration(name, apply, stage?)` — the shared `MigratableResource` capability from
 [[resource]]. Applied once per database, in declaration order, ledgered in
-`_owlmeans_migrations` (one ledger per database, so an Entity-layer database tracks its own).
+`_owlmeans_migrations` (one ledger per database, so each database tracks its own).
 
 - `Pre` runs **before** the validator is updated and indexes reconcile; `Post` after. A `Pre`
   body writes shapes the *old* validator allows; a `Post` body the *new* one.
@@ -155,12 +155,36 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 
 | Method | Semantics |
 |---|---|
-| `create` | refuses a caller-supplied id (`RecordExists`) |
-| `update` | **replaces** the whole record (no merge) |
-| `pick` | deletes the record it returns |
-| `load`/`get` | rejects `opts.ttl` (`UnsupportedArgumentError`); second arg selects the lookup field |
+| `create` | refuses a caller-supplied id (`RecordExists`); rejects `opts.ttl` (`UnsupportedArgumentError`) |
+| `update` | **replaces** the whole record (no merge), keeping the document's `_id` |
+| `load(id)` / `get(id)` | a string that is not a 24-hex id matches nothing — `load` answers `null` and `get` throws, where handing it to `ObjectId` would raise a driver error at a call site that only asked whether the record exists |
+| `load(where, { sort })` / `get(where, { sort })` | `findOne` with the sort applied, so "the newest matching record" is one round trip |
 | `list` | criteria go through reference conversion; documents never store `id` — use `id` criteria freely, they map to `_id` |
+| `delete` / `take` | one `findOneAndDelete`: the record is handed back by the very operation that removed it, so two callers can never be given the same record. `take` **deletes** and throws `UnknownRecordError` on a miss |
+| `purge` | `deleteMany`; refuses an empty criteria object (`UnsupportedArgumentError('purge:no-criteria')`) rather than emptying the collection |
 | `lock`/`unlock` | encrypt/decrypt `secure: true` schema fields via the db service |
+
+## Paging
+
+Mongo is **PAGED**: `DEFAULT_PAGE_SIZE` is `100`, so `list(where)` with no `size` returns the first
+100 matches — a collection is unbounded and an unpaged read is an incident waiting for the document
+count to grow. `ListResult.total` counts every match regardless of the window, and
+`list(where, { size: 0 })` is the explicit, greppable ask for the whole result set.
+
+## Criteria against a collection
+
+`criteriaToFilter` rewrites the shared vocabulary ([[resource]]) into mongo expressions so one
+criteria object selects the same records here as it does in SQL and in memory. Two rewrites are
+worth knowing:
+
+- **`$exists` and `$null` compare against `null`**, not mongo's own `$exists`. The shared question
+  is whether a field *has a value*, which the other stores answer as `IS NULL` / `value == null`;
+  mongo's `$exists` answers whether the key is present, and a key present but null would part the
+  three stores over one object.
+- **`$like`/`$ilike` become anchored regular expressions** with `%` as any run and `_` as one
+  character; `$between` becomes `$gte`/`$lte`; and `$contains`/`$contained`/`$overlaps` mean over
+  an array field exactly what the postgres operators `@>`, `<@` and `&&` mean. An operator mongo
+  cannot answer raises `UnsupportedArgumentError` rather than being dropped.
 
 ## Tests
 

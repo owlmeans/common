@@ -10,11 +10,12 @@ provisioning, and an opt-in least-privilege bootstrap path.
 - Reads connection config from `context.cfg.dbs` entries whose `service` is `'postgres'`
 - Backs `@owlmeans/postgres-resource`; the resource layer owns all DDL
 - `bootstrap()` provisions a role, database and schema from a separate superuser config alias
+- `checkDbHealth()` / `pingDb()` answer a health endpoint through the registered service
 
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres @owlmeans/postgres-resource
+bun add @owlmeans/postgres@^0.1.18-rc.13 @owlmeans/postgres-resource@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -46,12 +47,42 @@ A whole connection string works too, and wins over `host`/`user`/`secret`:
 cfg.dbs = [{ service: 'postgres', alias: 'postgres', schema: 'app', meta: { url: process.env.DATABASE_URL } }]
 ```
 
-`schema` is the Postgres **schema**, not the database — `dbName()` suffixes it per Entity/User layer,
-so per-tenant namespaces stay cheap. The database comes from `meta.database` and is never suffixed.
+`schema` is the Postgres **schema**, not the database — `dbName()` resolves it as
+`config.schema ?? config.alias ?? service.alias`. The database comes from `meta.database`.
 
 At `init()` the service opens a pool, runs a `SELECT 1` readiness probe (30 attempts, 2s apart by
 default — a Postgres sidecar routinely accepts TCP before it accepts queries), issues
 `CREATE SCHEMA IF NOT EXISTS`, and installs a `SIGTERM` handler that drains the pool.
+
+### Health checks
+
+`pingDb` and `checkDbHealth` go through the **registered service**, looked up by alias exactly the
+way any other consumer looks it up — never a connection string of their own, so a probe can never
+report on a connection the app does not use.
+
+```typescript
+import { checkDbHealth, pingDb, getLastDbHealth } from '@owlmeans/postgres'
+
+// Boot gate — after the context's init(), before the API server binds.
+const health = await checkDbHealth(context)
+if (!health.ok) throw new Error(health.error ?? health.summary)
+console.log(`[db-check] ${health.summary}`)
+
+// Request time — inside a health entrypoint handler, with the context it was given.
+const live = await pingDb(ctx)
+const boot = getLastDbHealth()
+return { db: { ok: live.ok && (boot?.ok ?? true), summary: boot?.summary ?? live.summary } }
+```
+
+Both return `{ ok, summary, error? }` and never throw; a driver failure is formatted by
+`formatDbError`, which walks the `cause` chain and surfaces the Postgres `severity`/`code`/`detail`/
+`hint` a bare `.message` hides. `checkDbHealth` awaits `service.ready()` and caches its verdict for
+`getLastDbHealth(alias?, configAlias?)`; `pingDb` is a bare `SELECT 1` on the pool and caches
+nothing. Neither inspects the schema — structure is reconciled by the resources at `init()`, so a
+process that is serving at all has the tables it was built with.
+
+The context is a parameter, not a module import: a handler is given the context that actually
+served the request, and passing it keeps these functions out of the boot import cycle.
 
 ### Bootstrap (admin path)
 
@@ -100,6 +131,14 @@ Extends `PostgresDbService` from `@owlmeans/postgres-resource`:
 - `lock` / `unlock` — AES field encryption via `config.encryptionKey`
 - `bootstrap(configAlias, opts): Promise<BootstrapReport>`
 
+### Health
+
+- `pingDb(context, alias?, configAlias?): Promise<DbHealth>` — liveness through the pool
+- `checkDbHealth(context, alias?, configAlias?): Promise<DbHealth>` — `ready()` + liveness, cached
+- `getLastDbHealth(alias?, configAlias?): DbHealth | undefined` — the last cached verdict
+- `formatDbError(error): string` — cause-chain formatter with `severity`/`code`/`detail`/`hint`
+- `DbHealth` — `{ ok: boolean, summary: string, error?: string }`
+
 ### Helpers
 
 - `parseUrl(url)` / `prepareConfig(config, overrides?)` / `poolDatabase(pool)`
@@ -129,7 +168,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

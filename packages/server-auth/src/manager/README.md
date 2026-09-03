@@ -38,7 +38,7 @@ The manager is built on the OwlMeans module system, providing:
 This manager app is part of the `@owlmeans/server-auth` package:
 
 ```bash
-npm install @owlmeans/server-auth
+npm install @owlmeans/server-auth@^0.1.18-rc.17
 ```
 
 ## API Reference

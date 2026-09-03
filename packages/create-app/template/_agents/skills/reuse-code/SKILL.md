@@ -39,8 +39,26 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
 
 This is the same dev-linked detection `@owlmeans/agent-skills` uses (see its `detectLinked`). After
-adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills` to deploy its skill. Prefer an
-`@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
+adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.11` to deploy its
+skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
+
+### Never add an OwlMeans dependency without an explicit range
+
+Write the range yourself, as a caret at the version the rest of this project already uses for its
+other `@owlmeans/*` packages:
+
+```json
+"dependencies": {
+  "@owlmeans/queue": "^0.1.18-rc.9"
+}
+```
+
+A `bun add` that names no version — and a hand-written `"latest"`, `"next"`, `"*"` or empty range
+— resolves through a dist-tag instead. OwlMeans publishes prereleases under `next`, so the tag
+named `latest` points at an OLDER version than the one every other package here is pinned to. The
+install succeeds, nothing warns, and the code you wrote against the current API is compiled
+against the previous one. Put the version in the same breath as the package name, or copy the
+`**Install:**` line from that package's own skill, which always carries a current range.
 
 ## 2. Reuse or extend before writing custom
 

@@ -54,8 +54,8 @@ export const supervisorClientPlugin: AuthenticationPlugin = {
           await authService.authenticate(token)
         }
 
-        const [homeUrl] = await context.module<Module<string>>(HOME).call({ full: true }) ?? []
-        window.location.href = homeUrl ?? window.location.origin
+        const homeUrl = await context.entrypoint<Module<string>>(HOME).url(undefined, { absolute: true })
+        window.location.href = homeUrl
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setBusy(false)

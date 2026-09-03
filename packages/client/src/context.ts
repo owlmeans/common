@@ -3,7 +3,7 @@ import { createContext, useContext as useCtx } from 'react'
 import type { Context as ReactContext } from 'react'
 import { makeClientContext as makeBasicContext, PLUGINS } from '@owlmeans/client-context'
 import type { ClientConfig } from '@owlmeans/client-context'
-import { AppType, CONFIG_RECORD, Layer } from '@owlmeans/context'
+import { AppType, CONFIG_RECORD } from '@owlmeans/context'
 import type { ClientContext } from './types.js'
 import { appendStateResource } from '@owlmeans/state'
 import { appendModalService } from './components/modal.js'
@@ -15,7 +15,6 @@ import { ROUTER_SERVICE } from '@owlmeans/router'
 const defaultCfg: ClientConfig = {
   services: {},
   brand: {},
-  layer: Layer.Service,
   trusted: [],
   [CONFIG_RECORD]: [],
   ready: false,
@@ -50,8 +49,6 @@ export const makeClientContext = <C extends ClientConfig, T extends ClientContex
   }
 
   context.router = () => context.service<RouterService>(ROUTER_SERVICE)
-
-  context.makeContext = makeClientContext as typeof context.makeContext
 
   return context
 }

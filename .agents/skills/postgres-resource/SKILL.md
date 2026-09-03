@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/postgres-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.9"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.12"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres counterpart of [[mongo-resource]]. The difference that governs everything else: a
 Mongo collection has no structure, a Postgres table does — so **the resource layer owns the DDL**
@@ -17,15 +17,15 @@ and derives it from the resource's AJV schema.
 
 | Export | Description |
 |--------|-------------|
-| `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, tableName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'postgres'`). |
-| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, custom SQL, transactions, `insert`/`upsert`/`patch`/`purge`/`count`, `lock`/`unlock`. |
+| `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, tableName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'postgres'`); `tableName` overrides the physical table (else the sanitized alias). |
+| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, custom SQL, transactions, `insert`/`upsert`/`patch`, `lock`/`unlock`. |
 | `PostgresDbService`, `PostgresDb`, `PostgresTx` | Service contract implemented by `@owlmeans/postgres`; the db handle `{ drizzle, pool, schema, database }`; the transaction façade. |
 | `TableSpec`, `ColumnSpec`, `PgPropertyOverride`, `PgRootOverride`, `DdlPlan` | The compiled table description and the `pg:` vocabulary types. |
 | `pgKeyword` | `{ keyword: 'pg', valid: true }` — register it when running AJV in strict mode. |
 | `schemaToTableSpec`, `pgTableName`, `pgIdentifier`, `quoteIdent`, `qualify`, `advisoryKey` | The compiler and identifier helpers. |
 | `refOf`, `resolvePlaceholders` | `{{alias}}` resolution — identifiers only. |
 | `PostgresError` family, `pgErrorToResourceError`, `describePgError` | Driver-error translation. |
-| `getDeclaration`, `resetDeclarations` | Module-scope index/migration declarations, keyed by alias. |
+| `getDeclaration`, `resetDeclarations` | Module-scope schema/index/migration declarations, keyed by alias. |
 | `DEFAULT_DB_ALIAS`, `DEFAULT_PAGE_SIZE`, `DEF_MIGRATIONS_TABLE`, `PgAutoSync`, `PgIndexMethod`, `PgReferentialAction`, `PgErrorCode` | Constants. |
 
 ## The schema is the table — never write DDL
@@ -33,7 +33,7 @@ and derives it from the resource's AJV schema.
 ```typescript
 export const makeProjectResource: ResourceMaker<ProjectRecord, ProjectResource> = (dbAlias, serviceAlias) => {
   const resource = makePostgresResource<ProjectRecord, ProjectResource>(
-    RES_PROJECT, dbAlias, serviceAlias, makeProjectResource
+    RES_PROJECT, dbAlias, serviceAlias
   )
   resource.schema = ProjectSchema
   resource.index('idx_project_entity', { columns: ['entityId'] })
@@ -46,6 +46,11 @@ context.registerResource(makeProjectResource())
 Never call `pgTable`/`pgSchema`, never call `drizzle()`, never run `drizzle-kit`, never hand-write
 `CREATE TABLE`. Two owners of the same DDL is the failure mode this package exists to remove:
 reconciliation would drop what the other owner added.
+
+`schema`, `index()` and `migration()` all land in the module-scope declaration for the alias rather
+than on the resource object, so a maker that runs more than once for the same alias — a custom
+maker wrapping the built-in one, a spec calling it again — reads and extends the same declaration
+instead of starting a fresh, emptier one.
 
 | JSON Schema | Postgres |
 |---|---|
@@ -167,12 +172,44 @@ middleware `appendPostgres` installs — use that rather than reordering registr
 
 | Method | Semantics |
 |---|---|
-| `create` | refuses a caller-supplied id (`RecordExists`) — use `insert` |
+| `create` | refuses a caller-supplied id (`RecordExists`) — use `insert`; rejects `opts.ttl` with `UnsupportedArgumentError` (mongo parity) |
 | `update` | **replaces** the whole record — use `patch` to merge |
-| `pick` | `DELETE … RETURNING`: it deletes the record it returns, atomically |
-| `load` | rejects `opts.ttl` with `UnsupportedArgumentError` (mongo parity) |
+| `load(where, { sort })` / `get(where, { sort })` | one `SELECT … ORDER BY … LIMIT 1`, so "the newest matching row" is one statement rather than a list whose head is taken |
+| `delete` / `take` | one `DELETE … RETURNING`: the row is handed back by the statement that removed it. `take` **deletes** and throws `UnknownRecordError` on a miss |
+| `purge` | `DELETE … RETURNING` over the criteria; refuses an empty criteria object (`UnsupportedArgumentError('purge:no-criteria')`) rather than truncating the table |
+| `count` | `count(*)` over the criteria, no rows carried back |
 | `upsert` | `INSERT … ON CONFLICT DO UPDATE`, conflicting on the primary key by default |
 | `select`/`selectOne` | custom SQL marshalled back into `T`; `query`/`queryOne` return raw rows |
+
+## Paging
+
+Postgres is **PAGED**: `DEFAULT_PAGE_SIZE` is `100`, so `list(where)` with no `size` returns the
+first 100 rows — a table is unbounded, and an unpaged read is a production incident waiting for the
+row count to grow. `total` is counted separately, so it describes the whole match rather than the
+window, and `list(where, { size: 0 })` lifts the limit: the explicit, greppable way to read a whole
+table.
+
+`sort` becomes the `ORDER BY`, a bare field name ascending, and **the primary key is always
+appended as a tiebreak**. Postgres has no implicit row order, so paginating on a non-unique sort
+key silently duplicates and skips rows between pages — a difference from mongo that would surface
+as a data bug rather than an error.
+
+## Criteria against a table
+
+`criteriaToSql` answers the shared vocabulary ([[resource]]) in SQL, so one criteria object selects
+the same rows here as it does against a collection or in memory. What is specific to a table:
+
+- **A key naming no column raises `UnsupportedArgumentError`.** A typo that silently widened a
+  query to the whole table is worth being loud about — the schemaless stores cannot detect one.
+- **A dotted key reaches into a jsonb column** (`#>>`), and a criteria object against a jsonb
+  column becomes containment (`@>`). A dotted key over a non-jsonb column is refused, and `sort`
+  refuses dotted paths outright: ORDER BY names a column the caller actually declared.
+- `$contains`/`$contained`/`$overlaps` are the array operators `@>`, `<@` and `&&`;
+  `$like`/`$ilike` are `LIKE`/`ILIKE`; `$exists: true` and `$null: false` are `IS NOT NULL`, their
+  negations `IS NULL`.
+- **`{ $in: [null, …] }` is widened explicitly.** SQL `IN` never matches NULL, so a null in the
+  list would silently disappear; the condition becomes `IN (…) OR IS NULL` (and the `$nin` form
+  `NOT IN (…) AND IS NOT NULL`), which is what the other stores answer.
 
 ## Errors
 
@@ -184,9 +221,9 @@ translation — consumers classify retryable DDL races on `42P01`/`42703`.
 
 ## Config
 
-`DbConfig.schema` is the Postgres **SCHEMA** (layer-suffixed by `dbName()`); the **DATABASE** comes
-from `meta.database` and is never suffixed. Values starting with `/` are read as files by the
-existing `fileConfigReader` middleware.
+`DbConfig.schema` is the Postgres **SCHEMA** (`dbName()` returns it as given); the **DATABASE** comes
+from `meta.database`. Values starting with `/` are read as files by the existing
+`fileConfigReader` middleware.
 
 ## Tests
 

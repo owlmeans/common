@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent-common",
-  "version": "0.1.18-rc.13",
+  "version": "0.1.18-rc.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,10 +29,10 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.18-rc.6",
-    "@owlmeans/flow": "^0.1.18-rc.10",
-    "@owlmeans/llm-common": "^0.1.18-rc.9",
-    "@owlmeans/resource": "^0.1.18-rc.6"
+    "@owlmeans/error": "^0.1.18-rc.8",
+    "@owlmeans/flow": "^0.1.18-rc.14",
+    "@owlmeans/llm-common": "^0.1.18-rc.12",
+    "@owlmeans/resource": "^0.1.18-rc.9"
   },
   "publishConfig": {
     "access": "public"

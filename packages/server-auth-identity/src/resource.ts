@@ -17,7 +17,7 @@ import {
  */
 export const makeOrgEntityResource = (dbAlias?: string): OrgEntityResource => {
   const resource = makeMongoResource<OrgEntity, OrgEntityResource>(
-    AUTH_IDENTITY_ORG_ENTITY, dbAlias, undefined, undefined, AUTH_IDENTITY_ORG_ENTITY_COLLECTION
+    AUTH_IDENTITY_ORG_ENTITY, dbAlias, undefined, AUTH_IDENTITY_ORG_ENTITY_COLLECTION
   )
   resource.index('slug', { slug: 1 }, { unique: true })
   resource.index('iamKey', { iamKey: 1 }, { unique: true })
@@ -27,7 +27,7 @@ export const makeOrgEntityResource = (dbAlias?: string): OrgEntityResource => {
 
 export const makeIdentityAccountResource = (dbAlias?: string): IdentityAccountResource => {
   const resource = makeMongoResource<IdentityAccount, IdentityAccountResource>(
-    AUTH_IDENTITY_ACCOUNT, dbAlias, undefined, undefined, AUTH_IDENTITY_ACCOUNT_COLLECTION
+    AUTH_IDENTITY_ACCOUNT, dbAlias, undefined, AUTH_IDENTITY_ACCOUNT_COLLECTION
   )
   resource.index('credential', { credential: 1 }, { unique: true })
   resource.index('entityId', { entityId: 1 })
@@ -37,7 +37,7 @@ export const makeIdentityAccountResource = (dbAlias?: string): IdentityAccountRe
 
 export const makeIdentityProfileResource = (dbAlias?: string): IdentityProfileResource => {
   const resource = makeMongoResource<IdentityProfile, IdentityProfileResource>(
-    AUTH_IDENTITY_PROFILE, dbAlias, undefined, undefined, AUTH_IDENTITY_PROFILE_COLLECTION
+    AUTH_IDENTITY_PROFILE, dbAlias, undefined, AUTH_IDENTITY_PROFILE_COLLECTION
   )
   /**
    * The account's mongo id — the ONLY ObjectId reference in the identity trio.
@@ -54,7 +54,7 @@ export const makeIdentityProfileResource = (dbAlias?: string): IdentityProfileRe
 
 export const makeIdentityCredentialsResource = (dbAlias?: string): IdentityCredentialsResource => {
   const resource = makeMongoResource<IdentityCredentials, IdentityCredentialsResource>(
-    AUTH_IDENTITY_CREDENTIALS, dbAlias, undefined, undefined, AUTH_IDENTITY_CREDENTIALS_COLLECTION
+    AUTH_IDENTITY_CREDENTIALS, dbAlias, undefined, AUTH_IDENTITY_CREDENTIALS_COLLECTION
   )
   resource.index('provider', { type: 1, userId: 1, credential: 1 }, { unique: true })
   resource.index('profileId', { profileId: 1 })

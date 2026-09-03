@@ -5,6 +5,8 @@ description: Category-B unit tests for OwlMeans Common — auth/authz packages w
 
 # Auth Unit Tests — Category B
 
+**Install:** `"@owlmeans/test-auth": "^0.1.18-rc.12"` in `devDependencies`
+
 Category B applies to the auth/authz packages: `auth`, `auth-common`, `basic-keys`, `basic-envelope`, `did`, `client-auth`, `client-did`, `server-auth`, `oidc`, `server-oidc-rp`, `server-oidc-provider`, `web-oidc-rp`, `web-oidc-provider`, `wled`, `client-payment`. These tests run under `bun test` (no Playwright even when there are React bits) and are the **only** place mocks are allowed — and only for authentication/authorization, via `@owlmeans/test-auth`.
 
 For background on the protocol you're mocking, read the `auth-protocol` skill.
@@ -24,12 +26,12 @@ For background on the protocol you're mocking, read the `auth-protocol` skill.
 ## `tests/context.ts` pattern
 
 ```ts
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import { makeMemoryTrustedResource, withAuth, USER } from '@owlmeans/test-auth'
 
 export const makeTestCtx = () => {
   const ctx = makeBasicContext({
-    ready: false, service: '<pkg>-tests', layer: Layer.Service, type: AppType.Backend,
+    ready: false, service: '<pkg>-tests', type: AppType.Backend, services: {},
   })
   ctx.registerResource(makeMemoryTrustedResource([
     { id: 'svc', name: 'svc', credential: '<fixture-pubkey>' },
@@ -38,6 +40,15 @@ export const makeTestCtx = () => {
   return ctx
 }
 ```
+
+One factory, one context: the trusted resource and the mock guard are registered inside it, in the
+order a real app's `makeContext` would.
+
+`makeMemoryTrustedResource` implements only `load`, `save` and `create` — enough for the `trust()`
+boundary and for seeding from a spec; every other resource method throws. A read takes an id or a
+single-field criteria over `id` or `name`, and anything wider is refused with
+`UnsupportedArgumentError` rather than scanned: a query the mock cannot answer exactly is a test
+reaching past its seam, and the honest fix is integration coverage.
 
 The trusted resource, mock guard, and any fixture keys are the **only** mocks allowed. Everything else (the service under test, sibling packages it depends on) is the real thing.
 

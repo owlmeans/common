@@ -14,7 +14,7 @@ allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
 - Check a version, don't assume it (see below)
 - All use `@owlmeans/*` namespace with MIT license
 - Version is set in each `packages/*/package.json` under the `"version"` field, and in the root `package.json`
-- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.16"`
+- Internal cross-package dependencies reference each other with a caret range matching the current version: `"@owlmeans/error": "^0.1.18-rc.7"`
 - Release candidates use a prerelease suffix (`0.1.17-rc.0`); the caret range carries the suffix too, since a bare `^0.1.17` would not accept a prerelease. Once the final ships, the ranges must lose the suffix again — a downstream repo left on `^0.1.16-rc.0` keeps pulling prereleases
 
 ## Checking current version

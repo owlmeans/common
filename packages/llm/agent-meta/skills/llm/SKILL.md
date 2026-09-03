@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.10"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.13"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only
 owns the provider-independent parts (streaming discipline, retries, validation,
@@ -24,6 +24,7 @@ observability). Serializable contracts live in `@owlmeans/llm-common`.
 | `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` | Frozen 3-level executions + policy resolution + snapshot/restore/checkpoint + advice. |
 | `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
 | `rolePlugin`, `skillsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
+| `PromptContext.claim(key)` · `PromptComposeParams.utility` | Per-composition ownership of a key; a cheap model for one plugin-side call. |
 | `renderSkill`, `sortSkills`, `joinChunks`, `compareAlias`, `prefixHash` | Deterministic rendering primitives — reuse them, never re-implement. |
 | `readCacheUsage`, `hasCacheActivity` | Normalized prompt-cache accounting from a completion. |
 | `executionServiceApi(options, self)` | The execution half without `createService`, for the same composition pattern. |
@@ -106,6 +107,13 @@ Skills accumulate down the execution chain (project → task → helper) and the
 declared `role` wins — see `mergePrompt`. Full rules, breakpoint budget and the provider
 facts behind them: [[llm-prompt-caching]].
 
+Two seams exist for plugins that would otherwise collide or overspend:
+`PromptContext.claim(key)` grants a key to the first plugin that asks within one
+composition, so a static catalogue and a detector never emit the same skill twice; and
+`PromptComposeParams.utility` offers a cheap model for ONE side call. Both are threaded
+from where a prompt is composed — `makeLlmModel`'s `utility` option (beside `files`) and
+`AgentOptions.utility`. Neither may change a cached block: see [[llm-prompt-caching]].
+
 ## Execution: policy in, model out
 
 ```
@@ -134,6 +142,21 @@ on a task would nest another copy of the previous state.
 genuinely large (a whole source file rather than a decision). It is a model selector, not a
 field the helper carries: it becomes a call override, is clamped to `maxOutput`, doubles from
 there under retry, and survives `temperatureFactory`.
+
+### The cheap tier: `utility(exec, override?)`
+
+Work that is not the work — a relevance pick, a classification, a one-line judgement a
+plugin needs before the real call can be shaped — runs on `ExecutionService.utility`, never
+on the helper's own model. It resolves `policy.utilityRole ?? UTILITY_ROLE`
+(`@owlmeans/llm-common`, value `'utility'`) at `ExecutionEffort.Economy`, through the SAME
+ladder as `model()`: `roleOverrides` remap it and `modelOverrides` pin it exactly as for any
+other role. The economy floor is local — the execution it was asked on keeps its own tier —
+and `utilityRole` travels on `ModelPolicy`, so it survives `forTask`/`escalate` and a
+snapshot/restore round trip.
+
+A deployment that wants the tier must register a config under that alias; an unregistered
+alias is a misconfiguration like any other, which is why a plugin asking for one is handed a
+resolver that may yield `undefined` rather than the model itself.
 
 ### The plugin seam has two hooks, dispatched independently
 
@@ -252,6 +275,34 @@ about leaving room for the prompt.
 `combinedWindow`): the fallback config is `{...primaryConfig, ...fallback}`, so every field
 the patch does not name is inherited from a different model.
 
+### Reasoning is billed against the same budget as the answer
+
+The Claude 5-series models — the same set as `NO_SAMPLING_PREFIXES` in the Anthropic plugin —
+think ADAPTIVELY whether or not the request asks them to, and by default that thinking is not
+displayed: it streams as thinking blocks with empty text. It is spent from `max_tokens`, the same
+allowance as the answer. So a budget sized for the answer alone is spent entirely on reasoning and
+the completion arrives well-formed, `stop_reason: "max_tokens"`, carrying no text block at all.
+
+`ADAPTIVE_MIN_MAX_TOKENS` (32k) is the floor that buys room for both. It is a FLOOR, not an
+override — a preset asking for more keeps it — and it is clamped through `resolveOutputCap`, so it
+can never exceed what the provider accepts and turn a retryable empty answer into a fatal 400.
+Raising or removing it re-opens the failure.
+
+Two things made this expensive to find, both now fixed and worth not undoing:
+
+- **An empty completion is a null result, not a filter rejection.** `ask` tests emptiness BEFORE
+  the caller's filter, because every shipped filter returns null only for empty input — running
+  one first reported a provider problem as the caller's fault and, worse, skipped `reportNull`, so
+  the `finishReason` and `outputTokens` that name the cause were never produced.
+- **Anthropic's stop reason is not `finish_reason`.** langchain puts it in
+  `additional_kwargs.stop_reason`; `response_metadata.finish_reason` does not exist on that
+  provider, so every Anthropic null report printed `finishReason: undefined`. `null-report.ts`
+  reads both, and `thinkingOnly` marks a completion that was all reasoning.
+
+The same class is handled for OpenAI reasoning models by shrinking the reasoning cap on retry
+(`plugins/openai.ts`). Escalating `maxTokens` alone does not fix it for either family: the retry
+draws again from an unchanged distribution.
+
 ## Config precedence: a preset is a base, not a final word
 
 `createModel` layers four sources, lowest first:
@@ -269,7 +320,7 @@ ONE level deep: a preset meant to carry a model must name one.
 ## Resilience already handled — do not reimplement
 
 Idle stream deadline · duplicate-final-chunk dedup · output-budget escalation · reasoning-cap
-shrink · same-family fallback model · caller-seeded ladder position (`escalation`) · schema
+shrink · adaptive-thinking budget floor · same-family fallback model · caller-seeded ladder position (`escalation`) · schema
 coercion · JSON salvage from prose · `NullCapture`
 diagnostics · fatal-error short-circuit · blank-content sanitization (whitespace-only text
 blocks are dropped before every call — a blank block, e.g. an empty file read pasted into a

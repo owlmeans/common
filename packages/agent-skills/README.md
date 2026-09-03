@@ -8,7 +8,7 @@ and places them into your project's skill store.
 After installing `@owlmeans/*` packages, run once:
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```
 
 The installer scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance
@@ -87,7 +87,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
@@ -117,4 +117,66 @@ ctx.prompts().use(owlmeansPackagesPlugin({
 The manifest deliberately carries no git ref — version-matching comes from shipping the
 copy inside the tarball, so for a package that is NOT installed the ref is a plugin option
 (`ref`, default `main`).
+
+## Project skills in a prompt (`@owlmeans/agent-skills/llm`)
+
+`projectSkillsPlugin(options)` loads the skills the **project itself** has installed — the
+[Agent Skills](https://agentskills.io) standard's `.agents/skills/<name>/SKILL.md`
+directories, read through the host's `LlmFileProvider` and never through `node:fs`, so it
+works against a sandboxed or remote workspace.
+
+A skill's two halves land in two blocks, because they have different cache lifetimes:
+
+| Half | Block | Changes | Content |
+|---|---|---|---|
+| index | `Skills` | per project | `- <name> — <description>`, sorted, capped, clipped |
+| body | `Packages` | per request | the full text of each activated skill |
+
+That is progressive disclosure expressed as a cache layout: the model always knows what
+exists, and pays for a skill's text only when something says the call is about it.
+
+```typescript
+ctx.prompts().use(projectSkillsPlugin({
+  files: () => ctx.files(),
+  rules: [
+    { skills: ['deploy'], when: { paths: ['charts/**', '*.yaml'] } },
+    { skills: ['auth-protocol'], when: { purposeType: ['coder'], mention: ['token', 'guard'] } },
+  ],
+}))
+```
+
+Activation, in precedence order and capped by `maxActivated` (3): names the call itself asked
+for → the deterministic `rules` → the host's `activate(signals)` → optionally one cheap
+`utility()` model pick (`relevanceModel: true`, off by default, memoised so a retry re-sends
+identical bytes). Bodies are claimed via `ctx.claim('skill:<name>')`, and
+`owlmeansPackagesPlugin` claims first: a request that names `@owlmeans/auth` is a more
+specific signal than a rule.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `dir` | `.agents/skills` | Where the skills live, relative to the project root. |
+| `files` | — | Fallback provider; the compose context's own wins. |
+| `rules` | `[]` | Deterministic activation rules. |
+| `activate` | — | The host's own activation decision. |
+| `exclude` | `[]` | Names neither indexed nor activated. |
+| `maxActivated` | `3` | Bodies loaded into one prompt. |
+| `maxIndexEntries` | `40` | Index lines. |
+| `descriptionChars` | `160` | Description length in an index line. |
+| `maxBodyChars` | `24000` | Length one activated body is clipped to. |
+| `relevanceModel` | `false` | Spend one cheap-model call on the pick. |
+| `listTtlMs` | `30000` | How long a directory listing is trusted. |
+
+A file whose frontmatter is invalid — no `name`/`description`, a name outside
+`[a-z0-9-]{1,64}`, or a name that differs from its directory — is skipped silently. Parse one
+yourself with `parseSkillFile(path, content)`.
+
+Inside an agent run, `projectSkillsAgentPlugin({ files })` adds a `read_skill(name)` tool for
+the turn that needs a body composition could not have predicted:
+
+```typescript
+makeAgentModel({ exec, tools, plugins: [projectSkillsAgentPlugin({ files: () => ctx.files() })] })
+```
+
+After writing a skill file into a project an agent is still working in, call
+`invalidateProjectSkills(providerKey)` so the next prompt sees it.
 

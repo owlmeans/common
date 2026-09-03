@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.11"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -25,14 +25,15 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |
 | `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`) alongside the budget ones — see the `llm` skill for what each means. |
-| `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides? }` — inherited by every refinement. |
+| `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides?, utilityRole? }` — inherited by every refinement. |
+| `UTILITY_ROLE` | `'utility'` — the conventional cheap tier for side calls (a relevance pick, a classification). `ModelPolicy.utilityRole` points it at another alias; `ExecutionService.utility` resolves it. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, plus `phase`/`completed`/`cursor`/`data`). |
 | `LlmPurpose` | `{ type?, dedication? }` — metadata carried on every model call. |
 | `PromptBlock`, `PROMPT_BLOCK_ORDER`, `DEFAULT_SKILL_ORDER` | The ordered sections of a composed system prompt — the order IS the cache key. |
 | `SkillDefinition` | One named block of reusable prompt knowledge. `body` must be a pure constant. |
 | `PromptPolicy` | `{ role?, skills?, cacheSystem?, cacheTtl? }` — carried on `ExecutionState`, merged downward. |
 | `CacheTtl`, `CacheUsage` | `'5m' \| '1h'`; normalized prompt-cache accounting. |
-| `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The minimal read/write file contract prompt plugins work against. |
+| `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The minimal read/write file contract prompt plugins work against. Its optional `key` is the provider's stable identity (project root, sandbox id) — the only thing a plugin caching per-project reads can key on, since providers are rebuilt per request. |
 | `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
 | `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. |
 

@@ -1,6 +1,6 @@
 import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { ExecutionLevel } from '@owlmeans/llm-common'
+import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
 import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
 import type { TemperatureFactory } from '../types.js'
@@ -127,6 +127,17 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       ) as typeof merged
 
       return exec.models().getModel(effectiveRole, clean)
+    },
+
+    utility: (exec, override) => {
+      // Delegated to `model` rather than re-resolved here: the utility tier has to obey
+      // the same roleOverride/modelOverride precedence as any other role, and a second
+      // copy of that ladder drifts from the first the moment one of them changes.
+      const scoped = {
+        ...exec, policy: mergePolicy(exec.policy, { effort: ExecutionEffort.Economy }),
+      } as S['exec']
+
+      return self().model(scoped, exec.policy.utilityRole ?? UTILITY_ROLE, override)
     },
 
     temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>

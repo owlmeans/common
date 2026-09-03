@@ -113,6 +113,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
 - [`server-auth-identity`](packages/server-auth-identity) → `auth`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
+- [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
 
 > **Note.** Several server packages depend on `client-config` / `client-entrypoint` for the shared entrypoint/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
@@ -135,6 +136,8 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 - [`client-payment`](packages/client-payment) → `client-auth`, `context`, `payment`
 - [`client-panel`](packages/client-panel) → `auth`, `client`, `client-auth`, `client-i18n`, `client-entrypoint`, `client-route`, `error`, `i18n`, `entrypoint`, `router`
 - [`client-auth`](packages/client-auth) → `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-flow`, `client-entrypoint`, `client-resource`, `client-socket`, `context`, `did`, `error`, `flow`, `entrypoint`, `resource`, `socket`, `web-flow`
+
+- [`client-job`](packages/client-job) → `client`, `client-auth`, `client-context`, `client-entrypoint`, `context`, `queue`, `resource`, `socket`, `state`
 
 > **Note.** `client-auth` declares `web-flow` as a peer dependency so that web apps can wire web-specific flow handling into the client auth manager. See [Cross-layer notes](#cross-layer-notes).
 
@@ -190,9 +193,9 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L6**: `api-config-client`, `client-resource`, `kluster`, `mongo-resource`, `oidc`, `postgres-resource`, `redis-resource`, `server-api`, `storage-resource`
 - **L7**: `api-config-server`, `client`, `image-resource`, `mongo`, `postgres`, `redis`, `server-oidc-provider`, `server-wl`, `web-db`
 - **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `web-wl`, `{server-auth | server-socket}`
-- **L9**: `server-app`, `server-oidc-rp`, `web-flow`
+- **L9**: `server-app`, `server-job`, `server-oidc-rp`, `web-flow`
 - **L10**: `client-auth`
-- **L11**: `client-panel`, `client-payment`, `web-client`
+- **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`
 - **L12**: `web-oidc-provider`, `web-oidc-rp`, `web-panel`
 
 > Levels are computed from `dependencies` + `peerDependencies` over the `@owlmeans/*` namespace, with strongly connected components collapsed. They are advisory — the authoritative build order is whatever Bun resolves at install time.

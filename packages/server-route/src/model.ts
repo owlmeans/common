@@ -1,45 +1,28 @@
-import type { ServerRouteModel, ServerRouteOptions, ServiceRoute } from './types.js'
+import type { ServerRouteModel, ServerRouteOptions } from './types.js'
 import { DEFAULT_FIELD } from './consts.js'
 import { matchToPathes } from './utils/route.js'
-import { resolve, overrideParams, prependBase } from '@owlmeans/route/utils'
-import type { CommonRouteModel } from '@owlmeans/route'
+import { overrideParams } from '@owlmeans/route/utils'
+import type { RouteModel } from '@owlmeans/route'
 
-export const route = <R>(route: CommonRouteModel, intermediate: boolean, opts?: ServerRouteOptions<R>) => {
+/**
+ * Wrap a route model for server use. The declaration is left as declared — where the route answers
+ * and which host it is reachable on are computed from the context by the entrypoint.
+ */
+export const route = <R>(route: RouteModel, intermediate: boolean, opts?: ServerRouteOptions<R>) => {
   const model: ServerRouteModel<R> = {
     ...route,
 
     isIntermediate: () => intermediate,
 
-    resolve: async context => {
-      if (model.route.resolved) {
-        return model.route
-      }
-      const ctx = context
-
-      await resolve<typeof ctx["cfg"], typeof ctx>(model.route)(ctx)
-      const service = ctx.cfg.services?.[route.route.service ?? ctx.cfg.service] as ServiceRoute | undefined
-      if (service?.internalHost != null) {
-        model.route.internalHost = service.internalHost
-        model.route.internalPort = model.route.internalPort ?? service.internalPort
-        // Internal service doesn't require ssl
-        model.route.secure = false
-      }
-
-      return model.route
-    },
-
-    match: <Request extends R>(request: Request) => {
+    match: <Request extends R>(request: Request, mount: string) => {
       if (opts?.match != null) {
-        return opts.match(request)
-      }
-      if (!model.route.resolved) {
-        throw SyntaxError('Route not resolved')
+        return opts.match(request, mount)
       }
 
       const req = request as Record<string, string>
-      let path = req[opts?.pathField ?? DEFAULT_FIELD] as string
+      const path = req[opts?.pathField ?? DEFAULT_FIELD] as string
 
-      const { match, partial } = matchToPathes(prependBase(model.route), path)
+      const { match, partial } = matchToPathes(mount, path)
 
       return match || (intermediate && partial)
     }

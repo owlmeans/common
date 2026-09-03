@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.25"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.31"` in `dependencies`
 
 ## Key Exports
 
@@ -17,15 +17,22 @@ user-invocable: false
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
+| `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
 | `components` submodule | shadcn/Radix panel/form components |
+| `cn(...inputs)` | The class-name merger the components are written against — an app never re-declares it |
+| `useIsMobile()` / `MOBILE_BREAKPOINT` | Viewport narrower than Tailwind's `md` (768), matched with `matchMedia` |
+| `useBreakPoint()` / `useMapBreakpoint(map, def?)` | The current Tailwind breakpoint name, and a value picked by it |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| `main`, `exports`, `context`, `modules`, `types` | Wiring helpers |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` | `entrypoint`, `elevate`, `handler`, `route`, `frontend`, `guard`, `useNavigate`, `useEntrypoint`, `useValue` |
+| `main`, `exports`, `context`, `entrypoints`, `types` | Wiring helpers |
 
 ## Subpath Exports
 
 - `./auth` — auth panel components for web
-- `./auth/modules` — auth panel module declarations
+- `./auth/entrypoints` — auth panel entrypoint declarations
+- `./consent` — the cookie consent dialog and policy, bound to this app's i18n
+- `./jobs` — `JobProgress`, `JobStatus`, `useJobToasts` over `@owlmeans/queue` records
 
 ## Usage
 
@@ -39,16 +46,20 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   const context = makeBasicContext<C, T>(cfg)
   appendOidcGuard<C, T>(context)
   appendStateResource<C, T>(context, VIB_PROJECT_STATE)
-  context.makeContext = makeContext as typeof context.makeContext
   return context
 }
 ```
+
+**A context is created once per process, by one factory.** An app factory calls the factory of the
+layer below it, applies idempotent `append*(context)` mixins, and returns that same context — the
+whole shape of the file above. Nothing is stored for re-creation, and every service, resource and
+entrypoint binds to exactly the one context it was appended to.
 
 ### Navigation — `NavLayout`
 
 `NavLayout` is the application shell. A layout entrypoint elevates a component that renders it and
 nothing else; the matched screen arrives as `children`. Keep the navigation as data in its own
-module (`src/nav.ts`) so screens, modules and the shell all read the same aliases.
+module (`src/nav.ts`) so screens, entrypoints and the shell all read the same aliases.
 
 ```tsx
 import { NavLayout, HOME } from '@owlmeans/web-panel'
@@ -174,6 +185,57 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
 - `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
   raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
 
+### Links — `Link`
+
+`Link` renders an `<a>` whose `href` is the entrypoint's own answer: it asks
+`entrypoint.url()` and puts the result on the anchor, so a link into another service comes out
+absolute and a link inside this one comes out as a path. Address a screen by **alias** (or hand it
+the entrypoint you already hold); `src` is the escape hatch for a literal URL.
+
+```tsx
+import { Link } from '@owlmeans/web-panel'
+
+<Link module={web.about} />                                  // label from `modules.<alias>`
+<Link module={web.session} name="nav.session">Session</Link>  // explicit i18n key
+<Link src="https://owlmeans.com" open>OwlMeans</Link>         // literal target, new tab
+```
+
+Resolution is asynchronous — `href` is absent for the first paint and settles once the URL is
+known — so never key a test or a layout on the anchor having an `href` synchronously. The label
+falls back to `modules.<alias>` when neither `name` nor `children` is given, `open` adds
+`target="_blank"` with `rel="noopener noreferrer"`, and `center` centres the text.
+
+## Subpath: `./jobs`
+
+Three presentational pieces for a queue job, over `JobRecord` from `@owlmeans/queue`. They take
+records — `@owlmeans/client-job`'s `useJobs()` maps straight onto them — and hold no store, no
+socket and no strings of their own.
+
+```tsx
+import { JobProgress, JobStatus, useJobToasts } from '@owlmeans/web-panel/jobs'
+
+const jobs = useJobs().map(model => model.record)
+useJobToasts(jobs)
+
+<JobStatus job={job} labels={{ [JobState.Active]: t('jobs.running') }} />
+<JobProgress job={job} />
+```
+
+| Export | Description |
+|---|---|
+| `JobProgress` | The shadcn `Progress` bar. `job.progress` is read as a number, `{ percent }` or `{ done, total }`; anything else animates INDETERMINATE, because zero and "the processor never called `progress()`" look identical otherwise |
+| `JobStatus` | The state pill. `data-state` carries the raw state, so a test never keys on the wording |
+| `jobProgressValue(job)` | The percentage the bar shows, or `undefined` |
+| `useJobToasts(jobs, opts?)` | One toast per job the first time it settles, on the `Toaster` the layout already mounts |
+
+- **No packaged wording.** The states are broker vocabulary; the sentence an app wants for them
+  ("Queued", "Rendering", "Ready") is its own copy in its own namespace, so `JobStatus` takes a
+  `labels` map and otherwise renders the raw state — data, not an untranslated string.
+- **`useJobToasts` never toasts on its first pass.** A screen opening onto a store seeded with
+  yesterday's finished jobs would fire a stack of them at once, so everything already settled at
+  mount is recorded as announced and only what settles afterwards is reported.
+- It needs the same single `Toaster` as everything else — see above.
+
 ## Subpath: `./consent`
 
 `PanelCookieConsent` and `PanelCookiePolicy` — `@owlmeans/web-consent`'s components bound to this
@@ -189,6 +251,11 @@ A re-export does not move Tailwind class strings, so a consumer still adds an `@
 its own shadcn copy. Vendor every primitive the package imports: `alert`, `button`, `card`, `input`,
 `label`, `navigation-menu`, `progress` (plus `separator` if you use it), and add
 `@radix-ui/react-navigation-menu` alongside the other Radix peers.
+
+The vendored `@/lib/utils` stays — the package's own components resolve `cn` through it — but the
+app's own components import `cn` from `@owlmeans/web-panel` instead of declaring a third copy. The
+public export is a package-owned function, deliberately not a re-export of `@/lib/utils`: that
+specifier is emitted verbatim and would resolve back to the consumer's file.
 
 Then point Tailwind at the built package. Its oxide scanner reads the CSS root plus `@source`
 directives only, and excludes `node_modules` — so classes that exist **only** inside `web-panel`
@@ -206,6 +273,7 @@ Adjust the relative depth to your own layout; the target is the installed packag
 ## Depends On
 
 - `@owlmeans/web-client`, `@owlmeans/client-panel`, `@owlmeans/client-i18n`, `@owlmeans/web-router`
+- `@owlmeans/queue` — `JobRecord` / `JobState`, read by the `./jobs` subpath
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
   (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.

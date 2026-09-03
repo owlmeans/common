@@ -1,18 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { basename, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { run as installSkills } from '@owlmeans/agent-skills'
 import type { CreateArgs, PackageManager } from './args.js'
+import { defaultDescription, isValidSlug, slugify, titleize } from './naming.js'
 import { copyTemplate, isEmptyDir, templateDir } from './template.js'
-
-const slugify = (input: string): string =>
-  basename(input)
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'owlmeans-app'
-
-const titleize = (slug: string): string =>
-  slug.split('-').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
 const installArgs = (pm: PackageManager): string[] => pm === 'yarn' ? [] : ['install']
 
@@ -25,8 +16,16 @@ export const run = async (args: CreateArgs): Promise<number> => {
   }
 
   const dest = resolve(args.dir)
-  const slug = slugify(args.dir)
+  const slug = args.slug ?? slugify(args.dir)
+  if (!isValidSlug(slug)) {
+    process.stderr.write(
+      `error: cannot derive a package slug from "${args.dir}" (got "${slug}")`
+      + ' — pass one with --slug\n'
+    )
+    return 2
+  }
   const name = args.name ?? titleize(slug)
+  const description = args.description ?? defaultDescription(name)
 
   if (!isEmptyDir(dest) && !args.yes) {
     process.stderr.write(
@@ -36,8 +35,10 @@ export const run = async (args: CreateArgs): Promise<number> => {
   }
 
   log(`\nScaffolding OwlMeans app "${name}" into ${dest}\n`)
-  copyTemplate(templateDir(), dest, { slug, name })
-  log('  ✓ template copied (common + api + web)')
+  copyTemplate(templateDir(), dest, { slug, name, lang: args.lang, description }, { bare: args.bare })
+  log(args.bare
+    ? '  ✓ template copied (common + api + web, bare shell)'
+    : '  ✓ template copied (common + api + web)')
 
   if (args.git) {
     const git = spawnSync('git', ['init', '-q'], { cwd: dest, stdio: 'ignore' })
@@ -61,7 +62,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     log(args.install
       ? '\nDeploying agent skills via @owlmeans/agent-skills…'
       : '\nDeploying harness guidance via @owlmeans/agent-skills (general skills only — re-run'
-        + '\n`npx @owlmeans/agent-skills` after installing to add the package-specific ones)…')
+        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.11` after installing to add the package-specific ones)…')
     try {
       const result = await installSkills({
         dir: dest,
@@ -73,7 +74,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
         help: false,
       })
       if (result.code !== 0) {
-        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills\` later.\n`)
+        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.11\` later.\n`)
       }
     } catch (err) {
       process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)
@@ -87,7 +88,10 @@ export const run = async (args: CreateArgs): Promise<number> => {
   if (!args.install) log(`  ${installCmd}`)
   log(`  ${runCmd}\n`)
   log('The web app starts on http://localhost:3001 and the API on http://localhost:3000.')
-  log('Open the "Session" page to exercise the in-memory session resource.\n')
+  log(args.bare
+    ? 'Add your entrypoints in sources/common/src/entrypoints.ts, handlers in sources/api\n'
+      + 'and screens in sources/web/src/screens — the Home screen shows where they go.\n'
+    : 'Open the "Session" page to exercise the in-memory session resource.\n')
   log('Agent guidance was scaffolded: AGENTS.md (with a CLAUDE.md bridge), the skills in')
   log('.agents/skills/ and the shared memory store at .agents/memory/MEMORY.md.')
   log('Open the project in any coding agent — on the first session it will ask what the')

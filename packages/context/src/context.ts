@@ -1,27 +1,25 @@
-import { ContextStage, Layer, MiddlewareStage, MiddlewareType } from './consts.js'
-import type { BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicModule, BasicResource, Service } from './types.js'
-// import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable, layersOrder } from './utils/context.js'
-import { applyMiddlewares, getAllServices, getMiddlerwareKey, isResourceAvailable } from './utils/context.js'
-import { DEFAULT, InLayer, initializeLayer } from './utils/layer.js'
+import { ContextStage, MiddlewareStage, MiddlewareType } from './consts.js'
+import type { BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicResource, Service } from './types.js'
+import { applyMiddlewares, getMiddlerwareKey } from './utils/context.js'
 
 type Entrypoint = BasicEntrypoint
 
 export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C> => {
-  const services = {} as InLayer<Record<string, Service>>
-  const entrypoints = {} as InLayer<Record<string, Entrypoint>>
-  const resources = {} as InLayer<Record<string, BasicResource>>
+  /**
+   * One flat registry per kind, keyed by alias. Registering an alias twice replaces the
+   * earlier entry — application entrypoint lists are routinely spread together and the
+   * later declaration is the one the app means.
+   */
+  const services: Record<string, Service> = {}
+  const entrypoints: Record<string, Entrypoint> = {}
+  const resources: Record<string, BasicResource> = {}
   const middlewares: Record<string, Middleware[]> = {}
-  const allServices: Record<string, Service> = {}
-  const allEntrypoints: Record<string, Entrypoint> = {}
-  const allResources: Record<string, BasicResource> = {}
 
   let configure: (res: boolean) => void
   let initialize: (resv: boolean) => void
 
   const configured = new Promise<boolean>(resolve => { configure = resolve })
   const initialized = new Promise<boolean>(resolve => { initialize = resolve })
-
-  // const contexts: Record<string, BasicContext<C>> = {}
 
   const inLazyInit = new Set<Service>()
 
@@ -59,7 +57,7 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
       await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Configuration)
 
-      await getAllServices(services, context.cfg.layer, context.cfg.layerId ?? DEFAULT).reduce(
+      await Object.values(services).reduce(
         async (previous, service) => {
           await previous
           if (!service.initialized) {
@@ -75,12 +73,9 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
 
       await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Config, MiddlewareStage.Loading)
 
-      const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId ?? DEFAULT)
-      await Object.values(resources[context.cfg.layer][id]).reduce(async (previous, resource) => {
+      await Object.values(resources).reduce(async (previous, resource) => {
         await previous
-        if (isResourceAvailable(resource, context.cfg.layer)) {
-          await resource.init?.()
-        }
+        await resource.init?.()
       }, Promise.resolve())
 
       await applyMiddlewares<C, BasicContext<C>>(context, middlewares, MiddlewareType.Context, MiddlewareStage.Loading)
@@ -95,24 +90,13 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     },
 
     registerService: <T>(service: Service) => {
-      const id = initializeLayer(services, context.cfg.layer, context.cfg.layerId)
-      service = service.registerContext(context)
-
-      if (allServices[service.alias] == null) {
-        allServices[service.alias] = service
-      }
-      services[context.cfg.layer][id][service.alias] = service
+      services[service.alias] = service.registerContext(context)
 
       return context as T
     },
 
     registerEntrypoint: <T>(entrypoint: Entrypoint) => {
-      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
-      entrypoint = entrypoint.registerContext(context)
-      if (allEntrypoints[entrypoint.alias] == null) {
-        allEntrypoints[entrypoint.alias] = entrypoint
-      }
-      entrypoints[context.cfg.layer][id][entrypoint.alias] = entrypoint
+      entrypoints[entrypoint.alias] = entrypoint.registerContext(context)
 
       return context as T
     },
@@ -122,19 +106,8 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return context as T
     },
 
-    /** @deprecated use registerEntrypoint */
-    registerModule: <T>(module: BasicModule) => context.registerEntrypoint(module as unknown as Entrypoint) as T,
-
-    /** @deprecated use registerEntrypoints */
-    registerModules: <T>(mods: BasicModule[]) => context.registerEntrypoints(mods as unknown as Entrypoint[]) as T,
-
     registerResource: <T>(resource: BasicResource) => {
-      const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
-      resource = resource.registerContext(context)
-      if (allResources[resource.alias] == null) {
-        allResources[resource.alias] = resource
-      }
-      resources[context.cfg.layer][id][resource.alias] = resource
+      resources[resource.alias] = resource.registerContext(context)
 
       return context as T
     },
@@ -154,15 +127,9 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     },
 
     service: <T>(alias: string) => {
-      const id = initializeLayer(services, context.cfg.layer, context.cfg.layerId)
-
-      let _service: Service
-      if (services[context.cfg.layer]?.[id]?.[alias] != null) {
-        _service = services[context.cfg.layer][id][alias]
-      } else if (services[Layer.Global]?.[id]?.[alias] != null) {
-        _service = services[context.cfg.layer][id][alias]
-      } else {
-        throw new SyntaxError(`Service ${alias} not found in layer ${context.cfg.layer}`)
+      const _service = services[alias]
+      if (_service == null) {
+        throw new SyntaxError(`Service ${alias} not found`)
       }
       if (!_service.initialized) {
         if (_service.lazyInit != null) {
@@ -180,98 +147,26 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
     },
 
     entrypoint: <T extends Entrypoint>(alias: string) => {
-      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
-      if (entrypoints[context.cfg.layer][id][alias] != null) {
-        return entrypoints[context.cfg.layer][id][alias] as T
+      if (entrypoints[alias] != null) {
+        return entrypoints[alias] as T
       }
       throw new SyntaxError(`Entrypoint ${alias} not found`)
     },
 
-    /** @deprecated use entrypoint */
-    module: <T>(alias: string) => context.entrypoint<any>(alias) as T,
-
     resource: <T extends BasicResource>(alias: string) => {
-      const id = initializeLayer(resources, context.cfg.layer, context.cfg.layerId)
-      if (resources[context.cfg.layer][id][alias] != null) {
-        const resource = resources[context.cfg.layer][id][alias] as T
-
-        return resource
+      if (resources[alias] != null) {
+        return resources[alias] as T
       }
       throw new SyntaxError(`Resource ${alias} not found`)
     },
 
-    entrypoints: <T extends Entrypoint>() => {
-      const id = initializeLayer(entrypoints, context.cfg.layer, context.cfg.layerId)
-      return Object.values(entrypoints[context.cfg.layer][id]) as T[]
-    },
+    entrypoints: <T extends Entrypoint>() => Object.values(entrypoints) as T[],
 
-    /** @deprecated use entrypoints */
-    modules: <T>() => context.entrypoints<any>() as T[],
+    hasResource: alias => resources[alias] != null,
 
-    /**
-     * @TODO Unfortunatly module cloning between contexts is quite unstable.
-     * And it looks like in some cases it relies on modules that aren't really clonned.
-     * The problem is that the not cloned modules are changing their context accross all context
-     * layers and we can't rely on such behaviour.
-     * So we disabled context update as a whole and all functionality that relies on it
-     * cause in curent release mixed tenancy is not in use in any project and it looks like
-     * there is no short term plans to use it some way. 
-     */
-    updateContext: async <T>(_id?: string, _layer?: Layer) => {
-      return context as T
+    hasService: alias => services[alias] != null,
 
-      // const index = layersOrder.indexOf(context.cfg.layer)
-      // layer = layer ?? (layersOrder[index + 1] != null ? layersOrder[index + 1] : undefined)
-      // if (layer == null) {
-      //   throw new SyntaxError("There is no next layer to switch to")
-      // }
-
-      // if ([Layer.Entity, Layer.User].includes(layer) && id == null) {
-      //   throw new SyntaxError(`Cannot switch to layer ${layer} without id`)
-      // }
-
-      // id = initializeLayer(resources, layer, id)
-
-      // // Cache initalized context layers
-      // const key = `${layer}:${id}`
-      // if (key in contexts) {
-      //   return contexts[key] as T
-      // }
-
-      // const _config: C = JSON.parse(JSON.stringify(context.cfg))
-      // _config.layer = layer
-      // _config.ready = false
-      // _config.layerId = id
-      // // @TODO we need to make a rule to store all makeContext methods after they are applied
-      // const _context = context.makeContext != null ? context.makeContext(_config) : makeBasicContext(_config)
-
-      // Object.values(middlewares).flatMap(middlewares => middlewares)
-      //   .forEach(middleware => _context.registerMiddleware(middleware))
-
-      // await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Config, MiddlewareStage.Switching, { layer, id })
-
-      // Object.values(allServices).forEach(service => _context.registerService(service))
-
-      // Object.values(allEntrypoints).forEach(ep => _context.registerEntrypoint(ep))
-
-      // Object.values(allResources).forEach(resource => _context.registerResource(resource))
-
-      // await applyMiddlewares<C, BasicContext<C>>(_context, middlewares, MiddlewareType.Context, MiddlewareStage.Switching, { layer, id })
-
-      // _context.stage = ContextStage.Loading
-      // await _context.configure().init()
-
-      // return (contexts[key] = _context) as T
-    },
-
-    hasResource: alias => allResources[alias] != null,
-
-    hasService: alias => allServices[alias] != null,
-
-    hasEntrypoint: alias => allEntrypoints[alias] != null,
-
-    /** @deprecated use hasEntrypoint */
-    hasModule: alias => context.hasEntrypoint(alias),
+    hasEntrypoint: alias => entrypoints[alias] != null,
   }
 
   return context

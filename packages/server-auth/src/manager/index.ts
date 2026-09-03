@@ -1,6 +1,6 @@
 export type * from './types.js'
 
-export * from './modules.js'
+export * from './entrypoints.js'
 export * from './exports.js'
 export * from './context.js'
 export * from './main.js'

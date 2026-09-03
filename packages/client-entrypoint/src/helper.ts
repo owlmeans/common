@@ -1,10 +1,16 @@
 import type { ClientEntrypoint, ClientEntrypointOptions, RefedEntrypointHandler } from './types.js'
 import { entrypoint } from './entrypoint.js'
-import { isClientRouteModel } from '@owlmeans/client-route'
 import type { AbstractRequest, CommonEntrypoint } from '@owlmeans/entrypoint'
 import { normalizeHelperParams } from './utils/entrypoint.js'
 import type { JSONSchemaType } from "ajv"
 
+/**
+ * Replace the entrypoint declared under `alias` with its elevated counterpart. Elevating is
+ * idempotent — calling it again simply replaces the element once more, and the guards it brings
+ * are added to the ones already declared.
+ *
+ * @throws {SyntaxError} when no entrypoint carries the alias
+ */
 export const elevate = <T = {}, R extends AbstractRequest = AbstractRequest>(
   entrypoints: (CommonEntrypoint | ClientEntrypoint<T, R>)[],
   alias: string,
@@ -16,9 +22,6 @@ export const elevate = <T = {}, R extends AbstractRequest = AbstractRequest>(
   const idx = entrypoints.findIndex(({ route }) => route.route.alias === alias)
   if (idx === -1) {
     throw new SyntaxError(`Entrypoint with alias ${alias} not present`)
-  }
-  if (isClientRouteModel(entrypoints[idx].route) && opts?.force !== true) {
-    throw new SyntaxError(`Entrypoint with alias ${alias} is already elevated`)
   }
 
   entrypoints[idx] = entrypoint(entrypoints[idx], handler, opts)

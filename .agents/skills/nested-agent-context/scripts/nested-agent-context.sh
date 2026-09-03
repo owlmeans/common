@@ -42,6 +42,11 @@
 # NOTES
 #   - Symlinks are followed exactly one level; the child project's own
 #     libraries/ subdirectory is never entered.
+#   - The child's generated skill mirrors are never enumerated as guidance:
+#     .agents/linked-skills/ holds symlinks into the child's OWN upstreams and
+#     .claude/skills/ mirrors .agents/skills/.  Linked skills are only counted,
+#     as one [linked] line per origin repo, because they are already reachable
+#     by name through the child's .agents/linked-skills/INDEX.md.
 #   - Descriptions are extracted from YAML frontmatter (between the first two
 #     '---' lines).  If absent, the first markdown heading line is used.
 #     Files are never sourced or eval'd.
@@ -95,6 +100,19 @@ extract_description() {
         if (found) print desc
     }
     ' "$file"
+}
+
+# Origin repo of a linked skill symlink: the repo root above the
+# .agents/skills/ (linked monorepo) or agent-meta/skills/ (standalone npm
+# consumer) directory the symlink resolves into.
+linked_origin() {
+    rp=$(cd "$1" 2>/dev/null && pwd -P) || return 0
+    [ -n "$rp" ] || return 0
+    case "$rp" in
+        */.agents/skills/*) printf '%s\n' "$(basename "${rp%/.agents/skills/*}")" ;;
+        */agent-meta/skills/*) printf '%s\n' "$(basename "${rp%/agent-meta/skills/*}")" ;;
+        *) printf '%s\n' "$(basename "$(dirname "$rp")")" ;;
+    esac
 }
 
 # Fallback: first markdown heading line (# Heading).
@@ -180,8 +198,11 @@ EOF
         if [ -d "$legacy_skills" ]; then
             while IFS= read -r f; do
                 [ -f "$f" ] || continue
-                print_header
                 skill_name=$(basename "$(dirname "$f")")
+                # .claude/skills also carries the child's linked-skill mirrors;
+                # those belong to the child's upstreams, not to the child.
+                [ -e "$child_dir/.agents/linked-skills/$skill_name" ] && continue
+                print_header
                 rel_f="$child_label/.claude/skills/$skill_name/SKILL.md"
                 desc=$(extract_description "$f")
                 [ -z "$desc" ] && desc=$(extract_heading "$f")
@@ -203,6 +224,29 @@ EOF
             done << EOF
 $(find -L "$instr_dir" -maxdepth 1 -name '*.instructions.md' | sort)
 EOF
+        fi
+    fi
+
+    # ---- .agents/linked-skills/ (skills the child links from ITS upstreams) ----
+    # Generated symlinks — never enumerated one by one.  They are already
+    # reachable by name, so only the per-origin count is reported, which tells
+    # the reader which upstream vocabularies the child already carries.
+    linked_dir="$child_dir/.agents/linked-skills"
+    if [ -d "$linked_dir" ]; then
+        linked_counts=$(
+            for l in "$linked_dir"/*; do
+                [ -L "$l" ] || continue
+                linked_origin "$l"
+            done | LC_ALL=C sort | uniq -c
+        )
+        if [ -n "$linked_counts" ]; then
+            print_header
+            echo "$linked_counts" | while read -r n origin; do
+                [ -n "$origin" ] || continue
+                printf '    %-16s %s\n' "[linked]" "$n skill(s) linked from $origin"
+            done
+            printf '                     -- already discoverable by name; index: %s\n' \
+                "$child_label/.agents/linked-skills/INDEX.md"
         fi
     fi
 

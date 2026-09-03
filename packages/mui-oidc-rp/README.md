@@ -5,7 +5,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Overview
 
 - `appendOidcGuard(context)` — registers the OIDC guard on a web context
-- `setupOidcGuard(modules, coguards?, extras?)` — attaches the guard onto module declarations
+- `setupOidcGuard(entrypoints, coguards?, extras?)` — attaches the guard onto entrypoint declarations
 - `makeOidcAuthService(alias?)` — browser-side OIDC auth service (built on `oidc-client-ts`)
 - React components for login and callback handling
 - `OidcAuthPurposes` enum — `Unknown` | `Subscribe` | `Login`
@@ -13,7 +13,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Installation
 
 ```bash
-bun add @owlmeans/mui-oidc-rp
+bun add @owlmeans/mui-oidc-rp@^0.1.18-rc.23
 ```
 
 ## Usage
@@ -31,12 +31,12 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 }
 ```
 
-Wire OIDC onto module declarations:
+Wire OIDC onto entrypoint declarations:
 
 ```typescript
 import { setupOidcGuard } from '@owlmeans/mui-oidc-rp'
 
-setupOidcGuard(modules, undefined, { payload: { simplified: true } })
+setupOidcGuard(entrypoints, undefined, { payload: { simplified: true } })
 ```
 
 ## API
@@ -45,9 +45,9 @@ setupOidcGuard(modules, undefined, { payload: { simplified: true } })
 
 Registers the OIDC guard service on the web context.
 
-### `setupOidcGuard(modules, coguards?, extras?)`
+### `setupOidcGuard(entrypoints, coguards?, extras?)`
 
-Attaches the OIDC guard to the given module declarations. `coguards` lets you compose with another guard alias; `extras` overrides the parametrised props (e.g., `payload.simplified`).
+Attaches the OIDC guard to the given entrypoint declarations. `coguards` lets you compose with another guard alias; `extras` overrides the parametrised props (e.g., `payload.simplified`).
 
 ### `makeOidcAuthService(alias?): OidcAuthService`
 
@@ -67,11 +67,11 @@ Login and callback React components exported from `./components` (re-exported at
 - Import `@owlmeans/mui-oidc-rp/auth/plugins` for side effects to register `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` with `@owlmeans/client-auth`.
 - The Google plugin uses `useValue`, persists auth control state before redirect, restores it on return, and submits URL query params as `AuthCredentials`.
 - The browser starts login; the server exchanges provider code, links local identity, and returns a normal bearer token.
-- Keep product authorization server-side through module gates and identity profile scopes.
+- Keep product authorization server-side through entrypoint gates and identity profile scopes.
 
 ## Related Packages
 
-- [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, dispatcher modules
+- [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, dispatcher entrypoints
 - [`@owlmeans/web-client`](../web-client) — base web context this guard plugs into
 - [`@owlmeans/mui-panel`](../mui-panel) — `makeContext` typically used as the base
 - [`@owlmeans/client-auth`](../client-auth) — auth manager primitives the guard interacts with

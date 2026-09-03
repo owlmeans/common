@@ -6,7 +6,9 @@ description: Category-A unit tests for OwlMeans Common packages — no mocks, re
 
 # Unit Tests — Category A (no mocks)
 
-Apply this skill when adding tests to packages in category A (see `testing-overview`). The list includes core abstractions (`context`, `config`, `error`, `module`, `route`, `resource`, …) and platform-agnostic services (`api`, `state`, `flow`, `i18n`, `client-flow`, `client-socket`, `server-route`, `server-context`, `web-router`, `web-db`, …).
+**Install:** `"@owlmeans/test": "^0.1.18-rc.8"` in `devDependencies`
+
+Apply this skill when adding tests to packages in category A (see `testing-overview`). The list includes core abstractions (`context`, `config`, `error`, `entrypoint`, `route`, `resource`, …) and platform-agnostic services (`api`, `state`, `flow`, `i18n`, `client-flow`, `client-socket`, `server-route`, `server-context`, `web-router`, `web-db`, …).
 
 ## Layout
 
@@ -24,18 +26,22 @@ Apply this skill when adding tests to packages in category A (see `testing-overv
 Build a real context exactly the way the package's `SKILL.md` documents downstream apps building it. No mocks. Sibling packages are imported normally.
 
 ```ts
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 
 export const makeTestCtx = (overrides: Partial<BasicConfig> = {}): BasicContext<BasicConfig> =>
   makeBasicContext({
     ready: false,
     service: '<pkg>-tests',
-    layer: Layer.Service,
     type: AppType.Backend,
+    services: {},
     ...overrides,
   })
 ```
+
+`BasicConfig` is `{ ready, service, type }` plus the optional `alias`, `services`, `debug` and config records — a fixture that names anything else is describing a config field that does not exist.
+
+One factory builds the context and the `append*` mixins the package documents go straight after it, in the same helper — the same shape a real app's `makeContext` has. Nothing is stored for re-creation and no spec builds a second context to register something late.
 
 Specs import `makeTestCtx()` (or whatever helper fits) and never call `makeBasicContext` directly. This keeps the wiring centralised so a context-shape change only touches one file per package.
 

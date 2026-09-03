@@ -9,15 +9,22 @@ import type { Execution, TaskExecution } from './types.js'
 export const freeze = <T extends object>(o: T): Readonly<T> => Object.freeze(o)
 
 /** Overlay a partial policy onto a base one. Override maps are merged, not replaced. */
-export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): ModelPolicy => ({
-  effort: patch.effort ?? base.effort,
-  roleOverrides: patch.roleOverrides != null || base.roleOverrides != null
-    ? { ...base.roleOverrides, ...patch.roleOverrides }
-    : undefined,
-  modelOverrides: patch.modelOverrides != null || base.modelOverrides != null
-    ? { ...base.modelOverrides, ...patch.modelOverrides }
-    : undefined,
-})
+export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): ModelPolicy => {
+  const utilityRole = patch.utilityRole ?? base.utilityRole
+
+  return {
+    effort: patch.effort ?? base.effort,
+    roleOverrides: patch.roleOverrides != null || base.roleOverrides != null
+      ? { ...base.roleOverrides, ...patch.roleOverrides }
+      : undefined,
+    modelOverrides: patch.modelOverrides != null || base.modelOverrides != null
+      ? { ...base.modelOverrides, ...patch.modelOverrides }
+      : undefined,
+    // Added only when it exists, unlike the maps above: a project that never names a
+    // cheap tier must not gain a `utilityRole` key it would then carry into every snapshot.
+    ...(utilityRole != null ? { utilityRole } : {}),
+  }
+}
 
 /**
  * Overlay a prompt policy onto the one inherited from the parent level.

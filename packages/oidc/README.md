@@ -1,31 +1,31 @@
 # @owlmeans/oidc
 
-Shared OIDC protocol abstractions — guard/gate aliases, models, and module declarations used by both server and browser OIDC packages.
+Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint declarations used by both server and browser OIDC packages.
 
 ## Overview
 
 - `OIDC_GATE` — gate alias to compose with `gate(...)` inside `guard(...)` declarations
 - `OIDC_GUARD`, `WRAPPED_OIDC`, `OIDC_FLOW`, `OIDC_AUTHEN_MODULE`, `OIDC_WRAPPED_TOKEN` — shared aliases
 - `OidcGuard`, `WithSharedConfig`, `OidcProviderConfig` — shared types
-- Module declarations for the OIDC dispatcher (`/authenticate/oidc/init`, `/authenticate/oidc/process`)
+- Entrypoint declarations for the OIDC dispatcher (`/authenticate/oidc/init`, `/authenticate/oidc/process`)
 
 ## Installation
 
 ```bash
-bun add @owlmeans/oidc
+bun add @owlmeans/oidc@^0.1.18-rc.12
 ```
 
 ## Usage
 
-Compose `OIDC_GATE` into a guard on a module:
+Compose `OIDC_GATE` into a guard on an entrypoint:
 
 ```typescript
-import { module, guard, gate } from '@owlmeans/module'
+import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { OIDC_GATE } from '@owlmeans/oidc'
 
-module(
+entrypoint(
   route(manager.back.account.base, '/account'),
   guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
 )
@@ -56,7 +56,7 @@ import { OIDC_GUARD } from '@owlmeans/oidc'
 - `WRAPPED_OIDC` — `'wrapped-oidc-authz'`
 - `OIDC_AUTHEN_MODULE` — `'iam-oidc-authen'`
 - `OIDC_WRAPPED_TOKEN` — `'oidc-wrapped-token'`
-- `DISPATCHER_OIDC`, `DISPATCHER_OIDC_INIT` — auth dispatcher module aliases
+- `DISPATCHER_OIDC`, `DISPATCHER_OIDC_INIT` — auth dispatcher entrypoint aliases
 - `INTERACTION`, `INTERACTION_PATH` — interaction route aliases
 - `OIDC_GUARD_CACHE` — guard cache resource alias
 
@@ -73,9 +73,9 @@ import { OIDC_GUARD } from '@owlmeans/oidc'
 - `GOOGLE_CLIENT_AUTH` identifies the browser Google auth plugin registered by `@owlmeans/web-oidc-rp/auth/plugins`.
 - `OIDC_GATE` is for OIDC-backed authorization. Apps that only use Google/OIDC for login and authorize against local identity records should define their own product gate alias.
 
-### `modules`
+### `entrypoints`
 
-Array of dispatcher module declarations: `POST /authenticate/oidc/init` and `POST /authenticate/oidc/process`.
+Array of dispatcher entrypoint declarations: `POST /authenticate/oidc/init` and `POST /authenticate/oidc/process`.
 
 ## Related Packages
 
@@ -92,7 +92,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

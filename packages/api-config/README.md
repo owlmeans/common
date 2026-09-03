@@ -1,23 +1,23 @@
 # @owlmeans/api-config
 
-Shared module for advertising safe config values from server to client via a REST endpoint.
+Shared entrypoint for advertising safe config values from server to client via a REST endpoint.
 
 ## Overview
 
-- Exposes a `GET /assets/config.json` module that returns non-sensitive config fields
+- Exposes a `GET /assets/config.json` entrypoint that returns non-sensitive config fields
 - `ApiConfig` — the advertised config type (subset of `CommonConfig`)
-- `API_CONFIG` — module alias for the config endpoint
+- `API_CONFIG` — entrypoint alias for the config endpoint
 - `notAdvertizedConfigKeys` / `allowedConfigRecords` — lists controlling what is/isn't exposed
 
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config
+bun add @owlmeans/api-config@^0.1.18-rc.11
 ```
 
 ## Usage
 
-Use with server and client counterparts — this package provides the shared types and module alias:
+Use with server and client counterparts — this package provides the shared types and entrypoint alias:
 
 ```typescript
 import { API_CONFIG } from '@owlmeans/api-config'
@@ -32,15 +32,15 @@ Subset of `CommonConfig` safe to expose to clients (no db credentials, secrets, 
 
 ### `API_CONFIG`
 
-Module alias `'api-config:advertise'` used to register/call the config endpoint.
+Entrypoint alias `'api-config:advertise'` used to register/call the config endpoint.
 
-### `modules`
+### `entrypoints`
 
 Array of route definitions for the config advertisement endpoint.
 
 ## Related Packages
 
-- [`@owlmeans/api-config-server`](../api-config-server) — server-side module that serves the config
+- [`@owlmeans/api-config-server`](../api-config-server) — server-side entrypoint that serves the config
 - [`@owlmeans/api-config-client`](../api-config-client) — client middleware that fetches and merges config
 
 <!-- owlmeans:agent-guidance:start -->
@@ -51,7 +51,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -47,8 +47,8 @@ export const makeTx = (
 /**
  * Migration ledger, one table per Postgres schema.
  *
- * It lives inside the resource's own schema, so an Entity layer schema carries its own
- * ledger — correct, because it also carries its own tables.
+ * It lives inside the resource's own schema, so every schema carries the ledger for the
+ * tables it holds — correct, because those tables are what the migrations changed.
  */
 export const makeMigrationStore = (
   client: PoolClient,

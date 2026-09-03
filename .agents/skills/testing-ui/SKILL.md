@@ -5,6 +5,8 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.14"` in `devDependencies`
+
 Category D applies to packages that ship rendered React UI: `client`, `client-i18n`, `client-panel`, `client-wl`, `web-client`, `web-flow`, `web-panel`, `web-wl`. Tests are **component-level acceptance** — they mount one component in a real browser and assert against rendered DOM. They are **not** end-to-end tests (no router-deep navigation, no live backend).
 
 The runner is **`bun test`** — same as categories A/B/C — kept consistent so contributors only learn one harness. Playwright is consumed as a **library** (`playwright` package, not `@playwright/test`). The `playwright` library exposes `chromium`, `firefox`, `webkit` browser launchers; specs drive them directly from inside `bun:test` blocks.

@@ -1,6 +1,6 @@
 ---
 name: nested-agent-context
-description: "MANDATORY when planning any work under libraries/* or apps/*. Runs the discovery script to enumerate the agent guidance of each linked OwlMeans monorepo — its AGENTS.md, skills, rules and memory index — then loads everything relevant to the planned change. Embedded per-package agent-meta/ copies are reported as ignored: the linked monorepo's root guidance is authoritative."
+description: "MANDATORY when planning any work under libraries/* or apps/*. Runs the discovery script to enumerate the agent guidance of each linked OwlMeans monorepo — its AGENTS.md, skills, rules and memory index — then loads everything relevant to the planned change. A child's AGENTS.md, rules and memory must still be read before editing it, even though the skills of the repos it depends on are already loadable by name. Embedded per-package agent-meta/ copies are reported as ignored: the linked monorepo's root guidance is authoritative."
 allowed-tools: Bash(sh *) Read
 user-invocable: true
 ---
@@ -15,7 +15,10 @@ inside that child project — they must be read before making any changes there.
 ## Mandatory pre-work (MUST follow before any edit)
 
 Before editing, creating, or deleting any file under `libraries/<name>/` or
-`apps/<name>/`:
+`apps/<name>/`. Skills alone are not enough: `link-skills.sh` makes every
+dependency's skills loadable by name from anywhere in the chain, but a child's
+`AGENTS.md`, `.agents/rules/` and memory index are **not** linked and must be read
+here.
 
 ### Step 1 — Run the discovery script
 
@@ -75,10 +78,34 @@ The bundled script is `.agents/skills/nested-agent-context/scripts/nested-agent-
     [skill]          libraries/common/.agents/skills/context/SKILL.md
                      -- Context DI container skill
     [rule]           libraries/common/.agents/rules/git.md
+    [linked]         104 skill(s) linked from common
+                     -- already discoverable by name; index: libraries/internal/.agents/linked-skills/INDEX.md
     [memory-index]   libraries/common/.agents/memory/MEMORY.md
     [embedded]       76 package(s) ship packages/*/agent-meta/ — IGNORED here
                      -- linked context: root AGENTS.md and skills above are authoritative; embedded copies serve standalone npm consumers only
 ```
+
+## Linked skills are counted, never listed
+
+`.agents/scripts/link-skills.sh` mirrors every upstream skill a repo depends on
+into that repo's `.agents/linked-skills/<name>` and `.claude/skills/<name>`, and
+records them in `.agents/linked-skills/INDEX.md`. The chain is transitive, so a
+skill from the far end of it (`viable` → `viable-agent` → `internal` → `common`)
+is already loadable by name in the repo you are sitting in — a local skill of the
+same name wins, and a nearer dependency wins over a farther one.
+
+The discovery script therefore **skips** a child's `.agents/linked-skills/` and
+`.claude/skills/` when enumerating that child's own guidance, and prints one
+`[linked] N skill(s) linked from <dep>` line per origin repo instead. Those are
+counts, not a reading list.
+
+- To read a dependency skill, load it by name (`/<name>`) or open
+  `<repo>/.agents/linked-skills/<name>/SKILL.md`; the index table names the origin
+  repo of each.
+- The count tells you which upstream vocabularies a child already carries — use it
+  to decide which skill names are worth loading, not which files to open.
+- `AGENTS.md`, `.agents/rules/` and `.agents/memory/` are **not** linked. They stay
+  per-repo and remain mandatory reading before editing that repo.
 
 ## Embedded agent-meta copies are ignored
 
@@ -108,3 +135,7 @@ them and prints a single `[embedded] … IGNORED` line so the omission is explic
   doesn't exist.
 - `packages/<pkg>/agent-meta/` copies are detected one level deep
   (`packages/*`) and reported as ignored; they are never opened.
+- A child's `.agents/linked-skills/` and `.claude/skills/` are generated mirrors —
+  they are counted per origin repo and never enumerated as the child's own
+  guidance, which keeps one upstream skill from being listed once per repo in the
+  chain.

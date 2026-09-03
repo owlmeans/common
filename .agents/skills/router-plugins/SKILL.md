@@ -39,9 +39,8 @@ export const makeContext = (cfg) => {
 }
 ```
 
-You no longer pass a `provide`/`createBrowserRouter` prop to `<App>`/`<PanelApp>` — routing resolves
-its compiler from the active plugin (`context.router().compile`). The former `provide` export from
-`@owlmeans/web-client` is now a deprecated `undefined` kept only for source compatibility.
+Nothing passes a `provide`/`createBrowserRouter` prop to `<App>`/`<PanelApp>` — routing resolves
+its compiler from the active plugin (`context.router().compile`).
 
 ## The RouterPlugin contract
 

@@ -10,7 +10,7 @@ import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
-import { makeContext, modules as baseModules, NavLayout, PanelApp, Toaster } from '../../src/index.js'
+import { makeContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
@@ -161,11 +161,11 @@ ensureLoginService(context as never).registerMethodSource({
   ],
 })
 
-const modules = [
+const entrypoints = [
   // The framework's own entrypoints come first — the api-config middleware the panel context
   // registers resolves one of them during init, and without them init throws before any route
   // is compiled.
-  ...baseModules,
+  ...baseEntrypoints,
   entrypoint(route(BASE, '/', frontend()), handler(Layout)),
   entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(screen('home', 'home-screen'))),
   entrypoint(route(alias.dash, '/dash', frontend({ parent: BASE })), handler(screen('dash', 'dash-screen'))),
@@ -184,6 +184,6 @@ const modules = [
   entrypoint(route(alias.login, '/login', frontend({ parent: BASE })), handler(LoginHarness)),
 ]
 
-context.registerEntrypoints(modules)
+context.registerEntrypoints(entrypoints)
 
 createRoot(document.getElementById('root')!).render(<PanelApp context={context as never} />)

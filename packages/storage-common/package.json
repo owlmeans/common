@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/storage-common",
   "type": "module",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.9",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -24,8 +24,8 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.7",
-    "@owlmeans/error": "^0.1.18-rc.6"
+    "@owlmeans/auth": "^0.1.18-rc.9",
+    "@owlmeans/error": "^0.1.18-rc.8"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

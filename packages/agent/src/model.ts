@@ -110,7 +110,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
         ? await prompts().compose(
           { ...exec.prompt, context },
           [],
-          { model: agentModel, provider, purpose, files: exec.files, action },
+          { model: agentModel, provider, purpose, files: exec.files, utility: options.utility, action },
         )
         : null
       const system = composed?.system?.content

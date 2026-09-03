@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-i18n
 
 **Layer:** Client (React)
-**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.15"` in `dependencies`
 
 ## Purpose
 

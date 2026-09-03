@@ -63,6 +63,12 @@ export interface LlmModelOptions extends LlmLogging {
   prompts?: () => PromptService
   /** File access offered to prompt plugins that resolve knowledge from disk. */
   files?: FileProviderRef
+  /**
+   * Cheap model offered to prompt plugins for a single side call while composing —
+   * normally `() => executions().utility(exec)`. Omitted, plugins that would use one
+   * fall back to whatever they can decide without a model.
+   */
+  utility?: () => BaseChatModel | undefined
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole

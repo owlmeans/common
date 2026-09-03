@@ -8,6 +8,8 @@ metadata:
 
 # Using `@owlmeans/server-mailer-mailgun`
 
+**Install:** `"@owlmeans/server-mailer-mailgun": "^0.1.18-rc.8"` in `dependencies`
+
 Production Mailgun transport implementing `@owlmeans/mailer`'s `MailerService` interface. Reads config from `ctx.cfg.mailgun`.
 
 ## Public API surface

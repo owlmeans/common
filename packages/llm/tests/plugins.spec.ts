@@ -14,6 +14,7 @@ import { DEFAULT_MAX_OUTPUT_CAP } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
 import { stripCacheMarkers } from '../src/utils/prompt.js'
 import { resolveOutputCap } from '../src/utils/config.js'
+import { ADAPTIVE_MIN_MAX_TOKENS } from '../src/plugins/anthropic.js'
 
 const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
   plugin.build({
@@ -652,5 +653,44 @@ describe('@owlmeans/llm — output capability', () => {
 
     expect(config.maxOutput).toBe(128_000)
     expect(resolveOutputCap(config)).toBe(32000)
+  })
+})
+
+/**
+ * The models that took the sampling knobs away also think adaptively whether asked to or not,
+ * and that thinking is billed against the same `max_tokens` as the answer. A budget sized for
+ * the answer alone gets spent on reasoning, and the completion comes back with no text at all.
+ */
+describe('@owlmeans/llm — adaptive-thinking output budget', () => {
+  const maxTokensOf = (model: BaseChatModel): number | undefined =>
+    (model as unknown as { maxTokens?: number }).maxTokens
+
+  test('an always-reasoning model gets room for the reasoning AND the answer', () => {
+    const model = build(anthropicPlugin, { model: 'claude-sonnet-5', maxTokens: 8192 })
+
+    expect(maxTokensOf(model)).toBe(ADAPTIVE_MIN_MAX_TOKENS)
+  })
+
+  test('the floor never lowers a preset that asked for more', () => {
+    const model = build(anthropicPlugin, {
+      model: 'claude-sonnet-5', maxTokens: 64_000, maxTokensCap: 64_000, maxOutput: 128_000,
+    })
+
+    expect(maxTokensOf(model)).toBe(64_000)
+  })
+
+  /** Raising the floor past what the provider accepts turns a retryable empty into a 400. */
+  test('the floor is clamped to what the provider accepts', () => {
+    const model = build(anthropicPlugin, {
+      model: 'claude-sonnet-5', maxTokens: 4096, maxOutput: 8192,
+    })
+
+    expect(maxTokensOf(model)).toBe(8192)
+  })
+
+  test('models that still accept sampling keep the budget their preset asked for', () => {
+    const model = build(anthropicPlugin, { model: 'claude-haiku-4-5', maxTokens: 8192 })
+
+    expect(maxTokensOf(model)).toBe(8192)
   })
 })

@@ -96,3 +96,11 @@ export const PROMPT_BLOCK_ORDER: readonly PromptBlock[] = [
 
 /** Sort weight of a skill that declares none — see `SkillDefinition.order`. */
 export const DEFAULT_SKILL_ORDER = 100
+
+/**
+ * Conventional {@link ModelRole} for the cheap side calls the layer makes on its own
+ * behalf — a relevance pick, a classification, a one-line judgement — rather than for the
+ * work a caller asked for. A deployment that names its cheap tier differently points
+ * `ModelPolicy.utilityRole` at its own alias; nothing else has to change.
+ */
+export const UTILITY_ROLE = 'utility'

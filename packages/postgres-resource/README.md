@@ -5,7 +5,7 @@ code-registered migrations, and custom SQL with resource-alias placeholders.
 
 ## Overview
 
-- `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, tableName?)` — factory for Postgres resources
+- `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, tableName?)` — factory for Postgres resources
 - `PostgresResource<T>` — extends `Resource<T>` with a Drizzle table, custom SQL, transactions, and field encryption
 - The resource's **AJV schema is the single source of truth for the table structure** — columns, types,
   nullability, defaults, primary key and indexes are all derived from it
@@ -16,7 +16,7 @@ code-registered migrations, and custom SQL with resource-alias placeholders.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres-resource @owlmeans/postgres pg
+bun add @owlmeans/postgres-resource@^0.1.18-rc.12 @owlmeans/postgres@^0.1.18-rc.13 pg
 ```
 
 `pg` and `ajv` are peer dependencies of this package. `@owlmeans/postgres` provides the connection
@@ -35,7 +35,7 @@ export interface ProjectResource extends PostgresResource<ProjectRecord> {}
 
 export const makeProjectResource: ResourceMaker<ProjectRecord, ProjectResource> = (dbAlias, serviceAlias) => {
   const resource = makePostgresResource<ProjectRecord, ProjectResource>(
-    RES_PROJECT, dbAlias, serviceAlias, makeProjectResource
+    RES_PROJECT, dbAlias, serviceAlias
   )
   resource.schema = ProjectSchema
   resource.index('idx_project_entity', { columns: ['entityId'] })
@@ -55,8 +55,16 @@ Use in a handler:
 ```typescript
 const projects = context.resource<ProjectResource>(RES_PROJECT)
 const record = await projects.create({ entityId, alias, title })
-const list = await projects.list({ criteria: { entityId } })
+
+const one = await projects.load({ entityId, alias })                  // null when absent
+const { items, total } = await projects.list(
+  { entityId, status: ['draft', 'active'] },                          // an array means "any of these"
+  { page: 0, size: 20, sort: [{ field: 'createdAt', order: 'desc' }] }
+)
 ```
+
+`size` defaults to `DEFAULT_PAGE_SIZE` (100); `list(where, { size: 0 })` lifts the limit. `total`
+always describes the whole match, independently of the page.
 
 ### Schema → table
 
@@ -150,7 +158,7 @@ substituted blindly.
 
 ## API
 
-### `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, tableName?): T`
+### `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, tableName?): T`
 
 Creates a Postgres resource. `dbAlias` and `serviceAlias` default to `DEFAULT_DB_ALIAS`
 (`'postgres'`). `tableName` overrides the physical table name, which otherwise derives from the alias.
@@ -162,21 +170,28 @@ Extends `Resource<T>` with:
 - `schema?: AnySchema` — the source of truth for the table structure
 - `table: TableSpec` / `entity: PgRuntimeTable` — the compiled spec and the runtime Drizzle table
 - `db(): Promise<PostgresDb>` / `client(): Promise<Pool>`
-- `index(name, spec): this` / `migration(name, apply, stage?): this` — chainable declarations
+- `index(name, spec)` / `migration(name, apply, stage?)` — chainable declarations
 - `query` / `queryOne` / `execute` — raw rows and affected counts
 - `select` / `selectOne` — rows marshalled back into `T`
 - `ref(alias?): string` — fully qualified identifier of this or another resource
 - `transaction(fn)` — a `PostgresTx` with the same placeholder-aware helpers
-- `insert` / `upsert` / `patch` / `purge` / `count` — beyond the base contract
+- `insert` / `upsert` / `patch` — beyond the base contract
 - `lock(record, fields?)` / `unlock(record, fields?)` — encrypt/decrypt `secure` fields
 - `getDefaults(): Partial<T>`
 
+Type the resource once, where it is resolved — `context.resource<PostgresResource<Project>>(alias)` —
+rather than passing a record type per method call.
+
 ### `Resource<T>` methods (all implemented)
 
-`get`, `load`, `create`, `update`, `save`, `delete`, `pick`, `list`
+`get`, `load`, `list`, `count`, `create`, `update`, `save`, `delete`, `take`, `purge`
 
-`create` refuses a caller-supplied id (use `insert`); `update` replaces the whole record (use `patch`
-to merge); `pick` deletes the record it returns, atomically.
+`get` and `load` take either an id or a `Criteria<T>` (with an optional `sort`), so reading one
+record by several fields is a single call. `create` refuses a caller-supplied id (use `insert`);
+`update` replaces the whole record (use `patch` to merge); `take` deletes the record it returns,
+atomically, and raises when there is nothing to take where `delete` answers `null`; `purge` refuses
+an empty criteria rather than emptying the table. Every write option is rejected here except
+absence: `ttl` raises `UnsupportedArgumentError`, since Postgres has no row expiry.
 
 ### Errors
 
@@ -190,7 +205,7 @@ surface as `RecordExists` and not-null violations as `MisshapedRecord`.
 ### Constants
 
 - `DEFAULT_DB_ALIAS` — `'postgres'`
-- `DEFAULT_PAGE_SIZE` — `10`
+- `DEFAULT_PAGE_SIZE` — `100`, the cap `list()` applies when no `size` is named
 - `DEF_MIGRATIONS_TABLE` — `'_owlmeans_migrations'`
 - `PG_KEYWORD` — `'pg'`; `PG_MAX_IDENTIFIER` — `63`
 - `PgAutoSync`, `PgIndexMethod`, `PgReferentialAction`, `PgErrorCode`
@@ -209,7 +224,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

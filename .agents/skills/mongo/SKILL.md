@@ -1,13 +1,13 @@
 ---
 name: mongo
-description: How to use @owlmeans/mongo — MongoDB connection service (makeMongoDbService / appendMongo) registered on a server context; cluster setup, layer sensitivity, field encryption backend. Auto-invoked when wiring MongoDB into a server app.
+description: How to use @owlmeans/mongo — MongoDB connection service (makeMongoDbService / appendMongo) registered on a server context; cluster setup, field encryption backend. Auto-invoked when wiring MongoDB into a server app.
 user-invocable: false
 ---
 
 # @owlmeans/mongo
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo": "^0.1.18-rc.9"` in `dependencies` (peer `mongodb`)
+**Install:** `"@owlmeans/mongo": "^0.1.18-rc.12"` in `dependencies` (peer `mongodb`)
 
 ## Key Exports
 
@@ -30,9 +30,8 @@ cfg.dbs = [{
   host: '127.0.0.1',        // or string[] for a cluster — triggers replica set setup
   port: 27017,
   user: 'admin', secret: '...',
-  schema: 'my-app',          // the DATABASE name (layer-suffixed by dbName())
+  schema: 'my-app',          // the DATABASE name
   encryptionKey: '...',      // enables lock()/unlock() field encryption
-  entitySensitive: true,     // per-Entity-layer databases
 }]
 ```
 
@@ -40,9 +39,9 @@ cfg.dbs = [{
   replica-set bootstrap (`setUpCluster`) first.
 - `lock`/`unlock` encrypt/decrypt record fields with `encryptionKey` via
   `@owlmeans/basic-keys` — the backend behind `MongoResource.lock()`.
-- Layer sensitivity: `serviceSensitive`/`entitySensitive` add `Layer.Service`/`Layer.Entity`
-  to the service's layers, which makes `dbName()` derive per-layer database names — each
-  such database carries its own data **and its own migration ledger**.
+- The database name is `dbName()` — `config.schema ?? config.alias ?? service.alias`, taken as
+  given. One database per config entry, each carrying its own data **and its own migration
+  ledger**; a second database is a second `cfg.dbs` entry.
 
 ## Tests
 

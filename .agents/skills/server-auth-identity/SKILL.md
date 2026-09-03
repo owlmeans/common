@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.12"` in `dependencies`
 
 ## Key Exports
 
@@ -53,12 +53,12 @@ import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
 
 const profileRes = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
 
-// Single-field indexed lookup (read-only):
-const profile = await profileRes.load(profileId, 'profileId')
+// One record by any field, or by several at once — read-only, and typed by the resource:
+const profile = await profileRes.load({ profileId })
+const scoped = await profileRes.load({ entityId, profileId })
 
-// Multi-field criteria lookup (read-only):
-const { items } = await profileRes.list({ entityId, profileId } as any)
-const profile = items[0] ?? null
+// Every match, newest first:
+const { items, total } = await profileRes.list({ entityId }, { sort: [{ field: 'createdAt', order: 'desc' }] })
 ```
 
 ### Link an external provider to a local profile
@@ -119,7 +119,7 @@ by the reference conversion's design.
 
 ## Important Gotchas
 
-- **`Resource.pick()` is destructive** — it deletes the record it finds. For read-only identity lookups in gates or handlers, use `load(id, field)` for single-field indexed queries or `list(criteria)` for multi-field queries. Never use `pick()` in authorization checks.
+- **`Resource.take()` is destructive** — it deletes the record it returns. For read-only identity lookups in gates or handlers use `load(where)`, which answers a multi-field query in one call (`load({ type, userId, credential })`), or `list(where, opts)` when you need every match. Never use `take()` in authorization checks.
 - **`IdentityLinkingService` is compatible with `AccountLinkingService`** from `@owlmeans/server-oidc-rp` but defined independently to avoid circular dependency. Both return `AuthPayload`.
 - First-login profiles are created with `ALL_SCOPES` and `AuthRole.User` — the gate layer is initially permissive per entity. Restrict scopes as needed for fine-grained authorization.
 - Account `credential` slug generation retries up to 5 times on duplicate key collision — this is the designed behavior for the Base58 slug space.

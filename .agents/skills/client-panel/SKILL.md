@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.22"` in `dependencies`
 
 ## Key Exports
 
@@ -83,13 +83,15 @@ alias, or null), `active` (its section), `showSide`, `isSectionActive` / `isItem
 - **Resolving the current screen needs two sources.** The router's `location.state.alias` is
   authoritative but is `window.history.state`, so it is null until the first in-app navigation — on
   a hard page load or a deep link a menu keyed on it alone highlights nothing, on exactly the entry
-  that matters most. The pathname is the fallback: resolved entrypoint paths are matched exactly
+  that matters most. The pathname is the fallback: entrypoint paths are matched exactly
   first, then by longest prefix, so a detail screen under a listed one still belongs to its section.
-  A screen listed in no section resolves its section by walking `getParentAlias()` upward.
+  A screen listed in no section resolves its section by walking `route.route.parent` upward.
 - **`hrefOf` gives a menu entry a real URL**, resolved synchronously from
-  `context.entrypoint(alias).getPath()`. It returns undefined for a path carrying route parameters
-  (`:id`) — there is no honest URL for a screen whose address is not known yet. An alias the app
-  never elevated resolves to null and is skipped rather than taking the menu down.
+  `context.entrypoint(alias).path()` — an entrypoint composes its path from its own declaration and
+  its ancestors', so matching one is a lookup rather than a guess. It returns undefined for a path
+  carrying route parameters (`:id`) — there is no honest URL for a screen whose address is not
+  known yet. An alias the app never elevated resolves to null and is skipped rather than taking the
+  menu down.
 
 ## Depends On
 

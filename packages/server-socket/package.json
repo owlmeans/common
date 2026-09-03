@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-socket",
-  "version": "0.1.18-rc.15",
+  "version": "0.1.18-rc.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -31,15 +31,15 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.1",
-    "@owlmeans/auth": "^0.1.18-rc.7",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.9",
-    "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/entrypoint": "^0.1.18-rc.8",
-    "@owlmeans/server-api": "^0.1.18-rc.13",
-    "@owlmeans/server-auth": "^0.1.18-rc.14",
-    "@owlmeans/server-context": "^0.1.18-rc.8",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.8",
-    "@owlmeans/socket": "^0.1.18-rc.7"
+    "@owlmeans/auth": "^0.1.18-rc.9",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.12",
+    "@owlmeans/context": "^0.1.18-rc.8",
+    "@owlmeans/entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/server-api": "^0.1.18-rc.17",
+    "@owlmeans/server-auth": "^0.1.18-rc.18",
+    "@owlmeans/server-context": "^0.1.18-rc.12",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/socket": "^0.1.18-rc.9"
   },
   "publishConfig": {
     "access": "public"

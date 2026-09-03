@@ -58,7 +58,7 @@ export const pluginMethodSource: LoginMethodSource = {
         start: methodCtx => {
           const login = methodCtx.context.service<LoginService>(LOGIN_SERVICE)
           const entrypoint = methodCtx.context.entrypoint<ClientEntrypoint>(CAUTHEN_AUTHEN_TYPED)
-          const url = entrypoint.getPath().replace(':type', encodeURIComponent(type))
+          const url = entrypoint.path().replace(':type', encodeURIComponent(type))
 
           return login.begin({
             url,

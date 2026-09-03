@@ -1,10 +1,10 @@
 import { AppType } from '@owlmeans/context'
 import { RouteMethod, RouteProtocols, SEP } from './consts.js'
 import { createRoute, makeRouteModel } from './model.js'
-import type { CommonRouteModel, RouteOptions } from './types.js'
+import type { RouteModel, RouteOptions } from './types.js'
 import type { CreateRouteSignature } from './utils/types.js'
 
-export const route: CreateRouteSignature<CommonRouteModel> = (alias, path, opts?) =>
+export const route: CreateRouteSignature<RouteModel> = (alias, path, opts?) =>
   makeRouteModel(createRoute(alias, path, opts))
 
 export const normalizePath = (path: string): string => {
@@ -39,6 +39,19 @@ export const socket = (opts?: RouteOptions | string | null, secondary?: RouteOpt
   const route = backend(opts, secondary)
 
   route.protocol = RouteProtocols.SOCKET
+
+  return route
+}
+
+/**
+ * A backend route carried by the queue rather than by HTTP. Everything else about it is a normal
+ * backend route — it has a path, a parent, guards and a filter — so the same declaration is served
+ * with `elevate(...)` and called with `call()`; only the transport underneath differs.
+ */
+export const job = (opts?: RouteOptions | string | null, secondary?: RouteOptions): Partial<RouteOptions> => {
+  const route = backend(opts, secondary)
+
+  route.protocol = RouteProtocols.QUEUE
 
   return route
 }

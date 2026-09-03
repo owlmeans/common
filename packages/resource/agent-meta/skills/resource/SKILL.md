@@ -8,20 +8,25 @@ user-invocable: false
 # @owlmeans/resource
 
 **Layer:** Core
-**Install:** `"@owlmeans/resource": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/resource": "^0.1.18-rc.9"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `Resource<T>` | Generic resource contract: `get`/`load`/`list`/`save`/`create`/`update`/`delete`/`pick`. `list(criteria?, opts?)` paginates through `opts.pager: { page, size, sort }` — there is no `limit`. |
-| `MigratableResource<Tx>` | **Optional migration capability** — `migration(name, apply, stage?)` (chainable) + `migrations()`. Optional the way pub/sub is on redis resources: mongo and postgres extend it, backends with nothing to migrate don't. |
+| `Resource<T>` | Generic resource contract: `get`/`load`/`list`/`count`/`create`/`update`/`save`/`delete`/`take`/`purge`. Reads take **an id or a criteria object**; `list(where?, opts?)` takes `{ page, size, sort }` flat in the second argument. |
+| `Criteria<T>`, `FieldCriteria<V>`, `FieldOperators<V>` | The query language, typed by the record — a mistyped field is a compile error. |
+| `Sort<T>`, `SortField<T>`, `FirstOptions<T>`, `ListOptions<T>`, `ListQuery<T>`, `ListResult<T>` | Ordering, the read options, the one-object form an API carries over the wire, and the answer shape `{ items, total, page?, size? }`. |
+| `WriteOptions`, `Ttl` | `{ ttl }` on `create`/`update`/`save`; seconds from now, or the instant to expire at. Backends without expiry refuse it. |
+| `matchCriteria`, `filterRecords`, `sortRecords`, `firstMatch`, `applyQuery` | The shared in-memory engine — one criteria object means the same thing in a browser store as it does in SQL. |
+| `PubSubResource<T>`, `WatchableResource<T>`, `StreamResource<T>`, `LockableResource<T>` | **Optional capabilities**, composed into a concrete resource interface alongside `Resource<T>`. |
+| `MigratableResource<Tx, Self>` | **Optional migration capability** — `migration(name, apply, stage?)` (chainable) + `migrations()`. Optional the way pub/sub is on redis resources: mongo and postgres extend it, backends with nothing to migrate don't. |
 | `Migration`, `MigrationRegistry`, `MigrationStore`, `MigrationReport`, `MigrationRunOptions` | The framework's contracts. `MigrationStore` is the *migration register* a database implements to track applied migrations (`ensure`/`applied`/`baseline`/`run`). |
 | `createMigrationRegistry<Tx>()` | Storage-agnostic ledger of code-registered migrations per alias. Declaration order = application order; re-registering an identical body is a no-op, a changed body under a used name throws `MigrationConflict`. |
 | `runMigrations(alias, registry, store, opts?)` | Apply one stage's pending migrations through a store. `baseline: true` records instead of running (fresh structures); `strictChecksum` (default on) rejects edited applied bodies. |
 | `MigrationStage` | `Pre` (before structure reconciliation — renames, casts, rescues) / `Post` (after — backfills into new structure). |
-| `createDbService` | Base for `ResourceDbService` implementations (config/alias/name/client plumbing). |
-| `prepareListOptions`, `filterObject`, `createListSchema` | List/criteria helpers. |
+| `createDbService` | Base for `ResourceDbService` implementations (config/alias/name/client plumbing). `dbName()` is `config.schema ?? config.alias ?? service.alias`. |
+| `filterObject`, `createListSchema` | Drop null properties; the AJV schema for a `ListResult<T>` envelope. |
 | Errors | `ResourceError`, `UnknownRecordError`, `MisshapedRecord`, `RecordExists`, `RecordUpdateFailed`, `UnsupportedArgumentError`, `UnsupportedMethodError`, `MigrationError`, `MigrationConflict`. |
 | `DbConfig`, `Config`, `Context` | Database config (`cfg.dbs`) types. |
 
@@ -35,17 +40,18 @@ A resource is a typed CRUD-over-records abstraction. Concrete implementations co
 ```typescript
 import type { Resource } from '@owlmeans/resource'
 
-interface Project { id: string; name: string; entityId: string }
+interface Project { id: string; name: string; entityId: string; createdAt: Date }
 const projects = ctx.resource<Resource<Project>>('projects')
-const { items } = await projects.list({ entityId: 'abc' })
 
-// Pagination and sort ride under `pager` in the SECOND argument — there is NO `limit`,
-// and neither `page` nor `size` exists at the top level of either argument:
-const page2 = await projects.list(
-  { entityId: 'abc' },
-  { pager: { page: 1, size: 20, sort: ['createdAt'] } }
-)
-// page2.pager echoes { page, size, total } for building pagination UI.
+// A read is addressed by an id OR by criteria — fetching one record by several fields is a
+// single call, never a list whose first element is taken.
+const project = await projects.get('abc123')
+const newest = await projects.load({ entityId: 'abc' }, { sort: [{ field: 'createdAt', order: 'desc' }] })
+
+// Paging and sort are FLAT in the second argument.
+const page2 = await projects.list({ entityId: 'abc' }, { page: 1, size: 20, sort: ['createdAt'] })
+page2.items      // the window
+page2.total      // every record the criteria match, not just this page
 ```
 
 ### Calling the CRUD surface
@@ -57,22 +63,100 @@ A **write** takes the record as its only data argument, and the id travels insid
 | Call | Signature | Notes |
 |---|---|---|
 | `create(record, opts?)` | `Partial<T> → T` | throws `RecordExists`; implementations may refuse a caller-supplied id |
-| `save(record, opts?)` | `Partial<T> → T` | create-or-replace |
+| `save(record, opts?)` | `Partial<T> → T` | creates when the record carries no id, replaces otherwise |
 | `update(record, opts?)` | `Partial<T> → T` | replaces the whole record; throws `UnknownRecordError` |
 
-A **read** takes the id first, plus an optional field to look it up by (`opts` is that field name,
-or `{ field, ttl }`):
+A **read** is addressed either by an id or by a criteria object. The id overload takes nothing
+else; the criteria overload takes `{ sort }` to say which match is "the" one:
 
 | Call | Signature | Notes |
 |---|---|---|
-| `load(id, field?, opts?)` | `string → T \| null` | the miss-tolerant read |
-| `get(id, field?, opts?)` | `string → T` | throws `UnknownRecordError` instead of returning `null` |
-| `list(criteria?, opts?)` | `→ { items, pager }` | |
-| `delete(id \| record, opts?)` | `→ T \| null` | returns what it removed |
-| `pick(id \| record, opts?)` | `→ T` | **also deletes** — it is `delete` that throws on a miss, never a read |
+| `load(id)` / `load(where, { sort })` | `→ T \| null` | the miss-tolerant read |
+| `get(id)` / `get(where, { sort })` | `→ T` | throws `UnknownRecordError` instead of returning `null` |
+| `list(where?, { page, size, sort })` | `→ { items, total, page?, size? }` | `total` counts every match, not the window |
+| `count(where?)` | `→ number` | the same question without carrying the records back |
+| `delete(id)` | `→ T \| null` | returns what it removed |
+| `take(id)` | `→ T` | **deletes the record it returns.** It is a `delete` that throws `UnknownRecordError` on a miss, never a read — never reach for it to fetch something |
+| `purge(where)` | `→ number` | bulk delete; refuses an empty criteria object rather than emptying the resource |
 
 Every method returns the record(s) themselves, never a driver result object — there is no
 `rowsAffected`/`rowCount` anywhere on this contract.
+
+### The criteria language
+
+`Criteria<T>` is keyed by the record's own fields, so a typo is a compile error. A dotted key
+reaches into a nested value (or a jsonb column) and stays open.
+
+| Written as | Means |
+|---|---|
+| `{ status: 'open' }` | equality |
+| `{ status: ['open', 'done'] }` | **any of these** — a bare array is never exact-array equality (that is `{ $eq: [...] }`) |
+| `{ archivedAt: null }` | the absence of a value |
+| `{ status: undefined }` | **skipped** — an untouched filter must never empty a list |
+| `{ 'profile.city': 'Kraków' }` | reach into a nested value or a jsonb column |
+
+Operators go in an object under the field: `$eq $ne $gt $gte $lt $lte $in $nin $exists $null
+$like $ilike $regex $startsWith $endsWith $between $contains $contained $overlaps`. Branches
+combine with `$and` / `$or` / `$not`, each taking criteria of the same shape.
+
+```typescript
+await projects.list({
+  entityId: 'abc',
+  createdAt: { $gte: since },
+  $or: [{ name: { $ilike: 'owl%' } }, { tags: { $overlaps: ['pinned'] } }]
+})
+```
+
+Every backend answers the same object the same way — that is the point of the vocabulary. An
+operator a store cannot express raises `UnsupportedArgumentError` rather than being quietly
+dropped.
+
+`Sort<T>` is a bare field name (ascending) or `{ field, order: 'asc' | 'desc' }`, and `sort` takes
+a list of them. An absent value sorts last ascending, everywhere.
+
+### Paging is a property of the backend
+
+`ListResult<T>` is `{ items, total, page?, size? }` — `total` always counts every match. Whether a
+missing `size` means "everything" depends on what the store can afford:
+
+| Backend | `list(where)` with no `size` |
+|---|---|
+| mongo, postgres | a page of `DEFAULT_PAGE_SIZE` (100) — an unbounded read of a growing table is an incident waiting to happen |
+| redis, static, client-resource, config, state | every match — answering the criteria already read the whole namespace, so an implied window would only hide records without saving work |
+
+`size: 0` means **no limit** on every backend — the explicit, greppable way to ask for a whole
+result set. `page` without `size` against an unpaged backend throws
+`UnsupportedArgumentError('page-without-size')`: there is no implied default to take a window of.
+
+### The shared in-memory engine
+
+Every store without a query engine of its own — redis after its SCAN, the client and static
+stores, state — filters through the same helpers, so a criteria object written for an endpoint
+selects the same records when a screen applies it locally:
+
+| Helper | Answers |
+|---|---|
+| `matchCriteria(record, where)` | does this one record match |
+| `filterRecords(records, where)` | every match, in insertion order |
+| `sortRecords(records, sort)` | a sorted copy |
+| `firstMatch(records, where, { sort })` | the record `load(where)` / `get(where)` return |
+| `applyQuery(records, where, opts)` | the whole `ListResult` — filter, sort and page in one call |
+
+Reach for them when implementing a backend, and when narrowing a list already in hand rather than
+going back to the store.
+
+### Optional capabilities
+
+A concrete resource interface composes the capabilities its backend actually has beside
+`Resource<T>`; a consumer types the **resource** once and gets exactly those methods.
+
+| Interface | Surface |
+|---|---|
+| `PubSubResource<T>` | `publish(value, channel?)` · `subscribe(handler, { channel?, once?, ttl? })` |
+| `WatchableResource<T>` | `watch(id, handler, { once?, ttl? })` — changes to ONE record |
+| `StreamResource<T>` | `stream(key, value)` · `consume(key, { group?, consumer?, block? })` |
+| `LockableResource<T>` | `lock`/`unlock` — field level encryption at rest |
+| `MigratableResource<Tx, Self>` | `migration(name, apply, stage?)` · `migrations()` |
 
 ## The migration framework
 
@@ -86,8 +170,9 @@ Adding migration support to a new database backend:
 1. Extend the concrete resource interface with `MigratableResource<YourTx>` and design the
    `Tx` façade a migration receives.
 2. Keep registrations in a **module-scope declaration keyed by alias** (see either
-   implementation's `declarations.ts`) — `reinitializeContext` rebuilds resource objects, and
-   a registry lost to a rebuild silently loses data transformations.
+   implementation's `declarations.ts`) — a maker that runs more than once for the same alias
+   (a custom maker, a test) then re-declares the same entries and loses nothing, where a
+   registry held on the resource object would silently lose data transformations.
 3. Implement `MigrationStore` over a durable ledger when the database can store one
    (`_owlmeans_migrations` in both mongo and postgres); a store-less backend may run
    migrations unconditionally if its bodies are self-checking.

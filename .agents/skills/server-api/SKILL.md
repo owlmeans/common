@@ -7,32 +7,53 @@ user-invocable: false
 # @owlmeans/server-api
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/server-api": "^0.1.18-rc.16"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `makeServer()` | Factory for the Fastify-based API server |
+| `createApiServer(alias)` | Factory for the Fastify-based API server |
+| `appendApiServer(ctx, alias?)` | Register it and expose `ctx.getApiServer()` |
+| `handleRequest` / `handleBody` / `handleParams` / `handleIntermediate` | Wrap an async function as an entrypoint handler |
+| `extractUploadedFile(req)` | The multipart file behind a request |
 | `holdApiPort(cfg, { okPath?, payload? })` | Own the app's port during boot; released by the real `listen()` |
-| `Server`, `ServerRequest`, `ServerResponse` types | Runtime shapes |
-| Errors | Typed transport errors |
-| Constants | Default ports, paths |
-| Helpers | Middleware composition |
+| `ApiServer`, `Request`, `Response` types | Runtime shapes |
+| `AuthFailedError`, `AccessError`, `NoFileError` | Typed request-pipeline errors |
+| Constants | `DEFAULT_ALIAS` (`api-server`), `PORT`, `CLOSED_HOST`, `OPENED_HOST` |
 
 ## Subpath Exports
 
-- `./utils` — server utility functions
+- `./utils` — `handleError`, `authorize`, `provideRequest`, `executeResponse`, `populateContext`, `extractContext`, `canServeModule`, `createServerHandler`, `fixFormatDates`
+
+## What this server mounts
+
+`canServeModule` mounts a backend entrypoint only when the route belongs to this service AND its
+protocol is one HTTP carries. `SOCKET` and `QUEUE` are excluded: a socket is upgraded elsewhere and
+a queued job is taken off the broker by the worker, so mounting either here would answer the same
+call twice. Adding a protocol means excluding it here as well as binding its transport.
 
 ## Usage
 
 The server is normally constructed transparently by `@owlmeans/server-app#main()`. Use `server-api` directly only when you need to register raw Fastify plugins or customize transport:
 
 ```typescript
-import { makeServer } from '@owlmeans/server-api'
-const server = makeServer({ port: 8080 })
-context.registerService(server)
+import { appendApiServer } from '@owlmeans/server-api'
+appendApiServer(context)
 ```
+
+## Where a route is bound
+
+Every route is registered at `entrypoint.mount()` — `base` plus every ancestor's segment, then this
+one. A declaration states only the segment it contributes, so the full address takes the context the
+entrypoint is registered in, and the table can therefore only be built once the context has resolved.
+Intermediates are not bound as routes: they run in a `preHandler` hook and each one tests
+`entrypoint.route.match(request, entrypoint.mount())` against the same mounted path, passing the
+context it produced down the chain.
+
+A route is bound only when its entrypoint carries a `handle`. Guards and gates come from
+`getGuards()` / `getGates()`, which include everything the ancestors declared, and they run before
+the handler — a handler that re-checks them is duplicating an enforced rule.
 
 ## Holding the port through the boot
 

@@ -89,13 +89,15 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 
 - **Configuration**: `dep-config` — shared TypeScript configs for all packages
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
-- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-entrypoint`, `server-job`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
 - **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl` — current MUI-based packages; a new shadcn UI + Tailwind v4 family is being introduced alongside (wraps `client-panel`, uses the `@` app-provides contract — see `shadcn-web` skill)
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
-- **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
+- **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `redis-queue`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
 - **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service)
-- **Other**: `oidc`, `payment`, `queue`, `flow`, `wled`
+- **Other**: `oidc`, `payment`, `queue` (job-queue contracts + QUEUE transport; driver is `redis-queue`), `flow`, `wled`
+
+Which of these a feature should use — a database, Redis, a bucket, client state, a queued worker or a model — is the `resource-choice` skill; read it at design time, before registering a resource or declaring a job.
 
 ## Key Facts
 
@@ -178,6 +180,23 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **Email OTP authentication**: `server-auth-otp`; mailer transports: `mailer` (contract + console/dev), `mailer-smtp` (SMTP/nodemailer — the production default) and `server-mailer-mailgun` (Mailgun HTTP API)
 - **OIDC/OAuth dependency versions**: `oidc-versions` — exact-pin policy, upgrade checklists for oidc-provider, jose, openid-client, oidc-client-ts, isolation principle, downstream verification
 - **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).
+
+<!-- OWLMEANS:LINKED-SKILLS -->
+### Skills linked from upstream repos
+
+`sh .agents/scripts/link-skills.sh` links in the skills of every repo this one depends on,
+alongside the local ones: `.agents/linked-skills/<name>` for Copilot and Codex,
+`.claude/skills/<name>` for Claude Code, and a `skill / origin repo / description` table in
+`.agents/linked-skills/INDEX.md`. Load a linked skill by
+name (`/<name>`) exactly like a local one. A local skill of the same name always wins, and a
+nearer dependency wins over a farther one. The directory is generated and git-ignored — never
+edit or commit it.
+
+This repo is the root of the dependency chain: it links nothing in, so
+`.agents/linked-skills/` stays absent here. Its skills are what every downstream repo
+(`internal`, `viable-agent`, `viable`, and generated apps) sees through its own index.
+
+<!-- /OWLMEANS:LINKED-SKILLS -->
 
 ## Maintenance
 

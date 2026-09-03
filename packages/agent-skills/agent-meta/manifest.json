@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.10",
-  "generatedAt": "2026-09-01T12:30:48.600Z",
+  "version": "0.1.18-rc.12",
+  "generatedAt": "2026-09-02T00:42:42.544Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -32,6 +32,13 @@
       "category": "general",
       "file": "skills/getting-started/SKILL.md",
       "canonicalPath": ".agents/skills/getting-started/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "agent-skills",
+      "category": "package-specific",
+      "file": "skills/agent-skills/SKILL.md",
+      "canonicalPath": ".agents/skills/agent-skills/SKILL.md"
     },
     {
       "kind": "skill",

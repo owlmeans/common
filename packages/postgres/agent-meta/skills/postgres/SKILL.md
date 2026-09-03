@@ -1,6 +1,6 @@
 ---
 name: postgres
-description: How to use @owlmeans/postgres — PostgreSQL connection service (makePostgresDbService / appendPostgres) registered on a server context, plus the least-privilege bootstrap admin path. Auto-invoked when wiring PostgreSQL into a server app.
+description: How to use @owlmeans/postgres — PostgreSQL connection service (makePostgresDbService / appendPostgres) registered on a server context, its health checks, plus the least-privilege bootstrap admin path. Auto-invoked when wiring PostgreSQL into a server app.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/postgres
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/postgres": "^0.1.18-rc.14"` in `dependencies`
 
 Pooled `pg` connections for a server context, plus the admin path that provisions the role, database
 and schema an app connects with. All DDL for application tables belongs to [[postgres-resource]] —
@@ -22,6 +22,8 @@ this package only creates the schema those tables live in.
 | `appendPostgres(context, alias?)` | Registers the service **and** its drain middleware. Use this, not a bare `registerService`. |
 | `PostgresService` | `PostgresDbService` + `bootstrap(configAlias, opts)`. |
 | `BootstrapOptions`, `BootstrapReport`, `bootstrapDb` | The admin path; `bootstrapDb` is usable without a context. |
+| `pingDb(context, alias?, configAlias?)` / `checkDbHealth(...)` | Health checks through the registered service; `DbHealth` = `{ ok, summary, error? }`. |
+| `getLastDbHealth(alias?, configAlias?)` / `formatDbError(error)` | The cached verdict, and the cause-chain error formatter. |
 | `drainMiddleware(alias?)` | Drains work deferred until every resource has initialized. |
 | `parseUrl`, `prepareConfig`, `poolDatabase`, `probe`, `ensureSchema` | Config and connection helpers. |
 | `DEFAULT_ALIAS`, `DEF_ADMIN_ALIAS`, `DEF_MAINTENANCE_DB`, `DEF_PORT`, `DEF_POOL_SIZE`, `DEF_RETRIES`, `DEF_RETRY_DELAY`, `TERMINAL_CONNECT_CODES` | Constants. |
@@ -50,9 +52,9 @@ cfg.dbs = [{
 for a `DATABASE_URL` env var. Because a leading `/` is auto-read, moving to file-mounted secrets
 later is a config change, not a code change.
 
-**`schema` is the SCHEMA, not the database.** `dbName()` suffixes it per Entity/User layer, so
-per-tenant namespaces cost a `CREATE SCHEMA` rather than a `CREATE DATABASE`. The database comes
-from `meta.database` and is never suffixed.
+**`schema` is the SCHEMA, not the database.** `dbName()` returns it as given
+(`config.schema ?? config.alias ?? service.alias`), so a separate namespace costs a `CREATE SCHEMA`
+inside a shared database rather than a `CREATE DATABASE`. The database comes from `meta.database`.
 
 Other `meta` keys: `autoSync` (see [[postgres-resource]]), `ssl`, `max`, `idleTimeoutMillis`,
 `connectionTimeoutMillis`, `statementTimeoutMillis`, `retries`, `retryDelayMillis`.
@@ -80,6 +82,35 @@ Mongo driver's tuning instinct.
 resource that hasn't initialized yet — foreign keys, above all. Queue it; the middleware
 `appendPostgres` registers drains it once the context is up. Do not reorder resource registrations
 to work around this.
+
+## Health
+
+Do not hand-roll a health check, and never open a connection of your own for one: `pingDb` and
+`checkDbHealth` resolve the service by alias exactly as any other consumer does, so a probe can
+never report on a connection the app does not use. Both return `{ ok, summary, error? }` and never
+throw.
+
+```typescript
+const health = await checkDbHealth(context)          // boot gate, after init()
+if (!health.ok) throw new Error(health.error ?? health.summary)
+
+const live = await pingDb(ctx)                       // request time, in a health handler
+const boot = getLastDbHealth()
+```
+
+`checkDbHealth` awaits `service.ready()`, runs `SELECT 1` and caches its verdict for
+`getLastDbHealth`; `pingDb` is the bare `SELECT 1` and caches nothing. Neither inspects the schema
+— structure is reconciled by the resources during `init()`, so a process that reached the check has
+the tables it was built with and there is nothing left to assert beyond "the connection works".
+
+The context is a parameter, not a module import: a handler is handed the context that actually
+served the request (possibly an entity-scoped derivative), and passing it keeps these functions out
+of the boot import cycle. Errors go through `formatDbError`, which walks the `cause` chain and
+surfaces the `severity`/`code`/`detail`/`hint` a bare `.message` hides — that is where the real
+FATAL/permission reason lives.
+
+Pair it with the bind-first boot in [[server-app]]: `checkDbHealth` is the boot gate, and a failure
+becomes `setBootPhase('failed', …)` on a port that is already bound.
 
 ## Bootstrap — the admin path
 

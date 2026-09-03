@@ -27,7 +27,7 @@ export const surrogatePath = (ctx: LoginContext, target: SurrogateTarget): strin
   }
   let path: string
   try {
-    path = ctx.entrypoint<ClientEntrypoint>(DISPATCHER_SURROGATE).getPath()
+    path = ctx.entrypoint<ClientEntrypoint>(DISPATCHER_SURROGATE).path()
   } catch {
     return null
   }

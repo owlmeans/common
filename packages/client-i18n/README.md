@@ -12,7 +12,7 @@ React i18next adapter that loads translations registered via `@owlmeans/i18n` in
 ## Installation
 
 ```bash
-bun add @owlmeans/client-i18n
+bun add @owlmeans/client-i18n@^0.1.18-rc.14
 ```
 
 ## Usage
@@ -68,7 +68,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

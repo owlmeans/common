@@ -4,7 +4,9 @@ import type { AuthCredentials, AuthPayload, Profile } from '@owlmeans/auth'
 import { ALL_SCOPES, AuthRole } from '@owlmeans/auth'
 import type { ProviderProfileDetails } from '@owlmeans/oidc'
 import { createIdOfLength, IdStyle } from '@owlmeans/basic-ids'
+import type { Criteria } from '@owlmeans/resource'
 import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService } from './types.js'
+import type { IdentityCredentials, IdentityProfile } from './types.js'
 import type { OrgEntity, OrgEntityResource } from './types.js'
 import type { EntityResolverService } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
@@ -43,18 +45,15 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       const ctx = service.ctx as Context
       const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
 
-      const { items: creds } = await credsResource.list({
-        criteria: {
-          type: details.type,
-          userId: externalKey(details),
-          credential: loginService(details),
-        }
+      const cred = await credsResource.load({
+        type: details.type,
+        userId: externalKey(details),
+        credential: loginService(details),
       })
-      const cred = creds[0] ?? null
       if (cred == null) return null
 
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const profile = await profileResource.load(cred.profileId, 'profileId')
+      const profile = await profileResource.load({ profileId: cred.profileId })
       if (profile == null) return null
 
       return {
@@ -126,7 +125,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         })
       } catch (err: any) {
         if (err?.code === 11000 || err?.message?.includes('duplicate')) {
-          profile = await profileResource.get(profileId, 'profileId')
+          profile = await profileResource.get({ profileId })
         } else {
           throw err
         }
@@ -174,7 +173,7 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
     getOwnerProfiles: async (entityId: string): Promise<Profile[]> => {
       const ctx = service.ctx as Context
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-      const { items: profiles } = await profileResource.list({ criteria: { entityId } })
+      const { items: profiles } = await profileResource.list({ entityId })
 
       return await Promise.all(profiles.map(async p => ({
         id: p.profileId,
@@ -193,19 +192,18 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
       const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
 
-      const profileFilter: Record<string, unknown> = { userId }
+      const profileFilter: Criteria<IdentityProfile> = { userId }
       if (entityId != null) profileFilter.entityId = entityId
-      const { items: profiles } = await profileResource.list(profileFilter as any)
+      const { items: profiles } = await profileResource.list(profileFilter)
       if (profiles.length === 0) return undefined
 
-      const credsFilter: Record<string, unknown> = {
+      const credsFilter: Criteria<IdentityCredentials> = {
         profileId: { $in: profiles.map(p => p.profileId) }
       }
       if (type != null) credsFilter.type = type
-      const { items: creds } = await credsResource.list(credsFilter as any)
-      if (creds.length === 0) return undefined
+      const cred = await credsResource.load(credsFilter)
+      if (cred == null) return undefined
 
-      const cred = creds[0]
       const profile = profiles.find(p => p.profileId === cred.profileId) ?? profiles[0]
 
       return {

@@ -11,7 +11,7 @@ Client-side configuration helper for registering web service endpoints.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-config
+bun add @owlmeans/client-config@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -48,7 +48,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -7,24 +7,22 @@ user-invocable: false
 # @owlmeans/client-context
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-context": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/client-context": "^0.1.18-rc.12"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
 | `makeClientContext` | Client-side context factory (cross-platform) |
-| `Context` (client) types | Client Context interface |
-| `Config` (client) types | Client config shape |
-| Constants | Default aliases |
-
-## Subpath Exports
-
-- `./utils`
+| `ClientContext<C>` | Client Context interface — adds `serviceRoute(alias)` |
+| `ClientConfig`, `config()` | Client config shape and its factory |
+| `PLUGINS` | Alias of the plugins config resource |
 
 ## Usage
 
-Most apps don't call this directly — `@owlmeans/web-panel` and native equivalents wrap it.
+Most apps don't call this directly — `@owlmeans/web-panel` and native equivalents wrap it. A wrapper
+calls it once, applies its own idempotent `append*(context)` mixins, and returns that same context:
+one context per process, built by one factory.
 
 ```typescript
 import { makeClientContext } from '@owlmeans/client-context'

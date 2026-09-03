@@ -5,6 +5,8 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.7"` in `devDependencies`
+
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`,
 `storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`,
@@ -141,10 +143,12 @@ export const capabilities: PgCapabilities = gate.skip
 
 Specs then branch on it once, at the top: `const it = gate.skip || !capabilities.bootstrap ? test.skip : test`.
 
-## Module-scope declarations survive a context switch
+## Module-scope declarations outlive a `boot()`
 
-Migration registries and table declarations are keyed by resource **alias** at module scope so
-they outlive `reinitializeContext`. That means they also outlive a `boot()` — deliberately.
+Migration registries and table declarations are keyed by resource **alias** at module scope, so a
+maker that runs more than once for the same alias re-declares the same entries and loses nothing.
+A `boot()` builds a whole new context, but the declarations belong to the module registry rather
+than to any context, so they carry across every boot in the process — deliberately.
 Never reset them inside a shared `boot()` helper: a `.migration()` registered before the boot
 would be silently dropped. A spec that wants a clean slate calls `resetDeclarations(alias)`
 itself, which is what a spec simulating a restarted process should have to say out loud.

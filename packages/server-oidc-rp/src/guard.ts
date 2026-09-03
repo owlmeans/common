@@ -17,9 +17,9 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[]) => {
-  setupBasicOidcGuard(modules, coguards)
+export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[]) => {
+  setupBasicOidcGuard(entrypoints, coguards)
 
-  elevate(modules, DISPATCHER_OIDC_INIT, actions.init)
-  elevate(modules, DISPATCHER_OIDC, actions.authenticate)
+  elevate(entrypoints, DISPATCHER_OIDC_INIT, actions.init)
+  elevate(entrypoints, DISPATCHER_OIDC, actions.authenticate)
 }

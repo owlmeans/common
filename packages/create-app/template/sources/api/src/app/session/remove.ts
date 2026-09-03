@@ -7,7 +7,7 @@ export const remove = handleParams<ItemParams>(async (params, context) => {
   const ctx = context as Context
   const resource = ctx.getStaticResource<SessionItem>(SESSION_ITEMS)
 
-  const existing = await resource.load<SessionItem>(params.id)
+  const existing = await resource.load(params.id)
   // Only remove the item if it belongs to the requesting session.
   if (existing == null || existing.sessionId !== params.sid) {
     return { removed: false }

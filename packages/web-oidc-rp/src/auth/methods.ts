@@ -61,7 +61,7 @@ export const oidcMethodSource: LoginMethodSource = {
         // nothing may be awaited first. The choice travels with it and the surrogate re-runs the
         // method itself, one window up, where the round trip can actually complete.
         if (methodCtx.env.embedded && !methodCtx.env.surrogate) {
-          const dispatcher = methodCtx.context.entrypoint<ClientEntrypoint>(DISPATCHER).getPath()
+          const dispatcher = methodCtx.context.entrypoint<ClientEntrypoint>(DISPATCHER).path()
 
           return await login.begin({
             url: `${dispatcher}?${LOGIN_METHOD_QUERY}=${encodeURIComponent(id)}`,

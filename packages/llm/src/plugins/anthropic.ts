@@ -6,6 +6,7 @@ import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common
 import type { CacheTtl } from '@owlmeans/llm-common'
 import type { LlmPlugin } from './types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
+import { resolveOutputCap } from '../utils/config.js'
 import { readConfig } from '../utils/config.js'
 import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
 
@@ -35,6 +36,22 @@ export const NO_SAMPLING_PREFIXES = [
 /** Whether this model id rejects `temperature`/`top_p`/`top_k`. */
 export const rejectsSampling = (model: string | undefined): boolean =>
   model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
+
+/**
+ * The smallest output budget an always-reasoning model is given.
+ *
+ * The same models that took the sampling knobs away also think ADAPTIVELY whether or not the
+ * request asks them to, and by default that thinking is not shown — it arrives as thinking blocks
+ * with empty text. Reasoning is billed against the same `max_tokens` as the answer, so a budget
+ * sized for the answer alone can be spent entirely on thinking: the response is a well-formed
+ * completion carrying no text at all, `stop_reason: "max_tokens"`, and every retry at the same
+ * budget draws from the same distribution.
+ *
+ * The floor buys room for the reasoning AND the answer. It is a floor, not an override — a preset
+ * asking for more keeps it — and it is clamped to what the provider accepts, so it can never turn
+ * a retryable empty answer into a 400.
+ */
+export const ADAPTIVE_MIN_MAX_TOKENS = 32_000
 
 export const ANTHROPIC_FAMILY = 'anthropic'
 
@@ -128,10 +145,16 @@ export const anthropicPlugin: LlmPlugin = {
         ...(config.temperature != null ? { temperature: config.temperature } : {}),
         ...(config.topP != null && config.temperature == null ? { topP: config.topP } : {}),
       }
+    // Room for the reasoning these models always do, and for the answer after it.
+    const requested = config.maxTokens ?? 4096
+    const maxTokens = rejectsSampling(model)
+      ? Math.min(Math.max(requested, ADAPTIVE_MIN_MAX_TOKENS), resolveOutputCap(config))
+      : requested
+
     const cfg = {
       model,
       apiKey: secret,
-      maxTokens: config.maxTokens ?? 4096,
+      maxTokens,
       maxRetries: 5,
       metadata: { config },
       callbacks,

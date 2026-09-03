@@ -1,6 +1,6 @@
 ---
 name: state
-description: How to use @owlmeans/state — appendStateResource() to register a client state resource on a context, useStoreModel/useStoreList to read it from React, live query subscriptions, and the StateModel commit semantics. Auto-invoked when importing state primitives or building client-side application state.
+description: How to use @owlmeans/state — appendStateResource() to register a client state resource on a context, useStoreModel/useStoreList to read it from React, watch/query live subscriptions, and the StateModel commit semantics. Auto-invoked when importing state primitives or building client-side application state.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,22 +8,28 @@ user-invocable: false
 # @owlmeans/state
 
 **Layer:** Core
-**Install:** `"@owlmeans/state": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/state": "^0.1.18-rc.10"` in `dependencies`
 
 The framework's client store. A state resource is a `Resource` like any other, registered **on the
 context** — which is what separates it from a store held beside the app: a screen, a service and a
-guard all reach the same records through the same container.
+guard all reach the same records through the same container. Reads and writes are the resource
+vocabulary of [[resource]]; `watch` and `query` are the live half.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `appendStateResource<C, T>(context, alias?)` | Register a state resource on the context |
-| `createStateResource<T>(alias?)` | The bare factory, when you register it yourself |
-| `StateResource<T>` | The resource interface — full CRUD plus `all`, `match`, `subscribe`, `listen`, `erase` |
-| `StateModel<T>` | The subscribed wrapper — `record`, `update`, `commit`, `clear` |
-| `matchCriteria`, `filterRecords`, `sortRecords` | The criteria evaluator, for filtering a list you already hold |
-| `DEFAULT_ID` (`_default`), `DEFAULT_ALIAS` (`state`) | Constants |
+| `appendStateResource<C, T, R>(context, alias?, cfg?)` | Register a state resource on the context |
+| `createStateResource<T>(alias?, cfg?)` | The bare factory, when you register it yourself |
+| `stateAlias<T>(alias)` | Name a store once with the record type attached — `StateAlias<T>` |
+| `StateResource<T>` | The resource interface — full CRUD plus `replace`, `clear`, `watch`, `query`, `publish`/`subscribe` |
+| `StateModel<T>` | The subscribed wrapper — `id`, `empty`, `record`, `update`, `commit`, `clear` |
+| `StateConfig<T>` | How the store is keyed — `id`, `single`, `default` |
+| `StateEvent<T>` | What a change looks like on the wire — `{ type: 'set' \| 'remove', records }` |
+| `StateConfigError` | `NonSingle` (no id on a many-record store), `NoId` (a write with no key) |
+
+The criteria evaluator (`matchCriteria`, `filterRecords`, `sortRecords`, `applyQuery`) lives in
+**`@owlmeans/resource`** — the same engine the store runs on, for filtering a list you already hold.
 
 The React hooks live in **`@owlmeans/client`** — `useStoreModel`, `useStoreList`. They are not
 re-exported by `@owlmeans/web-client`, so import them from `@owlmeans/client` directly.
@@ -35,21 +41,31 @@ no setup at all. Register a named one per entity when records of different kinds
 id space:
 
 ```typescript
-import { appendStateResource } from '@owlmeans/state'
+import { appendStateResource, stateAlias } from '@owlmeans/state'
 
-export const TASK_STATE = 'task-state'
+export const TASKS = stateAlias<Task>('task-state')
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
-  const context = makeBasicContext<C, T>(cfg)
-  appendStateResource<C, T>(context, TASK_STATE)
-  // A child context must inherit THIS factory, or it is built without the resource above.
-  context.makeContext = makeContext as typeof context.makeContext
+  const context = makeClientContext<C, T>(cfg)
+  appendStateResource<C, T, Task>(context, TASKS)
   return context
 }
 ```
 
-Reach it with `context.getStateResource<Task>(TASK_STATE)`. A typed accessor on the context
-(`context.taskStore = () => context.getStateResource(TASK_STATE)`) is optional sugar.
+Reach it with `context.getStateResource(TASKS)` — a `StateAlias<T>` carries the record type, so the
+accessor is typed without repeating `<Task>` at every call site. `getStateResource()` with no alias
+answers the context's own default store (`state`), so always name the alias for a store you
+appended. `appendStateResource` is idempotent: appending the same alias twice keeps the resource
+already there, so a setup that runs more than once does not drop what the store has collected.
+
+`StateConfig` decides how the store is keyed and what it shows before anything is loaded — all of it
+optional:
+
+| Field | Meaning |
+|---|---|
+| `id` | The field records are keyed by. Defaults to `id`. |
+| `single` | The store holds exactly ONE record, which therefore needs no id — the current user, the active session, a wizard being filled in. It is what makes `watch(undefined, …)` (and so `useStoreModel()` with no id) answerable. |
+| `default` | `() => T` — what `model.record` shows while the model is empty. A screen binds to it instead of guarding every field, and the store still holds nothing. |
 
 ## Reading it from React
 
@@ -57,29 +73,38 @@ Reach it with `context.getStateResource<Task>(TASK_STATE)`. A typed accessor on 
 import { useStoreList, useStoreModel } from '@owlmeans/client'
 
 // One record, by id. Re-renders whenever that record changes.
-const task = useStoreModel<Task>(id, TASK_STATE)
+const task = useStoreModel<Task>(id, TASKS)
 task.record.title
 
 // A LIVE QUERY. Re-renders whenever any write changes which records match.
-const open = useStoreList<Task>({ query: { status: 'open' }, resource: TASK_STATE })
+const open = useStoreList<Task>({ query: { status: 'open' }, resource: TASKS })
 open.map(model => model.record.title)
 
-// Everything in the store.
-const all = useStoreList<Task>({ query: {}, resource: TASK_STATE })
+// Everything in the store, newest first.
+const all = useStoreList<Task>({ sort: [{ field: 'createdAt', order: 'desc' }], resource: TASKS })
 ```
 
 A query subscription creates nothing and re-evaluates on every create, update and delete — a list
 screen never recomputes ids and never re-subscribes to keep up. The criteria object is compared by
-content, so a filter that changes narrows the list.
+content, so a filter that changes narrows the list. An omitted `query` matches everything.
 
-An **id** subscription is different on purpose: it CREATES a placeholder record so a screen has
-something to bind to before the real one arrives. `useStoreModel(undefined)` therefore hands back a
-record whose id is `DEFAULT_ID` — that sentinel, not `null`, is what "nothing loaded yet" looks
-like:
+**"Nothing loaded yet" is `model.empty`.** An id the store knows nothing about yields a model whose
+`empty` is true, and nothing is written into the store on the way — so `useStoreModel` never throws
+for missing data, and a screen bound to an unknown id does not put a blank row into every list
+reading the same store:
 
 ```typescript
-const loading = task.record.id === DEFAULT_ID
+if (task.empty) {
+  return <Spinner/>
+}
 ```
+
+`model.record` is still readable while empty: it holds the resource's configured `default`, or `{}`
+when there is none. Calling `model.update(...)` or `model.commit()` on an empty model writes it —
+including the default it was showing.
+
+`useStoreModel()` with no id addresses the one record of a `single` resource. On any other that is a
+wiring mistake and throws `StateConfigError` (`NonSingle`).
 
 ## Writing to it
 
@@ -87,65 +112,93 @@ The server is the source of truth; the store is what the screen reads. Fetch, th
 back into the store, and let the subscriptions render it:
 
 ```typescript
-const store = ctx.getStateResource<Task>(TASK_STATE)
+const store = ctx.getStateResource(TASKS)
 
-const [tasks] = await ctx.entrypoint<ClientEntrypoint<Task[]>>(TASK_LIST).call()
-for (const task of tasks) {
-  await store.save(task)
-}
+const tasks = await ctx.entrypoint<ClientEntrypoint<Task[]>>(TASK_LIST).call()
+await store.replace(tasks)
 ```
 
-`save` creates or replaces. `update` requires the record to exist. `delete(id)` removes it. Each
-one notifies every subscriber that cares.
+`replace(records)` makes the store agree with an authoritative list: every record given is written,
+and every record the list does not name is dropped. That is the shape of "the server just told us
+what exists" — saving each record one by one leaves the ones deleted elsewhere behind, and one
+write wakes the subscribers once instead of once per record. The store is rewritten before anything
+is told about it, so a subscriber never sees the half-applied set.
+
+For single records: `save` creates or replaces, `create` refuses an id already there, `update`
+requires the record to exist, `delete(id)` removes it and answers with what it removed, `take(id)`
+is the same read but throws when the record is absent, `purge(where)` bulk-deletes (and refuses an
+empty criteria object rather than emptying the store), and `clear()` drops everything. Each one
+notifies every subscriber that cares.
+
+A write carrying no value for the key field throws `StateConfigError` (`NoId`) — nothing here mints
+ids. A write carrying a `ttl` throws `UnsupportedArgumentError`: the store keeps no expiring
+records, so a ttl would be silently dropped.
 
 ### The commit rule
 
-`StateModel.record` is a COPY. Assigning to it changes nothing anyone else can see:
+`StateModel.record` is a SNAPSHOT. Assigning to it changes nothing anyone else can see:
 
 ```typescript
-model.record.title = 'renamed'   // WRONG — a silent no-op, nothing re-renders
-model.update({ title: 'renamed' })  // RIGHT — merges and commits
+model.record.title = 'renamed'      // WRONG — a silent no-op, nothing re-renders
+await model.update({ title: 'renamed' })  // RIGHT — merges and commits
 ```
 
-`update(data)` merges and commits in one step; `commit()` writes the current `record` back and is
-what you call after assigning several fields; `clear()` deletes the record. `commit()` skips the
-write when nothing actually changed, so calling it twice is free.
+`update(patch)` merges and commits in one step — batch several fields into one patch rather than
+writing them one at a time. `commit()` writes what `record` currently holds, which is how an empty
+model bound to a `default` is persisted as it stands. `clear()` deletes the record and leaves the
+model empty again. The working copy is replaced rather than mutated on every write, so the record a
+caller is holding never changes underneath it and two models of the same record stay comparable by
+reference — which is what lets a React subscriber tell a real change from an unrelated one.
 
 ## Querying
 
-`list`, `match` and the `query` subscription all take the same criteria language as the server
-resources, so a filter written for an endpoint means the same thing applied locally:
+Reads take the same criteria language as the server resources, so a filter written for an endpoint
+means the same thing applied locally:
 
 ```typescript
-await store.all()                                   // every record, plain array
-await store.match({ status: 'open' })               // the matching records, plain array
-await store.list({ status: ['open', 'blocked'] })   // the Resource envelope: { items, pager }
-await store.list({ criteria: { status: 'open' }, pager: { page: 0, size: 20, sort: ['createdAt'] } })
+await store.get(id)                                  // the record, or UnknownRecordError
+await store.load({ status: 'open' })                 // the first match, or null
+await store.list({ status: ['open', 'blocked'] })    // { items, total }
+await store.list({ status: 'open' }, { sort: ['createdAt'], size: 20 })
+await store.count({ status: 'open' })
 ```
 
 - A bare value is equality; a bare **array means "any of these"**.
 - Operators: `$eq $ne $gt $gte $lt $lte $in $nin $exists $null $like $ilike $regex $startsWith
   $endsWith $between $contains $contained $overlaps`, and `$and $or $not` to combine.
 - A dotted key reaches into the record (`'owner.team'`).
-- A criteria value of `undefined` is SKIPPED — an untouched filter must not empty the list.
-- `list()` with no arguments returns everything: a state resource is unpaged unless a pager is
-  asked for, unlike a server resource that defaults to a page size.
+- `null` matches absence; a criteria value of `undefined` is SKIPPED — an untouched filter must not
+  empty the list.
+- `Sort<T>` is a field name (ascending) or `{ field, order: 'asc' | 'desc' }`.
 
-`all()` and `match()` return plain arrays; `list()` returns `{ items, pager }` because that is the
-`Resource` contract. Destructuring the wrong one is a silently empty render, so pick by shape.
+`list()` returns `{ items, total }` and is **unpaged**: the store is already in memory and a screen
+reading it expects all of it. Ask for a `size` to page, and `size: 0` still means no limit. A `page`
+with no `size` throws `UnsupportedArgumentError('page-without-size')` — there is no default page
+size to count against.
 
 ## Subscribing outside React
 
 ```typescript
-const [unsubscribe] = store.subscribe({ query: { status: 'open' }, listener: models => { ... } })
-const stop = store.listen(models => { ... })   // every change, whatever it is
-await store.erase()                            // drop everything
+const stopOne = store.watch(id, model => { … })                    // one record
+const stopMany = store.query({ status: 'open' }, models => { … })  // a live query
+const stopAll = store.query(undefined, models => { … }, { sort: ['createdAt'] })
 ```
 
-Subscribing the same listener function twice throws — hold the unsubscribe and call it instead.
+Both are **synchronous** and both are seeded before they return: the listener is called with the
+current value straight away, then again on every change — including a removal, which reaches a
+`watch` listener as an empty model. Each returns its unsubscribe.
+
+Writes announce themselves on the default channel, so `publish` is for what the store cannot know
+it did — a change that arrived from elsewhere, or a channel of a caller's own:
+
+```typescript
+const stop = await store.subscribe(event => { … })                  // every write: StateEvent<T>
+await store.publish({ type: 'set', records: [task] }, 'from-socket')
+const once = await store.subscribe(handler, { channel: 'from-socket', once: true, ttl: 60 })
+```
 
 ## Depends On
 
-- `@owlmeans/resource` — `StateResource` extends `Resource`
+- `@owlmeans/resource` — `StateResource` extends `Resource` and `PubSubResource`
 - `@owlmeans/context` — for `getStateResource`
 - React hooks: `@owlmeans/client`

@@ -1,6 +1,8 @@
 import { PromptBlock, resolveFileProvider } from '@owlmeans/llm-common'
 import { renderSkill } from '@owlmeans/llm/prompt'
+import type { SkillDefinition } from '@owlmeans/llm-common'
 import type { LlmPromptPlugin, PromptContext } from '@owlmeans/llm'
+import { contentText } from './relevance.js'
 import { loadPackageSkills } from './resolve.js'
 import { OWLMEANS_SCOPE } from './types.js'
 import type { PackageSkills, PackageSkillsOptions } from './types.js'
@@ -12,21 +14,9 @@ const DEFAULT_CATEGORIES = ['package-specific', 'multi-package'] as const
 
 const escape = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const textOf = (content: unknown): string => {
-  if (typeof content === 'string') {
-    return content
-  }
-  if (Array.isArray(content)) {
-    return content
-      .map(part => {
-        const text = (part as { text?: unknown }).text
-        return typeof text === 'string' ? text : ''
-      })
-      .join('\n')
-  }
-
-  return ''
-}
+/** The skill's own name — `toSkill` prefixes the alias with the package that ships it. */
+const skillName = (skill: SkillDefinition): string =>
+  skill.alias.slice(skill.alias.indexOf('#') + 1)
 
 /**
  * A prompt plugin that notices which `@owlmeans/*` packages a request talks about and
@@ -93,7 +83,7 @@ export const owlmeansPackagesPlugin = (options: PackageSkillsOptions = {}): LlmP
   const detect = (ctx: PromptContext): string[] => {
     const found = new Set<string>()
     for (const message of ctx.messages) {
-      const text = textOf((message as { content?: unknown }).content)
+      const text = contentText((message as { content?: unknown }).content)
       if (text === '') {
         continue
       }
@@ -125,6 +115,12 @@ export const owlmeansPackagesPlugin = (options: PackageSkillsOptions = {}): LlmP
           continue
         }
         for (const skill of found.skills) {
+          // The name a package documents is often also the name a project installed its
+          // own copy of. A mention of the package is the more specific signal, so this
+          // plugin claims first and `projectSkillsPlugin` (order 55) stands down.
+          if (!ctx.claim(`skill:${skillName(skill)}`)) {
+            continue
+          }
           ctx.add(PromptBlock.Packages, renderSkill(skill))
         }
       }

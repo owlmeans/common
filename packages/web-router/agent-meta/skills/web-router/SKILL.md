@@ -8,12 +8,12 @@ user-invocable: false
 # @owlmeans/web-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/web-router": "^0.1.18-rc.14"` in `dependencies`
 
-As of the pluggable-routing rework this package **is the default OwlMeans in-browser router** — a
-minimal, react-router-free implementation of standard URL routing over the browser History API. It
-registers itself as a `RouterPlugin` on the `@owlmeans/router` host. (react-router now lives in the
-separate opt-in `@owlmeans/web-router-react-router` package.)
+This package **is the default OwlMeans in-browser router** — a minimal, react-router-free
+implementation of standard URL routing over the browser History API. It registers itself as a
+`RouterPlugin` on the `@owlmeans/router` host. (react-router is the separate opt-in
+`@owlmeans/web-router-react-router` package.)
 
 ## Key Exports
 
@@ -35,8 +35,8 @@ separate opt-in `@owlmeans/web-router-react-router` package.)
   chain via `RouteChain`; `<Outlet/>` renders the next-deeper match (depth tracked via context).
   Composes unchanged with the `@owlmeans/client` route renderer (parent components emit `<Outlet/>`).
 - **Component-less matches are pass-through** — exactly like react-router's implicit `<Outlet/>` for
-  element-less routes. `@owlmeans/client` emits `RouteObject`s with no `Component` for modules that
-  have no handler (grouping modules such as `client-authentication` →
+  element-less routes. `@owlmeans/client` emits `RouteObject`s with no `Component` for entrypoints
+  that have no handler (grouping entrypoints such as `client-authentication` →
   `client-authentication:authentication`), so rendering only the exact node at a depth would blank
   the whole subtree. `RouteChain` walks down to the first match that has a `Component`, and the
   `OutletContext` depth it publishes is that match's depth, so nested outlets stay aligned.

@@ -10,24 +10,25 @@ export const authMiddleware: Middleware = {
   stage: MiddlewareStage.Loading,
   apply: async context => {
     context.entrypoints<Perked>().forEach(module => {
-      if (module.route.route.type === AppType.Backend && module.call != null) {
-        const guards = module.getGuards()
-        if (guards.length > 0) {
+      if (module.route.route.type === AppType.Backend && module.invoke != null) {
+        if (module.getGuards().length > 0) {
           if (module._auth_common_middleware_applied === true) {
             return
           }
           module._auth_common_middleware_applied = true
-          // const auth = context.service<GuardService>(service)
-          const call = module.call
-          module.call = async (req, res) => {
+          // Wrapping `invoke` covers `call` too: `call` reads `invoke` off the entrypoint at the
+          // moment it runs, so both verbs carry the authentication header.
+          const invoke = module.invoke
+          module.invoke = (async req => {
             // @TODO Actually we may use multiple authentication headers with the same name
             // As I learnt its not always the case
-            const [token] = (await Promise.all(guards.map(
+            // Asked per call, not captured: an ancestor may have gained a guard since the
+            // middleware wrapped this entrypoint.
+            const [token] = (await Promise.all(module.getGuards().map(
               guard => context.service<GuardService>(guard).authenticated(req)
             ))).filter(token => token != null).reverse()
             if (token != null) {
-              await module.resolve()
-              const _req: Partial<AbstractRequest> = req ?? provideRequest(module.getAlias(), module.getPath())
+              const _req: Partial<AbstractRequest> = req ?? provideRequest(module.alias, module.path())
               const headers = (_req.headers ?? {}) as Record<string, string | undefined>
               if (headers[AUTH_HEADER] == null) {
                 headers[AUTH_HEADER] = token
@@ -36,8 +37,8 @@ export const authMiddleware: Middleware = {
               }
             }
 
-            return call(req, res)
-          }
+            return invoke(req)
+          }) as typeof module.invoke
 
         }
       }

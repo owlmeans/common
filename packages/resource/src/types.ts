@@ -1,63 +1,150 @@
 import type { BasicConfig, BasicContext, BasicResource, LazyService } from '@owlmeans/context'
 import type { MigrationStage } from './consts.js'
 
-export interface Resource<T extends ResourceRecord> extends BasicResource {
-  /**
-   * @throws {UnknownRecordError}
-   */
-  get: <Type extends T>(id: string, field?: Getter, opts?: LifecycleOptions) => Promise<Type>
-  load: <Type extends T>(id: string, field?: Getter, opts?: LifecycleOptions) => Promise<Type | null>
-  list: <Type extends T>(criteria?: ListOptions | ListCriteria, opts?: ListOptions) => Promise<ListResult<Type>>
-  save: <Type extends T>(record: Partial<Type>, opts?: Getter) => Promise<Type>
-  /**
-   * @throws {RecordExists}
-   */
-  create: <Type extends T>(record: Partial<Type>, opts?: LifecycleOptions) => Promise<Type>
-  /**
-   * @throws {UnknownRecordError}
-   */
-  update: <Type extends T>(record: Partial<Type>, opts?: Getter) => Promise<Type>
-  delete: <Type extends T>(id: string | T, opts?: Getter) => Promise<Type | null>
-  /**
-   * @throws {UnknownRecordError}
-   */
-  pick: <Type extends T>(id: string | T, opts?: Getter) => Promise<Type>
-}
-
 export interface ResourceRecord {
   id?: string
 }
 
-type MaybeArray<T> = T | T[]
-export interface ListCriteria extends Record<string, MaybeArray<ListCriteria | number | string | undefined>> { }
-
-export interface ListOptions {
-  pager?: ListPager
-  criteria?: ListCriteria
+/** Operators a single field can be constrained by. */
+export interface FieldOperators<V> {
+  $eq?: V
+  $ne?: V
+  $gt?: V
+  $gte?: V
+  $lt?: V
+  $lte?: V
+  $in?: Array<V | null>
+  $nin?: Array<V | null>
+  $exists?: boolean
+  $null?: boolean
+  $like?: string
+  $ilike?: string
+  $regex?: string
+  $startsWith?: string
+  $endsWith?: string
+  $between?: [V, V]
+  $contains?: V | V[]
+  $contained?: V[]
+  $overlaps?: V[]
 }
 
-export type ListSort = string | [string, boolean?]
+/**
+ * How one field is constrained: a bare value is equality, a bare ARRAY is "any of these", `null`
+ * asks for the absence of a value, and `undefined` is SKIPPED — an untouched filter must never
+ * empty a list.
+ */
+export type FieldCriteria<V> = V | Array<V | null> | FieldOperators<NonNullable<V>> | null | undefined
 
-export interface ListPager {
-  sort?: ListSort[]
+/**
+ * A query over records of `T`. Keys are the record's own fields, so a typo is a compile error;
+ * a dotted key reaches into a nested value (or a jsonb column) and stays open.
+ */
+export type Criteria<T> =
+  & { [K in keyof T & string]?: FieldCriteria<T[K]> }
+  & { [path: `${string}.${string}`]: FieldCriteria<unknown> }
+  & { $and?: Criteria<T>[], $or?: Criteria<T>[], $not?: Criteria<T> }
+
+export type SortField<T> = (keyof T & string) | `${string}.${string}`
+
+/** A bare field name sorts ascending. */
+export type Sort<T> = SortField<T> | { field: SortField<T>, order?: 'asc' | 'desc' }
+
+export interface FirstOptions<T> {
+  sort?: Sort<T>[]
+}
+
+/**
+ * Paging is opt-in per call. A backend that cannot afford an unbounded read applies its own
+ * default size when none is asked for; the in-memory ones return everything.
+ */
+export interface ListOptions<T> extends FirstOptions<T> {
   page?: number
   size?: number
-  total?: number
+}
+
+/** The same question in one object — the shape an API carries over the wire. */
+export interface ListQuery<T> extends ListOptions<T> {
+  where?: Criteria<T>
 }
 
 export interface ListResult<T extends ResourceRecord> {
   items: T[]
-  pager?: ListPager
+  total: number
+  page?: number
+  size?: number
 }
 
-type Getter = string | GetterOptions
+export type Ttl = number | Date
 
-export interface GetterOptions extends LifecycleOptions {
-  field?: string
+export interface WriteOptions {
+  /** Seconds from now, or the instant to expire at. Backends without expiry refuse it. */
+  ttl?: Ttl
 }
 
-export interface LifecycleOptions {
-  ttl?: number | Date | string
+/**
+ * Typed CRUD over records. Reads take either an id or a criteria object, so fetching one record by
+ * several fields is a single call rather than a list whose first element is taken.
+ */
+export interface Resource<T extends ResourceRecord> extends BasicResource {
+  /**
+   * @throws {UnknownRecordError}
+   */
+  get(id: string): Promise<T>
+  get(where: Criteria<T>, opts?: FirstOptions<T>): Promise<T>
+  load(id: string): Promise<T | null>
+  load(where: Criteria<T>, opts?: FirstOptions<T>): Promise<T | null>
+  list(where?: Criteria<T>, opts?: ListOptions<T>): Promise<ListResult<T>>
+  count(where?: Criteria<T>): Promise<number>
+  /**
+   * @throws {RecordExists}
+   */
+  create(record: Partial<T>, opts?: WriteOptions): Promise<T>
+  /**
+   * Replaces the whole record.
+   * @throws {UnknownRecordError}
+   */
+  update(record: Partial<T>, opts?: WriteOptions): Promise<T>
+  /** Creates when the record carries no id, replaces otherwise. */
+  save(record: Partial<T>, opts?: WriteOptions): Promise<T>
+  delete(id: string): Promise<T | null>
+  /**
+   * Delete-and-return — the consume-once read. Absence is an error here; use `delete` when it is not.
+   * @throws {UnknownRecordError}
+   */
+  take(id: string): Promise<T>
+  /** Bulk delete. Refuses an empty criteria object rather than emptying the resource. */
+  purge(where: Criteria<T>): Promise<number>
+}
+
+export type Unsubscribe = () => Promise<void>
+
+export interface SubscribeOptions {
+  channel?: string
+  once?: boolean
+  ttl?: Ttl
+}
+
+/** Optional capability: a backend that can carry messages beside its records. */
+export interface PubSubResource<T> {
+  publish(value: T, channel?: string): Promise<void>
+  subscribe(handler: (value: T) => void | Promise<void>, opts?: SubscribeOptions): Promise<Unsubscribe>
+}
+
+/** Optional capability: watching ONE record for changes (redis keyspace notifications). */
+export interface WatchableResource<T> {
+  watch(id: string, handler: (value: T | null) => void | Promise<void>, opts?: Omit<SubscribeOptions, 'channel'>): Promise<Unsubscribe>
+}
+
+/** Optional capability: an append-only log with consumer groups. */
+export interface StreamResource<T> {
+  stream(key: string, value: T): Promise<void>
+  consume(key: string, opts?: { group?: string, consumer?: string, block?: number }): AsyncGenerator<T>
+}
+
+/** Optional capability: field level encryption at rest. */
+export interface LockableResource<T extends ResourceRecord> {
+  lock: (record: Partial<T>, fields?: string[]) => Promise<T>
+  unlock: (record: Partial<T>, fields?: string[]) => Promise<T>
 }
 
 export interface ResourceMaker<R extends ResourceRecord, T extends Resource<R> = Resource<R>> {
@@ -102,11 +189,6 @@ export interface DbLocker<T extends ResourceRecord> {
   unlock: (alias: string, record: Partial<T>, fields: string[]) => Promise<T>
 }
 
-export interface ResourceLocker<T extends ResourceRecord> {
-  lock: (record: Partial<T>, fields?: string[]) => Promise<T>
-  unlock: (record: Partial<T>, fields?: string[]) => Promise<T>
-}
-
 export interface DbConfig<P extends {} = {}> {
   service: string
   alias?: string
@@ -116,8 +198,6 @@ export interface DbConfig<P extends {} = {}> {
   secret?: string
   schema?: string
   resourcePrefix?: string
-  entitySensitive?: boolean
-  serviceSensitive?: boolean
   encryptionKey?: string
   meta?: P
 }
@@ -133,16 +213,15 @@ export interface DbConfig<P extends {} = {}> {
  * invoked. Backends with a durable structure also implement {@link MigrationStore}, the
  * register that tracks which migrations have been applied.
  */
-export interface MigratableResource<Tx = unknown> {
+export interface MigratableResource<Tx = unknown, Self = unknown> {
   /**
    * Register a migration, applied once per database in declaration order.
    *
-   * Chainable and idempotent: re-registering the same name with the same body is a no-op,
-   * which is what makes it safe to call from a resource maker that `reinitializeContext`
-   * re-runs. Re-registering a *changed* body under a used name throws
-   * {@link MigrationConflict}.
+   * Chainable and idempotent: re-registering the same name with the same body is a no-op, which is
+   * what makes it safe to call from a resource maker that runs more than once for the same alias.
+   * Re-registering a *changed* body under a used name throws {@link MigrationConflict}.
    */
-  migration: (name: string, apply: (tx: Tx) => Promise<void>, stage?: MigrationStage) => this
+  migration: (name: string, apply: (tx: Tx) => Promise<void>, stage?: MigrationStage) => Self
   /** The registered migrations for this resource's alias. Read-only; use {@link MigratableResource.migration}. */
   migrations: () => MigrationRegistry<Tx>
 }

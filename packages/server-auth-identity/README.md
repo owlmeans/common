@@ -7,12 +7,12 @@ Mongo-backed local identity resources and provider account linking for OwlMeans 
 - Registers three Mongo resources: local accounts, local profiles, and provider credentials.
 - Provides `IdentityLinkingService` to map external provider profile details into an OwlMeans `AuthPayload`.
 - Keeps external provider identity separate from local product identity and authorization scopes.
-- Designed to work with `@owlmeans/server-auth`, `@owlmeans/server-oidc-rp`, and product-specific module gates.
+- Designed to work with `@owlmeans/server-auth`, `@owlmeans/server-oidc-rp`, and product-specific entrypoint gates.
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-identity
+bun add @owlmeans/server-auth-identity@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -43,9 +43,10 @@ import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
 import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
 
 const profiles = context.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-const profile = await profiles.load(profileId, 'profileId')
+const profile = await profiles.load({ profileId })
+const scoped = await profiles.load({ entityId, profileId })
 
-const { items } = await profiles.list({ entityId, profileId } as any)
+const { items, total } = await profiles.list({ entityId })
 ```
 
 ## API
@@ -83,7 +84,7 @@ const { items } = await profiles.list({ entityId, profileId } as any)
 - Google/OIDC login is only the provider bootstrap path; durable authorization data lives in `IdentityProfile`.
 - Backend contexts should register `appendAuthService(context)`, then `appendAuthIdentityResources(context)`, then product gate services.
 - Product gates should read `AUTH_IDENTITY_PROFILE`, verify `entityId`, reject expired or blocked profiles, and compare gate params against profile scopes.
-- `Resource.pick()` is destructive and deletes the matching record. Never use `pick()` for gate or handler reads; use `load()` or `list()`.
+- `Resource.take()` is destructive and deletes the record it returns. Never use `take()` for gate or handler reads; use `load(where)` or `list(where)`.
 
 ## Related Packages
 
@@ -101,7 +102,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

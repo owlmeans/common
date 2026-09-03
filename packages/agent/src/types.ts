@@ -36,6 +36,12 @@ export interface AgentOptions {
   entrypoint?: string
   spectate?: AgentSpectateHook
   prompts?: () => PromptService
+  /**
+   * Cheap model offered to prompt plugins for a single side call while the run's system
+   * prompt is composed — normally `() => executions().utility(exec)`. Nothing resolves one
+   * by default: the agent holds an execution, not the service that knows its policy.
+   */
+  utility?: () => BaseChatModel | undefined
   /** Provider plugin used for cache placement. Resolved from the model when omitted. */
   provider?: LlmPlugin
   maxTurns?: number

@@ -2,7 +2,7 @@ import type { AppType, BasicConfig, CONFIG_RECORD, ConfigRecord } from '@owlmean
 import type { Resource, DbConfig } from '@owlmeans/resource'
 import type { Profile } from '@owlmeans/auth'
 import type { PLUGIN_RECORD } from './consts.js'
-import type { BasicRoute, CommonRoute, RouteProtocols } from '@owlmeans/route'
+import type { BasicRoute, RouteAddress, RouteDeclaration, RouteProtocols } from '@owlmeans/route'
 
 export interface ConfigResource<T extends ConfigRecord = ConfigRecord> extends Resource<T> {
 }
@@ -43,7 +43,8 @@ export interface PluginConfig extends ConfigRecord {
 }
 
 export interface ConfigResourceAppend {
-  getConfigResource: <T extends ConfigRecord, R extends ConfigResource<T>>(alias?: string) => R
+  /** Type the resource once — `getConfigResource<TrustedRecord>(TRUSTED)` — and every read is typed. */
+  getConfigResource: <T extends ConfigRecord = ConfigRecord, R extends ConfigResource<T> = ConfigResource<T>>(alias?: string) => R
 }
 
 export interface SecurityConfig {
@@ -146,7 +147,17 @@ export interface LoginCreditConfig {
 }
 
 export interface SecurityHelper {
-  makeUrl: (route: BasicRoute | CommonRoute, path?: string | SecurityHelperUrlParams, params?: SecurityHelperUrlParams) => string
+  /**
+   * Qualify a path against an address. The first argument is anything that can name where a route
+   * answers: an entrypoint's {@link RouteAddress} (host already picked), a bare declaration, or a
+   * service entry — a declaration or service entry without a host falls back to the service it
+   * names in `cfg.services`.
+   */
+  makeUrl: (
+    route: BasicRoute | RouteDeclaration | RouteAddress,
+    path?: string | SecurityHelperUrlParams,
+    params?: SecurityHelperUrlParams
+  ) => string
   url: (path?: string, params?: SecurityHelperUrlParams) => string
 }
 

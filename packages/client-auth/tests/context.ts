@@ -1,4 +1,4 @@
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { AUTH_RESOURCE, DEFAULT_ALIAS } from '../src/consts.js'
@@ -10,7 +10,6 @@ export const makeTestContext = () => {
   const cfg: BasicConfig = {
     ready: false,
     service: 'client-auth-tests',
-    layer: Layer.Application,
     type: AppType.Frontend,
     services: {},
   }

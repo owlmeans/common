@@ -7,14 +7,14 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.25"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
 | `appendOidcGuard<C, T>(context)` | Add OIDC guard to a web context |
-| `setupOidcGuard(modules, options?, payloadOptions?)` | Wire OIDC guard onto module declarations |
+| `setupOidcGuard(entrypoints, options?, payloadOptions?)` | Wire OIDC guard onto entrypoint declarations |
 | `service` | Web OIDC RP service (oidc-client-ts based) |
 | `components` | Login / callback React components |
 | Constants | OIDC client aliases |
@@ -92,8 +92,8 @@ calls them, so a running project must keep working across a framework upgrade. N
 - Importing `@owlmeans/web-oidc-rp/auth/plugins` registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` plugins into the `@owlmeans/client-auth` plugin registry.
 - The Google plugin uses `useValue` to manage redirect side effects, persists auth control state before redirect, restores it on return, then submits URL query params as `AuthCredentials`.
 - The browser plugin starts login; the server finalizes provider exchange, links local identity, and returns a normal bearer token.
-- Do not encode product authorization in browser OIDC plugins. Server module gates and local identity profiles remain the authorization source.
-- **URL generation:** Use `context.module<Module<string>>(alias).call({ full: true, params })` to build full URLs (redirect_uri, post-auth home). Import `HOME` and module aliases from `@owlmeans/web-client` / `@owlmeans/auth`. Never use raw `window.location.origin + window.location.pathname` concatenation.
+- Do not encode product authorization in browser OIDC plugins. Server entrypoint gates and local identity profiles remain the authorization source.
+- **URL generation:** Use `context.entrypoint<ClientEntrypoint<string>>(alias).call({ full: true, params })` to build full URLs (redirect_uri, post-auth home). Import `HOME` and entrypoint aliases from `@owlmeans/web-client` / `@owlmeans/auth`. Never use raw `window.location.origin + window.location.pathname` concatenation.
 
 ## Depends On
 

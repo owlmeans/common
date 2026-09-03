@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-auth-otp",
-  "version": "0.1.18-rc.15",
-  "generatedAt": "2026-09-01T12:04:42.737Z",
+  "version": "0.1.18-rc.18",
+  "generatedAt": "2026-09-02T00:42:42.548Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

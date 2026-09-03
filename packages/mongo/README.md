@@ -6,13 +6,13 @@ MongoDB service for OwlMeans server contexts — connection management with repl
 
 - `makeMongoDbService(alias?)` — creates a MongoDB connection service
 - `appendMongo(context, alias?)` — registers the service in the context
-- Reads connection config from `context.cfg.dbs[alias]` (supports `kluster:` directives)
+- Reads connection config from the `dbs` entry whose alias matches (supports `kluster:` directives)
 - Used as the database provider for `@owlmeans/mongo-resource`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/mongo
+bun add @owlmeans/mongo@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -24,16 +24,20 @@ import { appendMongo, DEFAULT_ALIAS as MONGO_SERVICE } from '@owlmeans/mongo'
 appendMongo<C, T>(context)
 ```
 
-Config (`config.json`):
+Config (`config.json`) — `dbs` is a list, and `schema` names the database every resource on this
+connection reads and writes (falling back to the config `alias`, then the service alias):
 
 ```json
 {
-  "dbs": {
-    "mongo": {
-      "url": "mongodb://localhost:27017",
-      "dbName": "myapp"
+  "dbs": [
+    {
+      "service": "mongo",
+      "alias": "mongo",
+      "host": "localhost",
+      "port": 27017,
+      "schema": "myapp"
     }
-  }
+  ]
 }
 ```
 
@@ -66,7 +70,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

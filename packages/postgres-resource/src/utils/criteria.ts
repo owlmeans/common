@@ -1,5 +1,5 @@
 import { UnsupportedArgumentError } from '@owlmeans/resource'
-import type { ListCriteria, ListSort } from '@owlmeans/resource'
+import type { Criteria, FieldOperators, Sort } from '@owlmeans/resource'
 import { and, asc, desc, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 
@@ -48,7 +48,7 @@ const inList = (table: PgRuntimeTable, column: ColumnSpec, values: unknown[], ne
 }
 
 const operators = (
-  table: PgRuntimeTable, column: ColumnSpec, spec: Record<string, unknown>
+  table: PgRuntimeTable, column: ColumnSpec, spec: FieldOperators<any>
 ): SQL[] => {
   const conditions: SQL[] = []
   for (const [operator, operand] of Object.entries(spec)) {
@@ -116,28 +116,33 @@ const operators = (
 
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, match => `\\${match}`)
 
-const isOperatorSpec = (value: unknown): value is Record<string, unknown> =>
+/**
+ * An object naming at least one `$` key is a spec, not a value to compare against.
+ * A Date and an array are values even though both are objects.
+ */
+const isOperatorSpec = (value: unknown): value is FieldOperators<any> =>
   value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
   && Object.keys(value).some(key => key.startsWith('$'))
 
 /**
- * Translate `ListCriteria` into a WHERE clause.
+ * Translate a {@link Criteria} into a WHERE clause. `undefined` means "no constraint at
+ * all" — the caller decides whether that is a full scan or a refusal.
  *
  * An unknown key raises rather than being skipped: a typo silently widening a query to
  * the whole table is the failure mode worth being loud about.
  *
  * @throws {UnsupportedArgumentError}
  */
-export const criteriaToSql = (
-  criteria: ListCriteria | undefined, spec: TableSpec, table: PgRuntimeTable
+export const criteriaToSql = <T>(
+  criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
 ): SQL | undefined => {
   const conditions = build(criteria, spec, table)
 
   return conditions.length > 0 ? and(...conditions) : undefined
 }
 
-const build = (
-  criteria: ListCriteria | undefined, spec: TableSpec, table: PgRuntimeTable
+const build = <T>(
+  criteria: Criteria<T> | undefined, spec: TableSpec, table: PgRuntimeTable
 ): SQL[] => {
   const conditions: SQL[] = []
   for (const [key, raw] of Object.entries(criteria ?? {})) {
@@ -147,7 +152,7 @@ const build = (
 
     if (key === '$and' || key === '$or') {
       const parts = (Array.isArray(raw) ? raw : [raw])
-        .map(entry => and(...build(entry as ListCriteria, spec, table)))
+        .map(entry => and(...build(entry as Criteria<T>, spec, table)))
         .filter((entry): entry is SQL => entry != null)
       if (parts.length > 0) {
         const combined = key === '$and' ? and(...parts) : or(...parts)
@@ -158,7 +163,7 @@ const build = (
       continue
     }
     if (key === '$not') {
-      const inner = and(...build(raw as ListCriteria, spec, table))
+      const inner = and(...build(raw as Criteria<T>, spec, table))
       if (inner != null) {
         conditions.push(sql`NOT (${inner})`)
       }
@@ -184,7 +189,7 @@ const build = (
       continue
     }
     if (isOperatorSpec(raw)) {
-      conditions.push(...operators(table, column, raw as Record<string, unknown>))
+      conditions.push(...operators(table, column, raw))
       continue
     }
     if (Array.isArray(raw)) {
@@ -206,24 +211,27 @@ const build = (
 }
 
 /**
- * Translate `ListPager.sort` into ORDER BY. `[field, true]` is descending, matching the
- * `order ? -1 : 1` mapping mongo uses.
+ * Translate a {@link Sort} list into ORDER BY. A bare field name is ascending;
+ * `{ field, order: 'desc' }` reverses it — the same meaning every backend gives it.
  *
  * The primary key is always appended as a tiebreak. Postgres has no implicit row order, so
  * paginating on a non-unique sort key silently duplicates and skips rows between pages —
  * a difference from mongo that would otherwise surface as a data bug rather than an error.
  *
+ * A dotted path is a column this table does not have: criteria can reach into jsonb, ORDER BY
+ * cannot, and refusing is better than ordering by something the caller did not name.
+ *
  * @throws {UnsupportedArgumentError}
  */
-export const sortToSql = (
-  sort: ListSort[] | undefined, spec: TableSpec, table: PgRuntimeTable
+export const sortToSql = <T>(
+  sort: Sort<T>[] | undefined, spec: TableSpec, table: PgRuntimeTable
 ): SQL[] => {
   const order: SQL[] = []
   const seen: string[] = []
 
   for (const entry of sort ?? []) {
-    /** Both `ListSort` forms are handled explicitly — destructuring a plain string yields characters. */
-    const [property, descending] = typeof entry === 'string' ? [entry, false] : [entry[0], entry[1] === true]
+    const property = typeof entry === 'string' ? entry : entry.field
+    const descending = typeof entry !== 'string' && entry.order === 'desc'
     const column = spec.byProperty[property]
     if (column == null) {
       throw new UnsupportedArgumentError(`sort:${property}`)

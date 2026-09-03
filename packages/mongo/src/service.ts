@@ -1,5 +1,4 @@
-import { assertContext, Layer } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
+import { assertContext } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
 import { MongoClient } from 'mongodb'
@@ -31,16 +30,6 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
 
       if (service.clients[configAlias] != null) {
         return
-      }
-
-      if (service.layers == null) {
-        service.layers = [Layer.Global]
-      }
-      if (config.serviceSensitive && service.layers.includes(Layer.Service)) {
-        service.layers.push(Layer.Service)
-      }
-      if (config.entitySensitive && service.layers.includes(Layer.Entity)) {
-        service.layers.push(Layer.Entity)
       }
 
       let [url, options] = prepareConfig(config)
@@ -112,16 +101,6 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
           ]
         ))
       )
-    },
-
-    reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
-      const _service = makeMongoDbService(alias)
-
-      _service.ctx = context
-
-      _service.layers = service.layers
-
-      return _service as T
     }
   }, service => async () => {
     const context = assertContext<Config, Context>(service.ctx as Context, location)

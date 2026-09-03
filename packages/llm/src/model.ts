@@ -88,6 +88,7 @@ export const makeLlmModel = ({
   prompt,
   prompts,
   files,
+  utility,
 }: LlmModelOptions, spectator: LlmSpectator): LlmModel => {
 
   const ajv = new Ajv({ strict: false })
@@ -144,7 +145,7 @@ export const makeLlmModel = ({
           callSkills: callSkills ?? prompt?.callSkills,
         },
         msgs,
-        { model, provider: plugin, purpose, action, cacheMax, files },
+        { model, provider: plugin, purpose, action, cacheMax, files, utility },
       )
       if (composed.system != null) {
         msgs.unshift(composed.system)
@@ -330,7 +331,7 @@ export const makeLlmModel = ({
         }
 
         const message = new AIMessage(result)
-        let output: string | null = typeof result.content === 'string'
+        let output: string = typeof result.content === 'string'
           ? result.content
           : Array.isArray(result.content)
             ? result.content
@@ -338,19 +339,39 @@ export const makeLlmModel = ({
                 typeof c === 'object' && c !== null && 'type' in c && c.type === 'text'
               )
               .map(c => c.text)
-              .join('') || null
-            : null
+              .join('')
+            : ''
+
+        // A completion can carry text in blocks this strict filter does not name — the tolerant
+        // extractor reads any block with a string `text`. Only consulted once the strict pass
+        // found nothing, so the usual path keeps its exact spacing.
+        if (output.trim() === '') {
+          output = textOf(result.content)
+        }
 
         const entry = await spectate(spectator, 'ask')(msgs, message, action, i, startedAt)
         if (ref != null) ref.spectatorEntry = entry
 
+        // An empty completion is a NULL RESULT, and it is diagnosed here rather than blamed on
+        // the caller. Both shipped filters return null only for empty input, so letting one run
+        // first reported every empty answer as `filter-rejected` — naming the innocent party and,
+        // worse, skipping `reportNull`, whose stop reason and output-token count are the only
+        // things that say WHY nothing came back (a model that spent its whole budget thinking).
+        if (output.trim() === '') {
+          throw await nullResult('ask', {
+            action, attempt: i, startedAt, refined, msgs, raw: result, useCache,
+          })
+        }
+
         if (filter != null) {
-          output = await filter(output ?? '', message)
-          if (output == null) {
-            throw new LlmModelError(`filter-rejected:${JSON.stringify(message).substring(0, 50)}...`)
+          const produced = output
+          const filtered = await filter(produced, message)
+          if (filtered == null) {
+            // The OUTPUT, not the message envelope: `JSON.stringify(new AIMessage(...))` is 80
+            // constant characters of LangChain serialization stub and says nothing at all.
+            throw new LlmModelError(`filter-rejected:${produced.substring(0, 200)}`)
           }
-        } else if (output == null || output.trim() === '') {
-          throw new LlmModelError(`empty-content:${JSON.stringify(message).substring(0, 50)}...`)
+          output = filtered
         }
 
         notifyRef(ref, message)

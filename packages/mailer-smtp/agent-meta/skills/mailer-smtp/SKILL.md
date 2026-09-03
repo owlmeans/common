@@ -8,6 +8,8 @@ metadata:
 
 # Using `@owlmeans/mailer-smtp`
 
+**Install:** `"@owlmeans/mailer-smtp": "^0.1.18-rc.12"` in `dependencies` (peer `nodemailer`)
+
 SMTP transport implementing `@owlmeans/mailer`'s `MailerService`, built on `nodemailer` (the
 zero-dependency de-facto standard for Node SMTP). Reads `ctx.cfg.smtp`. Works against any relay —
 Mailgun, SES, Postmark all expose SMTP.

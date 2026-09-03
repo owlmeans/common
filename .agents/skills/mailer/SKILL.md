@@ -7,6 +7,8 @@ metadata:
 
 # Using `@owlmeans/mailer`
 
+**Install:** `"@owlmeans/mailer": "^0.1.18-rc.7"` in `dependencies`
+
 Provider-agnostic email dispatch service. Defines the `MailerService` interface implemented by concrete transports (`@owlmeans/server-mailer-mailgun` for production, `makeConsoleMailerService` for dev/tests).
 
 ## Public API surface

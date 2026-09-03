@@ -1,12 +1,14 @@
-import type { CommonRoute, CommonRouteModel } from '@owlmeans/route'
+import type { RouteDeclaration, RouteModel } from '@owlmeans/route'
 
-export interface ClientRoute extends CommonRoute {
-  partialPath: string
+export interface ClientRoute extends RouteDeclaration {
 }
 
-export interface ClientRouteModel extends CommonRouteModel {
+/**
+ * A route declaration marked as belonging to the client side. It carries no state of its own —
+ * the segment, path and address are computed by the entrypoint against the context that asks.
+ */
+export interface ClientRouteModel extends RouteModel {
   route: ClientRoute
-  _resolved?: Promise<void>
   _client: true
 }
 
