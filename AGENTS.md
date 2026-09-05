@@ -87,28 +87,37 @@ Security-first TypeScript monorepo framework for fullstack applications with mic
 
 When working on a package, identify its layer: **Core → Server/Client → Web**
 
-- **Configuration**: `dep-config` — shared TypeScript configs for all packages
+- **Configuration & tooling**: `dep-config` (shared TypeScript configs), `agent-skills` (the skills installer CLI), `create-app` (the scaffolder)
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-config`, `server-context`, `server-entrypoint`, `server-job`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
-- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`
-- **Web** (React): `web-client`, `web-router`, `web-panel`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl` — current MUI-based packages; a new shadcn UI + Tailwind v4 family is being introduced alongside (wraps `client-panel`, uses the `@` app-provides contract — see `shadcn-web` skill)
+- **Auth shared / API plumbing**: `auth-common`, `api`, `api-config`, `api-config-client`, `api-config-server`
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`; `client-iam` carries the prefix but depends on `web-client`, so it is browser-only
+- **Web** (React): `web-client`, `web-router`, `web-router-react-router`, `web-panel`, `web-auth`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`, `web-consent`, `web-gtm` — the current browser family: shadcn UI + Tailwind v4 over `client-panel`, using the `@` app-provides contract (see `shadcn-web` skill). `astro` carries the same consent and tag-manager strings into a static Astro site. `mui-panel` and `mui-oidc-rp` are the LEGACY MUI v7 family — maintain the apps already on them, start nothing new there
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `redis-queue`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
-- **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service)
-- **Other**: `oidc`, `payment`, `queue` (job-queue contracts + QUEUE transport; driver is `redis-queue`), `flow`, `wled`
+- **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service), `agent-common` (graph contracts), `agent` (the runtime graph)
+- **Mail**: `mailer` (contract + console/dev transport), `mailer-smtp`, `server-mailer-mailgun`
+- **Other cross-cutting domain**: `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, and `queue` (job/queue contracts + QUEUE transport; driver `redis-queue`, transports `server-job` / `client-job`)
+- **Template and test helpers** (not framework packages, out of scope for `tree.md`): `_tpl` (the new-package skeleton), `test`, `test-auth`, `test-integration`, `test-ui`
 
 Which of these a feature should use — a database, Redis, a bucket, client state, a queued worker or a model — is the `resource-choice` skill; read it at design time, before registering a resource or declaring a job.
 
 ## Key Facts
 
-- ~73 packages, all `@owlmeans/*` namespace; `_tpl` is a template excluded from build
-- TypeScript 6.0+, ESM + CJS dual exports, build output → `build/`, version 0.1.2
+- 101 packages under `packages/`, all `@owlmeans/*` namespace — 96 framework packages plus five test
+  helpers; `_tpl` is a template excluded from every root script
+- TypeScript 7 (`^7.0.2`) — the same range in `internal`, `viable` and `viable-agent`; `static`
+  links a few packages from here while declaring `^5.8.3`, so read a consumer's own manifest before
+  assuming its compiler. ESM only (`"type": "module"`, every exports condition pointing at the same
+  `build/index.js`), build output → `build/`
+- Versions are **per package and deliberately uneven** — a release bumps only what changed plus its
+  dependents. Read one from its `package.json`; never resynchronise them (`versions`, `publishing`)
 - TypeScript configs live in `packages/dep-config/`: `tsconfig.base.json` (strict, ESNext, Bundler resolution), `tsconfig.react.json` (JSX+DOM), `tsconfig.server.json` (no DOM), `tsconfig.node.json` (server + Node globals), `tsconfig.bun.json` (server + Bun globals)
 - Each package extends `@owlmeans/dep-config/tsconfig.base.json`; React packages also extend `tsconfig.react.json`; server packages extend `tsconfig.server.json`, `tsconfig.node.json`, or `tsconfig.bun.json` as appropriate
 - React is a peer dependency; UI routing is the OwlMeans plugin host (`@owlmeans/router` + default `@owlmeans/web-router`), react-router only through the opt-in `@owlmeans/web-router-react-router` plugin
 - Cryptography: `@noble/curves`, `@noble/hashes`, `@scure/base`, `@scure/bip39`
 - Validation: AJV with ajv-formats
-- **UI strategy**: MUI-based `web-panel` is the current Web UI layer; new shadcn UI + Tailwind CSS v4 packages are being developed alongside to replace it — see `shadcn-web` and `shadcn-versions` skills
+- **UI strategy**: the shadcn UI + Tailwind CSS v4 family led by `web-panel` is the current Web UI layer — see `shadcn-web` and `shadcn-versions` skills. `mui-panel` / `mui-oidc-rp` are the legacy MUI v7 layer, and their skills say so at the top
 
 ## Build & Scripts
 
@@ -170,16 +179,36 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
   intentionally uneven; releasing is the `publishing` skill)
 - **TypeScript configs**: `tsconfig` — how to configure tsconfig in packages, which configs to extend
 - **shadcn UI + Tailwind v4 web packages**: `shadcn-web` (development & maintenance, the `@` alias contract, Tailwind wiring, MUI→shadcn mapping) + `shadcn-versions` (version management). `testing-ui` covers Playwright tests for shadcn packages.
+- **Legacy MUI web packages**: `mui-panel` (context, `render`, panel/form components) and
+  `mui-oidc-rp` (the MUI dispatcher and OIDC guard). Both are superseded by `web-panel` and
+  `web-oidc-rp`; read them only to maintain or migrate an application that already imports them.
 - **Auth protocol and local identity**: `auth-protocol` and `server-auth-identity`
 - **Signing in**: `login-plugins` (WHERE the round trip runs — redirect, surrogate window, framed
   logout) and `login-methods` (WHICH method is offered, the choice screen, the terms confirmation
   and the credit line). Read both before touching a dispatcher.
-- **Cookie consent and tag managers**: `consent` — the shared `@owlmeans/consent` /
-  `@owlmeans/web-consent` / `@owlmeans/web-gtm` / `@owlmeans/astro` set, and the ordering rule that
-  makes Consent Mode mean anything
+- **Cookie consent and tag managers**: `consent` — the shared model (categories, storage,
+  Consent Mode v2) and the ordering rule that makes any of it mean anything. Per package:
+  `web-consent` (the dialog, the policy page, the Tailwind `@source` rule), `web-gtm` (the head
+  snippet and the noscript frame) and `astro` (stamping both from an Astro layout, the
+  legal-page and locale rules)
 - **Email OTP authentication**: `server-auth-otp`; mailer transports: `mailer` (contract + console/dev), `mailer-smtp` (SMTP/nodemailer — the production default) and `server-mailer-mailgun` (Mailgun HTTP API)
 - **OIDC/OAuth dependency versions**: `oidc-versions` — exact-pin policy, upgrade checklists for oidc-provider, jose, openid-client, oidc-client-ts, isolation principle, downstream verification
-- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo (`/home/igor/projects/owlmeans/viable`).
+- **UI routing**: `router-plugins` — the `RouterPlugin` contract, cascade selection, choosing the
+  router at context provisioning (default OwlMeans host vs opt-in react-router), and authoring a new
+  plugin. Read before wiring routing in an app.
+- **Jobs and queues**: `queue` (contracts and the QUEUE transport), `redis-queue` (the driver),
+  `server-job` and `client-job` (the two transports). `resource-choice` decides whether a feature
+  wants one at all.
+- **Prompt composition and caching**: `llm-prompt-caching` — how a system prompt is assembled from a
+  role plus skills, block order, breakpoint budget and the determinism invariants that make the
+  provider cache hit. Read before changing anything a request sends ahead of its first per-call byte.
+- **Supervisor (development) authentication**: `supervisor-auth` — the PK-based login that mints a
+  token for any user id, used by end-to-end tests; `appendSupervisorAuth` on both sides plus the
+  `@owlmeans/test-ui` helpers.
+- **Working inside a linked monorepo**: `nested-agent-context` — mandatory before planning work in
+  another linked OwlMeans repo; enumerate that repo's own `AGENTS.md`, rules, skills and memory
+  first. Its root guidance is authoritative; embedded `agent-meta/` copies are ignored.
+- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo, the product repo linked alongside this one.
 
 <!-- OWLMEANS:LINKED-SKILLS -->
 ### Skills linked from upstream repos
@@ -192,6 +221,10 @@ name (`/<name>`) exactly like a local one. A local skill of the same name always
 nearer dependency wins over a farther one. The directory is generated and git-ignored — never
 edit or commit it.
 
+The root `prepare` script runs it on every `bun install`, and a session-start hook runs it
+again, so a fresh checkout carries the links for every agent — Copilot and Codex included,
+not just Claude Code.
+
 This repo is the root of the dependency chain: it links nothing in, so
 `.agents/linked-skills/` stays absent here. Its skills are what every downstream repo
 (`internal`, `viable-agent`, `viable`, and generated apps) sees through its own index.
@@ -200,8 +233,9 @@ This repo is the root of the dependency chain: it links nothing in, so
 
 ## Maintenance
 
-Guidance is single-source: `AGENTS.md` plus the skills in `.agents/skills/`. When a change
-invalidates a rule, rewrite it in place in the same change-set (`self-education`).
+Guidance is single-source: `AGENTS.md`, the always-on policy it imports from `.agents/rules/`, and
+the skills in `.agents/skills/`. When a change invalidates a rule, rewrite it in place in the same
+change-set (`self-education`).
 
 - New guidance is one skill — never a `.github/instructions/*.instructions.md`, a
   `.github/copilot-instructions.md`, or a file authored under `.claude/skills/`.

@@ -18,9 +18,17 @@ order — during planning **and** during implementation.
 Before suggesting any external library or writing custom code, look for an `@owlmeans/*` package that
 already solves the problem.
 
-- **Consult the deployed skills.** Each installed `@owlmeans/*` package ships a skill at
-  `.agents/skills/<pkg>/SKILL.md` describing what it
-  does. Read those first — they are your local catalogue of installed capabilities.
+- **Consult the deployed skills.** `.agents/skills/` is the local catalogue of installed
+  capabilities: one directory per skill, each holding a `SKILL.md` that describes what a package
+  does and how it is consumed. A directory is named after the **skill**, not the package —
+  `@owlmeans/test-ui` deploys `testing-ui`, `@owlmeans/server-auth` deploys `server-auth` **and**
+  `supervisor-auth`, `@owlmeans/test` deploys `testing-unit` and `testing-overview` — so list the
+  directory instead of guessing a path from a package name.
+- **Read `.agents/linked-skills/` too when it is there.** `.agents/scripts/link-skills.sh` links
+  the skills that ship inside the installed `@owlmeans/*` packages into it (and mirrors them into
+  `.claude/skills/` for Claude Code), with a skill / origin / description table in its
+  `INDEX.md`. It is generated and git-ignored, and a skill of the same name in `.agents/skills/`
+  always wins.
 - **Scan installed packages.** Look in `node_modules/@owlmeans/*` **and**, in a workspace monorepo,
   the nested `sources/*/node_modules/@owlmeans/*` (bun nests workspace deps).
 - **Discover packages that aren't installed yet** by researching the **owlmeans/common** repository —
@@ -39,7 +47,7 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
 
 This is the same dev-linked detection `@owlmeans/agent-skills` uses (see its `detectLinked`). After
-adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.11` to deploy its
+adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.12` to deploy its
 skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
 
 ### Never add an OwlMeans dependency without an explicit range
@@ -63,7 +71,7 @@ against the previous one. Put the version in the same breath as the package name
 ## 2. Reuse or extend before writing custom
 
 If an installed package nearly fits, **configure or extend it** rather than writing something new — use
-its resources, services, modules, and helpers. A small extension of a framework package beats a new
+its resources, services, entrypoints, and helpers. A small extension of a framework package beats a new
 parallel implementation.
 
 ## 3. No package? Reuse code and extract an abstraction
@@ -78,5 +86,7 @@ Once code is written, review it: can it be **shorter, clearer, or expressed with
 Lean on framework utilities, remove dead branches, collapse needless indirection. Less code that reuses
 the framework is better than more bespoke code.
 
-See `[[dependency-tree]]` for the package map, `[[scaffolding]]` for how a project is assembled, and
-`[[bun]]` for adding dependencies.
+See `[[scaffolding]]` for how a project is assembled, and `[[agent-skills]]` for keeping the
+deployed skill catalogue current. The package map itself is `tree.md` at the root of the
+[owlmeans/common](https://github.com/owlmeans/common) repository — layer by layer, every package
+and what it depends on.

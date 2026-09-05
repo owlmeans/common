@@ -8,8 +8,8 @@ user-invocable: false
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.12"` — a `devDependency` for the CLI, a
-`dependency` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
+**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.12"` — in `devDependencies` for the CLI, in
+`dependencies` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
 `@langchain/core` **optional peers**)
 
 Two halves that never meet at runtime:
@@ -33,6 +33,18 @@ Two halves that never meet at runtime:
 | `matchRules(rules, signals)` · `pickByModel(index, signals, model, max)` | The two activation mechanisms, usable standalone. |
 | `projectSkillsCache(provider)` · `invalidateProjectSkills(key?)` | The per-project read cache and its invalidation. |
 | `loadPackageSkills`, `stripMeta`, `parseManifest`, `skillEntries`, `toSkill`, `unscoped` | Embedded-manifest primitives. |
+
+## Key exports (package root — the installer as a library)
+
+The CLI is a thin shell over these, so a build script can drive an install without spawning `npx`.
+
+| Export | Description |
+|---|---|
+| `run(args)` | The whole flow: refuse-if-linked → discover → plan → print → apply. Returns `{ code }`, never calls `process.exit`. |
+| `discover(dir, { extras?, only? })` | Every installable entry found in the tree, deduped by name. |
+| `detectLinked(dir)` | `{ linked, evidence }` — the exit-4 check. |
+| `planInstall(entries, dir, { force? })` · `AUTO_GENERATED_BANNER` | Entry → `install` / `update` / `skip-uptodate` / `conflict`, decided by the banner and a byte comparison. |
+| `applyInstall(items, dir)` | Writes the plan and maintains the Claude Code symlinks. Returns the counts. |
 
 ## The Agent Skills standard
 
@@ -59,11 +71,39 @@ Parsing rules this package holds to:
   addresses the skill, so the mismatch makes it unreachable.
 - Bodies are stripped of frontmatter and of any `AUTO-GENERATED` banner (`stripMeta`).
 
+## `owlmeansPackagesPlugin` — what a named package contributes
+
+A package that was named gets everything it documents: within a package there is no relevance
+ranking, by design. Two ceilings bound the block anyway, and both matter when a prompt looks
+larger than expected:
+
+- `categories` (default `['package-specific', 'multi-package']`) — manifest categories to load.
+  `general` entries say how an agent should behave rather than what a package does, so they are
+  the host's own catalogue's job and are excluded unless asked for.
+- `maxPackages` (default `5`) — mentioned packages loaded into one prompt. A message that
+  name-drops a dozen packages is rarely asking about all of them, and each one costs context.
+
+Resolution per package: the host's `LlmFileProvider` → an installed copy under `node_modules` →
+the canonical repository over HTTPS. Every failure is a miss, never a throw, and misses are cached
+too.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `files` | — | Host file access, tried first. |
+| `scopes` | `['@owlmeans']` | Package scopes detected in the messages. |
+| `dir` | `process.cwd()` | Where the local `node_modules` walk starts, going upward. |
+| `exclude` | `[]` | Packages the static `Skills` block already carries. |
+| `categories` | `['package-specific', 'multi-package']` | Manifest categories to load. |
+| `maxPackages` | `5` | Mentioned packages loaded into one prompt. |
+| `repo` · `ref` | `owlmeans/common` · `main` | The canonical fallback and the ref read from it. |
+| `fetch` · `timeout` | `true` · `5000` | Whether that fallback runs at all, and its deadline. |
+
 ## `projectSkillsPlugin` — the two halves, two blocks
 
 ```typescript
+// `files` is the host's own LlmFileProvider, as the value or a thunk for one.
 ctx.prompts().use(projectSkillsPlugin({
-  files: () => ctx.files(),                    // fallback; the compose context's wins
+  files: () => fileProvider,                   // fallback; the compose context's wins
   rules: [
     { skills: ['deploy'], when: { paths: ['charts/**', '*.yaml'] } },
     { skills: ['auth-protocol'], when: { purposeType: ['coder'], mention: ['token', 'guard'] } },
@@ -80,6 +120,18 @@ The index MUST stay byte-stable for a project: it sits behind a cache breakpoint
 call about that project shares. That is why entries sort by `compareAlias` (code units, never
 `localeCompare`), descriptions are clipped to a fixed `descriptionChars`, and the heading and
 lead line are constants.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `files` | — | Fallback provider; the compose context's own wins. |
+| `dir` | `.agents/skills` | Where the skills live, relative to the project root. |
+| `rules` · `activate` | `[]` · — | The deterministic rules, and the host's own decision on top. |
+| `exclude` | `[]` | Names neither indexed nor activated. |
+| `maxActivated` | `3` | Bodies loaded into one prompt. |
+| `maxIndexEntries` · `descriptionChars` | `40` · `160` | Index size, and the clip that keeps each line stable. |
+| `maxBodyChars` | `24000` | Length one activated body is clipped to. |
+| `relevanceModel` | `false` | Spend one cheap-model call on the pick. |
+| `listTtlMs` | `30000` | How long a directory listing is trusted. |
 
 **Reads go through `LlmFileProvider` only — never `node:fs`.** The project an agent works on
 is routinely a sandbox, a container or a remote workspace; a plugin that reaches for the local
@@ -122,7 +174,7 @@ per path. After writing a skill file into a project an agent is still working in
 ## `projectSkillsAgentPlugin` — disclosure inside the loop
 
 ```typescript
-makeAgentModel({ exec, tools, plugins: [projectSkillsAgentPlugin({ files: () => ctx.files() })] })
+makeAgentModel({ exec, tools, plugins: [projectSkillsAgentPlugin({ files: () => fileProvider })] })
 ```
 
 Composition happens once, before the first token, when nobody yet knows which of twelve turns
@@ -132,16 +184,64 @@ tool never throws — a rejected tool call aborts the whole LangGraph superstep.
 
 ## Installer CLI
 
-`npx @owlmeans/agent-skills@^0.1.18-rc.11` scans `node_modules/@owlmeans/*/agent-meta/`, and copies skills
-into `.agents/skills/<name>/SKILL.md`. It refuses (exit 4) in a **linked** monorepo, where the
-root `.agents/skills/` is already canonical and installing would write stale copies.
-Flags and conflict policy: package `README.md`.
+`npx @owlmeans/agent-skills@^0.1.18-rc.12` walks the **whole** project tree, reads every nested
+`<dir>/node_modules/@owlmeans` scope it finds, and copies each `agent-meta/` skill into
+`.agents/skills/<name>/SKILL.md`. A workspace keeps its dependencies beside the workspace member
+that declares them, so the root scope is routinely empty and a root-only scan would find nothing.
+The walk never descends into a `node_modules` directory, skips hidden directories, and reads each
+physical package once however many places it is linked from.
+
+Only `kind: 'skill'` entries install. A package published before manifest schema v2 also carries a
+`kind: 'instruction'` twin of the same knowledge — the Copilot format that predates the Agent Skills
+standard — and those are dropped, so a mixed `node_modules` never writes both halves.
+
+Two rules the discovery half must keep:
+
+- **Dedup compares prereleases.** Every version on the current line is an `-rc.N`, so a comparison
+  that stopped at major/minor/patch would call every contest a tie and keep whichever copy the
+  walk reached first. Precedence is semver's: a release outranks any prerelease of the same
+  version, identifiers compare field by field, numeric ones numerically and below alphanumeric.
+- **`--only` filters before dedup, not after.** Two packages may ship a same-named skill; judging
+  the filter against whichever copy won the dedup drops a skill the named package really ships.
+
+An unresolved conflict costs one file, never the run: the clean skills are written first, then the
+conflicts are reported, and only then does a non-interactive run without `--yes` or `--force`
+return exit 5. A conflicted skill is still symlinked into `.claude/skills/` — it exists on disk,
+and Claude Code has to see it. Exit codes: 2 argument parse, 3 nothing found, 4 linked monorepo,
+5 unresolved conflicts, 1 fatal.
+
+It refuses (exit 4) in a **linked** monorepo, where the root `.agents/skills/` is already
+canonical and `sh .agents/scripts/link-skills.sh` — run by the committed `SessionStart` hook —
+already puts it in front of every agent, so installing would only add stale copies. That check
+scans the ROOT scope alone, on purpose: a dev-linked monorepo hoists escaping symlinks there, while
+a scaffolded workspace app keeps its dependencies nested and must install normally.
+
+Flags: `--dir` · `--yes` · `--only <pkg,...>` · `--extras` / `--no-extras` · `--force` ·
+`--dry-run` · `--help`. `--claude-only` and `--copilot-only` are accepted and do nothing — one
+skill store serves every agent. Full flag and conflict reference: package `README.md`.
+
+### Extras — the guidance that belongs to no package
+
+Some skills describe how an agent should work in an OwlMeans project at all rather than what a
+package does. A skill becomes one by declaring
+
+```yaml
+metadata:
+  scope: general
+```
+
+in its canonical frontmatter; everything so marked is embedded into THIS installer's own
+`agent-meta/`, alongside this package's own skill. Extras install by default even when no other
+`@owlmeans/*` package is present, which is how a freshly scaffolded project gets harness guidance
+before its first dependency install. `--no-extras` limits the run to what the project's own
+packages ship.
 
 ## Tests
 
-`bun test ./tests` in the package — all offline, driven by a fake `LlmFileProvider`. Specs
-import from the built subpath (`@owlmeans/agent-skills/llm`), so **rebuild before running
-them** or a source change will not be under test.
+`bun test ./tests` in the package — all offline. The `./llm` specs are driven by a fake
+`LlmFileProvider` and import from the built subpath (`@owlmeans/agent-skills/llm`), so a change
+under `src/llm` needs `tsc -b` before they test it. The installer spec imports the CLI sources
+directly and needs no build; it drives real files under a temp directory.
 
 ## Depends On
 

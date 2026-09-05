@@ -32,6 +32,16 @@ export const makeIdentityAccountResource = (dbAlias?: string): IdentityAccountRe
   resource.index('credential', { credential: 1 }, { unique: true })
   resource.index('entityId', { entityId: 1 })
   resource.index('secret', { secret: 1 }, { unique: true, sparse: true })
+  /**
+   * The account's login name — an email, for every provider shipped today.
+   *
+   * Indexed because `linkProfile` reads it on every registration: a person signing in by a second
+   * method must land on the identity they already have, not a new one. NOT unique — the same
+   * address legitimately appears twice, once for the platform account and once for an
+   * organization's END USER record (`inviteUser`), and those are different people-shaped rows for
+   * different audiences. The two are told apart by the profile, never by the account.
+   */
+  resource.index('name', { name: 1 })
   return resource
 }
 

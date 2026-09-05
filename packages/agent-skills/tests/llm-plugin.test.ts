@@ -41,7 +41,7 @@ const fakeProvider = (asked: string[], body: string): LlmFileProvider => ({
           name: 'auth',
           category: 'package-specific',
           file: 'skills/auth/SKILL.md',
-          canonicalPath: '.claude/skills/auth/SKILL.md',
+          canonicalPath: '.agents/skills/auth/SKILL.md',
         }],
       })
     }

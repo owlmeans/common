@@ -24,9 +24,11 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `safeInvokeTool`, `toErrorResponse`, `isToolError` | The never-throwing tool contract. |
 | `composeCompaction`, `composeRollingSummary`, `renderTranscript`, `messageText` | Summary primitives; both composers are total. |
 | `makeAgentExecutionPlugin(options)` | The first real implementation of `@owlmeans/llm`'s `ExecutionPlugin`. |
-| `makeStaticFlowProvider(flows)` | The server-side `FlowProvider` `@owlmeans/flow` never shipped. |
+| `makeStaticFlowProvider(flows)` | The server-side `FlowProvider` `@owlmeans/flow` does not ship. |
 | `inProcessTransport()`, `AgentTransport` | The scaling seam; default carries messages by direct call. |
 | `createMemory*Store()` | In-memory reference implementations of every port. |
+| `AgentError` · `AgentMissconfiguredError` · `AgentLoopExhaustedError` | The `ResilientError` family. `AgentMissconfiguredError` is a model or tool set the agent was built without; `AgentLoopExhaustedError` is the tool loop hitting its ceiling. |
+| `DEFAULT_MAX_TURNS` (64) · `DEFAULT_PLUGIN_ORDER` · `DEFAULT_ACTION` · `DEFAULT_ENTRYPOINT` | The loop and plugin defaults. |
 
 Subpath exports: `./plugins`, `./helpers`, `./stores`.
 
@@ -54,6 +56,11 @@ provider will not put a cache breakpoint on — the Anthropic plugin explicitly 
 trailing `Context`. Volatile material anywhere above it invalidates the `Role` + `Skills` prefix
 that every call sharing a persona pays for.
 
+**A run that exceeds `maxTurns` throws `AgentLoopExhaustedError`.** The ceiling counts tool rounds
+(`DEFAULT_MAX_TURNS` is 64, `AgentOptions.maxTurns` overrides it), and it is reached only when the
+model keeps calling tools without ever answering — so catch that error by name rather than treating
+every failed run alike: it says the loop ran out of room, not that a tool or the model failed.
+
 **`safeInvokeTool` must never throw.** The loop wraps it in a LangGraph `task`, and a rejected task
 aborts the whole superstep: every sibling tool call in the same parallel batch dies with AbortError
 and the run ends on "Multiple errors occurred during superstep 0", discarding work the others had
@@ -63,6 +70,12 @@ the model's own mistake, and the error text already names what was expected.
 **Tools resolve by `tool.name`, with the map key as a fallback.** `bindTools` advertises the tool's
 own name, so a map keyed by a local variable silently loses any tool whose two names drifted apart:
 advertised, callable, permanently "not found".
+
+**A prompt plugin's cheap side call has to be wired.** `AgentOptions.utility` is what the run hands
+to `PromptComposeParams.utility`, normally `() => executions().utility(exec)`. Nothing resolves one
+by default — the agent holds an execution, not the service that knows its policy — so a plugin that
+would spend one cheap call on a relevance pick silently degrades until this is passed. What such a
+call returns may never land in a cached block; see [[llm-prompt-caching]].
 
 **`compose()` is called with `files: exec.files`.** Without it, a prompt plugin that resolves
 knowledge from disk is silently inert on agent runs while working fine on plain model calls.
@@ -88,10 +101,10 @@ no model, a failing model or an empty answer they fall back deterministically, s
 history unconditionally. A failed fold costs detail, never the event.
 
 **Ports, not resources.** `ConversationStore`, `MemoryGraphStore`, `MemoryEventStore` and
-`AgentRunStateStore` are narrow interfaces a consumer implements. `Resource.list()` is not uniformly
-queryable — `@owlmeans/static-resource` throws on any criteria — so a plugin written against its
-query semantics could not be exercised with the monorepo's own in-memory backend. An unbound port is
-a no-op, not an error.
+`AgentRunStateStore` are narrow interfaces a consumer implements. A port names exactly what the
+plugin needs, which is a far smaller surface than CRUD, and anything can satisfy it — a `Resource`,
+or a file on disk, which is what the project-history equivalent is. An unbound port is a no-op, not
+an error.
 
 **Memory writes merge, they do not replace.** Replacing would make every write a potential act of
 forgetting, which is not a decision one caller has the standing to take. A node that outgrows
@@ -119,3 +132,10 @@ Category A (unit, no env, no network). The model is doubled with a small scripte
 `tests/_tools/model.ts` because `@langchain/core`'s own `FakeStreamingChatModel` always replays its
 first response and so cannot drive a tool loop. That double stands in for the MODEL, an external
 boundary — never for an `@owlmeans/*` package.
+
+## Related
+
+- [[agent-common]] — the serializable records and the run lifecycle flow
+- [[llm]] — `Execution`, the model contract and `ExecutionPlugin`
+- [[llm-prompt-caching]] — which block contributed context lands in, and why
+- [[agent-skills]] — `projectSkillsAgentPlugin` and the `read_skill` tool

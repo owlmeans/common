@@ -28,7 +28,7 @@ The **resource name** is a stable identifier for the registering package, e.g. `
 
 ## Compound prefix keys
 
-A key like `t('title')` resolves to `namespace : resource.prefix.key`. The prefix is composed by joining segments with `.` via `composePrefix` (never by hand-concatenating strings).
+A key like `t('title')` resolves to `namespace : resource.prefix.key`. The prefix is composed by joining segments with `.` via `composePrefix` — exported from `@owlmeans/client-i18n` (and re-exported by `@owlmeans/web-panel` and `@owlmeans/mui-panel`), never by hand-concatenating strings.
 
 Example chain:
 ```
@@ -44,30 +44,58 @@ t('title')
 
 ## Context-based prefix switching
 
-Use `PanelContext` (from `@owlmeans/client-panel`) to inject `resource`, `ns`, or `prefix` into a React sub-tree. Child components that call `usePanelI18n()` or `useFormI18n()` automatically pick up the context value.
+Use `PanelContext` (from `@owlmeans/client-panel`) to inject `resource`, `ns` or `prefix` into a
+React sub-tree. Child components that call `usePanelI18n()` pick those three up, and a nested
+`PanelContext` inherits the outer one field by field.
 
 ```tsx
-// Override the active namespace/resource for a sub-tree
-<PanelContext resource="wl-manager" ns="lib" prefix="wl-dns">
-  <DnsForm />  {/* DnsForm calls usePanelI18n() — gets ns='lib', resource='wl-manager', prefix='wl-dns' */}
+// Read a library's own bundle from inside an app sub-tree
+<PanelContext resource="payment" ns="lib" prefix="plan">
+  <Text name="label.monthly" />  {/* usePanelI18n() → lib:payment.plan.label.monthly */}
 </PanelContext>
 ```
 
-Use `i18n` props on individual components to override just one level:
+`suppress` is **not** one of them. `TPanelContext` accepts it because it spreads `I18nBaseProps`,
+but `usePanelI18n` reads only `prefix`, `resource` and `ns`, so a `<PanelContext suppress>` changes
+nothing for any child. Suppression is per component, from that component's own `i18n` prop — which
+is what `Button` and `ActionCtrl` check before translating a label.
+
+**Form fields sit in a different context.** `useFormI18n` reads the form context that `FormContext`
+publishes from the enclosing `Form`'s own `i18n` and `name` props; it never touches `PanelContext`.
+So wrapping a form or a field in `<PanelContext …>` changes nothing for any field — redirect a
+field by naming the enclosing `Form` or by giving that `Form` an `i18n` prop.
+
+Use the `i18n` prop on an individual component to override just one level. It is declared by the
+components whose props extend `I18nProps` — `Block`, `Text`, `Link`, `Status`, `Button` and `Form`
+in both panel families:
 ```tsx
-<StatusLabel i18n={{ prefix: 'my-status' }} />
+<Status i18n={{ prefix: 'my-status' }} />
 ```
+
+Not every component carrying copy has it, and the two that lack it read different contexts.
+`TextInput` — props extend `FormFieldProps` (`name`, `def`) and add `label`, `placeholder`, `hint`,
+`type` and `disableAutocomplete` — resolves `<name>.label`, `<name>.placeholder` and `<name>.hint`
+through `useFormI18n` when the matching prop is `true`, and renders the prop's own string when it
+is given one; redirect it through the enclosing `Form`. `ButtonSelector` — `SelectorProps` is `name`,
+`current`, `options` and `onSelect` — renders one `Button` per option labelled `<name>.<option>`,
+and `Button` resolves through `usePanelI18n` with the app `buttons` and `lib:client-panel.buttons`
+fallbacks; a surrounding `PanelContext` is what redirects it.
 
 ## App-level override of library strings
 
-App-tier registrations deep-merge over Library-tier for the same `(ns, resource)`:
+App-tier registrations deep-merge over Library-tier for the same `(ns, resource)` — and the
+namespace has to be said out loud, because `addI18nApp` defaults it to the **resource** name while
+the library's bundle sits in `lib`:
 ```typescript
-import '@owlmeans/error'                    // Library tier: lib:errors.*
-import { addI18nApp } from '@owlmeans/i18n'
+import '@owlmeans/error'                              // Library tier: lib:errors.*
+import { addI18nApp, LIB_NAMESPACE } from '@owlmeans/i18n'
 import myErrors from './i18n/en.json'
 
-addI18nApp('en', 'errors', myErrors)        // App tier wins for matching keys
+addI18nApp('en', 'errors', myErrors, { ns: LIB_NAMESPACE })   // App tier wins for matching keys
 ```
+
+Drop `{ ns: LIB_NAMESPACE }` and the app bundle lands in namespace `errors` while `useI18nLib('errors')`
+reads `lib`. Nothing errors and the library strings keep rendering.
 
 ## Per-package checklist
 

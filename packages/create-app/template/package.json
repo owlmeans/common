@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
     "build": "bun run --filter './sources/*' build",
-    "typecheck": "bun run --filter './sources/*' typecheck"
+    "typecheck": "bun run --filter './sources/*' typecheck",
+    "prepare": "sh -c 'test -f .agents/scripts/link-skills.sh && sh .agents/scripts/link-skills.sh || true'"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

@@ -8,7 +8,52 @@ description: Category-A unit tests for OwlMeans Common packages — no mocks, re
 
 **Install:** `"@owlmeans/test": "^0.1.18-rc.8"` in `devDependencies`
 
-Apply this skill when adding tests to packages in category A (see `testing-overview`). The list includes core abstractions (`context`, `config`, `error`, `entrypoint`, `route`, `resource`, …) and platform-agnostic services (`api`, `state`, `flow`, `i18n`, `client-flow`, `client-socket`, `server-route`, `server-context`, `web-router`, `web-db`, …).
+Apply this skill when adding tests to packages in category A (see `testing-overview`). The list includes core abstractions (`context`, `config`, `error`, `entrypoint`, `route`, `resource`, …) and platform-agnostic services (`api`, `state`, `flow`, `i18n`, `client-flow`, `client-socket`, `client-job`, `server-route`, `server-context`, `web-db`, …).
+
+`@owlmeans/test` is also the base of the other three harness packages, so its exports below are
+available in every category.
+
+## Helpers from `@owlmeans/test`
+
+| Helper | Purpose |
+|---|---|
+| `loadEnv({ force?, file? })` | Read a `.env` into `process.env`, once per process. Never overwrites a variable already set to a non-empty value; a missing file is not an error. The root is found by walking up for a `bun.lock`, or for a `package.json` sitting beside a directory named `packages` — a workspace shaped any other way must pass `file` explicitly. |
+| `hasEnv(key)` | `loadEnv()`, then true when the variable is set and non-empty. |
+| `requireEnv(keys)` | `EnvGate` — `{ ok: true }` when every key is populated, otherwise `{ skip: true, reason }` naming the missing ones. |
+| `makeGates(spec)` | Frozen `{ name: EnvGate }` built from `{ name: [envKey, …] }`. One call in `tests/context.ts` is the whole suite's availability map. |
+| `isSkip(gate)` | Type guard narrowing an `EnvGate` to the skip branch, so `gate.reason` is readable. |
+| `loadFixture<T>(relPath)` | Parse a JSON fixture from the package's own `tests/` directory — `bun test` sets `process.cwd()` to the package root, so the path is `tests/`-relative. |
+| Types: `EnvGate`, `EnvOk`, `EnvSkip`, `GateSpec`, `Gates<S>` | The gate shapes, for typing a suite's exported map. |
+
+### Gating a spec
+
+A category-A package needs nothing external, so most specs never gate. When one does — a live
+provider, an optional local binary — declare every gate in `tests/context.ts` and let each spec
+choose its own `test` at module scope:
+
+```ts
+// tests/context.ts
+import { makeGates } from '@owlmeans/test'
+
+export const gates = makeGates({
+  openrouter: ['OPENROUTER_SECRET'],
+  anthropic: ['ANTHROPIC_SECRET'],
+})
+```
+
+```ts
+// tests/<area>.spec.ts
+import { test } from 'bun:test'
+import { isSkip } from '@owlmeans/test'
+import { gates } from './context.js'
+
+const gate = gates.openrouter
+const it = isSkip(gate) ? test.skip : test
+// `isSkip(gate) ? gate.reason : ''` names the missing variables in the skip title.
+```
+
+Bun decides `test` vs `test.skip` **synchronously**, so the decision has to be a value already in
+hand — never an `await` inside the suite. An empty variable is a printed skip, never a failure.
 
 ## Layout
 
@@ -18,7 +63,7 @@ Apply this skill when adding tests to packages in category A (see `testing-overv
 ├── tests/
 │   ├── context.ts          # one real context, shared across specs
 │   ├── <area>.spec.ts      # *.spec.ts only
-│   └── fixtures/           # JSON fixtures, optional
+│   └── fixtures/           # JSON fixtures, read with loadFixture('fixtures/<name>.json')
 ```
 
 ## `tests/context.ts` — single source of truth
@@ -81,7 +126,10 @@ Per-package `package.json`:
 }
 ```
 
-`bun:test` is built-in — no devDeps to add. The root `bun run test` script runs every package's `test` script via workspace filters.
+`bun:test` is built-in, so `@types/bun` is the only devDep a plain category-A package needs; add
+`@owlmeans/test` when a spec actually uses a helper above. Add `"./tests/**/*"` to the package's
+`tsconfig.json` `exclude` so `tsc -b` never compiles specs into `build/`. The root `bun run test`
+script runs every package's `test` script via workspace filters.
 
 ## When auth shows up
 

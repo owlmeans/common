@@ -24,9 +24,11 @@ vocabulary of [[resource]]; `watch` and `query` are the live half.
 | `stateAlias<T>(alias)` | Name a store once with the record type attached — `StateAlias<T>` |
 | `StateResource<T>` | The resource interface — full CRUD plus `replace`, `clear`, `watch`, `query`, `publish`/`subscribe` |
 | `StateModel<T>` | The subscribed wrapper — `id`, `empty`, `record`, `update`, `commit`, `clear` |
-| `StateConfig<T>` | How the store is keyed — `id`, `single`, `default` |
+| `StateConfig<T>` | How the store is keyed — `id`, `single`, `default`. Readable back as `resource.config` |
 | `StateEvent<T>` | What a change looks like on the wire — `{ type: 'set' \| 'remove', records }` |
-| `StateConfigError` | `NonSingle` (no id on a many-record store), `NoId` (a write with no key) |
+| `createStateModel(binding)` / `StateModelBinding<T>` | Wrap a record — or its absence — as a model, for a store of your own |
+| `StateResourceAppend` / `GetStateResource` | The `getStateResource` mixin `appendStateResource` installs |
+| `StateConfigError` | `NoId` — a write with no value for the key field on a store that holds many records. `NonSingle` is declared beside it for an id-less address on a many-record store, but every such path either answers an empty model (`watch`) or raises `NoId`, so `NoId` is the one a caller meets |
 
 The criteria evaluator (`matchCriteria`, `filterRecords`, `sortRecords`, `applyQuery`) lives in
 **`@owlmeans/resource`** — the same engine the store runs on, for filtering a list you already hold.
@@ -103,8 +105,12 @@ if (task.empty) {
 when there is none. Calling `model.update(...)` or `model.commit()` on an empty model writes it —
 including the default it was showing.
 
-`useStoreModel()` with no id addresses the one record of a `single` resource. On any other that is a
-wiring mistake and throws `StateConfigError` (`NonSingle`).
+An ABSENT id answers the same way. A screen binds to `useStoreModel(project.record.id)` while the
+project is still loading, so a missing id is a rendering state rather than a mistake: on a listed
+store it watches nothing and reports an empty model, and on a `single` store it addresses that
+store's sole record. The empty model it hands back is one shared instance, so a React subscriber
+does not see a new value on every render — and writing through it throws `StateConfigError`
+(`NoId`), because a caller writing with no id has lost track of which record it meant.
 
 ## Writing to it
 
@@ -130,9 +136,22 @@ is the same read but throws when the record is absent, `purge(where)` bulk-delet
 empty criteria object rather than emptying the store), and `clear()` drops everything. Each one
 notifies every subscriber that cares.
 
-A write carrying no value for the key field throws `StateConfigError` (`NoId`) — nothing here mints
-ids. A write carrying a `ttl` throws `UnsupportedArgumentError`: the store keeps no expiring
-records, so a ttl would be silently dropped.
+On a store that holds many records, a write carrying no value for the key field throws
+`StateConfigError` (`NoId`) — nothing here mints ids. A write carrying a `ttl` throws
+`UnsupportedArgumentError`: the store keeps no expiring records, so a ttl would be silently
+dropped.
+
+On a `single` store every write lands in the one slot, so `replace([a, b])` keeps only the last of
+them. The key field is never consulted on the way in: an id-less `save`, `create`, `update` or
+`replace` is filed there normally and the record keeps whatever id it arrived with, or none.
+`create` still refuses a slot already filled and `update` still requires it filled, both naming the
+resource alias rather than an id.
+
+`get(id)` / `load(id)` answer the sole record unless it carries a DIFFERENT id: a record stored with
+`id: 'sid'` is a miss for any other name, while a record stored without an id at all — the shape a
+single store invites, since it needs none — answers to every id asked for. Give the record an id
+whenever a screen reads it by one, and treat an id-keyed read on an id-less single store as an
+unconditional hit.
 
 ### The commit rule
 
@@ -186,7 +205,9 @@ const stopAll = store.query(undefined, models => { … }, { sort: ['createdAt'] 
 
 Both are **synchronous** and both are seeded before they return: the listener is called with the
 current value straight away, then again on every change — including a removal, which reaches a
-`watch` listener as an empty model. Each returns its unsubscribe.
+`watch` listener as an empty model. `watch(undefined, …)` on a listed store seeds an empty model
+and subscribes to nothing. Each returns its unsubscribe, and a `query` listener is called again
+only when the set of matching models actually changed, so an unrelated write re-renders nothing.
 
 Writes announce themselves on the default channel, so `publish` is for what the store cannot know
 it did — a change that arrived from elsewhere, or a channel of a caller's own:
@@ -200,5 +221,10 @@ const once = await store.subscribe(handler, { channel: 'from-socket', once: true
 ## Depends On
 
 - `@owlmeans/resource` — `StateResource` extends `Resource` and `PubSubResource`
-- `@owlmeans/context` — for `getStateResource`
-- React hooks: `@owlmeans/client`
+- `@owlmeans/context` — `appendContextual`, and the `getStateResource` mixin
+
+## Related
+
+- `resource` — the criteria language, paging and the base contract this implements
+- `client` — where the React hooks live; it depends on this package, not the other way round
+- `client-job` — a worked store: a socket feed folded into a state resource

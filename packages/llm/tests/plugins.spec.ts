@@ -694,3 +694,33 @@ describe('@owlmeans/llm — adaptive-thinking output budget', () => {
     expect(maxTokensOf(model)).toBe(8192)
   })
 })
+
+describe('@owlmeans/llm — anthropic thinking control', () => {
+  // `thinkingExplicitlySet` is what decides whether langchain puts `thinking` on the wire at
+  // all; the field itself defaults to `disabled` and so proves nothing on its own.
+  const wire = (model: unknown) => model as { thinkingExplicitlySet: boolean; thinking: { type: string } }
+
+  test('disableThinking sends an explicit thinking:disabled to the adaptive family', () => {
+    const on = wire(build(anthropicPlugin, { model: 'claude-sonnet-5', disableThinking: true }))
+    expect(on.thinkingExplicitlySet).toBe(true)
+    expect(on.thinking).toEqual({ type: 'disabled' })
+    expect(anthropicPlugin.suppressesThinking?.({ alias: 'a', model: 'claude-sonnet-5', disableThinking: true } as ModelConfig)).toBe(true)
+  })
+
+  test('without the flag nothing is sent and the provider default applies', () => {
+    expect(wire(build(anthropicPlugin, { model: 'claude-sonnet-5' })).thinkingExplicitlySet).toBe(false)
+    expect(anthropicPlugin.suppressesThinking?.({ alias: 'a', model: 'claude-sonnet-5' } as ModelConfig)).toBe(false)
+  })
+
+  test('models that reason only when asked are left alone', () => {
+    expect(wire(build(anthropicPlugin, { model: 'claude-haiku-4-5', disableThinking: true })).thinkingExplicitlySet).toBe(false)
+    expect(anthropicPlugin.suppressesThinking?.({ alias: 'a', model: 'claude-haiku-4-5', disableThinking: true } as ModelConfig)).toBe(false)
+  })
+
+  test('refine keeps thinking off on every attempt', () => {
+    const base = build(anthropicPlugin, { model: 'claude-sonnet-5', disableThinking: true, maxTokens: 1000 })
+    const refined = wire(anthropicPlugin.refine({ base, attempt: 1, maxOutputCap: 64000 }))
+    expect(refined.thinkingExplicitlySet).toBe(true)
+    expect(refined.thinking).toEqual({ type: 'disabled' })
+  })
+})

@@ -134,7 +134,7 @@ one more anonymous member of the shared bucket.
 
 ```typescript
 ctx.prompts().use(owlmeansPackagesPlugin({
-  files: () => ctx.files(),      // tried first
+  files: () => fileProvider,     // the host's own LlmFileProvider, tried first
   exclude: ['@owlmeans/llm'],    // already covered by the static Skills block
   fetch: false,                  // air-gapped: skip the repository fallback
 }))
@@ -175,7 +175,7 @@ advertise one thing under two descriptions.
 
 ```typescript
 ctx.prompts().use(projectSkillsPlugin({
-  files: () => ctx.files(),
+  files: () => fileProvider,
   rules: [{ skills: ['deploy'], when: { paths: ['charts/**', '*.yaml'] } }],
 }))
 ```

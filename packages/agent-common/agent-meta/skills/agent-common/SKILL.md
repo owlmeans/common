@@ -1,6 +1,6 @@
 ---
 name: agent-common
-description: How to use @owlmeans/agent-common — runtime-free contracts for OwlMeans agents: conversation identity, the run-lifecycle flow, and the record shapes an application persists (conversation events, run state, memory nodes and events). Auto-invoked when importing agent record types, conversationFor, truncateAt, or the agent run flow.
+description: "How to use @owlmeans/agent-common — runtime-free contracts for OwlMeans agents: conversation identity, the run-lifecycle flow, and the record shapes an application persists (conversation events, run state, memory nodes and events). Auto-invoked when importing agent record types, conversationFor, truncateAt, or the agent run flow."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -18,7 +18,8 @@ The runtime is `@owlmeans/agent`.
 
 | Export | Description |
 |---|---|
-| `conversationFor(purpose, override?)` | Derives a `ConversationRef` from an `LlmPurpose` dedication. |
+| `ConversationRef` | `{ conversationId, scope }` — the thread a run belongs to, and the wider subject it is about. Two fields, because memory is filed per subject while threads may be finer-grained. |
+| `conversationFor(purpose, override?)` · `SCOPE_SEP` | Derives a `ConversationRef` from an `LlmPurpose` dedication (`<kind>:<id>`, split on `SCOPE_SEP`); either half is overridable. |
 | `truncateAt(text, max)` | Boundary-aware truncation. Every character cap in the family lands here. |
 | `agentRunFlow`, `AgentRunStep`, `AgentRunTransition`, `AGENT_RUN_FLOW` | The `@owlmeans/flow` lifecycle a run is driven through. |
 | `agentFlows` | Every flow this package declares, for a provider to serve. |
@@ -30,6 +31,7 @@ The runtime is `@owlmeans/agent`.
 | `AGENT_*_STORE` | Port names a consumer binds its storage under. |
 | `AgentRunStatus` | `ok` / `failed`, written on a conversation event. |
 | `AgentCommonError`, `AgentRunStateError` | The error family. |
+| `DEFAULT_SUMMARY_CHARS` (1200) · `DEFAULT_ADVICE_CHARS` (400) · `DEFAULT_EVENT_WINDOW` (3) · `DEFAULT_MEMORY_NODE_CHARS` (2000) · `DEFAULT_MEMORY_EVENTS_LIMIT` (50) | The caps the runtime's plugins default to. Override them per plugin; read them here rather than restating a number. |
 
 ## Rules
 
@@ -52,6 +54,10 @@ committed.
 marked `explicit` precisely so it can never become that automatic answer. Adding a second automatic
 edge to any step breaks `next()` for that step.
 
+**Every cap is enforced by truncation after the model answers, never by asking for it.** A cap in a
+prompt is a request; a cap in code is a cap. That is why the defaults live here as numbers rather
+than as prompt text.
+
 **A conversation id degrades to a named default, never to an empty string.** An empty key would
 silently collapse every run of every subject into one thread.
 
@@ -64,3 +70,9 @@ registered.
 Category A (unit, no env, no network). This package's own `tests/flow.spec.ts` covers the flow
 round-trip — which is also the standing check that `@owlmeans/flow` still works server-side, since
 every other consumer of that package is client-side.
+
+## Related
+
+- [[agent]] — the runtime that writes these records
+- [[llm-common]] — `LlmPurpose` and `ExecutionState`, which `AgentRunState` carries
+- [[flow]] — the flow model the run lifecycle is declared against

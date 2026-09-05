@@ -62,7 +62,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     log(args.install
       ? '\nDeploying agent skills via @owlmeans/agent-skills…'
       : '\nDeploying harness guidance via @owlmeans/agent-skills (general skills only — re-run'
-        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.11` after installing to add the package-specific ones)…')
+        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.12` after installing to add the package-specific ones)…')
     try {
       const result = await installSkills({
         dir: dest,
@@ -74,7 +74,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
         help: false,
       })
       if (result.code !== 0) {
-        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.11\` later.\n`)
+        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.12\` later.\n`)
       }
     } catch (err) {
       process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)

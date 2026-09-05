@@ -9,8 +9,9 @@ metadata:
 # Scaffolding a new OwlMeans Common project
 
 Two paths produce the same minimal fullstack project (`common` + `api` + `web`, shadcn UI
-navigation/layout, **no auth**, a **session-scoped in-memory resource**). The full reference is
-[`docs/getting-started.md`](../../../docs/getting-started.md); the framework shape is [[getting-started]].
+navigation/layout, **no auth**, a **session-scoped in-memory resource**). The full reference is the
+[OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md);
+the framework shape is [[getting-started]].
 
 ## Path 1 — `@owlmeans/create-app` (one command)
 
@@ -22,10 +23,11 @@ npx @owlmeans/create-app@^0.1.18-rc.14 my-app
 ```
 
 By default it copies the template, runs `git init`, installs dependencies, and **deploys agent
-guidance** into the project via [[bun]]-installed `@owlmeans/agent-skills` (`.agents/skills/`).
-With `--no-install` the deploy still runs — the installer's own bundled
-extras give the project its general/harness guidance; only the package-specific skills wait for
-`npx @owlmeans/agent-skills@^0.1.18-rc.11` after the install.
+guidance** into the project (`.agents/skills/`). `@owlmeans/agent-skills` is a dependency of the
+scaffolder and runs in-process, so the deploy happens whatever `--pm` is. With `--no-install` it
+still runs — the installer's own bundled extras give the project its general/harness guidance;
+only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.12` after the
+install.
 
 Flags: `--name <name>`, `--slug <slug>`, `--lang <code>` (default `en`), `--description <text>`,
 `--bare`, `--pm <bun|npm|yarn>` (default `bun`), `--no-install`, `--no-skills`, `--no-git`,
@@ -45,7 +47,7 @@ cd my-app && bun run dev      # API :3000, web :3001
 
 **When an agent should use this:** the user asks to start/bootstrap/create a new OwlMeans app from
 nothing. Prefer it over hand-writing boilerplate. After it runs, point the user at the **Session**
-screen and `docs/getting-started.md` — or, with `--bare`, straight at
+screen and the getting-started guide — or, with `--bare`, straight at
 `sources/common/src/entrypoints.ts`.
 
 ## `--bare` — the shell without the demo
@@ -84,20 +86,23 @@ exported alongside it for callers that need the pieces; `run(args)` is the whole
 
 ## Path 2 — manual
 
-Follow **Option B** in [`docs/getting-started.md`](../../../docs/getting-started.md): create the bun
+Follow **Option B** in the
+[OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md): create the bun
 workspace, then `common` (shared `entrypoints.ts`/schemas/config), `api` (`@owlmeans/server-app` +
 `appendStaticResource` handlers + `main`), and `web` (`@owlmeans/web-panel` + shadcn `@`-provided
-primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.11` to add agent guidance.
+primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.12` to add agent guidance.
 
 ## What gets generated
 
 ```
 my-app/
-├── package.json            # bun workspaces: sources/*
+├── package.json            # bun workspaces: sources/*, plus a `prepare` script
+├── bunfig.toml             # [install] linker = "hoisted"
 ├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder
 ├── CLAUDE.md               # thin bridge: imports AGENTS.md, documents the skill symlinks
 ├── .agents/skills/         # seeded harness skills (+ deployed ones)
-├── .agents/scripts/link-skills.sh  # refreshes the .claude/skills symlinks Claude Code needs
+├── .agents/scripts/link-skills.sh  # links local + installed-package skills for every agent
+├── .agents/linked-skills/  # generated on install, git-ignored — see below
 ├── .agents/memory/MEMORY.md      # starter shared memory graph index
 ├── sources/common/         # consts, types, schemas, config, entrypoints.ts
 ├── sources/api/            # context.ts (appendStaticResource), app/session/*, entrypoints.ts, index.ts
@@ -105,8 +110,29 @@ my-app/
                             # context.ts registers a @owlmeans/state resource the screens read
 ```
 
-Memory lives **only** in `.agents/memory/` — the legacy `.claude/memory/` and `.github/memory/`
-starters are gone (see [[agent-memory]]; [[memory-recompact]] migrates a project that still has them).
+`bunfig.toml` pins the **hoisted** linker, the same one every OwlMeans monorepo uses: React and the
+`@owlmeans/*` singletons must resolve to one copy across the workspaces, and the default isolated
+linker gives each workspace its own. Keep it even in a project that adds no further workspaces.
+
+The root `prepare` script runs `.agents/scripts/link-skills.sh` on every install, so the links
+exist for whoever checks the project out with no agent session needed to create them. Claude Code's
+committed `SessionStart` hook runs the same script again. The script does two passes:
+
+- **Local** — one symlink per `.agents/skills/<name>` into `.claude/skills/<name>`, which is the
+  only place Claude Code discovers skills. Copilot and Codex read `.agents/skills/` directly.
+- **Installed packages** — it finds every `node_modules/@owlmeans/<pkg>/agent-meta/skills/<name>`
+  in the project (the root scope and each workspace's own, since bun keeps a package's deps under
+  `sources/<pkg>/node_modules` when they are not hoisted; the same physical package is counted
+  once) and links each into **both** `.agents/linked-skills/<name>` — where Copilot and Codex read
+  it — and `.claude/skills/<name>`. It writes a skill / origin / description table to
+  `.agents/linked-skills/INDEX.md`, prunes links that no longer resolve, and removes the directory
+  entirely when nothing is linked. A local skill of the same name always shadows a linked one.
+
+`.agents/linked-skills/` is generated and git-ignored (the generated `.gitignore` lists it), so it
+is never edited or committed — re-run the script instead.
+
+Memory lives **only** in `.agents/memory/` (see [[agent-memory]]; [[memory-recompact]] folds a
+per-agent memory directory back into it).
 
 **Routing is OwlMeans-native.** The generated app has no `react-router` dependency and no
 `react-router` override: `makeContext` registers `@owlmeans/web-router` and `PanelApp` resolves
@@ -132,14 +158,16 @@ plus the mandatory [[reuse-code]] section and a **project-purpose placeholder**
 (`<!-- OWLMEANS:PROJECT-PURPOSE -->`). On the first agent session that block instructs the agent to
 ask the user what the project is for and replace it. `CLAUDE.md` is a thin bridge that imports
 `AGENTS.md` and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
-hook; Copilot and Codex need nothing beyond `AGENTS.md` and `.agents/skills/`.
+hook. Copilot and Codex need no bridge file: they read `AGENTS.md`, `.agents/skills/` and
+`.agents/linked-skills/` natively, which is why `AGENTS.md` carries its own
+`<!-- OWLMEANS:LINKED-SKILLS -->` section describing where the linked skills come from.
 
 The harness guidance is **seeded into the template** as generated, banner-carrying copies, so a
 project has it even before the installer runs: [[agent-memory]], [[memory-promotion]],
 [[memory-recompact]], [[self-education]], [[skill-authoring]], `git`, [[reuse-code]],
 [[getting-started]]. Regenerate the seed with `sync-agent-meta --seed-only` in the library-manager;
 never hand-edit a seeded copy. The installer adds the remaining general skills
-([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]]) and every
-package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.11`
+([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]], [[consent]],
+[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.12`
 — discovery scans **every** `node_modules/@owlmeans` in the workspace (root and nested under
 `sources/*`), so package-specific skills are picked up even though bun nests them.

@@ -159,7 +159,9 @@ export const makeLlmModel = ({
     }
 
     if (json) ensureJsonMention(msgs)
-    applyNoThink(msgs, config.disableThinking)
+    // The soft switch is for models with no request-level control; a plugin that sends the
+    // real parameter must not also get the directive as prompt text.
+    applyNoThink(msgs, config.disableThinking === true && plugin?.suppressesThinking?.(config) !== true)
     // Cache markers replace string content with content blocks, so they must go last.
     const ttl = prompt?.cacheTtl
     const marked = plugin?.patchCache?.(msgs, {

@@ -25,9 +25,11 @@ progress to the user's screen" is wiring rather than code.
 | `watchJobs(opts?)` | The socket handler — pushes `JobEvent` frames under `JOB_EVENT` |
 | `jobOwnerOf(req)` / `requireJobOwner(req)` / `jobViewer(req, ctx, opts?)` | Who a request reads as |
 | `jobScope(viewer, opts?)` / `owns(record, viewer, opts?)` / `readOwnedJob(...)` | Applying that to records |
+| `ownerFieldOf(opts?)` / `ownerOf(record, opts?)` | The configured owner field, and what one record says its owner is |
 | `jobsOf(ctx, opts?)` | The `QueueResource` a group reads |
-| `JobEntrypointOptions` / `JobHandlerOptions` / `JobAdminCheck` / `JobListQuery` | The option shapes |
-| Constants | `DEFAULT_JOB_ROOT` (`jobs`), `DEFAULT_JOB_PATH` (`/jobs`), `DEFAULT_OWNER_FIELD` (`owner`), `JOB_EVENT` (`job-event`) |
+| `JobListQuerySchema` | The list query's ajv schema, for a filter of your own |
+| `JobEntrypointAliases` / `JobEntrypointOptions` / `JobHandlerOptions` / `JobAdminCheck` / `JobListQuery` | The alias and option shapes |
+| Constants | `DEFAULT_JOB_ROOT` (`jobs`), `DEFAULT_JOB_PATH` (`/jobs`), `DEFAULT_OWNER_FIELD` (`owner`), `DEFAULT_JOB_SORT` (`createdAt`), `JOB_EVENT` (`job-event`) |
 
 ## Declaring, once, in the shared package
 
@@ -51,7 +53,10 @@ bundle must not.
 The guard rides on the base alone and the other four inherit it. It defaults to `DEFAULT_GUARD`
 because ownership is derived from the authenticated subject, and an unguarded group has no subject
 to derive it from — `guard: null` is for a group scoped some other way, and its handlers then
-answer `AuthorizationError`.
+answer `AuthorizationError`. `service` points the group at another app's route; `path` moves it.
+
+`/watch` is declared before `/:id` so the static branch reads first. Declaring a second group is
+the same call with another root.
 
 ## Serving
 
@@ -66,7 +71,9 @@ context.registerEntrypoints(entrypoints)
 
 `elevate` replaces in place, so an app wanting one handler of its own elevates that alias again
 afterwards. `queue` names which declared queue the group reads; omitted, `ctx.jobs()` answers with
-the sole declared queue and refuses to guess once there are two.
+the sole declared queue and refuses to guess once there are two. Passing an array that carries no
+group under that root is a `SyntaxError` — the declarations and the serving call must name the same
+root, and they usually do because both read it from one exported constant.
 
 ## The ownership rule
 
@@ -104,10 +111,10 @@ with no options at all is closed rather than open.
 
 | Alias | Method | Answers |
 |---|---|---|
-| `<root>:list` | GET `/` | `ListResult<JobRecord>`, newest first. `state`, `name`, `page`, `size` in the query; a `page` without a `size` is refused, since a broker has no default page size |
+| `<root>:list` | GET `/` | `ListResult<JobRecord>`, newest first by `createdAt`. `state`, `name`, `page`, `size` in the query. Paging is opt-in and driven by `size` (1–200): without one the whole scoped list comes back and a `page` alone counts for nothing, since a broker has no default page size. `state` and `name` are plain strings, so a driver state this package does not know still narrows the list |
 | `<root>:get` | GET `/:id` | One `JobRecord`, or `UnknownJob` |
 | `<root>:cancel` | DELETE `/:id` | The record that was removed. Cancellation IS deletion in the queue contract; it does not interrupt a processor mid-run |
-| `<root>:watch` | SOCKET `/watch` | `JobEvent` frames under `job-event`, as the queue publishes them |
+| `<root>:watch` | SOCKET `/watch` | `JobEvent` frames under `job-event`, as the queue publishes them. The subscription is released on the socket's system `close` frame, so a dropped browser stops the queue subscription behind it |
 
 ## The one gotcha
 

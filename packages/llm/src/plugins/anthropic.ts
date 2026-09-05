@@ -5,6 +5,7 @@ import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messa
 import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import type { CacheTtl } from '@owlmeans/llm-common'
 import type { LlmPlugin } from './types.js'
+import type { ModelConfig } from '../types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
 import { resolveOutputCap } from '../utils/config.js'
 import { readConfig } from '../utils/config.js'
@@ -38,11 +39,24 @@ export const rejectsSampling = (model: string | undefined): boolean =>
   model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
 
 /**
+ * Whether the request has to say, on the wire, that the model must not reason.
+ *
+ * The adaptive family reasons unless told otherwise: an absent `thinking` parameter means
+ * "adaptive", and langchain forwards the parameter only when a caller sets it — so a config
+ * that asks for no thinking is only honoured if the plugin sends `thinking: disabled` itself.
+ * Silent reasoning is what the request pays for twice: its tokens bill as output, and the
+ * summarised stream delivers them in bursts minutes apart, which an idle deadline reads as a
+ * dead connection and retries from scratch. Older models reason only when asked and get nothing.
+ */
+export const suppressesThinking = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): boolean =>
+  config.disableThinking === true && rejectsSampling(config.model)
+
+/**
  * The smallest output budget an always-reasoning model is given.
  *
- * The same models that took the sampling knobs away also think ADAPTIVELY whether or not the
- * request asks them to, and by default that thinking is not shown — it arrives as thinking blocks
- * with empty text. Reasoning is billed against the same `max_tokens` as the answer, so a budget
+ * The same models that took the sampling knobs away also think ADAPTIVELY unless the request
+ * turns it off (`disableThinking` → `thinking: disabled`, see `suppressesThinking`), and by
+ * default that thinking is not shown — it arrives as thinking blocks with empty text. Reasoning is billed against the same `max_tokens` as the answer, so a budget
  * sized for the answer alone can be spent entirely on thinking: the response is a well-formed
  * completion carrying no text at all, `stop_reason: "max_tokens"`, and every retry at the same
  * budget draws from the same distribution.
@@ -132,6 +146,8 @@ export const anthropicPlugin: LlmPlugin = {
    */
   toolChoice: (toolName: string): unknown => ({ type: 'tool', name: toolName }),
 
+  suppressesThinking: config => suppressesThinking(config),
+
   build: ({ config, secret, callbacks }) => {
     const model = config.model ??= 'claude-haiku-4-5'
     // Claude 4.7+ took the sampling knobs away: not "ignored", a 400. A configured
@@ -159,6 +175,9 @@ export const anthropicPlugin: LlmPlugin = {
       metadata: { config },
       callbacks,
       ...sampling,
+      ...(suppressesThinking({ model, disableThinking: config.disableThinking })
+        ? { thinking: { type: 'disabled' as const } }
+        : {}),
       ...makeClientOptions({ headers: config.headers }),
     }
     // Anthropic rejects temperature and top_p together.

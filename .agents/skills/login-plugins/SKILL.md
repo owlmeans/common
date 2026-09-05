@@ -1,6 +1,6 @@
 ---
 name: login-plugins
-description: How OwlMeans login plugins work — the LoginPlugin contract and its six stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, the resume fast path, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
+description: How OwlMeans login plugins work — the LoginPlugin contract and its seven stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, the resume fast path, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
 user-invocable: false
 metadata:
   scope: general
@@ -24,7 +24,7 @@ credential.
 | Plugin | Package | Registration | Priority | Applies when |
 |--------|---------|--------------|----------|--------------|
 | Redirect (default) | `@owlmeans/web-client` | `appendWebLogin(ctx)` | 0 | always |
-| Surrogate window | `@owlmeans/web-client` | `appendWebLogin(ctx)` | 100 | embedded, or in the surrogate itself |
+| Surrogate window | `@owlmeans/web-client` | `appendWebLogin(ctx)` | 100 (`SURROGATE_LOGIN_PRIORITY`) | a DOM exists AND the document is embedded or is itself the surrogate |
 | Native in-app browser | *(future)* | native app wiring | — | `match: env => !env.hasWindow` |
 | Silent refresh | *(future)* | higher-priority opt-in | >100 | an existing session can be renewed |
 
@@ -70,10 +70,14 @@ your own continuation), `Redirected` (the browser is leaving — do not render o
 `Gesture` (render a sign-in control; this cannot proceed without a fresh user gesture), `Orphaned`
 (authenticated, but with no channel back to the window that started it), `Failed`.
 
-**Three stages are optional, and their ABSENCE is the ordinary-tab behaviour.** `resume` absent
-means `Passed` — keep the session you have and carry on, which is exactly what an unframed
-application has always done, and why the redirect plugin implements none of the three. Implementing
-`resume` on the redirect plugin is the one change that would regress every unframed app.
+Seven stages; `begin`, `authorize` and `complete` are required and the other four — `enter`,
+`resume`, `logout`, `logoutComplete` — are optional, **and an absent one is the ordinary-tab
+behaviour**. `resume` absent means `Passed`: keep the session you have and carry on, which is
+exactly what an unframed application wants. The redirect plugin therefore omits `enter` and
+`resume` while implementing `logout` (revoke locally, then the caller's `navigate` or a full
+reload) and `logoutComplete` (`Passed` — the session was cleared in the document that owned it).
+Implementing `resume` on the redirect plugin is the one change that would regress every unframed
+app.
 
 ## LoginEnv drives selection
 
@@ -89,15 +93,20 @@ interface LoginEnv {
 This is the single source of environment truth. **Never probe `window` inside a `match`** — a
 non-DOM host supplies its own descriptor so the same plugins can be driven from a native shell.
 
-`surrogate` is recorded in `sessionStorage`, not read from `window.name`, because the flow leaves
-for the provider and comes back: browsers clear `window.name` whenever a top-level context goes
-cross-origin, so by the time the provider redirects back the name is gone.
+`surrogate` reads `window.name === LOGIN_SURROGATE_NAME` first and falls back to a `sessionStorage`
+marker. The marker exists because the flow leaves for the provider and comes back: browsers clear
+`window.name` whenever a top-level context goes cross-origin, so by the return leg the name alone
+would say "ordinary tab". `markSurrogate()` writes the marker only in a window whose `window.name`
+already matches, and must run on the surrogate's FIRST load, while that name is still there;
+`clearSurrogate()` removes it once the token has been handed back. Both tolerate storage being
+unavailable, which leaves the `window.name` check as the only evidence.
 
 ## The surrogate window has its own route
 
 `DISPATCHER_SURROGATE` (`@owlmeans/auth`) at `SURROGATE_PATH` = `/surrogate`
-(`@owlmeans/auth-common`), declared in `auth-common`'s `modules` and elevated in
-**`@owlmeans/web-client`'s `modules.ts`**. Three properties, each load-bearing:
+(`@owlmeans/auth-common`), declared in `auth-common`'s shared `entrypoints` list and elevated to the
+surrogate screen in **`@owlmeans/web-client`'s own entrypoints**. Three properties, each
+load-bearing:
 
 - **Top level, no parent** — so the popup renders outside every application layout. A login window
   showing the application, with its navigation, inside itself is the defect the route exists to
@@ -105,12 +114,12 @@ cross-origin, so by the time the provider redirects back the name is gone.
 - **No `service`**, unlike `DISPATCHER` — nothing server-side ever addresses it.
 - **Elevated in `web-client`, not in a relying party** — the mechanic is "run the login route one
   window up and hand the result back", not an OIDC detail, and every web app already spreads that
-  module list. That is what lets an application which is already deployed gain a working login
+  entrypoint list. That is what lets an application which is already deployed gain a working login
   window without editing a line.
 
 **It is never a `redirect_uri`.** The authorization URL's `redirect_uri` is built SERVER-side from
-the `DISPATCHER` entrypoint (`server-oidc-rp`'s `actions/init.ts`), so the provider comes back to
-`/dispatcher` whatever page opened the window. That is why a dispatcher ALSO has to render a
+the `DISPATCHER` entrypoint, by `@owlmeans/server-oidc-rp`'s init action, so the provider comes back
+to `/dispatcher` whatever page opened the window. That is why a dispatcher ALSO has to render a
 surrogate view — `/surrogate` alone cannot cover the return leg — and why adding this route needed
 no re-provisioning of any client.
 

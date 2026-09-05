@@ -25,6 +25,32 @@ Wraps i18next + react-i18next, lazily loads registered bundles from `@owlmeans/i
 | `composePrefix(parent?, child?)` | Canonical dot-join for prefix chaining; never call manually in panel code — used internally |
 | `I18nBaseProps` | `{ resource?, ns?, prefix?, suppress? }` |
 | `I18nProps` | `{ i18n?: I18nBaseProps }` |
+| `I18nContextProps` | `{ config: ClientConfig }` — what the provider takes |
+
+## Subpath: `./utils`
+
+The instance itself, for a host that has to configure i18next before the tree renders.
+
+| Export | Description |
+|---|---|
+| `useI18nInstance(config)` | The i18next instance for this application, memoised for the mount |
+| `getI18nInstance(config)` | The same instance outside React |
+| `setLanguage(lng)` | Persist and switch, without a component — what `useLanguage`'s setter calls |
+
+**There is exactly one instance per document**, created on first request and reused by every later
+call whatever config is passed. So configuration is read once, at the first creation, and a plugin
+is installed on the instance rather than passed to a second factory:
+
+```tsx
+import { useI18nInstance } from '@owlmeans/client-i18n/utils'
+import detector from 'i18next-browser-languagedetector'
+
+const instance = useI18nInstance(context.cfg)
+instance.use(detector)
+```
+
+`@owlmeans/web-panel`'s `render` already does exactly this, so an application on the panel family
+needs none of it.
 
 ## Setup (app root)
 
@@ -44,7 +70,10 @@ function App() {
 
 ## Language persistence
 
-The active language is persisted in `localStorage` under `owlmeans-lng` and restored on init.
+The active language is persisted in `localStorage` under `owlmeans-lng` and restored on init — but
+only when it is in `supportedLngs`, so a stored value that a later release dropped falls back to
+`fallbackLng` instead of resolving nothing. Every storage access is guarded, so a browser that
+refuses site data still renders.
 
 ```tsx
 function LangSwitch() {
@@ -95,15 +124,23 @@ t('title')  // → did:wallet.createKey.title
 
 ## App-level override of library strings
 
-Import the library's i18n registration **and** register your own version at App tier:
+Import the library's i18n registration **and** register your own version at App tier **in the
+library's namespace**:
 ```typescript
-import '@owlmeans/error/i18n'          // library en strings
-import { addI18nApp } from '@owlmeans/i18n'
-import myErrors from './i18n/en.json'  // with { type: 'json' }
+import '@owlmeans/error'               // the library bundle, registered by side effect
+import { addI18nApp, LIB_NAMESPACE } from '@owlmeans/i18n'
+import myErrors from './i18n/en.json' with { type: 'json' }
 
-// App tier wins — these override the library's 'errors' strings
-addI18nApp('en', 'errors', myErrors)
+// App tier merges last within (ns, resource, lng) — these override the library's 'errors' strings
+addI18nApp('en', 'errors', myErrors, { ns: LIB_NAMESPACE })
 ```
+
+`{ ns: LIB_NAMESPACE }` is what makes it an override. `addI18nApp` defaults the namespace to the
+**resource** name, so without it the bundle lands in namespace `errors` while `useI18nLib('errors')`
+reads namespace `lib` — nothing errors, nothing merges, and the library strings keep rendering.
+
+A package registers its strings from its own root: `src/i18n.ts` is re-exported by `src/index.ts`,
+so importing the package is what loads them. No package publishes an `./i18n` subpath.
 
 ## Resource JSON format
 
@@ -119,5 +156,6 @@ misbehaves at runtime.
 
 ## Depends On
 
-`@owlmeans/i18n`, `@owlmeans/client-context`, `i18next` (>= 26.2), `react-i18next` (>= 17),
-`react` (peer)
+`@owlmeans/i18n`, `@owlmeans/client`, `@owlmeans/client-context`, `i18next` (>= 26.2),
+`react-i18next` (>= 17), `react` (the one peer). `@owlmeans/client` is what `useI18nApp` reads the
+current context from, to default the resource to `context.cfg.service`.

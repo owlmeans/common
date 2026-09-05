@@ -14,8 +14,8 @@ user-invocable: false
 | Export | Description |
 |--------|-------------|
 | `StoredFileMeta` | What a stored file is *about*: `alias`, `mimeType`, `scopes`, `status`, plus optional `entityId`, `sourceName`, `name`, `title` |
-| `StoredFileInstance` | One rendition — `{ size, alias, url }`. A file carries a map of them under `instances` |
-| `StoredFile`, `StoredFileWithData` | The metadata plus its instances; the `WithData` form adds the inline payload (`format`, `bytes`, `base64`) |
+| `StoredFileInstance`, `StoredFilePayload` | One rendition — `{ size, alias, url }` — and the same rendition carrying its bytes (`format`, `bytes`, `base64`) |
+| `StoredFile`, `StoredFileWithData` | The metadata plus its `instances` map, which is required; the `WithData` form makes each instance a `StoredFilePayload` and adds a record-level `format` |
 | `StoredFileMetaSchema`, `StoredFileInstanceSchema`, `StoredFilePayloadSchema`, `StoredFileSchema`, `StoredFileWithDataSchema` | The matching AJV schemas |
 | `StoredFileStatus`, `StoredFileFormat` | `uploaded` / `processing-ready` / `processed` / `cached` / `unknown`; `bytes` / `base64` |
 | Errors | `StoredFileError`, `OrphanFileError`, `FilePropertyError`, `FileStreamError`, `StorageApiError`, `FileTypeError` |

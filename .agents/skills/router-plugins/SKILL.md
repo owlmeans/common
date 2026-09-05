@@ -19,8 +19,10 @@ OwlMeans UI routing is pluggable. The core `@owlmeans/router` package is a **hos
 |--------|---------|--------------|----------|
 | OwlMeans in-browser (default) | `@owlmeans/web-router` | `appendWebRouter(ctx)` | 0 |
 | react-router v7 (opt-in) | `@owlmeans/web-router-react-router` | `appendReactRouter(ctx)` | 100 |
-| Native (RN) | `@owlmeans/native-router` | native app wiring | — |
-| SSR | *(future)* | higher-priority `match: env => env.ssr` | >0 |
+
+A plugin registers under an alias, so registering the same alias again replaces it. Anything else —
+an SSR host, a React Native host — is a plugin you write, registered above priority 0 with a `match`
+that fires only in its environment.
 
 ## Choosing the router at context provisioning
 
@@ -34,13 +36,20 @@ import { appendReactRouter } from '@owlmeans/web-router-react-router'
 
 export const makeContext = (cfg) => {
   const context = makeBase(cfg)
-  appendReactRouter(context)   // now react-router handles routing instead of OwlMeans
+  appendReactRouter(context)   // react-router handles routing instead of the default
   return context
 }
 ```
 
-Nothing passes a `provide`/`createBrowserRouter` prop to `<App>`/`<PanelApp>` — routing resolves
-its compiler from the active plugin (`context.router().compile`).
+`<App>` and `<PanelApp>` need no `provide` prop: with it omitted, routing resolves its compiler from
+the active plugin (`context.router().compile`). Pass `provide` only to hand in an already-built
+library router or a custom compiler. Both components accept it and `<PanelApp>` forwards it to
+`<App>`.
+
+`noRouter` mounts the app with no router at all, and it works on `<App>` only. `<PanelApp>` accepts
+the prop by type — its props extend `AppProps` — but forwards just `provide`, so setting `noRouter`
+there type-checks and silently still mounts the router. An app that needs `noRouter` under the panel
+chrome renders `<App>` itself.
 
 ## The RouterPlugin contract
 
@@ -73,4 +82,4 @@ interface RouterPlugin {
 ## Related
 
 - [[router]] (host + matcher) · [[web-router]] (default browser plugin)
-- `@owlmeans/web-router-react-router` (react-router plugin)
+- [[web-router-react-router]] (react-router plugin)

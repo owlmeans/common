@@ -19,7 +19,8 @@ implementation of standard URL routing over the browser History API. It register
 | Export | Description |
 |--------|-------------|
 | `appendWebRouter(ctx)` | Register the OwlMeans browser plugin on a context's router host (idempotent via `ensureRouterService`). Called transparently by `@owlmeans/web-client`. |
-| `makeBrowserRouterPlugin()` | The `RouterPlugin` itself (alias `owlmeans-browser-router`, priority 0). |
+| `makeBrowserRouterPlugin()` | The `RouterPlugin` itself (alias `BROWSER_ROUTER`, priority 0). |
+| `BROWSER_ROUTER` | The plugin's alias string, `'owlmeans-browser-router'` — name the constant rather than the literal when selecting or overriding the plugin. |
 | `makeWebRouterService()` | Back-compat: a host pre-loaded with the browser plugin. |
 | `BrowserRouterProvider`, `Outlet` | React provider/outlet components. |
 | `RouteChain` | Renders the matched chain from a given depth, skipping `Component`-less matches (used by the provider and `Outlet`). |

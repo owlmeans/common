@@ -8,6 +8,7 @@ __APP_DESCRIPTION__
 > **Agents — this project has not been described yet.** Before doing anything else on the first
 > session, ask the user what this project is for: its purpose, domain, goals, and key constraints.
 > Then replace this whole block with a short description of the project, and remove this notice.
+<!-- /OWLMEANS:PROJECT-PURPOSE -->
 
 ## Git Workflow (mandatory)
 
@@ -101,6 +102,10 @@ by name (`/<name>`) like a local skill. They land in `.agents/linked-skills/<nam
 and Codex and in `.claude/skills/<name>` for Claude Code, with a `skill / origin repo /
 description` table in `.agents/linked-skills/INDEX.md`. A local skill of the same name always
 wins. The directory is generated and git-ignored — never edit or commit it.
+
+The root `prepare` script runs it on every `bun install`, and a session-start hook runs it
+again, so a fresh checkout carries the links for every agent — Copilot and Codex included,
+not just Claude Code.
 
 <!-- /OWLMEANS:LINKED-SKILLS -->
 

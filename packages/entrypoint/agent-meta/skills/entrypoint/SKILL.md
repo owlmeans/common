@@ -25,7 +25,10 @@ elevates on either side.
 | `body(Schema)` / `params(Schema)` / `query(Schema)` / `headers(Schema)` / `response(Schema, code?)` | AJV validators composed into a `Filter` |
 | `CommonEntrypoint` | The entrypoint interface — declaration, guards/gates, address accessors |
 | `AbstractRequest` / `AbstractResponse` | The request and reply shapes every handler sees |
+| `ResolvedEntity` | `req.entity` — the organization entity's `{ id, slug, iamKey }` |
 | `provideResponse(original?)` | Build a reply object a handler resolves or rejects |
+| `EntrypointHandler` | What a handler implements: `(req, res) => value` |
+| `Filter` | The composed validator set: `{ body, params, query, headers, response }` |
 | `GuardService` / `GateService` | What a guard and a gate implement |
 | `EntrypointOutcome` | Enum: Ok, Accepted, Created, Finished |
 | `EntrypointTransport` | `{ protocol, handle }` — a carrier bound to a route protocol |
@@ -44,6 +47,12 @@ entrypoint(
 Guards and gates are **inherited by child entrypoints** and enforced by the framework before a
 handler runs — a handler that re-checks them is duplicating an enforced rule, and is wrong even
 when it agrees.
+
+`sticky: true` in the options exempts a frontend entrypoint from the **service** filter the client
+router applies while building its entrypoint tree: without it, only entrypoints that name no service
+or name the context's own service are attached, so a route belonging to another service (an
+authentication dispatcher, say) needs it to reach the router at all. It changes nothing else — not
+the frontend-only restriction, not route matching — and defaults to `false`.
 
 ## Subpath Exports
 
@@ -71,6 +80,18 @@ way in a server and another in a client without being touched.
 
 `getGuards()` and `getGates()` walk the chain afresh on every call and are never memoised: a guard
 attached to an ancestor after this entrypoint was first asked still has to count.
+
+## What a handler receives
+
+`AbstractRequest` carries `params`, `body`, `query`, `headers` and `path`, plus `auth` once a guard
+has run. `req.entity` is the organization entity resolved from `auth.entitySlug` **once**, at the
+server boundary: `entity.id` is the stable value to key records, grants and generated names by,
+`entity.slug` is the renameable name a person reads, and `entity.iamKey` is the frozen identifier
+external systems already know the organization under. It is absent when no resolver is registered,
+so read it defensively rather than assuming it.
+
+`timeout` and `signal` on a request are forwarded to the transport, so a caller can bound or abort a
+single round trip.
 
 ## Calling an entrypoint
 
@@ -151,6 +172,12 @@ export const managerEntrypoints = [
 
 ## Depends On
 
-- `@owlmeans/route` — `route()`, `RouteMethod`, `RouteProtocols`, and the address helpers under `/utils`
-- `@owlmeans/auth-common` — guard aliases (`DEFAULT_GUARD`)
-- `@owlmeans/error`, `@owlmeans/i18n`
+- `@owlmeans/route` — `RouteModel`, `RouteAddress`, `RouteProtocols`, and the address helpers under `/utils`
+- `@owlmeans/context` — `appendContextual`, and the `BasicEntrypoint` / service shapes an entrypoint and its guards, gates and transports register as
+- `@owlmeans/auth` — `Auth`, the type behind `req.auth`
+- `ajv` — the JSON-schema types `body()` / `params()` / `query()` / `headers()` / `response()` are declared with
+
+Guard and gate **aliases** are not declared here: an entrypoint names a guard by string, and the
+package that implements the guard owns the constant (`DEFAULT_GUARD` comes from
+`@owlmeans/auth-common`, `OIDC_GATE` from `@owlmeans/oidc`). That is what keeps this package free of
+any dependency on the auth stack.

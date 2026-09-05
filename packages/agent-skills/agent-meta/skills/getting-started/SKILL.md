@@ -18,12 +18,16 @@ sources/
 ├── api/      # @owlmeans/server-app backend; handlers attached to the shared entrypoints
 │             #   context.ts, entrypoints.ts, app/<area>/*, index.ts
 └── web/      # @owlmeans/web-panel + shadcn UI; screens attached to the same entrypoints
-              #   context.ts, entrypoints.ts, nav.ts, layout/, screens/, index.tsx
+              #   context.ts, entrypoints.ts, nav.ts, layout/, screens/, render.tsx, index.tsx
 ```
 
-The full, runnable walkthrough (scaffolded **and** manual) lives in
-[`docs/getting-started.md`](../../../docs/getting-started.md). To generate this exact project, use
-[[scaffolding]] (`npm create @owlmeans/app`). This skill is the mental model.
+Three workspaces is the whole shape — a backend that needs its own long-running worker or a second
+API adds a workspace beside them and shares the same `common`.
+
+The full, runnable walkthrough (scaffolded **and** manual) lives in the
+[OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md).
+To generate this exact project, use [[scaffolding]] (`npm create @owlmeans/app`). This skill is the
+mental model.
 
 ## The core idea: one contract, two sides
 
@@ -111,15 +115,17 @@ persistence — the handler shape is identical.
 `@owlmeans/web-panel`'s `PanelApp` is shadcn/Tailwind v4 (no MUI). The **app provides** the shadcn
 primitives at the `@` alias — `web-panel` references `@/lib/utils` and
 `@/components/ui/{alert,button,card,input,label,navigation-menu,progress}`; copy those into `src/`.
-Routing resolves itself from the active router plugin, so `PanelApp` takes no router prop:
+Routing resolves itself from the active router plugin, so `PanelApp` takes no router prop —
+`render.tsx` is one line and `index.tsx` calls it:
 
 ```tsx
+// render.tsx — import { render as basicRender } from '@owlmeans/web-client'
 basicRender(<PanelApp context={context} />)
 ```
 
 `vite.config.ts` sets `@`→`src`, `@tailwindcss/vite`, and dedupes the owlmeans/react singletons.
 `index.css` is `@import "tailwindcss";` + a shadcn `@theme` token block (replaces `@owlmeans/owl-theme`).
-A parent `BASE` route renders the layout via `handler(LayoutComponent)`; `HOME` is its default child.
+A parent `BASE` route renders the layout via `handler(MainLayout)`; `HOME` is its default child, declared `frontend({ default: true, parent: BASE })`.
 `index.tsx` calls `context.registerEntrypoints(appEntrypoints)` and `context.serviceRoute(...)` for
 each service, then renders.
 

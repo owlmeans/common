@@ -17,13 +17,18 @@ user-invocable: false
 | `KeyPair` | Key pair shape: `{ privateKey, publicKey, address, type }`, keys base64 |
 | `KeyPairModel` | `sign` / `verify` / `encrypt` / `decrypt` / `dcrpt` / `export*` |
 | `KeyType` | `ED25519` (`'ed25519'`, signing) and `XCHACHA` (`'xchacha'`, encryption) |
-| `fromPubKey`, `matchAddress` | Verify-only model from a public key; address check |
-| `auth` exports | Auth plugin built on keypair signatures |
+| `fromPubKey(key, type?)`, `matchAddress(address, pubKey)` | Verify-only model from a public key; address check |
+| `packAuthCredentials(auth, extra, signer)` | Sign a credential payload into `AuthCredentials.credential` |
+| `unpackAuthCredentials(auth, verifier?)` | Split that back into `{ unsigned, signature, extras, isValid }` |
+| `plugins` | The key-type registry, keyed by type string |
 
 ## Subpath Exports
 
-- `./plugins` — pluggable key/auth plugins
-- `./utils` — encoding/decoding helpers
+- `./plugins` — the individual plugins (`ed25519Plugin`, `xChahaPlugin`), the `plugins` registry
+  again, and the **`KeyPlugin` type**. `KeyPlugin` is *not* on the root surface: the root re-exports
+  only the registry value, so a package implementing a new key type imports the type from
+  `@owlmeans/basic-keys/plugins`.
+- `./utils` — `assertType`, `prepareKey`, `prepareData`, `toAddress`
 
 ## Usage
 
@@ -52,14 +57,31 @@ Plain `Error` with a `basic.keys:<code>` message — this package does **not** u
 
 | Code | Raised when |
 |------|-------------|
-| `basic.keys:missing-keypair` | model has no key pair |
-| `basic.keys:unknown-type` | key type is absent or has no plugin |
+| `basic.keys:unknown-type` | the key type is absent or has no plugin (see the guard order below) |
+| `basic.keys:missing-pk` | `sign` on a model built from a `KeyPair` **object** whose `privateKey` is null or undefined |
 | `basic.keys:sign-data-type` | data is neither string, object, nor `Uint8Array` |
 | `basic.keys:decrypt-not-utf8` | plaintext is not valid UTF-8 (see below) |
+| `ed25519:encryption-support` | `encrypt` or `decrypt` on an ed25519 model |
+| `xchacha:signing` / `xchacha:verification` | `sign` or `verify` on an xchacha model |
 
-## `@scure/base` v2 — strict `utf8`
+Not every failure comes back as one of these, so do not match on a code where the underlying
+library throws first:
 
-The repo is on `@scure/base` **v2**, whose `utf8` coder is strict: `encode` runs
+- Signing with a **verify-only** model does not raise `basic.keys:missing-pk`. `fromPubKey` stores
+  `privateKey: ''`, which passes the null guard, and `@noble/curves` rejects it as
+  `private key of length 32 expected, got 0`.
+- A string input that is neither a key type nor valid base64 fails in the decoder
+  (`Found a character that cannot be part of a valid base64 string`), never with a `basic.keys:`
+  code.
+- The type check is not the first thing every method does. `export`, `exportPublic` and
+  `exportAddress` run it before anything else, but `sign`, `verify` and `encrypt` convert the payload
+  first — on a model whose type has no plugin, `sign(42)` throws `basic.keys:sign-data-type` while
+  `sign('ok')` throws `basic.keys:unknown-type` — and `decrypt`/`dcrpt` base64-decode the input
+  first, so a malformed ciphertext fails in the decoder.
+
+## `@scure/base` — strict `utf8`
+
+This package depends on `@scure/base` `^2.3.0`, whose `utf8` coder is strict: `encode` runs
 `TextDecoder('utf-8', { ignoreBOM: true, fatal: true })` and throws on invalid bytes instead of
 substituting `U+FFFD`, and `decode` rejects non-well-formed strings. `decrypt` therefore wraps its
 `utf8.encode` call and rethrows as `basic.keys:decrypt-not-utf8`. Use `dcrpt` when the plaintext is
@@ -71,7 +93,15 @@ In practice a wrong key fails earlier: xchacha20-poly1305 is authenticated, so i
 Callers that tolerate undecryptable values must catch — e.g. `@owlmeans/mongo` and
 `@owlmeans/postgres` use `key.decrypt(value).catch(() => value)` for their encrypted-field paths.
 
+## Signed credentials
+
+`packAuthCredentials` canonicalizes the unsigned credentials plus your extras, signs them, and
+returns `AuthCredentials` whose `credential` holds the signature (alone, or folded into the extras).
+`unpackAuthCredentials` reverses it and — given a verifier — reports `isValid`. Either side accepts
+a `KeyPairModel` or a bare sign/verify function, so a caller that holds only a remote signer works
+the same way.
+
 ## Depends On
 
-- `@owlmeans/auth` — credential types for the auth helpers
-- `@noble/curves`, `@noble/ciphers`, `@noble/hashes`, `@scure/base` (v2), `canonicalize`
+- `@owlmeans/auth` — `AuthCredentials`, the shape the auth helpers pack and unpack
+- `@noble/curves`, `@noble/ciphers`, `@noble/hashes`, `@scure/base`, `canonicalize`

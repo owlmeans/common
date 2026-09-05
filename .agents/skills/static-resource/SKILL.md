@@ -46,14 +46,22 @@ await fixtures.list({ name: { $startsWith: 'Owl' } }, { sort: ['name'] })
   the record it returns and throws `UnknownRecordError` on a miss.
 - `load(where)`, `get(where)`, `list`, `count` and `purge` go through the shared in-memory engine
   from `@owlmeans/resource`, so criteria and `{ sort }` mean exactly what they mean against a
-  database. `purge(where)` refuses an empty criteria object.
+  database. `purge(where)` refuses an empty criteria object
+  (`UnsupportedArgumentError('purge:empty-criteria')` — the database backends spell the same
+  refusal `purge:no-criteria`, so match on the error type rather than the message).
 - **Unpaged**: `list(where)` with no `size` returns every match — the whole store is already in
   memory; `size: 0` says the same explicitly, and `page` without `size` throws
   `UnsupportedArgumentError('page-without-size')`.
-- `opts.ttl` is honoured on writes — a number is seconds from now, a `Date` the instant to expire
-  at, and the record is dropped from the map when it elapses. An expiry already armed keeps its
-  appointment: rewriting the record without a ttl does not cancel it, so a renewal passes the ttl
-  again and a record that must survive gets a fresh id.
+- `opts.ttl` on a write arms a timer that deletes the id when it elapses — a number is seconds from
+  now, a `Date` the instant to expire at.
+- **An armed expiry cannot be postponed.** Nothing ever clears a timer, so a later write — with a
+  ttl or without one — leaves the original running, and when it fires it deletes whatever record now
+  sits under that id. Passing the ttl again renews nothing; it only adds a second timer behind the
+  first. A record that has to outlive its first ttl needs a fresh id.
+- **The map holds the caller's own object.** `create`/`update`/`save` store the object handed in and
+  `load`/`get`/`list` hand it straight back — no clone, no serialization. Mutating a record you
+  saved or read rewrites the store in place, bypassing `update` entirely, which is not how the
+  database backends behave. Copy before mutating, or treat what comes out of here as frozen.
 
 ## Depends On
 

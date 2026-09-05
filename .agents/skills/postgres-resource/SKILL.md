@@ -18,9 +18,12 @@ and derives it from the resource's AJV schema.
 | Export | Description |
 |--------|-------------|
 | `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, tableName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'postgres'`); `tableName` overrides the physical table (else the sanitized alias). |
-| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, custom SQL, transactions, `insert`/`upsert`/`patch`, `lock`/`unlock`. |
-| `PostgresDbService`, `PostgresDb`, `PostgresTx` | Service contract implemented by `@owlmeans/postgres`; the db handle `{ drizzle, pool, schema, database }`; the transaction façade. |
+| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, `db()`/`client()`, `index`, `ref`, `getDefaults`, custom SQL (`query`/`queryOne`/`execute`/`select`/`selectOne`), `transaction`, `insert`/`upsert`/`patch`, `lock`/`unlock`, `migration`/`migrations`. |
+| `PostgresDbService`, `PostgresDb`, `PostgresTx` | Service contract implemented by `@owlmeans/postgres`; the db handle `{ drizzle, pool, schema, database }`; the transaction façade (`client`, `query`/`queryOne`/`execute`, `ref`). |
+| `PostgresMeta` | The `DbConfig.meta` shape this package reads — `database`, `autoSync`, `url`, and the pool/probe knobs. |
 | `TableSpec`, `ColumnSpec`, `PgPropertyOverride`, `PgRootOverride`, `DdlPlan` | The compiled table description and the `pg:` vocabulary types. |
+| `PgIndexSpec`, `PgUniqueSpec`, `PgCheckSpec`, `PgReferenceSpec` | What `resource.index()` and the `pg:` overrides are written with. |
+| `criteriaToSql`, `sortToSql` | `Criteria<T>` → a WHERE clause and `Sort<T>` → the ORDER BY, for code that builds its own statement over the same table. |
 | `pgKeyword` | `{ keyword: 'pg', valid: true }` — register it when running AJV in strict mode. |
 | `schemaToTableSpec`, `pgTableName`, `pgIdentifier`, `quoteIdent`, `qualify`, `advisoryKey` | The compiler and identifier helpers. |
 | `refOf`, `resolvePlaceholders` | `{{alias}}` resolution — identifiers only. |
@@ -57,7 +60,8 @@ instead of starting a fresh, emptier one.
 | `string` · `string`+`format:'uuid'` | `text` · `uuid` |
 | `DateSchema` (`{type:'object', format:'date-time'}`) | `timestamptz` |
 | `integer` · `number` · `boolean` | `integer` · `double precision` · `boolean` |
-| `array`, nested `object` | `jsonb` |
+| `array` of plain `string`/`integer`/`number`/`boolean` items (no `format`, no `enum`) | native `<scalar>[]`, e.g. `text[]` |
+| any other `array` (objects, enums, formatted items, no `items`), nested `object` | `jsonb` |
 | string `enum` | `text` + `CHECK` |
 | `nullable: true` · in `required[]` | nullable · `NOT NULL` |
 | `secure: true` | ciphertext column, `lock`/`unlock` aware |
@@ -94,18 +98,25 @@ declaration sites merge into one `TableSpec` — the schema root, a per-property
 not an error. Two entries under one name would emit the same `CREATE INDEX` twice in a single DDL
 transaction, and Postgres answers the second with `42P07`, rolling back the plan that created the
 table: the resource then fails every boot with an error naming an index that does not exist.
-`byName` in `utils/schema.ts` collapses them and warns.
+The compiler collapses the duplicates itself, keeps the first declaration and warns on the console.
 
 ## Reconciliation is authoritative — `PgAutoSync`
 
-At `init()`: introspect → diff → apply the whole `DdlPlan` in one transaction under
-`pg_advisory_xact_lock`, so concurrent replicas don't race. `DbConfig.meta.autoSync`:
+At `init()`: take a **session** advisory lock on the qualified table name → introspect → diff →
+apply the whole `DdlPlan` in one transaction → release the lock. The lock is session level, not
+`xact`, because it has to span the migrations as well as the DDL, and those run in transactions of
+their own inside it — only the plan itself is one `BEGIN`/`COMMIT`. Concurrent replicas therefore
+serialize on the whole initialization, not just on the DDL. `DbConfig.meta.autoSync`:
 
 | Value | Behaviour |
 |---|---|
 | `Full` (default) | add / retype+backfill / drop columns, reconcile indexes and constraints |
 | `Additive` | add only — never retypes, never drops |
-| `Off` | create if absent, otherwise leave alone |
+| `Off` | **no table DDL** — the structure is never diffed and no statement is emitted, so a missing table is never created and the first query dies with `42P01`. Only for a table something else already provisions |
+
+The schema root override `pg: { autoSync }` is a boolean and wins per table: it turns reconciliation
+back on for one table under `meta.autoSync: 'off'`, and off for one table under the other two modes.
+`Full` versus `Additive` still comes from the config.
 
 **`Full` DROPs columns the schema doesn't declare.** Adopting a table this package didn't create:
 boot once with `Additive`, confirm the plan comes out empty, then flip to `Full`. Columns listed in
@@ -155,9 +166,15 @@ resource.migration('0001-rescue-legacy', async tx => {
 
 ```typescript
 await projects.select(
-  `SELECT p.* FROM {{}} p JOIN {{users}} u ON u.id = {{self.ownerId}} WHERE u.active = $1`, [true]
+  `SELECT {{}}.* FROM {{}} JOIN {{users}} u ON u.id = {{self.ownerId}} WHERE u.active = $1`, [true]
 )
 ```
+
+**Do not alias a table a placeholder still names.** Every `{{…}}` expands to the *qualified*
+`"schema"."table"` — `{{self.ownerId}}` to `"schema"."table"."ownerId"` — so aliasing the same table
+as `p` in the `FROM` makes Postgres reject the expansion with `invalid reference to FROM-clause
+entry`. Either write the qualified form throughout, as above, or alias the table and stop using
+`{{self.…}}` for its columns.
 
 Postgres cannot bind an identifier as a parameter — that is the entire reason this mechanism exists.
 Values have no such excuse: they stay in `params` as `$1..$n`. An unknown alias or property raises
@@ -221,8 +238,8 @@ translation — consumers classify retryable DDL races on `42P01`/`42703`.
 
 ## Config
 
-`DbConfig.schema` is the Postgres **SCHEMA** (`dbName()` returns it as given); the **DATABASE** comes
-from `meta.database`. Values starting with `/` are read as files by the existing
+`DbConfig.schema` is the Postgres **SCHEMA** (the service's `name(alias?)` returns it as given); the
+**DATABASE** comes from `meta.database`. Values starting with `/` are read as files by the existing
 `fileConfigReader` middleware.
 
 ## Tests

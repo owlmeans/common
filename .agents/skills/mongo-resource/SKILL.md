@@ -19,16 +19,20 @@ reference**.
 | Export | Description |
 |--------|-------------|
 | `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, collectionName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'mongo'`). `collectionName` overrides the collection (else `resourcePrefix + alias`). |
-| `MongoResource<T>` | `Resource<T>` + `collection`, `index`, `reference`/`references`, `migration`/`migrations` (the shared `MigratableResource` capability), `lock`/`unlock`, `getDefaults`. |
+| `MongoResource<T>` | `Resource<T>` + `collection`, `db()`/`client()`, `index`/`indexes`, `reference`/`references`, `migration`/`migrations` (the shared `MigratableResource` capability), `lock`/`unlock`, `getDefaults`, and the `dbAlias`/`serviceAlias` it was registered against. Anything naming a collection on another resource's behalf reads *that* resource's `dbAlias`, since two resources in one database can carry different `resourcePrefix`es. |
 | `MongoDbService`, `MongoTx` | Service contract implemented by `@owlmeans/mongo`; the façade handed to migrations (`db`, `collection`, `use(alias)`, `ref(alias)`). |
 | `MongoReference`, `MongoRefOptions` | A declared ObjectId reference and the `reference()` options (`resource`, `noIndex`). |
-| `marshalReference`, `demarshalReference`, `marshalCriteria`, `identityCriteria`, `isObjectIdHex` | The conversion layer — reuse these wherever raw driver access bypasses the resource. |
+| `marshalReference`, `demarshalReference`, `demarshalRefs`, `marshalCriteria`, `identityCriteria`, `isObjectIdHex` | The conversion layer — reuse these wherever raw driver access bypasses the resource. |
 | `criteriaToFilter`, `sortToMongo` | `Criteria<T>` → a mongo filter (references converted, every shared operator rewritten into a mongo expression) and `Sort<T>` → a mongo sort spec. |
-| `convertReferenceField`, `reconcileReferences`, `refMigrationName` | The system reference migration's machinery. |
+| `convertReferenceField`, `makeRefMigration`, `reconcileReferences`, `refMigrationName` | The system reference migration's machinery. |
 | `makeMongoTx`, `makeMongoMigrationStore` | The migration store (ledger) implementation. |
-| `getDeclaration`, `resetDeclarations` | Module-scope migration/reference declarations, keyed by alias. |
-| `schemaToMongoSchema`, `applyReferenceTypes`, `mongoCollectionName`, `updateIndexes` | Validator compilation and lifecycle helpers (deep import `utils/`). |
-| `DEFAULT_DB_ALIAS`, `DEFAULT_PAGE_SIZE`, `DEF_MIGRATIONS_COLLECTION` | Constants. |
+| `getDeclaration`, `resetDeclarations`, `MongoDeclaration` | Module-scope migration/reference declarations, keyed by alias; `resetDeclarations(alias?)` is the testing seam. |
+| `getSchemaSecureFeilds` | The `secure: true` schema properties `lock`/`unlock` operate on when the caller names no fields. |
+| `DEFAULT_DB_ALIAS`, `DEFAULT_PAGE_SIZE`, `DEF_MIGRATIONS_COLLECTION`, `DEF_MIGRATION_WAIT`, `DEF_MIGRATION_POLL`, `MONGO_DUPLICATE_KEY` | Constants. |
+
+Validator compilation and collection naming stay inside the package — the entry point exports
+nothing to reach them with, so a consumer shapes a collection by assigning `resource.schema` and
+declaring indexes, never by calling the compiler.
 
 ## Usage — the maker pattern
 
@@ -95,7 +99,10 @@ version suffix** in `refMigrationName`, or every already-applied ledger raises
 
 Only fields assigned from another record's `.id` qualify. Known traps from the live codebase:
 
-- `entityId` / `entity` — IAM entity slug (also a Keycloak realm and a k8s namespace label)
+- `entityId` / `entitySlug` — the **organization entity**, never a document in this database.
+  `entitySlug` is the renameable name that travels on tokens and URLs; `entityId` is the stable id
+  the organization registry minted for it, and a deployment with no resolver stores the slug in the
+  same field. Neither is an `ObjectId`, and the field carries both shapes across deployments
 - `profileId` — composite key `"{type}:{accountId}"`; `credentials.userId` — external
   provider key `"{type}:{service}:{sub}"` (while `profile.userId` **is** a reference)
 - Stripe ids (`externalId`, `productId`, `taxId`), Cloudflare `providerId`, GitHub numeric ids
@@ -119,15 +126,17 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 - `Pre` runs **before** the validator is updated and indexes reconcile; `Post` after. A `Pre`
   body writes shapes the *old* validator allows; a `Post` body the *new* one.
 - **A `Pre` body that removes an indexed field must drop that index itself.** Indexes reconcile
-  *after* `Pre`, so the old one is still live and still enforcing while the body writes. Renaming
-  the field in the `index()` declaration does not help when the index **name** stays the same:
-  `updateIndexes` matches by name, sees one already there, and leaves the old key spec alone —
-  so the declaration says `{ entityId, slug, kind }` while the collection enforces
-  `{ entity, slug, kind }`. `$unset`ing the field then collapses every row onto `{ <field>: null,
-  … }`, and on a `unique` index the second row dies with E11000 — mid-migration, after earlier
-  collections were already rewritten, leaving the database half-migrated and the boot aborting on
-  every restart. Drop the stale index by name in the body first (guard on the key spec so the
-  drop is idempotent), and let the reconcile recreate it from the declaration.
+  *after* `Pre`, so the old index is still live and still enforcing while the body writes, whatever
+  the declaration now says. `$unset`ing an indexed field collapses every document onto
+  `{ <field>: null, … }`, and on a `unique` index the second one dies with E11000 — mid-migration,
+  after earlier collections were already rewritten, leaving the database half-migrated and the boot
+  aborting on every restart. Drop the stale index by name in the body first (guard on the key spec
+  so the drop is idempotent) and let reconciliation recreate it from the declaration.
+- **Index reconciliation matches by name and recreates on any difference.** A live index whose key
+  pattern or options differ from the declaration is dropped and created again, so a renamed field
+  does converge — after `Pre`, which is why the bullet above exists. Text indexes are the one
+  exception: a live index carrying `weights` is left as it is, and changing one means dropping it
+  yourself.
 - On a collection this boot just created, every registered migration is **baselined**
   (recorded, not run) — a fresh collection is born at head.
 - **No transactions**: a standalone `mongod` (the dev/CI target) rejects multi-document
@@ -149,7 +158,10 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 2. absent → baseline all migrations; present → run `Pre` (system `$ref:` first if declared before app migrations)
 3. create collection (validator + indexes) or update validator + reconcile indexes
 4. present → run `Post`
-5. reconcile declared references (probe + repair — the double check)
+5. present → reconcile declared references (probe + repair — the double check)
+
+Steps 4 and 5 belong to the existing-collection path alone: a collection this boot created is
+already at head and carries no legacy strings to repair.
 
 ## Method semantics worth remembering
 
@@ -169,7 +181,9 @@ with `marshalReference(field, value)` and convert read-back documents' reference
 Mongo is **PAGED**: `DEFAULT_PAGE_SIZE` is `100`, so `list(where)` with no `size` returns the first
 100 matches — a collection is unbounded and an unpaged read is an incident waiting for the document
 count to grow. `ListResult.total` counts every match regardless of the window, and
-`list(where, { size: 0 })` is the explicit, greppable ask for the whole result set.
+`list(where, { size: 0 })` is the explicit, greppable ask for the whole result set. Asking for a
+page while lifting the limit contradicts itself and raises
+`UnsupportedArgumentError('page-without-size')` rather than quietly answering page 0.
 
 ## Criteria against a collection
 
@@ -188,10 +202,12 @@ worth knowing:
 
 ## Tests
 
-Unit specs (conversion layer): `bun test ./tests` in this package — ungated. Integration
-specs that build a real `ServerContext` live in `@owlmeans/mongo` (`migration.spec.ts`,
-`references.spec.ts`), gated on `MONGO_URL` (see [[testing-integration]]); a dev port-forward
-to the cluster mongo satisfies the checked-in `.env`.
+`bun test ./tests` in this package runs the conversion-layer unit specs (`criteria.spec.ts`,
+`refs.spec.ts`) ungated, plus `crud.spec.ts`, which needs a real collection and self-skips behind
+the same `MONGO_URL` gate as the integration suites. Specs that build a real `ServerContext` live in
+`@owlmeans/mongo` (`crud.spec.ts`, `migration.spec.ts`, `references.spec.ts`), also gated on
+`MONGO_URL` — see [[testing-integration]]; a dev port-forward to the cluster mongo fills the
+`MONGO_URL` the repo's `.env.example` describes.
 
 ## Depends On
 

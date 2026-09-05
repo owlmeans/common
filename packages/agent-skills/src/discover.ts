@@ -241,9 +241,16 @@ export const discover = (targetDir: string, opts: DiscoverOptions = {}): Discove
     allEntries.push(...scanSelfExtras(selfName, selfVersion).filter(e => e.kind === 'skill'))
   }
 
+  // Restrict by package BEFORE deduping. Two packages may ship a same-named skill;
+  // filtering afterwards would judge --only against whichever copy won the dedup and
+  // drop a skill the named package really does ship.
+  const candidates = only != null && only.length > 0
+    ? allEntries.filter(e => only.some(n => matchPkgName(n, e.packageName)))
+    : allEntries
+
   // Deduplicate by name: prefer highest semver version
   const byKey = new Map<string, DiscoveredEntry>()
-  for (const e of allEntries) {
+  for (const e of candidates) {
     const key = e.name
     const existing = byKey.get(key)
     if (existing == null) {
@@ -253,27 +260,75 @@ export const discover = (targetDir: string, opts: DiscoverOptions = {}): Discove
     }
   }
 
-  let result = Array.from(byKey.values())
-
-  // Apply --only filter
-  if (only != null && only.length > 0) {
-    result = result.filter(e => only.some(n => matchPkgName(n, e.packageName)))
-  }
-
-  return result
+  return Array.from(byKey.values())
 }
 
-/** Compare two semver strings. Returns >0 if a > b, <0 if a < b, 0 if equal. */
-const compareSemver = (a: string, b: string): number => {
-  const parse = (s: string): number[] =>
-    s.replace(/^[^0-9]*/, '').split('.').map(n => parseInt(n, 10) || 0)
-  const pa = parse(a)
-  const pb = parse(b)
-  for (let i = 0; i < 3; i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) return diff
+interface ParsedVersion {
+  /** major, minor, patch. */
+  core: number[]
+  /** Dot-separated prerelease identifiers; empty for a release version. */
+  pre: string[]
+}
+
+/**
+ * Split a version into its numeric core and its prerelease identifiers, tolerating a
+ * leading range operator (`^1.2.3`) and dropping build metadata (`+build`), which
+ * carries no precedence.
+ */
+const parseVersion = (raw: string): ParsedVersion => {
+  const s = raw.trim().replace(/^[^0-9]*/, '').split('+')[0]
+  const dash = s.indexOf('-')
+  const core = (dash === -1 ? s : s.slice(0, dash)).split('.').map(n => parseInt(n, 10) || 0)
+  const pre = dash === -1 ? '' : s.slice(dash + 1)
+  return { core, pre: pre.length > 0 ? pre.split('.') : [] }
+}
+
+const isNumericId = (id: string): boolean => /^[0-9]+$/.test(id)
+
+/**
+ * Compare prerelease identifier lists by semver precedence: a version WITHOUT a
+ * prerelease outranks the same version with one; identifiers compare field by field,
+ * numerically when both are numeric, and a numeric identifier ranks below an
+ * alphanumeric one; a shorter list ranks below a longer one that shares its prefix.
+ */
+const comparePrerelease = (a: string[], b: string[]): number => {
+  if (a.length === 0 && b.length === 0) return 0
+  if (a.length === 0) return 1
+  if (b.length === 0) return -1
+
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i]
+    const y = b[i]
+    if (x == null) return -1
+    if (y == null) return 1
+    const xn = isNumericId(x)
+    const yn = isNumericId(y)
+    if (xn && yn) {
+      const diff = parseInt(x, 10) - parseInt(y, 10)
+      if (diff !== 0) return diff < 0 ? -1 : 1
+      continue
+    }
+    if (xn !== yn) return xn ? -1 : 1
+    if (x !== y) return x < y ? -1 : 1
   }
   return 0
+}
+
+/**
+ * Compare two semver strings. Returns >0 if a > b, <0 if a < b, 0 if equal.
+ *
+ * The prerelease half is load-bearing: every OwlMeans release on the current line is an
+ * `-rc.N`, so a comparison that stopped at major/minor/patch would call every dedup
+ * contest a tie and keep whichever copy the directory walk happened to reach first.
+ */
+const compareSemver = (a: string, b: string): number => {
+  const pa = parseVersion(a)
+  const pb = parseVersion(b)
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa.core[i] ?? 0) - (pb.core[i] ?? 0)
+    if (diff !== 0) return diff < 0 ? -1 : 1
+  }
+  return comparePrerelease(pa.pre, pb.pre)
 }
 
 /** Match package name allowing bare name without scope (@owlmeans/ prefix optional). */

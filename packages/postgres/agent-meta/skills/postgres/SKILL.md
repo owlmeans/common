@@ -21,7 +21,7 @@ this package only creates the schema those tables live in.
 | `makePostgresDbService(alias?)` | The connection service. `alias` defaults to `DEFAULT_ALIAS` (`'postgres'`). |
 | `appendPostgres(context, alias?)` | Registers the service **and** its drain middleware. Use this, not a bare `registerService`. |
 | `PostgresService` | `PostgresDbService` + `bootstrap(configAlias, opts)`. |
-| `BootstrapOptions`, `BootstrapReport`, `bootstrapDb` | The admin path; `bootstrapDb` is usable without a context. |
+| `BootstrapOptions`, `BootstrapReport`, `bootstrapDb` | The admin path. `bootstrapDb(service, configAlias, opts)` is what `service.bootstrap(configAlias, opts)` calls — both read the config through a **context-bound** service, so neither runs outside a context. |
 | `pingDb(context, alias?, configAlias?)` / `checkDbHealth(...)` | Health checks through the registered service; `DbHealth` = `{ ok, summary, error? }`. |
 | `getLastDbHealth(alias?, configAlias?)` / `formatDbError(error)` | The cached verdict, and the cause-chain error formatter. |
 | `drainMiddleware(alias?)` | Drains work deferred until every resource has initialized. |
@@ -52,7 +52,7 @@ cfg.dbs = [{
 for a `DATABASE_URL` env var. Because a leading `/` is auto-read, moving to file-mounted secrets
 later is a config change, not a code change.
 
-**`schema` is the SCHEMA, not the database.** `dbName()` returns it as given
+**`schema` is the SCHEMA, not the database.** The service's `name(alias?)` returns it as given
 (`config.schema ?? config.alias ?? service.alias`), so a separate namespace costs a `CREATE SCHEMA`
 inside a shared database rather than a `CREATE DATABASE`. The database comes from `meta.database`.
 
@@ -61,11 +61,27 @@ Other `meta` keys: `autoSync` (see [[postgres-resource]]), `ssl`, `max`, `idleTi
 
 ## What `init()` does
 
-Opens a `pg.Pool` → `SELECT 1` readiness probe (30 attempts, 2s apart) → `CREATE SCHEMA IF NOT
-EXISTS` → `SIGTERM` handler that drains the pool. Do **not** hand-roll the retry loop around it: a
-Postgres sidecar routinely accepts TCP before it accepts queries, which is precisely what the probe
-is for. Credential, missing-database and permission failures (`TERMINAL_CONNECT_CODES`) fail
-immediately instead of burning the full retry budget on an error that will never clear.
+Opens a `pg.Pool` → attaches the pool's `error` handler → `SELECT 1` readiness probe
+(`DEF_RETRIES` 30 attempts, `DEF_RETRY_DELAY` 2s apart, both overridable through
+`meta.retries`/`meta.retryDelayMillis`) → `SIGTERM` handler that drains the pool → registers the
+client → `CREATE SCHEMA IF NOT EXISTS`.
+
+Do **not** hand-roll the retry loop around it: a Postgres sidecar routinely accepts TCP before it
+accepts queries, which is precisely what the probe is for. Credential, missing-database and
+permission failures (`TERMINAL_CONNECT_CODES`) fail immediately instead of burning the full retry
+budget on an error that will never clear. A probe that gives up ends the pool before raising, so a
+failed boot leaves no sockets behind.
+
+**The schema is created only when the config entry names one.** `config.schema` absent means no
+`CREATE SCHEMA` at all — an entry that identifies its database through `meta.database` or
+`meta.url` and omits `schema` gets none, deliberately: resources create the schema they need
+anyway, and inventing one from the service alias would leave an empty `postgres` schema behind on
+every boot of the admin connection.
+
+**The pool's `error` handler is not optional.** `node-postgres` emits `error` on *idle* clients
+whenever the server closes a connection — routine behind a load balancer — and an unhandled
+`error` on an EventEmitter terminates the process. The service attaches one that logs; a pool you
+open yourself needs the same.
 
 Keep the pool small. Postgres caps connections cluster-wide (`max_connections`, 100 by default), so
 an oversized per-process pool starves every other client of the same server — the opposite of the
@@ -75,7 +91,8 @@ Mongo driver's tuning instinct.
 
 `db(alias?)` → `{ drizzle, pool, schema, database }` · `client(alias?)` / `clients` ·
 `qualify(resourceAlias, configAlias?)` · `query(text, params?, configAlias?)` ·
-`transaction(fn, configAlias?)` · `lock`/`unlock` (AES via `config.encryptionKey`) ·
+`transaction(fn, configAlias?)` · `lock`/`unlock` (field encryption through
+`makeKeyPairModel(config.encryptionKey)` from `@owlmeans/basic-keys`) ·
 `defer(configAlias, task)` / `drain(configAlias?)`.
 
 `defer` exists for work that can't run during one resource's `init()` because it points at another
@@ -125,10 +142,13 @@ await context.service<PostgresService>('postgres').bootstrap('pg-admin', {
 
 Idempotent by design — every OwlMeans deployment calls it on each start and each rebuild. It probes
 `pg_roles` / `pg_database` before creating, rotates the password of an existing role (the caller
-generated the password it just passed in, so the role has to accept it), and with `leastPrivilege`
-applies `REVOKE CONNECT … FROM PUBLIC`, `REVOKE CREATE ON SCHEMA public FROM PUBLIC`,
-`GRANT CONNECT … TO <role>`, `ALTER ROLE … SET search_path`. The returned `BootstrapReport` says
-what actually changed. Identifiers are validated and quoted; the password is the only literal.
+generated the password it just passed in, so the role has to accept it). The two grant branches are
+independent: `leastPrivilege` applies `REVOKE CONNECT … FROM PUBLIC`,
+`REVOKE CREATE ON SCHEMA public FROM PUBLIC` and `GRANT CONNECT … TO <role>`, while `schema`
+applies `CREATE SCHEMA … AUTHORIZATION <role>`, `GRANT ALL ON SCHEMA … TO <role>` and
+`ALTER ROLE … SET search_path`. **`search_path` comes from `schema`** — a call with
+`leastPrivilege` and no `schema` sets none. The returned `BootstrapReport` says what actually
+changed. Identifiers are validated and quoted; the password is the only literal.
 
 **This replaces hand-written bootstrap SQL.** If you find `CREATE ROLE` / `CREATE DATABASE` /
 `GRANT` strings in a deployment script, a provisioner, or a `DEPLOYMENT.md`, they are a duplicate of

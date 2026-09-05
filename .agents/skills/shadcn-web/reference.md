@@ -35,7 +35,6 @@
     "@owlmeans/dep-config/tsconfig.react.json"
   ],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/@/*"]
     },
@@ -147,7 +146,7 @@ Every shadcn-based OwlMeans package declares the shadcn utility libs as peerDepe
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.14",
+    "@owlmeans/test-ui": "^0.1.18-rc.15",
     "@tailwindcss/vite": "*",
     "@vitejs/plugin-react": "*",
     "playwright": "^1.49.0",
@@ -185,13 +184,14 @@ Every shadcn-based OwlMeans package declares the shadcn utility libs as peerDepe
 | `ButtonGroup` | `div className="flex"` with first/last border-radius overrides |
 | `scalingToStyles()` helper | Tailwind spacing scale (`p-4`, `px-6`, `py-2`, etc.) |
 
-## Tailwind v4 — key changes from v3
+## Tailwind v4 — the rules a package is written against
 
-- No `tailwind.config.js` — config lives in CSS `@theme` blocks.
-- Vite plugin: `@tailwindcss/vite` (preferred) or `@tailwindcss/postcss` for non-Vite.
-- `@import "tailwindcss"` replaces `@tailwind base; @tailwind components; @tailwind utilities`.
-- Colors use OKLCH by default.
-- PostCSS `autoprefixer` and `postcss-import` are no longer needed (handled internally).
+- Configuration lives in CSS `@theme` blocks. There is no `tailwind.config.js`.
+- The entry is a single `@import "tailwindcss"`, not the three `@tailwind` directives.
+- Vite plugin: `@tailwindcss/vite` (preferred), or `@tailwindcss/postcss` outside Vite.
+- Colors are OKLCH.
+- Vendoring prefixes and CSS imports is handled internally — a PostCSS chain needs neither
+  `autoprefixer` nor `postcss-import`.
 - `@source` adds extra scan paths beyond the auto-detected project root.
 
 ## `src/@/components/ui/button.tsx` — example primitive header

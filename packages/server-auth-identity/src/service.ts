@@ -6,7 +6,7 @@ import type { ProviderProfileDetails } from '@owlmeans/oidc'
 import { createIdOfLength, IdStyle } from '@owlmeans/basic-ids'
 import type { Criteria } from '@owlmeans/resource'
 import type { AccountMeta, IdentityAccountResource, IdentityProfileResource, IdentityCredentialsResource, IdentityLinkingService } from './types.js'
-import type { IdentityCredentials, IdentityProfile } from './types.js'
+import type { IdentityAccount, IdentityCredentials, IdentityProfile } from './types.js'
 import type { OrgEntity, OrgEntityResource } from './types.js'
 import type { EntityResolverService } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
@@ -38,6 +38,44 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
     const entity = await ctx.service<EntityResolverService>(ENTITY_RESOLVER).byId(entityId)
 
     return entity?.slug
+  }
+
+  /**
+   * The platform identity this person already has, if any.
+   *
+   * One human, one email, one profile — whichever way they sign in. Every provider that reaches
+   * `linkProfile` establishes the email first (Google asserts a verified address, the OTP flow
+   * proves possession of it, the supervisor key is a full-trust developer credential), so the
+   * name is the identity and a second method is a second CREDENTIAL on it, never a second person.
+   * Without this the platform minted a whole new organization per method: the same address signed
+   * in by Google and by key ended up in two entities, and each could see only the projects the
+   * other had not created.
+   *
+   * Two rows can carry one address, and only one of them is a platform login. `inviteUser`
+   * (`@owlmeans/iam-integrated`) writes an END USER record for the same person — the identity the
+   * GENERATED application authenticates, deliberately kept apart from the platform credential.
+   * Those rows carry no login service, which is what tells the two apart here: this service is
+   * the only writer of `credential = "service:{type}:{service}"`, so a profile that has one is a
+   * platform login and a profile that has none is somebody's end user.
+   */
+  const findPlatformIdentity = async (username: string): Promise<IdentityProfile | null> => {
+    const name = username.trim()
+    if (name === '') return null
+
+    const ctx = service.ctx as Context
+    const accountResource = ctx.resource<IdentityAccountResource>(AUTH_IDENTITY_ACCOUNT)
+    const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
+
+    const { items: accounts } = await accountResource.list({ name } as Criteria<IdentityAccount>)
+    for (const account of accounts) {
+      const { items: profiles } = await profileResource.list({ userId: account.id } as Criteria<IdentityProfile>)
+      const platform = profiles.find(profile =>
+        profile.credential?.startsWith(`${LOGIN_SERVICE_PREFIX}${EXTERNAL_KEY_DELIMITER}`) === true
+      )
+      if (platform != null) return platform
+    }
+
+    return null
   }
 
   const service: IdentityLinkingService = appendContextual<IdentityLinkingService>(AUTH_IDENTITY_LINKING, {
@@ -73,6 +111,29 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
       const entityResource = ctx.resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
       const resolver = ctx.service<EntityResolverService>(ENTITY_RESOLVER)
+
+      // A person the platform already knows is LINKED, not registered again. Everything below
+      // this point creates an organization, an account and a profile, and doing that for a second
+      // login method is what put one email in two entities.
+      const known = meta.force === true ? null : await findPlatformIdentity(meta.username)
+      if (known != null) {
+        await credsResource.create({
+          challenge: '',
+          type: details.type,
+          userId: externalKey(details),
+          profileId: known.profileId,
+          credential: loginService(details),
+        })
+
+        return {
+          type: details.type,
+          role: known.role,
+          userId: known.userId ?? known.profileId,
+          profileId: known.profileId,
+          entitySlug: await slugOf(known.entityId),
+          scopes: known.scopes,
+        }
+      }
 
       // Every account gets its own organization. The entity record is created FIRST because it
       // owns the two values that outlive everything else here: the id the account and its profiles

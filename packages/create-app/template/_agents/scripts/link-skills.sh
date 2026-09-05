@@ -22,8 +22,17 @@
 #     package.json workspace entries of the form "libraries/<dep>/packages/...",
 #     recursing into each upstream's own package.json (visited list, depth cap
 #     of 4).  A repo that declares no libraries/* workspace entries falls back
-#     to node_modules/@owlmeans/*/agent-meta/skills/<name>, the layout a
-#     standalone npm consumer gets.
+#     to the layout a standalone npm consumer gets: the generated
+#     agent-meta/skills/<name> copies that ship inside the installed @owlmeans
+#     packages.  That fallback scans node_modules/@owlmeans at the project root
+#     AND in every directory up to two levels below it (sources/api/node_modules
+#     and the like), because a workspace package keeps its own node_modules
+#     whenever the linker does not hoist its dependencies to the root.  It never
+#     descends into a node_modules tree, skips any directory whose real path
+#     leaves the root (a projects/<repo> or libraries/<repo> symlink is another
+#     checkout, not this project), and records each physical package once, keyed
+#     by resolved path, so a package reachable through several workspaces
+#     contributes its skills a single time.
 #   - links every upstream skill that no local skill shadows into BOTH
 #     .agents/linked-skills/<name> and .claude/skills/<name>, pointing at the
 #     upstream's real directory (never at another symlink).  A local skill
@@ -183,17 +192,64 @@ EOF
     chain="${chain% -> }"
 elif [ -n "$CAND" ]; then
     # Standalone consumer: no libraries/* upstreams, so the skills ship inside
-    # the installed packages as generated agent-meta/ copies.
-    for pkg_dir in "$ROOT"/node_modules/@owlmeans/*/; do
-        [ -d "$pkg_dir" ] || continue
-        pkg_dir="${pkg_dir%/}"
-        origin="@owlmeans/$(basename "$pkg_dir")"
-        for skill_dir in "$pkg_dir"/agent-meta/skills/*/; do
-            [ -d "$skill_dir" ] || continue
-            skill_dir="${skill_dir%/}"
-            record_candidate "$(basename "$skill_dir")" "$origin" "$(cd "$skill_dir" && pwd -P)"
+    # the installed packages as generated agent-meta/ copies.  Those packages
+    # are not necessarily at the project root: a workspace whose @owlmeans deps
+    # belong to its sources/* packages keeps them in each package's own
+    # node_modules unless the linker hoists.  So collect the @owlmeans scope
+    # directory of the root and of every directory up to two levels below it.
+    # A directory is scanned only when it is part of THIS project: node_modules
+    # trees are never descended into, and a directory whose real path leaves the
+    # root — a projects/<repo> or libraries/<repo> symlink into a neighbouring
+    # checkout — belongs to that other repository, not to this one.
+    in_tree() {
+        rp=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+        case "$rp/" in
+            "$ROOT"/*) return 0 ;;
+        esac
+        return 1
+    }
+
+    scope_dirs="$ROOT/node_modules/@owlmeans$NL"
+    for lvl1 in "$ROOT"/*/; do
+        [ -d "$lvl1" ] || continue
+        lvl1="${lvl1%/}"
+        [ "$(basename "$lvl1")" = "node_modules" ] && continue
+        in_tree "$lvl1" || continue
+        scope_dirs="$scope_dirs$lvl1/node_modules/@owlmeans$NL"
+        for lvl2 in "$lvl1"/*/; do
+            [ -d "$lvl2" ] || continue
+            lvl2="${lvl2%/}"
+            [ "$(basename "$lvl2")" = "node_modules" ] && continue
+            in_tree "$lvl2" || continue
+            scope_dirs="$scope_dirs$lvl2/node_modules/@owlmeans$NL"
         done
     done
+
+    # The same physical package is reachable through several workspaces once the
+    # linker hoists or symlinks it, so key the dedup on the resolved path.
+    seen_pkgs="$NL"
+    while IFS= read -r scope_dir; do
+        [ -n "$scope_dir" ] || continue
+        [ -d "$scope_dir" ] || continue
+        for pkg_dir in "$scope_dir"/*/; do
+            [ -d "$pkg_dir" ] || continue
+            pkg_dir="${pkg_dir%/}"
+            real=$(cd "$pkg_dir" 2>/dev/null && pwd -P) || continue
+            [ -n "$real" ] || continue
+            case "$seen_pkgs" in
+                *"$NL$real$NL"*) continue ;;
+            esac
+            seen_pkgs="$seen_pkgs$real$NL"
+            origin="@owlmeans/$(basename "$pkg_dir")"
+            for skill_dir in "$real"/agent-meta/skills/*/; do
+                [ -d "$skill_dir" ] || continue
+                skill_dir="${skill_dir%/}"
+                record_candidate "$(basename "$skill_dir")" "$origin" "$skill_dir"
+            done
+        done
+    done <<EOF
+$scope_dirs
+EOF
     [ -s "$CAND" ] && chain="node_modules/@owlmeans/*/agent-meta/skills"
 fi
 

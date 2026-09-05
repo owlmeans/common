@@ -38,4 +38,4 @@ here rewrites a declaration — `overrides` only fills fields the declaration le
 ## Depends On
 
 - `@owlmeans/route` — `RouteModel`, `overrideParams` (from `/utils`), `normalizePath`, `SEP`, `PARAM`
-- `@owlmeans/client-context` — the client config/context types
+- `@owlmeans/client-context`

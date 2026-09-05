@@ -1,6 +1,6 @@
 ---
 name: server-iam
-description: "How to use @owlmeans/server-iam — one-call OIDC RP wiring (appendIam) and the IAM gate that asserts unscoped and resource-scoped permissions (claims-first, UMA2 fallback). Use when gating server endpoints in IAM consumers (e.g. the viable target template backend). Applies to files matching **/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts."
+description: "How to use @owlmeans/server-iam — one-call OIDC RP wiring (appendIam) and the IAM gate that asserts unscoped and resource-scoped permissions (claims-first, UMA2 fallback), plus the gate-param grammar it re-exports. Use when gating server endpoints, declaring gate params, or diagnosing a permission refusal. Applies to files matching **/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts."
 metadata:
   applyTo: "**/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts"
 ---
@@ -18,14 +18,22 @@ IAM gate; the consumer never knows which IAM backend (Keycloak or integrated) is
 | Symbol | Kind | Purpose |
 |--------|------|---------|
 | `appendIam(context)` | fn | Registers `makeOidcClientService()`, `makeOidcWrappingService()`, `makeIamGate()` (under `OIDC_GATE`), and the OIDC guard |
-| `makeIamGate(alias?, opts?)` | fn | The IAM `GateService` — claims-first assertion with UMA2 fallback. `opts.strictResourceScope` refuses a scoped param on the fallback path instead of widening it |
-| `parseGateParam` / `formatGateParam` / `resolveGateResource` / `validateGateParams` | fn | Re-exports from `@owlmeans/iam`, which owns the grammar |
-| `RESOURCE_PARAM_SEPARATOR` | const | `'@'`, re-exported |
+| `makeIamGate(alias?, opts?)` | fn | The IAM `GateService` — claims-first assertion with UMA2 fallback |
+| `IamGateOptions` | type | `{ strictResourceScope?: boolean }` — refuse a scoped param on the fallback path instead of widening it |
+| `parseGateParam` / `parseGateSelector` / `formatGateParam` / `resolveGateResource` / `validateGateParams` | fn | Re-exports from `@owlmeans/iam`, which owns the grammar |
+| `RESOURCE_PARAM_SEPARATOR` / `RESOURCE_SOURCE_SEPARATOR` / `RESOURCE_PATH_SEPARATOR` | const | `'@'`, `':'` and `'.'`, re-exported |
+| `GateParamSource` / `GateParamErrorCode` / `GateResolutionFailure` | enum | Re-exported; the sources a selector may name, and why one failed |
 | `hasPermission` | fn | Re-export from `@owlmeans/iam` |
+| `SERVER_IAM_SERVICE` | const | `'server-iam-service'` — exported and referenced nowhere; the gate registers under `OIDC_GATE`, not under this |
+| Every `@owlmeans/iam` type | type | Re-exported wholesale, so a server needs one IAM import |
 
 The grammar lives in **`@owlmeans/iam`**, not here — the browser, both IAM adapters and
-code-generation tooling all have to read the same rules. This package re-exports it because this was
-its original home.
+code-generation tooling all have to read the same rules. This package re-exports it because it is the
+documented import path for a server, so one IAM import covers the gate and its grammar.
+
+`appendIam` reads the provider configuration from `cfg.oidc.providers`, so populate that before
+calling it. It is the IAM-flavoured replacement for wiring `@owlmeans/server-oidc-rp` by hand: the
+one difference is the gate, which is `makeIamGate()` rather than `makeOidcGate()`.
 
 ## Gate-param syntax
 
@@ -71,6 +79,10 @@ schema sets `additionalProperties: false`**. That qualifier matters — the serv
 every unfiltered endpoint and be ignored within a week. It never decides a request; the gate runs it
 once per alias and only logs.
 
+The route half of the audit comes from `entrypoint.mount()`, which needs a service with a resolvable
+address. An entrypoint that has none is still audited against its filter — the route-param check is
+simply skipped rather than the whole audit being lost.
+
 ```ts
 // module declaration
 gate(OIDC_GATE, ['department--modify@depId'])
@@ -86,20 +98,35 @@ await ctx.service<GateService>(OIDC_GATE).assert(req, res, ['article--modify'])
    by the integrated IAM provider and mapped into `Auth` by `@owlmeans/server-oidc-rp`), params are
    asserted locally via `hasPermission`.
 3. **Fallback** — otherwise `@…` suffixes are stripped and the check delegates to the UMA2 gate model
-   from `@owlmeans/server-oidc-rp` (`createGateModel().loadPermissions`) — byte-equivalent to the old
-   `makeOidcGate`, which keeps Keycloak-backed deployments unchanged.
+   from `@owlmeans/server-oidc-rp` (`createGateModel().loadPermissions`) — exactly the check
+   `makeOidcGate` performs, which is what a Keycloak-backed deployment gets.
 
-**Known limitation of `IAM_MODE=keycloak`:** resource scoping is *not enforced* on the fallback path,
-so one declaration means two different things depending on the active backend. It cannot be fixed by
-denying — `iam-keycloak` throws `IamUnsupported('resource-scoped-grant')`, so a scoped grant cannot
-exist there and denying would lock every user out of every scoped endpoint. The gate logs each such
-param once per alias; `makeIamGate(alias, { strictResourceScope: true })` opts into denial where the
-refusals are the intended outcome.
+Which branch runs is decided per request by the token alone: a conforming `permissions` claim selects
+claims mode, its absence selects the fallback. Nothing configures it, and there is no environment
+variable behind it.
+
+**The fallback path does not enforce resource scoping**, so one declaration means two different
+things depending on which backend answered. It cannot be fixed by denying — a Keycloak-backed adapter
+throws `IamUnsupported('resource-scoped-grant')`, so a scoped grant cannot exist there and denying
+would lock every user out of every scoped endpoint. The gate logs each such param once per alias;
+`makeIamGate(alias, { strictResourceScope: true })` opts into denial where the refusals are the
+intended outcome.
 
 A denial distinguishes its reasons in the log: a param that failed **structurally** (unparseable,
 source absent, value not a scalar) is reported separately from one that resolved fine and simply was
 not granted. The HTTP answer is identical — `AuthForbidden('permission')` either way — because the
 caller must never learn which.
+
+## `{entity}` in a permission name
+
+A gate param may carry the literal `{entity}`, which is substituted at assertion time with the
+organization entity's **stable id** — `req.entity.id`, resolved once at the server boundary — falling
+back to the token's `entitySlug` and then to `-`. So `my-service-account-{entity}` asserts a
+per-organization permission without the declaration knowing which organization it is for.
+
+Grants are stored against the id wherever one is resolvable. The slug fallback exists for deployments
+with no organization store of their own, where the slug *is* the identifier; a deployment that has a
+store must not grant against slugs, because a rename would then orphan every grant.
 
 ## Rules
 

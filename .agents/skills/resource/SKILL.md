@@ -13,19 +13,22 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
+| `ResourceRecord` | `{ id?: string }` — the constraint every record type satisfies, and the only field the contract itself knows about. |
 | `Resource<T>` | Generic resource contract: `get`/`load`/`list`/`count`/`create`/`update`/`save`/`delete`/`take`/`purge`. Reads take **an id or a criteria object**; `list(where?, opts?)` takes `{ page, size, sort }` flat in the second argument. |
 | `Criteria<T>`, `FieldCriteria<V>`, `FieldOperators<V>` | The query language, typed by the record — a mistyped field is a compile error. |
 | `Sort<T>`, `SortField<T>`, `FirstOptions<T>`, `ListOptions<T>`, `ListQuery<T>`, `ListResult<T>` | Ordering, the read options, the one-object form an API carries over the wire, and the answer shape `{ items, total, page?, size? }`. |
 | `WriteOptions`, `Ttl` | `{ ttl }` on `create`/`update`/`save`; seconds from now, or the instant to expire at. Backends without expiry refuse it. |
 | `matchCriteria`, `filterRecords`, `sortRecords`, `firstMatch`, `applyQuery` | The shared in-memory engine — one criteria object means the same thing in a browser store as it does in SQL. |
-| `PubSubResource<T>`, `WatchableResource<T>`, `StreamResource<T>`, `LockableResource<T>` | **Optional capabilities**, composed into a concrete resource interface alongside `Resource<T>`. |
+| `PubSubResource<T>`, `WatchableResource<T>`, `StreamResource<T>`, `LockableResource<T>` | **Optional capabilities**, composed into a concrete resource interface alongside `Resource<T>`. `SubscribeOptions` (`{ channel, once, ttl }`) and `Unsubscribe` come with the first two. |
 | `MigratableResource<Tx, Self>` | **Optional migration capability** — `migration(name, apply, stage?)` (chainable) + `migrations()`. Optional the way pub/sub is on redis resources: mongo and postgres extend it, backends with nothing to migrate don't. |
 | `Migration`, `MigrationRegistry`, `MigrationStore`, `MigrationReport`, `MigrationRunOptions` | The framework's contracts. `MigrationStore` is the *migration register* a database implements to track applied migrations (`ensure`/`applied`/`baseline`/`run`). |
 | `createMigrationRegistry<Tx>()` | Storage-agnostic ledger of code-registered migrations per alias. Declaration order = application order; re-registering an identical body is a no-op, a changed body under a used name throws `MigrationConflict`. |
 | `runMigrations(alias, registry, store, opts?)` | Apply one stage's pending migrations through a store. `baseline: true` records instead of running (fresh structures); `strictChecksum` (default on) rejects edited applied bodies. |
 | `MigrationStage` | `Pre` (before structure reconciliation — renames, casts, rescues) / `Post` (after — backfills into new structure). |
-| `createDbService` | Base for `ResourceDbService` implementations (config/alias/name/client plumbing). `dbName()` is `config.schema ?? config.alias ?? service.alias`. |
-| `filterObject`, `createListSchema` | Drop null properties; the AJV schema for a `ListResult<T>` envelope. |
+| `createDbService` | Base for `ResourceDbService` implementations (config/alias/name/client plumbing). The service's `name(alias?)` resolves to `config.schema ?? config.alias ?? service.alias`. |
+| `ResourceDbService<Db, Client>`, `DbLocker<T>` | What a connection service implements: `db`/`client`/`clients`/`config`/`name`/`ensureConfigAlias`/`initialize`, plus `lock`/`unlock` when the backend encrypts fields. |
+| `ResourceMaker<R, T>` | `(dbAlias?, serviceAlias?) => T` — the signature every resource maker is typed with, so an app registers `makeXResource()` without repeating the argument list. |
+| `filterObject(obj, keep?)`, `createListSchema` | Drop null and undefined properties, keeping the names listed in `keep`; the AJV schema for a `ListResult<T>` envelope. |
 | Errors | `ResourceError`, `UnknownRecordError`, `MisshapedRecord`, `RecordExists`, `RecordUpdateFailed`, `UnsupportedArgumentError`, `UnsupportedMethodError`, `MigrationError`, `MigrationConflict`. |
 | `DbConfig`, `Config`, `Context` | Database config (`cfg.dbs`) types. |
 
@@ -111,7 +114,11 @@ operator a store cannot express raises `UnsupportedArgumentError` rather than be
 dropped.
 
 `Sort<T>` is a bare field name (ascending) or `{ field, order: 'asc' | 'desc' }`, and `sort` takes
-a list of them. An absent value sorts last ascending, everywhere.
+a list of them. Where an **absent** value lands is the store's own rule, not the vocabulary's: the
+in-memory sorter puts it last ascending, Postgres emits a bare `ASC` and so leaves it last (the
+server's `NULLS LAST` default), and Mongo hands the sort document to the driver untouched, so BSON
+ordering puts null and missing first. Sort on a field the schema requires when the position of an
+absent value matters.
 
 ### Paging is a property of the backend
 
@@ -168,10 +175,11 @@ Adding migration support to a new database backend:
 
 1. Extend the concrete resource interface with `MigratableResource<YourTx>` and design the
    `Tx` façade a migration receives.
-2. Keep registrations in a **module-scope declaration keyed by alias** (see either
-   implementation's `declarations.ts`) — a maker that runs more than once for the same alias
-   (a custom maker, a test) then re-declares the same entries and loses nothing, where a
-   registry held on the resource object would silently lose data transformations.
+2. Keep registrations in a **module-scope declaration keyed by alias** — the shape mongo and
+   postgres both expose as `getDeclaration(alias)` / `resetDeclarations(alias?)`. A maker that
+   runs more than once for the same alias (a custom maker, a test) then re-declares the same
+   entries and loses nothing, where a registry held on the resource object would silently lose
+   data transformations.
 3. Implement `MigrationStore` over a durable ledger when the database can store one
    (`_owlmeans_migrations` in both mongo and postgres); a store-less backend may run
    migrations unconditionally if its bodies are self-checking.
@@ -184,7 +192,12 @@ Adding migration support to a new database backend:
 ## Depends On
 
 - `@owlmeans/context` — service/resource lifecycle
-- `@noble/hashes` — migration body checksums
+- `@owlmeans/error` — `ResilientError`, the base every error class above extends
+- peer `ajv` — `createListSchema` builds a `JSONSchemaType`; install it when you use that schema
+
+The migration framework checksums bodies with `@noble/hashes` and `@scure/base`, and the package
+declares neither. Install both alongside it in any project that loads `createMigrationRegistry` or
+`runMigrations`, or the import fails at load time.
 
 ## Related
 

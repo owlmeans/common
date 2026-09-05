@@ -19,13 +19,21 @@ user-invocable: false
 | `Toaster` | The application's toast surface — mounted once, in the layout |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
-| `components` submodule | shadcn/Radix panel/form components |
+| `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
+| `PanelApp` | That wrapper on its own — the themed root `div` plus the i18n provider — for a host that mounts the tree itself |
+| `useContext<C, T>()` | The current context, from React. `AppContext` adds `context.flow()` over `@owlmeans/web-client`'s |
+| `entrypoints` | The base declaration list — `@owlmeans/web-client`'s plus `@owlmeans/api-config-client`'s. Compose the app's own over it |
+| `Block` / `Text` / `Status` | The shadcn `Card` panel with an optional `Actions` footer, a heading/paragraph whose copy comes from the panel namespace, and the shadcn `Alert` resolving a `ResilientError` to a translated message |
+| `Form` / `TextInput` / `Button` / `SubmitButton` / `ButtonSelector` | The web form family. `Form` builds its own `useForm` + `ajvResolver` and borrows only `FormContext` and `schemaToFormDefault` from `@owlmeans/client-panel`; `TextInput` drives `react-hook-form`'s `Controller` directly, and the buttons call `handleSubmit` directly — none of them wraps `ClientForm`, `InputCtrl` or `ActionCtrl` |
+| `ImageUploader` / `Layout` | The uploader in a drop target with a preview, and a plain content wrapper (the shell is `NavLayout`) |
+| `scalingToStyles(h, v)` | `BlockScaling` → the width/height utility classes the panels share |
 | `cn(...inputs)` | The class-name merger the components are written against — an app never re-declares it |
 | `useIsMobile()` / `MOBILE_BREAKPOINT` | Viewport narrower than Tailwind's `md` (768), matched with `matchMedia` |
-| `useBreakPoint()` / `useMapBreakpoint(map, def?)` | The current Tailwind breakpoint name, and a value picked by it |
+| `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
+| `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` | `entrypoint`, `elevate`, `handler`, `route`, `frontend`, `guard`, `useNavigate`, `useEntrypoint`, `useValue` |
-| `main`, `exports`, `context`, `entrypoints`, `types` | Wiring helpers |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `entrypoint`, `elevate`, `handler`, `provideRequest`, `stab`, `route`, `croute`, `frontend`, `guard`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `setupExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
 
 ## Subpath Exports
 
@@ -98,7 +106,7 @@ header. Both render the same items; only one is visible at a time.
 | `NavLayout` | `nav: PanelNavConfig`, `translate?`, `title?: ReactNode`, `home?: string` (brand target — defaults to the first section's first item), `actions?: ReactNode`, `footer?: PanelNavLink[] \| ReactNode`, `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
 | `TopNav` | `config: PanelNavConfig`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
-| `Footer` | `links?: PanelNavLink[]`, `translate?`, `children?`, `className?`, `style?` |
+| `Footer` | `links?: PanelNavLink[]`, `translate?`, `containerClassName?` (the shell's rhythm, so the footer row lines up with the header and content), `children?`, `className?`, `style?` |
 
 **The style slots are REGIONS, and each region is its own SURFACE.** `className` is the root —
 the full-height page *behind* the header, side menu and footer. `headerClassName` is the sticky
@@ -130,12 +138,13 @@ width-only override permanently.
 (`bg-secondary text-secondary-foreground`) — never by colouring the root and expecting the bar
 to follow.
 
-**The shell reads exactly five theme variables**: `--background` (page and top bar),
-`--foreground` (active section link), `--muted-foreground` (resting section links) and
-`--accent`/`--accent-foreground` (active side-menu item). It reads **no `--sidebar*` variable at
-all**. So `--muted-foreground` is not merely the text colour of the `--muted` surface — it is
-secondary text sitting directly on `--background`, and a theme that lightens it to suit a dark
-muted panel loses its top menu.
+**The shell reads exactly these colour variables**: `--background` (page and top bar),
+`--foreground` (active section link), `--muted-foreground` (resting section links),
+`--accent`/`--accent-foreground` (active side-menu item), `--border` (the header, side-menu and
+footer rules) and `--primary` — the footer renders its entries through `Link`, which paints
+`text-primary`. It reads **no `--sidebar*` variable at all**. So `--muted-foreground` is not merely
+the text colour of the `--muted` surface — it is secondary text sitting directly on `--background`,
+and a theme that lightens it to suit a dark muted panel loses its top menu.
 
 Rules that make the shell behave:
 
@@ -205,6 +214,45 @@ known — so never key a test or a layout on the anchor having an `href` synchro
 falls back to `modules.<alias>` when neither `name` nor `children` is given, `open` adds
 `target="_blank"` with `rel="noopener noreferrer"`, and `center` centres the text.
 
+### Forms — `Form`, `TextInput`, the buttons
+
+`WebFormProps` is `@owlmeans/client-panel`'s `FormProps` plus `className` and `style`. `Form` holds
+the whole model itself — `useForm` with `mode: 'all'`, `delayError: 300`, an `ajvResolver` over
+`validation` with `coerceTypes` and the `ajv-formats` formats — and publishes it through
+`FormProvider` plus `FormContext`, so every control below reads one form.
+
+```tsx
+import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
+
+<Form decorate validation={schema} onSubmit={async (data, update) => { await save(data); update(data) }}>
+  <TextInput name="email" label placeholder hint />
+  <TextInput name="password" type="password" label="Password" />
+</Form>
+```
+
+- **`decorate` switches the whole rendering.** With `decorate={true}` the fields go inside a shadcn
+  `Card`, the root error surfaces through `Status`, and a `SubmitButton` is rendered in the
+  `CardFooter` **whenever `onSubmit` is given** — the caller writes no action. Without it (the
+  default) `Form` is a bare flex column: no card, no root-error surface, no submit button, so the
+  caller renders its own action. `horizontal`/`vertical` scaling, `className` and `style` land on
+  the `Card` when decorated and on that column otherwise.
+- **`formRef`** — a `useFormRef()` ref filled with `{ form, update, loader, error }`, which is how a
+  caller drives the form, flips the loader, or plants a field/root error from outside.
+- **`TextInput` takes `label`, `placeholder` and `hint` as `string | boolean`.** `true` resolves
+  `<name>.label` / `<name>.placeholder` / `<name>.hint` from the form namespace; a string is used
+  verbatim; anything else renders nothing. It also takes `name`, `def`, `type` (any HTML input type,
+  default `text`) and `disableAutocomplete`. A field error replaces the hint line.
+- **`Button`** takes a required `label`, `onClick`, `loader` (a `Toggleable` — open disables the
+  button and shows the spinner), `size` (`small`/`medium`/`large`), `fullWidth`, and `variant`,
+  which maps the MUI vocabulary onto shadcn (`contained` → `default`, `outlined` → `outline`,
+  `text` → `ghost`) and forwards a shadcn variant name unchanged.
+- **`SubmitButton`** is that button bound to `handleSubmit`, taking `onSubmit` (or `onClick`) and a
+  `label` defaulting to `submit`. It resolves the label with the form `t` itself and passes it down
+  with `i18n.suppress` set, so the label is translated once.
+- **`ButtonSelector`** renders one `Button` per entry of `options`, the one equal to `current`
+  `contained` and the rest `outlined`, calling `onSelect(option)`. `name` prefixes each option's
+  label key as `<name>.<option>`.
+
 ## Subpath: `./jobs`
 
 Three presentational pieces for a queue job, over `JobRecord` from `@owlmeans/queue`. They take
@@ -242,8 +290,9 @@ useJobToasts(jobs)
 app's language and translations, falling through to the package's own seven-language bundle for
 every key the app has not overridden. See the `consent` skill.
 
-A re-export does not move Tailwind class strings, so a consumer still adds an `@source` for
-`@owlmeans/web-consent/build` as well as for this package's.
+A re-export does not move Tailwind class strings, so a consumer adds a second `@source` for
+`@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
+under *Consumer setup* below. Without it the dialog renders half-styled.
 
 ## Consumer setup — the `@` contract and Tailwind
 
@@ -257,18 +306,23 @@ app's own components import `cn` from `@owlmeans/web-panel` instead of declaring
 public export is a package-owned function, deliberately not a re-export of `@/lib/utils`: that
 specifier is emitted verbatim and would resolve back to the consumer's file.
 
-Then point Tailwind at the built package. Its oxide scanner reads the CSS root plus `@source`
-directives only, and excludes `node_modules` — so classes that exist **only** inside `web-panel`
-components (the whole navigation shell and footer) never reach the stylesheet, and the app renders
-an unstyled menu. In the app's Tailwind entry:
+Then point Tailwind at the installed package's **`src`**. Its oxide scanner reads the CSS root
+plus `@source` directives only, and excludes `node_modules` — so classes that exist **only** inside
+`web-panel` components (the whole navigation shell and footer) never reach the stylesheet, and the
+app renders an unstyled menu. In the app's Tailwind entry:
 
 ```css
 @import "tailwindcss";
 
-@source "../../../node_modules/@owlmeans/web-panel/build";
+@source "../../../node_modules/@owlmeans/web-panel/src";
 ```
 
-Adjust the relative depth to your own layout; the target is the installed package's `build`.
+Adjust the relative depth to your own layout. **Point at `src`, never at `build`:** the scanner
+applies the `.gitignore` of whatever repository a path resolves into, and a linked `node_modules`
+entry resolves into a monorepo whose `.gitignore` covers every package build directory — a `build`
+source there scans zero files and reports nothing, while the shell renders unstyled with nothing to
+blame. `src` is tracked in the repository and ships in the published tarball, so one path serves a
+linked checkout and an npm install alike.
 
 ## Depends On
 
@@ -277,3 +331,6 @@ Adjust the relative depth to your own layout; the target is the installed packag
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
   (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.
+- `ajv-formats` is imported at module scope by the form model but is declared in no dependency
+  section of the manifest, which lists `ajv` alone. An install that does not otherwise pull it in
+  fails at import time, so declare `ajv-formats` next to `ajv` in the consuming application.

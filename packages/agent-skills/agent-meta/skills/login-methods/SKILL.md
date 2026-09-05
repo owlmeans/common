@@ -49,7 +49,7 @@ requiresRenderer?: boolean   // plugin level: the Implementation throws without 
 
 method?: {
   id?: string          // defaults to the plugin's `type`
-  label?: string       // literal fallback when no translation resolves
+  label?: string       // OVERRIDES the translation; the id is the fallback when neither resolves
   i18nKey?: string     // under `auth`'s `login.method.*`; defaults to the id
   icon?: string        // a registry NAME, never markup — this package has no icon library
   order?: number       // ascending; default 100
@@ -87,16 +87,17 @@ therefore drops a plugin on three counts, and a new plugin has to answer all thr
 **`requiresRenderer` is declared, never inferred.** A plugin that renders its own form and one that
 throws on mount are the same object until the screen mounts. `@owlmeans/client-auth` ships no UI
 family, so `basic-ed25519`, `wallet-consumer` and `re-captcha` declare it and get their `Renderer`
-from a panel package's side-effect module (`@owlmeans/web-panel/auth/plugins`,
-`@owlmeans/mui-panel/auth/plugins`). An app that never imports one of those must not be offered
-them — `@owlmeans/web-panel`'s own index does NOT pull that module in, so "the app uses web-panel"
-is not the same as "the renderers are assigned".
+assigned by a panel package's side-effect subpath — `@owlmeans/web-panel/auth` or
+`@owlmeans/mui-panel/auth`. An app that never imports one of those must not be offered them: a
+panel package's own index does NOT pull that subpath in, so "the app uses web-panel" is not the same
+as "the renderers are assigned".
 
 **`available` is where a plugin admits it does not apply.** `oidc-client` shares a side-effect
-import with `google-oauth`, so wiring Google alone used to put a generic provider button on the
-screen; it now asks `ctx.context.hasService(OIDC_RP)`, which is registered by `appendOidcGuard` and
-by nothing else. Check the thing the flow will actually reach for — a registered service, an
-advertised provider list — not a proxy for it.
+import with `google-oauth`, so an app that wired Google and nothing else would otherwise be offered
+a generic provider button whose flow can only end in a failed service lookup. It therefore asks
+`ctx.context.hasService('oidc-rp')` — the relying-party service alias, which `appendOidcGuard`
+registers and nothing else does. Check the thing the flow will actually reach for — a registered
+service, an advertised provider list — not a proxy for it.
 
 ## Where methods come from
 
@@ -104,8 +105,9 @@ Sources, not a list. `registerMethodSource({ alias, list })` — globally, or pe
 `login().registerMethodSource(...)`. Two ship:
 
 - `pluginMethodSource` — every registered plugin carrying `method`.
-- `oidcMethodSource` — `cfg.oidc.providers[]`, honouring `restrictedProviders` (`false` = none,
-  `true` = the default one, an array = an allow-list) and dropping `internal` ones.
+- `oidcMethodSource` — `cfg.oidc.providers[]`, dropping every provider marked `internal` or
+  `hidden`, then honouring `restrictedProviders` (`false` = none, `true` = the default one, an
+  array matched against `entityId ?? service ?? clientId` = an allow-list).
 
 **When the browser knows of no provider by name, the OIDC source still yields ONE generic method.**
 That is the ordinary case for a generated application: `oidc` is not advertised by
@@ -118,13 +120,27 @@ method that does work.
 
 ## Configuration
 
-`cfg.security.auth.login` — `enabled`, `methods` (an ordered allow-list, which is also the order),
-`overrides`, `secretKey`, `autoSelectSingle`, `terms`, `credit`, `title`, `subtitle`.
+`cfg.security.auth.login` declares nine fields. **Four of them reach code**, and only those change
+what a user sees:
 
-**Nothing is ever started automatically.** `autoSelectSingle` defaults to `false` and is further
-suppressed while the terms are unconfirmed or the document is embedded, so a single-method app
-still renders its screen. A `?method=` marker carried into a surrogate window is not an
-auto-redirect: the user already chose, one window up.
+| Field | Read by |
+|---|---|
+| `methods` | `resolveLoginMethods` — an ordered allow-list, which is also the order |
+| `overrides` | `resolveLoginMethods` — per-id `enabled` / `hidden` / label / icon / order / emphasis / params |
+| `terms` | `resolveTerms`, through the screen and `useLoginMethods` |
+| `credit` | `resolveCredit`, the same way |
+
+`enabled`, `secretKey`, `autoSelectSingle`, `title` and `subtitle` are declared and read nowhere.
+`title` and `subtitle` come from the screen's own props, not from this configuration. `secretKey` is
+written in more than one place — `@owlmeans/web-auth`'s `appendSupervisorAuth` defaults it to
+`true`, and an application's own config may state a value explicitly — and read in none of them, so
+writing it either way changes nothing. What actually makes that operator login offerable is the
+`overrides[<type>] = { enabled: true }` `appendSupervisorAuth` writes alongside it, read against the
+plugin's `method.restricted`. Gate any operator method that way, never through `secretKey`.
+
+**Nothing is ever started automatically.** No code path starts a method on its own, whatever the
+configuration says, so a single-method app still renders its screen. A `?method=` marker carried
+into a surrogate window is not an auto-redirect: the user already chose, one window up.
 
 **Dev-only methods ride `cfg.debug.supervisor`, never `cfg.debug.all`.** Whole families of
 applications set `debug.all` for reasons that have nothing to do with authentication — a generated
@@ -157,10 +173,9 @@ it resolves the provider by `def` alone), and transits to `Ephemeral` when the t
 `FLOW_PLACEHOLDER` — which is the generated-application case, where the app is its own authority.
 Idempotent, so call it before every `authenticate`.
 
-`@owlmeans/client-auth`'s own `DispatcherHOC` has always done this inline. **A relying party that
-REPLACES that dispatcher inherits the requirement without the code** — that is precisely how
-`web-oidc-rp` shipped a chooser whose every method was a no-op. Call the helper; never re-derive
-the transition.
+`@owlmeans/client-auth`'s own `DispatcherHOC` does this inline. **A relying party that REPLACES that
+dispatcher inherits the requirement without inheriting the code** — which is exactly how a chooser
+ends up with every method a silent no-op. Call the helper; never re-derive the transition.
 
 ## The consumer's primitives, not ours
 
@@ -174,8 +189,10 @@ arrow. State any behaviour the screen actually depends on in the screen's own `c
 
 Method buttons carry `aria-disabled` and `data-blocked`, **never the HTML `disabled` attribute**.
 A disabled button swallows the click, so a user who has not confirmed presses it and is told
-nothing at all — the screen simply seems broken. A blocked click instead sets `attempted`, renders
-the requirement in `role="alert"` and focuses the checkbox.
+nothing at all — the screen simply seems broken. A blocked click instead sets `attempted` and
+returns, starting nothing; the terms row then marks its checkbox `aria-invalid` and renders the
+requirement in a `role="alert"` paragraph. Focus is never moved — the only `autoFocus` on the
+screen is on the primary method button.
 
 (Playwright honours `aria-disabled` in its actionability check, so a test that clicks a blocked
 control needs `{ force: true }` — that is the control behaving as designed, not a test workaround.)
@@ -200,7 +217,7 @@ does not have to spell it into a literal.
 - `since` — a first year in the past renders a range (`© 2019–2026`); the current year, or a year a
   skewed clock puts ahead of it, renders a single year.
 - `copyright: '<text>'` — an owner's own wording, used verbatim in the notice's place.
-- `copyright: false` — the bare `product — organization` pairing this line used to be.
+- `copyright: false` — no notice at all: the bare `product — organization` pairing.
 - `line` — replaces the whole composition, notice included.
 
 The product is named beside the notice only when it is not itself the holder: `OwlMeans — © 2026
@@ -225,7 +242,7 @@ server picks up the rebuilt `build/*.js` through HMR while its Tailwind scan of 
 `node_modules` path does not re-run, so the markup updates and the rule never arrives. Every other
 utility on that box already exists in any app that renders anything; a missing height rule is the
 one that leaves the screen looking nearly right and silently uncentred. `props.style` is the
-override, because a class-based one no longer works.
+override, because a class-based one is exactly what a stale scan drops.
 
 The same trap applies to any rare utility this package introduces: **if a `web-panel` change looks
 half-applied in a linked app, restart its dev server before believing the component.**
@@ -241,15 +258,16 @@ against the window.
 ## i18n
 
 Registered from `@owlmeans/client-auth` into the existing `auth` library resource under a `login`
-root, seven languages in the same commit. `_addI18n` **pushes**, so this coexists with
+root, in all seven languages the rule covers — `en`, `pl`, `ru`, `be`, `uk`, `es`, `de`. `_addI18n` **pushes**, so this coexists with
 `web-client`'s own `auth` registration and the two merge by tier and priority.
 
 The agreement sentence is ONE translated string carrying `{{terms}}` / `{{privacy}}` placeholders,
 split at render time to inject anchors — word order stays translatable, and nothing but a string
 ever comes out of a translation.
 
-`LoginScreen` takes `translate` as a prop and reaches for no context; `LocalizedLoginScreen` binds
-`useI18nLib`. `appendLoginScreen` registers the bound one.
+`LoginScreen` takes `translate` as a prop and reaches for no i18n context — it still calls
+`useLoginMethods`, which uses the client context for the config, the login service and navigation.
+`LocalizedLoginScreen` binds `useI18nLib`. `appendLoginScreen` registers the bound one.
 
 ## Wiring a dispatcher
 

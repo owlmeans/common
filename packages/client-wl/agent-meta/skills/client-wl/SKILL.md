@@ -1,6 +1,6 @@
 ---
 name: client-wl
-description: How to use @owlmeans/client-wl — client-side white-label / whitelist UI primitives (currently a placeholder; the web equivalent is @owlmeans/web-wl). Auto-invoked when importing client-wl exports.
+description: How to use @owlmeans/client-wl — the reserved platform-neutral slot in the white-label stack, currently empty. Auto-invoked when a dependency names client-wl or when deciding where shared white-label UI belongs.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -12,14 +12,23 @@ user-invocable: false
 
 ## Key Exports
 
-This package is currently a stub. The web equivalent is `@owlmeans/web-wl`; native equivalent lives in the `native` monorepo.
+None. The package builds and publishes, and its entry point exports nothing.
 
-## Usage
+It holds the place a platform-neutral white-label layer would occupy — the tier between the shared
+contract and a rendering target. Nothing depends on it, and `@owlmeans/web-wl` reaches
+`@owlmeans/wled` directly rather than through it.
 
-```typescript
-// Reserved for future client-side wled UI components
-```
+## Where to put white-label code instead
+
+| Concern | Package |
+|---------|---------|
+| Record shapes, schemas, the `WL_PROVIDE` declaration | `@owlmeans/wled` |
+| Serving a white-label set, provider services | `@owlmeans/server-wl` |
+| Reading it in a browser, `WlLogo` | `@owlmeans/web-wl` |
+
+Add to this package only for code that is genuinely React-free and target-independent; anything that
+renders belongs in a target package.
 
 ## Depends On
 
-- `@owlmeans/wled`, `@owlmeans/client-context`
+- `react` (peer) — declared for the components this tier is reserved for; nothing here uses it

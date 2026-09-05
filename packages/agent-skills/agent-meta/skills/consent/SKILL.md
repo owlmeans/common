@@ -80,7 +80,15 @@ stored regardless.
 
 `globalVar` is the seam for anything that cannot subscribe: a GTM custom-HTML tag reading a flag, a
 hand-placed pixel, a script that runs once. Globals are written **before** the signal update, so a
-tag firing on that update reads them in the same turn.
+tag firing on that update reads them in the same turn. A category's `event` is pushed **after** the
+update, and only while the category is granted.
+
+`CONSENT_SIGNAL_DEFAULTS` is the pre-decision value of every Consent Mode v2 signal: `denied` for
+all of them except `security_storage`, which is `granted` on Google's own documented
+recommendation because it covers strictly-necessary uses such as fraud prevention. `consentDefaults`
+declares only the signals some configured category actually names, so a site that drops the
+marketing category does not announce ad signals it never uses. A signal claimed by two categories is granted only when **every**
+one of them is.
 
 > **A required category is disclosure, not a question.** Strictly-necessary storage does not need
 > consent under ePrivacy, and a dialog that presents it as a choice is itself a dark pattern. Never
@@ -131,15 +139,29 @@ and a page carrying both snippets should not have two shapes in one queue.
 not of a component tree, and it has to be reachable from places that are not React — the sign-in
 precondition runs inside a click handler.
 
+`consentStore.init(opts)` is what starts it: push the defaults, read and migrate the stored record,
+apply it, and open the dialog when there is none. `useConsent()` calls it on mount, and
+`loadGtm` calls it before the container — a host that mounts neither calls it itself, once, with
+the same options everything else was given.
+
 `useConsent()` subscribes through `useSyncExternalStore`; `openConsent(reason)` and
 `isConsented(key)` are the imperative readers.
 
+`silent: true` in `ConsentOptions` suppresses the **runtime** pushes — `pushConsentDefaults` and
+`applyConsent` both return before touching the queue or the category globals — while leaving storage
+and the dialog intact. It is for tests and for an application that runs no tags. It does **not**
+reach the stamped snippet: `consentBootstrapScript` ignores the flag, and the string it returns
+still pushes `consent/default` and, for a stored record, `consent/update`. A surface that must emit
+nothing at all does not stamp the bootstrap.
+
 ## The policy page
 
-`CookiePolicy` states only what the widget provably does — the categories in force, the storage key,
-the dual storage, the retention, the signals each drives — all read from the same configuration the
-dialog renders. That is why it is generated rather than written: a hand-written policy drifts the
-first time a category changes, and nobody notices because nobody reads it until it matters.
+`CookiePolicy` states only what the widget provably does — each category in force with its label,
+its `Required` marking and its description, the storage key, the dual storage and the retention —
+all read from the same configuration the dialog renders. It does not enumerate Consent Mode
+signals: the category description is the whole disclosure of what a category drives. That is why
+the page is generated rather than written: a hand-written policy drifts the first time a category
+changes, and nobody notices because nobody reads it until it matters.
 
 Everything OwlMeans cannot assert on the operator's behalf is deferred to their own privacy policy
 and terms.

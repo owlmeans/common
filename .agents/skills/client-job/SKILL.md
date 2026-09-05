@@ -18,11 +18,12 @@ state hooks. Rendering is `@owlmeans/web-panel/jobs`.
 | Export | Description |
 |--------|-------------|
 | `appendJobs(context, alias?)` | Register the job store on the client context |
-| `useJob(id, resource?)` | One job, live — an unknown id yields an `empty` model, never a throw |
+| `useJob(id?, resource?)` | One job, live — an unknown or absent id yields an `empty` model, never a throw |
 | `useJobs(filter?, opts?)` | A live query over the store, newest first unless `opts.sort` says otherwise |
 | `useJobFeed(opts?)` | Mount the socket and seed the store. **Once per screen** |
 | `applyJobEvent(store, event)` | The fold one `JobEvent` performs, for a feed of your own |
 | `jobEntrypointAliases(root?)` | `{ base, list, get, cancel, watch }` — the same shape the server declares |
+| `JobFeed` / `JobFeedOptions` / `UseJobsOptions` / `JobFilter` | What the feed reports, and the option shapes |
 | `JOBS` | The store's alias (`job-state`), typed as `StateAlias<JobRecord>` |
 | Constants | `DEFAULT_JOB_ROOT` (`jobs`), `JOB_EVENT` (`job-event`) |
 
@@ -45,7 +46,7 @@ sharing an id space with the app's records is how a completed job overwrites an 
 ## Reading
 
 ```tsx
-const { seeded, connected } = useJobFeed({ root: REPORTS })
+const { seeded, connected, error } = useJobFeed({ root: REPORTS, query: { size: 50 } })
 
 const running = useJobs({ state: [JobState.Waiting, JobState.Active] })
 const mine = useJobs({ 'data.target': projectId })
@@ -55,7 +56,11 @@ const one = useJob(id)
 The criteria language is the resource one, so a filter written for the list entrypoint means the
 same thing applied locally, and a dotted key reaches into the payload. `seeded` is what tells "no
 jobs" apart from "not loaded yet" — `useJob` answers an `empty` model for an id the store has not
-seen, which is a loading state and not an error.
+seen, which is a loading state and not an error. `connected` says the socket is open and `error`
+carries whatever the seeding call threw, so a screen can distinguish a failed load from an empty
+one. `JobFeedOptions` also takes `resource` for a store other than `JOBS`, and a `query` narrowing
+the seeding call — compared by CONTENT, so a fresh object literal per render does not re-fetch
+while a changed filter does re-seed.
 
 ## What `useJobFeed` does
 
@@ -66,7 +71,9 @@ seen, which is a loading state and not an error.
    saves: it is the server saying what exists, so a job cancelled from another tab has to LEAVE the
    store, and one write wakes the subscribers once instead of once per record.
 3. Folds each `JobEvent` frame in with `applyJobEvent` — merged over the record the store holds,
-   because an event carries only what changed while `save` replaces.
+   because an event carries only what changed while `save` replaces. An event for an id the store
+   never saw still writes a row, so a job enqueued in another tab reports its progress here and the
+   next seeding call fills in the rest.
 
 Two details the fold gets right and a hand-written one usually does not: a progress frame never
 moves a settled job back to `Active` (the completion and the last progress ping race), and an empty

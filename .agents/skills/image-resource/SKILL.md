@@ -38,8 +38,13 @@ await images.list({ entityId, mimeType: { $startsWith: 'image/' } }, { sort: ['n
 
 ## Depends On
 
-- `@owlmeans/storage-resource`, `@owlmeans/storage-common`
+- `@owlmeans/storage-resource` — the only declared dependency
 - peer `ajv`
+
+The schemas here are built from `StoredFileMetaSchema`, `StoredFileSchema` and
+`StoredFileWithDataSchema`, which are **runtime values** from `@owlmeans/storage-common`, and the
+package does not declare it. Install `@owlmeans/storage-common` explicitly rather than relying on it
+arriving under `@owlmeans/storage-resource`.
 
 ## Related
 
