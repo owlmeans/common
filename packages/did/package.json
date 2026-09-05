@@ -29,7 +29,7 @@
     "@owlmeans/i18n": "^0.1.18-rc.8",
     "@owlmeans/resource": "^0.1.18-rc.9",
     "@scure/base": "^2.3.0",
-    "@scure/bip39": "^1.4.0"
+    "@scure/bip39": "^2.3.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
