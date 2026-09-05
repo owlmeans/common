@@ -26,7 +26,7 @@
     "pg": "*"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
+    "@noble/hashes": "^2.4.0",
     "@owlmeans/basic-ids": "^0.1.18-rc.9",
     "@owlmeans/context": "^0.1.18-rc.8",
     "@owlmeans/resource": "^0.1.18-rc.9",

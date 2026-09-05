@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@noble/curves": "^1.6.0",
-    "@noble/hashes": "^1.5.0",
+    "@noble/hashes": "^2.4.0",
     "@owlmeans/auth": "^0.1.18-rc.9",
     "@owlmeans/basic-keys": "^0.1.18-rc.12",
     "@owlmeans/error": "^0.1.18-rc.8",
