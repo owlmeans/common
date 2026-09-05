@@ -1,7 +1,7 @@
 ---
 node: agent
 scope: "packages/agent/**, packages/agent-common/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 ## Facts
@@ -31,8 +31,8 @@ updated: 2026-08
 
 ## Gotchas
 
-- Storage is exposed as narrow PORTS, not `Resource<T>` — `@owlmeans/static-resource.list()` throws
-  on any criteria, so a plugin written against resource query semantics is untestable in-repo.
+- Storage is exposed as narrow PORTS, not `Resource<T>` — a port names exactly what a plugin needs,
+  a far smaller surface than CRUD, and any backend satisfies it: a resource, or a file on disk.
 - An unbound port is a no-op, never an error.
 - `FakeStreamingChatModel` always replays its first response, so it cannot drive a tool loop; the
   specs script their own model double (`tests/_tools/model.ts`).

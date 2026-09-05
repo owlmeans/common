@@ -1,167 +1,146 @@
 import { appendContextual } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type {
-  GetterOptions, ListOptions, ListResult, LifecycleOptions, ListCriteria, Resource,
-  ResourceRecord
+  Criteria, FirstOptions, ListOptions, Resource, ResourceRecord, Ttl, WriteOptions
 } from '@owlmeans/resource'
-import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError } from '@owlmeans/resource'
+import {
+  applyQuery, filterRecords, firstMatch, MisshapedRecord, RecordExists, UnknownRecordError,
+  UnsupportedArgumentError
+} from '@owlmeans/resource'
 import type { Config, Context, StaticResourceAppend } from './types.js'
 
-type Getter = string | GetterOptions
-type ResourceType = Resource<ResourceRecord>
-
 const stores: Record<string, Map<string, ResourceRecord>> = {}
-export const createStaticResource = (alias: string = DEFAULT_ALIAS, key?: string) => {
-  key = key ?? alias
 
-  const getStore = () => {
-    if (stores[key] == null) {
-      stores[key] = new Map()
+/**
+ * Milliseconds until the record expires, which is what `setTimeout` wants. A number is seconds
+ * from now and a Date is the instant to expire at — the two spellings have to land on the same
+ * moment, or the same ttl means an hour through one and a second through the other.
+ */
+const expiresIn = (ttl: Ttl): number =>
+  ttl instanceof Date ? ttl.getTime() - Date.now() : ttl * 1000
+
+export const createStaticResource = <T extends ResourceRecord = ResourceRecord>(
+  alias: string = DEFAULT_ALIAS, key?: string
+): Resource<T> => {
+  const storeKey = key ?? alias
+
+  const getStore = (): Map<string, T> => {
+    if (stores[storeKey] == null) {
+      stores[storeKey] = new Map()
     }
 
-    return stores[key]
+    return stores[storeKey] as Map<string, T>
   }
 
-  const resource: Resource<ResourceRecord> = appendContextual<ResourceType>(alias, {
-    get: async <T extends ResourceRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
-      const record = await resource.load<T>(id, field, opts)
+  const records = (): T[] => [...getStore().values()]
+
+  const expire = (id: string, opts?: WriteOptions): void => {
+    if (opts?.ttl == null) {
+      return
+    }
+    const store = getStore()
+    setTimeout(() => void store.delete(id), expiresIn(opts.ttl))
+  }
+
+  /** An id hits the map directly; criteria go through the shared in-memory engine. */
+  const first = (idOrWhere: string | Criteria<T>, opts?: FirstOptions<T>): T | null =>
+    typeof idOrWhere === 'string'
+      ? getStore().get(idOrWhere) ?? null
+      : firstMatch(records(), idOrWhere, opts)
+
+  const write = (record: Partial<T>, opts?: WriteOptions): T => {
+    if (record.id == null) {
+      /**
+       * The store is a map keyed by id and there is nothing here to mint one from, so a record
+       * without an id is misshaped rather than new — `save` cannot create it.
+       */
+      throw new MisshapedRecord('id')
+    }
+    getStore().set(record.id, record as T)
+    expire(record.id, opts)
+
+    return record as T
+  }
+
+  const resource: Resource<T> = appendContextual<Resource<T>>(alias, {
+    get: async (idOrWhere: string | Criteria<T>, opts?: FirstOptions<T>): Promise<T> => {
+      const record = first(idOrWhere, opts)
+      if (record == null) {
+        throw new UnknownRecordError(typeof idOrWhere === 'string' ? idOrWhere : 'criteria')
+      }
+
+      return record
+    },
+
+    load: async (idOrWhere: string | Criteria<T>, opts?: FirstOptions<T>): Promise<T | null> =>
+      first(idOrWhere, opts),
+
+    /** Unpaged unless a size is asked for — the whole store is already in memory. */
+    list: async (where?: Criteria<T>, opts?: ListOptions<T>) => {
+      if (opts?.page != null && opts.size == null) {
+        throw new UnsupportedArgumentError('page-without-size')
+      }
+
+      return applyQuery(records(), where, opts)
+    },
+
+    count: async (where?: Criteria<T>) => filterRecords(records(), where).length,
+
+    create: async (record: Partial<T>, opts?: WriteOptions) => {
+      if (record.id == null) {
+        throw new MisshapedRecord('id')
+      }
+      if (getStore().has(record.id)) {
+        throw new RecordExists(record.id)
+      }
+
+      return write(record, opts)
+    },
+
+    update: async (record: Partial<T>, opts?: WriteOptions) => {
+      if (record.id == null) {
+        throw new MisshapedRecord('id')
+      }
+      if (!getStore().has(record.id)) {
+        throw new UnknownRecordError(record.id)
+      }
+
+      return write(record, opts)
+    },
+
+    save: async (record: Partial<T>, opts?: WriteOptions) => write(record, opts),
+
+    delete: async (id: string) => {
+      const store = getStore()
+      const record = store.get(id) ?? null
+      if (record == null) {
+        return null
+      }
+      store.delete(id)
+
+      return record
+    },
+
+    take: async (id: string) => {
+      const store = getStore()
+      const record = store.get(id)
       if (record == null) {
         throw new UnknownRecordError(id)
       }
+      store.delete(id)
 
       return record
     },
 
-    load: async <T extends ResourceRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
-      field = field ?? 'id'
-      if (opts != null) {
-        throw new UnsupportedArgumentError('static:get:opts')
+    purge: async (where: Criteria<T>) => {
+      if (where == null || Object.keys(where).length < 1) {
+        throw new UnsupportedArgumentError('purge:empty-criteria')
       }
       const store = getStore()
-      const record = field === 'id'
-        ? store.get(id) as T | null
-        : [...store.values()].find(
-          record => record[field as keyof typeof record] === id
-        ) as T | undefined
+      const matched = filterRecords(records(), where)
+      matched.forEach(record => record.id != null && store.delete(record.id))
 
-      if (record == null) {
-        return null
-      }
-
-      return record
-    },
-
-    list: async <T extends ResourceRecord>(criteria?: ListOptions | ListCriteria, opts?: ListOptions) => {
-      if (criteria != null) {
-        throw new UnsupportedArgumentError('static:list:criteria')
-      }
-      if (opts != null) {
-        throw new UnsupportedArgumentError('static:list:opts')
-      }
-
-      const result: ListResult<T> = {
-        items: [...getStore().values()] as T[]
-      }
-
-      return result
-    },
-
-    save: async <T extends ResourceRecord>(record: Partial<T>, opts?: Getter) => {
-      const store = getStore()
-      if (record.id == null) {
-        throw new MisshapedRecord('id')
-      }
-      store.set(record.id, record as ResourceRecord)
-
-      if (typeof opts === 'object' && opts?.ttl != null) {
-        const ttl = opts.ttl instanceof Date
-          ? (opts.ttl.getTime() - Date.now()) / 1000
-          : typeof opts.ttl === 'number'
-            ? opts.ttl * 1000
-            : null
-        if (ttl == null) {
-          throw new UnsupportedArgumentError('static:opts:ttl-string')
-        }
-        setTimeout(() => record.id != null && void store.delete(record.id), ttl)
-      }
-
-      return record as T
-    },
-
-    create: async (record, opts) => {
-      const store = getStore()
-      if (record.id == null) {
-        throw new UnknownRecordError('id')
-      }
-      if (store.has(record.id)) {
-        throw new RecordExists(record.id)
-      }
-      store.set(record.id, record)
-      if (opts?.ttl != null) {
-        const ttl = opts.ttl instanceof Date
-          ? (opts.ttl.getTime() - Date.now()) / 1000
-          : typeof opts.ttl === 'number'
-            ? opts.ttl * 1000
-            : null
-        if (ttl == null) {
-          throw new UnsupportedArgumentError('static:opts:ttl-string')
-        }
-        setTimeout(() => record.id != null && void store.delete(record.id), ttl)
-      }
-
-      return record as any
-    },
-
-    update: async (record, opts) => {
-      return resource.save(record, opts)
-    },
-
-    delete: async (id, opts) => {
-      let record: ResourceRecord | null = null
-      if (typeof id === 'object') {
-        if (id.id == null) {
-          throw new MisshapedRecord('id')
-        }
-        record = await resource.load(id.id)
-      } else if (typeof opts === 'string') {
-        record = await resource.load(id, opts)
-      } else if (typeof id === 'string') {
-        record = await resource.load(id)
-      }
-
-      if (record == null) {
-        return null
-      }
-
-      let field = 'id'
-      if (typeof opts === 'string') {
-        field = opts
-        opts = undefined
-      } else if (typeof opts === 'object') {
-        field = opts.field ?? field
-      }
-
-      id = record.id ?? ''
-
-      if (id === '') {
-        throw new MisshapedRecord('id')
-      }
-
-      const store = getStore()
-      if (store.delete(id)) {
-        return record as any
-      }
-
-      return null
-    },
-
-    pick: async (id, opts) => {
-      const record = await resource.delete(id, opts)
-      if (record == null) {
-        throw new UnknownRecordError((typeof id === 'string' ? id : id.id) ?? 'unknown')
-      }
-
-      return record as any
+      return matched.length
     }
   })
 

@@ -28,6 +28,9 @@ export const prepareSingleRedisOptions = (config: DbConfig<RedisMeta>, host?: st
   return {
     host: host,
     port: config.port ?? 6379,
+    // Only sent when configured: a bare `requirepass` server rejects AUTH with a username, so an
+    // undefined `user` has to stay absent rather than become an empty string.
+    ...(config.user != null ? { username: config.user } : {}),
     password: config.secret,
     ...normalizeRedisMeta(config.meta)
   }

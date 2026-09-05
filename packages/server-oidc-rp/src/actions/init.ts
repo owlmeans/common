@@ -45,7 +45,7 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
      */
-    const [providers] = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
+    const providers = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
       authService.provider.list
     ).call({
       params: { service: context.cfg.alias ?? context.cfg.service },
@@ -93,7 +93,7 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     ...(entityIdUsedForResolution ? { entityId } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
-  const [dispatcherUrl] = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).call()
+  const dispatcherUrl = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).url()
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({

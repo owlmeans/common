@@ -12,7 +12,7 @@ Configuration builder utilities for OwlMeans applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/config
+bun add @owlmeans/config@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -23,13 +23,13 @@ Build an app config with services (typically done via `@owlmeans/server-app`'s r
 import { config, service, AppType } from '@owlmeans/server-app'
 // or directly:
 import { makeConfig, service } from '@owlmeans/config'
-import { AppType, Layer } from '@owlmeans/context'
+import { AppType } from '@owlmeans/context'
 
 const appConfig = config(
   AppType.Backend,
   'manager-api',
-  service({ service: 'mongo', host: 'localhost', port: 27017 }),
-  { layer: Layer.Service, port: 3000 }
+  service({ service: 'manager-api', host: 'localhost', port: 3000 }),
+  { port: 3000 }
 )
 ```
 
@@ -54,8 +54,8 @@ Returns a partial config that adds a service route. Chain multiple `service()` c
 
 ```typescript
 config(AppType.Backend, 'myapp',
-  service({ service: 'mongo', host: 'db', port: 27017 }),
-  service({ service: 'redis', host: 'cache', port: 6379 })
+  service({ service: 'manager-api', host: 'api', port: 3000 }),
+  service({ service: 'manager-web', host: 'web', port: 8080 })
 )
 ```
 
@@ -63,13 +63,13 @@ config(AppType.Backend, 'myapp',
 
 Creates a URL builder that handles protocol selection (http/https/ws/wss) based on the app's `security.unsecure` flag.
 
-### `toConfigRecord(...items): ConfigRecord[]`
+### `toConfigRecord(object): ConfigRecord`
 
-Converts service config objects to `ConfigRecord[]` for context-managed configuration.
+Casts a plain config object into a `ConfigRecord` for context-managed configuration. `fromConfigRecord` is the inverse.
 
 ## Related Packages
 
-- [`@owlmeans/context`](../context) — `BasicConfig`, `AppType`, `Layer`
+- [`@owlmeans/context`](../context) — `BasicConfig`, `AppType`
 - [`@owlmeans/route`](../route) — `CommonServiceRoute` used by the `service()` helper
 - [`@owlmeans/server-app`](../server-app) — re-exports `config`, `service`, `sservice`
 
@@ -81,7 +81,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

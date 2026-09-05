@@ -36,7 +36,5 @@ export const makeClientContext = <C extends ClientConfig, T extends ClientContex
 
   appendApiClient<C, T>(context)
 
-  context.makeContext = makeClientContext as typeof context.makeContext
-
   return context
 }

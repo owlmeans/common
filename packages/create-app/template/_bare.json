@@ -1,0 +1,23 @@
+{
+  "remove": [
+    "sources/common/src/types.ts",
+    "sources/common/src/schemas.ts",
+    "sources/api/src/consts.ts",
+    "sources/api/src/app",
+    "sources/web/src/screens/about.tsx",
+    "sources/web/src/screens/session.tsx"
+  ],
+  "overrides": {
+    "README.md": "README.bare.md",
+    "sources/common/src/consts.ts": "sources/common/src/consts.bare.ts",
+    "sources/common/src/entrypoints.ts": "sources/common/src/entrypoints.bare.ts",
+    "sources/common/src/index.ts": "sources/common/src/index.bare.ts",
+    "sources/api/src/context.ts": "sources/api/src/context.bare.ts",
+    "sources/api/src/entrypoints.ts": "sources/api/src/entrypoints.bare.ts",
+    "sources/api/src/types.ts": "sources/api/src/types.bare.ts",
+    "sources/web/src/context.ts": "sources/web/src/context.bare.ts",
+    "sources/web/src/entrypoints.ts": "sources/web/src/entrypoints.bare.ts",
+    "sources/web/src/nav.ts": "sources/web/src/nav.bare.ts",
+    "sources/web/src/screens/home.tsx": "sources/web/src/screens/home.bare.tsx"
+  }
+}

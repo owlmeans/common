@@ -7,6 +7,13 @@ import { AuthenCredError } from '../errors.js'
 export const ed25519BasicUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.BasicEd25519,
 
+  method: { order: 300, icon: 'key', emphasis: 'secondary' },
+
+  // This package ships no UI family, so the form below is a `Renderer` a panel package assigns
+  // (`@owlmeans/web-panel/auth/plugins`, `@owlmeans/mui-panel/auth/plugins`). Until one does, the
+  // Implementation throws on mount — so the sign-in screen must not offer the method.
+  requiresRenderer: true,
+
   Implementation: Renderer => ({ type, stage, control, params }) => {
 
     type = type ?? AuthenticationType.BasicEd25519

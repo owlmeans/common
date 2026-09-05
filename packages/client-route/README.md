@@ -4,15 +4,15 @@ Client-side route model extension — marks routes as client-side and provides U
 
 ## Overview
 
-- `route(routeModel, opts?)` — wraps a `CommonRouteModel` into a `ClientRouteModel` (marks `_client: true`)
+- `route(routeModel, opts?)` — wraps a `RouteModel` into a `ClientRouteModel` (marks `_client: true`)
 - `isClientRouteModel(route)` — type guard distinguishing client routes from server routes
 - `extractParams(path)` — extracts path parameter names (`:param` segments) from a URL pattern
-- Used internally by `@owlmeans/client-module` when building client-side module URLs
+- Used internally by `@owlmeans/client-entrypoint` when building client-side entrypoint URLs
 
 ## Installation
 
 ```bash
-bun add @owlmeans/client-route
+bun add @owlmeans/client-route@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ import { route, isClientRouteModel, extractParams } from '@owlmeans/client-route
 import type { ClientRouteModel } from '@owlmeans/client-route'
 
 // Wrap a route as a client route
-const clientRoute = route(someRouteModel, { overrides: { partialPath: '/items' } })
+const clientRoute = route(someRouteModel, { overrides: { service: 'api' } })
 
 // Type guard
 if (isClientRouteModel(arg)) {
@@ -38,7 +38,8 @@ const params = extractParams('/projects/:projectId/items/:itemId')
 
 ### `route(route, opts?): ClientRouteModel`
 
-Converts a `CommonRouteModel` to a `ClientRouteModel`. Options: `overrides?: Partial<ClientRoute>`.
+Converts a `RouteModel` to a `ClientRouteModel`. Options: `overrides?: Partial<ClientRoute>` — the
+overrides only fill in declaration fields that are still unset.
 
 ### `isClientRouteModel(route): route is ClientRouteModel`
 
@@ -50,12 +51,15 @@ Returns the list of `:param` segment names in a URL pattern string.
 
 ### `ClientRouteModel`
 
-Extends `CommonRouteModel` with `_client: true` flag and `partialPath` for relative URL segments.
+Extends `RouteModel` with the `_client: true` flag. It holds no address state: the declaration keeps
+only the segment this route contributes, and the entrypoint answers `segment()`, `path()`, `mount()`
+and `address()` on demand against the context that asks.
 
 ## Related Packages
 
-- [`@owlmeans/route`](../route) — `CommonRouteModel`, `CommonRoute` base types
-- [`@owlmeans/client-module`](../client-module) — uses `route()` and `isClientRouteModel()` when constructing modules
+- [`@owlmeans/route`](../route) — `RouteModel`, `RouteDeclaration` base types and the pure
+  `resolvePath` / `resolveMount` / `resolveAddress` utilities under `@owlmeans/route/utils`
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — uses `route()` and `isClientRouteModel()` when constructing entrypoints
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -65,7 +69,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

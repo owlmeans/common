@@ -1,24 +1,24 @@
 # @owlmeans/router
 
-Internal router service for the OwlMeans module system.
+Internal router service for the OwlMeans entrypoint system.
 
 ## Overview
 
-- Provides the `RouterService` that attaches modules to a runtime router (e.g. Express, Bun's HTTP server)
+- Provides the `RouterService` that attaches entrypoints to a runtime router (e.g. Express, Bun's HTTP server)
 - Used internally by `@owlmeans/server-route` and `@owlmeans/client-route`
 - Not typically used directly in application code
 
 ## Installation
 
 ```bash
-bun add @owlmeans/router
+bun add @owlmeans/router@^0.1.18-rc.7
 ```
 
 ## Related Packages
 
 - [`@owlmeans/server-route`](../server-route) — server-side router implementation
 - [`@owlmeans/client-route`](../client-route) — client-side router implementation
-- [`@owlmeans/module`](../module) — modules registered with the router
+- [`@owlmeans/entrypoint`](../entrypoint) — entrypoints registered with the router
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -28,7 +28,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

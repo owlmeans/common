@@ -17,6 +17,17 @@
  * that stops a rich helper from satisfying this one.
  */
 export interface LlmFileProvider {
+  /**
+   * Stable identity of WHAT this provider reads — a project root, a sandbox id.
+   *
+   * A prompt plugin that caches resolved reads across calls has nothing else to key on:
+   * providers are late-bound and often rebuilt per request, so object identity says
+   * nothing, and a cache shared between two projects serves the first one's files to the
+   * second. A provider that supplies no key is treated as uncacheable rather than as one
+   * more anonymous member of a shared bucket.
+   */
+  key?: string
+
   /** Read a file relative to the root. With `noThrow`, a missing file yields `''`. */
   readFile: (filePath: string, noThrow?: boolean) => Promise<string>
 

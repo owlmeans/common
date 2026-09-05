@@ -1,0 +1,29 @@
+
+import { AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, MOD_RECAPTCHA } from '@owlmeans/auth'
+import { entrypoints as list } from '@owlmeans/auth-common'
+import { entrypoints as apiConfig } from '@owlmeans/api-config-server'
+import { elevate, guard } from '@owlmeans/server-entrypoint'
+import * as actions from './actions/index.js'
+import { entrypoint } from '@owlmeans/client-entrypoint'
+import { backend, route, RouteMethod } from '@owlmeans/route'
+import { handleIntermediate } from '@owlmeans/server-api'
+import { DEFAULT_RELY } from './consts.js'
+
+elevate(list, AUTHEN, handleIntermediate(
+  async (_, context) => context
+), { intermediate: true })
+elevate(list, AUTHEN_INIT, actions.authenticationInit)
+elevate(list, AUTHEN_AUTHEN, actions.authenticate)
+elevate(list, AUTHEN_RELY, actions.rely, guard(DEFAULT_RELY))
+
+export const entrypoints = list
+list.push(...apiConfig)
+list.push(
+  entrypoint(
+    route(MOD_RECAPTCHA, '/api/siteverify', backend({
+      host: 'https://www.google.com',
+      base: 'recaptcha',
+      secure: true,
+    }, RouteMethod.POST))
+  )
+)

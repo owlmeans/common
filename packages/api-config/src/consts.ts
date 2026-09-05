@@ -2,8 +2,8 @@
 export const API_CONFIG = 'api-config:advertise'
 
 export const notAdvertizedConfigKeys = [
-  'dbs', 'trusted', 'ready', 'service', 'layer', 'type', 
-  'layerId', 'records', 'webService', 'oidc', 'storageBuckets',
+  'dbs', 'trusted', 'ready', 'service', 'type',
+  'records', 'webService', 'oidc', 'storageBuckets',
   'secrets',
 ]
 

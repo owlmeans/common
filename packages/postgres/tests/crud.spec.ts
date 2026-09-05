@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { makePostgresResource } from '@owlmeans/postgres-resource'
+import { DEFAULT_PAGE_SIZE, makePostgresResource } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
-import { RecordExists, UnknownRecordError } from '@owlmeans/resource'
+import { RecordExists, UnknownRecordError, UnsupportedArgumentError } from '@owlmeans/resource'
 import type { ResourceRecord } from '@owlmeans/resource'
 
 import { gate, makeSuite, shapeOf } from './context.js'
@@ -146,16 +146,23 @@ describe('@owlmeans/postgres — resource CRUD against a real context', () => {
     expect(loaded.createdAt).toBeInstanceOf(Date)
   })
 
-  it('loads by a field other than the primary key, and refuses an unknown record', async () => {
-    const byEmail = await users.load('a@b.c', 'email')
+  /**
+   * One call, several fields — the shape a list-then-take-the-first was standing in for.
+   * `load` answers with a record or `null`; `get` answers or raises.
+   */
+  it('reads one record by criteria rather than by id, and refuses an unknown one', async () => {
+    const byEmail = await users.load({ email: 'a@b.c' })
     expect(byEmail?.id).toBe(seeded.id as string)
 
-    expect(await users.load('nobody@nowhere', 'email')).toBeNull()
-    await expect(users.get('nobody@nowhere', 'email')).rejects.toThrow(UnknownRecordError)
+    expect(await users.load({ email: 'a@b.c', status: 'active', age: 21 })).not.toBeNull()
+    expect(await users.load({ email: 'a@b.c', status: 'banned' })).toBeNull()
+
+    expect(await users.load({ email: 'nobody@nowhere' })).toBeNull()
+    await expect(users.get({ email: 'nobody@nowhere' })).rejects.toThrow(UnknownRecordError)
   })
 
   it('patches by merge where update replaces the whole record', async () => {
-    const patched = await users.patch<User>({ id: seeded.id, age: 22 })
+    const patched = await users.patch({ id: seeded.id, age: 22 })
     expect(patched.age).toBe(22)
     expect(patched.email).toBe('a@b.c')
 
@@ -170,20 +177,54 @@ describe('@owlmeans/postgres — resource CRUD against a real context', () => {
     await users.create({ email: 'third@b.c', status: 'active' })
 
     const banned = await users.list({ status: 'banned' })
-    expect(banned.pager?.total).toBe(2)
+    expect(banned.total).toBe(2)
     expect(banned.items.every(item => item.status === 'banned')).toBe(true)
 
-    const paged = await users.list({}, { pager: { page: 0, size: 2 } })
+    const paged = await users.list({}, { page: 0, size: 2 })
     expect(paged.items).toHaveLength(2)
-    expect(paged.pager?.total).toBe(3)
+    expect(paged.total).toBe(3)
+    expect(paged.page).toBe(0)
+    expect(paged.size).toBe(2)
 
-    const sorted = await users.list({}, { pager: { sort: [['email', false]] } })
+    /** A page past the end is empty, and the total still describes the whole match. */
+    const beyond = await users.list({}, { page: 5, size: 2 })
+    expect(beyond.items).toHaveLength(0)
+    expect(beyond.total).toBe(3)
+
+    const sorted = await users.list({}, { sort: ['email'] })
     expect(sorted.items.map(item => item.email)).toEqual(['a@b.c', 'second@b.c', 'third@b.c'])
+
+    const descending = await users.list({}, { sort: [{ field: 'email', order: 'desc' }] })
+    expect(descending.items.map(item => item.email)).toEqual(['third@b.c', 'second@b.c', 'a@b.c'])
+
+    /** The same sort narrows a multi-record criteria down to one record in a single read. */
+    const last = await users.get({ status: 'banned' }, { sort: [{ field: 'email', order: 'desc' }] })
+    expect(last.email).toBe('second@b.c')
   })
 
-  it('counts and purges by criteria', async () => {
+  /**
+   * A relational table is unbounded, so an unasked-for read is capped. Reading everything
+   * stays possible, but only by saying so.
+   */
+  it('caps an unpaged list at the default size and lifts the cap on size 0', async () => {
+    const capped = await users.list()
+    expect(capped.size).toBe(DEFAULT_PAGE_SIZE)
+    expect(capped.page).toBe(0)
+    expect(capped.items).toHaveLength(3)
+
+    const everything = await users.list({}, { size: 0 })
+    expect(everything.items).toHaveLength(3)
+    expect(everything.total).toBe(3)
+    expect(everything.size).toBeUndefined()
+    expect(everything.page).toBeUndefined()
+  })
+
+  it('counts and purges by criteria, and refuses to purge everything', async () => {
     expect(await users.count()).toBe(3)
     expect(await users.count({ status: 'banned' })).toBe(2)
+
+    /** An empty criteria object would truncate the table — it has to be said in SQL instead. */
+    await expect(users.purge({})).rejects.toThrow(UnsupportedArgumentError)
 
     expect(await users.purge({ email: 'third@b.c' })).toBe(1)
     expect(await users.count()).toBe(2)
@@ -193,15 +234,22 @@ describe('@owlmeans/postgres — resource CRUD against a real context', () => {
     await expect(users.create({ id: '00000000-0000-4000-8000-000000000001', email: 'no@b.c' }))
       .rejects.toThrow(RecordExists)
 
-    const inserted = await users.insert<User>({
+    const inserted = await users.insert({
       id: '00000000-0000-4000-8000-000000000002', email: 'explicit@b.c'
     })
     expect(inserted.id).toBe('00000000-0000-4000-8000-000000000002')
     await users.delete(inserted.id as string)
   })
 
+  it('refuses a TTL rather than dropping it — Postgres has no row expiry', async () => {
+    await expect(users.create({ email: 'ttl@b.c' }, { ttl: 60 }))
+      .rejects.toThrow(UnsupportedArgumentError)
+    await expect(users.save({ id: seeded.id, email: 'a@b.c' }, { ttl: 60 }))
+      .rejects.toThrow(UnsupportedArgumentError)
+  })
+
   it('upserts on an arbiter that is not the primary key', async () => {
-    const upserted = await users.upsert<User>({ email: 'a@b.c', age: 44 }, ['email'])
+    const upserted = await users.upsert({ email: 'a@b.c', age: 44 }, ['email'])
 
     expect(upserted.id).toBe(seeded.id as string)
     expect(upserted.age).toBe(44)
@@ -212,16 +260,18 @@ describe('@owlmeans/postgres — resource CRUD against a real context', () => {
     await expect(users.create({ email: 'a@b.c' })).rejects.toThrow(RecordExists)
   })
 
-  it('picks a record by deleting it, atomically', async () => {
+  it('takes a record by deleting it, atomically', async () => {
     const before = await users.count()
     expect(await posts.count()).toBe(1)
 
-    const picked = await users.pick(seeded.id as string)
+    const taken = await users.take(seeded.id as string)
 
-    expect(picked.email).toBe('a@b.c')
+    expect(taken.email).toBe('a@b.c')
     expect(await users.count()).toBe(before - 1)
     /** The cascade is the database's, not the resource's — the post goes with its owner. */
     expect(await posts.count()).toBe(0)
-    await expect(users.pick(seeded.id as string)).rejects.toThrow(UnknownRecordError)
+    /** `delete` reports absence, `take` raises on it. */
+    expect(await users.delete(seeded.id as string)).toBeNull()
+    await expect(users.take(seeded.id as string)).rejects.toThrow(UnknownRecordError)
   })
 })

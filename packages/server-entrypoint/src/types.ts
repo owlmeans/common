@@ -9,10 +9,6 @@ export interface ServerEntrypoint<R> extends CommonEntrypoint {
 }
 
 export interface EntrypointOptions<R> extends CommonEntrypointOptions {
-  /**
-   * Force entrypoint to be elevated even if it is already elevated
-   */
-  force?: boolean
   fixer?: string
   intermediate?: boolean
   routeOptions?: ServerRouteOptions<R>

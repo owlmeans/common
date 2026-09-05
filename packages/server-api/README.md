@@ -1,23 +1,23 @@
 # @owlmeans/server-api
 
-Fastify-based HTTP/WebSocket server with handler wrappers for the OwlMeans module system.
+Fastify-based HTTP/WebSocket server with handler wrappers for the OwlMeans entrypoint system.
 
 ## Overview
 
 - `handleBody`, `handleParams`, `handleRequest` wrap business logic with context injection and error handling
-- Built on [Fastify](https://fastify.dev/) — registered modules become Fastify routes automatically
+- Built on [Fastify](https://fastify.dev/) — registered entrypoints become Fastify routes automatically
 - `createApiServer` / `appendApiServer` initialize the HTTP server in a context
 - Not typically used directly — import handlers from `@owlmeans/server-app`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-api
+bun add @owlmeans/server-api@^0.1.18-rc.16
 ```
 
 ## Usage
 
-Handler functions called via `elevate()` in modules:
+Handler functions attached with `elevate()`:
 
 ```typescript
 import { handleBody, handleParams, handleRequest } from '@owlmeans/server-app'
@@ -25,7 +25,7 @@ import { handleBody, handleParams, handleRequest } from '@owlmeans/server-app'
 // Body handler: receives parsed + validated body as first arg
 export const create = handleBody<CreateProject>(async (payload, context, req) => {
   const ctx = context as Context
-  return await ctx.project().create({ ...payload, entityId: req.auth!.entityId })
+  return await ctx.project().create({ ...payload, entityId: req.entity!.id })
 })
 
 // Params handler: receives validated URL params as first arg
@@ -41,28 +41,28 @@ export const health = handleRequest(async (req, context) => {
 
 ## API
 
-### `handleBody<T>(handler): RefedModuleHandler`
+### `handleBody<T>(handler): RefedEntrypointHandler`
 
 Wraps a handler that receives the validated request body as the first argument.
 ```typescript
 handler: (payload: T, ctx: Context, req: AbstractRequest) => Promise<any>
 ```
 
-### `handleParams<T>(handler): RefedModuleHandler`
+### `handleParams<T>(handler): RefedEntrypointHandler`
 
 Wraps a handler that receives the validated URL params as the first argument.
 ```typescript
 handler: (payload: T, ctx: Context, req: AbstractRequest) => Promise<any>
 ```
 
-### `handleRequest(handler): RefedModuleHandler`
+### `handleRequest(handler): RefedEntrypointHandler`
 
 Wraps a handler that receives the full request object.
 ```typescript
 handler: (req: AbstractRequest, ctx: Context, res?: AbstractResponse) => Promise<any>
 ```
 
-### `handleIntermediate(handler): RefedModuleHandler`
+### `handleIntermediate(handler): RefedEntrypointHandler`
 
 Wraps middleware-layer handlers that do not return a final response.
 
@@ -73,7 +73,7 @@ Extract a multipart-uploaded file from the request.
 ## Related Packages
 
 - [`@owlmeans/server-app`](../server-app) — re-exports all handlers; preferred import point
-- [`@owlmeans/server-module`](../server-module) — `elevate()` attaches handlers to modules
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `elevate()` attaches handlers to entrypoints
 - [`@owlmeans/server-socket`](../server-socket) — WebSocket `handleConnection` counterpart
 
 <!-- owlmeans:agent-guidance:start -->
@@ -84,7 +84,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

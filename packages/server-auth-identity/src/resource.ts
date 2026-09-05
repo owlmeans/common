@@ -17,7 +17,7 @@ import {
  */
 export const makeOrgEntityResource = (dbAlias?: string): OrgEntityResource => {
   const resource = makeMongoResource<OrgEntity, OrgEntityResource>(
-    AUTH_IDENTITY_ORG_ENTITY, dbAlias, undefined, undefined, AUTH_IDENTITY_ORG_ENTITY_COLLECTION
+    AUTH_IDENTITY_ORG_ENTITY, dbAlias, undefined, AUTH_IDENTITY_ORG_ENTITY_COLLECTION
   )
   resource.index('slug', { slug: 1 }, { unique: true })
   resource.index('iamKey', { iamKey: 1 }, { unique: true })
@@ -27,17 +27,27 @@ export const makeOrgEntityResource = (dbAlias?: string): OrgEntityResource => {
 
 export const makeIdentityAccountResource = (dbAlias?: string): IdentityAccountResource => {
   const resource = makeMongoResource<IdentityAccount, IdentityAccountResource>(
-    AUTH_IDENTITY_ACCOUNT, dbAlias, undefined, undefined, AUTH_IDENTITY_ACCOUNT_COLLECTION
+    AUTH_IDENTITY_ACCOUNT, dbAlias, undefined, AUTH_IDENTITY_ACCOUNT_COLLECTION
   )
   resource.index('credential', { credential: 1 }, { unique: true })
   resource.index('entityId', { entityId: 1 })
   resource.index('secret', { secret: 1 }, { unique: true, sparse: true })
+  /**
+   * The account's login name — an email, for every provider shipped today.
+   *
+   * Indexed because `linkProfile` reads it on every registration: a person signing in by a second
+   * method must land on the identity they already have, not a new one. NOT unique — the same
+   * address legitimately appears twice, once for the platform account and once for an
+   * organization's END USER record (`inviteUser`), and those are different people-shaped rows for
+   * different audiences. The two are told apart by the profile, never by the account.
+   */
+  resource.index('name', { name: 1 })
   return resource
 }
 
 export const makeIdentityProfileResource = (dbAlias?: string): IdentityProfileResource => {
   const resource = makeMongoResource<IdentityProfile, IdentityProfileResource>(
-    AUTH_IDENTITY_PROFILE, dbAlias, undefined, undefined, AUTH_IDENTITY_PROFILE_COLLECTION
+    AUTH_IDENTITY_PROFILE, dbAlias, undefined, AUTH_IDENTITY_PROFILE_COLLECTION
   )
   /**
    * The account's mongo id — the ONLY ObjectId reference in the identity trio.
@@ -54,7 +64,7 @@ export const makeIdentityProfileResource = (dbAlias?: string): IdentityProfileRe
 
 export const makeIdentityCredentialsResource = (dbAlias?: string): IdentityCredentialsResource => {
   const resource = makeMongoResource<IdentityCredentials, IdentityCredentialsResource>(
-    AUTH_IDENTITY_CREDENTIALS, dbAlias, undefined, undefined, AUTH_IDENTITY_CREDENTIALS_COLLECTION
+    AUTH_IDENTITY_CREDENTIALS, dbAlias, undefined, AUTH_IDENTITY_CREDENTIALS_COLLECTION
   )
   resource.index('provider', { type: 1, userId: 1, credential: 1 }, { unique: true })
   resource.index('profileId', { profileId: 1 })

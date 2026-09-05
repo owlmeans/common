@@ -7,9 +7,11 @@ export const list = handleParams<SessionParams>(async (params, context) => {
   const ctx = context as Context
   const resource = ctx.getStaticResource<SessionItem>(SESSION_ITEMS)
 
-  // The static resource lists every record; filter to this session and sort newest first.
-  const { items } = await resource.list<SessionItem>()
+  // The resource answers the whole question — this session's items, newest first.
+  const { items } = await resource.list(
+    { sessionId: params.sid },
+    { sort: [{ field: 'createdAt', order: 'desc' }] }
+  )
+
   return items
-    .filter(item => item.sessionId === params.sid)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 })

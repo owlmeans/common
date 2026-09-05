@@ -23,13 +23,13 @@ export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context:
     },
 
     authenticate: async credential => {
-      const cfg = context.getConfigResource(PLUGINS)
-      const config = await cfg.get<PluginConfig>(MOD_RECAPTCHA)
+      const cfg = context.getConfigResource<PluginConfig>(PLUGINS)
+      const config = await cfg.get(MOD_RECAPTCHA)
       if (config.value == null) {
         throw new PluginMissconfigured('value')
       }
       const validateRecaptcha = context.entrypoint<ClientEntrypoint<RecpatchaResponse>>(MOD_RECAPTCHA)
-      const [result, status] = await validateRecaptcha.call<RecpatchaResponse, RecaptchaRequest>({
+      const { value: result, outcome: status } = await validateRecaptcha.invoke<RecpatchaResponse, RecaptchaRequest>({
         body: {
           secret: config.value,
           response: credential.credential

@@ -38,7 +38,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
           await closeReceiver()
         }
       }
-    }, source.nonce)
+    }, { channel: source.nonce })
     // We allow to just forward call messages back and forth
     conn._receiveCall = async msg => { console.info(source.nonce, 'Forward call', msg.method, msg.id) }
     conn._receiveResult = async msg => { console.info(source.nonce, 'Forward result', msg.id) }

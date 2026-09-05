@@ -1,65 +1,100 @@
 ---
 name: server-oidc-provider
-description: How to use @owlmeans/server-oidc-provider — embedded OIDC identity provider built on the oidc-provider library. Auto-invoked when serving OIDC endpoints from your own service.
+description: How to use @owlmeans/server-oidc-provider — the embedded OIDC identity provider on top of the oidc-provider library — service wiring, the account and adapter seams, the interaction URL, how scopes are derived from claims, and the response headers an authorization endpoint has to correct. Auto-invoked when serving OIDC endpoints from your own service.
 user-invocable: false
 ---
 
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.13"` in `dependencies`
-**Runtime deps:** `oidc-provider@9.8.4` (exact), `jose@6.2.3` (exact)
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.17"` in `dependencies`
+**Runtime deps:** `oidc-provider@9.11.1` (exact), `jose@6.2.5` (exact), `@types/oidc-provider@9.5.0`
+
+Use this only when your service **is** the identity provider. For consuming someone else's issuer,
+use `@owlmeans/server-oidc-rp`.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `createOidcProviderService(alias?)` | Factory for the embedded OIDC provider service |
-| `appendOidcProviderService<C,T>(ctx, alias?)` | Register the provider service on a context |
-| Constants | `DEFAULT_ALIAS`, `OIDC_ACCOUNT_SERVICE` |
-| Types | `OidcProviderService`, `OidcAccountService`, `OidcAdapterService`, `Config`, `Context` |
+| `createOidcProviderService(alias?)` | The provider service factory |
+| `appendOidcProviderService<C,T>(ctx, alias?)` | Registers it on a context |
+| `createOidcProviderMiddleware(webAlias?, oidcAlias?)` | Loading-stage middleware that mounts the provider on the API server exactly once. Register it, or nothing is ever mounted |
+| `OidcProviderService` | `instance()`, `update(api)`, `getInteraction(id)` and the live `oidc` provider |
+| `OidcAccountService` | The account seam: `loadById(ctx, id, { clientId? })` — what `findAccount` delegates to |
+| `OidcAdapterService` | The storage seam: `instance(name)` returns an `oidc-provider` `Adapter` |
+| `OIDC_ACCOUNT_SERVICE`, `DEFAULT_ALIAS` | The default account-service alias and the default provider alias |
+| `OidcConfig`, `OidcConfigAppend` | The `cfg.oidc` shape this package reads |
+| `OidcAccountParams` | `{ clientId? }` — lets the account service scope its claims per client |
+| `toClientMetadata(client)` | Maps a stored `OidcRegisteredClient` to `oidc-provider` `ClientMetadata` |
+| `OidcRegisteredClient`, `OidcClientMetadata` | The stored-client shape `toClientMetadata` takes, and the `oidc-provider` metadata shape it returns, carrying `owlEntityId` |
+| `Config`, `Context` | `ServerConfig`/`ServerContext` with `cfg.oidc` and the `debug.oidc` / `debug.oidcServer` / `debug.oidcData` switches |
 
-## Usage
-
-Use this only when your service IS the identity provider (e.g. self-hosted Keycloak alternative). For consuming an external IdP, use `@owlmeans/server-oidc-rp`.
+## Wiring
 
 ```typescript
-import { appendOidcProviderService } from '@owlmeans/server-oidc-provider'
+import { appendOidcProviderService, createOidcProviderMiddleware } from '@owlmeans/server-oidc-provider'
+
 appendOidcProviderService<C, T>(context)
+context.registerMiddleware(createOidcProviderMiddleware())
 ```
 
-The service mounts the oidc-provider Koa app onto Fastify via `api.server.use(base, oidc.callback())`. It wires `findAccount`, `interactions.url`, the JWKS, and optional adapter.
+`cfg.oidc` supplies `clients` (`ClientMetadata[]`), `defaultKeys.RS256.pk` (a PKCS#8 PEM), and
+optionally `basePath` (default `oidc`), `authService` (whose registered route the issuer is built
+from — defaults to this service), `behindProxy`, `accountService`, `adapterService` and
+`customConfiguration` (merged over the defaults below). The shape also declares `frontBase`, which
+this package reads nowhere — setting it configures nothing.
 
-## Building the interaction URL (server context, frontend route)
+A client's `redirect_uris` and `post_logout_redirect_uris` may be written as `{{service-alias}}/path`
+and are expanded against that registered service's host. A client with no `client_secret` is refused
+unless a debug flag is on, in which case one is generated and printed.
+
+## Building the interaction URL
 
 `interactions.url` must return the fully-qualified address of the `INTERACTION` screen, which is a
-**frontend** route resolved from a **server** context. `call()` does not exist there — it is attached
-only by `@owlmeans/client-entrypoint` — so the URL is assembled the way `urlCall` does it in the
-browser: resolve the route, substitute the `INTERACTION_UID` path param, then `makeSecurityHelper().makeUrl(route, path)`
-so the frontend service's host and base are applied. Pass the entrypoint's own `getPath()` as the
-path and let `makeUrl` supply the base — do not prepend it twice.
+**frontend** route resolved from a **server** context. `url()` does not exist there — that helper is
+attached only by `@owlmeans/client-entrypoint` — so the URL is assembled the way the browser's own
+`url()` does it: take the entrypoint's `path()`, substitute the `INTERACTION_UID` path param, then
+`makeSecurityHelper().makeUrl(entry.address(), path)`. `address()` is the address the entrypoint
+answers on — the frontend service's, not this one's — so the base comes from it and must not be
+prepended a second time.
 
 ## Scopes are derived from `claims`
 
-`oidc-provider` adds every key of the `claims` configuration to the supported-scope set
-(`collectScopes`). Declaring `claims.email` therefore makes `email` a **static** scope, and static
-scopes are checked against each client's own `scope` allowlist: a client that omits one fails the
-whole authorization request with `invalid_scope`. Whatever provisions clients for this provider must
-allow every scope the RP requests (`OIDC_RP_BASE_SCOPES`), and the account service must emit the
-matching claims — a granted scope with no claim behind it is silently empty.
+`oidc-provider` adds every key of the `claims` configuration to the supported-scope set. Declaring
+`claims.email` therefore makes `email` a **static** scope, and static scopes are checked against each
+client's own `scope` allowlist: a client that omits one fails the whole authorization request with
+`invalid_scope`. Whatever provisions clients for this provider must allow every scope the RP requests
+(`OIDC_RP_BASE_SCOPES`), and the account service must emit the matching claims — a granted scope with
+no claim behind it is silently empty.
 
-## oidc-provider v9 notes (important)
+The defaults this package sets: `claims` covers `email` (`email`, `email_verified`), `profile` (the
+standard set) and `PERMISSIONS_SCOPE` → `PERMISSIONS_CLAIM`, which stays inert unless the account
+service actually emits it; `scopes` is `openid profile offline_access permissions`;
+`features.devInteractions` is off. Anything under `cfg.oidc.customConfiguration` merges over these.
 
-- **Provider is a Koa app instance.** `oidc.use()` callbacks where the work happens *after* `await next()` will **not** fire once a route is matched — Koa's downstream does not continue past matched routes in v9. Move post-response header work (e.g. CSP rewrites) to a **Fastify `onSend`/`preHandler` hook** scoped to the OIDC base path.
-- **`enableHttpPostMethods`** defaults `false` — set it in the Provider config if your interaction UI POSTs to the authorization/end-session endpoints.
-- **DPoP is enabled by default.** Add `features: { dPoP: { enabled: false } }` if RP clients do not send DPoP proofs.
-- **Cookie `sameSite` defaults to `lax`** (was `none`). Adjust `cookies.*.sameSite` if the interaction UI is on a different subdomain.
-- **JWKS `kid` must be unique.** Every key in `jwks.keys` needs a distinct `kid`.
-- **Node 22+** required.
+## oidc-provider v9 configuration
 
-## jose v6 notes
+- **The provider is a Koa app**, and `Provider#use(fn)` splices `fn` **ahead of** the provider's own
+  router, so a middleware registered that way runs before routing and resumes after `await next()`.
+  The header corrections below are still mounted on the API server ahead of `oidc.callback()`, for
+  the reason given there.
+- **`enableHttpPostMethods` is `false`.** Set it only together with `cookies.long.sameSite: 'none'` —
+  the configuration check throws `TypeError: HTTP POST Method support requires that
+  cookies.long.sameSite is set to none` otherwise, at construction time.
+- **DPoP is enabled.** Pass `features: { dPoP: { enabled: false } }` when the clients send no DPoP
+  proofs.
+- **Cookie `sameSite` is `lax`** for both `cookies.long` and `cookies.short`. Revisit it when the
+  interaction UI lives on another subdomain.
+- **Every key in `jwks.keys` needs a distinct `kid`.**
+- There is no `provider.Account` getter — accounts come from the `findAccount` callback, which this
+  package points at `OidcAccountService`.
+- Outbound HTTP goes through the `fetch` configuration option, which mirrors the fetch API.
 
-`importPKCS8` now returns a **non-extractable `CryptoKey`** by default. Pass `{ extractable: true }` so `exportJWK` succeeds:
+## jose v6 key import
+
+`importPKCS8` returns a **non-extractable** `CryptoKey` for a private key. Pass `{ extractable: true }`
+so the JWKS export succeeds:
 
 ```typescript
 const key = await jose.importPKCS8(pkcs8Pem, 'RS256', { extractable: true })
@@ -81,12 +116,14 @@ authorization endpoint. Both are corrected by middleware this package mounts ahe
 **Set these as middleware, never as a Fastify `onSend` hook.** `oidc.callback()` is a Koa handler
 mounted through Middie: it ends the response itself, outside Fastify's reply lifecycle, so `onSend`
 never fires for any route the provider answers and anything set there silently never reaches the
-wire — the header looks configured in code and is absent in production. Middleware registered
-before the provider writes to the raw response, where helmet has already put its defaults, so the
-override is what ships. Verify with `curl -D -` against `/<basePath>/.well-known/openid-configuration`
-rather than by reading the code.
+wire — the header looks configured in code and is absent in production. Middleware registered before
+the provider writes to the raw response, where helmet has already put its defaults, so the override
+is what ships. Verify with `curl -D -` against the provider's
+`.well-known/openid-configuration` rather than by reading the code.
 
 ## Depends On
 
-- `@owlmeans/oidc`, `@owlmeans/server-api`, `@owlmeans/server-context`
-- `oidc-provider` v9, `jose` v6 (runtime — see [[oidc-versions]] for pinned versions and upgrade checklist)
+- `@owlmeans/oidc`, `@owlmeans/server-api`, `@owlmeans/server-context`, `@owlmeans/config`,
+  `@owlmeans/context`, `@owlmeans/entrypoint`, `@owlmeans/route`, `@noble/hashes`, `@scure/base`
+- `fastify` (peer) — the API server this package mounts the provider onto
+- `oidc-provider` v9, `jose` v6 — see [[oidc-versions]] for the pins and the upgrade checklist

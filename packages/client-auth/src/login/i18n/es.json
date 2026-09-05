@@ -1,0 +1,37 @@
+{
+  "login": {
+    "title": "Iniciar sesión",
+    "subtitle": "Elige cómo quieres continuar.",
+    "busy": "Abriendo el inicio de sesión…",
+    "empty": "No hay ningún método de inicio de sesión configurado para esta aplicación.",
+    "method": {
+      "google": "Continuar con Google",
+      "oidc": "Continuar con {{provider}}",
+      "oidc-default": "Iniciar sesión / Registrarse",
+      "oidc-client": "Continuar con {{provider}}",
+      "basic-ed25519": "Iniciar sesión con una clave",
+      "pk-supervisor": "Clave secreta (operador)",
+      "wallet-consumer": "Cartera OwlMeans ID",
+      "one-time-token": "Iniciar sesión con un código por correo",
+      "fallback": "Continuar con {{method}}"
+    },
+    "terms": {
+      "agreement": "He leído y acepto los {{terms}} y la {{privacy}}.",
+      "terms": "Términos y Condiciones",
+      "privacy": "Política de Privacidad",
+      "cookies": "Política de Cookies",
+      "required": "Confirma los Términos y Condiciones y la Política de Privacidad para continuar."
+    },
+    "consent": {
+      "required": "Iniciar sesión guarda una cookie de sesión. Acepta las cookies esenciales para continuar."
+    },
+    "credit": {
+      "powered": "Con tecnología de OwlMeans"
+    },
+    "error": {
+      "failed": "El inicio de sesión no se completó. Inténtalo de nuevo.",
+      "blocked": "Se bloqueó la ventana de inicio de sesión. Permite las ventanas emergentes para este sitio e inténtalo de nuevo."
+    },
+    "orphaned": "Sesión iniciada. Puedes cerrar esta ventana y continuar en la aplicación."
+  }
+}

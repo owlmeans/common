@@ -28,9 +28,8 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
       }
       const context = assertContext<Config, Context>(client.ctx, location)
       const module = context.entrypoint<CommonEntrypoint>(request.alias)
-      await module.resolve()
       const route = module.route.route
-      let path = module.getPath()
+      let path = module.path()
       const params = extractParams(path)
       path = params.reduce((path, param) => {
         type Key = keyof typeof request.params
@@ -39,13 +38,15 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         }
         return path.replace(`:${param}`, `${request.params[param as Key]}`)
       }, path)
-      if (route.host == null && request.host == null) {
-        throw new SyntaxError(`No host provided in ${module.alias} route`)
-      }
 
       const helper = makeSecurityHelper(context)
 
-      const url = helper.makeUrl(route, path, { host: request.host, base: request.base, forceUnsecure: request.unsecure })
+      // The entrypoint answers where it lives — host, port, base, protocol and whether the hop is
+      // TLS — from its declaration and the service it names. A per-request host still overrides it.
+      const url = helper.makeUrl(
+        module.address(), path,
+        { host: request.host, base: request.base, forceUnsecure: request.unsecure }
+      )
 
       let transformer: AxiosRequestTransformer | undefined = undefined
 

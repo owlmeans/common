@@ -9,7 +9,7 @@ metadata:
 
 # shadcn UI + Tailwind v4 web packages — OwlMeans pattern
 
-Shadcn-based web packages are the **next-generation Web layer**, replacing MUI `web-panel` over time. They sit at the same architecture layer (Web), wrap the same headless `@owlmeans/client-panel` logic, and follow the same `web-panel` package shape — swapping MUI + Emotion for shadcn UI + Tailwind CSS v4.
+Shadcn-based web packages are the **current Web layer**. `@owlmeans/web-panel` is the reference one, and `@owlmeans/mui-panel` is the legacy MUI family it supersedes. Both sit at the same architecture layer (Web) and wrap the same headless `@owlmeans/client-panel` logic; the shadcn family swaps MUI + Emotion for shadcn UI + Tailwind CSS v4, and a new package follows `web-panel`'s shape.
 
 See `reference.md` in this skill folder for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
 
@@ -23,7 +23,9 @@ Four invariants govern every shadcn-based OwlMeans package:
 
 3. **Local copy is dev/test-only.** Each package keeps its own copy under `src/@/` so it can build and test in isolation. The `package.json` `exports` map must **not** expose `./@/*` — consumers never accidentally import the package's copy.
 
-4. **The consumer must add an `@source` for the package's build.** Tailwind's oxide scanner reads
+   `cn` is the one exception, and it is exported as a **package-owned** function from `src/utils.ts`, never as a re-export of `@/lib/utils`: that specifier is emitted verbatim and would resolve back to the consumer's own file, which is not what an app importing `cn` from the package asked for. The vendored `src/@/lib/utils.ts` stays exactly as shadcn emits it, because the package's own primitives must keep resolving through the `@` contract.
+
+4. **The consumer must add an `@source` for the package's `src`.** Tailwind's oxide scanner reads
    the CSS root plus `@source` directives only, and it excludes `node_modules` — so a class that
    exists **only** inside the package's own components never reaches the app's stylesheet, and the
    feature renders unstyled with nothing in the app's own sources to blame. Every app consuming
@@ -32,11 +34,16 @@ Four invariants govern every shadcn-based OwlMeans package:
    ```css
    @import "tailwindcss";
 
-   @source "../../../node_modules/@owlmeans/web-panel/build";
+   @source "../../../node_modules/@owlmeans/web-panel/src";
    ```
 
-   The relative depth follows the app's layout; the target is the installed package's `build`
-   directory. This is a **general consumer rule**, not a scaffolding detail.
+   The relative depth follows the app's layout. **Point at `src`, never at `build`:** the scanner
+   applies the `.gitignore` of whatever repository a path resolves into, and a linked `node_modules`
+   entry resolves into a monorepo whose `.gitignore` covers every package build directory — a
+   `build` source there scans zero files and reports nothing, while the UI renders half-styled with
+   nothing to blame. `src` is tracked in the repository and ships in the published tarball, so one
+   path serves a linked checkout and an npm install alike. This is a **general consumer rule**, not
+   a scaffolding detail.
 
 ## Package skeleton (mirrors `web-panel`)
 
@@ -59,12 +66,13 @@ Four invariants govern every shadcn-based OwlMeans package:
 │   │   │   └── index.ts
 │   │   ├── layout/component.tsx
 │   │   ├── panel-app/component.tsx
-│   │   └── index.ts                   # barrel; re-exports @owlmeans/client-panel
+│   │   └── index.ts                   # local component barrel only
 │   ├── context.ts                     # makeContext wrapping web-client's makeContext
 │   ├── main.tsx                       # render() — no theme arg (theme is pure CSS)
 │   ├── types.ts
-│   ├── modules.ts
-│   └── index.ts
+│   ├── entrypoints.ts                 # the base declaration list an app composes over
+│   ├── utils.ts                       # the package-owned `cn`, exported publicly
+│   └── index.ts                       # package barrel; also re-exports @owlmeans/client-panel
 ├── tests/
 │   ├── harness/
 │   │   ├── index.html                 # copy from @owlmeans/test-ui harness/index.html
@@ -85,7 +93,6 @@ Four invariants govern every shadcn-based OwlMeans package:
     "@owlmeans/dep-config/tsconfig.react.json"
   ],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": { "@/*": ["./src/@/*"] },
     "rootDir": "./src/",
     "outDir": "./build/"
@@ -168,10 +175,16 @@ than pulling in the shadcn `sidebar` block: that block drags in `sheet`, `toolti
 
 ## Wrapping `@owlmeans/client-panel`
 
-Shadcn form/field components are the rendering layer over the framework-agnostic headless logic from `@owlmeans/client-panel`. Mirror the MUI pattern from `@owlmeans/web-panel` (form text component):
+Shadcn form/field components are the rendering layer over the framework-agnostic headless logic
+from `@owlmeans/client-panel`: `FormContext`, `schemaToFormDefault`, `useClientFormContext`,
+`useFormI18n` and `useFormError` come from there, while the field itself drives `react-hook-form`'s
+`Controller` and resolves its own label from the form namespace. `@owlmeans/client-panel` also
+publishes ready headless controllers — `ClientForm`, `InputCtrl`, `ActionCtrl` — but the reference
+package does **not** route through them; an application may still use them directly to lay a form
+out its own way. The same headless logic is rendered by the MUI family in `@owlmeans/mui-panel`:
 
 ```tsx
-// MUI version (web-panel) — for reference
+// MUI version (mui-panel) — for reference
 import { TextField } from '@mui/material'
 // ...
 <TextField {...field} label={label} error={fieldState.error != null} />
@@ -189,9 +202,13 @@ import { Label } from '@/components/ui/label'
 </div>
 ```
 
-`FormProvider`, `useFormContext`, `Controller`, the AJV validation resolver, and `useFormI18n` from `@owlmeans/client-i18n` are unchanged — only the rendered JSX changes.
+Both families share the same machinery: `FormProvider`, `useFormContext` and `Controller` from
+`react-hook-form`, the AJV validation resolver, and `useFormI18n` from `@owlmeans/client-panel`.
+Only the rendered JSX differs. (`@owlmeans/client-i18n` publishes `useI18n`, `useI18nLib`,
+`useI18nApp`, `useLanguage`, `composePrefix` and `I18nContext` — the *form*-scoped `t` is
+`client-panel`'s.)
 
-`panel-app/component.tsx` no longer needs MUI `ThemeProvider` or `CssBaseline`. It simply renders children. Theme is provided via the app's `globals.css` Tailwind entry.
+`panel-app/component.tsx` needs no MUI `ThemeProvider` and no `CssBaseline` — it renders children, Tailwind's Preflight replaces the baseline, and the theme comes from the app's own `globals.css`.
 
 ## package.json exports
 
@@ -241,7 +258,8 @@ import '../../src/@/globals.css'
 ## Cross-references
 
 - `[[client-panel]]` — headless form/layout logic being wrapped
-- `[[web-panel]]` — MUI counterpart; the structural and API reference
+- `[[web-panel]]` — the reference shadcn package: the structural and API model to copy
+- `[[mui-panel]]` — the legacy MUI family this one supersedes; the source side of the mapping table
 - `[[testing-ui]]` — Playwright harness for component acceptance tests
 - `[[shadcn-versions]]` — bumping tailwind/shadcn external deps across packages
 - `[[tsconfig]]` — OwlMeans TypeScript config conventions

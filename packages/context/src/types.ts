@@ -1,13 +1,11 @@
-import type { AppType, ContextStage, Layer, MiddlewareStage, MiddlewareType, CONFIG_RECORD } from './consts.js'
+import type { AppType, ContextStage, MiddlewareStage, MiddlewareType, CONFIG_RECORD } from './consts.js'
 
 export interface BasicConfig {
   ready: boolean
   service: string
   // Is used as username of the service (e.g. for looking up for autehntication keys)
   alias?: string
-  layer: Layer
   type: AppType
-  layerId?: string
   services?: Record<string, Object>
   [CONFIG_RECORD]?: ConfigRecord[]
   debug?: {
@@ -31,13 +29,11 @@ interface ConfigRecordItem extends Record<
 export interface Contextual {
   ctx?: BasicContext<any>
   alias: string
-  reinitializeContext?: <T extends Contextual>(context: BasicContext<any>) => T // This method is a fix to replace context inside closed scope
   registerContext: <T extends Contextual, C extends BasicConfig>(context: BasicContext<C>) => T
   assertCtx: <C extends BasicConfig, T extends BasicContext<C>>(location?: string) => T
 }
 
 export interface Service extends Contextual {
-  layers?: Layer[]
   initialized: boolean
   init?: () => Promise<void>
   lazyInit?: () => Promise<void>
@@ -56,17 +52,10 @@ export interface LazyService extends Service {
 
 export interface BasicEntrypoint extends Contextual {
   _entrypoint: true
-  _module: true
-}
-
-/** @deprecated use BasicEntrypoint */
-export interface BasicModule extends Contextual {
-  _module: true
 }
 
 export interface BasicResource extends Contextual {
-  layers?: Layer[]
-  init?: () => Promise<void> // After context switch the resource should be able to reinitialize
+  init?: () => Promise<void>
 }
 
 export interface Middleware {
@@ -75,6 +64,12 @@ export interface Middleware {
   apply: <C extends BasicConfig, T extends BasicContext<C>>(context: T, args?: Record<string, string | undefined>) => Promise<void>
 }
 
+/**
+ * The DI container. One context is built per process by one factory: a layer specific
+ * factory composes the layer below it and then `append*` mixins register what the
+ * application needs. There is no child context and nothing is stored for re-creation —
+ * a service, a resource and an entrypoint each bind to exactly one context.
+ */
 export interface BasicContext<C extends BasicConfig> {
   cfg: C
   stage: ContextStage
@@ -82,7 +77,6 @@ export interface BasicContext<C extends BasicConfig> {
   waitForInitialized: () => Promise<boolean>
   configure: <T extends BasicContext<C>>() => T
   init: <T extends BasicContext<C>>() => Promise<T>
-  updateContext: <T extends BasicContext<C>>(id?: string, to?: Layer) => Promise<T>
   registerService: <T extends BasicContext<C>>(service: Service) => T
   registerEntrypoint: <T extends BasicContext<C>>(entrypoint: BasicEntrypoint) => T
   registerEntrypoints: <T extends BasicContext<C>>(entrypoints: BasicEntrypoint[]) => T
@@ -98,17 +92,4 @@ export interface BasicContext<C extends BasicConfig> {
   hasEntrypoint: (alias: string) => boolean
 
   entrypoints: <T extends BasicEntrypoint>() => T[]
-
-  /** @deprecated use registerEntrypoint */
-  registerModule: <T extends BasicContext<C>>(module: BasicModule) => T
-  /** @deprecated use registerEntrypoints */
-  registerModules: <T extends BasicContext<C>>(modules: BasicModule[]) => T
-  /** @deprecated use entrypoint */
-  module: <T extends BasicModule>(alias: string) => T
-  /** @deprecated use hasEntrypoint */
-  hasModule: (alias: string) => boolean
-  /** @deprecated use entrypoints */
-  modules: <T extends BasicModule>() => T[]
-
-  makeContext?: <T extends BasicContext<C>>(cfg: C) => T
 }

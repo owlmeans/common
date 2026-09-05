@@ -22,7 +22,7 @@ export const makeWebDbService = (alias: string = DEFAULT_ALIAS): WebDbService =>
 
       const db: ClientDb = {
         get: async <T>(id: string) => {
-          return await get(_key(id)) as T
+          return await get<T>(_key(id))
         },
 
         set: async <T>(id: string, value: T) => {
@@ -47,7 +47,7 @@ export const makeWebDbService = (alias: string = DEFAULT_ALIAS): WebDbService =>
     },
 
     erase: async () => {
-      clear()
+      await clear()
     }
   }, service => async () => {
     service.initialized = true

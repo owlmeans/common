@@ -68,6 +68,18 @@ model factory service and the generic execution service. Related: [[versioning]]
 - The `gpt-5*` / `codex-*` families go through the Responses API, which rejects
   `temperature`/`topP` — an offline spec asserting on sampling params must not use them.
 
+- Claude 5-series models reason ADAPTIVELY whether or not the request asks, and it is billed from
+  the same `max_tokens` as the answer — a budget sized for the answer alone comes back as a
+  thinking-only completion with `stop_reason: "max_tokens"` and no text block. `ADAPTIVE_MIN_MAX_TOKENS`
+  (32k, clamped through `resolveOutputCap`) is the floor that prevents it. Escalating `maxTokens`
+  alone does not: the retry redraws from an unchanged distribution.
+- Anthropic never sets `response_metadata.finish_reason`; langchain puts the stop reason in
+  `additional_kwargs.stop_reason`. Reading only the former printed `finishReason: undefined` on
+  every Anthropic null report, hiding the cause above.
+- An empty completion is classified as a null result BEFORE the caller's filter runs. Every shipped
+  filter returns null only for empty input, so letting one run first blamed the caller and skipped
+  `reportNull` — losing the only diagnostics that explain the failure.
+
 ## Pointers
 
 - `packages/llm/README.md` — the resilience table (what the package already handles) and the

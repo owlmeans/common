@@ -1,35 +1,76 @@
 ---
 name: testing-integration
-description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, storage*, image-resource, server-api, server-app, queue.
+description: Category-C integration tests for OwlMeans Common packages that talk to external services (PostgreSQL, MongoDB, Redis, S3, Kubernetes, SMTP). Env-gated, no mocks, per-suite namespaces, conditional context provisioning. Auto-invoked when writing tests in postgres*, mongo*, redis*, kluster, llm, storage-resource, mailer-smtp, server-mailer-mailgun, server-api, server-app.
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # Integration Tests — Category C
 
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.8"` in `devDependencies`
+
 Category C applies to packages that integrate with external services: `postgres`,
-`postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `kluster`,
-`storage-common`, `storage-resource`, `image-resource`, `server-api`, `server-app`, `queue`,
-`llm` (live inference providers). These tests **never** mock the external service. They run
-only when the corresponding env vars are set, and they self-skip cleanly when those variables
-are missing.
+`postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
+`kluster`, `storage-resource`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`,
+`server-app`, `llm` (live inference providers). These tests **never** mock the external service.
+They run only when the corresponding env vars are set, and they self-skip cleanly when those
+variables are missing.
+
+`queue`, `resource`, `mailer`, `storage-common` and `image-resource` stay in category A: types,
+AJV schemas and error translation only, so their specs need nothing running and there is no gate
+they could open. What decides the category is what a package's own code does at runtime, not what
+its manifest lists — a `*-resource` package that issues real commands through a client the db
+service hands it is category C even when it names no driver of its own.
 
 ## Helpers from `@owlmeans/test-integration`
 
 | Helper | Purpose |
 |---|---|
-| `postgresGate()`, `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()` | Read env, return `{ skip, reason?, env }`. |
-| `randomNamespace(prefix, len?)` | Schema / DB / key / object-prefix namespacing for parallel-safe runs. |
-| `registerCleanup(fn)` + `runCleanups()` | Process-global LIFO queue. **Single-spec-file packages only** — see below. |
+| `postgresGate()`, `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()`, `smtpGate()` | Read env, return `IntegrationGate<E>` = `{ skip, reason?, env }`. |
+| `IntegrationGate<E>` | `{ skip: boolean, reason?: string, env: Partial<E> }`. `env` holds only the variables that were actually populated. `skip` is a plain `boolean`, not a discriminant, so `env` stays `Partial<E>` on the open branch too — a suite reads a required variable through a cast: `gate.env.MONGO_URL as string`. |
+| `PostgresEnv`, `MongoEnv`, `RedisEnv`, `S3Env`, `KubeEnv`, `SmtpEnv` | The variable set each gate reads, so `tests/context.ts` types its exported gate. |
+| `randomNamespace(prefix, len?)` | Schema / DB / key / object-prefix namespacing for parallel-safe runs. Default 6 hex chars. |
+| `registerCleanup(fn)` + `runCleanups()` | Process-global LIFO queue. Only where **one** spec file of the package provisions anything — see below. |
 
-The driver libraries (`pg`, `mongodb`, `ioredis`, `@aws-sdk/client-s3`,
-`@kubernetes/client-node`) stay where they already live — in the consuming integration
-packages — and are imported directly in those packages' `tests/`.
+Each gate fails closed on its **required** variables and treats the rest as optional:
+
+| Gate | Required | Optional |
+|---|---|---|
+| `mongoGate()` | `MONGO_URL` | `MONGO_TEST_DB_PREFIX` |
+| `postgresGate()` | `POSTGRES_URL` | `POSTGRES_TEST_DB_PREFIX` |
+| `redisGate()` | `REDIS_URL` | `REDIS_TEST_KEY_PREFIX` |
+| `s3Gate()` | `S3_ENDPOINT`, `S3_KEY`, `S3_SECRET`, `S3_TEST_BUCKET` | `S3_REGION` |
+| `kubeGate()` | `KUBE_CONFIG`, `KUBE_TEST_OK` | — |
+| `smtpGate()` | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TEST_TO` | `SMTP_PORT`, `SMTP_SECURE` |
+
+`SMTP_TEST_TO` is required rather than optional because an open SMTP gate sends **real mail** — the
+suite must never guess a recipient.
+
+An optional variable is only in `env` when it was actually populated, which is why a suite reads a
+defaulted one — `POSTGRES_TEST_DB_PREFIX ?? 'omt'` — straight from `process.env` instead: calling
+any gate has already run `loadEnv`, so the `.env` values are in `process.env` by then.
+
+**Six services, six gates — a category-C package outside that set writes its own.** There is no
+gate for an LLM provider or for the Mailgun HTTP API, and none should be added to
+`@owlmeans/test-integration` for a provider only one package talks to. Declare it in that
+package's `tests/context.ts` with `makeGates` from `@owlmeans/test` instead, listing the variables
+the provider needs; the result skips exactly the same way. `@owlmeans/llm` is the worked example.
+
+Every driver stays where it already lives — in the package that integrates with the service, not
+in a test package: `pg` (`@owlmeans/postgres`), `mongodb` (`@owlmeans/mongo`), `ioredis`
+(`@owlmeans/redis`), `bullmq` (`@owlmeans/redis-queue`), `@aws-sdk/client-s3`
+(`@owlmeans/storage-resource`), `@kubernetes/client-node` (`@owlmeans/kluster`) and `nodemailer`
+(`@owlmeans/mailer-smtp`). A suite that must reach the service outside the package's own
+service — to seed a fixture, or to assert on what really landed — imports that driver directly in
+its `tests/`. `@owlmeans/server-mailer-mailgun` has no driver: it posts to the Mailgun HTTP API
+with the global `fetch`, so a suite there imports nothing beyond the package under test and
+asserts on the request it builds and the API's reply.
 
 ## Env contract
 
-`/.env.example` documents every required variable, grouped by service, with comments. The
-single `.env` at the monorepo root supplies real values for local runs. CI sets them via
-secrets. **Empty value = skip** — never a failure.
+One `.env.example` at the workspace root documents every variable, grouped by service, with
+comments; the `.env` beside it supplies real values for local runs and `loadEnv` (from
+`@owlmeans/test`) picks it up. CI sets the same variables from secrets. **Empty value = skip** —
+never a failure.
 
 When a required variable is empty:
 1. The corresponding gate reports `skip: true`.
@@ -45,26 +86,26 @@ POSTGRES_URL="$(<build it from the secret file, without echoing>)" bun test ./te
 
 ### Where the real credentials come from
 
-The dev-cluster secrets are the source of truth; `../viable/.env.dev.secrets` holds the same
-values under kebab-case keys (`mongo-secret`, `redis-secret`, `s3-storage`, …) for
-`kubectl create secret --from-env-file`. Read the cluster secret directly rather than transcribing:
+Read each secret from wherever it actually lives — a cluster secret, a vault, the provider's own
+console — and pipe it into the variable in one step. Never transcribe a credential into a file,
+a fixture or this guidance.
 
 ```bash
-kubectl get secret mongo-owlmeans-mongo-main-db-admin-admin -o jsonpath='{.data.password}' | base64 -d
+kubectl get secret <name> -o jsonpath='{.data.password}' | base64 -d
 ```
 
 Two things that will bite:
 
-- **URL-escape the password before putting it in a connection string.** These generated passwords
+- **URL-escape the password before putting it in a connection string.** Generated passwords
   contain reserved characters; an unescaped one fails with `MongoParseError: Password contains
   unescaped characters`. Escape with `urllib.parse.quote(pw, safe='')`.
-- **The port-forward may already be running** — the slots share one cluster, so
-  `bind: address already in use` on 27017/5432/6379 usually means another checkout forwards the
-  same service. Reuse it; never kill another environment's process.
+- **A port-forward may already be running.** `bind: address already in use` on 27017/5432/6379
+  usually means another checkout or another developer already forwards that service. Reuse the
+  forward; never kill a process you did not start.
 
 The suites namespace every database/schema (`MONGO_TEST_DB_PREFIX`, default `omt`) and drop it on
-completion, so they are safe against the shared cluster. Confirm nothing was left behind after a
-run that aborted mid-way.
+completion, so they are safe against an instance shared with anything else. Confirm nothing was
+left behind after a run that aborted mid-way.
 
 ## Where the specs live
 
@@ -73,19 +114,31 @@ A resource package (`*-resource`) owns the `Resource<T>` contract; the db packag
 **depends on** the resource package.
 
 - **Unit specs** — schema compilation, identifier derivation, placeholder resolution, error
-  translation — live in the **resource** package. No gate, no service.
-- **Integration specs** that build a real `ServerContext` live in the **db** package. Putting
-  them in the resource package would need a devDependency on its own dependent, which is a
-  cycle and risks breaking `publish.ts`'s topological batching.
+  translation — live in the **resource** package and gate on nothing: they leave the process
+  alone. `@owlmeans/postgres-resource` is entirely this shape.
+- **Raw-driver specs** belong there too when the subject is the round trip and not the service.
+  `@owlmeans/mongo-resource` opens `mongoGate()`, derives a namespaced database with
+  `randomNamespace`, registers a cleanup that drops it, and drives `mongodb` directly with the
+  driver as its own devDependency — legitimate precisely because it never constructs the db
+  service. It is also the one package that may use the global cleanup queue, because only that
+  one spec file of the three provisions anything.
+- **Integration specs that build a real `ServerContext`** live in the **db** package. It already
+  depends on the resource package, so the pair it boots is the real one; putting them in the
+  resource package would make a contract dev-depend on its own implementation just to run its
+  specs.
 
 ## Per-suite namespaces, not the global cleanup queue
 
-Bun runs **every spec file of a package in one process** with one shared module registry. A
-process-global `registerCleanup`/`runCleanups()` therefore misfires: the first file to reach
-`afterAll` drops the namespaces of the files still to come. Use `registerCleanup` only in a
-package with a single spec file.
+Bun runs **every spec file of a package in one process** with one shared module registry, and the
+queue is one array for that whole process. A process-global `registerCleanup`/`runCleanups()`
+therefore misfires as soon as two spec files provision: the first to reach `afterAll` drains the
+entire queue and drops the namespaces of the files still to come. The queue is safe only where a
+**single** spec file provisions anything and that same file calls `runCleanups()`. That is the
+shape `@owlmeans/mongo-resource` has — one gated round-trip spec registering one dropped database,
+beside two ungated spec files that translate criteria and references in memory and open nothing.
 
-Give each spec file its own namespace and its own teardown instead:
+Any package with a second provisioning spec file gives each spec file its own namespace and its
+own teardown instead:
 
 ```ts
 // tests/context.ts
@@ -142,10 +195,12 @@ export const capabilities: PgCapabilities = gate.skip
 
 Specs then branch on it once, at the top: `const it = gate.skip || !capabilities.bootstrap ? test.skip : test`.
 
-## Module-scope declarations survive a context switch
+## Module-scope declarations outlive a `boot()`
 
-Migration registries and table declarations are keyed by resource **alias** at module scope so
-they outlive `reinitializeContext`. That means they also outlive a `boot()` — deliberately.
+Migration registries and table declarations are keyed by resource **alias** at module scope, so a
+maker that runs more than once for the same alias re-declares the same entries and loses nothing.
+A `boot()` builds a whole new context, but the declarations belong to the module registry rather
+than to any context, so they carry across every boot in the process — deliberately.
 Never reset them inside a shared `boot()` helper: a `.migration()` registered before the boot
 would be silently dropped. A spec that wants a clean slate calls `resetDeclarations(alias)`
 itself, which is what a spec simulating a restarted process should have to say out loud.
@@ -192,13 +247,25 @@ Add `"./tests/**/*"` to the package's `tsconfig.json` `exclude` so `tsc -b` neve
 specs into `build/`, and declare `@owlmeans/test-integration` plus `@types/bun` as
 devDependencies.
 
-The Bun runtime auto-loads `<root>/.env` when the test command runs from a workspace package.
-If you need to override, `bun test --env-file=../../.env` works. Long-running specs may need a
-higher timeout — set it locally in a per-package `bunfig.toml`:
+**Nothing auto-loads the workspace `.env`.** Bun reads a `.env` beside the working directory, so
+`bun test` inside a package never sees the one at the workspace root. The gates work because
+`@owlmeans/test`'s `loadEnv` does the loading itself and every gate calls it before reading a
+variable: it walks up from the working directory for a `bun.lock`, or for a `package.json`
+sitting beside a directory named `packages`, and reads the `.env` it finds there. A variable
+already set to a non-empty value always wins, so `MONGO_URL=… bun test ./tests` still overrides
+the file. A workspace shaped any other way names the file itself — `loadEnv({ file })` at the top
+of `tests/context.ts`, before the gates run.
 
-```toml
-[test]
-timeout = 60000
+Bun's per-test timeout is 5s, and **`bunfig.toml`'s `[test] timeout` does not raise it** — bun
+1.4.0 reads the section (`preload` in it works) and ignores that key. Give a long-running spec its
+own budget as the third argument to `test`, or raise the whole run on the command line:
+
+```ts
+test('round-trips through a real service', async () => { /* … */ }, 60_000)
+```
+
+```sh
+bun test --timeout=60000 ./tests
 ```
 
 ## Bun assertion gotcha

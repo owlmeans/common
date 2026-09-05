@@ -6,13 +6,15 @@ S3-compatible object storage resource for OwlMeans server applications.
 
 - `createStorageResource(alias?, configKey?)` — creates an S3-backed storage resource
 - `appendStorageResource(ctx, alias?, configKey?)` — registers the resource in the context
-- `StorageResource` — extends `Resource<StoredRecord>` for uploading and retrieving files
+- `StorageResource` — an upload and nothing else: `Pick<Resource<StoredRecord>, 'create'>` plus
+  `BasicResource`. The bucket takes a stream and hands back a URL; there is no record store behind
+  it to read, list or delete against
 - `StoredConfigAppend` — config mixin type for storage bucket credentials
 
 ## Installation
 
 ```bash
-bun add @owlmeans/storage-resource
+bun add @owlmeans/storage-resource@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -51,19 +53,21 @@ Upload a file:
 
 ```typescript
 const storage = context.resource<StorageResource>('images')
-await storage.save({
+const stored = await storage.create({
   id: fileId,
   prefix: 'uploads',
   stream: readableStream,
   type: 'image/jpeg'
 })
+// stored.url — where the object now lives
 ```
 
 ## API
 
 ### `createStorageResource(alias?, configKey?): StorageResource`
 
-Creates an S3 storage resource. `alias` defaults to `DEFAULT_ALIAS` (`'s3-storage'`).
+Creates an S3 storage resource. `alias` defaults to `DEFAULT_ALIAS` (`'s3-storage'`). The only data
+method is `create(record)`, which uploads the stream and answers the record with its `url` filled in.
 
 ### `appendStorageResource<C, T>(ctx, alias?, configKey?): T`
 
@@ -98,7 +102,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

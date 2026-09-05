@@ -7,17 +7,18 @@ import { trusted } from '../utils/trusted.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { AUTH_CACHE } from '../../consts.js'
 import { ResourceError } from '@owlmeans/resource'
+import type { Unsubscribe } from '@owlmeans/resource'
 import { RELY_CALL_TIMEOUT, RELY_PIN_PERFIX, RELY_TOKEN_PREFIX } from '@owlmeans/auth-common'
 
-const _subscriptions: Record<string, CallableFunction> = {}
+const _subscriptions: Record<string, Unsubscribe> = {}
 export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: type ?? AuthenticationType.RelyHandshake,
 
     // This method is used by consumer and by provider (wallet)
     // to initialize shared authentication process.
-    // The idea is that both subscribe to wait for a handshake value
-    // from the peer, that in fact is a subscription to a redis message tunnel.  
+    // The idea is that both watch the record holding their own pin/token and wake
+    // up when the peer writes its handshake value into it.
     init: async (request: RelyAllowanceRequest): Promise<AllowanceResponse> => {
       const [, keyPair] = await trusted(context)
       const tunnel = context.resource<AuthRedisResource>(AUTH_CACHE)
@@ -41,8 +42,8 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
 
           if (request.provideRely != null) {
             await Promise.all([pin, token].filter(key => key != null).map(async key => {
-              _subscriptions[key] = await tunnel.subscribe(async value => {
-                if (value.challenge != null) {
+              _subscriptions[key] = await tunnel.watch(key, async value => {
+                if (value?.challenge != null) {
                   const rely = makeEnvelopeModel<RelyToken>(value.challenge, EnvelopeKind.Wrap)
                   if (await rely.verify(keyPair)) {
                     [pin, token].filter(key => key != null).forEach(key => {
@@ -54,7 +55,7 @@ export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
                     await request.provideRely?.(rely.message(), relyMsg, true)
                   }
                 }
-              }, { /*ttl: RELY_CALL_TIMEOUT,*/ key, once: true })
+              }, { once: true })
 
               // @TODO they need to be killed on close - but actually live a little bit longer 
               // then timeout for them is ok

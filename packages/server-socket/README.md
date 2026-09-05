@@ -12,12 +12,12 @@ Server-side WebSocket connection handler and service for OwlMeans backends.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-socket
+bun add @owlmeans/server-socket@^0.1.18-rc.17
 ```
 
 ## Usage
 
-Handle a WebSocket connection on a module route:
+Handle a WebSocket connection on an entrypoint route:
 
 ```typescript
 import { handleConnection } from '@owlmeans/server-socket'
@@ -33,7 +33,7 @@ export const watch = handleConnection<Connection>(async (conn, context, req) => 
   })
 
   // Push updates to the client
-  const listener = ctx.fileStore().listen(record => {
+  const unsubscribeStore = await ctx.fileStore().subscribe(record => {
     conn.notify('file-update', record)
   })
 })
@@ -41,7 +41,7 @@ export const watch = handleConnection<Connection>(async (conn, context, req) => 
 
 ## API
 
-### `handleConnection<T>(handler): RefedModuleHandler`
+### `handleConnection<T>(handler): RefedEntrypointHandler`
 
 Wraps a WebSocket handler. The handler receives `(conn: T, ctx, req, res)`.
 
@@ -73,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

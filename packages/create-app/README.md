@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app my-app
+npx @owlmeans/create-app@^0.1.18-rc.14 my-app
 ```
 
 ## What it generates
@@ -49,12 +49,48 @@ is present even with `--no-install`.
 | Flag | Description |
 |------|-------------|
 | `--name <name>` | Human-readable app name (default: derived from the target dir) |
+| `--slug <slug>` | Package slug, `^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$` (default: derived from the target dir) |
+| `--lang <code>` | Language of the generated UI text and `<html lang>` (default: `en`) |
+| `--description <text>` | One-line description used in `README.md`, `AGENTS.md`, the Home screen and the `index.html` meta tags |
+| `--bare` | Scaffold the working shell with no example/demo code |
 | `--pm <bun\|npm\|yarn>` | Package manager (default: `bun`) |
 | `--no-install` | Skip dependency installation |
 | `--no-skills` | Skip the `@owlmeans/agent-skills` deploy |
 | `--no-git` | Skip `git init` |
 | `--yes`, `-y` | Proceed without prompts / into a non-empty directory |
 | `--help`, `-h` | Show help |
+
+## `--bare`
+
+`--bare` keeps the three workspaces, the config/context/entrypoint wiring, the layout, the nav
+skeleton and one Home screen, and drops every piece of example code — the `SessionItem` types and
+schemas, the api's `app/session/**` handlers and its static resource, the About and Session screens.
+`sources/common/src/entrypoints.ts` exports an empty `sharedEntrypoints` that the api and the web
+already spread, so the first feature is one declaration plus a handler and a screen.
+
+What bare removes and what it swaps in is declared in `template/_bare.json`, next to the
+`.bare.`-infixed variants it points at — not in the scaffolder's code.
+
+## Programmatic use
+
+`scaffold` performs the filesystem copy and nothing else: no `git init`, no install, no
+agent-skills deploy, no logging. The destination directory may already exist.
+
+```ts
+import { scaffold } from '@owlmeans/create-app'
+
+scaffold({
+  dir: '/tmp/my-app',
+  slug: 'my-app',
+  name: 'My App',        // default: the titleized slug
+  lang: 'en',
+  description: 'What the app is for.',
+  bare: true,
+})
+```
+
+`templateDir()`, `copyTemplate(src, dest, replacements, { bare })` and `isEmptyDir(dir)` are
+exported for callers that want the pieces; `run(args)` is the full CLI flow.
 
 ## Running the generated app
 

@@ -165,6 +165,16 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
   // Model resolution (policy-aware)
   model: (exec: S['exec'], role?: ModelRole, override?: ModelConfigOverride) => BaseChatModel
   /**
+   * The cheap model for work that is not the work — a relevance pick, a classification, a
+   * one-line judgement a plugin needs before the real call can be shaped.
+   *
+   * Resolves `policy.utilityRole ?? UTILITY_ROLE` at {@link ExecutionEffort.Economy} through
+   * the SAME ladder as {@link model}, so `roleOverrides` and `modelOverrides` govern it
+   * exactly as they govern every other role. The effort floor is local: the execution it
+   * was asked on keeps its own tier.
+   */
+  utility: (exec: S['exec'], override?: ModelConfigOverride) => BaseChatModel
+  /**
    * A factory that re-resolves the same role at another temperature. `baseOverride` is
    * layered UNDER the temperature patch, so a caller-chosen budget (see
    * `HelperExecutionInput.output`) survives the refinement.

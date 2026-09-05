@@ -9,7 +9,9 @@ import {
 } from '@owlmeans/oidc'
 import type { ParametrisedProps } from '@owlmeans/web-client'
 import { elevate, parametriseDispatcher } from '@owlmeans/web-client'
+import { ensureLoginService } from '@owlmeans/client-auth/login'
 import { Dispatcher } from './components/dispatcher.js'
+import { oidcMethodSource } from './auth/methods.js'
 import { makeOidcAuthService } from './service.js'
 import type { Config, Context } from './types.js'
 
@@ -20,15 +22,20 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
 
   const ctx = appendBasicOidcGuard<C, T>(context, opts)
 
+  // The configured identity providers become sign-in methods on this context. Registered here
+  // rather than globally because the provider list is a property of the application's config, and
+  // an application that never wired the relying party must not be offered one.
+  ensureLoginService(ctx).registerMethodSource(oidcMethodSource)
+
   return ctx
 }
 
-export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
+export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
   const DispatcherCom = extras ? parametriseDispatcher(extras, Dispatcher) : Dispatcher
 
-  setupBasicOidcGuard(modules, coguards)
+  setupBasicOidcGuard(entrypoints, coguards)
 
-  elevate(modules, DISPATCHER_OIDC_INIT)
-  elevate(modules, DISPATCHER_OIDC)
-  elevate(modules, DISPATCHER, handler(DispatcherCom), { force: true })
+  elevate(entrypoints, DISPATCHER_OIDC_INIT)
+  elevate(entrypoints, DISPATCHER_OIDC)
+  elevate(entrypoints, DISPATCHER, handler(DispatcherCom))
 }

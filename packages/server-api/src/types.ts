@@ -1,13 +1,11 @@
 
-import type { InitializedService, Layer } from '@owlmeans/context'
+import type { InitializedService } from '@owlmeans/context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import '@fastify/middie/types/index.d.ts'
 
 export interface ApiServer extends InitializedService {
   server: FastifyInstance
-
-  layers: [Layer.System]
 
   listen: () => Promise<void>
 }

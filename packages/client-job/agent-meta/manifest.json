@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/client-job",
+  "version": "0.1.18-rc.0",
+  "generatedAt": "2026-09-04T22:43:25.447Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-job",
+      "category": "package-specific",
+      "file": "skills/client-job/SKILL.md",
+      "canonicalPath": ".agents/skills/client-job/SKILL.md"
+    }
+  ]
+}

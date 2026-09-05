@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.11"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -25,28 +25,51 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |
 | `ModelConfigPatch` / `ModelConfigOverride` | The JSON-safe config subset; never credentials. Carries the model-capability fields (`contextWindow`, `maxOutput`, `combinedWindow`) alongside the budget ones — see the `llm` skill for what each means. |
-| `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides? }` — inherited by every refinement. |
+| `ModelPolicy` | `{ effort, roleOverrides?, modelOverrides?, utilityRole? }` — inherited by every refinement. |
+| `UTILITY_ROLE` | `'utility'` — the conventional cheap tier for side calls (a relevance pick, a classification). `ModelPolicy.utilityRole` points it at another alias; `ExecutionService.utility` resolves it. |
 | `ExecutionState` / `TaskExecutionState` | The persistable core (`level`/`purpose`/`policy`, plus `phase`/`completed`/`cursor`/`data`). |
 | `LlmPurpose` | `{ type?, dedication? }` — metadata carried on every model call. |
 | `PromptBlock`, `PROMPT_BLOCK_ORDER`, `DEFAULT_SKILL_ORDER` | The ordered sections of a composed system prompt — the order IS the cache key. |
 | `SkillDefinition` | One named block of reusable prompt knowledge. `body` must be a pure constant. |
 | `PromptPolicy` | `{ role?, skills?, cacheSystem?, cacheTtl? }` — carried on `ExecutionState`, merged downward. |
 | `CacheTtl`, `CacheUsage` | `'5m' \| '1h'`; normalized prompt-cache accounting. |
-| `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The minimal read/write file contract prompt plugins work against. |
+| `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The file contract prompt plugins work against — four members, every path relative to the host's project root. `FileProviderRef` accepts the provider or a thunk returning one; `resolveFileProvider` unwraps whichever form arrived, or `undefined`. |
 | `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
 | `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. |
+
+## `LlmFileProvider` — what a host must supply
+
+A consumer's own file helper satisfies it structurally (`interface FileHelper extends
+LlmFileProvider`); implementing it from scratch means all four:
+
+| Member | Contract |
+|---|---|
+| `readFile(path, noThrow?)` | Read a file relative to the root. With `noThrow`, a missing file yields `''`. |
+| `getSourceList(pattern?)` | Glob for files relative to the root. Project-skill discovery in `@owlmeans/agent-skills` is built on it, so a provider that stubs it indexes nothing. |
+| `writeFile(path, content)` | Write relative to the root, creating parent directories. |
+| `deleteFile(path, noThrow?)` | Delete relative to the root. With `noThrow`, a missing file is a no-op. |
+| `key?` | Optional. The provider's stable identity (project root, sandbox id) — the only thing a plugin caching per-project reads can key on, since providers are rebuilt per request. A provider without one is treated as uncacheable. |
+
+Resolving the project root is deliberately NOT part of the contract, and an implementation must not
+narrow an inherited signature — that is what stops a rich helper from satisfying this one.
 
 ## Extension rules
 
 Open types are open **on purpose** — extend, do not fork:
 
 ```typescript
+import type {
+  ExecutionState as LlmExecutionState, LlmPurpose,
+  TaskExecutionState as LlmTaskExecutionState,
+} from '@owlmeans/llm-common'
+
 // Your roles: an enum whose values satisfy the open `ModelRole` string.
 export enum MyRole { Analyst = 'analyst', Coder = 'coder' }
 
-// Your purpose and state: extend, never redeclare.
+// Your purpose and state: extend, never redeclare. Aliasing the imports keeps your own
+// `ExecutionState` the name the rest of your domain uses.
 export interface MyPurpose extends LlmPurpose { agent?: string }
-export interface MyExecutionState extends ExecutionState {
+export interface MyExecutionState extends LlmExecutionState {
   purpose: MyPurpose
   projectId?: string
 }

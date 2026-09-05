@@ -14,9 +14,9 @@ arbitrary user id / email — **without** Google/OIDC. Unknown users are **regis
 The primary purpose is deterministic **end-to-end tests** that authenticate against real environments.
 
 It reuses the existing flow end-to-end: the plugin only **verifies the supervisor signature and
-resolves/registers the user**, then hands the credential back to `makeAuthModel` (which signs the
-credential envelope) and the project's auth service (which exchanges it for the final
-`Ed25519BasicToken` bearer). No new token-minting code.
+resolves/registers the user**, then hands the mutated credential back to the auth manager's own
+model (which signs the credential envelope) and to the project's auth service (which exchanges it
+for the final `Ed25519BasicToken` bearer). No new token-minting code.
 
 ## Type & payload
 
@@ -37,7 +37,7 @@ import { appendSupervisorAuth } from '@owlmeans/server-auth/manager'
 appendSupervisorAuth(context, {
   supervisors: ['master-key', 'super-user', 'shared-key'], // TRUSTED record `name`s allowed to sign
   resolveUser: async (userId, ctx, { register }) => {        // find-or-create the target identity
-    // wire to your identity store; return { userId, profileId?, entityId?, role?, scopes? }
+    // wire to your identity store; return { userId, profileId?, entitySlug?, role?, scopes? }
   },
   allowRegistration: true,        // default true
   enabled: undefined,             // default: development only (cfg.debug.all || cfg.debug.supervisor)
@@ -50,14 +50,20 @@ Options:
   matching **public** key must be in the project's TRUSTED config; the **private** key is what the
   front-end signs with. Pick aliases whose private keys you actually have (e.g. in `.env.dev.secrets`).
 - `resolveUser` — `(userId, context, { register }) => Promise<SupervisorUserResolution>`. Default:
-  trust the id as-is. Wire to `@owlmeans/server-auth-identity`'s `IdentityLinkingService`
-  (`getLinkedProfile` / `linkProfile`) to find-or-create a real profile + entity.
+  trust the id as-is (`{ userId }`). Wire it to `@owlmeans/server-auth-identity`'s
+  `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create a real profile and
+  organization entity. `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
+  `entitySlug`, `role` and `scopes` — the organization value is a SLUG, the renameable public name
+  that a token carries, never the stable `entityId`. `profileId` defaults to `userId`, `scopes` to
+  the credential's own or `[ALL_SCOPES]`, and `role` to `AuthRole.User`.
 - `enabled` — force on/off. Default is development only. **Never enable in real production.**
-- `acceptInternalTokens` (requirement: understand internal tokens even when OIDC is the primary
-  guard) — when `true`, ensures the internal `Ed25519BasicToken` guard (`DEFAULT_GUARD`) is accepted
-  as a coguard on already-guarded modules. Also exposed standalone as
-  `setupInternalTokenCoguard(modules, guard?)`. Set `false` when modules already use `DEFAULT_GUARD`
-  as the primary guard (internal tokens already work).
+- `acceptInternalTokens` — when `true`, appends the internal `Ed25519BasicToken` guard
+  (`DEFAULT_GUARD`) as a coguard on every already-guarded backend entrypoint, so internal OwlMeans
+  tokens keep working where another guard (OIDC, say) is the primary one. The primary guard stays
+  first; the internal guard only matches an `Ed25519BasicToken` authorization header. Also exposed
+  standalone as `setupInternalTokenCoguard(entrypoints, guard?)`. Set `false` when the entrypoints
+  already use `DEFAULT_GUARD` as their primary guard.
+- `guard` — which guard alias `acceptInternalTokens` appends. Default `DEFAULT_GUARD` (`'auth'`).
 
 ## Web: `appendSupervisorAuth` (from `@owlmeans/web-auth`)
 
@@ -71,9 +77,16 @@ appendSupervisorAuth(context) // dev-only by default; or appendSupervisorAuth(co
 ```
 
 The form (`data-testid="supervisor-auth-form"`, inputs `supervisor-user-id`, `supervisor-pk`, button
-`supervisor-submit`) fetches a challenge, signs it, exchanges it for a bearer, stores it, and
-redirects HOME — mirroring the Google plugin. (Alternatively, the side-effect import
-`@owlmeans/web-auth/auth/plugins` always-registers it.)
+`supervisor-submit`, error `supervisor-error`) fetches a challenge, signs it, exchanges it for a
+bearer, stores it, and redirects HOME — mirroring the Google plugin. (Alternatively, the side-effect
+import `@owlmeans/web-auth/auth/plugins` always-registers it.)
+
+The web append reads `cfg.debug.supervisor` alone; the server append accepts either
+`cfg.debug.all` or `cfg.debug.supervisor`. A deployment that wants the operator login therefore sets
+`debug.supervisor` — it is the flag both halves honour, and the only one that does not arrive by
+accident. The plugin is `restricted`, so `appendSupervisorAuth` also writes
+`cfg.security.auth.login.overrides` to make it offerable; `{ offer: false }` registers it without
+advertising it.
 
 ## Tests: `@owlmeans/test-ui` helpers
 
@@ -85,8 +98,15 @@ redirects HOME — mirroring the Google plugin. (Alternatively, the side-effect 
 - `loginViaDispatcher(page, baseUrl, token)` — inject a pregenerated bearer via the standard
   `/dispatcher?token=` route (apps that override DISPATCHER, e.g. for a forced IdP, can't use this —
   use the form).
-- `pregenerateAuthToken({ userId, pk, ... })` — offline mint via `@owlmeans/test-auth`'s `makeBearer`
-  using the project's **own** trusted signing key (lowest-level primitive).
+- `pregenerateAuthToken({ userId, pk, scopes?, role?, profileId?, source?, ... })` — offline mint via
+  `@owlmeans/test-auth`'s `makeBearer`, using the project's **own** trusted signing key (lowest-level
+  primitive). No plugin, no registration.
+
+`loginViaSupervisorForm` answers a cookie-consent dialog by default (`consent: 'accept'`): an
+OwlMeans app refuses to start an authentication flow until consent is answered, and the modal
+intercepts every click at the form underneath. Both browser helpers navigate with
+`waitUntil: 'domcontentloaded'` rather than Playwright's `load`, because `load` waits for every
+subresource and a tag manager or analytics beacon that never settles holds it open until timeout.
 
 ## Security
 
@@ -95,5 +115,13 @@ redirects HOME — mirroring the Google plugin. (Alternatively, the side-effect 
   highly sensitive.
 
 ## Depends On
-- `@owlmeans/auth` (type + `buildSupervisorPayload`), `@owlmeans/basic-keys` (sign/verify),
+- `@owlmeans/auth` (type + `buildSupervisorPayload` + `SupervisorCredentialPayload`),
+  `@owlmeans/basic-keys` (sign/verify), `@owlmeans/basic-ids` (the salt),
   `@owlmeans/auth-common` (`DEFAULT_GUARD`, `TrustedRecord`), `@owlmeans/config` (`TRUSTED`).
+- Tests: `@owlmeans/test-ui` (the helpers above) over `@owlmeans/test-auth` (`makeBearer`).
+
+## Related
+
+`server-auth` (the plugin registry and the manager) · `web-auth` (the form package) ·
+`server-auth-identity` (what `resolveUser` should be wired to) · `login-methods` (why a
+`restricted` method has to be named in the configuration)

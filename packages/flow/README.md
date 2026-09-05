@@ -6,13 +6,13 @@ State machine for multi-step user flows, primarily used for OIDC authentication 
 
 - Defines flow configurations as sequences of steps and transitions
 - `STD_OIDC_FLOW` is the standard OIDC authentication flow constant
-- `stdOidcFlow()` creates the preconfigured OIDC flow definition
+- `stdOidcFlow` is the preconfigured OIDC flow definition
 - Flows are started via `flowService.begin(flowAlias)` and progress through steps as the user authenticates
 
 ## Installation
 
 ```bash
-bun add @owlmeans/flow
+bun add @owlmeans/flow@^0.1.18-rc.13
 ```
 
 ## Usage
@@ -20,14 +20,11 @@ bun add @owlmeans/flow
 Register the OIDC flow in app config:
 
 ```typescript
-import { STD_OIDC_FLOW, stdOidcFlow } from '@owlmeans/flow'
+import { flow, configureFlows, stdOidcFlow } from '@owlmeans/flow'
 
-// In app config (added as a config record)
-const appConfig = config(
-  AppType.Frontend,
-  'manager-web',
-  // ... other config
-  { [FLOW_RECORD]: [stdOidcFlow()] }
+const appConfig = configureFlows(
+  flow(config(AppType.Frontend, 'manager-web'), stdOidcFlow),
+  { defaultFlow: STD_OIDC_FLOW }
 )
 ```
 
@@ -47,17 +44,25 @@ await flowService.begin(STD_OIDC_FLOW)
 
 Constant: `'_oidc'` — alias for the standard OIDC flow.
 
-### `stdOidcFlow(): FlowConfig`
+### `stdOidcFlow: ShallowFlow`
 
-Returns a pre-built `FlowConfig` for the standard OIDC authentication flow.
+The pre-built standard OIDC authentication flow.
+
+### `flow(cfg, flow): C` / `configureFlows(cfg, config): C`
+
+Add a flow to an application config, and set the flow subsystem's own configuration on it.
+
+### `ShallowFlow`
+
+A flow declaration: `flow` (its alias), `initialStep`, and `steps` keyed by step name.
 
 ### `FlowConfig`
 
-A flow configuration object with `alias`, `steps: FlowStep[]`, and `transitions: FlowTransition[]`.
+The subsystem's configuration: `queryParam`, `services`, `modules`, `pathes`, `defaultFlow`.
 
 ### `FlowStep`
 
-A named step in a flow with optional `service` and `module` references.
+A named step: `index`, `step`, `service`, its `transitions`, and optional `path` / `module`.
 
 ### `FLOW_RECORD`
 
@@ -76,7 +81,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

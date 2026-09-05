@@ -7,11 +7,9 @@ import type {
  * Storage, as this package needs it.
  *
  * These are PORTS, not resources. The package could have taken `Resource<T>` and let a consumer
- * register a backend under an alias — but `Resource.list()` is not uniformly queryable
- * (`@owlmeans/static-resource` throws on any criteria), so a plugin written against its query
- * semantics could not be exercised with the monorepo's own in-memory backend. A port names what
- * the plugin actually needs, which is a much smaller surface than CRUD, and any backend can
- * satisfy it — including a file on disk, which is what the project-history equivalent is.
+ * register a backend under an alias — but a port names exactly what the plugin needs, which is a
+ * far smaller surface than CRUD, and any backend can satisfy it: a resource, or a file on disk,
+ * which is what the project-history equivalent is.
  *
  * Every port is optional to bind. A plugin whose port is missing degrades to a no-op rather than
  * throwing, exactly as `ExecutionService.checkpoint` does with no plugin registered: memory is an

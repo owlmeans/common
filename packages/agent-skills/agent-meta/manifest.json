@@ -1,10 +1,17 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.9",
-  "generatedAt": "2026-08-29T20:14:44.154Z",
+  "version": "0.1.18-rc.12",
+  "generatedAt": "2026-09-04T23:18:39.705Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "consent",
+      "category": "general",
+      "file": "skills/consent/SKILL.md",
+      "canonicalPath": ".agents/skills/consent/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "self-education",
@@ -25,6 +32,20 @@
       "category": "general",
       "file": "skills/getting-started/SKILL.md",
       "canonicalPath": ".agents/skills/getting-started/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "agent-skills",
+      "category": "package-specific",
+      "file": "skills/agent-skills/SKILL.md",
+      "canonicalPath": ".agents/skills/agent-skills/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "login-methods",
+      "category": "general",
+      "file": "skills/login-methods/SKILL.md",
+      "canonicalPath": ".agents/skills/login-methods/SKILL.md"
     },
     {
       "kind": "skill",
