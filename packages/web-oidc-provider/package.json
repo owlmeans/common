@@ -26,7 +26,7 @@
     "@owlmeans/oidc": "^0.1.18-rc.13",
     "@owlmeans/resource": "^0.1.18-rc.9",
     "@owlmeans/web-client": "^0.1.18-rc.24",
-    "universal-cookie": "^7.2.1"
+    "universal-cookie": "^8.1.2"
   },
   "peerDependencies": {
     "react": "*"
