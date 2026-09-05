@@ -40,7 +40,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.550.0",
+    "lucide-react": "^1.38.0",
     "nodemon": "^3.1.14",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.1",
