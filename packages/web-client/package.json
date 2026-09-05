@@ -37,7 +37,7 @@
     "@owlmeans/route": "^0.1.18-rc.9",
     "@owlmeans/web-db": "^0.1.18-rc.14",
     "@owlmeans/web-router": "^0.1.18-rc.14",
-    "react-dropzone": "^14.3.5"
+    "react-dropzone": "^20.1.1"
   },
   "peerDependencies": {
     "react": "*",
