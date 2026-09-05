@@ -34,7 +34,7 @@
     "fastify": "*"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
+    "@noble/hashes": "^2.4.0",
     "@owlmeans/config": "^0.1.18-rc.12",
     "@owlmeans/context": "^0.1.18-rc.8",
     "@owlmeans/entrypoint": "^0.1.18-rc.11",

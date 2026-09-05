@@ -36,7 +36,7 @@
     }
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
+    "@noble/hashes": "^2.4.0",
     "@owlmeans/api": "^0.1.18-rc.13",
     "@owlmeans/api-config-server": "^0.1.18-rc.17",
     "@owlmeans/auth": "^0.1.18-rc.9",
