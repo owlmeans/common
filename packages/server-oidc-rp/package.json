@@ -62,7 +62,7 @@
     "@owlmeans/server-entrypoint": "^0.1.18-rc.11",
     "@scure/base": "^2.3.0",
     "dayjs": "^1.11.13",
-    "jose": "6.2.5",
+    "jose": "6.2.10",
     "openid-client": "6.8.4"
   },
   "peerDependencies": {
