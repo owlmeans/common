@@ -28,8 +28,16 @@ export const isToolError = (result: unknown): result is ToolErrorResponse =>
  * that is what the model calls — a map keyed by a local variable silently loses any tool whose two
  * names drifted apart, leaving it advertised, callable, and permanently "not found". The key stays
  * as a fallback so a caller may still address a tool by it.
+ *
+ * `fatal` is the ONE exception to "never throws", and it exists because containment has a cost the
+ * containment itself cannot see. A tool may be a whole pipeline behind a single call; when the
+ * thing that stopped it is an exhausted budget or a refusal, handing the model a readable error
+ * message is an invitation to pick another tool and spend again. A caller that knows which errors
+ * mean "stop" says so here, and those alone travel out.
  */
-export const safeInvokeTool = async (tools: AgentToolSet, toolCall: ToolCall): Promise<unknown> => {
+export const safeInvokeTool = async (
+  tools: AgentToolSet, toolCall: ToolCall, fatal?: (e: unknown) => boolean,
+): Promise<unknown> => {
   const tool = tools[toolCall.name]
     ?? Object.values(tools).find(entry => entry.name === toolCall.name)
 
@@ -40,6 +48,9 @@ export const safeInvokeTool = async (tools: AgentToolSet, toolCall: ToolCall): P
   try {
     return await tool.invoke(toolCall.args)
   } catch (e) {
+    if (fatal?.(e) === true) {
+      throw e
+    }
     console.warn(`Error during tool call ${toolCall.name}:`, e)
     return toErrorResponse(e)
   }

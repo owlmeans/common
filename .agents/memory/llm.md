@@ -49,9 +49,13 @@ model factory service and the generic execution service. Related: [[versioning]]
 - `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
   A preset is a BASE; assigning it last (the old order) silently voided a role's own fields
   and the caller's override, including effort-tier caps. One level deep, never a chain.
-- `ExecutionPlugin` has `onCheckpoint`/`onRestore` AND `advise`; `checkpoint` dispatches on
-  plugins declaring `onCheckpoint`, never on the plugin count, so an advise-only plugin does
-  not start composing unused snapshots.
+- `ExecutionPlugin` is **`advise`-only**. The `onCheckpoint`/`onRestore` pair and
+  `ExecutionService.checkpoint` are gone: an execution is a COLLABORATOR rebuilt per run, not a
+  thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
+  run row is the authority. `TaskExecutionState.{phase,completed,cursor}` survive as LABELS for
+  traces and prompts — never as a position anything resumes from.
+- `use()` seats a plugin **by alias**, replacing rather than appending. A layer wired twice
+  otherwise answers twice, silently, since the first usable answer wins.
 - `composeExecState` excludes `state` itself. Without it every `derive`/`escalate`/`withPurpose`
   on a task nests another copy of the previous state (regression-tested in `execution.spec.ts`).
 - `@langchain/*` are **peer** dependencies: model instances cross the package boundary and two

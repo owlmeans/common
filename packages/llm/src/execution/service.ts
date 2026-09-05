@@ -151,17 +151,16 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
         }),
 
     use: plugin => {
-      plugins.push(plugin)
-    },
-
-    checkpoint: async (exec, key) => {
-      // Guarded on the HOOK, not on the plugin count: a plugin registered for `advise`
-      // alone must not make checkpointing start composing snapshots nobody consumes.
-      if (!plugins.some(plugin => plugin.onCheckpoint != null)) {
-        return
+      // Seated by alias when it has one: mixins compose, and a layer wired twice would otherwise
+      // answer twice — silently, since the first usable answer wins.
+      const at = plugin.alias != null
+        ? plugins.findIndex(entry => entry.alias === plugin.alias)
+        : -1
+      if (at < 0) {
+        plugins.push(plugin)
+      } else {
+        plugins[at] = plugin
       }
-      const state = self().snapshot(exec)
-      await Promise.all(plugins.map(plugin => plugin.onCheckpoint?.(state, exec, key)))
     },
 
     advise: async (exec, request) => {

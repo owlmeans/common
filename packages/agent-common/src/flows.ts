@@ -5,9 +5,8 @@ import { AGENT_RUN_FLOW, AgentRunStep, AgentRunTransition } from './consts.js'
  * The lifecycle of one agent run.
  *
  * Read it as "how far did this run get", not "what did it say". Everything conversational happens
- * inside `Working`; the steps exist so that a run interrupted anywhere can be told where to pick
- * up. `Fail` is reachable from every working step, and `Resume` re-enters `Working` from a
- * checkpoint.
+ * inside `Working`; the steps exist so a plugin reading `onFinish` can say where a run ended.
+ * `Fail` is reachable from every working step and is TERMINAL — see the note on that step.
  *
  * `service` is left as the flow name on every step. A flow step normally binds to a service or an
  * entrypoint, but an agent run is driven by whoever holds the model — there is no second party to
@@ -103,13 +102,9 @@ export const agentRunFlow: ShallowFlow = {
       index: 5,
       step: AgentRunStep.Failed,
       service: AGENT_RUN_FLOW,
-      transitions: {
-        [AgentRunTransition.Resume]: {
-          transition: AgentRunTransition.Resume,
-          step: AgentRunStep.Working,
-          explicit: true,
-        },
-      },
+      // Terminal. Nothing resumes a ReAct run — its tool results are side effects already applied
+      // to the world, so re-entering it re-applies them. Resumable work is a pipeline.
+      transitions: {},
     },
   },
 }

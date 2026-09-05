@@ -73,6 +73,8 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
 
+> **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
+>
 > **Note.** `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
 ## 4. Auth shared
