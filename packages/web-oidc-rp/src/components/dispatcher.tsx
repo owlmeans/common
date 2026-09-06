@@ -10,7 +10,8 @@ import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 import {
-  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction, LOGIN_METHOD_QUERY,
+  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction, LOGIN_FRESH_QUERY,
+  LOGIN_METHOD_QUERY,
   enterOidcAuthorization,
 } from '@owlmeans/client-auth/login'
 
@@ -48,6 +49,13 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
   // Nothing to return from, and nobody signed in: offer the choice. Never start a flow.
   const [choose, setChoose] = useState(false)
+  /**
+   * A failure raised BY the exchange, as opposed to one the provider redirected back with.
+   *
+   * Kept apart from the `error` query parameter because they arrive by different routes and only
+   * this one used to arrive nowhere at all.
+   */
+  const [failure, setFailure] = useState<string | null>(null)
 
   const onLogin = useCallback(() => {
     // Replays this very URL through the login service from inside the gesture, keeping whatever
@@ -89,6 +97,15 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       provideToken({ token }, params)
     } else {
       const oidc = context.service<OidcAuthService>(DEFAULT_ALIAS)
+      /**
+       * Every way this can end has to reach the person, and until this `catch` existed one way did
+       * not: a rejection anywhere inside the exchange — the provider refusing the code, the API
+       * answering 4xx, no stored request to finish — became an unhandled rejection. In an ordinary
+       * tab that leaves a blank dispatcher; in the surrogate window an application opens for a
+       * framed preview it leaves "Signing you in…" on screen forever, with nothing posted back to
+       * the opener and nothing in the frame changing. The person sees a login that completed and
+       * an application that never noticed, and pressing the button again does the same thing.
+       */
       oidc.dispatch(params).then(async dispatched => {
         if (dispatched) {
           // A token was issued in this document. Where it belongs is the login service's call: in
@@ -112,7 +129,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         // not choosing for them.
         const chosen = query.get(LOGIN_METHOD_QUERY)
         if (chosen == null || chosen === '') {
-          const authzToken = await context.auth().authenticated()
+          // `fresh` says this window was opened to PRODUCE a session, so a session it merely finds
+          // lying about on this origin is not the answer. Nothing here can tell a live token from
+          // a revoked one — `authenticated()` reads storage and decodes an envelope — and handing
+          // a dead one back to the window that asked for a login is a loop only clearing site data
+          // escapes. See LOGIN_FRESH_QUERY.
+          const authzToken = query.has(LOGIN_FRESH_QUERY)
+            ? null
+            : await context.auth().authenticated()
           if (authzToken == null || authzToken === '') {
             // Nothing to return from and nobody signed in. This is where the old code started an
             // authorization request on its own; it now renders the choice instead.
@@ -152,6 +176,14 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
         } else {
           await navigate()
         }
+      }).catch((e: Error) => {
+        // Reported, never swallowed — see the comment on this chain. `Failed` is what every
+        // surface here already understands: the surrogate view renders its "that did not
+        // complete" panel with a way to close, and an ordinary tab renders the sign-in control
+        // again, which is the only thing that can move either of them forward.
+        console.error(e)
+        setFailure(e.message)
+        setOutcome(LoginOutcome.Failed)
       })
     }
   }, [client, error])
@@ -177,13 +209,13 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
                 : SurrogateStage.Working
       }
       onAction={outcome === LoginOutcome.Gesture ? onLogin : () => window.close()}
-      error={errorDescription ?? error ?? undefined}
+      error={errorDescription ?? error ?? failure ?? undefined}
       translate={(key, defaultValue) => tAuth(key, { defaultValue })}
     />
   }
 
-  if (error != null) {
-    return <div>{t('error', { error: errorDescription ?? error })}</div>
+  if (error != null || failure != null) {
+    return <div>{t('error', { error: errorDescription ?? error ?? failure })}</div>
   }
 
   if (outcome === LoginOutcome.Orphaned) {
