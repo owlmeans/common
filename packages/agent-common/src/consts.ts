@@ -16,9 +16,25 @@ export const AGENTS_SERVICE = 'agents'
  * the same way `ExecutionService.checkpoint` does with no plugin registered.
  */
 export const AGENT_CONVERSATION_STORE = 'agent-conversation-store'
-export const AGENT_RUN_STATE_STORE = 'agent-run-state-store'
 export const AGENT_MEMORY_GRAPH_STORE = 'agent-memory-graph-store'
 export const AGENT_MEMORY_EVENTS_STORE = 'agent-memory-events-store'
+export const AGENT_PIPELINE_RUN_STORE = 'agent-pipeline-run-store'
+export const AGENT_CHECKPOINT_STORE = 'agent-checkpoint-store'
+
+/**
+ * Caps and defaults for a pipeline run.
+ *
+ * `DEFAULT_MAX_STATE_CHARS` is generous by the standard of what a state may legally hold — scalars
+ * and keys — and deliberately so: it is a TRIPWIRE, not a budget. A state approaching it is a state
+ * carrying an artifact, and the step fails so that fact is discovered on the first run rather than
+ * surviving as a row nobody can read back.
+ *
+ * `DEFAULT_STEP_ATTEMPTS` is 1 because retry budgets in this family multiply: an outer retry around
+ * a model's own inner retry is their product, not their sum.
+ */
+export const DEFAULT_MAX_STATE_CHARS = 256_000
+export const DEFAULT_STEP_ATTEMPTS = 1
+export const DEFAULT_STEP_TIMEOUT = 1_800_000
 
 /** The lifecycle flow every agent run is driven through. */
 export const AGENT_RUN_FLOW = 'agent-run'
@@ -29,8 +45,12 @@ export const AGENT_RUN_FLOW = 'agent-run'
  * These are recoverable LIFECYCLE stages, not conversational turns. A ReAct loop's turn count is
  * unbounded and its messages are not scalars, while `FlowPayload` holds flat scalars only — so the
  * loop lives inside `Working` and only its counter travels in the payload. What the steps buy is
- * the ability to say where a crashed run has to resume: at `Working` from the last checkpoint, or
- * at `Finalizing` when the loop finished but the compaction never committed.
+ * the ability to say how far a run got when it ended, which is what a plugin reads on `onFinish`.
+ *
+ * Nothing RESUMES one of these. A ReAct run is not a resumable unit: its state is an unbounded
+ * message list whose tool results are side effects already applied to the world, so re-entering it
+ * would re-apply them. Resumable work is a PIPELINE — see `pipeline.ts` — whose steps are named,
+ * whose state is scalars, and whose side effects are guarded per step.
  */
 export enum AgentRunStep {
   Received = 'received',
@@ -48,7 +68,6 @@ export enum AgentRunTransition {
   Finalize = 'finalize',
   Finish = 'finish',
   Fail = 'fail',
-  Resume = 'resume',
 }
 
 /** How a run ended. Written on the conversation event so a reader can weigh the advice. */

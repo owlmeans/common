@@ -22,7 +22,7 @@ symbol "because a test needs it".
 |--------|-------------|
 | `makeLlmModel({ model, purpose, prompt?, prompts?, files?, utility?, retries?, … }, spectator)` | The four-method model: `ask` / `talk` / `invoke(input, schema, opts)` / `request`. `model` is an already-resolved `BaseChatModel`. |
 | `makeLlmService(options, alias?)` · `appendLlmService(ctx, options, alias?)` · `llmServiceApi(options, self)` | Model factory/registry — `makeLlmService({ models: () => configs }).getModel(alias, override?)` resolves a `ModelConfig` by alias, memoized per alias+override. The `…Api` half omits `createService`, to compose into your own service (role accessors, domain helpers). |
-| `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` · `executionServiceApi(options, self)` | Frozen 3-level executions + policy resolution + snapshot/restore/checkpoint + advice, and the same composable half. |
+| `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` · `executionServiceApi(options, self)` | Frozen 3-level executions + policy resolution + snapshot/restore + advice, and the same composable half. |
 | `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
 | `rolePlugin`, `skillsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
 | `PromptContext.claim(key)` · `PromptComposeParams.utility` | Per-composition ownership of a key; a cheap model for one plugin-side call. |
@@ -124,15 +124,25 @@ handle comes from the other end — `PromptComposeParams.utility` (and `AgentOpt
 OPTIONAL resolver, unset wherever no cheap tier is wired, so a plugin that cannot get one degrades
 rather than fails.
 
-### The plugin seam has two hooks, dispatched independently
+### The plugin seam is `advise`-only, and `use()` seats by alias
 
-`ExecutionPlugin` carries `onCheckpoint`/`onRestore` (persist and resume an `ExecutionState`) and
-`advise` (answer a performer's question about the project it works in —
-`ExecutionService.advise(exec, request)`, first usable answer wins, a throwing plugin is skipped,
-`null` when nobody answers).
-Advice is advisory by contract: a caller appends whatever comes back and proceeds unchanged on
-`null`. `checkpoint` dispatches on plugins declaring **`onCheckpoint`**, not on the plugin count, or
-an advise-only plugin would silently start composing snapshots nobody consumes.
+`ExecutionPlugin` carries one hook: `advise` — answer a performer's question about the project it
+works in (`ExecutionService.advise(exec, request)`, first usable answer wins, a throwing plugin is
+skipped, `null` when nobody answers). Advice is advisory by contract: a caller appends whatever
+comes back and proceeds unchanged on `null`.
+
+**There is no checkpoint pair here, and that is a decision rather than a gap.** An execution is a
+COLLABORATOR — a model policy, a purpose, a file helper — rebuilt per run from durable inputs, not
+an artifact something restores. Resumability belongs to `@owlmeans/agent`'s pipeline runner, where
+the persisted run ROW is the authority on where a run stands. Two half-truths about that would be
+worse than one; `ExecutionService.checkpoint` and `ExecutionPlugin.onCheckpoint|onRestore` were
+deleted for exactly that reason, having never been implemented by anything.
+`TaskExecutionState.{phase, completed, cursor}` survive as **labels** for traces and prompts — a
+human-readable "where am I" for a model to read, never a position anything resumes from.
+
+`use(plugin)` seats **by alias**, replacing a plugin already registered under the same one. Mixins
+compose, and a layer wired twice would otherwise answer twice — silently, since the first usable
+answer wins.
 
 ## Classify a provider error by walking `cause`, never by `instanceof` or a surface read
 

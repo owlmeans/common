@@ -20,13 +20,18 @@ import type {
  * An OwlMeans agent over the LangGraph functional API.
  *
  * The loop is deliberately the plain one: ask the model, run whatever tools it asked for, feed the
- * results back, repeat until it stops asking. No `StateGraph`, and no LangGraph checkpointer — this
- * family's recoverability lives in the OwlMeans execution and flow layers, which already own a
- * serializable state model, and adopting a second one would leave two half-truths about where a
- * crashed run stands.
+ * results back, repeat until it stops asking.
  *
- * The `entrypoint` is created INSIDE `invoke()`, so nothing survives a call. What continuity a
- * conversation has comes from plugins putting it back into the prompt, not from the graph.
+ * The `entrypoint` is created INSIDE `invoke()` and takes no checkpointer, and that is not for want
+ * of one — `makePipeline` in this same package is a checkpointed `StateGraph`. **A ReAct run is not
+ * a resumable unit.** Its state is an unbounded message list whose tool results are side effects
+ * already applied to the world: re-entering a turn re-applies them, and the identity a functional
+ * replay would key on is the positional call ordinal, which renumbers on any edit to the loop. What
+ * IS resumable is a pipeline, whose steps are named, whose state is scalars, and whose side effects
+ * are guarded per step — and an agent run belongs INSIDE one of those steps.
+ *
+ * So nothing survives a call here. What continuity a conversation has comes from plugins putting it
+ * back into the prompt, not from the graph.
  */
 export const makeAgentModel = (options: AgentOptions): AgentModel => {
   const {
@@ -44,24 +49,36 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
   const provider = options.provider ?? pluginFor(agentModel)
   const purpose = exec.purpose
 
-  const registry: AgentPlugin[] = [...(options.plugins ?? [])]
+  const registry: AgentPlugin[] = []
   const ordered = (): AgentPlugin[] => [...registry].sort((a, b) =>
     (a.order ?? DEFAULT_PLUGIN_ORDER) - (b.order ?? DEFAULT_PLUGIN_ORDER))
+
+  /**
+   * Seat by alias, keeping the original position.
+   *
+   * Registering the same plugin twice is a wiring accident, and the failure it causes — every
+   * context block emitted twice — is silent and expensive rather than loud. The options list goes
+   * through this same path, which is the whole point: a service composes its plugins ahead of an
+   * agent's own precisely so the agent's can REPLACE one by alias, and a constructor that simply
+   * spread the array made "replace" mean "run both".
+   */
+  const seat = (plugin: AgentPlugin): void => {
+    const at = registry.findIndex(entry => entry.alias === plugin.alias)
+    if (at < 0) {
+      registry.push(plugin)
+    } else {
+      registry[at] = plugin
+    }
+  }
+
+  for (const plugin of options.plugins ?? []) {
+    seat(plugin)
+  }
 
   const model: AgentModel = {
     conversation: () => conversation,
 
-    use: plugin => {
-      // Seat by alias, keeping the original position: registering the same plugin twice is a wiring
-      // accident, and the failure it would otherwise cause — every context block emitted twice — is
-      // silent and expensive rather than loud.
-      const at = registry.findIndex(entry => entry.alias === plugin.alias)
-      if (at < 0) {
-        registry.push(plugin)
-      } else {
-        registry[at] = plugin
-      }
-    },
+    use: seat,
 
     invoke: async (input, args = {}) => {
       const action = args.action ?? DEFAULT_ACTION
@@ -142,7 +159,10 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
       // A rejected task aborts the whole superstep, killing every sibling call in the same batch —
       // `safeInvokeTool` is what keeps a bad argument from costing the work the others finished.
-      const call = task('call-tool', async (toolCall: ToolCall) => safeInvokeTool(toolSet, toolCall))
+      const call = task(
+        'call-tool',
+        async (toolCall: ToolCall) => safeInvokeTool(toolSet, toolCall, options.fatal),
+      )
 
       const agent = entrypoint(entrypointName, async (messages: BaseMessageLike[]) => {
         let response = await ask(messages)

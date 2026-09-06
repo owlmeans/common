@@ -281,32 +281,27 @@ describe('@owlmeans/llm — prompt policy accumulation', () => {
   })
 })
 
-describe('@owlmeans/llm — resilience plugin seam', () => {
-  test('checkpoint is a no-op until a plugin is registered', async () => {
-    await expect(service.checkpoint(root, 'key')).resolves.toBeUndefined()
+describe('@owlmeans/llm — plugin registration', () => {
+  test('seats a plugin by alias, so a layer wired twice answers once', async () => {
+    // Mixins compose. A plugin registered twice would answer twice, and since the first usable
+    // answer wins, the duplicate is silent rather than loud.
+    const asked: string[] = []
+    service.use({ alias: 'files', advise: async () => { asked.push('first'); return null } })
+    service.use({ alias: 'files', advise: async () => { asked.push('second'); return 'answer' } })
+
+    await service.advise(root, { kind: 'files', task: 'x' })
+
+    expect(asked).toEqual(['second'])
   })
 
-  test('a registered plugin receives the JSON-safe state and the execution', async () => {
-    const seen: Array<{ state: ExecutionState, key?: string }> = []
-    service.use({ onCheckpoint: async (state, _exec, key) => { seen.push({ state, key }) } })
+  test('a plugin with no alias is simply appended', async () => {
+    const asked: string[] = []
+    service.use({ advise: async () => { asked.push('a'); return null } })
+    service.use({ advise: async () => { asked.push('b'); return null } })
 
-    const task = service.forTask(root, { phase: 'draft' })
-    await service.checkpoint(task, 'project-1')
+    await service.advise(root, { kind: 'files', task: 'x' })
 
-    expect(seen).toHaveLength(1)
-    expect(seen[0]!.key).toBe('project-1')
-    expect((seen[0]!.state as TaskExecutionState).phase).toBe('draft')
-    expect((seen[0]!.state as unknown as { models?: unknown }).models).toBeUndefined()
-  })
-
-  test('an advise-only plugin leaves checkpoint a no-op', async () => {
-    let snapshotted = false
-    service.use({ advise: async () => 'advice' })
-    // Reaching `snapshot` at all would mean an advisor made checkpointing do work.
-    const guarded = { ...service, snapshot: (exec: never) => { snapshotted = true; return service.snapshot(exec) } }
-
-    await expect(guarded.checkpoint(root, 'key')).resolves.toBeUndefined()
-    expect(snapshotted).toBe(false)
+    expect(asked).toEqual(['a', 'b'])
   })
 })
 

@@ -40,6 +40,20 @@
       "default": "./build/stores/index.js",
       "module": "./build/stores/index.js",
       "types": "./build/stores/index.d.ts"
+    },
+    "./pipeline": {
+      "import": "./build/pipeline/index.js",
+      "require": "./build/pipeline/index.js",
+      "default": "./build/pipeline/index.js",
+      "module": "./build/pipeline/index.js",
+      "types": "./build/pipeline/index.d.ts"
+    },
+    "./checkpoint": {
+      "import": "./build/checkpoint/index.js",
+      "require": "./build/checkpoint/index.js",
+      "default": "./build/checkpoint/index.js",
+      "module": "./build/checkpoint/index.js",
+      "types": "./build/checkpoint/index.d.ts"
     }
   },
   "devDependencies": {
@@ -50,7 +64,8 @@
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
-    "zod": "^4.1.0"
+    "zod": "^4.1.0",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   },
   "dependencies": {
     "@owlmeans/agent-common": "^0.1.18-rc.16",
@@ -67,6 +82,7 @@
   },
   "peerDependencies": {
     "@langchain/core": "^1.2.9",
-    "@langchain/langgraph": "^1.4.13"
+    "@langchain/langgraph": "^1.4.13",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   }
 }

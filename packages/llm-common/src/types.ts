@@ -143,9 +143,16 @@ export interface ExecutionState {
   prompt?: PromptPolicy
 }
 
-/** Resumable state of a task-level execution. */
+/**
+ * The task level's own fields.
+ *
+ * `phase`, `completed` and `cursor` are LABELS — for a trace line, a prompt, a log — and never a
+ * workflow position. Recoverable position lives on a pipeline run row (`@owlmeans/agent`), which is
+ * a single authority; an execution that also claimed to know where a run stood would be a second
+ * one, and the two would disagree the first time a step wrote only one of them.
+ */
 export interface TaskExecutionState extends ExecutionState {
-  /** Abstract workflow position for checkpoint/resume. */
+  /** A label for the stage a task considers itself in. Never read back to decide anything. */
   phase?: string
   completed?: string[]
   cursor?: string

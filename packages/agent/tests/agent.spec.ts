@@ -215,4 +215,26 @@ describe('agent — finalization', () => {
 
     expect(result.run.finish({ status: AgentRunStatus.Ok })).resolves.toBeUndefined()
   })
+
+  test('seats a plugin passed through options by alias, so a service plugin can be replaced', async () => {
+    // The service composes its own plugins ahead of an agent's precisely so the agent's can
+    // REPLACE one by alias. A constructor that spread the array made "replace" mean "run both",
+    // and the failure — every context block emitted twice — is silent and expensive.
+    const scripted = scriptedModel([{ content: 'done' }])
+    const block = (text: string): AgentPlugin =>
+      ({ alias: 'memory', context: async () => [text] })
+
+    const agent = makeAgentModel({
+      exec: execution(promptService),
+      agentModel: scripted.model,
+      tools: {},
+      plugins: [block('the service version'), block('the agent version')],
+    })
+
+    await agent.invoke('go')
+
+    const system = String(scripted.asked()[0][0].content)
+    expect(system).toContain('the agent version')
+    expect(system).not.toContain('the service version')
+  })
 })
