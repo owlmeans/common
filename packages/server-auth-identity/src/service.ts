@@ -231,6 +231,18 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
       return result
     },
 
+    unlinkCredentials: async (details: ProviderProfileDetails): Promise<void> => {
+      const ctx = service.ctx as Context
+      const credsResource = ctx.resource<IdentityCredentialsResource>(AUTH_IDENTITY_CREDENTIALS)
+      const cred = await credsResource.load({
+        type: details.type,
+        userId: externalKey(details),
+        credential: loginService(details),
+      })
+      if (cred?.id == null) return
+      await credsResource.delete(cred.id)
+    },
+
     getOwnerProfiles: async (entityId: string): Promise<Profile[]> => {
       const ctx = service.ctx as Context
       const profileResource = ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)

@@ -134,12 +134,33 @@ replace it with a throw.
 |---|---|
 | Ordinary tab, signing in | redirect plugin: `begin` prefers the caller's in-app `navigate`, else a full load |
 | Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE` |
-| Surrogate, no session | forwards to `next` — the dispatcher owns the authorization round trip |
-| Surrogate, session already there | `resume` → hand the token back and close. **No provider round trip at all.** |
+| Surrogate, signing in | forwards to `next` with `fresh=1` — the dispatcher owns the authorization round trip, and a session it finds on this origin is NOT the answer |
 | Framed, session already there | `resume` → `Passed`; the document simply uses it, and no window opens |
 | Framed, signing out | surrogate plugin opens the window FIRST, revokes locally **unconditionally**, then awaits `LOGIN_LOGOUT_MESSAGE` |
 
 ## Invariants — each one is a real failure when broken
+
+- **An explicit login PRODUCES a session; it never recycles one.** The surrogate window is
+  first-party on the application's own origin, so it sees whatever the person's own tabs left
+  there — and a token being present says nothing about the record behind it still existing.
+  `authenticated()` reads storage and decodes an envelope; no client asks the server. So a
+  revoked, replaced or expired session was handed back to a window that had asked for a LOGIN, the
+  opener adopted it, every call it made failed, and the next press of the same button found the
+  same dead token and did it again. Nothing recovered but clearing site data, which is exactly how
+  it was reported. `LOGIN_FRESH_QUERY` travels from the surrogate to the dispatcher and both skip
+  the resume; the provider's own session normally answers the round trip without asking the person
+  anything, and what comes back has just been vouched for. It is also the only reason signing in as
+  somebody else works at all.
+- **A dispatcher's exchange must report every way it can end.** `oidc.dispatch(...)` had no
+  `.catch`, so a provider refusal, an API 4xx or a missing stored request became an unhandled
+  rejection: an ordinary tab went blank and a surrogate window sat on "Signing you in…" forever
+  with nothing posted back — a login that completed and an application that never noticed. Every
+  chain that can reject in a dispatcher ends in a `catch` that sets an outcome the view understands.
+- **A session the server refuses is dropped, not kept.** `@owlmeans/api` clears the auth service
+  when a request that PRESENTED this context's bearer comes back 401. Without it the application
+  renders its signed-in tree over a credential that fails everything and offers "Log out" where the
+  control that would fix it should be. Narrow on purpose: a 401 from an authentication attempt
+  carries no bearer and must never sign anyone out.
 
 - **Open any window synchronously inside the user gesture.** `window.open` escapes the popup
   blocker only while the gesture is still being handled. `begin` and `logout` are therefore

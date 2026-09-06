@@ -41,6 +41,11 @@ const stubResource = <T extends { id?: string }>(alias: string, seed: T[] = []) 
       items.push(stored)
       return stored
     },
+    delete: async (id: string) => {
+      const at = items.findIndex(item => item.id === id)
+      if (at < 0) return null
+      return items.splice(at, 1)[0]
+    },
     registerContext: () => undefined,
   }
 }
@@ -162,5 +167,36 @@ describe('linkProfile', () => {
     )
 
     expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(2)
+  })
+})
+
+/**
+ * Forgetting which profile an external login maps to.
+ *
+ * The mapping is unique on `{type, userId, credential}`, so a caller that has decided the stored
+ * one is wrong cannot write over it — it has to be retired first. That is what lets a login path
+ * serving a different population than this service's own customers (a target project's end users,
+ * say) re-establish an identity of its own for an address that was merged onto a platform one.
+ */
+describe('unlinkCredentials', () => {
+  test('the stored mapping is removed, and only that one', async () => {
+    const ctx = makeCtx()
+    const linking = linkingFor(ctx)
+    await linking.linkProfile(details('email-otp', 'sub-1'), { username: 'person@example.org' })
+    await linking.linkProfile(details('google', 'sub-2'), { username: 'person@example.org' })
+    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items.length).toBe(2)
+
+    await linking.unlinkCredentials(details('email-otp', 'sub-1'))
+
+    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items.map((c: any) => c.type))
+      .toEqual(['google'])
+    // And the login is unlinked as far as every reader is concerned.
+    expect(await linking.getLinkedProfile(details('email-otp', 'sub-1'))).toBeNull()
+  })
+
+  test('a login that maps to nothing is already in the state this promises', async () => {
+    const linking = linkingFor(makeCtx())
+
+    expect(await linking.unlinkCredentials(details('email-otp', 'nobody'))).toBeUndefined()
   })
 })

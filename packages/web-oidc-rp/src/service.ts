@@ -9,6 +9,7 @@ import { FlowStepMissconfigured, OidcAuthStep, STD_OIDC_FLOW, UnknownFlow } from
 import type { Module } from '@owlmeans/web-client'
 import { DISPATCHER_OIDC, DISPATCHER_OIDC_INIT, OIDC_CODE_QUERY } from '@owlmeans/oidc'
 import type { AuthToken } from '@owlmeans/auth'
+import { AuthenFailed } from '@owlmeans/auth'
 import { adoptToken } from '@owlmeans/client-auth/login'
 
 export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthService => {
@@ -31,7 +32,17 @@ export const makeOidcAuthService = (alias: string = DEFAULT_ALIAS): OidcAuthServ
 
       const ctx = service.assertCtx<Config, Context>()
 
-      params.authUrl = (await store(ctx).get(storeKey)).authUrl
+      // `load`, not `get`: `get` throws `UnknownRecordError` on a missing record, and this record
+      // is missing whenever the browser comes back to a document that did not start the flow — a
+      // reopened tab, a second attempt, storage cleared in between. A throw here escapes into the
+      // dispatcher's promise chain, where it is indistinguishable from a provider error and leaves
+      // the window with nothing rendered. An absent record is a definite answer: this document has
+      // no flow to finish.
+      const started = await store(ctx).load(storeKey)
+      if (started == null) {
+        throw new AuthenFailed('oidc:no-request')
+      }
+      params.authUrl = started.authUrl
 
       const authToken = await ctx.entrypoint<Module<AuthToken>>(DISPATCHER_OIDC)
         .call({ body: params })

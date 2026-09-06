@@ -40,6 +40,18 @@ export const entrypoint: CreateEntrypointSignature<CommonEntrypoint> = (route, o
       return guards
     },
 
+    /**
+     * The gates standing over this entrypoint: its own, then an ancestor's for each gate service
+     * this entrypoint has not already named.
+     *
+     * KNOWN HAZARD, deliberately left alone: the dedup is by gate SERVICE, and two gates under one
+     * service are two different questions because their parameters differ — so a child that
+     * declares its own gate silently drops its ancestor's, which is the opposite of what
+     * "inherited" means. Anything that needs a group rule AND a member rule must therefore not
+     * express the group half as a gate under the same service. Changing this would widen every
+     * backend and socket entrypoint that today relies on the replacement, so it is a migration
+     * rather than a fix.
+     */
     getGates: () => {
       const gates: [string, string[]][] = ep.gate != null ? [[
         ep.gate, ep.gateParams == null

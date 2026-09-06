@@ -58,3 +58,13 @@ export const authApi = {
   },
 }
 
+
+/**
+ * The request header an authenticated call carries, re-exported for the packages that only depend
+ * on this half of the vocabulary.
+ *
+ * One spelling, one home: it is declared by `@owlmeans/auth` and named here so a client-side
+ * package does not have to take a dependency on the whole auth package to recognise its own
+ * bearer on a request it is about to send.
+ */
+export { AUTH_HEADER } from '@owlmeans/auth'
