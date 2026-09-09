@@ -1,4 +1,4 @@
-import type { IntegrityRule } from './consts.js'
+import type { IntegrityRule, TargetLayout } from './consts.js'
 
 /** One reason a tree was refused. */
 export interface IntegrityViolation {
@@ -19,6 +19,15 @@ export interface IntegrityViolation {
 export interface TargetIntegrityReport {
   ok: boolean
   violations: IntegrityViolation[]
+  /**
+   * The layout the tree was verified AGAINST, which is the layout it was detected as.
+   *
+   * Reported rather than inferred by the caller, because a second detection is a second answer:
+   * this one is the one the violations were produced under, and everything downstream — what a
+   * slot record says the target is, whether the agent may generate into it — has to agree with
+   * the verdict rather than re-derive it from a volume that may have changed since.
+   */
+  layout: TargetLayout
 }
 
 /**

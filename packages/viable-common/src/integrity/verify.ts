@@ -1,7 +1,6 @@
 import {
-  IntegrityRule, TARGET_BUILD_SCRIPTS, TARGET_ENTRY_MARKERS, TARGET_FORBIDDEN_SCRIPTS,
-  TARGET_INTEGRITY_FILES, TARGET_PACKAGES_DIR, TARGET_SLUG_PATTERN, TARGET_WORKSPACE_ENTRIES,
-  TARGET_WORKSPACE_GLOB, targetPackageName, targetRequiredDeps, TargetPackage
+  detectTargetLayout, IntegrityRule, TARGET_FORBIDDEN_SCRIPTS, TARGET_SLUG_PATTERN,
+  targetManifest, targetPackageName, targetRequiredDeps
 } from './consts.js'
 import type { IntegrityViolation, TargetFileMap, TargetIntegrityReport } from './types.js'
 
@@ -13,14 +12,25 @@ import type { IntegrityViolation, TargetFileMap, TargetIntegrityReport } from '.
  * cheap enough to sit in front of every spawn rather than only at the moments someone
  * remembered to guard.
  *
+ * The tree picks the manifest it is verified against. A slot holds the layout it was
+ * initialized with for the life of the project and nothing migrates it, so asserting the
+ * current layout unconditionally does not make the check stricter — it aims it at a tree that
+ * was never there, and every legacy slot answers with one `missing` violation per file it was
+ * never supposed to have. That refuses the application the platform itself generated.
+ *
  * Every rule collects rather than short-circuits: a tree that fails is usually a person's
  * repository, and telling them one thing at a time turns a fix into a dozen round trips
  * through a pull that reverts itself each time.
  */
 export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport => {
   const violations: IntegrityViolation[] = []
+  const layout = detectTargetLayout(files)
+  const manifest = targetManifest(layout)
 
-  for (const path of TARGET_INTEGRITY_FILES) {
+  // Only this layout's files. The caller reads the union of every layout's list so that the
+  // probes are in hand before the layout is known — reporting the other layout's paths as
+  // missing would refuse both trees at once.
+  for (const path of manifest.files) {
     if (files[path] == null) {
       violations.push({
         path, rule: IntegrityRule.Missing,
@@ -34,26 +44,26 @@ export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport =
   // name is a different tree wearing the workspace layout.
   const slug = checkRoot()
   checkInstallConfig()
-  for (const pkg of Object.values(TargetPackage)) {
+  for (const pkg of manifest.packages) {
     checkPackage(pkg, slug)
   }
   checkMarkers()
 
-  return { ok: violations.length === 0, violations }
+  return { ok: violations.length === 0, violations, layout }
 
   function checkRoot(): string | null {
-    const manifest = readJson('package.json')
-    if (manifest == null) return null
+    const found = readJson('package.json')
+    if (found == null) return null
 
-    const name = typeof manifest.name === 'string' ? manifest.name : ''
+    const name = typeof found.name === 'string' ? found.name : ''
     if (!TARGET_SLUG_PATTERN.test(name)) {
       violations.push({
         path: 'package.json', rule: IntegrityRule.PackageName,
-        detail: `The root package name "${String(manifest.name)}" is not a project slug`
+        detail: `The root package name "${String(found.name)}" is not a project slug`
           + ` — lowercase letters, digits and inner hyphens, up to 32 characters.`
       })
     }
-    if (manifest.type !== 'module') {
+    if (found.type !== 'module') {
       violations.push({
         path: 'package.json', rule: IntegrityRule.ModuleType,
         detail: 'The root package must declare "type": "module".'
@@ -62,19 +72,19 @@ export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport =
 
     // The workspace list is what makes the packages resolve to each other. Both spellings are
     // the same tree: the glob `create-app` emits, or the entries written out.
-    const declared = Array.isArray(manifest.workspaces) ? manifest.workspaces as string[] : []
-    const isGlob = declared.length === 1 && declared[0] === TARGET_WORKSPACE_GLOB
-    const isExplicit = declared.length === TARGET_WORKSPACE_ENTRIES.length
-      && TARGET_WORKSPACE_ENTRIES.every(entry => declared.includes(entry))
+    const declared = Array.isArray(found.workspaces) ? found.workspaces as string[] : []
+    const isGlob = declared.length === 1 && declared[0] === manifest.workspaceGlob
+    const isExplicit = declared.length === manifest.workspaceEntries.length
+      && manifest.workspaceEntries.every(entry => declared.includes(entry))
     if (!isGlob && !isExplicit) {
       violations.push({
         path: 'package.json', rule: IntegrityRule.Workspaces,
-        detail: `The root package must declare the workspaces as ["${TARGET_WORKSPACE_GLOB}"]`
-          + ` or as exactly ${TARGET_WORKSPACE_ENTRIES.join(', ')}.`
+        detail: `The root package must declare the workspaces as ["${manifest.workspaceGlob}"]`
+          + ` or as exactly ${manifest.workspaceEntries.join(', ')}.`
       })
     }
 
-    checkScripts('package.json', manifest)
+    checkScripts('package.json', found)
 
     return TARGET_SLUG_PATTERN.test(name) ? name : null
   }
@@ -103,43 +113,43 @@ export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport =
     }
   }
 
-  function checkPackage(pkg: TargetPackage, slug: string | null): void {
-    const path = `${TARGET_PACKAGES_DIR}/${pkg}/package.json`
-    const manifest = readJson(path)
-    if (manifest == null) return
+  function checkPackage(pkg: string, slug: string | null): void {
+    const path = `${manifest.dir}/${pkg}/package.json`
+    const found = readJson(path)
+    if (found == null) return
 
     // With no readable slug the name and the workspace dependencies have nothing to be checked
     // against; the root violation already says why, and repeating it per package is noise.
     if (slug != null) {
       const expected = targetPackageName(slug, pkg)
-      if (manifest.name !== expected) {
+      if (found.name !== expected) {
         violations.push({
           path, rule: IntegrityRule.PackageName,
-          detail: `Package must be named "${expected}", not "${String(manifest.name)}".`
+          detail: `Package must be named "${expected}", not "${String(found.name)}".`
         })
       }
     }
-    if (manifest.type !== 'module') {
+    if (found.type !== 'module') {
       violations.push({
         path, rule: IntegrityRule.ModuleType,
         detail: `Package "${pkg}" must declare "type": "module".`
       })
     }
 
-    const scripts = asRecord(manifest.scripts)
-    if (scripts.build !== TARGET_BUILD_SCRIPTS[pkg]) {
+    const scripts = asRecord(found.scripts)
+    if (scripts.build !== manifest.buildScripts[pkg]) {
       // The one the platform actually spawns.
       violations.push({
         path, rule: IntegrityRule.BuildScript,
-        detail: `The build script of "${pkg}" must be exactly \`${TARGET_BUILD_SCRIPTS[pkg]}\`.`
+        detail: `The build script of "${pkg}" must be exactly \`${manifest.buildScripts[pkg]}\`.`
       })
     }
-    checkScripts(path, manifest)
+    checkScripts(path, found)
 
     if (slug == null) return
 
-    const deps = { ...asRecord(manifest.dependencies), ...asRecord(manifest.devDependencies) }
-    for (const dep of targetRequiredDeps(slug, pkg)) {
+    const deps = { ...asRecord(found.dependencies), ...asRecord(found.devDependencies) }
+    for (const dep of targetRequiredDeps(slug, pkg, layout)) {
       if (deps[dep] == null) {
         violations.push({
           path, rule: IntegrityRule.RequiredDependency,
@@ -150,8 +160,8 @@ export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport =
   }
 
   /** Lifecycle hooks run on `bun install`, before anything else has a chance to refuse. */
-  function checkScripts(path: string, manifest: Record<string, unknown>): void {
-    const scripts = asRecord(manifest.scripts)
+  function checkScripts(path: string, found: Record<string, unknown>): void {
+    const scripts = asRecord(found.scripts)
     for (const hook of TARGET_FORBIDDEN_SCRIPTS) {
       if (scripts[hook] != null) {
         violations.push({
@@ -163,7 +173,7 @@ export const verifyTargetShape = (files: TargetFileMap): TargetIntegrityReport =
   }
 
   function checkMarkers(): void {
-    for (const [path, markers] of Object.entries(TARGET_ENTRY_MARKERS)) {
+    for (const [path, markers] of Object.entries(manifest.markers)) {
       const content = files[path]
       if (content == null) continue
 
