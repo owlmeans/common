@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 96 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 103 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -32,7 +32,11 @@ Build configuration and the command-line tools that scaffold a project and insta
 - [`dep-config`](packages/dep-config) → *(no `@owlmeans/*` deps)*
 - [`agent-skills`](packages/agent-skills) → `agent`, `llm`, `llm-common`
 - [`create-app`](packages/create-app) → `agent-skills`
+- [`viable-sdk`](packages/viable-sdk) → `api`, `auth`, `auth-common`, `auth-token`, `basic-ids`, `client-config`, `client-context`, `client-entrypoint`, `config`, `context`, `entrypoint`, `error`, `route`, `socket`, `viable-common`
+- [`viable-mcp`](packages/viable-mcp) → `viable-common`, `viable-sdk`
 
+> **Note.** `viable-sdk` is the connector SDK an external coding agent drives the OwlMeans Viable platform with, and `viable-mcp` the npx MCP server built on it. They sit here for the same reason the two CLIs do: they drive a platform rather than being imported by framework runtime code. `viable-sdk` is Node/Bun, not React and not a browser package — see [Cross-layer notes](#cross-layer-notes).
+>
 > **Note.** `agent-skills` is the skills installer CLI and `create-app` the scaffolder; `agent-skills` pulls the agent/LLM stack because it runs skill installation through it. Their build position (L7/L8) reflects that tooling dependency, not a framework layer — see [Cross-layer notes](#cross-layer-notes).
 
 ## 2. Core foundations
@@ -61,6 +65,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 
 - [`llm-common`](packages/llm-common) → *(no `@owlmeans/*` deps)*
 - [`llm`](packages/llm) → `basic-ids`, `context`, `error`, `llm-common`
+- [`llm-delegate`](packages/llm-delegate) → `basic-ids`, `error`, `llm`, `llm-common`
 - [`agent-common`](packages/agent-common) → `error`, `flow`, `llm-common`, `resource`
 - [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`queue`](packages/queue) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `resource`, `route`
@@ -72,8 +77,11 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
+- [`viable-common`](packages/viable-common) → `agent-common`, `entrypoint`, `error`, `llm-common`, `route`
 
 > **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
+>
+> **Note.** `llm-delegate` is the `ModelProvider.Delegated` runtime — a `BaseChatModel` whose calls are performed outside the process by a transport the application seats, so who answers a model call can be a property of the session rather than of the code. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
 > **Note.** `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
@@ -82,6 +90,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 Sits between core and the server/client auth implementations. References both server-style and client-style entrypoint surfaces.
 
 - [`auth-common`](packages/auth-common) → `auth`, `basic-ids`, `basic-keys`, `client-entrypoint`, `context`, `entrypoint`, `resource`, `route`
+- [`auth-token`](packages/auth-token) → `auth`, `context`, `entrypoint`, `resource`, `route`
 
 > **Note.** `auth-common` references `client-entrypoint` for typed entrypoint helpers shared by both server and client auth flows. This is a deliberate cross-layer dependency — see [Cross-layer notes](#cross-layer-notes).
 
@@ -127,6 +136,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-socket`](packages/server-socket) → `auth`, `basic-envelope`, `context`, `entrypoint`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `socket`
 - [`server-auth`](packages/server-auth) → `api`, `api-config-server`, `auth`, `auth-common`, `basic-envelope`, `basic-ids`, `basic-keys`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `redis-resource`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `socket`, `static-resource`
 - [`server-auth-identity`](packages/server-auth-identity) → `auth`, `auth-common`, `basic-ids`, `context`, `mongo-resource`, `oidc`, `resource`, `server-context`
+- [`server-auth-token`](packages/server-auth-token) → `auth`, `auth-common`, `auth-token`, `context`, `entrypoint`, `mongo-resource`, `resource`, `server-api`, `server-auth-identity`, `server-context`
 - [`server-auth-otp`](packages/server-auth-otp) → `auth`, `auth-otp`, `basic-ids`, `context`, `mailer`, `oidc`, `redis-resource`, `resource`, `server-auth`, `server-auth-identity`, `server-context`
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
 - [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
@@ -170,6 +180,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-i18n`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
 - [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `config`, `context`, `web-client`
+- [`web-auth-token`](packages/web-auth-token) → `auth-token`, `client`, `client-entrypoint`, `client-i18n`, `context`, `entrypoint`, `error`, `i18n`
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
 - [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
 - [`web-wl`](packages/web-wl) → `client`, `client-entrypoint`, `context`, `wled`
@@ -201,6 +212,7 @@ A handful of dependencies cross the obvious layer boundaries. They are intention
 - **Several server packages → `client-config` / `client-entrypoint`.** `server-context`, `server-app`, `server-auth` and `server-oidc-rp` mirror the client's entrypoint/config types so that route declarations and config payloads stay in sync across the wire. Server packages do not pull in any DOM or React.
 - **`client-auth` → `web-flow`.** A regular `dependency`, not an optional peer: the auth dispatcher component imports `SERVICE_PARAM` from `web-flow`, so every consumer of `client-auth` pulls the web flow package in and `client-auth` builds at L10, above `web-flow` at L9. Native applications use a native flow analogue from the [`native` monorepo](https://github.com/owlmeans/native) for the flow itself, but still carry this edge.
 - **`client-iam` → `web-client`, `web-oidc-rp`.** `client-iam` wires the IAM login and consent surface onto a browser app, so despite the `client-` prefix it is browser-only and Native applications do not consume it. Anything in it that must reach React Native belongs in `iam` or `client-auth` instead.
+- **`viable-sdk` → `api`, `client-context`, `client-entrypoint`, `auth-token`.** The connector SDK builds an OwlMeans client context so an external process authenticates and calls entrypoints exactly as a browser does — with a long-lived access token instead of a session. It is Node/Bun and pulls in no React or DOM, so despite the `client-*` edges it is not a client-layer package; it is tooling, and `viable-mcp` is the npx CLI over it.
 - **Tooling → domain (`create-app` → `agent-skills` → `agent`, `llm`).** The scaffolder and the skills installer are CLIs, not framework layers: they sit in [Configuration & tooling](#1-configuration--tooling) but build after the packages they drive. No runtime framework package depends on either.
 - **`astro` → `consent`, `web-gtm`.** The Astro integration composes the browser consent and tag-manager packages for static sites; it is a web-layer package that ships no React.
 
@@ -213,13 +225,13 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
 - **L1**: `error`, `route`, `router`, `web-consent`, `web-gtm`
 - **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-router`, `web-router-react-router`
-- **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
-- **L4**: `api-config`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
+- **L3**: `basic-keys`, `config`, `entrypoint`, `llm-delegate`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
+- **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
-- **L6**: `agent`, `api-config-client`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`
-- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `web-db`
-- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `web-wl`, `{server-auth | server-socket}`
-- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oidc-rp`, `web-flow`
+- **L6**: `agent`, `api-config-client`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`, `viable-common`
+- **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `viable-sdk`, `web-db`
+- **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-mcp`, `web-wl`, `{server-auth | server-socket}`
+- **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oidc-rp`, `web-auth-token`, `web-flow`
 - **L10**: `client-auth`, `server-iam`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`
 - **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`

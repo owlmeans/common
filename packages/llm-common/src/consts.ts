@@ -11,6 +11,20 @@ export enum ModelProvider {
   Anthropic = 'anthropic',
   /** Any OpenAI-compatible endpoint — OpenRouter, HuggingFace router, Together, vLLM, … */
   Compatible = 'compatible',
+  /**
+   * No endpoint at all: the call is handed to whoever holds the execution.
+   *
+   * A delegated model does not talk to a provider. It packages the call — the system prompt, the
+   * conversation, the tools or the schema — and hands it to a transport the application seated,
+   * which carries it to something outside this process entirely: a coding agent driving the
+   * application through a connector, a human, a test. The answer comes back the same way and is
+   * turned into a completion the rest of the stack cannot tell apart from a provider's.
+   *
+   * It exists so that "who performs this call" can be a property of the SESSION rather than of the
+   * code: the same pipeline, the same prompts and the same retry rules, billed to somebody else's
+   * model.
+   */
+  Delegated = 'delegated',
 }
 
 /**

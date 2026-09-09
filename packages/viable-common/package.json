@@ -1,0 +1,63 @@
+{
+  "name": "@owlmeans/viable-common",
+  "version": "0.0.4",
+  "license": "MIT",
+  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary and the connector protocol.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./slot": {
+      "import": "./build/slot/index.js",
+      "require": "./build/slot/index.js",
+      "default": "./build/slot/index.js",
+      "module": "./build/slot/index.js",
+      "types": "./build/slot/index.d.ts"
+    },
+    "./connect": {
+      "import": "./build/connect/index.js",
+      "require": "./build/connect/index.js",
+      "default": "./build/connect/index.js",
+      "module": "./build/connect/index.js",
+      "types": "./build/connect/index.d.ts"
+    },
+    "./integrity": {
+      "import": "./build/integrity/index.js",
+      "require": "./build/integrity/index.js",
+      "default": "./build/integrity/index.js",
+      "module": "./build/integrity/index.js",
+      "types": "./build/integrity/index.d.ts"
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "^1.2.9",
+    "@owlmeans/dep-config": "workspace:*",
+    "ajv": "^8.17.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@owlmeans/agent-common": "^0.1.18-rc.16",
+    "@owlmeans/entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/error": "^0.1.18-rc.8",
+    "@owlmeans/llm-common": "^0.1.18-rc.12",
+    "@owlmeans/route": "^0.1.18-rc.9"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

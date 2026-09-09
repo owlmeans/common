@@ -1,0 +1,51 @@
+{
+  "panel": {
+    "title": "Tokeny dostępu",
+    "description": "Długoterminowe tokeny, dzięki którym skrypt lub integracja wywołuje API w Twoim imieniu.",
+    "create": "Utwórz token",
+    "empty": "Nie masz jeszcze żadnych tokenów dostępu.",
+    "col": {
+      "display": "Token",
+      "name": "Nazwa",
+      "created": "Utworzono",
+      "last-used": "Ostatnio użyto",
+      "expires": "Wygasa",
+      "status": "Status"
+    },
+    "never": "Nigdy",
+    "never-used": "Nieużywany",
+    "status": {
+      "active": "Aktywny",
+      "expired": "Wygasł",
+      "revoked": "Unieważniony"
+    },
+    "revoke": "Unieważnij",
+    "revoke-confirm": {
+      "title": "Unieważnić ten token?",
+      "description": "Wszystko, co go jeszcze używa, natychmiast przestanie działać. Tej operacji nie można cofnąć.",
+      "cancel": "Anuluj",
+      "confirm": "Unieważnij"
+    },
+    "dialog": {
+      "title": "Utwórz token dostępu",
+      "description": "Nazwij go zgodnie z miejscem użycia, aby później odróżnić swoje tokeny.",
+      "name-label": "Nazwa",
+      "name-placeholder": "Wdrożenie CI",
+      "expiry-label": "Wygasa",
+      "expiry": {
+        "30": "Za 30 dni",
+        "90": "Za 90 dni",
+        "365": "Za rok",
+        "never": "Nigdy"
+      },
+      "create": "Utwórz",
+      "cancel": "Anuluj",
+      "issued-title": "Twój nowy token dostępu",
+      "issued-note": "Skopiuj go teraz — pokazujemy go tylko ten jeden raz.",
+      "copy": "Kopiuj",
+      "copied": "Skopiowano",
+      "done": "Gotowe"
+    },
+    "error": "Coś poszło nie tak"
+  }
+}

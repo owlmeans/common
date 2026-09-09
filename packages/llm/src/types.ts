@@ -178,6 +178,14 @@ export interface TemperatureFactory {
 export interface ModelConfig {
   provider?: ModelProvider | string
   secret?: string
+  /**
+   * Which delegate transport answers this model's calls.
+   *
+   * Only meaningful for {@link ModelProvider.Delegated}: the key the application seated a
+   * transport under, so one deployment can hold many at once — one per connected agent — and a
+   * config names the one that belongs to its run.
+   */
+  delegate?: string
   alias: string
   /** Inherit every field of another alias in the same config list. */
   preset?: string
