@@ -17,6 +17,7 @@ user-invocable: false
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
+| `PanelMenu` | The dropdown menu, described as data — items, arbitrary widget rows, labels, separators and one level of submenu. `PanelMenuEntry` / `PanelMenuEntryKind` / `PanelMenuProps` come with it |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
 | `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
@@ -167,6 +168,62 @@ Rules that make the shell behave:
 - **Vendor `navigation-menu`.** `SideNav` builds on the existing `Button`; `TopNav` uses the shadcn
   `navigation-menu` primitive — see the `@` contract below.
 
+### Menus — `PanelMenu`
+
+One dropdown, described as an ENTRY LIST rather than as children. Every kind has its own focus,
+keyboard and close-on-select behaviour, so children would silently lose all three; and the same
+description then serves a collapsed toolbar, a header overflow and a mobile shell without any of
+them re-deriving it.
+
+```tsx
+import { PanelMenu, PanelMenuEntryKind } from '@owlmeans/web-panel'
+import type { PanelMenuEntry } from '@owlmeans/web-panel'
+
+const entries: PanelMenuEntry[] = [
+  { kind: PanelMenuEntryKind.Widget, key: 'credits', render: <AccountCredits /> },
+  { kind: PanelMenuEntryKind.Separator, key: 'sep' },
+  { kind: PanelMenuEntryKind.Label, key: 'app', label: 'MyApp' },
+  { kind: PanelMenuEntryKind.Item, key: 'home', alias: HOME, Icon: House },
+  { kind: PanelMenuEntryKind.Item, key: 'docs', href: DOCS, open: true, hint: <ExternalLink className="size-3.5" /> },
+  { kind: PanelMenuEntryKind.Sub, key: 'lang', label: 'Language', hint: 'EN', entries: languages },
+]
+
+<PanelMenu entries={entries} translate={t} triggerLabel="Menu" indicator={dot} align="end" />
+```
+
+| Kind | What it is |
+|---|---|
+| `Item` | A focusable row that closes the menu. Exactly one of `alias` (an entrypoint) or `href`, the same union `PanelNavLink` uses; neither makes it a pure `onSelect` action. Also `Icon`, `hint` (right-aligned), `active`, `disabled`, `variant` |
+| `Widget` | Arbitrary content as a plain ROW — see below |
+| `Label` | A section heading |
+| `Separator` | A rule between blocks |
+| `Sub` | One nested level. A `Sub` inside a `Sub` renders nothing — a dropdown that nests further is a navigation tree, not this |
+
+Rules the component owns, each of which was a real failure:
+
+- **A `Widget` is a row, never a `DropdownMenuItem`.** An item takes both the focus and the
+  activation from the controls inside it: Radix's roving tabindex swallows the inner button's
+  keyboard access, and `onSelect` fires on any click that lands on the row — so a "Top up" button
+  inside an item dismisses the menu before its own handler is observed. The row takes no roving
+  focus and does not close the menu; the widget's own buttons are the click targets.
+- **An in-app link cannot use `onSelect`.** The anchor must call `preventDefault()` or the browser
+  performs a full page load, and Radix composes its click handler with `checkForDefaultPrevented`
+  — so preventing the default also cancels `onSelect`, and with it the automatic close. `PanelMenu`
+  therefore navigates and closes explicitly from the anchor's own handler, and keeps its own open
+  state for that (a caller's `open`/`onOpenChange` still wins).
+- **The href resolves synchronously.** `Link` asks `entrypoint.url()` and settles a frame later,
+  which is fine for a link already on screen; a menu's content mounts at the moment it opens, so an
+  href that arrives afterwards is missing exactly while the row is being read. `PanelMenu` uses
+  `entrypoint.path()` — a lookup — and answers `undefined` for a path carrying route parameters.
+  Never drop the `href`: an `<a>` without one is not focusable, does not answer the keyboard,
+  cannot be opened in a new tab, and does not carry the `link` role.
+- **`hidden` takes the separators it orphans with it.** A caller composes the menu from optional
+  blocks; filtering the entries alone leaves a leading rule, a doubled rule, or one under the last
+  item. Normalisation is the whole reason the entries are data.
+- **`translate` is a prop**, defaulting to `defaultNavTranslate` — same reason as the nav shell.
+- `indicator` is a slot on the trigger's corner (a notification dot, a count), not a `tone` enum:
+  what deserves attention is the application's judgement.
+
 ### Toasts — `Toaster`
 
 An action that succeeded or failed says so in a toast. The surface is `Toaster`; the messages are
@@ -297,9 +354,10 @@ under *Consumer setup* below. Without it the dialog renders half-styled.
 ## Consumer setup — the `@` contract and Tailwind
 
 `web-panel` emits `@/components/ui/*` and `@/lib/utils` verbatim; the app's bundler resolves `@` to
-its own shadcn copy. Vendor every primitive the package imports: `alert`, `button`, `card`, `input`,
-`label`, `navigation-menu`, `progress` (plus `separator` if you use it), and add
-`@radix-ui/react-navigation-menu` alongside the other Radix peers.
+its own shadcn copy. Vendor every primitive the package imports: `alert`, `button`, `card`,
+`dropdown-menu`, `input`, `label`, `navigation-menu`, `progress` (plus `separator` if you use it),
+and add `@radix-ui/react-navigation-menu` and `@radix-ui/react-dropdown-menu` alongside the other
+Radix peers.
 
 The vendored `@/lib/utils` stays — the package's own components resolve `cn` through it — but the
 app's own components import `cn` from `@owlmeans/web-panel` instead of declaring a third copy. The
@@ -330,7 +388,8 @@ linked checkout and an npm install alike.
 - `@owlmeans/queue` — `JobRecord` / `JobState`, read by the `./jobs` subpath
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
-  (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.
+  (`dropdown-menu`, `label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no
+  react-router.
 - `ajv-formats` is imported at module scope by the form model but is declared in no dependency
   section of the manifest, which lists `ajv` alone. An install that does not otherwise pull it in
   fails at import time, so declare `ajv-formats` next to `ajv` in the consuming application.
