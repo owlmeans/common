@@ -163,9 +163,9 @@ Four invariants govern every shadcn-based OwlMeans package:
 5. Add a comment at the top: `// shadcn <name> — sourced from shadcn@<version> <date>`.
 6. Run `bun install` and `bun run build` to verify.
 7. Document it: a consumer must vendor **every** primitive the package imports. `@owlmeans/web-panel`
-   currently imports `alert`, `button`, `card`, `input`, `label`, `navigation-menu` and `progress`
-   (`separator` is vendored for consumers that use it) — so its Radix peers include
-   `@radix-ui/react-navigation-menu`.
+   currently imports `alert`, `button`, `card`, `dropdown-menu`, `input`, `label`,
+   `navigation-menu` and `progress` (`separator` is vendored for consumers that use it) — so its
+   Radix peers include `@radix-ui/react-navigation-menu` and `@radix-ui/react-dropdown-menu`.
 
 Prefer a light custom component over a heavyweight block when only part of it is needed. The
 two-level navigation shell deliberately renders its second level with the existing `Button` rather
