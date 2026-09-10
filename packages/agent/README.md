@@ -39,6 +39,7 @@ const agent = context.agents().agent({ exec, tools })
 | `summarizePlugin` | Compacts each finished run into `summary` + `advice`, and replays the last few on the way in |
 | `memoryGraphPlugin` | Durable notes filed by subsystem, with links — index injected, content pulled by tool |
 | `memoryEventsPlugin` | A bounded, ordered record of what happened |
+| `inquiryPlugin` | The `ask_user` tool — offered only when a channel to a person is wired |
 
 Both memory plugins also export a plain API (`memoryGraph`, `memoryEvents`) usable with no agent at
 all, so a pipeline helper writes to the same store an agent reads.
@@ -72,9 +73,22 @@ implements. An unbound port is not an error — the plugin that needs it becomes
 purpose is streamed to the client, so without it the summary of a run types itself out in the
 user's view of that run, right after it finished.
 
-**No LangGraph checkpointer.** Recoverability lives in the OwlMeans execution and flow layers, which
-already own a serializable state model; `makeAgentExecutionPlugin` is the first real implementation
-of `@owlmeans/llm`'s `ExecutionPlugin` seam.
+**An agent run is not resumable; a PIPELINE is.** A turn's tool calls are effects already applied
+to the world, so re-entering one re-applies them — `makeAgentModel` therefore keeps no checkpoint,
+and `makeAgentExecutionPlugin` is the first real implementation of `@owlmeans/llm`'s
+`ExecutionPlugin` seam. What resumes is `makePipeline`, a state machine over named steps whose
+position is written to a run row at every boundary; an agent run belongs inside one of its steps.
+The row is the authority on where a run stands — never the LangGraph checkpoint, which is
+size-guarded and expires. A checkpointer is optional and buys replay, never correctness.
+
+**A step asks a person with `ctx.ask(inquiry)`, and a run nobody can answer parks `Waiting`.** An
+answer already in the state comes straight back, so a question is never asked twice; that only
+holds if `Inquiry.id` is DERIVED from the step and the thing being decided rather than minted per
+call. Answers are merged by the runner, in `invoke` and in `resume({ answers })`, never by a
+caller's mapping. An agent that installs `inquiryPlugin` must pass
+`fatal: e => isFatalError(e) != null` into its tool invocation: the tool rethrows
+`InquiryUnavailable` alone — a channel that has gone is terminal, and without the predicate the
+loop spends its whole turn budget on it.
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

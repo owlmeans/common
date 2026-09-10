@@ -10,6 +10,8 @@ persistence/queue consumer need to name the same things.
 - The inheritable `ModelPolicy` and its JSON-safe `ModelConfigPatch` / `ModelConfigOverride`
 - `ExecutionState` / `TaskExecutionState` — what an execution looks like once its
   collaborators (models, file access, live handles) are stripped off
+- The inquiry contracts — one question put to a person mid-run, the answer that comes back,
+  and the pure helpers every layer reads an answer through
 - Spectator record contracts and the `NullCapture` diagnostic
 - No `@langchain/*` runtime dependency: safe to import from a browser bundle, a queue
   worker, or a package that must not pull an inference SDK
@@ -63,12 +65,13 @@ export interface MyExecutionState extends ExecutionState {
 
 | Export | Description |
 |--------|-------------|
-| `ModelProvider` | `OpenAI` · `Anthropic` · `Compatible` — each maps to an `LlmPlugin` type in `@owlmeans/llm`. |
+| `ModelProvider` | `OpenAI` · `Anthropic` · `Compatible` · `Delegated` — each maps to an `LlmPlugin` type in `@owlmeans/llm`. `Delegated` talks to no provider: the call is handed to a transport the application seated (`@owlmeans/llm-delegate`). |
 | `ExecutionLevel` | `Project` → `Task` → `Helper`; an execution is refined downward only. |
 | `ExecutionEffort` | `Economy` · `Standard` · `High` · `Max` — the one "how hard should this run" axis. |
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType` | `Text` · `Json` · `ToolCall`. |
 | `SPECTATOR_GENERAL` | Default entry kind for consumers that do not classify calls. |
+| `DEFAULT_INQUIRY_ANSWER_CHARS` (2000) · `DEFAULT_INQUIRY_OPTIONS` (12) · `INQUIRY_STATE_TEXT_CHARS` (200) · `CONFIRM_YES` / `CONFIRM_NO` | The one ceiling on a stored answer, the point past which a choice is not a question, what a pipeline state keeps of an answer's prose, and the two confirmation values. Never introduce a second copy of any of them. |
 
 ### Types
 
@@ -82,6 +85,9 @@ export interface MyExecutionState extends ExecutionState {
 | `TaskExecutionState` | Adds `phase` / `completed` / `cursor` / `data` for checkpoint & resume. |
 | `LlmPurpose` | `{ type?, dedication? }` — observability metadata carried on every call. |
 | `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
+| `Inquiry`, `InquiryAnswer`, `InquiryOption`, `InquiryTransport`, `InquiryConfig` | One question put to a person while a run is in flight, and its answer. `ExecutionState.inquiry` carries the channel and the policy, so a resumed run asks the same way. |
+| `InquiryKind`, `InquiryPolicy` | `choice` / `text` / `confirm`; `ask` / `default` / `refuse` — no configuration means `default`, so a run nobody is watching never blocks on a question. |
+| `defaultAnswerFor`, `answeredWith`, `isDeclined`, `capAnswer`, `stateAnswerOf`, `renderInquiry` | The ONE reading of an answer every layer shares. `capAnswer` cuts prose only and reports the cut; a `value` is the decision itself and is never shortened. |
 | `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | The record format an observability sink stores. |
 
 ## Related

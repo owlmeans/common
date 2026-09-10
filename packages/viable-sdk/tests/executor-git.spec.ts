@@ -352,6 +352,24 @@ describe.skipIf(!HAS_GIT)('viable-sdk — local git', () => {
       // And nothing was configured behind the refusal.
       expect((await status(root)).remoteUrl).toBeNull()
     })
+
+    test('a clone is answered as text too, and the working tree is untouched', async () => {
+      // A local target IS the origin: the directory the connector was started in already holds
+      // the sources, and fetching a remote tree over them would replace a developer's working
+      // copy, uncommitted work included.
+      const root = await sandbox({ 'a.txt': 'one' })
+      await commit(root, 'chore: one')
+
+      const answer = await run(root, SlotGitCommand.Clone, {
+        remoteUrl: 'https://github.com/o/r', branch: 'main', token: 'never-used',
+      })
+
+      expect(answer.cloned).toBe(false)
+      expect(answer.head).toBeNull()
+      expect(answer.result as string).toContain('nothing to clone')
+      expect(await fse.readFile(path.join(root, 'a.txt'), 'utf-8')).toBe('one')
+      expect((await status(root)).remoteUrl).toBeNull()
+    })
   })
 
   describe('serialization', () => {

@@ -2,12 +2,14 @@ import {
   ConnectOpErrorKind, ConnectOpKind, ConnectSessionStatus
 } from '@owlmeans/viable-common'
 import type {
-  ConnectOp, ConnectOpResult, ConnectSessionView, ConfigurePayload, ModelTask, SlotCommandPayload
+  ConnectOp, ConnectOpResult, ConnectSessionView, ConfigurePayload, InquiryPayload, ModelTask,
+  SlotCommandPayload
 } from '@owlmeans/viable-common'
 import { PULL_WAIT_MS } from '../consts.js'
 import type { ConnectorApi, LocalExecutor, OpenSessionArgs, SessionRuntime, SessionStats } from '../types.js'
 import { writeEnv } from '../project/env.js'
 import { readMarker, writeMarker } from '../project/marker.js'
+import { QuestionQueue } from './questions.js'
 import { TaskQueue } from './tasks.js'
 
 export interface SessionOptions {
@@ -71,6 +73,7 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
   const session: ConnectSessionView = await opts.api.openSession(opts.open)
   if (session.projectId != null) await recordMarker(opts, session.projectId)
   const tasks = new TaskQueue()
+  const questions = new QuestionQueue()
   const answered = new Map<string, ConnectOpResult>()
 
   const stats: SessionStats = {
@@ -78,6 +81,8 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
     opsFailed: 0,
     tasksDelivered: 0,
     tasksSubmitted: 0,
+    questionsDelivered: 0,
+    questionsAnswered: 0,
     lastActivityAt: Date.now(),
     transport: 'pull',
   }
@@ -109,6 +114,18 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
       // What this loop owes it is delivery and nothing else.
       if (tasks.push(op.payload as ModelTask, op.id)) {
         stats.tasksDelivered += 1
+        stats.lastActivityAt = Date.now()
+      }
+
+      return
+    }
+
+    if (op.kind === ConnectOpKind.Inquiry) {
+      // Executed by nobody: it is a decision about the user's own project, and a connector that
+      // answered one itself would build a whole application on a guess nobody made. Queued for
+      // the parent agent to put to a person, exactly as a model task is queued for its subagent.
+      if (questions.push(op.payload as InquiryPayload, op.id)) {
+        stats.questionsDelivered += 1
         stats.lastActivityAt = Date.now()
       }
 
@@ -203,6 +220,34 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
 
     pendingTasks: () => tasks.size(),
 
+    nextQuestion: async waitMs => {
+      const question = await questions.take(waitMs)
+      if (question != null) stats.lastActivityAt = Date.now()
+
+      return question
+    },
+
+    answerQuestion: async answer => {
+      const opId = questions.opIdOf(answer.inquiryId)
+      if (opId == null) {
+        // The question outlived its operation — the run parked and stopped waiting on this
+        // session. The answer is not lost: it is sent by id through `connect.inquiry.answer`,
+        // which is the caller's fallback and the reason this reports rather than throws.
+        log(`no operation is waiting for question ${answer.inquiryId}`)
+
+        return
+      }
+      questions.settle(answer.inquiryId)
+      stats.questionsAnswered += 1
+      await submit({ opId, sessionId: session.id, ok: true, value: answer })
+    },
+
+    questionById: inquiryId => questions.outstandingById(inquiryId),
+
+    outstandingQuestions: () => questions.outstandingQuestions(),
+
+    pendingQuestions: () => questions.size(),
+
     close: async () => {
       closed = true
       try {
@@ -215,4 +260,6 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
 }
 
 export { ConnectSessionStatus }
+export * from './queue.js'
 export * from './tasks.js'
+export * from './questions.js'

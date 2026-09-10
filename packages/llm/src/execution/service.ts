@@ -1,8 +1,12 @@
 import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
+import {
+  capAnswer, defaultAnswerFor, ExecutionEffort, ExecutionLevel, InquiryPolicy, UTILITY_ROLE,
+} from '@owlmeans/llm-common'
 import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
+import { InquiryDeclined } from '../inquiry/errors.js'
+import { inquiryTransportFor } from '../inquiry/transport.js'
 import type { TemperatureFactory } from '../types.js'
 import type {
   Execution, ExecutionPlugin, ExecutionService, ExecutionServiceOptions, ExecutionShape,
@@ -52,6 +56,9 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       purpose: { ...input.purpose },
       policy: { ...input.policy },
       ...(input.prompt != null ? { prompt: { ...input.prompt } } : {}),
+      // Copied like every other piece of state, and NOT listed in `COLLABORATOR_KEYS`: a resumed
+      // run has to ask through the channel and policy it was started with.
+      ...(input.inquiry != null ? { inquiry: { ...input.inquiry } } : {}),
     }) as S['project'],
 
     forTask: (parent, input) => {
@@ -178,6 +185,15 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       }
 
       return null
+    },
+
+    ask: async (exec, inquiry, signal) => {
+      const policy = exec.inquiry?.policy ?? InquiryPolicy.Default
+      // No channel was ever configured, so there is nobody to wait for: assume and carry on.
+      if (policy === InquiryPolicy.Default) return defaultAnswerFor(inquiry)
+      if (policy === InquiryPolicy.Refuse) throw new InquiryDeclined(inquiry.id)
+
+      return capAnswer(await inquiryTransportFor(exec.inquiry?.transport).ask(inquiry, signal))
     },
 
     snapshot: exec => {

@@ -36,6 +36,16 @@ export const DEFAULT_MAX_STATE_CHARS = 256_000
 export const DEFAULT_STEP_ATTEMPTS = 1
 export const DEFAULT_STEP_TIMEOUT = 1_800_000
 
+/**
+ * Where a pipeline's answers live in its state.
+ *
+ * One key, named here rather than per pipeline, because an answer has to survive every hop it can
+ * take: a resume merges answers into it, a composing step forwards it to its child, and a reader
+ * looks a question up by id. Scalars and keys, like everything else a state holds — the answer's
+ * decision travels here and its prose belongs wherever that pipeline keeps its documents.
+ */
+export const INQUIRY_ANSWERS_KEY = 'answers'
+
 /** The lifecycle flow every agent run is driven through. */
 export const AGENT_RUN_FLOW = 'agent-run'
 

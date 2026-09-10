@@ -16,6 +16,7 @@ Before non-trivial work, open every node whose scope matches the task's files or
 - [[agent-meta]] `packages/*/agent-meta/**` — sync sharp edges; general-scope skills; strict lint
 - [[llm]] `packages/llm/**, packages/llm-common/**` — provider plugins (no ifs); registration order; helpers-vs-utils rule; langchain peer deps; state-nesting fix
 - [[agent]] `packages/agent/**, packages/agent-common/**` — agent runtime over LangGraph's functional API; AgentPlugin seam; storage PORTS not resources; first ExecutionPlugin impl; server-side FlowProvider
+- [[viable]] `packages/viable-{common,sdk,mcp}/**` — connector family; contracts vs product-side refusals; npx version skew
 
 ## Cross-cutting
 

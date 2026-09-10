@@ -3,9 +3,9 @@ import fse from 'fs-extra'
 import os from 'node:os'
 import path from 'node:path'
 
-import { SubProject } from '@owlmeans/viable-common'
+import { CONVERTED_ORIGIN_DIR, SubProject } from '@owlmeans/viable-common'
 
-import { SandboxPathError } from '../src/executor/errors.js'
+import { FileCommandRefused, SandboxPathError } from '../src/executor/errors.js'
 import { createLocalFileHelper } from '../src/executor/files.js'
 
 /**
@@ -173,6 +173,23 @@ describe('viable-sdk — local file helper', () => {
       }
     })
 
+    test('the origin a conversion keeps is not source of the generated application', async () => {
+      // ONE exclusion constant, shared with the publisher and the library. A copy that forgot the
+      // origin has a coder helper reading a foreign framework's files as if they were the
+      // target's — and then editing them.
+      const root = await sandbox({
+        'sources/api/src/index.ts': 'export const x = 1',
+        [`${CONVERTED_ORIGIN_DIR}/app/page.tsx`]: 'export default () => null',
+        [`${CONVERTED_ORIGIN_DIR}/package.json`]: '{}',
+      })
+
+      const listed = await createLocalFileHelper(root).getSourceList()
+
+      expect(listed).toContain('sources/api/src/index.ts')
+      expect(listed).not.toContain(`${CONVERTED_ORIGIN_DIR}/app/page.tsx`)
+      expect(listed).not.toContain(`${CONVERTED_ORIGIN_DIR}/package.json`)
+    })
+
     test('a caller may exclude more, and skip the vendored UI primitives', async () => {
       const root = await sandbox({
         'sources/web/src/components/ui/button.tsx': 'shadcn',
@@ -258,6 +275,190 @@ describe('viable-sdk — local file helper', () => {
       await createLocalFileHelper(root).initializeProject()
 
       expect(await fse.pathExists(path.join(root, 'package.json'))).toBe(false)
+    })
+  })
+
+  describe('reading a tree that somebody else wrote', () => {
+    test('a listing carries a size and a binary verdict, and skips only what is never the tree', async () => {
+      const root = await sandbox({
+        'app/page.tsx': 'export default () => null',
+        'app/data.json': '{"a":1}',
+        'node_modules/left-pad/index.js': 'module.exports = 1',
+        // NOT skipped: `dist`, `build` and `.next` are ordinary directory names an origin may keep
+        // sources in, and skipping them here while the publisher walked them gave one repository
+        // two different totals depending on which executor answered.
+        'dist/bundle.js': 'bundled',
+        '.git/HEAD': 'ref: refs/heads/main',
+        // The connector's OWN directory, holding its key pair and its run record. A census is
+        // followed by a readHead of what it listed, and nothing downstream knows that this one is
+        // ours rather than the origin's.
+        '.viable/connect.json': '{"projectId":"p1"}',
+      })
+      await fse.writeFile(path.join(root, 'logo.png'), Buffer.from([0x89, 0x50, 0x00, 0x01]))
+      // No tail to go on, so this one is the case the probe still answers.
+      await fse.writeFile(path.join(root, 'archive'), Buffer.from([0x1f, 0x8b, 0x00, 0x02]))
+      // A tail the table knows and a probe would get wrong: no NUL in the first bytes.
+      await fse.writeFile(path.join(root, 'favicon.ico'), 'GIF89a')
+
+      const { entries, truncated, total } = await createLocalFileHelper(root).statTree()
+      const paths = entries.map(entry => entry.path).sort()
+
+      expect(paths).toEqual([
+        'app/data.json', 'app/page.tsx', 'archive', 'dist/bundle.js', 'favicon.ico', 'logo.png',
+      ])
+      expect(truncated).toBe(false)
+      expect(total).toBe(6)
+      expect(entries.find(entry => entry.path === 'logo.png')?.binary).toBe(true)
+      expect(entries.find(entry => entry.path === 'app/page.tsx')?.binary).toBe(false)
+      expect(entries.find(entry => entry.path === 'app/page.tsx')?.bytes).toBe(25)
+      // The tail decides where it can, and the probe only where it cannot — the same order the
+      // publisher and the library helper apply, so the three answer one verdict per file.
+      expect(entries.find(entry => entry.path === 'favicon.ico')?.binary).toBe(true)
+      expect(entries.find(entry => entry.path === 'archive')?.binary).toBe(true)
+    })
+
+    test('a bounded walk reports what it saw, not only what it returned', async () => {
+      // The difference is the only thing that tells a caller its picture is partial; a listing
+      // that reported its own length would be indistinguishable from a small repository.
+      const files: Record<string, string> = {}
+      for (let i = 0; i < 12; ++i) files[`src/f${i}.ts`] = 'x'
+
+      const { entries, truncated, total } = await createLocalFileHelper(await sandbox(files))
+        .statTree(undefined, 5)
+
+      expect(entries).toHaveLength(5)
+      expect(truncated).toBe(true)
+      expect(total).toBe(12)
+    })
+
+    test('a walk can start below the root, and answers paths relative to it', async () => {
+      // Relative to the directory ASKED FOR — the contract the in-process helper and the
+      // publisher answer too. A census follows its listing with a `readHead` of what it listed,
+      // and nothing downstream knows which of the three executors produced the path it holds.
+      const root = await sandbox({ 'a/one.ts': 'x', 'a/deep/two.ts': 'y', 'b/three.ts': 'z' })
+
+      const { entries } = await createLocalFileHelper(root).statTree('a')
+
+      expect(entries.map(entry => entry.path).sort()).toEqual(['deep/two.ts', 'one.ts'])
+    })
+
+    test('a head is read without holding the file', async () => {
+      const root = await sandbox({ 'data.csv': 'id,name\n1,one\n2,two\n' })
+      const helper = createLocalFileHelper(root)
+
+      expect(await helper.readHead('data.csv', 8)).toBe('id,name\n')
+      // Asking for more than there is answers what there is, rather than failing.
+      expect(await helper.readHead('data.csv', 4096)).toBe('id,name\n1,one\n2,two\n')
+      expect(await helper.readHead('data.csv', 0)).toBe('')
+      expect(helper.readHead('../../etc/passwd', 10)).rejects.toThrow(SandboxPathError)
+    })
+
+    test('a head of something that is not a readable file is empty, never a throw', async () => {
+      // A census hands this whatever the walk produced, and one entry that turns out to be a
+      // directory (open succeeds on Linux; the READ then throws EISDIR) or to have been deleted
+      // since the listing must not fail the pass classifying the rest of the tree.
+      const root = await sandbox({ 'src/app.ts': 'x' })
+      const helper = createLocalFileHelper(root)
+
+      expect(await helper.readHead('src', 64)).toBe('')
+      expect(await helper.readHead('src/gone.ts', 64)).toBe('')
+    })
+  })
+
+  describe('relocate', () => {
+    test('everything moves below, and what was never ours to move stays', async () => {
+      const root = await sandbox({
+        'app/page.tsx': 'export default () => null',
+        'package.json': '{}',
+        '.viable/connect.json': '{"projectId":"p1"}',
+        '.env': 'DATABASE_URL=postgres://localhost/app',
+        'sources/web/.env': 'BRANDING_PRODUCT=Thing',
+        'sources/web/src/app.tsx': 'x',
+        'sources/api/src/index.ts': 'y',
+        '.git/HEAD': 'ref: refs/heads/main',
+        'docs/brief.md': 'the brief',
+      })
+
+      const result = await createLocalFileHelper(root)
+        .relocate(CONVERTED_ORIGIN_DIR, ['docs/brief.md'])
+
+      // The origin's own tree, below.
+      expect(await fse.pathExists(path.join(root, CONVERTED_ORIGIN_DIR, 'app/page.tsx'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, CONVERTED_ORIGIN_DIR, 'package.json'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, CONVERTED_ORIGIN_DIR, 'sources/web/src/app.tsx'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, 'app'))).toBe(false)
+      // The marker, the two env files and the history — moving `.git` would take the project's
+      // whole history under the origin with it.
+      expect(await fse.pathExists(path.join(root, '.viable/connect.json'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, '.env'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, '.git/HEAD'))).toBe(true)
+      // A nested keep of the caller's, and one of the helper's own.
+      expect(await fse.pathExists(path.join(root, 'sources/web/.env'))).toBe(true)
+      expect(await fse.pathExists(path.join(root, 'docs/brief.md'))).toBe(true)
+      expect(result.moved).toBeGreaterThan(0)
+      // The whole keep set, the way the publisher and the library helper answer it: what the
+      // relocation was told to leave alone, not what happens to be on disk afterwards.
+      expect(result.kept).toContain('docs/brief.md')
+      expect(result.kept).toContain(CONVERTED_ORIGIN_DIR)
+      expect(result.kept).toContain('.git')
+    })
+
+    test('a directory walked only for a keep that was not there does not survive empty', async () => {
+      const root = await sandbox({ 'sources/api/src/index.ts': 'x' })
+
+      await createLocalFileHelper(root).relocate(CONVERTED_ORIGIN_DIR)
+
+      // `sources/web/.env` is always kept and this tree has none, so `sources/` was walked for
+      // nothing — it must not be left behind as a skeleton the template install lands in.
+      expect(await fse.pathExists(path.join(root, 'sources'))).toBe(false)
+      expect(await fse.pathExists(path.join(root, CONVERTED_ORIGIN_DIR, 'sources/api/src/index.ts')))
+        .toBe(true)
+    })
+
+    test('a destination that already holds something is refused', async () => {
+      // Interleaving two trees leaves nothing able to tell which files came from where.
+      const root = await sandbox({
+        'app/page.tsx': 'x',
+        [`${CONVERTED_ORIGIN_DIR}/already.ts`]: 'from an earlier run',
+      })
+
+      expect(createLocalFileHelper(root).relocate(CONVERTED_ORIGIN_DIR))
+        .rejects.toThrow(FileCommandRefused)
+      expect(await fse.pathExists(path.join(root, 'app/page.tsx'))).toBe(true)
+    })
+
+    test('the project cannot be moved into itself', async () => {
+      const root = await sandbox({ 'a.ts': 'x' })
+
+      expect(createLocalFileHelper(root).relocate('.')).rejects.toThrow(FileCommandRefused)
+      expect(createLocalFileHelper(root).relocate('')).rejects.toThrow(FileCommandRefused)
+    })
+  })
+
+  describe('removeTree', () => {
+    test('a tree goes, and nothing outside the project can be named', async () => {
+      const root = await sandbox({
+        [`${CONVERTED_ORIGIN_DIR}/app/page.tsx`]: 'x',
+        'sources/api/src/index.ts': 'y',
+      })
+      const helper = createLocalFileHelper(root)
+
+      await helper.removeTree(CONVERTED_ORIGIN_DIR)
+
+      expect(await fse.pathExists(path.join(root, CONVERTED_ORIGIN_DIR))).toBe(false)
+      expect(await fse.pathExists(path.join(root, 'sources/api/src/index.ts'))).toBe(true)
+      expect(helper.removeTree('../../tmp')).rejects.toThrow(SandboxPathError)
+    })
+
+    test('the project root itself is refused', async () => {
+      // Emptying the project is `emptyProject`, which has a keep list this does not — a purge that
+      // resolved to `.` would take the developer's `.git` and `.env` with it.
+      const root = await sandbox({ 'a.ts': 'x' })
+      const helper = createLocalFileHelper(root)
+
+      expect(helper.removeTree('.')).rejects.toThrow(FileCommandRefused)
+      expect(helper.removeTree('')).rejects.toThrow(FileCommandRefused)
+      expect(await fse.pathExists(path.join(root, 'a.ts'))).toBe(true)
     })
   })
 

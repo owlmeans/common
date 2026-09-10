@@ -31,6 +31,25 @@ export class SandboxPathError extends Error {
 }
 
 /**
+ * A file command was asked for something it must refuse whatever the caller intended.
+ *
+ * Two conditions today, and both are about not destroying what is already there: a relocation into
+ * a directory that already holds files (the move would interleave two trees, and nothing
+ * afterwards could tell them apart), and a removal of the project root (which is `deleteProject`,
+ * a command with its own name and its own keep list).
+ *
+ * Thrown rather than answered, unlike the git refusals: those are policies a caller can plan
+ * around, and these two mean the caller's own arguments were wrong.
+ */
+export class FileCommandRefused extends Error {
+  public override readonly name = 'FileCommandRefused'
+
+  constructor(message: string) {
+    super(message)
+  }
+}
+
+/**
  * A revert was asked for on a tree with uncommitted work in it.
  *
  * Thrown rather than answered, exactly as the platform's git service does: `RevertTo` answers a

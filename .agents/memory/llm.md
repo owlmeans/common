@@ -1,7 +1,7 @@
 ---
 node: llm
 scope: "packages/llm/**, packages/llm-common/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 # LLM (inference runtime + execution abstraction)
@@ -54,6 +54,11 @@ model factory service and the generic execution service. Related: [[versioning]]
   thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
   run row is the authority. `TaskExecutionState.{phase,completed,cursor}` survive as LABELS for
   traces and prompts — never as a position anything resumes from.
+- The inquiry transport registry is module-level and keyed, exactly like the provider-plugin and
+  delegate registries beside it, and its accessor is named `inquiryTransportFor` — `@owlmeans/llm`
+  and `@owlmeans/llm-delegate` are re-exported into one namespace by `@owlmeans/viable`, so a bare
+  `transportFor` collides. A transport that cannot serve a question THROWS (`InquiryUnavailable`,
+  registered fatal beside the throw); a declined answer is a decision and is not fatal.
 - `use()` seats a plugin **by alias**, replacing rather than appending. A layer wired twice
   otherwise answers twice, silently, since the first usable answer wins.
 - `composeExecState` excludes `state` itself. Without it every `derive`/`escalate`/`withPurpose`
@@ -88,4 +93,6 @@ model factory service and the generic execution service. Related: [[versioning]]
 
 - `packages/llm/README.md` — the resilience table (what the package already handles) and the
   plugin-authoring example; skills `llm` / `llm-common`.
+- Skills: `llm`, `llm-common`, `llm-delegate` (the `ModelProvider.Delegated` runtime) and
+  `inquiry` (the transport registry and `ExecutionService.ask`).
 - Consumer side: `viable-agent` skills `/llm-model` and `/execution`.

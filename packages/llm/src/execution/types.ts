@@ -1,8 +1,9 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, LlmPurpose,
-  ModelConfigOverride, ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
+  ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, Inquiry, InquiryAnswer,
+  InquiryConfig, LlmPurpose, ModelConfigOverride, ModelPolicy, ModelRole, PromptPolicy,
+  TaskExecutionState,
 } from '@owlmeans/llm-common'
 import type { LlmService, TemperatureFactory } from '../types.js'
 import type { PromptService } from '../prompt/types.js'
@@ -53,6 +54,11 @@ export interface ProjectExecutionInput {
   purpose: LlmPurpose
   /** Baseline role and skills for the whole run. */
   prompt?: PromptPolicy
+  /**
+   * How this run may put a question to a person (see {@link ExecutionService.ask}). State, not a
+   * collaborator — it travels into every snapshot, so a resumed run asks the same way.
+   */
+  inquiry?: InquiryConfig
   outputErrors?: boolean
   captureNull?: boolean
 }
@@ -199,6 +205,20 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
    */
   snapshot: (exec: S['exec']) => ExecutionState
   restore: (state: ExecutionState, collaborators?: S['collaborators']) => S['exec']
+
+  /**
+   * Put a question to whoever is behind this execution, under its own policy.
+   *
+   * `ask` → the seated transport (and the answer comes back capped to
+   * `DEFAULT_INQUIRY_ANSWER_CHARS`); `default` → the question's own default, or a decline, which
+   * the caller is expected to RECORD as an assumption; `refuse` → `InquiryDeclined`. No config at
+   * all means `default`: a run that was never given a channel must never block on one.
+   *
+   * Throws `InquiryUnavailable` when the policy is `ask` and nothing is seated under the
+   * execution's transport key. Wire it through `executionInquiry` to read that as "nobody is
+   * there" instead.
+   */
+  ask: (exec: S['exec'], inquiry: Inquiry, signal?: AbortSignal) => Promise<InquiryAnswer>
 
   /**
    * Ask the registered plugins about the project this execution runs in. Plugins are

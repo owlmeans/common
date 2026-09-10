@@ -23,6 +23,7 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `summarizePlugin(options?)` | Compacts each finished run into `summary` + `advice`; replays the last few. |
 | `memoryGraphPlugin(options?)` · `memoryGraph(store, options?)` | Durable notes filed by subsystem, with links. Plugin **and** plain API. |
 | `memoryEventsPlugin(options?)` · `memoryEvents(store, options?)` | A bounded, ordered record of what happened. |
+| `inquiryPlugin(options?)` · `INQUIRY_PLUGIN` · `ASK_USER_TOOL` | The `ask_user` tool and its one Context paragraph — offered only when a channel is wired. |
 | `safeInvokeTool`, `toErrorResponse`, `isToolError` | The never-throwing tool contract. |
 | `composeCompaction`, `composeRollingSummary`, `renderTranscript`, `messageText` | Summary primitives; both composers are total. |
 | `makeStaticFlowProvider(flows)` | The server-side `FlowProvider` `@owlmeans/flow` does not ship. |
@@ -186,6 +187,29 @@ refuses to re-enter a completed one without `force`.
 effects already applied to the world: re-entering a turn re-applies them. What IS resumable is a
 pipeline — and an agent run belongs inside one of its steps.
 
+**A step asks with `ctx.ask(inquiry)`, and a run nobody can answer parks `Waiting`.** Three
+outcomes in order: an answer already in the state comes straight back (a question is never asked
+twice); a live `options.inquiry.ask` answer is RECORDED in the state — `stateAnswerOf(capAnswer(…))`
+under `state[INQUIRY_ANSWERS_KEY][id]`, the decision whole and the prose cut — and the FULL answer
+returned to the step; otherwise the run stops `Waiting` with the inquiry on its row, and with no run
+store it throws `PipelineNotResumableError` instead. A throwing channel is not a park: it fails the
+step as an ordinary outcome, because the asking failed rather than the answer being no. `Inquiry.id`
+is the only thing an answer is matched by, so DERIVE it from the step and the thing being decided —
+an id minted per call never matches the state, and the run re-asks and parks forever.
+
+**Answers are merged by the RUNNER, in `invoke` and in `resume({ answers })`, never by a mapping.**
+`invoke` builds `{ ...restored, ...seed }`, so a mapping that forwarded the answers map would
+replace the child's own recorded answers wholesale — and write `undefined` over them when the parent
+had none, which re-asks question 1 on every resume. When a composed child parks, `asStep` relays its
+question to the parent's `ctx.ask` and re-invokes the child with the answer (bounded at 8 questions
+per composing step); the parent parks only when its own `ask` parks, and never throws a plain error
+in that path.
+
+**An agent that installs `inquiryPlugin` must pass `fatal: e => isFatalError(e) != null`.** The tool
+rethrows `InquiryUnavailable` alone — no channel is an answerable situation, a channel that has GONE
+is terminal — and `safeInvokeTool` contains everything else by default, so without that predicate
+the loop spends its whole turn budget on a dead channel. See [[inquiry]] for the whole primitive.
+
 **`safeInvokeTool(tools, call, fatal?)` takes a fatal predicate.** Containment is right for a bad
 argument and wrong for an exhausted budget: a tool may be a whole pipeline behind one call, and
 handing the model a readable "out of tokens" is an invitation to pick another tool and spend again.
@@ -203,6 +227,7 @@ boundary — never for an `@owlmeans/*` package.
 
 ## Related
 
+- [[inquiry]] — the human-in-the-loop primitive `ctx.ask`, `Waiting` and `ask_user` belong to
 - [[agent-common]] — the serializable records and the run lifecycle flow
 - [[llm]] — `Execution`, the model contract and the `advise`-only `ExecutionPlugin`
 - [[agent-checkpoint]] — the durable Mongo implementation of both storage ports (internal)

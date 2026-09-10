@@ -2,7 +2,7 @@
   "name": "@owlmeans/viable-common",
   "version": "0.0.4",
   "license": "MIT",
-  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary and the connector protocol.",
+  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -35,6 +35,13 @@
       "module": "./build/connect/index.js",
       "types": "./build/connect/index.d.ts"
     },
+    "./convert": {
+      "import": "./build/convert/index.js",
+      "require": "./build/convert/index.js",
+      "default": "./build/convert/index.js",
+      "module": "./build/convert/index.js",
+      "types": "./build/convert/index.d.ts"
+    },
     "./integrity": {
       "import": "./build/integrity/index.js",
       "require": "./build/integrity/index.js",
@@ -47,6 +54,7 @@
     "@langchain/core": "^1.2.9",
     "@owlmeans/dep-config": "workspace:*",
     "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -3,8 +3,9 @@ import { RouteMethod } from '@owlmeans/route'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { connect } from '@owlmeans/viable-common'
 import type {
-  ConnectJob, ConnectOp, ConnectOpResult, ConnectProjectStatus, ConnectSessionView, ConnectStoryList,
-  ConnectTarget
+  ConnectConvertCreateBody, ConnectJob, ConnectOp, ConnectOpResult, ConnectProjectStatus,
+  ConnectSessionView, ConnectStoryList, ConnectTarget, ConversionDecision, ConversionStatusView,
+  ConvertCheck, InquiryAnswerPayload
 } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits, StoryQuery } from '../types.js'
@@ -99,6 +100,30 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
       state: async (id: string, runId: string) => await call(connect.pipeline.state, { params: { id, runId } }),
       resume: async (id: string, runId: string, args) =>
         await call<ConnectJob>(connect.pipeline.resume, { params: { id, runId }, body: args ?? {} }),
+    },
+
+    convert: {
+      create: async (args: ConnectConvertCreateBody) =>
+        await call<ConnectJob>(connect.convert.create, { body: args }),
+      check: async (id: string) => await call<ConvertCheck>(connect.convert.check, { params: { id } }),
+      start: async (id: string) => await call<ConnectJob>(connect.convert.start, { params: { id } }),
+      proceed: async (id: string, decision: ConversionDecision, note?: string) =>
+        await call<ConnectJob>(connect.convert.proceed, {
+          params: { id }, body: { decision, ...(note != null ? { note } : {}) },
+        }),
+      cancel: async (id: string) => await call<ConnectJob>(connect.convert.cancel, { params: { id } }),
+      status: async (id: string) =>
+        await call<ConversionStatusView>(connect.convert.status, { params: { id } }),
+      purge: async (id: string) => await call<ConnectJob>(connect.convert.purge, { params: { id } }),
+    },
+
+    inquiry: {
+      answer: async (id: string, inquiryId: string, answer: InquiryAnswerPayload) =>
+        // The id travels twice on purpose: in the path, which is what the route addresses, and in
+        // the body, which is what the platform validates the answer against.
+        await call(connect.inquiry.answer, {
+          params: { id, inquiryId }, body: { ...answer, inquiryId },
+        }),
     },
   }
 }

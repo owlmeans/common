@@ -57,6 +57,21 @@ const REMOTE_REFUSAL = 'This project lives on your own machine, so the platform 
   + 'git remotes. Push, pull and remote configuration are yours to run.'
 
 /**
+ * Why a local target is never cloned into.
+ *
+ * A clone exists for one case — the platform fetching an origin repository onto a slot's volume it
+ * owns — and a local target has already answered that question: the directory the connector was
+ * started in IS the origin, and there is nothing to fetch. Overwriting it with a remote tree would
+ * replace a developer's working copy, including whatever they had not committed.
+ *
+ * Answered as TEXT beside {@link REMOTE_REFUSAL} and never thrown, for the same reason: a caller
+ * that received an exception would retry something that can never succeed, while a `cloned: false`
+ * in the shape it already parses is a fact its next step can read.
+ */
+const CLONE_REFUSAL = 'This project is the directory the connector was started in, so there is '
+  + 'nothing to clone into it. Its sources are already here.'
+
+/**
  * Tail of the serialization chain per working directory.
  *
  * Git takes `.git/*.lock` files for the duration of a write, so two concurrent operations on one
@@ -398,9 +413,15 @@ const _dispatch = async (
     case SlotGitCommand.Pull:
       return { result: REMOTE_REFUSAL, status: 'no-remote', ahead: null, behind: null, message: REMOTE_REFUSAL }
 
+    // The fourth, refused in the same shape and for the same reason — see CLONE_REFUSAL. The
+    // convert pipeline skips its clone step on a local target, so this is the belt to that
+    // braces: a command that arrives anyway answers a fact rather than failing a run.
+    case SlotGitCommand.Clone:
+      return { cloned: false, branch: '', head: null, result: CLONE_REFUSAL }
+
     default:
       throw new LocalGitError(`Unknown git command: ${String(command)}`)
   }
 }
 
-export { ensure as ensureGitRepo, IGNORE_BASELINE, REMOTE_REFUSAL }
+export { CLONE_REFUSAL, ensure as ensureGitRepo, IGNORE_BASELINE, REMOTE_REFUSAL }

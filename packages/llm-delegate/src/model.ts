@@ -31,7 +31,16 @@ export interface DelegatedChatModelParams extends BaseChatModelParams {
   /** Retry attempt, carried so the performer knows a previous answer was refused. */
   attempt?: number
   feedback?: string
-  /** Echoed back on the instance so `readConfig` and the spectator see the same thing. */
+  /**
+   * What this model is called.
+   *
+   * Accepted under both names because the two readers spell it differently: the spectator reads
+   * `modelName` off the instance, while the runtime's call log and its null-result report read
+   * `lc_kwargs.model` — the field name every provider client is constructed with. Neither has to
+   * be supplied: with no name at all the model is `delegated:<tier>`.
+   */
+  model?: string
+  /** The same value under the name a spectator reads off the instance. */
   modelName?: string
 }
 
@@ -144,7 +153,16 @@ export class DelegatedChatModel extends BaseChatModel<DelegatedCallOptions> {
     this.maxOutputChars = fields.maxOutputChars
     this.attempt = fields.attempt ?? 0
     this.feedback = fields.feedback
-    this.modelName = fields.modelName ?? `${DELEGATED_MODEL_PREFIX}${fields.tier ?? 'standard'}`
+    this.modelName = fields.model
+      ?? fields.modelName
+      ?? `${DELEGATED_MODEL_PREFIX}${fields.tier ?? 'standard'}`
+    // The runtime identifies a model by `lc_kwargs.model` — every call it logs, and the model
+    // section of a null-result report. `lc_kwargs` is the constructor's own fields, so a model
+    // built without that key was reported as `DelegatedChatModel undefined`: a call performed
+    // outside this process, with nothing in the log saying which one. Written here rather than
+    // left to the caller, because the name is DERIVED where none was given and a model has to be
+    // identifiable however it was built.
+    this.lc_kwargs = { ...this.lc_kwargs, model: this.modelName }
   }
 
   _llmType(): string {
@@ -169,7 +187,8 @@ export class DelegatedChatModel extends BaseChatModel<DelegatedCallOptions> {
       tier: this.tier,
       role: this.role,
       maxOutputChars: this.maxOutputChars,
-      modelName: this.modelName,
+      // The name travels with the retry: a rebuilt instance is what the next call logs.
+      model: this.modelName,
       attempt,
       feedback: feedback ?? this.feedback,
       callbacks: this.callbacks,

@@ -95,7 +95,7 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Web** (React): `web-client`, `web-router`, `web-router-react-router`, `web-panel`, `web-auth`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`, `web-consent`, `web-gtm` — the current browser family: shadcn UI + Tailwind v4 over `client-panel`, using the `@` app-provides contract (see `shadcn-web` skill). `astro` carries the same consent and tag-manager strings into a static Astro site. `mui-panel` and `mui-oidc-rp` are the LEGACY MUI v7 family — maintain the apps already on them, start nothing new there
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `redis-queue`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
-- **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service), `agent-common` (run + pipeline contracts), `agent` (the ReAct runtime and the resumable pipeline runner), `viable-common` (the OwlMeans Viable platform's runtime-free contracts: analysis/design/metadata shapes, the target-shape manifest, the slot command vocabulary and the connector protocol)
+- **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service), `agent-common` (run + pipeline contracts), `agent` (the ReAct runtime and the resumable pipeline runner), `viable-common` (the OwlMeans Viable platform's runtime-free contracts: analysis/design/metadata shapes, the target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary)
 - **Mail**: `mailer` (contract + console/dev transport), `mailer-smtp`, `server-mailer-mailgun`
 - **Other cross-cutting domain**: `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, and `queue` (job/queue contracts + QUEUE transport; driver `redis-queue`, transports `server-job` / `client-job`)
 - **Template and test helpers** (not framework packages, out of scope for `tree.md`): `_tpl` (the new-package skeleton), `test`, `test-auth`, `test-integration`, `test-ui`
@@ -202,6 +202,11 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **Prompt composition and caching**: `llm-prompt-caching` — how a system prompt is assembled from a
   role plus skills, block order, breakpoint budget and the determinism invariants that make the
   provider cache hit. Read before changing anything a request sends ahead of its first per-call byte.
+- **Asking a person mid-run**: `inquiry` — the human-in-the-loop primitive, spanning four packages:
+  the `llm-common` contracts and the ONE answer ceiling, the `llm` transport registry,
+  `ExecutionService.ask` and the `executionInquiry` bridge, the `agent` `ask_user` tool and the
+  pipeline `Waiting`/resume path. Read before adding a second way for a run to obtain a decision
+  that is not its own.
 - **Supervisor (development) authentication**: `supervisor-auth` — the PK-based login that mints a
   token for any user id, used by end-to-end tests; `appendSupervisorAuth` on both sides plus the
   `@owlmeans/test-ui` helpers.

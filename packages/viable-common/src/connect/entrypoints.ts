@@ -1,13 +1,16 @@
 import { body, entrypoint, filter, gate, guard, params, query } from '@owlmeans/entrypoint'
 import type { CommonEntrypoint, CommonEntrypointOptions } from '@owlmeans/entrypoint'
 import { route, RouteMethod, socket } from '@owlmeans/route'
+import { ConverterProjectLlmBodySchema } from '../convert/schemas.js'
 import { connect } from './consts.js'
 import {
-  ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectCreateBodySchema,
+  ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
+  ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
   ConnectJobParamsSchema, ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectIdSchema,
   ConnectProjectLlmBodySchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema,
-  ConnectStoryBodySchema, ConnectStoryParamsSchema, ConnectStoryQuerySchema, ConnectWaitQuerySchema
+  ConnectStoryBodySchema, ConnectStoryParamsSchema, ConnectStoryQuerySchema,
+  ConnectWaitQuerySchema, InquiryAnswerSchema
 } from './schemas.js'
 
 /**
@@ -196,6 +199,71 @@ export const connectEntrypoints = (opts: ConnectEntrypointOptions): CommonEntryp
         parent: connect.base, method: RouteMethod.POST
       }),
       filter(params(ConnectStoryParamsSchema))
+    ),
+
+    entrypoint(
+      route(connect.project.converterLlm, '/project/:id/converter-llm', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      // No paid gate, unlike `project.llm`: delegated inference is the DEFAULT for a conversion,
+      // not an experimental capability. A conversion reads somebody else's whole repository, and
+      // handing those calls to the parent agent is what makes it affordable at all.
+      filter(params(ConnectProjectIdSchema, body(ConverterProjectLlmBodySchema)))
+    ),
+
+    // --- conversion ------------------------------------------------------------------------
+    entrypoint(
+      route(connect.convert.create, '/convert', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(body(ConnectConvertCreateBodySchema))
+    ),
+    entrypoint(
+      route(connect.convert.check, '/convert/:id/check', {
+        parent: connect.base, method: RouteMethod.GET
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+    entrypoint(
+      route(connect.convert.start, '/convert/:id/start', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+    entrypoint(
+      route(connect.convert.proceed, '/convert/:id/proceed', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(params(ConnectProjectIdSchema, body(ConnectConvertProceedBodySchema)))
+    ),
+    entrypoint(
+      route(connect.convert.cancel, '/convert/:id/cancel', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+    entrypoint(
+      route(connect.convert.status, '/convert/:id', {
+        parent: connect.base, method: RouteMethod.GET
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+    entrypoint(
+      route(connect.convert.purge, '/convert/:id/purge', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+
+    // --- inquiries -------------------------------------------------------------------------
+    // The fallback answer path: a connector answers through its own op id while it holds the
+    // question, but a run that parked while nobody was attached has no op to answer, and the
+    // question is then reachable only by its own id.
+    entrypoint(
+      route(connect.inquiry.answer, '/project/:id/inquiry/:inquiryId', {
+        parent: connect.base, method: RouteMethod.POST
+      }),
+      filter(params(ConnectInquiryParamsSchema, body(InquiryAnswerSchema)))
     ),
 
     // --- pipelines -------------------------------------------------------------------------

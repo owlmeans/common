@@ -46,6 +46,10 @@ updated: 2026-09
   then rethrown.
 - The node body order is `skipWhen → run → merge → AWAITED row save → report`. The row write
   happens before the node returns, or a crash loses a completed step.
+- A run parked `Waiting` on a question has no process and its heartbeat stops moving, so nothing
+  that sweeps stale runs may pick it up. The row carries `inquiry` only while it waits, and answers
+  are merged by the RUNNER (`invoke` and `resume({ answers })`), never by a caller's mapping — a
+  seed that forwarded the map replaced the child's own recorded answers.
 - Steps close over their dependencies; the graph is compiled per run. Collaborators never travel
   through the engine's config — that would bind a run to which config keys a LangGraph minor
   propagates into a node body.
@@ -72,5 +76,6 @@ updated: 2026-09
 
 ## Pointers
 
-- Skills: `agent`, `agent-common`. Layer: `tree.md` §3 (cross-cutting domain).
+- Skills: `agent`, `agent-common`, and `inquiry` for `ctx.ask` / `Waiting` / `ask_user`.
+  Layer: `tree.md` §3 (cross-cutting domain).
 - Consumer: viable's free-flight agent — see the `viable-agent` repo's `agent-memory-history` skill.

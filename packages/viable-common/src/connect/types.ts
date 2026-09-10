@@ -1,7 +1,13 @@
 import type {
+  ArchitectureCase, ConversionDecision, ConversionEstimate, ConversionStackRef, ConversionStage,
+  ConversionStatus, ConvertibilityReason, ConvertibilityVerdict, OriginKind, OriginShape,
+  OriginState, StoryEstimateBand
+} from '../convert/index.js'
+import type {
   ConnectExecutor, ConnectHarness, ConnectJobBlock, ConnectJobKind, ConnectJobStatus, ConnectLlm,
   ConnectSessionStatus, ConnectTarget, ConnectTransport, ModelTier
 } from './consts.js'
+import type { InquiryAnswerPayload, InquiryPayload } from './ops.js'
 
 /**
  * What a parent agent can do, as it reports itself.
@@ -95,6 +101,16 @@ export interface ConnectJob {
   phase?: string
   progress?: ConnectJobProgress
   blockedOn?: ConnectJobBlock
+  /**
+   * The question a parked run is waiting on — present exactly when it is blocked on one.
+   *
+   * Carried on the job rather than left to a second lookup because a parent reads a job and
+   * nothing else while it polls: a run that stopped for a person, described only as "blocked",
+   * is a run whose parent waits out the timeout for a question it was never shown. It is also
+   * the ONLY way back to a question whose operation timed out while nobody was attached — the
+   * connector's own queue holds nothing at that point.
+   */
+  inquiry?: InquiryPayload
   /** One sentence a parent agent can show a human. */
   message?: string
   /** Present on `Failed`, and on `Done` where the run recorded a warning. */
@@ -204,6 +220,22 @@ export interface ConnectProfileSettings {
 export interface ConnectProfileSettingsView extends ConnectProfileSettings {
   /** Whether the organization's plan allows the local-LLM mode at all. */
   canUseLocal: boolean
+  /**
+   * The profile's preference for who performs a CONVERSION's model calls.
+   *
+   * Its own setting rather than a reading of `llmMode`, because the two answer for different
+   * work: a conversion reads somebody else's whole repository, which is the one job where handing
+   * the inference to the parent agent is the cheap default rather than the experimental option.
+   *
+   * OPTIONAL for the same reason {@link ConnectCapabilitiesView.defaults} carries `converterLlm`
+   * optionally: the two converter fields are answered by a platform build that does not exist yet,
+   * and this package is consumed by the platform through a workspace link rather than a published
+   * range — a required field here is a compile error in every handler that already returns this
+   * view. Tightened to required once the platform's conversion handlers fill them.
+   */
+  converterLlmMode?: ConnectLlm
+  /** Whether this caller may run a conversion's model calls on the parent agent. */
+  canUseConverterLocal?: boolean
 }
 
 export interface ConnectLlmBody {
@@ -216,6 +248,16 @@ export interface ConnectProjectSettings {
   llmMode: ConnectLlm | null
   effective: ConnectLlm
   canUseLocal: boolean
+  /**
+   * The project's converter override; `null` inherits the profile's.
+   *
+   * Optional on the same forward-compatibility grounds as
+   * {@link ConnectProfileSettingsView.converterLlmMode} — absent from an answer written before the
+   * platform's conversion handlers land, and never to be read as a value.
+   */
+  converterLlmMode?: ConnectLlm | null
+  /** What the override, the profile and the platform's own floor actually resolve to. */
+  converterEffective?: ConnectLlm
 }
 
 export interface ConnectProjectLlmBody {
@@ -228,8 +270,13 @@ export interface ConnectCapabilitiesView {
   tiers: Record<ModelTier, string[]>
   /** Whether this caller may open a local-LLM session. */
   localLlm: boolean
-  /** The default mode for a new session, resolved from the caller's settings. */
-  defaults: { target: ConnectTarget, llm: ConnectLlm }
+  /**
+   * The default mode for a new session, resolved from the caller's settings.
+   *
+   * `converterLlm` is OPTIONAL: an older platform does not send it, and a client that treated its
+   * absence as a value would pin every conversion to whatever its own default happened to be.
+   */
+  defaults: { target: ConnectTarget, llm: ConnectLlm, converterLlm?: ConnectLlm }
   limits: {
     pullWaitMs: number
     modelTaskTimeoutMs: number
@@ -275,4 +322,85 @@ export interface ConnectPipelineParams {
 export interface ConnectPipelineResumeBody {
   from?: string
   force?: boolean
+  /**
+   * Answers to the questions a parked run is waiting on, keyed by inquiry id.
+   *
+   * A run stops at `Waiting` because a step asked something; resuming it without what it asked for
+   * makes it ask again. The runner MERGES these into whatever the run already carries rather than
+   * replacing them, so a resume that answers one of two outstanding questions keeps the other.
+   */
+  answers?: Record<string, InquiryAnswerPayload>
+}
+
+/** Start a conversion of an existing project's code. */
+export interface ConnectConvertCreateBody {
+  name?: string
+  about?: string
+  /** Where the converted target's tree will live. */
+  target?: ConnectTarget
+  /**
+   * Where the code comes from.
+   *
+   * Absent for a LOCAL target the connector is already attached to: the tree is the directory the
+   * session opened on, and there is nothing to fetch.
+   */
+  origin?: { kind: OriginKind, repoUrl?: string, branch?: string }
+}
+
+/** Decide what happens at a stage boundary. */
+export interface ConnectConvertProceedBody {
+  decision: ConversionDecision
+  /** Free text the user added to the decision; recorded, never parsed. */
+  note?: string
+}
+
+/** Answer one question a parked run is waiting on. */
+export type ConnectInquiryAnswerBody = InquiryAnswerPayload
+
+/**
+ * Whether this origin can be converted, and what it will cost.
+ *
+ * Answered BEFORE anything is provisioned or charged, from the census alone — which is why it
+ * carries the counts it was decided from rather than a bare verdict.
+ */
+export interface ConvertCheck {
+  projectId: string
+  verdict: ConvertibilityVerdict
+  reasons: ConvertibilityReason[]
+  stack?: ConversionStackRef
+  architecture?: ArchitectureCase
+  shape: OriginShape
+  monorepo: boolean
+  /** Workspace members and directories nothing declares. Named, because each one is a decision. */
+  unlinked: string[]
+  files: number
+  bytes: number
+  /** Bulk data files found — sampled and described, never carried. */
+  bulk: number
+  estimate?: ConversionEstimate
+}
+
+/** Everything a caller needs to draw the conversion's current state in one call. */
+export interface ConversionStatusView {
+  projectId: string
+  stage: ConversionStage
+  status: ConversionStatus
+  /** The last decision the user made. */
+  decision?: ConversionDecision
+  verdict?: ConvertibilityVerdict
+  stack?: ConversionStackRef
+  /** What the conversion is rebuilding the project ONTO. Always the Viable stack today. */
+  targetStack?: ConversionStackRef
+  architecture?: ArchitectureCase
+  /** One per stage that has been estimated, newest last. */
+  estimates: ConversionEstimate[]
+  storyEstimate?: StoryEstimateBand
+  originState: OriginState
+  /** How many questions the conversion answered for itself. Each one is readable in the docs. */
+  assumptions: number
+  runId?: string
+  /** Set exactly when `status` is `Waiting`: the question the run stopped on. */
+  pendingInquiry?: InquiryPayload
+  lastError?: string
+  updatedAt: string
 }

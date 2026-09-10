@@ -67,8 +67,20 @@ export enum ConnectExecutor {
   Files = 'files',
   Shell = 'shell',
   Git = 'git',
-  /** The parent agent will answer model tasks. Present exactly when `llm` is `Local`. */
+  /**
+   * The parent agent PERFORMS the model calls of a run: each one arrives as a `ModelTask`, is run
+   * in a clean subagent and submitted back. Present exactly when `llm` is `Local`.
+   */
   Model = 'model',
+  /**
+   * A PERSON can be asked a question and their answer brought back.
+   *
+   * Advertised always, and by every connector: a parent agent has a human in front of it by
+   * definition, which is the whole reason the platform can ask one anything at all. It is not a
+   * narrower `Model` — a model task is inference the platform pays for either way, an inquiry is
+   * a decision only a person can make, and a run that cannot ask assumes instead.
+   */
+  Human = 'human',
 }
 
 /** What one operation asks a connector to do. */
@@ -79,6 +91,14 @@ export enum ConnectOpKind {
   ModelTask = 'model-task',
   /** Write the target's configuration (its `.env` files) and report what services are reachable. */
   Configure = 'configure',
+  /**
+   * Put one question to the person the connector is working for, and bring back their answer.
+   *
+   * An operation like any other — queued to the project, redelivered to whichever session is
+   * attached, answered against its own op id — because the alternative was a second channel with
+   * its own delivery, expiry and reattachment rules for the one payload that already had them.
+   */
+  Inquiry = 'inquiry',
 }
 
 /** How a connector is receiving operations. */
@@ -197,6 +217,18 @@ export enum ConnectJobKind {
   StoryDevelop = 'story-develop',
   FreeFlight = 'free-flight',
   PipelineResume = 'pipeline-resume',
+  /**
+   * The four stages of a conversion, plus the purge.
+   *
+   * One kind per stage rather than one for the whole conversion: each stage is its own platform
+   * pipeline run, ends at a decision the user makes, and is looked up by the pipeline alias its
+   * kind names. A single `convert` kind would match whichever run row happened to be newest.
+   */
+  ConvertIntake = 'convert-intake',
+  ConvertAnalysis = 'convert-analysis',
+  ConvertExtraction = 'convert-extraction',
+  ConvertImplementation = 'convert-implementation',
+  ConvertPurge = 'convert-purge',
 }
 
 export enum ConnectJobStatus {
@@ -216,7 +248,49 @@ export enum ConnectJobBlock {
   LocalOp = 'local-op',
   /** The local target has no database configured and the run needs one. */
   Env = 'env',
+  /** A question is waiting for a person and nobody has answered it. */
+  Question = 'question',
 }
+
+/**
+ * The shapes a question can take on the wire.
+ *
+ * Mirrors `InquiryKind` in `@owlmeans/llm-common` value for value, and is deliberately a SEPARATE
+ * name rather than an import: the connect module is the wire contract and owns its own vocabulary
+ * — the same reason `ModelTask` mirrors `DelegatedTask` — which also keeps `manager-api`, which
+ * does not depend on the model runtime, free of `@owlmeans/llm-common`. Values are byte-identical,
+ * so the platform's mapper is a widening rather than a translation table, and a test pins that.
+ */
+export enum ConnectInquiryKind {
+  /** Pick one of the offered options, or several when `multiple` is set. */
+  Choice = 'choice',
+  /** Free text. */
+  Text = 'text',
+  /** Yes or no. */
+  Confirm = 'confirm',
+}
+
+/**
+ * How long the platform waits for a person to answer one question.
+ *
+ * The same forty-five minutes a model task gets, and for the same reason: the bound exists so a
+ * parent that has gone away eventually fails the step rather than holding a project lock forever,
+ * not to pace somebody who is thinking.
+ */
+export const CONNECT_INQUIRY_TIMEOUT_MS = 2_700_000
+
+/** Options one choice question may offer. Beyond this it is a text question with a hint. */
+export const CONNECT_INQUIRY_MAX_OPTIONS = 12
+
+/**
+ * The ceiling on an answer's text.
+ *
+ * ONE ceiling for the whole stack: the twin is `DEFAULT_INQUIRY_ANSWER_CHARS` in
+ * `@owlmeans/llm-common`, and the two must stay equal. Two ceilings means the layer with the
+ * larger one truncates silently at the smaller, and the caller records an assumption about an
+ * answer the person actually gave.
+ */
+export const CONNECT_INQUIRY_MAX_TEXT = 2_000
 
 /**
  * How long a session survives without a sign of life.
@@ -333,7 +407,21 @@ export const connect = Object.freeze({
     modify: 'viable:manager-api:connect:project:modify',
     settings: 'viable:manager-api:connect:project:settings',
     llm: 'viable:manager-api:connect:project:llm',
+    /** The per-project converter inference mode. Separate from `llm`: it is not a paid capability. */
+    converterLlm: 'viable:manager-api:connect:project:converter-llm',
     job: 'viable:manager-api:connect:project:job',
+  }),
+  convert: Object.freeze({
+    create: 'viable:manager-api:connect:convert:create',
+    check: 'viable:manager-api:connect:convert:check',
+    start: 'viable:manager-api:connect:convert:start',
+    proceed: 'viable:manager-api:connect:convert:proceed',
+    cancel: 'viable:manager-api:connect:convert:cancel',
+    status: 'viable:manager-api:connect:convert:status',
+    purge: 'viable:manager-api:connect:convert:purge',
+  }),
+  inquiry: Object.freeze({
+    answer: 'viable:manager-api:connect:inquiry:answer',
   }),
   story: Object.freeze({
     list: 'viable:manager-api:connect:story:list',

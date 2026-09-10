@@ -33,7 +33,7 @@ export const delegatedPlugin: LlmPlugin = {
     delegate: config.delegate ?? '',
     tier: tierOf(config.model),
     role: config.alias,
-    modelName: config.model,
+    model: config.model,
     callbacks,
     metadata: { config },
   }),

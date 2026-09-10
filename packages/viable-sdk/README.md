@@ -12,7 +12,9 @@ needs and the platform cannot supply:
   both over HTTP and in-process;
 - **a session runtime** that answers the operations the platform sends: file writes, shell
   commands and git against a project on the user's own machine;
-- **the tool catalogue and the model-task protocol** a parent agent reads.
+- **the tool catalogue and the model-task protocol** a parent agent reads — including the
+  questions the platform puts to a person, and the tools for converting an application that
+  already exists.
 
 ## The two axes
 
@@ -72,10 +74,34 @@ throughput problem, it is a corrupted tree.
 outstanding, including what it had already answered when the connection dropped. Re-running a build
 because an acknowledgement was lost is exactly the cost that cache avoids.
 
+**A question is the user's, and the connector answers none of it.** An inquiry arrives on the
+same operation loop as everything else and is executed by nobody: `next_question` hands it to the
+parent to put to a person, and `answer_question` sends the answer back. The two queues stay
+separate from the task queue, because draining one list would sooner or later hand a decision
+about somebody's project to a subagent. Declining is an answer — a parent whose user is away says
+so rather than waiting out the deadline or inventing one.
+
+**A model task is handed over once.** The platform redelivers every unanswered operation on each
+poll, which is free for a slot command the result cache answers and expensive for a task a
+subagent is already working on. The shared queue remembers every id it has handed over and ignores
+a second delivery of one, while still refreshing the operation the answer must route to.
+
 **A malformed model-task answer is refused locally.** `parseTaskResult` checks the answer against
 the task before the platform ever sees it — with the subagent's context still open, so the parent
 can retry immediately. A malformed answer that reached the platform would cost a whole new task, a
 new subagent and another wait.
+
+**A refusal is phrased from its marker.** The platform's refusal classes live in packages this one
+does not depend on, so an error crossing the wire arrives as a marshalled `type|||marker|||stack`
+wrapped in a local stack trace. `REFUSALS` maps the marker to one sentence a parent agent can act
+on; an unknown marker keeps the marker and names the tool to call next, and no stack ever reaches
+the model — including the one shape with no separator in it, where `ResilientError.ensure` swaps a
+plain-text response body into `type` and its stack into `message`.
+
+**A refusal reads the same wherever it is rendered.** The same marker arrives thrown from a call
+and stored as text — `job.error`, `slot.lastError`, a conversion's `lastError`, a pipeline row's
+`error` — so every one of those goes through `refusalPhrase` too. Anything that is not a refusal,
+a build warning above all, is rendered exactly as it stands.
 
 **The harness installer never writes the token.** Each configuration references the environment
 variable in its own syntax, so what it writes is safe to commit. `tests/harness.spec.ts` greps

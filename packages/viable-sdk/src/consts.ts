@@ -32,6 +32,16 @@ export const JOB_POLL_MAX_SEC = 30
 /** How long `next_task` waits before answering "nothing yet". Under every host's ceiling. */
 export const NEXT_TASK_WAIT_MS = 30_000
 
+/**
+ * How long `next_question` waits before answering "nothing yet".
+ *
+ * The same window as a model task's, and for the host's reasons rather than the person's: nobody
+ * is expected to answer inside it. What the wait buys is a parent that asked one call too early —
+ * the platform queues the question a moment after the job reported it — and what the ceiling buys
+ * is that the call returns before the host's own deadline turns it into a broken server.
+ */
+export const NEXT_QUESTION_WAIT_MS = 30_000
+
 /** How long a pull waits for an operation before answering empty. */
 export const PULL_WAIT_MS = 30_000
 

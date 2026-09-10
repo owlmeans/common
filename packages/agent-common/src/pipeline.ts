@@ -1,3 +1,4 @@
+import type { Inquiry } from '@owlmeans/llm-common'
 import type { ResourceRecord } from '@owlmeans/resource'
 import { DEFAULT_STEP_ATTEMPTS } from './consts.js'
 import { PipelineSpecError, PipelineUnknownStepError } from './errors.js'
@@ -69,6 +70,28 @@ export enum PipelineRunStatus {
   Failed = 'failed',
   /** Stopped on purpose with work left — a budget expired, or the caller asked. Resumable. */
   Aborted = 'aborted',
+  /**
+   * Stopped on purpose, waiting for an answer to {@link PipelineRun.inquiry}.
+   *
+   * Resumable, and NOT stale: a waiting run has no process behind it and its `heartbeatAt` will not
+   * move again until somebody answers. A reconciler that reads staleness alone would take this for
+   * a crashed run and repair what is merely waiting.
+   */
+  Waiting = 'waiting',
+}
+
+/**
+ * What a `Waiting` run is waiting for.
+ *
+ * Written by the runner when a step asks a question nobody could answer while it ran, and read by
+ * everything that reports a run — a resume delivers the answer under {@link Inquiry.id}, which is
+ * the only thing that routes it back.
+ */
+export interface PipelineRunInquiry {
+  /** The step that asked. A resume re-enters exactly this one. */
+  step: string
+  askedAt: string
+  inquiry: Inquiry
 }
 
 /**
@@ -105,6 +128,13 @@ export interface PipelineRun extends ResourceRecord {
   error?: string
   /** The last thing a step said about itself. Progress, not state. */
   note?: string
+  /**
+   * The question this run stopped on.
+   *
+   * Present only while `status === Waiting`, and cleared on every entry of the run — a row that
+   * kept advertising a question it has already been given would have every reader offer it again.
+   */
+  inquiry?: PipelineRunInquiry
   /** Whatever lock the run held, so a resume can re-take the same one. */
   lockTask?: string
   /** How many times this run has been RESUMED. Reset only by a `Done` outcome. */

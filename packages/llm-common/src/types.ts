@@ -1,4 +1,5 @@
 import type { ExecutionEffort, ExecutionLevel, PromptBlock } from './consts.js'
+import type { InquiryConfig } from './inquiry/types.js'
 
 /**
  * Free-form observability metadata attached to every model call — forwarded to the
@@ -141,6 +142,12 @@ export interface ExecutionState {
   policy: ModelPolicy
   /** Role + skills for this level; merged downward by `ExecutionService`. */
   prompt?: PromptPolicy
+  /**
+   * How this run may put a question to a person. Serializable, and deliberately NOT a
+   * collaborator: a run that is resumed days later must ask through the same channel, under the
+   * same policy, as the one that parked it.
+   */
+  inquiry?: InquiryConfig
 }
 
 /**

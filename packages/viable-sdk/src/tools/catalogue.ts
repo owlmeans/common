@@ -1,20 +1,60 @@
 import { z } from 'zod'
-import { ConnectHarness, ConnectTarget, MODEL_TIER_ROLES } from '@owlmeans/viable-common'
-import type { ConnectJob, ConnectStoryItem } from '@owlmeans/viable-common'
-import { JOB_POLL_MAX_SEC, NEXT_TASK_WAIT_MS } from '../consts.js'
+import {
+  ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus, ConvertibilityVerdict,
+  decisionFor, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD
+} from '@owlmeans/viable-common'
+import type {
+  ConnectJob, ConnectStoryItem, ConversionStatusView, ConvertCheck, InquiryPayload
+} from '@owlmeans/viable-common'
+import { JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS } from '../consts.js'
 import { describeHarness, installHarness } from '../harness/index.js'
 import { envStatus } from '../project/env.js'
 import { missingServices, readSetupReport, renderSetupGuide, setUserEnv } from '../project/setup.js'
 import { localStatus, runLocal, stopLocal } from '../run/index.js'
 import { parseTaskResult, renderTaskEnvelope } from '../task/envelope.js'
+import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
 import { renderJob } from './jobs.js'
-import type { ToolDeps, ToolDefinition, ToolHost } from './types.js'
+import { PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
+import { refusalMessage, refusalPhrase } from './refusal.js'
+import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import {
   anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
 } from './types.js'
 
 const ok = (text: string, structured?: Record<string, unknown>) => ({ text, structured })
 const fail = (text: string) => ({ text, isError: true })
+
+/**
+ * A conversion refusal is an ANSWER, so it comes back as one.
+ *
+ * Every conversion verb can be refused by a decision rather than by a failure — this origin is the
+ * project, that decision is not available from this stage, the balance will not cover it — and the
+ * refusal reaches this process as a marshalled `type|||marker|||stack` whose class is declared in
+ * a package the SDK does not depend on. Left to escape, the parent agent is handed that string and
+ * a stack trace from a machine it cannot reach; what it does with one is retry a call that can
+ * never succeed. {@link refusalPhrase} turns the marker into the sentence, and the result carries
+ * `isError` so the model still reads it as a refusal rather than as an answer.
+ *
+ * The MCP boundary phrases whatever escapes any other tool the same way; this wrapper is what puts
+ * the answer inside the tool, where the reason it was refused is still known.
+ *
+ * It also writes the LOG line that boundary would have written, and for the same reason: answering
+ * inside the tool is exactly what takes these five out of `registerCatalogue`'s catch, so without
+ * it a refused conversion is the one thing an operator can find nothing about in the connector log
+ * while every other tool is still recorded there. The marker is what is kept — that is what a
+ * person greps for — and the stack belongs to a machine they cannot reach.
+ */
+const answering = async (
+  deps: ToolDeps, name: string, run: () => Promise<ToolResult>
+): Promise<ToolResult> => {
+  try {
+    return await run()
+  } catch (e) {
+    deps.log(`${name} refused: ${refusalMessage(e)}`)
+
+    return fail(refusalPhrase(e))
+  }
+}
 
 /** The project a tool acts on: the one named, or the one the connector is attached to. */
 /** The roles the platform maps onto each power class, so a caller sees what it is sizing. */
@@ -72,6 +112,212 @@ const ensureSession = async (deps: ToolDeps, projectId: string): Promise<void> =
   await deps.session()
 }
 
+/** The project a tool acts on when it can also work without one. */
+const projectOrNull = (args: Record<string, unknown>, deps: ToolDeps): string | null =>
+  typeof args.projectId === 'string' ? args.projectId : deps.attached()
+
+/**
+ * The question a PARKED run is waiting on, when the connector's own queue holds none.
+ *
+ * A question is delivered as an operation and answered against it, and that is the fast path. But
+ * an operation expires: a run that asked while nobody was attached, or while this connector was
+ * being restarted, is left `Waiting` with a question no queue here has ever seen. Without this the
+ * only way back to it is the web application, and a parent polling the job would wait out the
+ * whole timeout on a question it could have carried in seconds.
+ *
+ * Best-effort on both reads. A project with no conversion answers an error, and failing the call
+ * that asked for a question because the lookup for it failed would be worse than answering "none".
+ */
+const parkedQuestion = async (
+  deps: ToolDeps, projectId: string, jobId?: string
+): Promise<InquiryPayload | null> => {
+  try {
+    const status = await deps.api.convert.status(projectId)
+    if (status.pendingInquiry != null) return status.pendingInquiry
+  } catch (e) {
+    deps.log(`no conversion question for ${projectId}: ${(e as Error).message}`)
+  }
+  if (jobId == null) return null
+  try {
+    const job = await deps.api.project.job(projectId, jobId)
+
+    return job.inquiry ?? null
+  } catch (e) {
+    deps.log(`no question on job ${jobId}: ${(e as Error).message}`)
+
+    return null
+  }
+}
+
+const questionResult = (inquiry: InquiryPayload, deps: ToolDeps, note?: string) => ok(
+  (note != null ? `${note}\n\n` : '') + renderQuestionEnvelope(inquiry, { harness: deps.host.harness }),
+  { questionId: inquiry.id }
+)
+
+/** A cost estimate, always with the sentence that says what it is not. */
+const renderEstimate = (estimate: {
+  usd: number, credits: number, delegated: boolean, stage: string
+}): string[] => [
+  estimate.delegated
+    ? `estimated cost of ${estimate.stage}: nothing — you perform this conversion's model calls`
+    : `estimated cost of ${estimate.stage}: $${estimate.usd.toFixed(2)}`
+      + ` (${estimate.credits} credits)`,
+  '  An estimate, not a price: it is computed from the size of the code before any of it is read.',
+]
+
+/**
+ * Whether this project has a conversion already, and one that has actually begun.
+ *
+ * A check answers a question a project already converting has moved past. Sending its parent to
+ * `convert_project` there points at the one tool that cannot help — the platform refuses a second
+ * Start over a live run — while the conversion sits at the decision or the question it is actually
+ * waiting on, which is what nobody notices.
+ *
+ * `Pending` and `Cancelled` are read as none: the record exists, nothing is under way, and
+ * starting one really is the next step.
+ */
+const conversionUnderWay = async (
+  deps: ToolDeps, projectId: string
+): Promise<ConversionStatusView | null> => {
+  try {
+    const view = await deps.api.convert.status(projectId)
+
+    return view.status === ConversionStatus.Pending || view.status === ConversionStatus.Cancelled
+      ? null
+      : view
+  } catch (e) {
+    // Best-effort, like every other second read here: a project with no conversion answers an
+    // error, and failing the check because the lookup for one failed is worse than answering
+    // without it.
+    deps.log(`no conversion for ${projectId}: ${(e as Error).message}`)
+
+    return null
+  }
+}
+
+/**
+ * How a check names the conversion the project already has.
+ *
+ * Derived from the STATUS, never from the mere presence of a record. {@link conversionUnderWay}
+ * filters `Pending` and `Cancelled` and nothing else, so a check over a finished or failed
+ * conversion read "already under way — stage implementation · done" one line above "next: nothing
+ * — this conversion is finished": one answer contradicting itself about whether anything is
+ * running, which leaves a parent polling a run that ended.
+ */
+const conversionLead = (view: ConversionStatusView): string => {
+  const where = `stage ${view.stage} · ${view.status}`
+  switch (view.status) {
+    case ConversionStatus.Done:
+      return `conversion: finished — ${where}`
+    case ConversionStatus.Failed:
+      return `conversion: stopped at ${where}`
+    default:
+      return `conversion: already under way — ${where}`
+  }
+}
+
+const renderCheck = (check: ConvertCheck, conversion: ConversionStatusView | null): string => {
+  const lines = [
+    `verdict: ${check.verdict}`
+    + (check.reasons.length > 0 ? ` — ${check.reasons.join(', ')}` : ''),
+    `shape: ${check.shape}${check.architecture != null ? ` · ${check.architecture}` : ''}`
+    + `${check.monorepo ? ' · monorepo' : ''}`,
+    ...(check.stack != null
+      ? [`stack: ${check.stack.label} (${check.stack.language}`
+        + `${check.stack.framework != null ? `, ${check.stack.framework}` : ''})`]
+      : ['stack: not recognised']),
+    `${check.files} files · ${Math.round(check.bytes / 1024)} KB`
+    + (check.bulk > 0 ? ` · ${check.bulk} bulk data file(s), sampled rather than read` : ''),
+  ]
+  if (check.unlinked.length > 0) {
+    // Named rather than counted: each one is a decision somebody has to make, and the conversion
+    // will ask about it rather than guess.
+    lines.push(`nothing declares: ${check.unlinked.join(', ')}`)
+  }
+  if (check.estimate != null) lines.push(...renderEstimate(check.estimate))
+  if (conversion != null) {
+    lines.push(`${conversionLead(conversion)} (conversion_status carries the whole picture)`)
+  }
+  lines.push(`next: ${
+    check.verdict === ConvertibilityVerdict.Refused
+      // The verdict outranks a run, and deliberately: an origin nothing can convert has no next
+      // step whatever a record says about the attempt that found that out.
+      ? 'nothing — this origin cannot be converted'
+      : conversion != null
+        ? conversionNext(conversion)
+        : 'convert_project to start, then poll the job with wait_for'
+  }`)
+
+  return lines.join('\n')
+}
+
+const renderConversion = (view: ConversionStatusView): string => {
+  const lines = [
+    `conversion of ${view.projectId} · stage ${view.stage} · ${view.status}`,
+    ...(view.verdict != null ? [`verdict: ${view.verdict}`] : []),
+    ...(view.stack != null
+      ? [`origin stack: ${view.stack.label}`
+        + `${view.architecture != null ? ` · ${view.architecture}` : ''}`]
+      : []),
+    ...(view.targetStack != null ? [`rebuilt onto: ${view.targetStack.label}`] : []),
+    `origin sources: ${view.originState}`,
+    ...(view.assumptions > 0
+      ? [`${view.assumptions} question(s) answered by the platform itself —`
+        + ' they are listed in docs/conversion/assumptions.md']
+      : []),
+    ...(view.runId != null ? [`run ${view.runId}`] : []),
+  ]
+
+  const estimate = view.estimates[view.estimates.length - 1]
+  if (estimate != null) lines.push(...renderEstimate(estimate))
+  if (view.storyEstimate != null) {
+    lines.push(
+      `implementing the stories: $${view.storyEstimate.minUsd}–$${view.storyEstimate.maxUsd}`
+      + ` (${view.storyEstimate.minCredits}–${view.storyEstimate.maxCredits} credits)`,
+      `  A band, not a price: a story costs what it turns out to need, usually`
+      + ` $${STORY_BAND_MIN_USD}–$${STORY_BAND_MAX_USD} each.`
+    )
+  }
+  // Phrased, exactly like a thrown one: the platform writes a failed stage's cause here with
+  // `describeFailure`, which for a refusal is the marker verbatim — so a conversion stopped by a
+  // declined relocation answered this tool with `viable-agent-common:conversion:relocate-declined`
+  // while `wait_for` on the very same run read out the sentence. One refusal, two readings.
+  if (view.lastError != null && view.lastError !== '') {
+    lines.push(`error: ${refusalPhrase(view.lastError)}`)
+  }
+
+  lines.push(`next: ${conversionNext(view)}`)
+
+  return lines.join('\n')
+}
+
+/**
+ * What to call after reading a conversion.
+ *
+ * Derived from the STATUS first and the stage second, because the two say different things: a
+ * stage says how far the conversion has got, and only the status says whether the platform is
+ * working, waiting for a person, or waiting for a decision that is the user's.
+ */
+const conversionNext = (view: ConversionStatusView): string => {
+  switch (view.status) {
+    case ConversionStatus.Running:
+      return 'wait_for on the job, or conversion_status again'
+    case ConversionStatus.Waiting:
+      return 'next_question — this conversion needs a decision from the person you work for'
+    case ConversionStatus.Awaiting:
+      return `proceed_conversion { "decision": "${decisionFor(view.stage)}" } to go on, or`
+        + ` { "decision": "${ConversionDecision.Leave}" } to keep what it has produced`
+    case ConversionStatus.Failed:
+      return `proceed_conversion { "decision": "${ConversionDecision.Retry}" } once the cause is addressed`
+    case ConversionStatus.Done:
+      return 'nothing — this conversion is finished. purge_origin deletes the original sources.'
+    case ConversionStatus.Cancelled:
+      return 'nothing — this conversion was cancelled'
+    default:
+      return 'convert_project to start it'
+  }
+}
+
 /**
  * Everything a parent agent can ask the platform to do.
  *
@@ -82,6 +328,19 @@ const ensureSession = async (deps: ToolDeps, projectId: string): Promise<void> =
  * of things that work for it.
  */
 export const catalogue: ToolDefinition[] = [
+  {
+    name: 'describe_platform',
+    title: 'What this platform can build, and what you can drive from here',
+    description:
+      'Everything the platform runs — building an application from a description, implementing'
+      + ' user stories, converting an application you already have — and which of it this session'
+      + ' can start. Read it before deciding how to approach a request. Needs no project and'
+      + ' makes no network call.',
+    input: {},
+    availability: anyHost,
+    run: async (_args, deps) => ok(renderPlatform(PLATFORM_CATALOGUE, deps.host)),
+  },
+
   {
     name: 'describe_capabilities',
     title: 'Report what your models can do',
@@ -128,10 +387,17 @@ export const catalogue: ToolDefinition[] = [
           .join('\n')
         + `\n\nsubagents: ${subagents == null ? 'not stated' : subagents ? 'yes' : 'no'}`
         + ` · low reasoning effort: ${effortControl == null ? 'not stated' : effortControl ? 'yes' : 'no'}`
+        // Said differently in the two cases, because the answer to "which calls are mine" differs:
+        // a delegated session performs all of them, an ordinary one performs a conversion's. Both
+        // collect them the same way, so both are told to call next_task.
         + (performsModelTasks(deps.host)
           ? '\n\nThis session runs the platform\'s model calls on YOUR side. Whenever a job reports'
             + ' "blocked on: model-task", call next_task.'
-          : ''),
+          : sessionCapable(deps.host)
+            ? '\n\nThe platform performs its own model calls for stories and free flight. A'
+              + ' CONVERSION\'s calls are yours by default. Whenever a job reports "blocked on:'
+              + ' model-task", call next_task.'
+            : ''),
         { tiers, subagents, effortControl, roles: byTier }
       )
     },
@@ -210,6 +476,8 @@ export const catalogue: ToolDefinition[] = [
           `operations: ${stats.opsDone} done, ${stats.opsFailed} failed`,
           `model tasks: ${stats.tasksDelivered} delivered, ${stats.tasksSubmitted} answered,`
           + ` ${session.pendingTasks()} waiting`,
+          `questions: ${stats.questionsDelivered} asked, ${stats.questionsAnswered} answered,`
+          + ` ${session.pendingQuestions()} waiting`,
         )
       }
 
@@ -324,8 +592,14 @@ export const catalogue: ToolDefinition[] = [
           lines.push('', `--- ${label} ---`, value.slice(0, DRAFT_CAP))
         }
       }
+      // `slot.lastError` is the channel the platform stores a content refusal, a reserved name or
+      // a legacy-layout verdict on, with no class left on it — so it is phrased here for the same
+      // reason the manager phrases it, and `backendWarning` carries an integrity verdict the same
+      // way. All three go through one helper because only the TEXT says which it is: anything that
+      // does not read as a marker — the build diagnostics somebody asked for, stack-shaped lines
+      // included — comes back exactly as it stands.
       for (const warning of [status.slot?.lastError, status.slot?.buildWarning, status.slot?.backendWarning]) {
-        if (warning != null && warning !== '') lines.push(`warning: ${warning}`)
+        if (warning != null && warning !== '') lines.push(`warning: ${refusalPhrase(warning)}`)
       }
 
       return ok(lines.join('\n'), status as unknown as Record<string, unknown>)
@@ -534,7 +808,8 @@ export const catalogue: ToolDefinition[] = [
       return ok(
         `${String(state.pipeline)} · ${String(state.status)}`
         + (state.step != null ? ` · stopped at ${String(state.step)}` : '')
-        + (state.error != null ? `\nerror: ${String(state.error)}` : ''),
+        // A run stops on the same refusals a call is thrown, and the row keeps the cause as text.
+        + (state.error != null ? `\nerror: ${refusalPhrase(String(state.error))}` : ''),
         state
       )
     },
@@ -566,15 +841,20 @@ export const catalogue: ToolDefinition[] = [
     name: 'next_task',
     title: 'Get the next model call to perform',
     description:
-      'This session runs the platform\'s model calls on your side. Returns one task with'
-      + ' instructions for running it in a clean subagent, or says there is nothing yet. Call it'
-      + ' whenever a job reports "blocked on: model-task", and keep calling until it says none.',
+      'The platform hands you model calls to perform: a conversion\'s by default, and everything'
+      + ' else when this session runs in the delegated mode. Returns one task with instructions for'
+      + ' running it in a clean subagent, or says there is nothing yet. Call it whenever a job'
+      + ' reports "blocked on: model-task", and keep calling until it says none.',
     input: {
       maxWaitSec: z.number().int().min(0).max(45).optional(),
       taskId: z.string().optional()
         .describe('Re-read a task you were already given, if you lost its text.'),
     },
-    availability: performsModelTasks,
+    // Not `performsModelTasks`: a conversion's model calls are the parent's by default whatever
+    // the account setting says, so a session billed to the platform must still be able to collect
+    // one. What they do need is a host that STAYS — a task is handed out once and answered
+    // minutes later.
+    availability: sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
 
@@ -625,7 +905,7 @@ export const catalogue: ToolDefinition[] = [
       taskId: z.string(),
       result: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]),
     },
-    availability: performsModelTasks,
+    availability: sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
       const pending = session as unknown as { taskById?: (id: string) => unknown }
@@ -649,6 +929,283 @@ export const catalogue: ToolDefinition[] = [
           : 'Accepted. Call wait_for on the job, or next_task if it is still blocked.'
       )
     },
+  },
+
+  {
+    name: 'next_question',
+    title: 'Get the question the platform is asking',
+    description:
+      'The platform sometimes needs a decision only the person you are working for can make.'
+      + ' Returns one question to put to them, or says there is none. Call it whenever a job'
+      + ' reports "blocked on: question".',
+    input: {
+      maxWaitSec: z.number().int().min(0).max(45).optional(),
+      questionId: z.string().optional().describe('Re-read a question you were already given.'),
+      jobId: z.string().optional()
+        .describe('The job that reported "blocked on: question", if you have its id.'),
+      projectId: z.string().optional(),
+    },
+    // Not `performsModelTasks`: a question has nothing to do with who performs the model calls,
+    // and a session billed to the platform must still be askable. What it does need is a host
+    // that STAYS — a question is delivered to a connector and answered minutes later.
+    availability: sessionCapable,
+    run: async (args, deps) => {
+      const session = await deps.session()
+      const project = projectOrNull(args, deps)
+      const jobId = typeof args.jobId === 'string' ? args.jobId : undefined
+
+      // Asking for one by id re-reads it rather than taking a new one — the same reason
+      // `next_task` does: a parent that lost the envelope has no other way back to it.
+      if (typeof args.questionId === 'string') {
+        const known = session.questionById(args.questionId)
+          ?? (project != null ? await parkedQuestion(deps, project, jobId) : null)
+        if (known == null || known.id !== args.questionId) {
+          return fail(`No question ${args.questionId} is waiting. Call next_question with no id.`)
+        }
+
+        return questionResult(known, deps)
+      }
+
+      const wait = Math.min(((args.maxWaitSec as number) ?? 30) * 1000, NEXT_QUESTION_WAIT_MS)
+      const question = await session.nextQuestion(wait)
+      if (question != null) return questionResult(question, deps)
+
+      const outstanding = session.outstandingQuestions()
+      if (outstanding.length > 0) {
+        return ok(
+          `No new question. ${outstanding.length} already put to you and still unanswered:`
+          + ` ${outstanding.map(one => one.id).join(', ')}. Send the person's answer with`
+          + ' answer_question, or call next_question with that questionId to read it again.'
+        )
+      }
+
+      // Nothing queued here, which does not mean nothing is being asked: a run that parked while
+      // this connector was away is waiting on a question whose operation has long expired.
+      const parked = project != null ? await parkedQuestion(deps, project, jobId) : null
+      if (parked != null) {
+        return questionResult(
+          parked, deps,
+          'This run parked on a question before this session attached. It is still open:'
+        )
+      }
+
+      return ok(
+        'No question right now. If a job is still running, call wait_for; if it reported'
+        + ' "blocked on: question", call next_question again.'
+      )
+    },
+  },
+
+  {
+    name: 'answer_question',
+    title: 'Send back what they decided',
+    description:
+      'Send the person\'s answer to a question the platform asked. If it is not one the question'
+      + ' allows, this says so and the question stays open. Answer with declined: true when'
+      + ' nobody is available to decide — the platform then assumes and records an assumption.',
+    input: {
+      questionId: z.string(),
+      answer: z.union([z.string(), z.array(z.string())]).optional(),
+      text: z.string().optional().describe('What they said, where the question takes words.'),
+      declined: z.boolean().optional().describe('Nobody could decide this.'),
+      // Taken here for the same reason `next_question` takes it, and it has to be the SAME reach:
+      // a question this tool cannot find is refused after a person has already answered it, and
+      // the parent is sent back to `next_question`, which would offer it again through the job.
+      jobId: z.string().optional()
+        .describe('The job that reported "blocked on: question", if you have its id.'),
+      projectId: z.string().optional(),
+    },
+    availability: sessionCapable,
+    run: async (args, deps) => {
+      const session = await deps.session()
+      const questionId = args.questionId as string
+      const project = projectOrNull(args, deps)
+      const jobId = typeof args.jobId === 'string' ? args.jobId : undefined
+
+      // The question this session is holding, if it still is. That is what decides HOW the answer
+      // travels: an operation the platform is waiting on, or the question's own id.
+      const held = session.questionById(questionId)
+      const inquiry = held ?? (project != null ? await parkedQuestion(deps, project, jobId) : null)
+      if (inquiry == null || inquiry.id !== questionId) {
+        return fail(
+          `No question ${questionId} is waiting. Call next_question for the current one.`
+        )
+      }
+
+      const { answer, problem } = parseAnswer(inquiry, args)
+      if (problem != null) {
+        // Refused HERE, with the person still in front of the parent — a mismatch the platform
+        // catches costs a round trip on a question a human has already answered.
+        return fail(problem)
+      }
+
+      if (held != null) {
+        await session.answerQuestion(answer!)
+      } else {
+        if (project == null) {
+          return fail('No project. Call attach_project first, or name one with projectId.')
+        }
+        await deps.api.inquiry.answer(project, questionId, answer!)
+      }
+
+      return ok('Recorded. Call wait_for on the job.')
+    },
+  },
+
+  {
+    name: 'check_convertible',
+    title: 'Can this application be converted',
+    description:
+      'Say whether the platform can convert an existing codebase, what it is built with, what will'
+      + ' be limited, and what the next stage will cost. Nothing is provisioned and nothing is'
+      + ' charged. It reads what the intake found, so convert_project starts one first; on a'
+      + ' conversion already under way it also says where that one stands.',
+    input: { projectId: z.string().optional() },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'check_convertible', async () => {
+      const project = projectOf(args, deps)
+      // The platform reads the tree through THIS connector when it lives on this machine, so the
+      // session has to exist before the check runs rather than after it.
+      await ensureSession(deps, project)
+      const check = await deps.api.convert.check(project)
+
+      return ok(
+        // Read after the check rather than before it: the check is what this tool is for, and the
+        // conversion only decides what to do NEXT with what it said.
+        renderCheck(check, await conversionUnderWay(deps, project)),
+        check as unknown as Record<string, unknown>
+      )
+    }),
+  },
+
+  {
+    name: 'convert_project',
+    title: 'Convert an application you already have',
+    description:
+      'Bring an existing application onto the platform: it reads the code, restores the'
+      + ' specification and the user stories nobody wrote down, and rebuilds it on the platform\'s'
+      + ' stack. The original is kept beside it. Returns a job, and stops at your decision after'
+      + ' each stage.',
+    input: {
+      projectId: z.string().optional().describe('Convert into a project that already exists.'),
+      name: z.string().optional(),
+      about: z.string().optional().describe('What the application is for, in your own words.'),
+      repoUrl: z.string().optional()
+        .describe('A GitHub repository to convert. Named, it is converted rather than this directory.'),
+      branch: z.string().optional(),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'convert_project', async () => {
+      const named = typeof args.projectId === 'string' ? args.projectId : deps.attached()
+      if (named != null) {
+        await ensureSession(deps, named)
+
+        return jobResult(await deps.api.convert.start(named))
+      }
+
+      const repoUrl = typeof args.repoUrl === 'string' && args.repoUrl.trim() !== ''
+        ? args.repoUrl.trim()
+        : null
+      if (deps.dir == null && repoUrl == null) {
+        return fail(
+          'Nothing to convert. Name a project, attach one, run the connector in the directory you'
+          + ' want converted, or give a repoUrl.'
+        )
+      }
+
+      const job = await deps.api.convert.create({
+        ...(typeof args.name === 'string' ? { name: args.name } : {}),
+        ...(typeof args.about === 'string' ? { about: args.about } : {}),
+        // A NAMED repository outranks the directory this connector runs in. A stdio connector
+        // always has a directory, so reading that first would convert the caller's own working
+        // copy instead of the repository it asked for — with `repoUrl` and `branch` dropped in
+        // silence, which is the one outcome nobody could diagnose from the answer.
+        ...(repoUrl == null
+          // The directory IS the origin: nothing is cloned, and the relocation and the template
+          // install run as ordinary operations through this connector.
+          ? { target: ConnectTarget.Local, origin: { kind: OriginKind.Local } }
+          : {
+            target: ConnectTarget.Cloud,
+            origin: {
+              kind: OriginKind.Github,
+              repoUrl,
+              ...(typeof args.branch === 'string' ? { branch: args.branch } : {}),
+            },
+          }),
+      })
+      deps.attach(job.projectId)
+      await ensureSession(deps, job.projectId)
+
+      return jobResult(await deps.api.convert.start(job.projectId))
+    }),
+  },
+
+  {
+    name: 'proceed_conversion',
+    title: 'Decide what a conversion does next',
+    description:
+      'A conversion stops after each stage and waits for a decision: analyze what was read,'
+      + ' extract the user stories, implement them, leave it as it stands, retry a stage that'
+      + ' failed, or cancel. Returns a job for anything that runs.',
+    input: {
+      decision: z.enum(Object.values(ConversionDecision) as [string, ...string[]]),
+      projectId: z.string().optional(),
+      note: z.string().optional().describe('What the user said about the decision. Recorded.'),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'proceed_conversion', async () => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      const job = await deps.api.convert.proceed(
+        project,
+        args.decision as ConversionDecision,
+        typeof args.note === 'string' ? args.note : undefined
+      )
+
+      return jobResult(job)
+    }),
+  },
+
+  {
+    name: 'conversion_status',
+    title: 'Where a conversion stands',
+    description:
+      'The stage a conversion has reached, what it found, what it has cost so far, whether the'
+      + ' original sources are still there, and what to call next.',
+    input: { projectId: z.string().optional() },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'conversion_status', async () => {
+      const view = await deps.api.convert.status(projectOf(args, deps))
+
+      return ok(renderConversion(view), view as unknown as Record<string, unknown>)
+    }),
+  },
+
+  {
+    name: 'purge_origin',
+    title: 'Delete the converted original',
+    description:
+      'Delete the original sources a conversion kept beside the converted project, and rewrite'
+      + ' the conversion documents so they stop quoting them. This CANNOT be undone — ask the'
+      + ' user before calling it.',
+    input: {
+      projectId: z.string().optional(),
+      confirm: z.boolean().describe('Must be true. The user has to have agreed to this.'),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'purge_origin', async () => {
+      if (args.confirm !== true) {
+        return fail(
+          'Not done. This deletes the original sources under __viable_converted/ and every'
+          + ' reference to them, and cannot be undone. Ask the user, then call it again with'
+          + ' confirm: true.'
+        )
+      }
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+
+      return jobResult(await deps.api.convert.purge(project))
+    }),
   },
 
   {

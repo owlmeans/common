@@ -75,6 +75,86 @@ export interface SlotGitLogResult {
   commits: SlotGitCommitInfo[]
 }
 
+/**
+ * Bring a remote repository onto the volume.
+ *
+ * `token` is a per-invocation credential and never reaches the tree: the executor passes it
+ * through the process environment for the one fetch, exactly as push and pull already do, so it
+ * appears in no `.git/config`, no remote URL and no argv anything can observe.
+ */
+export interface SlotGitCloneArgs {
+  remoteUrl: string
+  /** The branch to check out. Absent means whatever the remote calls its default. */
+  branch?: string
+  /** Fetch depth; 0 means the whole history. Defaults to a shallow fetch. */
+  depth?: number
+  token?: string
+}
+
+export interface SlotGitCloneResult {
+  cloned: boolean
+  /** The branch actually checked out — the resolved default, when none was asked for. */
+  branch: string
+  head: SlotGitCommitInfo | null
+  /** Executor diagnostics, when it has any worth reporting. */
+  result?: string
+}
+
+/**
+ * One entry of a {@link SlotFileCommand.StatTree} listing.
+ *
+ * The shape both a publisher and a connector answer with, so a census walks a pod's volume and a
+ * developer's own directory through one contract. `binary` is the executor's own verdict — the
+ * caller has not read the file and cannot form one.
+ */
+export interface FileStat {
+  path: string
+  bytes: number
+  binary: boolean
+  modifiedAt?: string
+}
+
+export interface StatTreeArgs {
+  /** Project-relative directory to walk. Absent means the whole project. */
+  dir?: string
+  /** Entries to return before the answer reports itself truncated. */
+  limit?: number
+}
+
+/**
+ * `total` is what the walk SAW, `entries` what it returned.
+ *
+ * The two differ on a truncated walk, and the difference is what tells a caller its picture of the
+ * tree is partial — a bounded listing that reported only what it returned would be indistinguish-
+ * able from a small repository.
+ */
+export interface StatTreeResult {
+  entries: FileStat[]
+  truncated: boolean
+  total: number
+}
+
+export interface ReadHeadArgs {
+  path: string
+  bytes: number
+}
+
+/** Move everything in the project root under `dir`, leaving the named entries where they are. */
+export interface RelocateArgs {
+  dir: string
+  /** Root-relative names that stay put — the slot's own metadata and markers. */
+  keep?: string[]
+}
+
+export interface RelocateResult {
+  moved: number
+  kept: string[]
+}
+
+export interface RemoveTreeArgs {
+  dir: string
+}
+
 /** Arguments a shell command may carry. */
 export interface SlotShellArgs {
   subproject?: SubProject
