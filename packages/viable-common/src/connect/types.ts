@@ -276,3 +276,53 @@ export interface ConnectPipelineResumeBody {
   from?: string
   force?: boolean
 }
+
+/** The acknowledgement returned when a connector submits an operation result. */
+export interface ConnectOpSubmission {
+  ok: boolean
+  /** The operation was already resolved; retrying a lost HTTP response is safe. */
+  ignored?: boolean
+}
+
+/** The deliberate small projection returned by the connector project list. */
+export interface ConnectProjectSummary {
+  id: string
+  name: string
+  alias: string
+}
+
+/** A story item returned after creating, editing or fetching one story. */
+export interface ConnectStoryMutation {
+  id: string
+  code?: string
+  story: string
+  area?: string
+  status: string
+  primary: boolean
+  warning?: string
+  createdAt: string
+}
+
+/** The success answer for deleting a story. */
+export interface ConnectStoryDeletion {
+  deleted: boolean
+}
+
+/** The persistent state of one pipeline run, read by a connector without platform internals. */
+export interface ConnectPipelineState {
+  runId: string
+  pipeline: string
+  version: number
+  status: string
+  step?: string
+  completed: string[]
+  pending: string[]
+  warnings: string[]
+  failedAt?: string
+  error?: string
+  note?: string
+  attempts: number
+  startedAt: string
+  heartbeatAt: string
+  updatedAt: string
+}

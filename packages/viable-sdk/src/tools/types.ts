@@ -37,7 +37,7 @@ export interface ToolDeps {
 
 export interface ToolResult {
   text: string
-  structured?: Record<string, unknown>
+  structured?: object
   isError?: boolean
 }
 

@@ -1,7 +1,8 @@
 import type {
-  ConnectCapabilities, ConnectHarness, ConnectJob, ConnectLlm, ConnectMarker, ConnectOp,
-  ConnectOpResult, ConnectProjectStatus, ConnectSessionView, ConnectStoryList, ConnectTarget,
-  ModelTask, ModelTaskResult, SlotCommandPayload
+  ConnectCapabilities, ConnectCapabilitiesView, ConnectHarness, ConnectJob, ConnectLlm, ConnectMarker,
+  ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState, ConnectProjectStatus,
+  ConnectSessionView, ConnectStoryDeletion, ConnectStoryItem, ConnectStoryList, ConnectStoryMutation,
+  ConnectTarget, ModelTask, ModelTaskResult, SlotCommandPayload
 } from '@owlmeans/viable-common'
 
 export interface SdkOptions {
@@ -27,13 +28,13 @@ export interface SdkOptions {
  * written against this, so a tool cannot accidentally work in only one of the two.
  */
 export interface ConnectorApi {
-  capabilities: () => Promise<unknown>
+  capabilities: () => Promise<ConnectCapabilitiesView>
 
   openSession: (args: OpenSessionArgs) => Promise<ConnectSessionView>
   closeSession: (sessionId: string) => Promise<void>
-  heartbeat: (sessionId: string) => Promise<unknown>
+  heartbeat: (sessionId: string) => Promise<ConnectSessionView>
   pullOps: (sessionId: string, waitSec: number) => Promise<ConnectOp[]>
-  submitOp: (sessionId: string, result: ConnectOpResult) => Promise<unknown>
+  submitOp: (sessionId: string, result: ConnectOpResult) => Promise<ConnectOpSubmission>
 
   project: {
     create: (prompt: string, target?: ConnectTarget) => Promise<ConnectJob>
@@ -48,15 +49,15 @@ export interface ConnectorApi {
 
   story: {
     list: (projectId: string, query?: StoryQuery) => Promise<ConnectStoryList>
-    get: (projectId: string, storyId: string) => Promise<unknown>
-    create: (projectId: string, story: string) => Promise<unknown>
-    update: (projectId: string, storyId: string, story: string) => Promise<unknown>
-    remove: (projectId: string, storyId: string) => Promise<unknown>
+    get: (projectId: string, storyId: string) => Promise<ConnectStoryItem>
+    create: (projectId: string, story: string) => Promise<ConnectStoryMutation>
+    update: (projectId: string, storyId: string, story: string) => Promise<ConnectStoryMutation>
+    remove: (projectId: string, storyId: string) => Promise<ConnectStoryDeletion>
     develop: (projectId: string, storyId: string) => Promise<ConnectJob>
   }
 
   pipeline: {
-    state: (projectId: string, runId: string) => Promise<unknown>
+    state: (projectId: string, runId: string) => Promise<ConnectPipelineState>
     resume: (projectId: string, runId: string, args?: { from?: string, force?: boolean }) => Promise<ConnectJob>
   }
 }

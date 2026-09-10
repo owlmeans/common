@@ -1,5 +1,7 @@
 import type { ServerRouteModel, ServerRouteOptions } from '@owlmeans/server-route'
-import type { CommonEntrypoint, EntrypointHandler, CommonEntrypointOptions } from '@owlmeans/entrypoint'
+import type {
+  CommonEntrypoint, EntrypointHandler, CommonEntrypointOptions, EntrypointProtocolDeclaration,
+} from '@owlmeans/entrypoint'
 import type { Service } from '@owlmeans/context'
 
 export interface ServerEntrypoint<R> extends CommonEntrypoint {
@@ -24,4 +26,15 @@ export interface EntrypointRef<R> {
 
 export interface RefedEntrypointHandler<R = {}> {
   (ref: EntrypointRef<R>): EntrypointHandler
+}
+
+/** The server-local representation of a shared protocol declaration. */
+export type ServerProtocolEntrypoint<Protocol extends EntrypointProtocolDeclaration> = ServerEntrypoint<object> & {
+  readonly protocol: Protocol
+}
+
+/** A handler that is inseparable from the protocol whose request it accepts. */
+export interface BoundEntrypointHandler<Protocol extends EntrypointProtocolDeclaration> {
+  readonly protocol: Protocol
+  bind: RefedEntrypointHandler
 }

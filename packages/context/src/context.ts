@@ -1,5 +1,7 @@
 import { ContextStage, MiddlewareStage, MiddlewareType } from './consts.js'
-import type { BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicResource, Service } from './types.js'
+import type {
+  BasicConfig, BasicContext, Middleware, BasicEntrypoint, BasicResource, EntrypointReference, Service
+} from './types.js'
 import { applyMiddlewares, getMiddlerwareKey } from './utils/context.js'
 
 type Entrypoint = BasicEntrypoint
@@ -146,7 +148,8 @@ export const makeBasicContext = <C extends BasicConfig>(cfg: C): BasicContext<C>
       return _service as T
     },
 
-    entrypoint: <T extends Entrypoint>(alias: string) => {
+    entrypoint: <T extends Entrypoint>(reference: EntrypointReference<T> | string) => {
+      const alias = typeof reference === 'string' ? reference : reference.alias
       if (entrypoints[alias] != null) {
         return entrypoints[alias] as T
       }

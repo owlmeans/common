@@ -10,7 +10,7 @@ export interface McpServerLike {
     config: { title?: string, description?: string, inputSchema?: unknown },
     cb: (args: Record<string, unknown>) => Promise<{
       content: Array<{ type: 'text', text: string }>
-      structuredContent?: Record<string, unknown>
+      structuredContent?: object
       isError?: boolean
     }>
   ) => unknown

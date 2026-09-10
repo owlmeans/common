@@ -1,5 +1,4 @@
 import { useEffect, useState, type FC } from 'react'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { useStoreList } from '@owlmeans/client'
 import { session, type SessionItem } from '__APP_SLUG__-common'
 import { SESSION_STATE, useContext } from '../context.js'
@@ -39,7 +38,7 @@ export const SessionScreen: FC = () => {
   // leave the store too, and one write wakes the subscribers once instead of once per record.
   const load = async () => {
     const data = await ctx
-      .entrypoint<ClientEntrypoint<SessionItem[]>>(session.list)
+      .entrypoint(session.list)
       .call({ params: { sid } })
     await store.replace(data ?? [])
   }
@@ -51,7 +50,7 @@ export const SessionScreen: FC = () => {
     setBusy(true)
     try {
       const item = await ctx
-        .entrypoint<ClientEntrypoint<SessionItem>>(session.add)
+        .entrypoint(session.add)
         .call({ params: { sid }, body: { text } })
       setText('')
       if (item != null) {
@@ -64,7 +63,7 @@ export const SessionScreen: FC = () => {
 
   const remove = async (id: string) => {
     await ctx
-      .entrypoint<ClientEntrypoint<{ removed: boolean }>>(session.remove)
+      .entrypoint(session.remove)
       .call({ params: { sid, id } })
     await store.delete(id)
   }

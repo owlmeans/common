@@ -54,6 +54,18 @@ export interface BasicEntrypoint extends Contextual {
   _entrypoint: true
 }
 
+/**
+ * A stable reference to an entrypoint registered in a context.
+ *
+ * Contract packages use this instead of exporting raw alias strings.  The optional type member is
+ * deliberately phantom: it lets `context.entrypoint(protocol)` infer the context-bound module
+ * without changing the wire alias or adding registry-wide declaration merging.
+ */
+export interface EntrypointReference<T extends BasicEntrypoint = BasicEntrypoint> {
+  readonly alias: string
+  readonly entrypointType?: T
+}
+
 export interface BasicResource extends Contextual {
   init?: () => Promise<void>
 }
@@ -85,7 +97,10 @@ export interface BasicContext<C extends BasicConfig> {
 
   get config(): Promise<C>
   service: <T extends Service>(alias: string) => T
-  entrypoint: <T extends BasicEntrypoint>(alias: string) => T
+  entrypoint: {
+    <T extends BasicEntrypoint>(reference: EntrypointReference<T>): T
+    <T extends BasicEntrypoint>(reference: EntrypointReference | string): T
+  }
   resource: <T extends BasicResource>(alias: string) => T
   hasResource: (alias: string) => boolean
   hasService: (alias: string) => boolean

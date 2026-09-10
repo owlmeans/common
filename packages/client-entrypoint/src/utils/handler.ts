@@ -6,7 +6,7 @@ import { EntrypointOutcome, provideResponse, transportAlias } from '@owlmeans/en
 import type { ClientEntrypoint, EntrypointInvoke, EntrypointUrlOptions, ClientEntrypointOptions, EntrypointRef, ClientRequest } from '../types.js'
 import { validate } from './entrypoint.js'
 import { extractParams } from '@owlmeans/client-route'
-import { PARAM, RouteProtocols } from '@owlmeans/route'
+import { PARAM, RouteMethod, RouteProtocols } from '@owlmeans/route'
 import { stringify } from 'qs'
 import { assertContext } from '@owlmeans/context'
 import { makeSecurityHelper } from '@owlmeans/config'
@@ -75,7 +75,11 @@ export const apiInvoke: <
     const request: AbstractRequest = {
       alias: ep.alias,
       params: req?.params ?? {},
-      body: req?.body,
+      // JSON transports must send a body for mutation methods even when the contract has no
+      // payload.  Keeping that rule here makes every typed caller use `call({ params })`, never
+      // an SDK-specific `{ body: {} }` workaround.
+      body: req?.body ?? ([RouteMethod.POST, RouteMethod.PUT, RouteMethod.PATCH]
+        .includes(ep.route.route.method ?? RouteMethod.GET) ? {} : undefined),
       headers: req?.headers ?? {},
       query: req?.query ?? {},
       host: req?.host,

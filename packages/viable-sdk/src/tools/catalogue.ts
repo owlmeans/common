@@ -13,7 +13,7 @@ import {
   anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
 } from './types.js'
 
-const ok = (text: string, structured?: Record<string, unknown>) => ({ text, structured })
+const ok = <Structured extends object>(text: string, structured?: Structured) => ({ text, structured })
 const fail = (text: string) => ({ text, isError: true })
 
 /** The project a tool acts on: the one named, or the one the connector is attached to. */
@@ -441,7 +441,7 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const created = await deps.api.story.create(projectOf(args, deps), args.story as string)
 
-      return ok('Story created.', created as Record<string, unknown>)
+      return ok('Story created.', created)
     },
   },
 
@@ -456,7 +456,7 @@ export const catalogue: ToolDefinition[] = [
         projectOf(args, deps), args.storyId as string, args.story as string
       )
 
-      return ok('Story updated.', updated as Record<string, unknown>)
+      return ok('Story updated.', updated)
     },
   },
 
@@ -496,7 +496,7 @@ export const catalogue: ToolDefinition[] = [
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const story = await deps.api.story.get(projectOf(args, deps), args.storyId as string) as Record<string, unknown>
+      const story = await deps.api.story.get(projectOf(args, deps), args.storyId as string)
 
       return ok(
         `${story.code ?? story.id} · ${story.status}`
@@ -529,7 +529,7 @@ export const catalogue: ToolDefinition[] = [
     input: { runId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const state = await deps.api.pipeline.state(projectOf(args, deps), args.runId as string) as Record<string, unknown>
+      const state = await deps.api.pipeline.state(projectOf(args, deps), args.runId as string)
 
       return ok(
         `${String(state.pipeline)} · ${String(state.status)}`
