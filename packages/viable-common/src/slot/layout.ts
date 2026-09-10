@@ -1,4 +1,5 @@
 import { TargetLayout } from '../integrity/index.js'
+import { packageForRole, resolveTopology, topologyOf } from '../topology/index.js'
 import { SubProject } from './consts.js'
 
 /**
@@ -50,26 +51,39 @@ export interface TargetPaths {
   libraries: string[]
 }
 
+/**
+ * Where every role lives, per layout — DERIVED from that layout's topology.
+ *
+ * These were two hand-written records, and the pair could disagree with each other and with the
+ * tree: `build` listed the packages in an order somebody maintained by hand beside the graph that
+ * actually decides it, and `libraries` was a second copy of "which of these are built with
+ * `tsc -b`". Both are now read off {@link LAYOUT_TOPOLOGIES}, so a package added to a topology
+ * appears in the build order, in the library order and in the role map at once, or in none of them.
+ *
+ * The VALUES are unchanged, and `topology.spec.ts` pins them against the tables they replaced.
+ */
+const pathsOfTopology = (layout: TargetLayout): TargetPaths => {
+  const topology = resolveTopology(topologyOf(layout))
+  const dirOf = (role: SubProject): string | undefined => packageForRole(topology, role)?.name
+
+  return {
+    layout,
+    dir: topology.dir,
+    // The three roles every arrangement has. A topology without one is not a target, so the
+    // fallback is the role's own name rather than a silent `undefined` reaching a path join.
+    api: dirOf(SubProject.Api) ?? SubProject.Api,
+    web: dirOf(SubProject.Web) ?? SubProject.Web,
+    common: dirOf(SubProject.Common) ?? SubProject.Common,
+    // A NAME, not a promise — every caller checks the disk before acting on it.
+    ...(dirOf(SubProject.Worker) != null ? { worker: dirOf(SubProject.Worker) } : {}),
+    build: topology.build,
+    libraries: topology.libraries,
+  }
+}
+
 export const LAYOUTS: Record<TargetLayout, TargetPaths> = {
-  [TargetLayout.V1]: {
-    layout: TargetLayout.V1,
-    dir: 'packages',
-    api: 'backend',
-    web: 'frontend',
-    common: 'common',
-    build: ['common', 'backend', 'frontend'],
-    libraries: ['common'],
-  },
-  [TargetLayout.V2]: {
-    layout: TargetLayout.V2,
-    dir: 'sources',
-    api: 'api',
-    web: 'web',
-    common: 'common',
-    worker: 'worker',
-    build: ['common', 'backend', 'api', 'web', 'worker'],
-    libraries: ['common', 'backend'],
-  },
+  [TargetLayout.V1]: pathsOfTopology(TargetLayout.V1),
+  [TargetLayout.V2]: pathsOfTopology(TargetLayout.V2),
 }
 
 /**
@@ -81,26 +95,23 @@ export const LAYOUTS: Record<TargetLayout, TargetPaths> = {
  * rather than to a plausible one: a command aimed at a package this tree does not have must fail
  * where it is issued. Answering `common` instead — which is what the missing entries used to do —
  * runs it somewhere real and wrong.
+ *
+ * Totality is what a topology cannot give on its own (it maps only the roles its packages hold),
+ * so an unmapped role falls back to its own name here, which is that same visible failure.
  */
+const roleDirsOfTopology = (layout: TargetLayout): Record<SubProject, string> => {
+  const topology = resolveTopology(topologyOf(layout))
+
+  return Object.values(SubProject).reduce<Record<SubProject, string>>((dirs, role) => {
+    dirs[role] = packageForRole(topology, role)?.name ?? role
+
+    return dirs
+  }, {} as Record<SubProject, string>)
+}
+
 export const ROLE_DIRS: Record<TargetLayout, Record<SubProject, string>> = {
-  [TargetLayout.V1]: {
-    [SubProject.Common]: 'common',
-    [SubProject.Backend]: 'backend',
-    [SubProject.Frontend]: 'frontend',
-    [SubProject.Api]: 'backend',
-    [SubProject.Web]: 'frontend',
-    [SubProject.Worker]: 'worker',
-  },
-  [TargetLayout.V2]: {
-    [SubProject.Common]: 'common',
-    // The shared LIBRARY, not the server — that is `api`. The distinction is the whole reason
-    // this table is per-layout.
-    [SubProject.Backend]: 'backend',
-    [SubProject.Frontend]: 'web',
-    [SubProject.Api]: 'api',
-    [SubProject.Web]: 'web',
-    [SubProject.Worker]: 'worker',
-  },
+  [TargetLayout.V1]: roleDirsOfTopology(TargetLayout.V1),
+  [TargetLayout.V2]: roleDirsOfTopology(TargetLayout.V2),
 }
 
 /**

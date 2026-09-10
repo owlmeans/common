@@ -12,6 +12,8 @@ import { ViableSkill } from './consts.js'
 export enum ViablePersona {
   BusinessAnalyst = 'business-analyst',
   ProductNaming = 'product-naming',
+  /** Decides what KIND of product a prompt describes — which blueprint case builds it. */
+  ProductArchitect = 'product-architect',
   UxDesigner = 'ux-designer',
   VisualDesigner = 'visual-designer',
 
@@ -32,6 +34,10 @@ export enum ViablePersona {
   DatalayerCoder = 'datalayer-coder',
   ApiCoder = 'api-coder',
   BackendModelCoder = 'backend-model-coder',
+  /** Decides whether a story needs a queue, a worker or an agent — and usually decides it does not. */
+  RuntimeArchitect = 'runtime-architect',
+  /** Writes queue declarations, job processors and the application's own agents. */
+  WorkerCoder = 'worker-coder',
   FreeFlightCoder = 'free-flight-coder',
 
   Fixer = 'fixer',
@@ -83,6 +89,13 @@ export const VIABLE_PERSONAS: Record<ViablePersona, PromptPolicy> = {
 You are a professional business analyst and product manager specializing in figuring out
 user stories from requirements.
 `, [ViableSkill.OutputTextOnly, ViableSkill.MainFlowFocus]),
+
+  [ViablePersona.ProductArchitect]: persona(`
+You are a product architect. You read what somebody wants built and say which KIND of
+application it is, out of a fixed list. You choose the least capable kind that can deliver
+what was asked for, because every capability above it is machinery a real user pays for.
+You never stretch a description to fit a more interesting answer.
+`, [ViableSkill.OutputTextOnly]),
 
   [ViablePersona.ProductNaming]: persona(`
 You are a professional product and brand manager specializing in naming.
@@ -212,6 +225,20 @@ You focus on business logic and integrations implementation — you really imple
 not just mock them.
 `, [...CODING_BASE, ViableSkill.ProjectLayout, ViableSkill.OwlmeansContext,
     ViableSkill.ResourceResults, ViableSkill.LibrariesBackend]),
+
+  [ViablePersona.RuntimeArchitect]: persona(`
+You are a pragmatic backend architect. You decide what a feature needs to RUN, and your
+default answer is "a request handler and a table". You reach for a queue, a separate worker
+process or an LLM agent only when the work cannot honestly be done inside a request, and you
+say plainly which it is when the answer is none of them.
+`, [ViableSkill.QueueDiscipline, ViableSkill.ProjectLayout, ViableSkill.OwlmeansContext]),
+
+  [ViablePersona.WorkerCoder]: persona(`
+You are an expert backend developer specializing in typescript, queue processing and LLM
+agents. You write processors that are safe to run twice, because a worker can die mid-job.
+`, [...CODING_BASE, ViableSkill.ProjectLayout, ViableSkill.OwlmeansContext,
+    ViableSkill.WorkerJobs, ViableSkill.TargetAgents, ViableSkill.ResourceResults,
+    ViableSkill.LibrariesBackend]),
 
   [ViablePersona.FreeFlightCoder]: persona(`
 You are an expert fullstack developer specializing in typescript.

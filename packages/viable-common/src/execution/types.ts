@@ -1,3 +1,4 @@
+import type { BlueprintRef } from '../blueprint/types.js'
 import type {
   ExecutionState as LlmExecutionState, TaskExecutionState as LlmTaskExecutionState,
 } from '@owlmeans/llm-common'
@@ -27,6 +28,18 @@ export interface ExecutionState extends LlmExecutionState {
   entityId?: string
   project?: AgentProject
   entities?: Entity[]
+  /**
+   * Which blueprint this run is building against, as an id plus an override patch.
+   *
+   * A REFERENCE and never the resolved blueprint: an execution state is written into the pipeline
+   * run row at every step boundary, and that row holds keys, never artifacts. The resolved value
+   * is reconstructed from these two fields whenever a helper asks for it, which also means a
+   * blueprint the platform has since corrected reaches a resumed run rather than the copy that was
+   * frozen into it.
+   *
+   * Absent means the platform default — every project created before blueprints existed.
+   */
+  blueprint?: BlueprintRef
 }
 
 /**
