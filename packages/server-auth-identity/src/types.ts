@@ -77,6 +77,17 @@ export interface IdentityLinkingService extends InitializedService {
   getLinkedProfile: (details: ProviderProfileDetails) => Promise<AuthPayload | null>
   linkProfile: (details: ProviderProfileDetails, meta: AccountMeta) => Promise<AuthPayload>
   linkCredentials: (details: ProviderProfileDetails) => Promise<AuthPayload>
+  /**
+   * Forget which profile an external login maps to, so the next `linkProfile` establishes it anew.
+   *
+   * The stored mapping is keyed `{type, userId, credential}` under a unique index, so a caller
+   * that has decided the existing mapping is wrong cannot simply write over it — it has to be
+   * retired first. That decision belongs to whoever owns the login path (a decorator serving a
+   * different population than the platform's own customers, say); the key format belongs here.
+   *
+   * Idempotent: a login that maps to nothing is already in the state this promises.
+   */
+  unlinkCredentials: (details: ProviderProfileDetails) => Promise<void>
   getOwnerProfiles: (entityId: string) => Promise<Profile[]>
   getOwnerCredentials: (userId: string, entityId?: string, type?: string) => Promise<AuthCredentials | undefined>
 }

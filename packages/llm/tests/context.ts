@@ -16,6 +16,8 @@ export const gates = makeGates({
 export const Role = {
   Analyst: 'analyst',
   Picker: 'picker',
+  /** The conventional cheap tier — same value as `UTILITY_ROLE`. */
+  Utility: 'utility',
 } as const
 
 /**
@@ -60,6 +62,7 @@ export const anthropicConfigs = (): ModelConfig[] => [
  */
 export const offlineConfigs = (): ModelConfig[] => [
   { alias: Role.Analyst, provider: ModelProvider.OpenAI, model: 'gpt-4.1-mini', secret: 'sk-test' },
+  { alias: Role.Utility, provider: ModelProvider.OpenAI, model: 'gpt-4.1-nano', secret: 'sk-test' },
   {
     alias: Role.Picker, provider: ModelProvider.Compatible, model: 'some/model', secret: 'sk-test',
     baseUrl: 'https://openrouter.ai/api/v1',

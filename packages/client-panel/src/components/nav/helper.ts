@@ -37,8 +37,8 @@ const normalizePath = (path: string): string =>
  * alias in `location.state`, which is authoritative — but `state` is `window.history.state`,
  * so it is null until the first in-app navigation: on a hard page load or a deep link there
  * is nothing there, and a menu keyed on it alone highlights nothing on exactly the entry that
- * matters most. The pathname is the fallback: entrypoint paths are resolved by the time the
- * router renders, so matching them is a lookup, not a guess.
+ * matters most. The pathname is the fallback: an entrypoint computes its path from its own
+ * declaration and its ancestors', so matching them is a lookup, not a guess.
  */
 export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
   const context = useContext()
@@ -55,7 +55,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
 
     const pathOf = (alias: string): string | null => {
       try {
-        return normalizePath(context.entrypoint<ClientEntrypoint<string>>(alias).getPath())
+        return normalizePath(context.entrypoint<ClientEntrypoint<string>>(alias).path())
       } catch {
         // An alias the app never elevated addresses nothing — it cannot be the current screen,
         // and it must not take the menu down with it.
@@ -94,7 +94,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       while (alias != null && !seen.has(alias)) {
         seen.add(alias)
         try {
-          alias = context.entrypoint<ClientEntrypoint<string>>(alias).getParentAlias() ?? null
+          alias = context.entrypoint<ClientEntrypoint<string>>(alias).route.route.parent ?? null
         } catch {
           alias = null
         }

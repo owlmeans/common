@@ -1,11 +1,12 @@
 
 import type { Context, Config } from './types.js'
 import type { TrustedRecord } from '../types.js'
-import type { Resource } from '@owlmeans/resource'
+import type { Criteria, Resource } from '@owlmeans/resource'
 import { fromPubKey, makeKeyPairModel } from '@owlmeans/basic-keys'
 
 export const trust = async <C extends Config, T extends Context<C>>(context: T, resource: string, userName: string, field: string = 'name') => {
-  const trustedUser = await context.resource<Resource<TrustedRecord>>(resource).load(userName, field)
+  const where: Criteria<TrustedRecord> = { [field]: userName }
+  const trustedUser = await context.resource<Resource<TrustedRecord>>(resource).load(where)
   if (trustedUser == null) {
     throw new SyntaxError(`Auth service trusted entity is not provided: ${userName}`)
   }

@@ -4,15 +4,15 @@ Lightweight dependency injection and service lifecycle management for fullstack 
 
 ## Overview
 
-- Context holds services, modules, and resources; passed top-down through the app
+- Context holds services, entrypoints, and resources in three flat registries keyed by alias; passed top-down through the app
 - Services are registered by alias and retrieved via `context.service(alias)`
-- Supports layered contexts (System → Global → Service → Entity → User) for multi-tenant apps
-- Route constants (`ROOT`, `HOME`, `GUEST`, `BASE`) are used by the module system across all packages
+- One context is built per process by a single factory and extended with idempotent `append*` mixins
+- Route constants (`ROOT`, `HOME`, `GUEST`, `BASE`) are used by the entrypoint system across all packages
 
 ## Installation
 
 ```bash
-bun add @owlmeans/context
+bun add @owlmeans/context@^0.1.18-rc.7
 ```
 
 ## Usage
@@ -66,10 +66,31 @@ Asserts that a context is defined; throws if not.
 
 Creates a context from a config object. Rarely used directly — prefer the higher-level `makeContext` from `@owlmeans/server-app` or `@owlmeans/client-context`.
 
+A factory calls the factory of the layer below it, applies its own idempotent `append*` mixins, and returns that same context:
+
+```typescript
+export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
+  const context = makeServerContext<C, T>(cfg)
+  appendMyService<C, T>(context)
+  return context
+}
+```
+
+Nothing is stored for re-creation — a service, a resource and an entrypoint each bind to exactly one context.
+
+### Registries
+
+Three flat maps keyed by alias. Registering the same alias twice replaces the earlier entry.
+
+```typescript
+context.registerService(service)          // context.service(alias), context.hasService(alias)
+context.registerResource(resource)        // context.resource(alias), context.hasResource(alias)
+context.registerEntrypoints(entrypoints)  // context.entrypoint(alias), context.entrypoints(), context.hasEntrypoint(alias)
+```
+
 ### Enums
 
 ```typescript
-enum Layer { System, Global, Service, Entity, User }
 enum AppType { Backend, Frontend }
 enum ContextStage { Configuration, Loading, Ready }
 ```
@@ -99,7 +120,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

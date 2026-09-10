@@ -45,7 +45,7 @@ export const makeControl = (
       control.afterAuthenticate = plugins[control.type].afterAuthenticate
 
       const module = context.entrypoint<ClientEntrypoint<AllowanceResponse>>(AUTHEN_INIT)
-      const [allowance] = await module.call({ body: control.request })
+      const allowance = await module.call({ body: control.request })
 
       control.allowance = allowance
 
@@ -89,8 +89,8 @@ export const makeControl = (
         // We return back unwrapped challenge
         credentials.challenge = control.allowance?.challenge
 
-        const [token, status] = await context.entrypoint<ClientEntrypoint<AuthToken>>(AUTHEN_AUTHEN)
-          .call({ body: credentials })
+        const { value: token, outcome: status } = await context.entrypoint<ClientEntrypoint<AuthToken>>(AUTHEN_AUTHEN)
+          .invoke({ body: credentials })
 
         if (status === EntrypointOutcome.Ok && token.token != null
           && token.token !== '' && control.afterAuthenticate != null) {

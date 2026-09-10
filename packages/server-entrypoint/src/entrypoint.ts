@@ -3,23 +3,26 @@ import type { ServerEntrypoint, EntrypointOptions, EntrypointRef, RefedEntrypoin
 import { isEntrypoint, makeCommonEntrypoint } from './utils/entrypoint.js'
 import { isServerRouteModel, route } from '@owlmeans/server-route'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import type { CommonRouteModel } from '@owlmeans/route'
-import type { BasicContext } from '@owlmeans/context'
-import { prependBase } from '@owlmeans/route/utils'
+import type { RouteModel } from '@owlmeans/route'
 
 export const entrypoint = <R>(
-  arg: CommonEntrypoint | ServerRouteModel<R> | CommonRouteModel, handler?: RefedEntrypointHandler<R>, opts?: EntrypointOptions<R>
+  arg: CommonEntrypoint | ServerRouteModel<R> | RouteModel, handler?: RefedEntrypointHandler<R>, opts?: EntrypointOptions<R>
 ): ServerEntrypoint<R> => {
   const entrypointHandle: EntrypointRef<R> = { ref: undefined }
 
   let _entrypoint: ServerEntrypoint<R>
 
   if (isEntrypoint(arg)) {
-    const routeModel = route(arg.route, opts?.intermediate ?? false, opts?.routeOptions)
+    // Elevating the same alias again is legal, so an intermediate route stays intermediate unless
+    // this call says otherwise.
+    const intermediate = opts?.intermediate
+      ?? (isServerRouteModel(arg.route) ? arg.route.isIntermediate() : false)
+    const routeModel = route(arg.route, intermediate, opts?.routeOptions)
     _entrypoint = arg as ServerEntrypoint<R>
     _entrypoint.route = routeModel
     _entrypoint.filter = opts?.filter ?? arg.filter
-    _entrypoint.guards = [...(arg.guards ?? []), ...(opts?.guards ?? [])]
+    // Elevating adds guards, it never swaps them: what the entrypoint declared still applies.
+    _entrypoint.guards = [...new Set([...(arg.guards ?? []), ...(opts?.guards ?? [])])]
     _entrypoint.gate = opts?.gate ?? arg.gate
     _entrypoint.gateParams = opts?.gateParams ?? arg.gateParams
   } else if (isServerRouteModel(arg)) {
@@ -31,19 +34,10 @@ export const entrypoint = <R>(
     _entrypoint.route = _route
   }
 
-  _entrypoint.fixer = opts?.fixer
+  _entrypoint.fixer = opts?.fixer ?? _entrypoint.fixer
   if (handler != null) {
     _entrypoint.handle = handler(entrypointHandle)
   }
-
-  _entrypoint.reinitializeContext = <T>(context: BasicContext<any>) => {
-    const newEntrypoint = entrypoint(arg, handler, opts)
-    newEntrypoint.ctx = context
-
-    return newEntrypoint as T
-  }
-
-  _entrypoint.getPath = () => prependBase(_entrypoint.route.route)
 
   entrypointHandle.ref = _entrypoint
 

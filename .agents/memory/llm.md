@@ -49,9 +49,13 @@ model factory service and the generic execution service. Related: [[versioning]]
 - `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
   A preset is a BASE; assigning it last (the old order) silently voided a role's own fields
   and the caller's override, including effort-tier caps. One level deep, never a chain.
-- `ExecutionPlugin` has `onCheckpoint`/`onRestore` AND `advise`; `checkpoint` dispatches on
-  plugins declaring `onCheckpoint`, never on the plugin count, so an advise-only plugin does
-  not start composing unused snapshots.
+- `ExecutionPlugin` is **`advise`-only**. The `onCheckpoint`/`onRestore` pair and
+  `ExecutionService.checkpoint` are gone: an execution is a COLLABORATOR rebuilt per run, not a
+  thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
+  run row is the authority. `TaskExecutionState.{phase,completed,cursor}` survive as LABELS for
+  traces and prompts — never as a position anything resumes from.
+- `use()` seats a plugin **by alias**, replacing rather than appending. A layer wired twice
+  otherwise answers twice, silently, since the first usable answer wins.
 - `composeExecState` excludes `state` itself. Without it every `derive`/`escalate`/`withPurpose`
   on a task nests another copy of the previous state (regression-tested in `execution.spec.ts`).
 - `@langchain/*` are **peer** dependencies: model instances cross the package boundary and two
@@ -67,6 +71,18 @@ model factory service and the generic execution service. Related: [[versioning]]
   which is why the config and plugin are resolved once from the ORIGINAL instance.
 - The `gpt-5*` / `codex-*` families go through the Responses API, which rejects
   `temperature`/`topP` — an offline spec asserting on sampling params must not use them.
+
+- Claude 5-series models reason ADAPTIVELY whether or not the request asks, and it is billed from
+  the same `max_tokens` as the answer — a budget sized for the answer alone comes back as a
+  thinking-only completion with `stop_reason: "max_tokens"` and no text block. `ADAPTIVE_MIN_MAX_TOKENS`
+  (32k, clamped through `resolveOutputCap`) is the floor that prevents it. Escalating `maxTokens`
+  alone does not: the retry redraws from an unchanged distribution.
+- Anthropic never sets `response_metadata.finish_reason`; langchain puts the stop reason in
+  `additional_kwargs.stop_reason`. Reading only the former printed `finishReason: undefined` on
+  every Anthropic null report, hiding the cause above.
+- An empty completion is classified as a null result BEFORE the caller's filter runs. Every shipped
+  filter returns null only for empty input, so letting one run first blamed the caller and skipped
+  `reportNull` — losing the only diagnostics that explain the failure.
 
 ## Pointers
 

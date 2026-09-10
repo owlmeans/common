@@ -10,15 +10,24 @@ import type { Config, Context, OidcAuthService } from '../../types.js'
 import { useContext } from '@owlmeans/web-client'
 import { DEFAULT_ALIAS, OidcAuthPurposes } from '../../consts.js'
 import { OidcAuthStep, OidpAuthStep, UnknownFlowStep } from '@owlmeans/flow'
-import { useModule } from '@owlmeans/client'
+import { useEntrypoint } from '@owlmeans/client'
 
 export const oidcClientPlugin: AuthenticationPlugin = {
   type: OIDC_CLIENT_AUTH,
 
+  method: {
+    order: 20, icon: 'shield',
+    // Offered only where the application appended the OIDC relying party, because that is what
+    // registers the service this plugin's flow looks up in its first step. It shares a
+    // side-effect import with `google-oauth`, so an app that wired Google and nothing else was
+    // being offered a generic provider button that could only end in a failed service lookup.
+    available: ctx => ctx.context.hasService(DEFAULT_ALIAS),
+  },
+
   Implementation: Renderer => ({ type, stage, control }) => {
     const context = useContext<Config, Context>()
     Renderer = Renderer ?? oidcClientPlugin.Renderer
-    const module = useModule()
+    const module = useEntrypoint()
 
     useEffect(() => {
       let canceled = false

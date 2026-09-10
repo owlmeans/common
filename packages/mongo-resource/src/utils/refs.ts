@@ -1,5 +1,4 @@
 import { MisshapedRecord } from '@owlmeans/resource'
-import type { ListCriteria } from '@owlmeans/resource'
 import { ObjectId } from 'mongodb'
 import type { Collection, Document } from 'mongodb'
 
@@ -97,7 +96,7 @@ const marshalCriteriaValue = (value: unknown): unknown => {
 }
 
 /**
- * Convert list criteria the way records are converted: values addressed at `_id` or at a
+ * Convert a mongo filter the way records are converted: values addressed at `_id` or at a
  * declared reference become `ObjectId`s, and the `id` alias records actually carry is
  * mapped onto `_id` — documents never store `id`, so before this mapping such criteria
  * silently matched nothing.
@@ -105,17 +104,20 @@ const marshalCriteriaValue = (value: unknown): unknown => {
  * Tolerant by design: a value that is not 24 hex passes through unconverted. Criteria are
  * matched against the collection, and against an `ObjectId` typed field a stray string
  * matches nothing — which is exactly what it matched before the field was converted.
+ *
+ * Operators arrive already in mongo's own vocabulary — {@link criteriaToFilter} translates
+ * the portable one first, so this pass only has to convert values.
  */
 export const marshalCriteria = (
-  criteria: ListCriteria | undefined, refs: Map<string, MongoReference>
-): ListCriteria | undefined => {
+  criteria: Document | undefined, refs: Map<string, MongoReference>
+): Document | undefined => {
   if (criteria == null) {
     return criteria
   }
 
   return Object.fromEntries(Object.entries(criteria).map(([key, value]) => {
     if (LOGICAL_OPERATORS.includes(key) && Array.isArray(value)) {
-      return [key, value.map(sub => marshalCriteria(sub as ListCriteria, refs))]
+      return [key, value.map(sub => marshalCriteria(sub as Document, refs))]
     }
     if (key === 'id' || key === '_id') {
       return ['_id', marshalCriteriaValue(value)]
@@ -125,7 +127,7 @@ export const marshalCriteria = (
     }
 
     return [key, value]
-  })) as ListCriteria
+  })) as Document
 }
 
 /**

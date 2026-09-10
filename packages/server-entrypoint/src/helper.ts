@@ -1,9 +1,15 @@
 import type { ServerEntrypoint, EntrypointOptions, RefedEntrypointHandler } from './types.js'
 import { entrypoint } from './entrypoint.js'
-import { isServerRouteModel } from '@owlmeans/server-route'
 import { createBasicGuard } from './utils/helper.js'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 
+/**
+ * Replace the entrypoint declared under `alias` with its elevated counterpart. Elevating is
+ * idempotent — calling it again simply replaces the element once more, and the guards it brings
+ * are added to the ones already declared.
+ *
+ * @throws {SyntaxError} when no entrypoint carries the alias
+ */
 export const elevate = <R>(
   entrypoints: (CommonEntrypoint | ServerEntrypoint<R>)[],
   alias: string,
@@ -21,10 +27,6 @@ export const elevate = <R>(
   if (typeof handler === 'object' && typeof handler !== 'function') {
     opts = handler
     handler = undefined
-  }
-  const force = typeof opts === 'object' && opts.force
-  if (isServerRouteModel(entrypoints[idx].route) && !force) {
-    throw new SyntaxError(`Entrypoint with alias ${alias} is already elevated`)
   }
 
   entrypoints[idx] = entrypoint(

@@ -8,6 +8,15 @@ export const RELY_ACTION_TIMEOUT = 600
 
 export const DISPATCHER_PATH = '/dispatcher'
 
+/**
+ * Where the surrogate login window runs.
+ *
+ * Reserved exactly like {@link DISPATCHER_PATH}: an application must not declare a route of its
+ * own here, and a code generator must not produce one. It is user-visible — it is what the popup's
+ * address bar shows.
+ */
+export const SURROGATE_PATH = '/surrogate'
+
 export const DEF_AUTH_SRV = 'auth'
 
 export const DEFAULT_GUARD = DEF_AUTH_SRV
@@ -49,3 +58,13 @@ export const authApi = {
   },
 }
 
+
+/**
+ * The request header an authenticated call carries, re-exported for the packages that only depend
+ * on this half of the vocabulary.
+ *
+ * One spelling, one home: it is declared by `@owlmeans/auth` and named here so a client-side
+ * package does not have to take a dependency on the whole auth package to recognise its own
+ * bearer on a request it is about to send.
+ */
+export { AUTH_HEADER } from '@owlmeans/auth'

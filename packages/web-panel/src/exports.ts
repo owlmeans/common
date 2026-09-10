@@ -1,8 +1,8 @@
 
-export { handler, useNavigate, useValue, useModule } from '@owlmeans/client'
+export { handler, useNavigate, useValue, useEntrypoint } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
-export { guard, parent } from '@owlmeans/entrypoint'
+export { guard } from '@owlmeans/entrypoint'
 export { addWebService } from '@owlmeans/client-config'
 export { entrypoint, elevate, provideRequest, stab } from '@owlmeans/client-entrypoint'
 export type { ClientEntrypoint as Module } from '@owlmeans/client-entrypoint'

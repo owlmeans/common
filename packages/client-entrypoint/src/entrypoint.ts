@@ -3,15 +3,13 @@ import type { ClientEntrypoint, ClientEntrypointOptions, EntrypointRef, RefedEnt
 import type { AbstractRequest, CommonEntrypoint } from '@owlmeans/entrypoint'
 import { isEntrypoint, makeBasicEntrypoint, normalizeHelperParams, validate } from './utils/entrypoint.js'
 import { isClientRouteModel, route } from '@owlmeans/client-route'
-import { apiCall, apiHandler, urlCall } from './utils/handler.js'
+import { apiInvoke, apiHandler, entrypointUrl } from './utils/handler.js'
 import { AppType } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
-import { normalizePath } from '@owlmeans/route'
-import type { CommonRouteModel } from '@owlmeans/route'
+import type { RouteModel } from '@owlmeans/route'
 import { provideRequest } from './helper.js'
 
 export const entrypoint = <T, R extends AbstractRequest = AbstractRequest>(
-  arg: CommonEntrypoint | ClientRouteModel | CommonRouteModel,
+  arg: CommonEntrypoint | ClientRouteModel | RouteModel,
   handler?: RefedEntrypointHandler<T, R> | ClientEntrypointOptions | boolean,
   opts?: ClientEntrypointOptions | boolean
 ): ClientEntrypoint<T, R> => {
@@ -30,7 +28,8 @@ export const entrypoint = <T, R extends AbstractRequest = AbstractRequest>(
     const routeModel = route(arg.route, opts?.routeOptions)
     _entrypoint = arg as ClientEntrypoint<T, R>
     _entrypoint.route = routeModel
-    _entrypoint.guards = opts?.guards ?? arg.guards
+    // Elevating adds guards, it never swaps them: what the entrypoint declared still applies.
+    _entrypoint.guards = [...new Set([...(arg.guards ?? []), ...(opts?.guards ?? [])])]
     _entrypoint.filter = opts?.filter ?? arg.filter
     _entrypoint.gate = opts?.gate ?? arg.gate
     _entrypoint.gateParams = opts?.gateParams ?? arg.gateParams
@@ -45,16 +44,27 @@ export const entrypoint = <T, R extends AbstractRequest = AbstractRequest>(
     _entrypoint.route = _route
   }
 
-  _entrypoint.getPath = (partial?: boolean) =>
-    partial === true ? normalizePath(_entrypoint.route.route.partialPath) : _entrypoint.route.route.path
+  _entrypoint.url = ((req?: Partial<R>, urlOpts?: { absolute?: boolean }) =>
+    entrypointUrl<T, R>(entrypointHandle, req as never, urlOpts)) as ClientEntrypoint<T, R>['url']
 
-  _entrypoint.call = handler != null ? urlCall<T, R>(entrypointHandle, opts) : apiCall<T, R>(entrypointHandle, opts)
+  // An entrypoint carrying a renderer IS a screen: it is addressed by URL, never called over the
+  // wire. Saying so here turns what used to be a URL-shaped answer from `call()` into a report.
+  _entrypoint.invoke = (handler != null
+    ? (async () => {
+      throw new SyntaxError(
+        `Entrypoint ${_entrypoint.alias} renders a screen - address it with url() instead of call()/invoke()`
+      )
+    })
+    : apiInvoke<T, R>(entrypointHandle, opts)) as ClientEntrypoint<T, R>['invoke']
+
+  _entrypoint.call = (async (req?: Partial<R>) =>
+    (await _entrypoint.invoke(req)).value) as ClientEntrypoint<T, R>['call']
 
   _entrypoint.request = ((request: R): R => {
     if (entrypointHandle.ref == null) {
       throw SyntaxError(`Try to request uninitialized entrypoint ${JSON.stringify(arg)}`)
     }
-    const _request = provideRequest(entrypointHandle.ref.getAlias(), entrypointHandle.ref.getPath()) as R
+    const _request = provideRequest(entrypointHandle.ref.alias, entrypointHandle.ref.path()) as R
 
     request != null && Object.entries(request).forEach(([key, value]) => {
       _request[key as keyof R] = value
@@ -66,13 +76,6 @@ export const entrypoint = <T, R extends AbstractRequest = AbstractRequest>(
   _entrypoint.handle = _handler?.(entrypointHandle)
 
   _entrypoint.validate = validate(entrypointHandle)
-
-  _entrypoint.reinitializeContext = <T>(context: BasicContext<any>) => {
-    const newEntrypoint = entrypoint(_entrypoint.route, handler, opts)
-    newEntrypoint.ctx = context
-
-    return newEntrypoint as T
-  }
 
   entrypointHandle.ref = _entrypoint
 

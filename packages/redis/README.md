@@ -12,7 +12,7 @@ Redis service for OwlMeans server contexts — connection management with cluste
 ## Installation
 
 ```bash
-bun add @owlmeans/redis
+bun add @owlmeans/redis@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -24,16 +24,20 @@ import { appendRedis, DEFAULT_ALIAS } from '@owlmeans/redis'
 appendRedis<C, T>(context)
 ```
 
-Config (`config.json`):
+Config (`config.json`) — `dbs` is a list, and `schema` becomes the key prefix every resource on
+this connection namespaces itself under:
 
 ```json
 {
-  "dbs": {
-    "redis": {
+  "dbs": [
+    {
+      "service": "redis",
+      "alias": "redis",
       "host": "localhost",
-      "port": 6379
+      "port": 6379,
+      "schema": "app"
     }
-  }
+  ]
 }
 ```
 
@@ -49,7 +53,21 @@ Registers the Redis service in the context.
 
 ### `RedisMeta`
 
-Extends `RedisOptions` (ioredis) — all ioredis connection options are supported in config.
+Extends `RedisOptions` (ioredis) — all ioredis connection options are supported in config. Set
+the database index with `dbIndex` (it accepts a string, so it can come from a file-mounted config
+value) rather than ioredis' own `db`.
+
+## Server Requirements
+
+- Redis **6.2 or newer** — `@owlmeans/redis-resource` deletes with `GETDEL`.
+- `notify-keyspace-events` enabled if any resource uses `watch`; keyspace events are emitted on
+  **db 0**, so deployments sharing an instance isolate on the key prefix, not on `dbIndex`.
+
+## Tests
+
+`tests/` holds the integration specs for the `@owlmeans/redis-resource` contract — this is the
+package that supplies the connection it runs against. Gated on `REDIS_URL` (see `/.env.example`):
+`bun test ./tests`.
 
 ## Related Packages
 
@@ -64,7 +82,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

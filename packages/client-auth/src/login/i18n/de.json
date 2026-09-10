@@ -1,0 +1,37 @@
+{
+  "login": {
+    "title": "Anmelden",
+    "subtitle": "Wählen Sie, wie Sie fortfahren möchten.",
+    "busy": "Anmeldung wird geöffnet…",
+    "empty": "Für diese Anwendung ist keine Anmeldemethode konfiguriert.",
+    "method": {
+      "google": "Mit Google fortfahren",
+      "oidc": "Mit {{provider}} fortfahren",
+      "oidc-default": "Anmelden / Registrieren",
+      "oidc-client": "Mit {{provider}} fortfahren",
+      "basic-ed25519": "Mit einem Schlüssel anmelden",
+      "pk-supervisor": "Geheimer Schlüssel (Betreiber)",
+      "wallet-consumer": "OwlMeans-ID-Wallet",
+      "one-time-token": "Mit einem E-Mail-Code anmelden",
+      "fallback": "Mit {{method}} fortfahren"
+    },
+    "terms": {
+      "agreement": "Ich habe die {{terms}} und die {{privacy}} gelesen und stimme ihnen zu.",
+      "terms": "Allgemeinen Geschäftsbedingungen",
+      "privacy": "Datenschutzerklärung",
+      "cookies": "Cookie-Richtlinie",
+      "required": "Bitte bestätigen Sie die Allgemeinen Geschäftsbedingungen und die Datenschutzerklärung, um fortzufahren."
+    },
+    "consent": {
+      "required": "Bei der Anmeldung wird ein Sitzungs-Cookie gespeichert. Akzeptieren Sie die notwendigen Cookies, um fortzufahren."
+    },
+    "credit": {
+      "powered": "Betrieben mit OwlMeans"
+    },
+    "error": {
+      "failed": "Die Anmeldung wurde nicht abgeschlossen. Bitte versuchen Sie es erneut.",
+      "blocked": "Das Anmeldefenster wurde blockiert. Erlauben Sie Pop-ups für diese Website und versuchen Sie es erneut."
+    },
+    "orphaned": "Angemeldet. Sie können dieses Fenster schließen und in der Anwendung fortfahren."
+  }
+}

@@ -89,7 +89,7 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       }
 
       // Look up the PKCE verifier using the state parameter
-      const verification = await cache<C, T>(context).pick(verifierId(state))
+      const verification = await cache<C, T>(context).take(verifierId(state))
       if (verification == null || verification.verifier == null) {
         throw new AuthenFailed()
       }

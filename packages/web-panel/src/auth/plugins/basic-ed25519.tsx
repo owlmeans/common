@@ -46,8 +46,8 @@ const createSubmit = (context: AppContext, control: AuthenticationControl) => as
     return
   }
 
-  const [url] = await context.module<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
-    .call({ query: token })
+  const url = await context.entrypoint<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
+    .url({ query: token })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)
   // Give some time - that is really not cenessary - actually we need 

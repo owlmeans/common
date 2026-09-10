@@ -1,10 +1,10 @@
 # @owlmeans/server-wl
 
-Server-side whitelabeling — provides entity-specific branding and configuration via backend modules.
+Server-side whitelabeling — provides entity-specific branding and configuration via backend entrypoints.
 
 ## Overview
 
-- Exports `modules` array: pre-built server modules that serve WL (whitelabel) configuration to clients
+- Exports `entrypoints` array: pre-built server entrypoints that serve WL (whitelabel) configuration to clients
 - Provides `provide` action — the handler for the WL configuration endpoint
 - Integrates with `@owlmeans/wled` for whitelabel data definitions
 - Apps add WL DNS service from `@owlmeans/server-wl-dns` for domain-based entity resolution
@@ -12,35 +12,35 @@ Server-side whitelabeling — provides entity-specific branding and configuratio
 ## Installation
 
 ```bash
-bun add @owlmeans/server-wl
+bun add @owlmeans/server-wl@^0.1.18-rc.16
 ```
 
 ## Usage
 
-Register WL modules in a backend service:
+Register WL entrypoints in a backend service:
 
 ```typescript
-import { modules as wlModules } from '@owlmeans/server-wl'
-import { main, modules } from '@owlmeans/server-app'
+import { entrypoints as wlEntrypoints } from '@owlmeans/server-wl'
+import { main, entrypoints } from '@owlmeans/server-app'
 
-await main(context, [...modules, ...wlModules, ...appModules])
+await main(context, [...entrypoints, ...wlEntrypoints, ...appEntrypoints])
 ```
 
 With DNS-based entity resolution (from viable):
 
 ```typescript
 import { appendWlDnsService } from '@owlmeans/server-wl-dns'
-import { wlDnsModules } from '@owlmeans/server-wl-dns'
+import { wlDnsEntrypoints } from '@owlmeans/server-wl-dns'
 
 appendWlDnsService(context)
-await main(context, [...modules, ...wlDnsModules, ...appModules])
+await main(context, [...entrypoints, ...wlDnsEntrypoints, ...appEntrypoints])
 ```
 
 ## API
 
-### `modules`
+### `entrypoints`
 
-Array of `ServerModule` instances providing the WL configuration API endpoint.
+Array of `ServerEntrypoint` instances providing the WL configuration API endpoint.
 
 ### `WlConfig` / `WlRecord` (types)
 
@@ -49,7 +49,7 @@ Whitelabel configuration types defining branding, theme, and entity-specific set
 ## Related Packages
 
 - [`@owlmeans/client-wl`](../client-wl) — client-side WL service that fetches from this server
-- [`@owlmeans/server-app`](../server-app) — server bootstrap that includes these modules
+- [`@owlmeans/server-app`](../server-app) — server bootstrap that includes these entrypoints
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -59,7 +59,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

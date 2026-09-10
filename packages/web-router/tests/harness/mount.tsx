@@ -49,7 +49,7 @@ const routes: RouteObject[] = [
     ]
   },
   // component-less grouping node at the very top of the chain — this is the shape
-  // `@owlmeans/client` emits for modules without a handler (e.g. `client-authentication`)
+  // `@owlmeans/client` emits for entrypoints without a handler (e.g. `client-authentication`)
   { path: 'group', children: [{ path: 'leaf', Component: Leaf }] }
 ]
 

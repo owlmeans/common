@@ -12,7 +12,7 @@ IndexedDB-backed client database service for OwlMeans web applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-db
+bun add @owlmeans/web-db@^0.1.18-rc.13
 ```
 
 ## Usage
@@ -52,7 +52,7 @@ Registers the DB service in the context.
 ### `WebDbService`
 
 Extends `ClientDbService` with `initialize(alias?)` returning a `ClientDb`:
-- `get<T>(id): Promise<T>`
+- `get<T>(id): Promise<T | undefined>` — a miss is `undefined`, not an error
 - `set<T>(id, value): Promise<void>`
 - `has(id): Promise<boolean>`
 - `del(id): Promise<boolean>`
@@ -70,7 +70,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

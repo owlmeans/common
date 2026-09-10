@@ -18,7 +18,7 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
         })
       } catch (e) {
         if (e instanceof AuthManagerError) {
-          const [providers] = await ctx.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
+          const providers = await ctx.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
             authService.provider.list
           ).call({
             params: { service: ctx.cfg.alias ?? ctx.cfg.service },

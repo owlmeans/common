@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/image-resource",
-  "version": "0.1.18-rc.7",
-  "generatedAt": "2026-08-24T21:14:00.125Z",
+  "version": "0.1.18-rc.12",
+  "generatedAt": "2026-09-04T22:43:25.443Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

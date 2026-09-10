@@ -15,7 +15,7 @@ instead of Material UI.
 ## Install
 
 ```sh
-bun add @owlmeans/web-panel
+bun add @owlmeans/web-panel@^0.1.18-rc.31
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -76,17 +76,22 @@ resolve: { alias: { '@': fileURLToPath(new URL('./src/@', import.meta.url)) } }
 
 Tailwind's scanner reads your CSS root plus its `@source` directives, and it
 excludes `node_modules`. Classes that exist only inside this package's
-components — the whole navigation shell and footer — therefore never reach your
-stylesheet unless you point Tailwind at the built package:
+components — the whole navigation shell, the menu and the footer — therefore
+never reach your stylesheet unless you point Tailwind at the package's sources:
 
 ```css
 @import "tailwindcss";
 
-@source "../../../node_modules/@owlmeans/web-panel/build";
+@source "../../../node_modules/@owlmeans/web-panel/src";
 ```
 
-Adjust the relative depth to your own layout; the target is this package's
-installed `build` directory.
+Adjust the relative depth to your own layout. Point at **`src`, never `build`**:
+the scanner applies the `.gitignore` of whatever repository a path resolves
+into, and a linked `node_modules` entry resolves into a monorepo whose
+`.gitignore` covers every package build directory — a `build` source there scans
+zero files and reports nothing, while the UI renders half-styled with nothing to
+blame. `src` is tracked in the repository and ships in the published tarball, so
+one path serves a linked checkout and an npm install alike.
 
 ## Navigation shell
 
@@ -193,7 +198,7 @@ import {
 } from '@owlmeans/web-panel'
 
 import { setupExternalAuthentication } from '@owlmeans/web-panel/auth'
-import { modules } from '@owlmeans/web-panel/auth/modules'
+import { entrypoints } from '@owlmeans/web-panel/auth/entrypoints'
 ```
 
 ## Related packages
@@ -213,7 +218,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

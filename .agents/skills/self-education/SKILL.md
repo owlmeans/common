@@ -26,7 +26,8 @@ Also recommended after any unplanned change that made an existing skill inaccura
 
 For each area the work touched:
 
-1. Which existing skill covers it? (Check `.agents/skills/`.)
+1. Which existing skill covers it? Check `.agents/skills/`, and — where the project has one —
+   `.agents/linked-skills/`, for ground a skill this project does not own already covers.
 2. Do its commands, paths, APIs, and behavior claims still hold after the change?
 3. Fix in place — rewrite the affected lines so they describe current behavior; never append a
    note about what this change did.
@@ -45,11 +46,24 @@ rewrite recipe is `memory-promotion` → Distillation.
 
 Test: a finished skill reads as though the feature was always this way.
 
-## Non-project skills
+## Skills this project does not own
 
-If a general or imported skill gained an important usage pattern during the work, add the pattern
-to the **deployed copy** in this repo and note it in the report as an upstream candidate —
-canonical archive copies change only on explicit operator request.
+A skill that came from somewhere else is not edited here, and the two kinds fail differently:
+
+- An entry under `.agents/linked-skills/<name>` is a symlink into the repo or installed package
+  that owns the skill. Writing through it edits the owner's own file — an unrequested change in
+  another project, which nothing here undoes: the link script only creates and prunes symlinks.
+- A skill placed by the `@owlmeans/agent-skills` installer is a real file at
+  `.agents/skills/<name>/SKILL.md` carrying
+  `<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->`. The next install
+  overwrites every file still carrying that banner, so an edit made under it is lost; strip the
+  banner and the file instead becomes a conflict the installer skips and reports.
+
+When such a skill gained an important usage pattern during the work, capture the pattern in a
+local skill under `.agents/skills/`, named after the pattern — a local skill named after the
+upstream one shadows it for the whole project — and list the upstream skill in the report as an
+upstream candidate. Changing the skill at its source is a separate change in the owning project,
+made only on explicit operator request.
 
 ## External docs
 

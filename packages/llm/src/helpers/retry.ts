@@ -16,6 +16,22 @@ export const registerFatalError = (resolver: FatalErrorResolver): void => {
   resolvers.push(resolver)
 }
 
+/**
+ * The one answer to "can any retry fix this?", exported so callers above the retry loop can ask it.
+ *
+ * A retry loop is not the only place that decides to carry on: a fix ladder rescues a failed
+ * repair and climbs to a stronger model, an agent runner catches a round that threw and reports
+ * "gave up". Both of those are right for a model that answered badly and wrong for a budget that
+ * ran out — and a blanket `catch` cannot tell them apart, so an exhausted balance became more
+ * expensive calls rather than a halt. Rather than each caller re-deriving the rule (and drifting
+ * from it), they ask the same resolvers, in the same order, that `withRetry` uses.
+ *
+ * Returns the error to abort WITH — a resolver may unwrap a carrier and hand back the real
+ * cause — or `null` when nothing considers it terminal.
+ */
+export const isFatalError = (e: unknown, fatal?: FatalErrorResolver): Error | null =>
+  resolveFatal(e, fatal)
+
 const resolveFatal = (e: unknown, fatal?: FatalErrorResolver): Error | null => {
   const own = fatal?.(e)
   if (own != null) return own

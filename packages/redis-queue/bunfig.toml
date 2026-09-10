@@ -1,0 +1,7 @@
+[install]
+linker = "hoisted"
+
+[test]
+# These specs drive a real broker: a worker picks a job up, runs it and reports back, and a flow
+# waits for its children first. The root default is sized for a single round trip.
+timeout = 60000

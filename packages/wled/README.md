@@ -1,27 +1,27 @@
 # @owlmeans/wled
 
-Whitelabel ("wled") core — shared types, models, and module declarations for entity-specific branding/content.
+Whitelabel ("wled") core — shared types, models, and entrypoint declarations for organization-entity-specific branding/content.
 
 ## Overview
 
-- `WL_PROVIDE` / `WL_PROVIDE_PATH` — module alias and path for the whitelabel provide endpoint
+- `WL_PROVIDE` / `WL_PROVIDE_PATH` — entrypoint alias and path for the whitelabel provide endpoint
 - `WL_TYPE_COMPANY_INFO`, `WL_TYPE_STYLES`, `WL_TYPE_MEDIA`, `WL_TYPE_DNS` — whitelabel content type discriminators
 - Type definitions: `CompanyInfo`, `CustomStyles`, `CustomColors`, `CustomFont`, `CustomMedia`, `CustomBrand`, `ProvideParams`, `ProvidedWL<T>`
-- `modules` — array containing the `GET /wl/provide/:entity` declaration
+- `entrypoints` — array containing the `GET /wl/provide/:entity` declaration
 - AJV models under `model/` (e.g., `ProvideParamsSchema`)
 
 ## Installation
 
 ```bash
-bun add @owlmeans/wled
+bun add @owlmeans/wled@^0.1.18-rc.10
 ```
 
 ## Usage
 
-Use the shared module declarations and types when wiring server- and web-side whitelabel features:
+Use the shared entrypoint declarations and types when wiring server- and web-side whitelabel features:
 
 ```typescript
-import { modules as wlModules } from '@owlmeans/wled'
+import { entrypoints as wlEntrypoints } from '@owlmeans/wled'
 import type { ProvidedWL, CompanyInfo, CustomStyles } from '@owlmeans/wled'
 ```
 
@@ -50,7 +50,7 @@ The actual server handlers live in `@owlmeans/server-wl`; web UI in `@owlmeans/w
 
 `CompanyInfo`, `CustomStyles`, `CustomColors`, `CustomFont`, `CustomMedia`, `CustomBrand`, `ProvideParams`, `ProvidedWL<T>` — re-exported at the root entry.
 
-### `modules`
+### `entrypoints`
 
 Array with one declaration: `GET /wl/provide/:entity` (alias `WL_PROVIDE`), with `params` filter using `ProvideParamsSchema`.
 
@@ -60,7 +60,7 @@ Submodule exporting AJV schemas (e.g., `ProvideParamsSchema`) and helpers for wh
 
 ## Related Packages
 
-- [`@owlmeans/server-wl`](../server-wl) — server-side whitelabel handlers (uses `modules` from here)
+- [`@owlmeans/server-wl`](../server-wl) — server-side whitelabel handlers (uses `entrypoints` from here)
 - [`@owlmeans/web-wl`](../web-wl) — web UI components for whitelabel content
 - [`@owlmeans/client-wl`](../client-wl) — client-side whitelabel placeholder
 
@@ -72,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

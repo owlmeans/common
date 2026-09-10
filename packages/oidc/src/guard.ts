@@ -8,7 +8,7 @@ import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
-import { modules as oidcModules } from './modules.js'
+import { entrypoints as oidcEntrypoints } from './entrypoints.js'
 
 export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
   // const cache = (context: Context) => context.hasResource(opts?.cache ?? OIDC_GUARD_CACHE)
@@ -112,11 +112,11 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return context
 }
 
-export const setupOidcGuard = (modules: CommonEntrypoint[], coguards?: string | string[]) => {
-  modules.push(...oidcModules)
+export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[]) => {
+  entrypoints.push(...oidcEntrypoints)
   coguards = Array.isArray(coguards) ? coguards : [coguards ?? DEFAULT_GUARD]
 
-  modules.forEach(module => {
+  entrypoints.forEach(module => {
     if (module.guards != null && !module.guards.includes(OIDC_GUARD)
       && module.guards.some(guard => coguards.includes(guard))) {
       module.guards.unshift(OIDC_GUARD)

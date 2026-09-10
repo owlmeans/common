@@ -13,6 +13,12 @@ import { createWalletFacade } from './tunnel/wallet.js'
 export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.WalletConsumer,
 
+  method: { order: 400, icon: 'wallet' },
+
+  // The PIN form is a `Renderer` a panel package assigns; without one the Implementation throws on
+  // mount, so the method must not be offered.
+  requiresRenderer: true,
+
   Implementation: renderer => ({ type, stage, control, params }) => {
     type = type ?? AuthenticationType.WalletConsumer
     const Renderer: TunnelAuthenticationRenderer | undefined = renderer

@@ -94,13 +94,12 @@ export const createFlowClient = <C extends ClientConfig, T extends ClientContext
           route(REHACK_MOD, DISPATCHER_PATH, frontend({ service: model.state().service })), stab
         ))
         redirectTo = context.entrypoint<ClientEntrypoint<string>>(REHACK_MOD)
-        await redirectTo.resolve()
         step.module = REHACK_MOD
       } else {
         redirectTo = context.entrypoint<ClientEntrypoint>(step.module)
       }
 
-      const [url] = await redirectTo.call<string>(req)
+      const url = await redirectTo.url(req)
 
       if (url.startsWith('http')) {
         await service.proceed(req)

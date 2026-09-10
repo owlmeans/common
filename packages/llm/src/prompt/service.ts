@@ -105,6 +105,10 @@ export const promptServiceApi = (
 
     compose: async (input, messages, params): Promise<PromptResult> => {
       const sections = new Map<PromptBlock, string[]>()
+      // Scoped to this composition, never to the service: a claim is about who renders a
+      // thing in ONE prompt, and carrying it across calls would silently drop the content
+      // from every later prompt that shares the service.
+      const claimed = new Set<string>()
       const ctx: PromptContext = {
         ...params,
         input,
@@ -122,6 +126,14 @@ export const promptServiceApi = (
           }
         },
         resolve: aliases => self().resolve(aliases),
+        claim: key => {
+          if (claimed.has(key)) {
+            return false
+          }
+          claimed.add(key)
+
+          return true
+        },
       }
 
       // Two passes, not one: every static contribution must be in place before a plugin

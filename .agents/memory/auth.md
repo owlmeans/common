@@ -1,10 +1,35 @@
 ---
 node: auth
 scope: "packages/auth/**, packages/client-auth/**, packages/server-auth/**, packages/server-auth-identity/**, packages/web-client/src/login/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 # Auth (product-viable usage of common auth/OIDC)
+
+## Identity linking — one email, one profile, many credentials
+
+- **`linkProfile` LINKS a person the platform already knows; it registers only a new one.**
+  `getLinkedProfile` keys on the provider triple `{type}:{service}:{providerSub}`, which is
+  disjoint per method by construction — Google sends its `sub`, the supervisor form sends the
+  email — so a second login method always misses and used to fall into a create path that minted
+  a **new organization entity, account and profile every time**. One address signing in two ways
+  ended up in two entities that could not see each other's projects. `findPlatformIdentity`
+  (`server-auth-identity/src/service.ts`) now looks the account up by `name` first; on a hit the
+  method contributes a CREDENTIAL row to the existing profile and nothing else is created.
+  `meta.force` still registers fresh.
+- **A platform login is a profile carrying `credential = "service:{type}:{service}"`.** That is
+  the discriminator the lookup uses, and it matters because the SAME address legitimately appears
+  on a second row: `inviteUser` (`@owlmeans/iam-integrated`) writes the END USER identity the
+  generated application authenticates, prefixed `email-otp:` with an `email` field and no login
+  service. Those two rows are different people-shaped records for different audiences and must
+  never be merged — the platform credential must not carry an entity a target's login page can
+  reach.
+- `linkCredentials` was the pre-existing "attach another method" call and had no callers; the
+  credentials index `{type, userId, credential}` already permitted N rows per `profileId`, so the
+  fix needed no schema change beyond a non-unique `name` index on accounts.
+- A consumer that funds or provisions inside its `linkProfile` branch must re-check: reaching
+  that branch no longer means a new identity was created (viable's supervisor resolver now guards
+  its dev grant on a zero balance).
 
 ## Facts
 
@@ -36,8 +61,9 @@ updated: 2026-08
 
 ## Gotchas
 
-- `Resource.pick()` DELETES the record it finds — never use it in auth gates or read-only
-  identity checks.
+- `Resource.take()` is the delete-and-return read — the name says the record is gone once it has
+  been handed over, so it never belongs in an auth gate or a read-only identity check;
+  `load(where)` answers a multi-field lookup in one call ([[resources]]).
 - `makeAuthModel().authenticate()` (`server-auth`) burns the *decoded* challenge into `AUTH_CACHE`
   as a create-once anti-replay guard, before the plugin's own credential check runs. Any
   `AuthPlugin.init()` whose challenge isn't unique per request (e.g. a bare identity string) makes

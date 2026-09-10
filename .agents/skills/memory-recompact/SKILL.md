@@ -1,6 +1,6 @@
 ---
 name: memory-recompact
-description: Recompact or migrate a whole .agents/memory/ store — rebuild the node map from project structure, merge event-shaped records into subsystem nodes, deduplicate, enforce caps, regenerate the MEMORY.md index, and fold in legacy .claude/memory and .github/memory stores. Use when a store degrades into event logs, indexes bloat or conflict, or for one-time migration.
+description: Recompact a whole .agents/memory/ store — rebuild the node map from project structure, merge event-shaped records into subsystem nodes, deduplicate, enforce caps, regenerate the MEMORY.md index, and fold in memory records kept anywhere else. Use when a store degrades into event logs, when indexes bloat or conflict, or when scattered records have to become one store.
 disable-model-invocation: true
 metadata:
   scope: general
@@ -8,9 +8,9 @@ metadata:
 
 # Memory recompaction
 
-Whole-store maintenance for `.agents/memory/` (protocol: `agent-memory`). Also the migration
-procedure for legacy `.claude/memory/` + `.github/memory/` stores. Store-wide rewrite — propose
-it when triggers appear; the operator invokes it.
+Whole-store maintenance for `.agents/memory/` (protocol: `agent-memory`), and the procedure for
+folding records kept anywhere else into it. Store-wide rewrite — propose it when triggers appear;
+the operator invokes it.
 
 ## When
 
@@ -19,7 +19,8 @@ it when triggers appear; the operator invokes it.
 - The same fact stated in two or more nodes.
 - More than ~20% of a node is stale `Status` content.
 - A node's `updated:` is months behind commits touching its scope.
-- Legacy `.claude/memory/` or `.github/memory/` dirs exist → run the migration below.
+- Memory records live outside `.agents/memory/` — a second store, a per-agent directory, a stray
+  notes file → fold them in with the merge pass below.
 
 ## Build the target node map first
 
@@ -42,14 +43,14 @@ For each old file or section:
 4. Procedure-shaped survivors do not enter nodes — route them to `memory-promotion`. Routing
    means distilling them into general rules, never handing the text over verbatim.
 
-## Legacy-store merge (migration)
+## Folding in an outside store
 
-1. Union `.claude/memory/` and `.github/memory/`. Same-named files are two drifted sources of
-   ONE node — merge both; the code-consistent version wins.
+1. Union every source. Two same-named files are two drifted sources of ONE node — merge both;
+   the code-consistent version wins.
 2. Index-only entries with no backing file: extract the fact into its node, or drop if stale.
-3. Old `## Skills` / "Key Files" index sections are dropped — skills self-describe; harness
-   layout belongs to `AGENTS.md`. Move genuinely non-obvious dispatch hints there.
-4. When the new store verifies (below), delete both legacy dirs entirely.
+3. `## Skills` / "Key Files" index sections are dropped — skills self-describe; harness layout
+   belongs to `AGENTS.md`. Move genuinely non-obvious dispatch hints there.
+4. When the new store verifies (below), delete every merged source entirely.
 
 ## Regenerate the index
 
@@ -61,9 +62,9 @@ index incrementally.
 - Every node file is listed in the index; every listed node exists; every wiki-link resolves.
 - All caps met (index ≤ 50 lines; nodes ≤ 120; entries ≤ 3 lines; Status ≤ 5 dated lines).
 - No dates outside `Status` and `updated:`; no event-keyed filenames.
-- Both root instruction files' Memory sections point at `.agents/memory/`.
-- Legacy dirs gone; `grep -rn '\.claude/memory\|\.github/memory'` over the repo's harness files
-  returns nothing but allowlisted historical mentions.
+- The root `AGENTS.md` Memory section points at `.agents/memory/`.
+- `.agents/memory/` is the only memory store left: every merged source directory or file is
+  deleted, and nothing in the harness still points at one.
 
 ## Report
 

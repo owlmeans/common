@@ -4,9 +4,9 @@ MongoDB-backed `Resource<T>` implementation — the primary database resource fo
 
 ## Overview
 
-- `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, collectionName?)` — factory for MongoDB resources
+- `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, collectionName?)` — factory for MongoDB resources
 - `MongoResource<T>` — extends `Resource<T>` with MongoDB collection, indexing, field encryption, code migrations and ObjectId references
-- Supports CRUD, list/pagination, AJV schema validation ($jsonSchema collection validators), and field-level locking (encryption)
+- Supports CRUD, criteria queries, sorting and paging, AJV schema validation ($jsonSchema collection validators), and field-level locking (encryption)
 - Declared references convert between the string ids records carry and the `ObjectId`s the collection stores — the same way `_id` already does
 - Code migrations run automatically at resource initialization, tracked in a per-database `_owlmeans_migrations` ledger
 - Used for all persistent data models in server applications
@@ -14,7 +14,7 @@ MongoDB-backed `Resource<T>` implementation — the primary database resource fo
 ## Installation
 
 ```bash
-bun add @owlmeans/mongo-resource
+bun add @owlmeans/mongo-resource@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -29,9 +29,7 @@ import type { ResourceMaker } from '@owlmeans/resource'
 export interface ProjectResource extends MongoResource<ProjectRecord> {}
 
 export const makeProjectResource: ResourceMaker<ProjectRecord, ProjectResource> = (dbAlias, serviceAlias) => {
-  const resource = makeMongoResource<ProjectRecord>(
-    RES_PROJECT, dbAlias, serviceAlias, makeProjectResource
-  )
+  const resource = makeMongoResource<ProjectRecord, ProjectResource>(RES_PROJECT, dbAlias, serviceAlias)
   resource.schema = ProjectSchema
   resource.index('entity', { entityId: 1 })
   resource.index('alias', { alias: 1 })
@@ -50,28 +48,54 @@ Use in a handler:
 ```typescript
 const projects = context.resource<ProjectResource>(RES_PROJECT)
 const record = await projects.create({ entityId, alias, title })
-const list = await projects.list({ criteria: { entityId } })
+const one = await projects.load({ entityId, alias })
+const page = await projects.list({ entityId }, { page: 0, size: 20, sort: ['createdAt'] })
+const open = await projects.count({ status: ['draft', 'active'] })
 ```
 
 ## API
 
-### `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, maker?, collectionName?): T`
+### `makeMongoResource<R, T>(alias, dbAlias?, serviceAlias?, collectionName?): T`
 
 Creates a MongoDB resource. `dbAlias` defaults to `DEFAULT_DB_ALIAS` (`'mongo'`).
 `collectionName` overrides the physical collection name (otherwise `resourcePrefix + alias`).
-Pass the maker itself as the 4th argument so `schema`/`index()` survive context switches;
-`migration()`/`reference()` survive regardless (module-scope declarations keyed by alias).
+`migration()` and `reference()` are kept in module-scope declarations keyed by alias, so a
+maker that runs more than once for the same alias re-declares the same entries and loses
+nothing.
 
 ### `MongoResource<T>`
 
-Extends `Resource<T>` (and the shared `MigratableResource<MongoTx>` capability) with:
+Extends `Resource<T>` with the shared `MigratableResource<MongoTx, MongoResource<T>>` and
+`LockableResource<T>` capabilities, plus:
 - `collection: Collection` — MongoDB collection
 - `db(): Promise<Db>` / `client(): Promise<MongoClient>`
 - `index(name, spec, options?): this` — define a collection index
 - `reference(field, targetAlias?): this` / `references()` — declare that a field stores another record's id (see below)
-- `migration(name, apply, stage?): this` / `migrations()` — register a code migration (see below)
+- `migration(name, apply, stage?)` / `migrations()` — register a code migration (see below)
 - `lock(record, fields?)` / `unlock(record, fields?)` — encrypt/decrypt secure fields
 - `getDefaults(): Partial<T>` — default values derived from schema
+
+### Criteria, sorting and paging
+
+`Criteria<T>` is the portable query shape from [`@owlmeans/resource`](../resource): a bare value
+is equality, a bare array is "any of these", `null` asks for the absence of a value and
+`undefined` is skipped so an untouched filter never empties a list. Every operator in the shared
+vocabulary — `$eq $ne $gt $gte $lt $lte $in $nin $exists $null $like $ilike $regex $startsWith
+$endsWith $between $contains $contained $overlaps`, plus `$and`/`$or`/`$not` — is translated into
+the mongo expression that answers the same question, so one criteria object means the same thing
+here as it does against Postgres or an in-memory store. `$exists` and `$null` both ask whether the
+field *has a value*, not whether the key is present. An operator outside the vocabulary raises
+`UnsupportedArgumentError`.
+
+Paging is per call: `list(where, { page, size, sort })`. Mongo pages by default —
+`DEFAULT_PAGE_SIZE` records when no `size` is given — because an unbounded read of a collection is
+not something a caller should get by omission. `list(where, { size: 0 })` asks for the whole
+result set explicitly. `ListResult.total` is always filled; `page` and `size` come back only when
+a limit was applied. `sort` takes field names (ascending) or `{ field, order: 'desc' }`, and `id`
+addresses `_id`.
+
+`criteriaToFilter(criteria, refs)` and `sortToMongo(sort)` are exported for code driving
+`resource.collection` directly.
 
 ### ObjectId references
 
@@ -100,7 +124,7 @@ The resource then treats the field exactly like `_id`:
 
 `migration(name, apply, stage?)` registers a code migration, applied once per database in
 declaration order and recorded in the `_owlmeans_migrations` collection (one ledger per
-database — an Entity-layer database tracks its own).
+database, so each database tracks its own).
 
 - `MigrationStage.Pre` runs before the validator/index update, `Post` after. On a collection
   created by this very boot, registered migrations are **baselined** (recorded, not run).
@@ -112,12 +136,23 @@ database — an Entity-layer database tracks its own).
 
 ### `Resource<T>` methods (all implemented)
 
-`get`, `load`, `create`, `update`, `save`, `delete`, `pick`, `list`
+`get`, `load`, `list`, `count`, `create`, `update`, `save`, `delete`, `take`, `purge`
+
+- `get`/`load` take either an id or a `Criteria<T>` with an optional `{ sort }`; `get` throws
+  `UnknownRecordError` where `load` answers `null`. An id that is not a mongo id finds nothing
+  rather than raising a driver error.
+- `update` replaces the whole record addressed by its `id`; `save` creates when the record
+  carries no id and replaces otherwise.
+- `delete(id)` and `take(id)` remove atomically through `findOneAndDelete` and hand the record
+  back — `take` throws `UnknownRecordError` on absence where `delete` answers `null`.
+- `purge(where)` is the bulk delete; it refuses an empty criteria object rather than emptying
+  the collection.
+- `ttl` is refused with `UnsupportedArgumentError` — a collection has no per-record expiry.
 
 ### Constants
 
 - `DEFAULT_DB_ALIAS` — `'mongo'`
-- `DEFAULT_PAGE_SIZE` — `10`
+- `DEFAULT_PAGE_SIZE` — `100`
 - `DEF_MIGRATIONS_COLLECTION` — `'_owlmeans_migrations'`
 
 ## Related Packages
@@ -133,7 +168,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

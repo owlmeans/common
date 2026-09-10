@@ -1,7 +1,7 @@
 ---
 node: routing
 scope: "packages/router/**, packages/web-router/**, packages/web-router-react-router/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 # Routing (plugin system)
@@ -32,8 +32,8 @@ the package layers.
   omitted; `App` mounts `<Router>` unless `noRouter`. `web-client`'s `provide` export is a
   deprecated `undefined` kept only so downstream `<PanelApp provide={provide}/>` compiles.
 - Component-less matches must be pass-through: `makeRouterModel` attaches a `Component` only when
-  a module has a `handle`, so grouping modules sit in the chain without one. `web-router` renders
-  via `RouteChain` (walks to the first match WITH a `Component`, publishes that depth on
+  an entrypoint has a `handle`, so grouping entrypoints sit in the chain without one. `web-router`
+  renders via `RouteChain` (walks to the first match WITH a `Component`, publishes that depth on
   `OutletContext`). Rendering `matches[depth]` literally blanks every screen under a handler-less
   group — symptom: empty body on all routes, no console errors.
 - Routing is validated by a real-browser Playwright chromium e2e only

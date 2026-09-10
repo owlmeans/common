@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import type { Navigator } from './types.js'
-import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { useContext } from './context.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 
@@ -12,20 +11,18 @@ export const useNavigate = (): Navigator => {
     const navigator: Navigator = {
       _navigate: navigate,
       
-      navigate: async (module, request) => {
-        const [url, ok] = await module.call(request)
+      navigate: async (entrypoint, request) => {
+        const url = await entrypoint.url(request)
 
-        if (ok === EntrypointOutcome.Ok) {
-          if (url.startsWith('http')) {
-            globalThis.location.href = url
-          } else {
-            navigate(url, {
-              state: {
-                ...module.route.route, silent: request?.silent
-              },
-              replace: request?.replace ?? false
-            })
-          }
+        if (url.startsWith('http')) {
+          globalThis.location.href = url
+        } else {
+          navigate(url, {
+            state: {
+              ...entrypoint.route.route, silent: request?.silent
+            },
+            replace: request?.replace ?? false
+          })
         }
       },
 

@@ -55,6 +55,12 @@ export interface ModelPolicy {
   roleOverrides?: Partial<Record<ModelRole, ModelRole>>
   /** "Pin a role to a specific model/config" — alias or partial config override. */
   modelOverrides?: Partial<Record<ModelRole, ModelConfigOverride>>
+  /**
+   * Role resolved by `ExecutionService.utility` for cheap side calls. Defaults to
+   * `UTILITY_ROLE`; name another alias when the deployment calls its cheap tier
+   * something else. `roleOverrides` still applies on top of whichever one is used.
+   */
+  utilityRole?: ModelRole
 }
 
 /**
@@ -137,9 +143,16 @@ export interface ExecutionState {
   prompt?: PromptPolicy
 }
 
-/** Resumable state of a task-level execution. */
+/**
+ * The task level's own fields.
+ *
+ * `phase`, `completed` and `cursor` are LABELS — for a trace line, a prompt, a log — and never a
+ * workflow position. Recoverable position lives on a pipeline run row (`@owlmeans/agent`), which is
+ * a single authority; an execution that also claimed to know where a run stood would be a second
+ * one, and the two would disagree the first time a step wrote only one of them.
+ */
 export interface TaskExecutionState extends ExecutionState {
-  /** Abstract workflow position for checkpoint/resume. */
+  /** A label for the stage a task considers itself in. Never read back to decide anything. */
   phase?: string
   completed?: string[]
   cursor?: string
@@ -187,11 +200,18 @@ export interface NullCapture {
     tool_calls?: unknown
   } | null
   diagnostics: {
+    /** Whatever the provider called it — OpenAI's `finish_reason` or Anthropic's `stop_reason`. */
     finishReason?: string
     inputTokens?: number
     outputTokens?: number
     reasoningTokens?: number
     contentEmpty: boolean
+    /**
+     * Content arrived, but none of it was text — the shape of an answer that was all reasoning.
+     * Distinguishes "spent the budget thinking" from "returned nothing at all", which
+     * `contentEmpty` alone cannot.
+     */
+    thinkingOnly?: boolean
     hadToolCall: boolean
   }
 }

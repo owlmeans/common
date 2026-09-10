@@ -34,33 +34,10 @@ export const createListSchema = <T extends ResourceRecord>(schema: JSONSchemaTyp
         additionalProperties: false,
       }
     },
-    pager: {
-      type: 'object',
-      properties: {
-        sort: {
-          type: 'array',
-          items: {
-            oneOf: [
-              { type: 'string' },
-              {
-                type: 'array', items: [
-                  { type: 'string' },
-                  { type: 'boolean', nullable: true }
-                ], minItems: 1, maxItems: 2
-              }
-            ]
-          },
-          nullable: true
-        },
-        page: { type: 'number', nullable: true },
-        size: { type: 'number', nullable: true },
-        total: { type: 'number', nullable: true }
-      },
-      required: [],
-      nullable: true,
-      additionalProperties: false,
-    }
+    total: { type: 'number' },
+    page: { type: 'number', nullable: true },
+    size: { type: 'number', nullable: true }
   },
-  required: ['items'],
+  required: ['items', 'total'],
   additionalProperties: false,
 })

@@ -7,7 +7,8 @@ export interface ClientDbService extends InitializedService {
 }
 
 export interface ClientDb {
-  get: <T>(id: string) => Promise<T>
+  /** `undefined` for a key the store does not hold — a miss is not an error at this level. */
+  get: <T>(id: string) => Promise<T | undefined>
   set: <T>(id: string, value: T) => Promise<void>
   has: (id: string) => Promise<boolean>
   del: (id: string) => Promise<boolean>

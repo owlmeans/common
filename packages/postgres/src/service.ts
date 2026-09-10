@@ -1,6 +1,5 @@
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
-import { assertContext, Layer } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
+import { assertContext } from '@owlmeans/context'
 import {
   makeTx, pgErrorToResourceError, pgIdentifier, refOf, resolvePlaceholders
 } from '@owlmeans/postgres-resource'
@@ -28,7 +27,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
   /**
    * Handles are cached per config alias rather than rebuilt per call: `db()` runs on every
    * single resource operation, and both the Drizzle binding and the schema name are fixed
-   * for the lifetime of a service instance — a layer switch produces a *new* instance.
+   * for the lifetime of the service — one instance per alias, for the whole process.
    */
   const handles: Map<string, PostgresDb> = new Map()
   const deferred: Map<string, Array<() => Promise<void>>> = new Map()
@@ -44,9 +43,9 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
           drizzle: drizzle(pool) as NodePgDatabase<Record<string, never>>,
           pool,
           /**
-           * `name()` is the layer aware namespace — the Postgres SCHEMA here, where Mongo
-           * reads the same value as a database name. It can outgrow 63 bytes once a layer
-           * suffix is appended, which Postgres would truncate silently.
+           * `name()` is the configured namespace — the Postgres SCHEMA here, where Mongo
+           * reads the same value as a database name. `pgIdentifier` holds it inside the
+           * 63 byte limit Postgres would otherwise truncate silently.
            */
           schema: pgIdentifier(service.name(configAlias)),
           database: poolDatabase(pool)
@@ -63,21 +62,6 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
 
       if (service.clients[configAlias] != null) {
         return
-      }
-
-      if (service.layers == null) {
-        service.layers = [Layer.Global]
-      }
-      /**
-       * Sensitivity *adds* a layer the service is willing to serve. The Mongo copy of this
-       * block tests `includes` where it means `!includes`, so it only ever appends a layer
-       * that is already there — a latent no-op, corrected here.
-       */
-      if (config.serviceSensitive === true && !service.layers.includes(Layer.Service)) {
-        service.layers.push(Layer.Service)
-      }
-      if (config.entitySensitive === true && !service.layers.includes(Layer.Entity)) {
-        service.layers.push(Layer.Entity)
       }
 
       const meta = (config.meta ?? {}) as PostgresMeta
@@ -125,7 +109,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
     qualify: resourceAlias => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
 
-      return refOf(context as unknown as BasicContext<any>, null, resourceAlias)
+      return refOf(context, null, resourceAlias)
     },
 
     query: async <Row extends QueryResultRow = QueryResultRow>(
@@ -135,7 +119,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
       const context = assertContext<Config, Context>(service.ctx as Context, location)
       try {
         const result = await db.pool.query<Row>(
-          resolvePlaceholders(text, context as unknown as BasicContext<any>, null), params as never[]
+          resolvePlaceholders(text, context, null), params as never[]
         )
 
         return result.rows
@@ -152,8 +136,8 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
         await client.query('BEGIN')
         const result = await fn(makeTx(
           client,
-          text => resolvePlaceholders(text, context as unknown as BasicContext<any>, null),
-          resourceAlias => refOf(context as unknown as BasicContext<any>, null, resourceAlias)
+          text => resolvePlaceholders(text, context, null),
+          resourceAlias => refOf(context, null, resourceAlias)
         ))
         await client.query('COMMIT')
 
@@ -243,23 +227,6 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
           ]
         ))
       )
-    },
-
-    reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
-      const _service = makePostgresDbService(alias)
-
-      _service.ctx = context
-      _service.layers = service.layers
-
-      /**
-       * Pools carry over instead of being reopened. A layer switch changes the Postgres
-       * *schema*, not the server, and `max_connections` is a cluster wide budget — a pool
-       * per tenant exhausts it long before the tenants run out. The handle cache is
-       * deliberately *not* carried: its schema name is what the switch just changed.
-       */
-      Object.assign(_service.clients, service.clients)
-
-      return _service as T
     }
   }, service => async () => {
     const context = assertContext<Config, Context>(service.ctx as Context, location)

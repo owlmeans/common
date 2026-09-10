@@ -1,17 +1,17 @@
 ---
 name: web-router-react-router
-description: How to use @owlmeans/web-router-react-router — the opt-in React Router v7 routing plugin for OwlMeans (register with appendReactRouter to override the default OwlMeans browser router). Auto-invoked when using react-router with OwlMeans.
+description: How to use @owlmeans/web-router-react-router — the opt-in React Router v8 routing plugin for OwlMeans (register with appendReactRouter to override the default OwlMeans browser router). Auto-invoked when using react-router with OwlMeans.
 user-invocable: false
 ---
 
 # @owlmeans/web-router-react-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router-react-router": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/web-router-react-router": "^0.1.18-rc.7"` in `dependencies`
 
-The React Router v7 mechanic as an OwlMeans routing plugin. Extracted from the former `web-router`
-so react-router is **opt-in**: OwlMeans in-browser routing is the default, and you add this plugin
-only when you specifically want react-router.
+The React Router v8 mechanic as an OwlMeans routing plugin. react-router is **opt-in**: OwlMeans
+in-browser routing is the default, and you add this plugin only when you specifically want
+react-router.
 
 ## Key Exports
 
@@ -41,7 +41,7 @@ don't change.
 ## Depends On
 
 - `@owlmeans/router` (host), `@owlmeans/context`
-- peer `react`, `react-router@^7.9.6`
+- peer `react`, `react-router@^8.3.0`
 
 ## Related
 

@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren, ReactElement } from 'react'
-import type { ModuleContextParams, RoutedComponent, ClientContext } from '../types.js'
+import type { EntrypointContextParams, RoutedComponent, ClientContext } from '../types.js'
 import { isValidElement, memo, useEffect } from 'react'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { provideRequest } from '@owlmeans/client-entrypoint'
@@ -15,10 +15,17 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
   const params = context.router().useParams()
   const reply = provideResponse()
 
+  // Own guards plus every ancestor's — the same set the request would be judged by. Whether a
+  // screen is guarded is a question about THIS list being non-empty, never about the declaration
+  // carrying a `guards` property: elevation always assigns the array, empty when nothing was
+  // declared, and an empty list means an open screen. Asking the wrong question refuses every
+  // guest screen with `frontend-guard`, since no guard can match when there are none.
+  const aliases = module.getGuards()
+
   useEffect(() => {
-    if (module.guards != null) {
-      const guards = module.getGuards().map(guard => context.service<GuardService>(guard))
-      const request = provideRequest(module.alias, module.getPath())
+    if (aliases.length > 0) {
+      const guards = aliases.map(guard => context.service<GuardService>(guard))
+      const request = provideRequest(module.alias, module.path())
       const reply = provideResponse()
       let canceled = false
       Promise.all(guards.map(async guard => {
@@ -38,10 +45,10 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
       })
       return () => { canceled = true }
     }
-  }, module.guards ?? [])
+  }, aliases)
 
   let Renderer: HandledRenderer<{}> = module.handle?.({
-    alias: module.alias, path: module.getPath(),
+    alias: module.alias, path: module.path(),
     params, body: {}, headers: {}, query: {},
   }, reply) as HandledRenderer<{}>
 
@@ -55,8 +62,8 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
   const Outlet = context.router().outlet()
   if (isComponent(Renderer)) {
     const EnsuredRenderer = memo(Renderer) as RoutedComponent
-    const props: ModuleContextParams = {
-      context, params, alias: module.getAlias(), path: module.getPath()
+    const props: EntrypointContextParams = {
+      context, params, alias: module.alias, path: module.path()
     }
     if (hasChildren) {
       return <EnsuredRenderer {...props}><Outlet /></EnsuredRenderer>

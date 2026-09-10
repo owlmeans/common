@@ -1,0 +1,48 @@
+{
+  "name": "@owlmeans/redis-queue",
+  "version": "0.1.18-rc.3",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 248 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/basic-ids": "^0.1.18-rc.9",
+    "@owlmeans/context": "^0.1.18-rc.8",
+    "@owlmeans/error": "^0.1.18-rc.8",
+    "@owlmeans/queue": "^0.1.18-rc.9",
+    "@owlmeans/redis": "^0.1.18-rc.12",
+    "@owlmeans/redis-resource": "^0.1.18-rc.12",
+    "@owlmeans/resource": "^0.1.18-rc.9",
+    "@owlmeans/server-context": "^0.1.18-rc.12",
+    "bullmq": "^5.78.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/route": "^0.1.18-rc.9",
+    "@owlmeans/test-integration": "^0.1.18-rc.8",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^26.1.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

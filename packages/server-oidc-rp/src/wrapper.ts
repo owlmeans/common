@@ -42,7 +42,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         record.validated = new Date()
 
         if (ctx.hasEntrypoint(authService.auth.update)) {
-          const [update] = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
+          const update = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
             .call({ body: { token, tokenSet: record.payload } })
 
           const updateEnvelope = makeEnvelopeModel<AuthCredentials>(update.token, EnvelopeKind.Token)
@@ -63,7 +63,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           }
 
           if (updatedAuth.challenge !== user.token) {
-            await cache(ctx).delete(record)
+            await cache(ctx).delete(managedId(user.token))
             updatedUser.token = updatedAuth.challenge
             record.id = managedId(updatedUser.token)
           }

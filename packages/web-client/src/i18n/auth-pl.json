@@ -2,5 +2,37 @@
   "dispatcher": {
     "loading": "Ładowanie...",
     "error": "Uwierzytelnianie nie powiodło się: {{error}}"
+  },
+  "surrogate": {
+    "login": {
+      "working": "Trwa logowanie…",
+      "gesture": {
+        "title": "Kontynuuj, aby się zalogować.",
+        "action": "Zaloguj się"
+      },
+      "handing": "Gotowe. Wracamy do aplikacji…",
+      "orphaned": "Zalogowano. Możesz zamknąć to okno i kontynuować w aplikacji.",
+      "failed": "Nie udało się ukończyć. Zamknij to okno i spróbuj ponownie.",
+      "standalone": {
+        "title": "Ta strona służy do logowania z innego okna.",
+        "action": "Otwórz aplikację"
+      },
+      "close": "Zamknij"
+    },
+    "logout": {
+      "working": "Trwa wylogowywanie…",
+      "gesture": {
+        "title": "Kontynuuj, aby się wylogować.",
+        "action": "Wyloguj się"
+      },
+      "handing": "Wylogowano. Wracamy do aplikacji…",
+      "orphaned": "Wylogowano. Możesz zamknąć to okno.",
+      "failed": "Wylogowanie nie zostało tu ukończone. Możesz zamknąć to okno.",
+      "standalone": {
+        "title": "Ta strona służy do wylogowania z innego okna.",
+        "action": "Otwórz aplikację"
+      },
+      "close": "Zamknij"
+    }
   }
 }

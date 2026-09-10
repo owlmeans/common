@@ -133,6 +133,12 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
 
   closeReadline()
 
+  // 7. Apply — always, and before any early return. applyInstall never writes a
+  // conflict item, so an unresolved conflict costs that one file; every clean skill
+  // still lands. A run that aborted here instead would leave a project with one
+  // hand-edited skill without a single installed file.
+  const result = applyInstall(resolvedItems, targetDir)
+
   const remainingConflicts = resolvedItems.filter(i => i.action === 'conflict')
   if (remainingConflicts.length > 0) {
     process.stdout.write(
@@ -142,15 +148,7 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
       process.stdout.write(`  ${c.targetPath}\n`)
     }
     process.stdout.write(`Pass --force to overwrite.\n\n`)
-
-    // In non-interactive --yes mode with remaining conflicts, exit 5
-    if (!isTTY() && !args.yes && !args.force) {
-      return { code: 5, message: 'unresolved conflicts' }
-    }
   }
-
-  // 7. Apply
-  const result = applyInstall(resolvedItems, targetDir)
 
   process.stdout.write(
     `Done: ${result.installed} installed, ${result.updated} updated, ` +
@@ -158,6 +156,13 @@ export const run = async (args: CliArgs): Promise<RunResult> => {
   )
   if (result.linked > 0) {
     process.stdout.write(`Linked ${result.linked} skill(s) into .claude/skills/ for Claude Code.\n`)
+  }
+
+  // A non-interactive run had no way to answer the per-conflict prompt and was told
+  // neither to proceed anyway (--yes) nor to overwrite (--force): report the
+  // unresolved conflicts as exit 5. The clean files are already on disk.
+  if (remainingConflicts.length > 0 && !isTTY() && !args.yes && !args.force) {
+    return { code: 5, message: 'unresolved conflicts' }
   }
 
   return { code: 0 }

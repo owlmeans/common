@@ -12,7 +12,7 @@ Core authentication types, schemas, and constants for OwlMeans fullstack applica
 ## Installation
 
 ```bash
-bun add @owlmeans/auth
+bun add @owlmeans/auth@^0.1.18-rc.8
 ```
 
 ## Usage
@@ -66,9 +66,9 @@ enum AuthenticationStage { /* connection auth lifecycle */ }
 - Manager API handlers use `AuthUnknown('entity')` when `request.auth?.entityId` is missing.
 - WebSocket helpers use `Auth`, `AuthToken`, and `AuthenticationStage` to authenticate token-bearing connections.
 - Google/OIDC login is normalized into an `AuthPayload` with `userId`, `profileId`, `entityId`, and `scopes`; the local identity store lives in `@owlmeans/server-auth-identity`.
-- Gate denial should use `AuthForbidden`; product ownership checks should stay in module gates or handlers, not in this core package.
+- Gate denial should use `AuthForbidden`; product ownership checks should stay in entrypoint gates or handlers, not in this core package.
 
-### AJV Schemas (for module filter definitions)
+### AJV Schemas (for entrypoint filter definitions)
 
 - `AuthCredentialsSchema` — validates an auth credential request body
 - `AllowanceRequestSchema` — validates an allowance/init request body
@@ -76,7 +76,7 @@ enum AuthenticationStage { /* connection auth lifecycle */ }
 
 ## Related Packages
 
-- [`@owlmeans/auth-common`](../auth-common) — auth modules, guards, and middleware
+- [`@owlmeans/auth-common`](../auth-common) — auth entrypoints, guards, and middleware
 - [`@owlmeans/server-auth`](../server-auth) — server-side auth service implementation
 - [`@owlmeans/client-auth`](../client-auth) — client-side auth service
 
@@ -88,7 +88,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

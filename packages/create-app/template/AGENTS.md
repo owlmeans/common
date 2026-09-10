@@ -2,10 +2,13 @@
 
 ## Project purpose
 
+__APP_DESCRIPTION__
+
 <!-- OWLMEANS:PROJECT-PURPOSE -->
 > **Agents — this project has not been described yet.** Before doing anything else on the first
 > session, ask the user what this project is for: its purpose, domain, goals, and key constraints.
 > Then replace this whole block with a short description of the project, and remove this notice.
+<!-- /OWLMEANS:PROJECT-PURPOSE -->
 
 ## Git Workflow (mandatory)
 
@@ -83,12 +86,28 @@ from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you 
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
 symlinks in `.claude/skills/` (see `CLAUDE.md`).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.11` to refresh
   the deployed skills.
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.
 - To capture your own guidance, see the `skill-authoring` skill; to turn repeatedly-used memory into
   a skill, `memory-promotion`. Keep it inside this repository, in `.agents/skills/` — never in a
   per-agent or home directory.
+
+<!-- OWLMEANS:LINKED-SKILLS -->
+### Skills linked from installed packages
+
+`sh .agents/scripts/link-skills.sh` also links in the skills that ship inside the installed
+`@owlmeans/*` packages (`node_modules/@owlmeans/<pkg>/agent-meta/skills/<name>`), so they load
+by name (`/<name>`) like a local skill. They land in `.agents/linked-skills/<name>` for Copilot
+and Codex and in `.claude/skills/<name>` for Claude Code, with a `skill / origin repo /
+description` table in `.agents/linked-skills/INDEX.md`. A local skill of the same name always
+wins. The directory is generated and git-ignored — never edit or commit it.
+
+The root `prepare` script runs it on every `bun install`, and a session-start hook runs it
+again, so a fresh checkout carries the links for every agent — Copilot and Codex included,
+not just Claude Code.
+
+<!-- /OWLMEANS:LINKED-SKILLS -->
 
 ## Develop
 

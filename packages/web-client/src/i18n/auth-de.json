@@ -2,5 +2,37 @@
   "dispatcher": {
     "loading": "Wird geladen...",
     "error": "Authentifizierung fehlgeschlagen: {{error}}"
+  },
+  "surrogate": {
+    "login": {
+      "working": "Anmeldung läuft…",
+      "gesture": {
+        "title": "Fortfahren, um sich anzumelden.",
+        "action": "Anmelden"
+      },
+      "handing": "Fertig. Zurück zur Anwendung…",
+      "orphaned": "Angemeldet. Sie können dieses Fenster schließen und in der Anwendung fortfahren.",
+      "failed": "Das wurde nicht abgeschlossen. Schließen Sie dieses Fenster und versuchen Sie es erneut.",
+      "standalone": {
+        "title": "Diese Seite dient der Anmeldung aus einem anderen Fenster.",
+        "action": "Anwendung öffnen"
+      },
+      "close": "Schließen"
+    },
+    "logout": {
+      "working": "Abmeldung läuft…",
+      "gesture": {
+        "title": "Fortfahren, um sich abzumelden.",
+        "action": "Abmelden"
+      },
+      "handing": "Abgemeldet. Zurück zur Anwendung…",
+      "orphaned": "Abgemeldet. Sie können dieses Fenster schließen.",
+      "failed": "Die Abmeldung wurde hier nicht abgeschlossen. Sie können dieses Fenster schließen.",
+      "standalone": {
+        "title": "Diese Seite dient der Abmeldung aus einem anderen Fenster.",
+        "action": "Anwendung öffnen"
+      },
+      "close": "Schließen"
+    }
   }
 }

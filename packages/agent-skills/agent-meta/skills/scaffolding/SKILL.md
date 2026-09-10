@@ -10,8 +10,9 @@ metadata:
 # Scaffolding a new OwlMeans Common project
 
 Two paths produce the same minimal fullstack project (`common` + `api` + `web`, shadcn UI
-navigation/layout, **no auth**, a **session-scoped in-memory resource**). The full reference is
-[`docs/getting-started.md`](../../../docs/getting-started.md); the framework shape is [[getting-started]].
+navigation/layout, **no auth**, a **session-scoped in-memory resource**). The full reference is the
+[OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md);
+the framework shape is [[getting-started]].
 
 ## Path 1 — `@owlmeans/create-app` (one command)
 
@@ -19,17 +20,25 @@ navigation/layout, **no auth**, a **session-scoped in-memory resource**). The fu
 npm create @owlmeans/app@latest my-app
 bun create @owlmeans/app my-app
 yarn create @owlmeans/app my-app
-npx @owlmeans/create-app my-app
+npx @owlmeans/create-app@^0.1.18-rc.14 my-app
 ```
 
 By default it copies the template, runs `git init`, installs dependencies, and **deploys agent
-guidance** into the project via [[bun]]-installed `@owlmeans/agent-skills` (`.agents/skills/`).
-With `--no-install` the deploy still runs — the installer's own bundled
-extras give the project its general/harness guidance; only the package-specific skills wait for
-`npx @owlmeans/agent-skills` after the install.
+guidance** into the project (`.agents/skills/`). `@owlmeans/agent-skills` is a dependency of the
+scaffolder and runs in-process, so the deploy happens whatever `--pm` is. With `--no-install` it
+still runs — the installer's own bundled extras give the project its general/harness guidance;
+only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.12` after the
+install.
 
-Flags: `--name <name>`, `--pm <bun|npm|yarn>` (default `bun`), `--no-install`, `--no-skills`,
-`--no-git`, `--yes`/`-y`, `--help`.
+Flags: `--name <name>`, `--slug <slug>`, `--lang <code>` (default `en`), `--description <text>`,
+`--bare`, `--pm <bun|npm|yarn>` (default `bun`), `--no-install`, `--no-skills`, `--no-git`,
+`--yes`/`-y`, `--help`.
+
+`--slug` overrides the slug derived from the directory name and must match
+`^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$`; `--lang` sets the generated `<html lang>`;
+`--description` becomes the one-line blurb in `README.md`, `AGENTS.md`, the Home screen and the
+`index.html` meta tags. The four values reach the template as `__APP_SLUG__`, `__APP_NAME__`,
+`__APP_LANG__` and `__APP_DESCRIPTION__`.
 
 Then run:
 
@@ -39,33 +48,92 @@ cd my-app && bun run dev      # API :3000, web :3001
 
 **When an agent should use this:** the user asks to start/bootstrap/create a new OwlMeans app from
 nothing. Prefer it over hand-writing boilerplate. After it runs, point the user at the **Session**
-screen and `docs/getting-started.md`.
+screen and the getting-started guide — or, with `--bare`, straight at
+`sources/common/src/entrypoints.ts`.
+
+## `--bare` — the shell without the demo
+
+`--bare` generates the same three workspaces, config/context/entrypoint wiring, layout, nav and a
+single Home screen, and leaves out every piece of example code: the `SessionItem` types and
+schemas, the api's `app/session/**` handlers and its static resource, and the About/Session
+screens with their nav entries. `sources/common/src/entrypoints.ts` then exports an empty
+`sharedEntrypoints: CommonEntrypoint[]` that both sides already spread — the first feature is a
+declaration added there, a handler elevated in the api and a screen hung off a route in the web.
+Use it whenever the app is being generated for someone (or something) that will write the real
+features immediately; use the full template when the user wants a worked example to read.
+
+The bare inventory is **data in the template**, never a list in the CLI code:
+`template/_bare.json` holds `remove` (template-relative paths, directory subtrees or `*`/`**`
+globs) and `overrides` (target path → a sibling source carrying a `.bare.` infix, whose CONTENT is
+written to the target). Files with `.bare.` in the name are filtered out of the copy in **both**
+modes, so the normal template still compiles as one project. Adding demo code therefore means
+adding its path to `remove`, or shipping a `foo.bare.ts` beside `foo.ts` and mapping it — the
+scaffolder itself does not change.
+
+## Driving create-app from another tool
+
+`@owlmeans/create-app` also exports a programmatic entry that does the filesystem copy and nothing
+else — no `git init`, no install, no agent-skills deploy, no output — so a generator can own those
+steps itself. The destination may already exist.
+
+```ts
+import { scaffold } from '@owlmeans/create-app'
+
+scaffold({ dir, slug: 'my-app', name: 'My App', lang: 'en', description: '…', bare: true })
+```
+
+`templateDir()`, `copyTemplate(src, dest, replacements, { bare })` and `isEmptyDir(dir)` are
+exported alongside it for callers that need the pieces; `run(args)` is the whole CLI flow.
 
 ## Path 2 — manual
 
-Follow **Option B** in [`docs/getting-started.md`](../../../docs/getting-started.md): create the bun
-workspace, then `common` (shared entrypoints/schemas/config), `api` (`@owlmeans/server-app` +
+Follow **Option B** in the
+[OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md): create the bun
+workspace, then `common` (shared `entrypoints.ts`/schemas/config), `api` (`@owlmeans/server-app` +
 `appendStaticResource` handlers + `main`), and `web` (`@owlmeans/web-panel` + shadcn `@`-provided
-primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills` to add agent guidance.
+primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.12` to add agent guidance.
 
 ## What gets generated
 
 ```
 my-app/
-├── package.json            # bun workspaces: sources/*
+├── package.json            # bun workspaces: sources/*, plus a `prepare` script
+├── bunfig.toml             # [install] linker = "hoisted"
 ├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder
 ├── CLAUDE.md               # thin bridge: imports AGENTS.md, documents the skill symlinks
 ├── .agents/skills/         # seeded harness skills (+ deployed ones)
-├── .agents/scripts/link-skills.sh  # refreshes the .claude/skills symlinks Claude Code needs
+├── .agents/scripts/link-skills.sh  # links local + installed-package skills for every agent
+├── .agents/linked-skills/  # generated on install, git-ignored — see below
 ├── .agents/memory/MEMORY.md      # starter shared memory graph index
-├── sources/common/         # consts, types, schemas, config, modules (entrypoints)
-├── sources/api/            # context.ts (appendStaticResource), app/session/*, modules.ts, index.ts
+├── sources/common/         # consts, types, schemas, config, entrypoints.ts
+├── sources/api/            # context.ts (appendStaticResource), app/session/*, entrypoints.ts, index.ts
 └── sources/web/            # vite + tailwind v4, components/ui/*, layout, nav, screens, render.tsx
                             # context.ts registers a @owlmeans/state resource the screens read
 ```
 
-Memory lives **only** in `.agents/memory/` — the legacy `.claude/memory/` and `.github/memory/`
-starters are gone (see [[agent-memory]]; [[memory-recompact]] migrates a project that still has them).
+`bunfig.toml` pins the **hoisted** linker, the same one every OwlMeans monorepo uses: React and the
+`@owlmeans/*` singletons must resolve to one copy across the workspaces, and the default isolated
+linker gives each workspace its own. Keep it even in a project that adds no further workspaces.
+
+The root `prepare` script runs `.agents/scripts/link-skills.sh` on every install, so the links
+exist for whoever checks the project out with no agent session needed to create them. Claude Code's
+committed `SessionStart` hook runs the same script again. The script does two passes:
+
+- **Local** — one symlink per `.agents/skills/<name>` into `.claude/skills/<name>`, which is the
+  only place Claude Code discovers skills. Copilot and Codex read `.agents/skills/` directly.
+- **Installed packages** — it finds every `node_modules/@owlmeans/<pkg>/agent-meta/skills/<name>`
+  in the project (the root scope and each workspace's own, since bun keeps a package's deps under
+  `sources/<pkg>/node_modules` when they are not hoisted; the same physical package is counted
+  once) and links each into **both** `.agents/linked-skills/<name>` — where Copilot and Codex read
+  it — and `.claude/skills/<name>`. It writes a skill / origin / description table to
+  `.agents/linked-skills/INDEX.md`, prunes links that no longer resolve, and removes the directory
+  entirely when nothing is linked. A local skill of the same name always shadows a linked one.
+
+`.agents/linked-skills/` is generated and git-ignored (the generated `.gitignore` lists it), so it
+is never edited or committed — re-run the script instead.
+
+Memory lives **only** in `.agents/memory/` (see [[agent-memory]]; [[memory-recompact]] folds a
+per-agent memory directory back into it).
 
 **Routing is OwlMeans-native.** The generated app has no `react-router` dependency and no
 `react-router` override: `makeContext` registers `@owlmeans/web-router` and `PanelApp` resolves
@@ -75,10 +143,13 @@ its compiler from the active plugin, so `render.tsx` passes no `provide` prop. L
 never re-add it to the template.
 
 The session demo stores items server-side in `@owlmeans/static-resource`, namespaced by a
-client-generated `sid` kept in `localStorage` — no database, no authentication. On the client the
-screen reads a `@owlmeans/state` resource registered by `makeContext`, subscribed as a live query
-through `useStoreList`; the fetch writes what it gets into that store rather than into component
-state. See [[static-resource]], [[state]], [[server-app]], [[web-panel]].
+client-generated `sid` kept in `localStorage` — no database, no authentication. The `list` handler
+asks the resource the whole question (`list({ sessionId }, { sort })`) rather than filtering
+afterwards. On the client the screen reads a `@owlmeans/state` resource registered by `makeContext`,
+subscribed as a live query through `useStoreList`; the fetch calls the entrypoint
+(`ctx.entrypoint(session.list).call({ params })` → the items) and installs them with
+`store.replace(items)` rather than keeping them in component state. See [[static-resource]],
+[[state]], [[server-app]], [[web-panel]].
 
 ## Generated agent guidance
 
@@ -88,14 +159,16 @@ plus the mandatory [[reuse-code]] section and a **project-purpose placeholder**
 (`<!-- OWLMEANS:PROJECT-PURPOSE -->`). On the first agent session that block instructs the agent to
 ask the user what the project is for and replace it. `CLAUDE.md` is a thin bridge that imports
 `AGENTS.md` and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
-hook; Copilot and Codex need nothing beyond `AGENTS.md` and `.agents/skills/`.
+hook. Copilot and Codex need no bridge file: they read `AGENTS.md`, `.agents/skills/` and
+`.agents/linked-skills/` natively, which is why `AGENTS.md` carries its own
+`<!-- OWLMEANS:LINKED-SKILLS -->` section describing where the linked skills come from.
 
 The harness guidance is **seeded into the template** as generated, banner-carrying copies, so a
 project has it even before the installer runs: [[agent-memory]], [[memory-promotion]],
 [[memory-recompact]], [[self-education]], [[skill-authoring]], `git`, [[reuse-code]],
 [[getting-started]]. Regenerate the seed with `sync-agent-meta --seed-only` in the library-manager;
 never hand-edit a seeded copy. The installer adds the remaining general skills
-([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]]) and every
-package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills`
+([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]], [[consent]],
+[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.12`
 — discovery scans **every** `node_modules/@owlmeans` in the workspace (root and nested under
 `sources/*`), so package-specific skills are picked up even though bun nests them.

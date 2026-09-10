@@ -12,7 +12,7 @@ Payment service abstraction — product catalog, subscription management, and St
 ## Installation
 
 ```bash
-bun add @owlmeans/payment
+bun add @owlmeans/payment@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ Create a checkout session:
 ```typescript
 import type { CreateCheckoutBody, CreateCheckoutResponse } from '@owlmeans/payment'
 
-const [result] = await ctx.module<ClientModule<CreateCheckoutResponse>>(
+const result = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
   paymentApi.service.checkout.session.external.create
 ).call({
   body: {
@@ -91,7 +91,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

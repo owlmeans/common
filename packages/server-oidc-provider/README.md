@@ -14,7 +14,7 @@ Embedded OIDC identity provider — wraps the `oidc-provider` library as an OwlM
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oidc-provider
+bun add @owlmeans/server-oidc-provider@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -59,7 +59,7 @@ Returns middleware that mounts the OIDC authorize/token/userinfo/jwks endpoints 
 
 ## Related Packages
 
-- [`@owlmeans/oidc`](../oidc) — shared protocol constants and module declarations
+- [`@owlmeans/oidc`](../oidc) — shared protocol constants and entrypoint declarations
 - [`@owlmeans/server-oidc-rp`](../server-oidc-rp) — relying-party counterpart for consuming external IdPs
 - [`@owlmeans/server-api`](../server-api) — the underlying server API the middleware mounts onto
 - [`@owlmeans/web-oidc-provider`](../web-oidc-provider) — browser UI for the provider's interaction screens
@@ -72,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

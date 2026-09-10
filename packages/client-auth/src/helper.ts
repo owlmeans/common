@@ -22,7 +22,7 @@ export const useWs = (
 
   const request = useMemo(() => {
     if (_request == null) {
-      _request = provideRequest(mod.getAlias(), mod.getPath())
+      _request = provideRequest(mod.alias, mod.path())
     }
     try {
       if (_request?.query?.[AUTH_QUERY] == null) {

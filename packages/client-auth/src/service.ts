@@ -21,7 +21,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
     authenticate: async token => {
       const context = assertContext(service.ctx, location)
 
-      const [authToken] = await context.entrypoint<ClientEntrypoint<AuthToken>>(DISPATCHER_AUTHEN)
+      const authToken = await context.entrypoint<ClientEntrypoint<AuthToken>>(DISPATCHER_AUTHEN)
         .call({ body: token })
 
       await service.update(authToken.token)

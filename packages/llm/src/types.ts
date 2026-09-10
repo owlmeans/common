@@ -63,6 +63,12 @@ export interface LlmModelOptions extends LlmLogging {
   prompts?: () => PromptService
   /** File access offered to prompt plugins that resolve knowledge from disk. */
   files?: FileProviderRef
+  /**
+   * Cheap model offered to prompt plugins for a single side call while composing —
+   * normally `() => executions().utility(exec)`. Omitted, plugins that would use one
+   * fall back to whatever they can decide without a model.
+   */
+  utility?: () => BaseChatModel | undefined
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole
@@ -172,6 +178,14 @@ export interface TemperatureFactory {
 export interface ModelConfig {
   provider?: ModelProvider | string
   secret?: string
+  /**
+   * Which delegate transport answers this model's calls.
+   *
+   * Only meaningful for {@link ModelProvider.Delegated}: the key the application seated a
+   * transport under, so one deployment can hold many at once — one per connected agent — and a
+   * config names the one that belongs to its run.
+   */
+  delegate?: string
   alias: string
   /** Inherit every field of another alias in the same config list. */
   preset?: string

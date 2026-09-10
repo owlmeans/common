@@ -12,7 +12,7 @@ Elevates route definitions into runnable server entrypoints with attached reques
 ## Installation
 
 ```bash
-bun add @owlmeans/server-entrypoint
+bun add @owlmeans/server-entrypoint@^0.1.18-rc.10
 ```
 
 ## Usage
@@ -23,16 +23,16 @@ Typical pattern — define entrypoints separately, elevate with handlers:
 import { elevate, guard } from '@owlmeans/server-app'
 import { handleBody, handleParams } from '@owlmeans/server-app'
 
-const appModules = [
+const appEntrypoints = [
   entrypoint(route('project-create', '/projects', backend(RouteMethod.POST)), guard('auth')),
   entrypoint(route('project-get', '/projects/:id', backend())),
 ]
 
-elevate(appModules, 'project-create', handleBody(async (payload, ctx) => {
+elevate(appEntrypoints, 'project-create', handleBody(async (payload, ctx) => {
   return await ctx.project().create(payload)
 }))
 
-elevate(appModules, 'project-get', handleParams(async (params, ctx) => {
+elevate(appEntrypoints, 'project-get', handleParams(async (params, ctx) => {
   return await ctx.project().get(params.id)
 }))
 ```
@@ -41,7 +41,7 @@ elevate(appModules, 'project-get', handleParams(async (params, ctx) => {
 
 ### `elevate<R>(entrypoints, alias, handler?, opts?): ServerEntrypoint<R>[]`
 
-Mutates `entrypoints` in-place: finds the entrypoint with `alias` and attaches `handler`. Throws if the alias is not found or already elevated (unless `opts.force` is true).
+Replaces the element carrying `alias` with its elevated counterpart, in place, attaching `handler`. Elevating the same alias again just replaces it again; guards passed here are added to the ones the entrypoint declared. Throws when no entrypoint carries the alias.
 
 ### `entrypoint<R>(commonEntrypoint, handler?, opts?): ServerEntrypoint<R>`
 
@@ -54,7 +54,8 @@ Returns `EntrypointOptions` that require the named guard service to pass before 
 ### `ServerEntrypoint<R>`
 
 Extends `CommonEntrypoint` with:
-- `route: ServerRouteModel<R>` — resolved server route
+- `route: ServerRouteModel<R>` — the server route declaration; `route.match(request, entrypoint.mount())`
+  answers whether a request hits it
 - `handle: RefedEntrypointHandler<R>` — the attached handler
 
 ### `RefedEntrypointHandler<R>`
@@ -75,7 +76,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

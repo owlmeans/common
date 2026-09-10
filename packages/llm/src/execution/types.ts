@@ -112,17 +112,22 @@ export interface AdviceRequest {
 }
 
 /**
- * Extension seam. A plugin observes flow boundaries (via
- * {@link ExecutionService.checkpoint}) and can persist/enqueue the JSON-safe
- * {@link ExecutionState}, or supply one back on resume; it may also ANSWER a performer's
- * question about its surroundings (`advise`). This package ships NO concrete
- * implementation — with no plugin registered, both seams are no-ops.
+ * Extension seam. A plugin ANSWERS a performer's question about its surroundings.
+ *
+ * It used to carry a checkpoint pair as well (`onCheckpoint`/`onRestore`), and that is gone: an
+ * execution is a bundle of collaborators and domain context, not a workflow position, and the only
+ * position it ever carried was three optional fields nothing ever read back. Recoverable work is a
+ * PIPELINE — `@owlmeans/agent`'s `makePipeline` — whose steps are named, whose state is scalars and
+ * keys, and whose run row is a single authority on where it stands. Two mechanisms answering "where
+ * is this run" is two half-truths, which is exactly what this deletion removes.
  */
 export interface ExecutionPlugin {
-  /** Fired at a flow boundary with a JSON-safe snapshot; persist/enqueue as desired. */
-  onCheckpoint?: (state: ExecutionState, exec: Execution, key?: string) => Promise<void>
-  /** Resume hook: return a previously persisted state for `key`, or `null`. */
-  onRestore?: (key: string) => Promise<ExecutionState | null>
+  /**
+   * Identity for de-duplication. A plugin registered twice — two `append*` calls composing the
+   * same layer — would otherwise answer twice, and the first usable answer wins, so the duplicate
+   * is silent rather than loud.
+   */
+  alias?: string
   /**
    * Answer a performer's question about the project it is working in. Return the text to
    * hand the model, or `null` when this plugin does not own the request's `kind` — or
@@ -165,6 +170,16 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
   // Model resolution (policy-aware)
   model: (exec: S['exec'], role?: ModelRole, override?: ModelConfigOverride) => BaseChatModel
   /**
+   * The cheap model for work that is not the work — a relevance pick, a classification, a
+   * one-line judgement a plugin needs before the real call can be shaped.
+   *
+   * Resolves `policy.utilityRole ?? UTILITY_ROLE` at {@link ExecutionEffort.Economy} through
+   * the SAME ladder as {@link model}, so `roleOverrides` and `modelOverrides` govern it
+   * exactly as they govern every other role. The effort floor is local: the execution it
+   * was asked on keeps its own tier.
+   */
+  utility: (exec: S['exec'], override?: ModelConfigOverride) => BaseChatModel
+  /**
    * A factory that re-resolves the same role at another temperature. `baseOverride` is
    * layered UNDER the temperature patch, so a caller-chosen budget (see
    * `HelperExecutionInput.output`) survives the refinement.
@@ -173,11 +188,15 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
     exec: S['exec'], role?: ModelRole, baseOverride?: ModelConfigOverride
   ) => TemperatureFactory
 
-  // Resilience
-  /** Register an execution plugin (checkpoint/resume, advice). No-op seam until provided. */
+  // Serialization
+  /** Register an execution plugin (advice). Seated by `alias` when it carries one. */
   use: (plugin: ExecutionPlugin) => void
-  /** Snapshot `exec` and dispatch it to every registered plugin. No-op if none. */
-  checkpoint: (exec: S['exec'], key?: string) => Promise<void>
+  /**
+   * The JSON-safe half of an execution — everything that is not a collaborator.
+   *
+   * A transport-level convenience, not a workflow position: nothing here says where a run has got
+   * to, and nothing should. See {@link ExecutionPlugin}.
+   */
   snapshot: (exec: S['exec']) => ExecutionState
   restore: (state: ExecutionState, collaborators?: S['collaborators']) => S['exec']
 

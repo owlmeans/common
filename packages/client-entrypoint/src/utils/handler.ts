@@ -1,12 +1,12 @@
 import type { ApiClient } from '@owlmeans/api'
 import { DEFAULT_KEY } from '@owlmeans/client-config'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import type { AbstractRequest, EntrypointHandler } from '@owlmeans/entrypoint'
-import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
-import type { ClientEntrypoint, EntrypointCall, ClientEntrypointOptions, EntrypointRef, ClientRequest } from '../types.js'
+import type { AbstractRequest, EntrypointHandler, EntrypointTransport } from '@owlmeans/entrypoint'
+import { EntrypointOutcome, provideResponse, transportAlias } from '@owlmeans/entrypoint'
+import type { ClientEntrypoint, EntrypointInvoke, EntrypointUrlOptions, ClientEntrypointOptions, EntrypointRef, ClientRequest } from '../types.js'
 import { validate } from './entrypoint.js'
 import { extractParams } from '@owlmeans/client-route'
-import { PARAM } from '@owlmeans/route'
+import { PARAM, RouteProtocols } from '@owlmeans/route'
 import { stringify } from 'qs'
 import { assertContext } from '@owlmeans/context'
 import { makeSecurityHelper } from '@owlmeans/config'
@@ -25,13 +25,24 @@ export const apiHandler: <
   }
 
   const ep = context.entrypoint<ClientEntrypoint>(req.alias)
-  const route = await ep.route.resolve<Config, Context>(context)
 
-  let alias: string | undefined = typeof context.cfg.webService === 'string'
+  // A route names the protocol it answers on, and a protocol may be carried by something other than
+  // HTTP — a queue, say. Whatever is bound under this protocol takes the call, so a consumer writes
+  // `ep.call(...)` and never learns which of them ran.
+  const transport = transportAlias(ep.route.route.protocol)
+  if (context.hasService(transport)) {
+    req.path = ep.path()
+
+    return context.service<EntrypointTransport>(transport).handle(req, res)
+  }
+
+  // Which web client carries this call is decided by the service the route answers on — the one it
+  // names, or the one the context picks for its app type when it names none.
+  const route = ep.service()
+
+  const alias: string | undefined = typeof context.cfg.webService === 'string'
     ? context.cfg.webService
-    : (route.service != null
-      ? context.cfg.webService[route.service] ?? context.cfg.webService[DEFAULT_KEY]
-      : context.cfg.webService[DEFAULT_KEY])
+    : context.cfg.webService[route.service] ?? context.cfg.webService[DEFAULT_KEY]
 
   if (alias == null) {
     throw new SyntaxError(`Can't cast web service alias for ${ep.alias} entrypoint`)
@@ -39,15 +50,15 @@ export const apiHandler: <
 
   const service: ApiClient = context.service(alias)
 
-  req.path = ep.getPath()
+  req.path = ep.path()
 
   return service.handler(req, res as any)
 }
 
-export const apiCall: <
+export const apiInvoke: <
   T, R extends AbstractRequest = AbstractRequest
->(ref: EntrypointRef<T, R>, opts?: ClientEntrypointOptions) => EntrypointCall<T, R> =
-  (ref, opts) => (async (req, res) => {
+>(ref: EntrypointRef<T, R>, opts?: ClientEntrypointOptions) => EntrypointInvoke<T, R> =
+  (ref, opts) => (async (req) => {
     const ep = ref.ref
     if (ep == null) {
       throw new SyntaxError('Try to make API call before the entrypoint is created')
@@ -56,10 +67,9 @@ export const apiCall: <
     if (ctx == null) {
       throw new SyntaxError(`No context provided in apiCall for ${ep.alias} entrypoint`)
     }
-    await ep.route.resolve(ctx)
 
     if (req?.canceled) {
-      return
+      return { value: null, outcome: EntrypointOutcome.Ok }
     }
 
     const request: AbstractRequest = {
@@ -70,7 +80,7 @@ export const apiCall: <
       query: req?.query ?? {},
       host: req?.host,
       base: req?.base,
-      path: ep.getPath(),
+      path: ep.path(),
       timeout: req?.timeout,
       signal: req?.signal,
     }
@@ -89,10 +99,6 @@ export const apiCall: <
         throw e
       }
     }
-    if (res != null) {
-      await apiHandler(ref)(request, res)
-      return
-    }
     const reply = provideResponse<unknown>()
     if (ctx == null && ep.ctx == null) {
       throw new SyntaxError(`Use entrypoint ${ep.alias} without context`)
@@ -102,37 +108,44 @@ export const apiCall: <
       throw reply.error
     }
 
-    return [reply.value ?? null, reply.outcome ?? EntrypointOutcome.Ok]
-  }) as EntrypointCall<any>
+    return { value: reply.value ?? null, outcome: reply.outcome ?? EntrypointOutcome.Ok }
+  }) as EntrypointInvoke<any>
 
-export const urlCall: <
+export const entrypointUrl: <
   T, R extends ClientRequest = ClientRequest
->(ref: EntrypointRef<T, R>, opts?: ClientEntrypointOptions) => EntrypointCall<T, R> = ref => async (req, res) => {
+>(ref: EntrypointRef<T, R>, req?: Partial<R>, opts?: EntrypointUrlOptions) => Promise<string> = async (ref, req, opts) => {
   const ep = ref.ref
   if (ep == null) {
     throw new SyntaxError('Try to make URL before the entrypoint is created')
   }
   const ctx = ep.ctx
   if (ctx == null) {
-    throw new SyntaxError(`No context provided in urlCall for ${ep.alias} entrypoint`)
+    throw new SyntaxError(`No context provided in entrypointUrl for ${ep.alias} entrypoint`)
   }
-  await ep.route.resolve(ctx)
 
-  const pathParams = extractParams(ep.getPath())
+  // The base is left off here: an in-service URL is addressed relative to it, and the absolute
+  // branch below has `makeUrl` prepend it.
+  const epPath = ep.path()
+  const pathParams = extractParams(epPath)
   let path = pathParams.reduce((p, param) => {
     return p.replace(`${PARAM}${param}`, `${req?.params?.[param as keyof typeof req.params]}`)
-  }, ep.getPath()) + (req?.query != null ? `?${stringify(req?.query)}` : '')
+  }, epPath) + (req?.query != null ? `?${stringify(req?.query)}` : '')
 
-  if (ep.route.route.service !== null && (
-    ctx.cfg.service !== ep.route.route.service
-    || req?.full === true)) {
+  // A socket address is always absolute, whoever owns the route. `new WebSocket(path)` resolves a
+  // relative value against the PAGE's origin, which in a split deployment is the web host and not
+  // the service that answers the upgrade — so the handshake goes somewhere that never speaks it
+  // and dies on a gateway timeout. Only a same-origin HTTP route benefits from staying relative.
+  const socket = ep.route.route.protocol === RouteProtocols.SOCKET
+
+  // Locality is a question about the RESOLVED service, not about what the declaration happens to
+  // name: a route that names no service belongs to the asking context, and addressing it absolutely
+  // would turn in-app navigation into a full page load.
+  if (socket || !ep.isLocal() || opts?.absolute === true) {
     const helper = makeSecurityHelper(ctx)
     path = helper.makeUrl(
-      ep.route.route, path, { host: req?.host, base: req?.base, forceUnsecure: req?.unsecure }
+      ep.address(), path, { host: req?.host, base: req?.base, forceUnsecure: req?.unsecure }
     )
   }
 
-  res?.resolve(path as any, EntrypointOutcome.Ok)
-
-  return [path as any, EntrypointOutcome.Ok]
+  return path
 }

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.1.18-rc.11",
+  "version": "0.1.18-rc.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -40,6 +40,20 @@
       "default": "./build/stores/index.js",
       "module": "./build/stores/index.js",
       "types": "./build/stores/index.d.ts"
+    },
+    "./pipeline": {
+      "import": "./build/pipeline/index.js",
+      "require": "./build/pipeline/index.js",
+      "default": "./build/pipeline/index.js",
+      "module": "./build/pipeline/index.js",
+      "types": "./build/pipeline/index.d.ts"
+    },
+    "./checkpoint": {
+      "import": "./build/checkpoint/index.js",
+      "require": "./build/checkpoint/index.js",
+      "default": "./build/checkpoint/index.js",
+      "module": "./build/checkpoint/index.js",
+      "types": "./build/checkpoint/index.d.ts"
     }
   },
   "devDependencies": {
@@ -50,16 +64,17 @@
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
-    "zod": "^4.1.0"
+    "zod": "^4.1.0",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.11",
-    "@owlmeans/basic-ids": "^0.1.18-rc.6",
-    "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/error": "^0.1.18-rc.6",
-    "@owlmeans/flow": "^0.1.18-rc.9",
-    "@owlmeans/llm": "^0.1.18-rc.9",
-    "@owlmeans/llm-common": "^0.1.18-rc.8",
+    "@owlmeans/agent-common": "^0.1.18-rc.16",
+    "@owlmeans/basic-ids": "^0.1.18-rc.9",
+    "@owlmeans/context": "^0.1.18-rc.8",
+    "@owlmeans/error": "^0.1.18-rc.8",
+    "@owlmeans/flow": "^0.1.18-rc.14",
+    "@owlmeans/llm": "^0.1.18-rc.13",
+    "@owlmeans/llm-common": "^0.1.18-rc.12",
     "ajv": "^8.17.1"
   },
   "publishConfig": {
@@ -67,6 +82,7 @@
   },
   "peerDependencies": {
     "@langchain/core": "^1.2.9",
-    "@langchain/langgraph": "^1.4.13"
+    "@langchain/langgraph": "^1.4.13",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   }
 }

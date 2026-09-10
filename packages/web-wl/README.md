@@ -1,29 +1,29 @@
 # @owlmeans/web-wl
 
-Web whitelabel — service factory, module declarations, and React components for managing whitelabel content in browser apps.
+Web whitelabel — service factory, entrypoint declarations, and React components for managing whitelabel content in browser apps.
 
 ## Overview
 
 - `makeWlService(alias?)` — web-side whitelabel service factory
-- `wlModules` (exported as `modules`) — web-side whitelabel module declarations
+- `entrypoints` — web-side whitelabel entrypoint declarations
 - Components for displaying whitelabel content
 - `DEFAULT_ALIAS` — `'wl-web-serivce'`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-wl
+bun add @owlmeans/web-wl@^0.1.18-rc.14
 ```
 
 ## Usage
 
-Register the service and module declarations:
+Register the service and entrypoint declarations:
 
 ```typescript
-import { makeWlService, modules as wlModules } from '@owlmeans/web-wl'
+import { makeWlService, entrypoints as wlEntrypoints } from '@owlmeans/web-wl'
 
 context.registerService(makeWlService())
-const modules = [...baseModules, ...wlModules, ...appModules]
+const entrypoints = [...baseEntrypoints, ...wlEntrypoints, ...appEntrypoints]
 ```
 
 Downstream variants (e.g., `@owlmeans/web-wl-manager`) extend this with manager-store helpers like `setupWlManagerStore<C, T>(context)`.
@@ -34,9 +34,9 @@ Downstream variants (e.g., `@owlmeans/web-wl-manager`) extend this with manager-
 
 Creates the web whitelabel service. `alias` defaults to `DEFAULT_ALIAS` (`'wl-web-serivce'`).
 
-### `modules`
+### `entrypoints`
 
-Array of web-side module declarations for whitelabel content (re-exported as `wlModules` in downstream variants).
+Array of web-side entrypoint declarations for whitelabel content.
 
 ### Components
 
@@ -61,7 +61,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

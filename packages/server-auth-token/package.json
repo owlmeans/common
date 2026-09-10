@@ -1,0 +1,48 @@
+{
+  "name": "@owlmeans/server-auth-token",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "The server half of OwlMeans access tokens — the store, the guard that verifies a presented token, the management handlers and the coguard that admits one on an existing route.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.5.0",
+    "@owlmeans/auth": "^0.1.18-rc.9",
+    "@owlmeans/auth-common": "^0.1.18-rc.13",
+    "@owlmeans/auth-token": "^0.1.18-rc.1",
+    "@owlmeans/context": "^0.1.18-rc.8",
+    "@owlmeans/entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.12",
+    "@owlmeans/resource": "^0.1.18-rc.9",
+    "@owlmeans/server-api": "^0.1.18-rc.17",
+    "@owlmeans/server-auth-identity": "^0.1.18-rc.13",
+    "@owlmeans/server-context": "^0.1.18-rc.12",
+    "@scure/base": "^1.1.9"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

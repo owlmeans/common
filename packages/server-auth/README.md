@@ -12,7 +12,7 @@ Server-side Ed25519 authentication service for OwlMeans backends.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth
+bun add @owlmeans/server-auth@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -35,7 +35,7 @@ Reference the guard by alias when protecting routes:
 import { DAUTH_GUARD } from '@owlmeans/server-app'
 // same as DEFAULT_ALIAS from @owlmeans/server-auth
 
-const adminModule = module(route('admin', '/admin'), guard(DAUTH_GUARD))
+const adminEntrypoint = entrypoint(route('admin', '/admin'), guard(DAUTH_GUARD))
 ```
 
 ## API
@@ -60,12 +60,12 @@ Resource alias for the nonce replay-prevention cache.
 
 - Register `appendAuthService(context)` before `appendAuthIdentityResources(context)` and product-specific gate services.
 - Register `AUTH_CACHE` explicitly as a Redis resource when customizing the backend context.
-- This package verifies bearer tokens and populates `request.auth`; authorization remains the job of module gates and handler-level entity checks.
+- This package verifies bearer tokens and populates `request.auth`; authorization remains the job of entrypoint gates and handler-level organization entity checks.
 - Pair it with `@owlmeans/server-auth-identity` when external provider login should produce durable local account/profile/credentials records.
 
 ## Related Packages
 
-- [`@owlmeans/auth-common`](../auth-common) — `GUARD_ED25519` constant and auth modules
+- [`@owlmeans/auth-common`](../auth-common) — `GUARD_ED25519` constant and auth entrypoints
 - [`@owlmeans/server-app`](../server-app) — `makeContext` calls `appendAuthService` by default
 
 <!-- owlmeans:agent-guidance:start -->
@@ -76,7 +76,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

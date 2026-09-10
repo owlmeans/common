@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-consent",
+  "version": "0.1.18-rc.7",
+  "generatedAt": "2026-09-04T22:43:25.446Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-consent",
+      "category": "package-specific",
+      "file": "skills/web-consent/SKILL.md",
+      "canonicalPath": ".agents/skills/web-consent/SKILL.md"
+    }
+  ]
+}

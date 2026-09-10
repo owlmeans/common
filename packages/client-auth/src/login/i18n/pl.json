@@ -1,0 +1,37 @@
+{
+  "login": {
+    "title": "Zaloguj się",
+    "subtitle": "Wybierz sposób, w jaki chcesz kontynuować.",
+    "busy": "Otwieranie logowania…",
+    "empty": "Dla tej aplikacji nie skonfigurowano żadnej metody logowania.",
+    "method": {
+      "google": "Kontynuuj z Google",
+      "oidc": "Kontynuuj z {{provider}}",
+      "oidc-default": "Zaloguj się / Zarejestruj się",
+      "oidc-client": "Kontynuuj z {{provider}}",
+      "basic-ed25519": "Zaloguj się kluczem",
+      "pk-supervisor": "Klucz tajny (operator)",
+      "wallet-consumer": "Portfel OwlMeans ID",
+      "one-time-token": "Zaloguj się kodem e-mail",
+      "fallback": "Kontynuuj z {{method}}"
+    },
+    "terms": {
+      "agreement": "Przeczytałem(-am) i akceptuję {{terms}} oraz {{privacy}}.",
+      "terms": "Regulamin",
+      "privacy": "Politykę prywatności",
+      "cookies": "Politykę plików cookie",
+      "required": "Aby kontynuować, potwierdź Regulamin i Politykę prywatności."
+    },
+    "consent": {
+      "required": "Logowanie zapisuje plik cookie sesji. Zaakceptuj niezbędne pliki cookie, aby kontynuować."
+    },
+    "credit": {
+      "powered": "Napędzane przez OwlMeans"
+    },
+    "error": {
+      "failed": "Logowanie nie zostało ukończone. Spróbuj ponownie.",
+      "blocked": "Okno logowania zostało zablokowane. Zezwól na wyskakujące okienka dla tej witryny i spróbuj ponownie."
+    },
+    "orphaned": "Zalogowano. Możesz zamknąć to okno i kontynuować w aplikacji."
+  }
+}

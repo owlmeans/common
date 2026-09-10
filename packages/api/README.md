@@ -1,6 +1,6 @@
 # @owlmeans/api
 
-HTTP API client service for OwlMeans client contexts — handles module-based requests with auth token injection.
+HTTP API client service for OwlMeans client contexts — carries entrypoint calls with auth token injection.
 
 ## Overview
 
@@ -12,7 +12,7 @@ HTTP API client service for OwlMeans client contexts — handles module-based re
 ## Installation
 
 ```bash
-bun add @owlmeans/api
+bun add @owlmeans/api@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -54,7 +54,7 @@ Registers the API client in the context.
 
 ## Related Packages
 
-- [`@owlmeans/client-module`](../client-module) — `ClientModule<T>` uses this service to make requests
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — `ClientEntrypoint<T>` uses this service to make requests
 - [`@owlmeans/web-client`](../web-client) — registers this service via `makeContext`
 
 <!-- owlmeans:agent-guidance:start -->
@@ -65,7 +65,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

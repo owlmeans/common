@@ -1,5 +1,5 @@
-import { LoginOutcome } from '@owlmeans/client-auth/login'
-import type { LoginPlugin } from '@owlmeans/client-auth/login'
+import { revokeToken, LoginOutcome } from '@owlmeans/client-auth/login'
+import type { LoginContext, LoginPlugin } from '@owlmeans/client-auth/login'
 import { REDIRECT_LOGIN } from './consts.js'
 
 /**
@@ -35,4 +35,25 @@ export const makeRedirectLoginPlugin = (): LoginPlugin => ({
 
   // Nothing to hand anywhere — the token was issued in the document that will use it.
   complete: async () => LoginOutcome.Passed,
+
+  // `resume` is deliberately NOT implemented. The host defaults to `Passed`, which is "keep the
+  // session you already have and carry on" — byte for byte what an ordinary tab has always done.
+  // Implementing it here would be the one way to regress every unframed application.
+
+  logout: (ctx, request) => revokeToken(ctx as LoginContext).then(async () => {
+    if (request.navigate != null) {
+      await request.navigate()
+
+      return LoginOutcome.Handled
+    }
+    // A reload rather than a client-side navigation: `useOwlAuth` and its kin read through
+    // cached values, so the honest way to make a whole application forget a session is to
+    // rebuild it. This is what `useLogout` did inline before the mechanic became a plugin.
+    window.location.reload()
+
+    return LoginOutcome.Handled
+  }),
+
+  // Nothing to tell anyone — the session was cleared in the document that owned it.
+  logoutComplete: async () => LoginOutcome.Passed,
 })

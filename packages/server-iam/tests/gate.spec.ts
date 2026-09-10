@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig } from '@owlmeans/context'
 import type { AbstractRequest, AbstractResponse, GateService } from '@owlmeans/entrypoint'
 import type { Auth } from '@owlmeans/auth'
@@ -11,7 +11,6 @@ const makeGate = async (): Promise<GateService> => {
   const ctx = makeBasicContext<BasicConfig>({
     ready: false,
     service: 'server-iam-tests',
-    layer: Layer.Service,
     type: AppType.Backend,
   })
   ctx.registerService(makeIamGate())

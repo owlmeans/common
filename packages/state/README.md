@@ -1,107 +1,131 @@
 # @owlmeans/state
 
-In-memory reactive state management with subscription-based updates for OwlMeans apps.
+The framework's client store: an in-memory `Resource` with live subscriptions.
 
 ## Overview
 
-- `createStateResource()` creates an in-memory store that implements the `Resource<T>` interface
-- Subscriptions trigger listeners whenever records are created, updated, or deleted
-- Used on the client to hold UI state (projects, stories, thinking journal entries) as reactive records
-- `DEFAULT_ID` (`'_default'`) is the conventional ID for single-record resources
+- `appendStateResource(context, alias, config?)` registers a store ON the context, so a screen, a
+  service and a guard all reach the same records through the same container
+- Reads and writes are the ordinary `Resource<T>` vocabulary — `get`, `load`, `list`, `count`,
+  `create`, `update`, `save`, `delete`, `take`, `purge` — with the same criteria language the
+  server resources speak
+- `watch` follows one record and `query` follows a live set; both hand their listener a value
+  synchronously, which is what lets React render from them without a loading frame
+- A subscription READS the store. Watching an id the store knows nothing about creates nothing;
+  the model it answers with is `empty`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/state
+bun add @owlmeans/state@^0.1.18-rc.9
 ```
 
 ## Usage
 
-Create and register a state resource in context setup:
+Register a store per record type, and name it once with the type attached:
 
 ```typescript
-import { createStateResource } from '@owlmeans/state'
+import { appendStateResource, stateAlias } from '@owlmeans/state'
 
-// In context.ts
-context.registerResource(createStateResource<ProjectState>('project-state'))
+export const TASKS = stateAlias<Task>('tasks')
+
+export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
+  const context = makeClientContext<C, T>(cfg)
+  appendStateResource<C, T, Task>(context, TASKS)
+
+  return context
+}
+
+const tasks = context.getStateResource(TASKS)   // StateResource<Task>
 ```
 
-Subscribe to state changes in a service or component:
+Every client context already carries one default `state` resource, so a store is only registered
+when records of different kinds must not share an id space.
+
+Read it from React with the hooks in [`@owlmeans/client`](../client):
 
 ```typescript
-import { DEFAULT_ID } from '@owlmeans/state'
-import type { StateModel, StateResource } from '@owlmeans/state'
+import { useStoreList, useStoreModel } from '@owlmeans/client'
 
-const resource = context.resource<StateResource<ProjectState>>('project-state')
-
-const [unsubscribe] = resource.subscribe({
-  id: DEFAULT_ID,
-  listener: (models) => {
-    const [model] = models
-    console.log('project updated:', model.record)
-  }
-})
+const task = useStoreModel<Task>(id, 'tasks')                       // one record, live
+const open = useStoreList<Task>({ query: { status: 'open' }, resource: 'tasks' })
 ```
 
-Update state and commit:
+Write through the resource, or through the model a subscription handed you:
 
 ```typescript
-const [model] = resource.subscribe({ id: projectId, listener: ... })[1]
-model.update({ status: 'active' })
-model.commit()  // triggers listeners
+const tasks = context.getStateResource(TASKS)
+
+await tasks.save(record)                 // create or replace
+await tasks.replace(fromTheServer)       // write these, drop everything else
+await tasks.purge({ status: 'done' })
+await tasks.clear()
+
+model.update({ status: 'done' })         // merge and write in one step
 ```
 
 ## API
 
-### `createStateResource<T>(alias?): StateResource<T>`
+### `createStateResource<T>(alias?, config?): StateResource<T>`
 
-Creates an in-memory resource with subscription support. Registers under `alias` (default: `'state'`).
+The bare factory, when the resource is registered by hand. `appendStateResource` is the usual way.
 
-### `StateResource<T>` (extends `Resource<T>`)
+### `StateConfig<T>`
 
-- `subscribe(params): [unsubscribe, StateModel<T>[]]` — subscribe to records by `id`, or to a live
-  `query`; returns the current records
-- `listen(listener)` — global listener for any change in the resource
-- `erase()` — clear all records
-- `all(): Promise<T[]>` — every record, as a plain array
-- `match(criteria?): Promise<T[]>` — the records the criteria accepts, as a plain array
-- `list(criteria?, opts?)` — the `Resource` envelope `{ items, pager }`. Unpaged unless a pager is
-  given, so `list()` returns everything
+| Field | Meaning |
+|-------|---------|
+| `id` | The field records are keyed by. Defaults to `id` |
+| `single` | The resource holds exactly ONE record, which needs no id — the current user, the active session, a wizard being filled in |
+| `default` | What `StateModel.record` shows while the model is empty |
 
-### Criteria
+### `StateResource<T>` (extends `Resource<T>`, `PubSubResource<StateEvent<T>>`)
 
-`list`, `match` and a `query` subscription share the criteria language of the server resources — a
-bare value is equality, a bare array means "any of these", and `$eq $ne $gt $gte $lt $lte $in $nin
-$exists $null $like $ilike $regex $startsWith $endsWith $between $contains $contained $overlaps`
-combine under `$and` / `$or` / `$not`. A dotted key reaches into the record; a value of `undefined`
-is skipped. `matchCriteria`, `filterRecords` and `sortRecords` are exported for filtering a list
-already in hand.
+- `replace(records)` — write every record given and drop every record the list does not name, which
+  is the shape of "the server just told us what exists"
+- `clear()` — drop everything
+- `watch(id, listener): () => void` — follow one record. `undefined` addresses the one record of a
+  `single` resource and throws `StateConfigError.NonSingle` on any other
+- `query(where, listener, opts?): () => void` — follow a live set, re-evaluated on every write that
+  changes the answer. `undefined` matches everything
+- `publish(event, channel?)` / `subscribe(handler, opts?)` — the change stream. Every write
+  announces itself as a `StateEvent` on the default channel
 
-```typescript
-const open = await resource.match({ status: 'open' })
-const [unsubscribe] = resource.subscribe({
-  query: { status: 'open' },
-  listener: models => { /* re-runs on every write that changes the answer */ }
-})
-```
+Reads are unpaged: `list()` returns the whole store, and `list(where, { page })` without a `size`
+is refused rather than silently answering with everything. Writes take no `ttl` — nothing here
+expires.
 
 ### `StateModel<T>`
 
-- `record: T` — the current record
-- `update(data?)` — merge partial data into the record
-- `commit(force?)` — apply changes and notify subscribers
-- `clear()` — remove the record
+- `id` / `empty` / `record` — `empty` is what "nothing loaded yet" looks like; `record` is the
+  configured `default` while it is true
+- `update(patch)` — merge and write in one step
+- `commit()` — write what `record` currently holds, including a default not yet stored
+- `clear()` — delete the record
 
-### `DEFAULT_ID`
+`record` is a snapshot: assigning into it changes nothing anyone else can see. `update` is how a
+change reaches the store and every other subscriber.
 
-```typescript
-const DEFAULT_ID = '_default'  // conventional ID for single-item resources
-```
+### `stateAlias<T>(alias)`
+
+An alias that remembers the record type it addresses, so `getStateResource(TASKS)` is typed without
+repeating `<Task>` at every call site. It is the plain string at runtime.
+
+### `StateConfigError`
+
+`NonSingle` — a record was addressed without an id on a resource that holds many.
+`NoId` — a write carried no value for the id field, and nothing here mints one.
+
+## Criteria
+
+The criteria language, the operators and the in-memory engine (`matchCriteria`, `filterRecords`,
+`sortRecords`, `firstMatch`, `applyQuery`) all live in
+[`@owlmeans/resource`](../resource) — one filter object means the same thing whether it is
+evaluated here or by a relational store.
 
 ## Related Packages
 
-- [`@owlmeans/resource`](../resource) — `Resource<T>` interface implemented by StateResource
-- [`@owlmeans/client`](../client) — `useStoreModel` / `useStoreList` React hooks for state resources
+- [`@owlmeans/resource`](../resource) — the `Resource<T>` contract and the criteria engine
+- [`@owlmeans/client`](../client) — `useStoreModel` / `useStoreList` React hooks
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -111,7 +135,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

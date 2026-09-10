@@ -1,6 +1,6 @@
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
-import { Layer, assertContext, createService } from '@owlmeans/context'
+import { assertContext, createService } from '@owlmeans/context'
 import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
@@ -56,8 +56,6 @@ export const createApiServer = (alias: string): ApiServer => {
        },
      }*/
     }),
-
-    layers: [Layer.System],
 
     listen: async () => {
       const context = _assertContext(service.ctx as Context)
@@ -133,10 +131,8 @@ export const createApiServer = (alias: string): ApiServer => {
           return context
         }
 
-        // await module.route.resolve(context as any)
-        await module.resolve()
         // Actually intermediate module can be created without handler by elevate function
-        if (module.route.match(request) && module.handle != null) {
+        if (module.route.match(request, module.mount()) && module.handle != null) {
           const response = provideResponse(reply)
           const currentRequest = provideRequest(module.alias, request, true)
           currentRequest.original._ctx = context
@@ -150,42 +146,38 @@ export const createApiServer = (alias: string): ApiServer => {
       }, Promise.resolve(context))
     })
 
-    await Promise.all(
-      context.entrypoints<ServerEntrypoint<FastifyRequest>>()
-        .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
-        .map(async module => {
-          // await module.route.resolve(context as any)
-          await module.resolve()
-          const method = module.route.route.method ?? RouteMethod.GET
-          if (module.handle == null) {
-            return
-          }
-          server.route({
-            url: module.getPath(), method,
-            schema: {
-              consumes: [
-                'application/json',
-                'application/x-www-form-urlencoded',
-                'multipart/form-data',
-              ],
-              querystring: fixFormatDates(module.filter?.query ?? {}),
-              ...(
-                [
-                  RouteMethod.POST,
-                  RouteMethod.PATCH,
-                  RouteMethod.PUT
-                ].includes(method)
-                  ? { body: fixFormatDates(module.filter?.body ?? {}) }
-                  : {}
-              ),
-              params: fixFormatDates(module.filter?.params ?? {}),
-              response: module.filter?.response,
-              headers: fixFormatDates(module.filter?.headers ?? {})
-            },
-            handler: createServerHandler(module, location)
-          })
+    context.entrypoints<ServerEntrypoint<FastifyRequest>>()
+      .filter(module => canServeModule(context, module) && !module.route.isIntermediate())
+      .forEach(module => {
+        const method = module.route.route.method ?? RouteMethod.GET
+        if (module.handle == null) {
+          return
+        }
+        server.route({
+          url: module.mount(), method,
+          schema: {
+            consumes: [
+              'application/json',
+              'application/x-www-form-urlencoded',
+              'multipart/form-data',
+            ],
+            querystring: fixFormatDates(module.filter?.query ?? {}),
+            ...(
+              [
+                RouteMethod.POST,
+                RouteMethod.PATCH,
+                RouteMethod.PUT
+              ].includes(method)
+                ? { body: fixFormatDates(module.filter?.body ?? {}) }
+                : {}
+            ),
+            params: fixFormatDates(module.filter?.params ?? {}),
+            response: module.filter?.response,
+            headers: fixFormatDates(module.filter?.headers ?? {})
+          },
+          handler: createServerHandler(module, location)
         })
-    )
+      })
 
     service.initialized = true
   })

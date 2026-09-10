@@ -1,6 +1,6 @@
 import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { ExecutionLevel } from '@owlmeans/llm-common'
+import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
 import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
 import type { TemperatureFactory } from '../types.js'
@@ -129,6 +129,17 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       return exec.models().getModel(effectiveRole, clean)
     },
 
+    utility: (exec, override) => {
+      // Delegated to `model` rather than re-resolved here: the utility tier has to obey
+      // the same roleOverride/modelOverride precedence as any other role, and a second
+      // copy of that ladder drifts from the first the moment one of them changes.
+      const scoped = {
+        ...exec, policy: mergePolicy(exec.policy, { effort: ExecutionEffort.Economy }),
+      } as S['exec']
+
+      return self().model(scoped, exec.policy.utilityRole ?? UTILITY_ROLE, override)
+    },
+
     temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
       temperature =>
         self().model(exec, role, {
@@ -140,17 +151,16 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
         }),
 
     use: plugin => {
-      plugins.push(plugin)
-    },
-
-    checkpoint: async (exec, key) => {
-      // Guarded on the HOOK, not on the plugin count: a plugin registered for `advise`
-      // alone must not make checkpointing start composing snapshots nobody consumes.
-      if (!plugins.some(plugin => plugin.onCheckpoint != null)) {
-        return
+      // Seated by alias when it has one: mixins compose, and a layer wired twice would otherwise
+      // answer twice — silently, since the first usable answer wins.
+      const at = plugin.alias != null
+        ? plugins.findIndex(entry => entry.alias === plugin.alias)
+        : -1
+      if (at < 0) {
+        plugins.push(plugin)
+      } else {
+        plugins[at] = plugin
       }
-      const state = self().snapshot(exec)
-      await Promise.all(plugins.map(plugin => plugin.onCheckpoint?.(state, exec, key)))
     },
 
     advise: async (exec, request) => {

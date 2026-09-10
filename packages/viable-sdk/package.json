@@ -1,0 +1,105 @@
+{
+  "name": "@owlmeans/viable-sdk",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "Drive the OwlMeans Viable platform from outside it — the connector session, the local slot executor, the tool catalogue and the model-task protocol an external coding agent answers.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./executor": {
+      "import": "./build/executor/index.js",
+      "require": "./build/executor/index.js",
+      "default": "./build/executor/index.js",
+      "module": "./build/executor/index.js",
+      "types": "./build/executor/index.d.ts"
+    },
+    "./tools": {
+      "import": "./build/tools/index.js",
+      "require": "./build/tools/index.js",
+      "default": "./build/tools/index.js",
+      "module": "./build/tools/index.js",
+      "types": "./build/tools/index.d.ts"
+    },
+    "./task": {
+      "import": "./build/task/index.js",
+      "require": "./build/task/index.js",
+      "default": "./build/task/index.js",
+      "module": "./build/task/index.js",
+      "types": "./build/task/index.d.ts"
+    },
+    "./harness": {
+      "import": "./build/harness/index.js",
+      "require": "./build/harness/index.js",
+      "default": "./build/harness/index.js",
+      "module": "./build/harness/index.js",
+      "types": "./build/harness/index.d.ts"
+    },
+    "./run": {
+      "import": "./build/run/index.js",
+      "require": "./build/run/index.js",
+      "default": "./build/run/index.js",
+      "module": "./build/run/index.js",
+      "types": "./build/run/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "harness"
+  ],
+  "dependencies": {
+    "@owlmeans/api": "^0.1.18-rc.13",
+    "@owlmeans/auth": "^0.1.18-rc.9",
+    "@owlmeans/auth-common": "^0.1.18-rc.13",
+    "@owlmeans/auth-token": "^0.1.18-rc.1",
+    "@owlmeans/basic-ids": "^0.1.18-rc.9",
+    "@owlmeans/client-config": "^0.1.18-rc.12",
+    "@owlmeans/client-context": "^0.1.18-rc.13",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.13",
+    "@owlmeans/config": "^0.1.18-rc.12",
+    "@owlmeans/context": "^0.1.18-rc.8",
+    "@owlmeans/entrypoint": "^0.1.18-rc.11",
+    "@owlmeans/error": "^0.1.18-rc.8",
+    "@owlmeans/route": "^0.1.18-rc.9",
+    "@owlmeans/socket": "^0.1.18-rc.9",
+    "@owlmeans/viable-common": "^0.0.4",
+    "ajv": "^8.17.1",
+    "fs-extra": "^11.3.0",
+    "globby": "^14.1.0",
+    "zod": "^4.1.0"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^26.1.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

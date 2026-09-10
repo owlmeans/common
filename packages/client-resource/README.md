@@ -12,7 +12,7 @@ Client-side resource persistence layer — browser key-value storage backed reso
 ## Installation
 
 ```bash
-bun add @owlmeans/client-resource
+bun add @owlmeans/client-resource@^0.1.18-rc.12
 ```
 
 ## Usage
@@ -33,8 +33,13 @@ import type { ClientResource } from '@owlmeans/client-resource'
 const res = context.resource<ClientResource<MyRecord>>('my-resource')
 await res.save({ id: 'key', ...data })
 const record = await res.load('key')
+const { items } = await res.list({ status: 'draft' })
 await res.erase() // clear all stored data
 ```
+
+Reads are unpaged: `list(where)` returns every match, and `list(where, { page })` without a `size`
+throws `UnsupportedArgumentError('page-without-size')`. Criteria and sorting are the shared
+vocabulary from [`@owlmeans/resource`](../resource), evaluated in memory over the stored records.
 
 ## API
 
@@ -51,7 +56,7 @@ Extends `Resource<T>` with:
 ### `ClientDb`
 
 Low-level browser storage interface:
-- `get<T>(id): Promise<T>`
+- `get<T>(id): Promise<T | undefined>` — a miss is `undefined`, not an error at this level
 - `set<T>(id, value): Promise<void>`
 - `has(id): Promise<boolean>`
 - `del(id): Promise<boolean>`
@@ -75,7 +80,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

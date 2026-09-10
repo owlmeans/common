@@ -82,9 +82,10 @@ describe('@owlmeans/postgres-resource — placeholder resolution', () => {
   })
 
   /**
-   * The cache is keyed by context because a layer switch rebuilds every resource against a
-   * different Postgres schema. A service level query has no owning table to key on, so a
-   * process wide cache would hand the next tenant the previous one's table names.
+   * The cache is keyed by context because a context is what owns a set of database handles:
+   * a different context resolves the same alias against a different Postgres schema. A
+   * service level query has no owning table to key on, so a process wide cache would hand
+   * one context the other's table names.
    */
   test('does not leak resolved table names between contexts', () => {
     const tenantA = contextOf({ users: specOf('users', 'tenant_a', 'users') })

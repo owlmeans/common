@@ -1,19 +1,23 @@
 import { appendContextual, assertContext } from '@owlmeans/context'
-import type { BasicContext, Contextual } from '@owlmeans/context'
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE } from './consts.js'
 import { MigrationStage } from '@owlmeans/resource'
-import type { ListCriteria, ResourceMaker, ResourceRecord } from '@owlmeans/resource'
+import type {
+  Criteria, FirstOptions, ListOptions, ListResult, ResourceRecord, WriteOptions
+} from '@owlmeans/resource'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { MongoDbService, MongoReference, MongoRefOptions, MongoResource, MongoTx } from './types.js'
 import { initializeCollection } from './utils/life-cycle.js'
 import { getDeclaration } from './declarations.js'
 import { ObjectId } from 'mongodb'
-import { MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed, prepareListOptions } from '@owlmeans/resource'
+import type { CreateIndexesOptions, Document, IndexSpecification } from 'mongodb'
+import {
+  MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed
+} from '@owlmeans/resource'
 import type { JSONSchemaType } from 'ajv'
 import { getSchemaSecureFeilds } from './helper.js'
+import { criteriaToFilter, sortToMongo } from './utils/criteria.js'
 import {
-  demarshalRefs, identityCriteria, makeRefMigration, marshalCriteria, marshalReference,
-  refMigrationName
+  demarshalRefs, identityCriteria, makeRefMigration, marshalReference, refMigrationName
 } from './utils/refs.js'
 
 type Config = ServerConfig
@@ -23,13 +27,14 @@ export const makeMongoResource = <
   R extends ResourceRecord, T extends MongoResource<R> = MongoResource<R>
 >(
   alias: string, dbAlias: string = DEFAULT_DB_ALIAS, serviceAlias: string = DEFAULT_DB_ALIAS,
-  makeCustomResource?: ResourceMaker<R, T>, collectionName?: string
+  collectionName?: string
 ): T => {
   const location = `mongo-resource:${alias}`
 
   /**
    * Live view — references may be declared after the resource is built, and the
-   * declarations are module scoped so they survive `reinitializeContext`.
+   * declarations live at module scope keyed by alias, so a second maker run for the
+   * same alias sees everything already declared for it.
    */
   const refs = (): Map<string, MongoReference> => getDeclaration(alias).references
 
@@ -39,82 +44,112 @@ export const makeMongoResource = <
     return demarshalRefs(record, refs())
   }
 
+  /**
+   * A read addressed either way. An id is matched tolerantly: a string that is not a mongo id
+   * finds nothing, where handing it to `ObjectId` would raise a driver error at a call site
+   * that only asked whether the record exists.
+   */
+  const filterOf = (idOrWhere: string | Criteria<R>): Document =>
+    typeof idOrWhere === 'string'
+      ? identityCriteria('id', idOrWhere, refs())
+      : criteriaToFilter(idOrWhere, refs())
+
+  /**
+   * The single implementation both overloads of `load` and `get` stand on — an id and a
+   * criteria object differ only in how the filter is built.
+   */
+  const loadOne = async (
+    idOrWhere: string | Criteria<R>, opts?: FirstOptions<R>
+  ): Promise<R | null> => {
+    const sort = sortToMongo(opts?.sort)
+    const record = await resource.collection.findOne(
+      filterOf(idOrWhere), sort != null ? { sort } : {}
+    )
+
+    return record != null ? demarshal(record as unknown as R) : null
+  }
+
   const resource: T = appendContextual<T>(alias, {
-    get: async (id, field, opts) => {
-      const record = await resource.load(id, field, opts)
+    get: (async (idOrWhere: string | Criteria<R>, opts?: FirstOptions<R>): Promise<R> => {
+      const record = await loadOne(idOrWhere, opts)
       if (record == null) {
-        throw new UnknownRecordError(id)
+        throw new UnknownRecordError(
+          typeof idOrWhere === 'string' ? idOrWhere : JSON.stringify(idOrWhere)
+        )
       }
 
       return record
+    }) as T['get'],
+
+    load: loadOne as T['load'],
+
+    list: async (where?: Criteria<R>, opts?: ListOptions<R>): Promise<ListResult<R>> => {
+      const filter = criteriaToFilter(where, refs())
+      const total = await resource.collection.countDocuments(filter)
+
+      /** `size: 0` is the explicit ask for everything; an omitted size pages by default. */
+      const size = opts?.size ?? DEFAULT_PAGE_SIZE
+      const page = opts?.page ?? 0
+      if (size < 1 && page !== 0) {
+        /** Nothing to page through — answering page 0 instead would be a silent wrong answer. */
+        throw new UnsupportedArgumentError('page-without-size')
+      }
+
+      if (total === 0) {
+        return size > 0 ? { items: [], total, page, size } : { items: [], total }
+      }
+
+      let cursor = resource.collection.find(filter)
+      const sort = sortToMongo(opts?.sort)
+      if (sort != null) {
+        cursor = cursor.sort(sort)
+      }
+      if (size > 0) {
+        cursor = cursor.skip(page * size).limit(size)
+      }
+
+      const items = (await cursor.toArray()).map(item => demarshal({ ...item } as unknown as R))
+
+      return size > 0 ? { items, total, page, size } : { items, total }
     },
 
-    load: async (id, field, opts) => {
-      if (typeof field === 'object') {
-        opts = field
-        field = field.field
-      }
-      field = field ?? '_id'
+    count: async (where?: Criteria<R>): Promise<number> =>
+      await resource.collection.countDocuments(criteriaToFilter(where, refs())),
+
+    update: async (record: Partial<R>, opts?: WriteOptions): Promise<R> => {
       if (opts?.ttl != null) {
         throw new UnsupportedArgumentError('ttl')
       }
-
-      const record = await resource.collection.findOne(identityCriteria(field, id, refs()))
-      if (record != null) {
-        demarshal(record)
-      }
-
-      return record
-    },
-
-    update: async (record, opts) => {
-      let field = '_id'
-      if (typeof opts === 'string') {
-        field = opts
-      } else if (typeof opts === 'object') {
-        field = opts.field ?? field
-      }
-
-      if (field !== '_id' && record[field as keyof typeof record] == null) {
-        throw new MisshapedRecord('no-field-value')
-      }
-
-      const id = field == '_id' ? record.id : record[field as keyof typeof record] as string
+      const id = record.id
       if (id == null) {
         throw new MisshapedRecord('id')
       }
 
-      const original = await resource.get(id, field)
+      /** Absence is an error, not a silent no-op — `replaceOne` would just match nothing. */
+      const original = await resource.get(id)
 
-      const replace = { ...record, _id: new ObjectId(original.id) }
-      if (replace.id != null) {
-        delete replace.id
-      }
+      const replace: Document = { ...record }
+      /**
+       * Documents never store `id`, and a replacement that omits `_id` keeps the one the
+       * document already carries — so the whole record is replaced without touching its key.
+       */
+      delete replace.id
 
       const result = await resource.collection.replaceOne(
-        identityCriteria(field, id, refs()),
+        identityCriteria('id', original.id as string, refs()),
         _prepareValues(replace, resource.schema as JSONSchemaType<any>, refs())
       )
       if (!result.acknowledged) {
-        throw new RecordUpdateFailed(`${field}:${id}`)
+        throw new RecordUpdateFailed(`id:${id}`)
       }
 
-      return resource.get(id, opts)
+      return await resource.get(original.id as string)
     },
 
-    save: async (record, opts) => {
-      const id = record.id
-      if (id != null || (
-        typeof opts === 'string' && record[opts as keyof typeof record] != null
-      ) || (
-          typeof opts === 'object' && ("field" in opts)
-          && record[opts.field as keyof typeof record] != null
-        )) {
-        return resource.update(record, opts)
-      }
-
-      return resource.create(record, typeof opts !== 'string' ? opts : undefined)
-    },
+    save: async (record: Partial<R>, opts?: WriteOptions): Promise<R> =>
+      record.id != null
+        ? await resource.update(record, opts)
+        : await resource.create(record, opts),
 
     getDefaults: () => {
       const schema: JSONSchemaType<unknown> | undefined = resource.schema as JSONSchemaType<unknown>
@@ -130,14 +165,14 @@ export const makeMongoResource = <
       }, {})
     },
 
-    create: async (record, opts) => {
+    create: async (record: Partial<R>, opts?: WriteOptions): Promise<R> => {
       if ("id" in record && record.id == null) {
         delete record.id
       }
       if (record.id != null) {
         throw new RecordExists('id-present')
       }
-      if (opts != null && opts.ttl != null) {
+      if (opts?.ttl != null) {
         throw new UnsupportedArgumentError('ttl')
       }
       const result = await resource.collection.insertOne({
@@ -149,89 +184,33 @@ export const makeMongoResource = <
         throw new RecordUpdateFailed(`creation`)
       }
 
-      const id = result.insertedId
-
-      return resource.get(id.toString())
+      return await resource.get(result.insertedId.toString())
     },
 
-    delete: async (id, opts) => {
-      let record: R | null = null
-      if (typeof id === 'object') {
-        if (id.id == null) {
-          throw new MisshapedRecord('id')
-        }
-        record = await resource.load(id.id)
-      } else {
-        record = await resource.load(id, opts)
-      }
+    /** Atomic: the record is handed back by the very operation that removed it. */
+    delete: async (id: string): Promise<R | null> => {
+      const record = await resource.collection.findOneAndDelete(identityCriteria('id', id, refs()))
 
+      return record != null ? demarshal(record as unknown as R) : null
+    },
+
+    take: async (id: string): Promise<R> => {
+      const record = await resource.delete(id)
       if (record == null) {
-        return null
-      }
-
-      let field = '_id'
-      if (typeof opts === 'string') {
-        field = opts
-        opts = undefined
-      } else if (typeof opts === 'object') {
-        field = opts.field ?? field
-      }
-
-      const _id = field == '_id' ? record.id : record[field as keyof typeof record] as string
-      if (id == null) {
-        throw new MisshapedRecord('id')
-      }
-
-      const result = await resource.collection.deleteOne(identityCriteria(field, _id as string, refs()))
-      if (!result.acknowledged || result.deletedCount === 0) {
-        return null
+        throw new UnknownRecordError(id)
       }
 
       return record
     },
 
-    pick: async (id, opts) => {
-      const record = await resource.delete(id, opts)
-      if (record == null) {
-        throw new UnknownRecordError(typeof id == 'string' ? id : (id.id ?? 'unknown'))
+    purge: async (where: Criteria<R>): Promise<number> => {
+      const filter = criteriaToFilter(where, refs())
+      if (Object.keys(filter).length < 1) {
+        /** An empty filter here would empty the collection. */
+        throw new UnsupportedArgumentError('purge:no-criteria')
       }
 
-      return record
-    },
-
-    list: async (criteria, opts) => {
-      const options = prepareListOptions(DEFAULT_PAGE_SIZE, criteria, opts)
-
-      criteria = marshalCriteria(options.criteria, refs()) ?? {}
-      const pager = options.pager ?? {}
-
-      const size = pager?.size ?? DEFAULT_PAGE_SIZE
-      const total = await resource.collection.countDocuments(criteria as ListCriteria)
-      pager.total = total
-
-      const skip = (pager.page ?? 0) * size
-      if (total === 0 && skip >= total) {
-        return { items: [], pager }
-      }
-
-      let cursor = resource.collection.find(criteria as ListCriteria)
-        .skip(skip).limit(size)
-
-      if (pager.sort != null) {
-        cursor = cursor.sort(
-          typeof pager.sort === 'string'
-            ? pager.sort
-            : pager.sort.reduce((sort, [field, order]) =>
-              ({ ...sort, [field as keyof typeof sort]: order ? -1 : 1 }), {}
-            )
-        )
-      }
-
-      const items = await cursor.toArray()
-
-      return {
-        pager, items: items.map(item => demarshal({ ...item } as unknown as R))
-      }
+      return (await resource.collection.deleteMany(filter)).deletedCount
     },
 
     lock: async (record, fields) => {
@@ -272,17 +251,17 @@ export const makeMongoResource = <
       return await mongo.client(dbAlias)
     },
 
-    index: (name, index, options) => {
+    /**
+     * `index`, `migration` and `reference` hand the resource itself back so declarations
+     * chain — a return an object literal can't express, hence the member level casts: each
+     * implementation returns the closed over `resource`, which is that very object.
+     */
+    index: ((name: string, index: IndexSpecification, options?: CreateIndexesOptions) => {
       resource.indexes = resource.indexes ?? []
       resource.indexes.push({ name, index, options })
       return resource
-    },
+    }) as T['index'],
 
-    /**
-     * `migration` and `reference` are `this`-returning in the interface, which an object
-     * literal can't express — hence the member level casts: the implementations return
-     * the closed over `resource`, which is that very object.
-     */
     migration: ((name: string, apply: (tx: MongoTx) => Promise<void>, stage?: MigrationStage) => {
       getDeclaration(alias).migrations.register(name, apply, stage)
       return resource
@@ -308,8 +287,7 @@ export const makeMongoResource = <
   } as Partial<T>)
 
   // Explicit collection name override (decoupled from the registration alias, which may
-  // contain characters that aren't valid in a collection name). Survives reinitializeContext
-  // because it's threaded back into the recursive makeMongoResource call below.
+  // contain characters that aren't valid in a collection name).
   if (collectionName != null) {
     resource.name = collectionName
   }
@@ -325,15 +303,6 @@ export const makeMongoResource = <
     resource.collection = await initializeCollection(
       db, config, resource as unknown as MongoResource<ResourceRecord>, context
     )
-  }
-
-  resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {
-    const resource = (makeCustomResource?.(dbAlias, serviceAlias)
-      ?? makeMongoResource<R, T>(alias, dbAlias, serviceAlias, makeCustomResource, collectionName)) as unknown as Type
-
-    resource.ctx = context
-
-    return resource as Type
   }
 
   return resource

@@ -33,15 +33,15 @@ export const SessionScreen: FC = () => {
    */
   const items = useStoreList<SessionItem>({ query: {}, resource: SESSION_STATE })
 
-  // The server is the source of truth; the store is what the screen reads. Fetch once, write
-  // what came back into the store, and let the subscription render it.
+  // The server is the source of truth; the store is what the screen reads. Fetch once, install
+  // what came back, and let the subscription render it. `replace` rather than a save per item:
+  // the endpoint answers with the session's whole set, so an item removed on another tab has to
+  // leave the store too, and one write wakes the subscribers once instead of once per record.
   const load = async () => {
-    const [data] = await ctx
+    const data = await ctx
       .entrypoint<ClientEntrypoint<SessionItem[]>>(session.list)
       .call({ params: { sid } })
-    for (const item of data ?? []) {
-      await store.save(item)
-    }
+    await store.replace(data ?? [])
   }
 
   useEffect(() => { void load() }, [])
@@ -50,7 +50,7 @@ export const SessionScreen: FC = () => {
     if (text.trim() === '') return
     setBusy(true)
     try {
-      const [item] = await ctx
+      const item = await ctx
         .entrypoint<ClientEntrypoint<SessionItem>>(session.add)
         .call({ params: { sid }, body: { text } })
       setText('')

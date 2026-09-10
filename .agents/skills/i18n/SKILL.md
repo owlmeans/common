@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/i18n
 
 **Layer:** Core (no runtime deps)
-**Install:** `"@owlmeans/i18n": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/i18n": "^0.1.18-rc.7"` in `dependencies`
 
 ## Purpose
 
@@ -20,11 +20,27 @@ Global registration store that packages write into at import time. React clients
 | `addI18nLib(lng, resource, data, opts?)` | Register library-owned strings (ns defaults to `'lib'`) |
 | `addI18nApp(lng, resource, data, opts?)` | Register app-owned strings (ns defaults to resource name) |
 | `initI18nResource(lng, resource, ns?)` | Drain a registered bundle for a language (called by client-i18n) |
-| `SUPPORTED_LNGS` | `['en','pl','ru','be','uk','es','de']` — the canonical language set |
+| `SUPPORTED_LNGS` / `SupportedLng` | `['en','pl','ru','be','uk','es','de']` — the canonical language set, and its union type |
 | `DEFAULT_LNG` | `'en'` |
 | `LIB_NAMESPACE` | `'lib'` |
+| `DEFAULT_NAMESPACE` | `'translation'` — i18next's own default namespace, used whenever a lookup names none and `I18nConfig.defaultNs` is unset |
 | `I18nTier` | `Library \| App` — enum used internally |
 | `I18nConfig` | `{ defaultLng?, defaultNs?, fallbackLng?, supportedLngs? }` |
+| `I18nResourceOptions` | `{ ns?, priority? }` — the `opts` every `add*` takes |
+| `MAX_PRIORITY` | `Number.MAX_SAFE_INTEGER` — the value substituted for an unset `priority`, which is what makes an unset one sort last |
+
+`opts` also accepts a bare string, which is read as `ns`: `addI18nLib('en', 'wallet', walletEn, 'did')`.
+
+## Subpath Exports
+
+- `./utils` — the store itself: `_OwlMeansI18nStorage` (`{ data }`, keyed ns → resource → language),
+  `ensureStructure(lng, resource, ns?)` which creates and returns one slot, and `tierCost`, the
+  `I18nTier` → number map the sort is written against.
+
+Reach for `./utils` only to work around the drain-once rule below: assigning
+`_OwlMeansI18nStorage.data = {}` empties every slot including its `lngInitialized` marks, so a
+suite can register and drain the same resource repeatedly. This package's own tests do exactly
+that between cases. Application and library code registers through `addI18nLib` / `addI18nApp`.
 
 ## Tiers
 
@@ -33,7 +49,30 @@ Global registration store that packages write into at import time. React clients
 | Library | `addI18nLib` | `'lib'` | Any `@owlmeans/*` package |
 | App | `addI18nApp` | resource name | Project-specific app / shared project package |
 
-App-tier strings deep-merge **over** Library-tier strings for the same keys at resolution time — this is the override mechanism.
+App-tier strings deep-merge **over** Library-tier strings at resolution time — but only for the
+same **(ns, resource, language)** slot, because that triple is the address the store is keyed on
+and the only thing `initI18nResource` drains. The default namespaces differ (`'lib'` for
+`addI18nLib`, the resource name for `addI18nApp`), so overriding a library bundle means saying so:
+
+```typescript
+import { addI18nApp, LIB_NAMESPACE } from '@owlmeans/i18n'
+
+addI18nApp('en', 'errors', myErrors, { ns: LIB_NAMESPACE })
+```
+
+Without `{ ns: LIB_NAMESPACE }` the app bundle lands in namespace `errors` while the library's sits
+in `lib`. Nothing errors, nothing merges, and the library strings keep rendering.
+
+Within one tier the order is `priority`, ascending, and every bundle is merged over the one before
+it — so the **last** applied wins. A registration that states no `priority` sorts last and
+therefore beats every one that states a number: `priority` lowers a bundle in the stack rather than
+raising it. Leave it unset unless one library must lose to another.
+
+**A bundle only reaches i18next if it was registered before the first draw for its language.**
+`initI18nResource` marks the (ns, resource, language) slot drained and answers `null` for every
+later call, so an `import '@owlmeans/<pkg>'` evaluated after a screen has rendered adds nothing a
+component can read. Register at module load — a side-effect import at the top of the entry file,
+which is what re-exporting `./i18n.js` from `src/index.ts` achieves.
 
 ## Per-package pattern
 

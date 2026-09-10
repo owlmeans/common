@@ -4,15 +4,15 @@ Server-side route model factory and request matcher for the Fastify integration 
 
 ## Overview
 
-- `route()` wraps a `CommonRouteModel` into a `ServerRouteModel` that Fastify can register
-- Handles intermediate routes (parent routes without handlers), internal service routes, and path matching
-- Used internally by `elevate()` in `@owlmeans/server-module`
+- `route()` wraps a `RouteModel` into a `ServerRouteModel` that Fastify can register
+- Handles intermediate routes (parent routes without handlers) and request path matching
+- Used internally by `elevate()` in `@owlmeans/server-entrypoint`
 - Re-exported as `broute` from `@owlmeans/server-app`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-route
+bun add @owlmeans/server-route@^0.1.18-rc.8
 ```
 
 ## Usage
@@ -25,32 +25,39 @@ import { route as broute } from '@owlmeans/server-route'
 import { broute } from '@owlmeans/server-app'
 
 // Create a server-ready route model
-const serverRoute = broute(commonRoute, false)
+const serverRoute = broute(routeModel, false)
+
+// Match a request against it — the mounted path comes from the entrypoint
+serverRoute.match(request, entrypoint.mount())
 ```
 
 ## API
 
-### `route<R>(commonRoute, intermediate, opts?): ServerRouteModel<R>`
+### `route<R>(routeModel, intermediate, opts?): ServerRouteModel<R>`
 
-Creates a `ServerRouteModel` from a `CommonRouteModel`.
+Creates a `ServerRouteModel` from a `RouteModel`.
 - `intermediate: true` — creates a parent route that groups children but has no own handler
-- `opts.service` — internal service routes that proxy to another service
+- `opts.overrides` — declaration fields to fill in where the route left them unset
+- `opts.pathField` — the request field carrying the path (default `url`)
+- `opts.match` — replaces the built-in matcher entirely
 
 ### `ServerRouteModel<R>`
 
-Extends `CommonRouteModel` with:
+Extends `RouteModel` with:
 - `isIntermediate(): boolean`
-- `match(request): boolean` — checks if this route handles the given request
-- `resolve(context): Promise<RouteModel>` — resolves the final route with service URL
+- `match(request, mount): boolean` — checks if this route handles the given request. The declaration
+  states only the segment it contributes, so the caller supplies the mounted path — an entrypoint
+  passes `ep.mount()`.
 
 ### `isServerRouteModel(obj): boolean`
 
-Type guard to check if a module's route is already a `ServerRouteModel`.
+Type guard to check if an entrypoint's route is already a `ServerRouteModel`.
 
 ## Related Packages
 
-- [`@owlmeans/route`](../route) — `CommonRouteModel` base type
-- [`@owlmeans/server-module`](../server-module) — calls `route()` internally when elevating
+- [`@owlmeans/route`](../route) — `RouteModel` base type and the pure `resolveMount` /
+  `resolveAddress` utilities under `@owlmeans/route/utils` that compute where a route answers
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — calls `route()` internally when elevating
 - [`@owlmeans/server-app`](../server-app) — re-exports `route` as `broute`
 
 <!-- owlmeans:agent-guidance:start -->
@@ -61,7 +68,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -12,7 +12,7 @@ In-memory `Resource<T>` backed by static config data — for read-only data load
 ## Installation
 
 ```bash
-bun add @owlmeans/static-resource
+bun add @owlmeans/static-resource@^0.1.18-rc.8
 ```
 
 ## Usage
@@ -26,7 +26,12 @@ appendStaticResource<C, T>(context, 'products')
 // Access from context
 const resource = context.getStaticResource<Product>('products')
 const product = await resource.load('product-sku')
+const active = await resource.list({ status: 'active' })
 ```
+
+Reads are unpaged: `list(where)` returns every match, and `list(where, { page })` without a `size`
+throws `UnsupportedArgumentError('page-without-size')`. Criteria and sorting are the shared
+vocabulary from [`@owlmeans/resource`](../resource), evaluated in memory.
 
 ## API
 
@@ -58,7 +63,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.12
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
