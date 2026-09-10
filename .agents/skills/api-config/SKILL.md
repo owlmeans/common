@@ -1,6 +1,6 @@
 ---
 name: api-config
-description: How to use @owlmeans/api-config — the shared entrypoint declaration and redaction lists behind the runtime config document a backend advertises and a frontend merges into its own config at boot. Auto-invoked when importing api-config, or when wiring runtime API config between a server and a client.
+description: How to use @owlmeans/api-config — the shared entrypoint declaration and import-time allowlist plugins behind the runtime config document a backend advertises and a frontend merges into its own config at boot. Auto-invoked when importing api-config, or when wiring runtime API config between a server and a client.
 user-invocable: false
 ---
 
@@ -19,9 +19,11 @@ answer into the client config. Nothing here runs — it is the shared declaratio
 |--------|-------------|
 | `entrypoints` | The single declaration — alias `API_CONFIG`, route `/assets/config.json`, `sticky: true` so a router attaches it unconditionally |
 | `API_CONFIG` | The alias (`api-config:advertise`) both sides elevate |
-| `notAdvertizedConfigKeys` | Config keys the server strips before answering — `dbs`, `trusted`, `ready`, `service`, `type`, `records`, `webService`, `oidc`, `storageBuckets`, `secrets` |
-| `allowedConfigRecords` | The only `recordType` values a config record may carry to be advertised — `plan`, `product`, `l10n` |
-| `ApiConfig` | The advertised document — `CommonConfig` minus `dbs`, `trusted`, `ready`, `service` and `type` |
+| `apiConfigPlugin(plugin)` | Registers one package's public config selection as its module loads |
+| `every(selection, where?)` | Applies a selection to every list item or object-map value, optionally filtering items |
+| `ApiConfigPlugin` | `{ allow, deny? }` — nested allowlist with an optional nested redaction selector |
+| `advertisedConfig(cfg)` | Applies every imported package contract to build the endpoint document |
+| `ApiConfig` | The partial public document a client merges into its local config |
 
 ## Usage
 
@@ -39,11 +41,24 @@ side.
 
 ## What may cross
 
-The advertised document is the server's own config with the secrets taken out, so anything added to
-a backend config is public by default. A new config key holding a credential, a connection string or
-an internal address belongs in `notAdvertizedConfigKeys`; a new config-record type is invisible to
-clients until it is listed in `allowedConfigRecords`. Both lists live here rather than in the server
-so the client's type (`ApiConfig`) and the server's redaction cannot drift apart.
+The document is default-deny: a server config value is absent until the package that owns its
+browser consumer registers a precise `allow` selector during import. Do not allow an ancestor with
+`true` unless every descendant is public; name fields instead, and use `deny` when an otherwise
+public collection carries nested credentials.
+
+```typescript
+import { apiConfigPlugin, every } from '@owlmeans/api-config'
+
+apiConfigPlugin({
+  allow: { oidc: { providers: every(true) } },
+  deny: { oidc: { providers: every({ secret: true, apiClientId: true }) } },
+})
+```
+
+The base contract supplies public routes, branding, login settings, selected debug flags and
+frontend plugins. `@owlmeans/oidc`, `@owlmeans/flow`, `@owlmeans/i18n` and `@owlmeans/payment`
+register their own client settings during import. Databases, queues, SMTP, secrets and every
+unregistered config extension never cross the unauthenticated endpoint.
 
 ## Depends On
 

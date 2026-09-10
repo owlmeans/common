@@ -2,6 +2,7 @@ import { SpecCategory } from "./consts"
 import type { ConnectingStoryKind, StoryKind } from "./consts.js"
 import type { ProjectArea } from "../areas/consts.js"
 import type { StoryDraft } from "../areas/types.js"
+import type { StoryActor } from "../design/runtime.js"
 
 export interface EntityList {
   entities: string[]
@@ -55,6 +56,15 @@ export interface UserStory {
   code?: string
   /** The audience acting in this story. Its screens hang under this area's entrypoint. */
   area: ProjectArea
+  /**
+   * WHO acts — a person, or one of the application's own machines.
+   *
+   * Optional and defaulting to a person, which is what every story is until a design stage says
+   * otherwise. An ephemeral actor holds no permissions and owns no screen; it still carries an
+   * `area`, because that says which human audience the work is FOR and therefore where its
+   * progress is shown.
+   */
+  actor?: StoryActor
   entity: string
   entities: Entity[]
   screens: StoryScreen[]

@@ -1,6 +1,8 @@
 import type { JSONSchemaType } from 'ajv'
 
 import { ProjectArea } from '../areas/consts.js'
+import { StoryActor, StoryAgentKind } from './runtime.js'
+import type { StoryDesignAgent, StoryDesignJob } from './runtime.js'
 import type { StoryDesign } from './types.js'
 
 /**
@@ -209,6 +211,51 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
       required: ['list', 'resolvedAt'],
       additionalProperties: false,
     },
+    // Optional: a design written before the gate existed carries none, and every reader takes
+    // "absent" as "none of it" — which is both the safe answer and the true one.
+    runtime: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        actor: { type: 'string', enum: Object.values(StoryActor) },
+        worker: { type: 'boolean' },
+        kv: { type: 'boolean' },
+        feedback: { type: 'string', nullable: true },
+        jobs: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              queue: { type: 'string' },
+              name: { type: 'string' },
+              path: { type: 'string' },
+              purpose: { type: 'string' },
+              reason: { type: 'string' },
+              idempotency: { type: 'string' },
+            },
+            required: ['queue', 'name', 'path', 'purpose', 'reason', 'idempotency'],
+            additionalProperties: false,
+          },
+        },
+        agents: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              alias: { type: 'string' },
+              path: { type: 'string' },
+              purpose: { type: 'string' },
+              kind: { type: 'string', enum: Object.values(StoryAgentKind) },
+              job: { type: 'string', nullable: true },
+            },
+            required: ['alias', 'path', 'purpose', 'kind'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['actor', 'worker', 'kv', 'jobs', 'agents'],
+      additionalProperties: false,
+    },
     provenance: {
       type: 'object',
       properties: {
@@ -239,3 +286,99 @@ export const StoryDesignSchema: JSONSchemaType<StoryDesign> = {
   ],
   additionalProperties: false,
 } as unknown as JSONSchemaType<StoryDesign>
+
+/**
+ * What the runtime gate answers with.
+ *
+ * Deliberately NOT `StoryDesignRuntime`: the model is asked what the story NEEDS, and the derived
+ * half — whether that adds up to a worker, whether an agent has a job to run in — is the helper's
+ * to compute. A model asked for `worker: boolean` beside a job list can answer with the two
+ * disagreeing, and there is no honest way to pick a winner.
+ */
+export const RuntimeDecisionSchema = {
+  type: 'object',
+  properties: {
+    kv: {
+      type: 'boolean',
+      description: 'True only for data with an expiry, a lock, a counter or a fan-out, and a '
+        + 'small bounded key set. Records the product owns and queries belong in Postgres.',
+    },
+    feedback: {
+      type: 'string',
+      description: 'Where a person sees the progress of this queued work — the screen or story '
+        + 'that shows it. Empty when nothing is queued.',
+    },
+    jobs: {
+      type: 'array',
+      description: 'Empty for almost every story. One entry per unit of work that genuinely '
+        + 'cannot run inside a request.',
+      items: {
+        type: 'object',
+        properties: {
+          queue: { type: 'string', description: 'The queue name. Reuse one the project has.' },
+          name: {
+            type: 'string',
+            description: 'What the job DOES, as `<entity>:<action>` — `contract:analyze`, '
+              + '`report:build`. The alias, the route, the processor file name and the handler '
+              + 'symbol are all derived from it, so give the action and not an identifier.',
+          },
+          path: { type: 'string', description: 'Ignored — the processor file is derived from the '
+            + 'name, so the two can never disagree. Give the name and leave this empty.' },
+          purpose: { type: 'string', description: 'What it does, in one sentence.' },
+          reason: {
+            type: 'string',
+            description: 'WHICH of the listed reasons makes this impossible inside a request. '
+              + 'Name the property; do not restate the story.',
+          },
+          idempotency: {
+            type: 'string',
+            description: 'Concretely how running it twice is safe. A worker can die mid-job.',
+          },
+        },
+        required: ['queue', 'name', 'path', 'purpose', 'reason', 'idempotency'],
+        additionalProperties: false,
+      },
+    },
+    agents: {
+      type: 'array',
+      description: 'Empty unless the work is genuinely a language task the application performs.',
+      items: {
+        type: 'object',
+        properties: {
+          alias: { type: 'string', description: 'lowerCamelCase alias in the app agent registry.' },
+          path: { type: 'string', description: 'Module file name, without a directory.' },
+          purpose: { type: 'string' },
+          kind: {
+            type: 'string',
+            enum: Object.values(StoryAgentKind),
+            description: '`call` for one prompt and one answer — the default and almost '
+              + 'always right; `pipeline` for steps this application names in advance; `agent` '
+              + 'only when the number of steps cannot be predicted and tool choice is the '
+              + "model's own judgement.",
+          },
+          job: {
+            type: 'string',
+            description: 'The `name` of the job that runs it, copied from the job list above. '
+              + 'An agent never runs on the request path, so a job that calls a model must name '
+              + 'the agent it runs and that agent must name the job back.',
+          },
+        },
+        required: ['alias', 'path', 'purpose', 'kind', 'job'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['kv', 'feedback', 'jobs', 'agents'],
+  additionalProperties: false,
+  // Structured-output schema rather than a validated record shape: AJV's `JSONSchemaType` would
+  // demand `minItems` on every array to prove non-emptiness, and the whole point of these arrays
+  // is that they are usually empty.
+} as unknown as JSONSchemaType<RuntimeDecision>
+
+/** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */
+export interface RuntimeDecision {
+  kv: boolean
+  feedback: string
+  jobs: StoryDesignJob[]
+  agents: StoryDesignAgent[]
+}

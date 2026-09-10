@@ -4,10 +4,10 @@ Shared entrypoint for advertising safe config values from server to client via a
 
 ## Overview
 
-- Exposes a `GET /assets/config.json` entrypoint that returns non-sensitive config fields
+- Exposes a `GET /assets/config.json` entrypoint that returns package-allowlisted config fields
 - `ApiConfig` — the advertised config type (subset of `CommonConfig`)
 - `API_CONFIG` — entrypoint alias for the config endpoint
-- `notAdvertizedConfigKeys` / `allowedConfigRecords` — lists controlling what is/isn't exposed
+- `apiConfigPlugin` / `every` — import-time allowlist helpers for package-owned client config
 
 ## Installation
 
@@ -28,11 +28,28 @@ import type { ApiConfig } from '@owlmeans/api-config'
 
 ### `ApiConfig`
 
-Subset of `CommonConfig` safe to expose to clients (no db credentials, secrets, etc.).
+Partial public config assembled only from imported packages' allowlist plugins. Unregistered
+server values — including databases, queues and secrets — are never returned.
 
 ### `API_CONFIG`
 
 Entrypoint alias `'api-config:advertise'` used to register/call the config endpoint.
+
+### `apiConfigPlugin`
+
+Call this once at module scope in the package that owns a client-facing configuration field:
+
+```typescript
+import { apiConfigPlugin, every } from '@owlmeans/api-config'
+
+apiConfigPlugin({
+  allow: { integrations: every(true) },
+  deny: { integrations: every({ token: true }) },
+})
+```
+
+The `deny` selector removes nested values after the allowlist selection. Prefer a precise nested
+allowlist to `true`; `true` is appropriate only for data that is public at every depth.
 
 ### `entrypoints`
 

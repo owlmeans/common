@@ -1,7 +1,5 @@
 import type { CommonConfig } from '@owlmeans/config'
 
-export interface ApiConfig extends Omit<
-  CommonConfig,
-  'dbs' | 'trusted' | 'ready' | 'service' | 'type'
-> {
+/** The public subset registered by packages through apiConfigPlugin(). */
+export interface ApiConfig extends Partial<CommonConfig> {
 }

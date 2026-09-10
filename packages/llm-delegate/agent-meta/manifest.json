@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/llm-delegate",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-09-09T22:01:57.505Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "llm-delegate",
+      "category": "package-specific",
+      "file": "skills/llm-delegate/SKILL.md",
+      "canonicalPath": ".agents/skills/llm-delegate/SKILL.md"
+    }
+  ]
+}

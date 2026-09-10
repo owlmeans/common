@@ -1,4 +1,5 @@
 import type { ProjectArea } from '../areas/consts.js'
+import type { StoryDesignRuntime } from './runtime.js'
 import type { AccessList } from '../dev/types.js'
 import type { UXTransition } from '../ux/types.js'
 
@@ -157,6 +158,13 @@ export interface StoryDesign {
    * of endpoints and screens; what they are guarded by is decided against the code that exists.
    */
   access: { list: AccessList, resolvedAt: Record<string, string> }
+  /**
+   * What this story needs beyond a screen, an endpoint and a table.
+   *
+   * Optional, and read through {@link runtimeOf} everywhere: a design written before the gate
+   * existed carries none, and "none" is both the safe reading and the true one.
+   */
+  runtime?: StoryDesignRuntime
   provenance: StoryDesignProvenance
 }
 

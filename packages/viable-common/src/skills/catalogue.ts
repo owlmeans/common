@@ -52,6 +52,24 @@ export const backendLibraryList = [
 export const fullUiLibraryList = [...new Set([...uiStateLibraryList, ...uiComponentLibraryList])]
 
 /**
+ * The backend list plus the two packages that make a model call possible.
+ *
+ * Naming them is what pulls their own published documentation into the prompt, so this list
+ * carries the API contract without this catalogue restating a line of it. It is reachable only
+ * through a blueprint case that also installs them — a coder told about a package the manifest
+ * does not declare writes `TS2307`.
+ */
+export const aiLibraryList = [
+  ...backendLibraryList, '@owlmeans/llm', '@owlmeans/agent',
+]
+
+/**
+ * The UI list plus three.js. Scene code and interface code are the same package and the same
+ * bundle here; what separates them is the component, not the dependency list.
+ */
+export const gameLibraryList = [...new Set([...fullUiLibraryList, 'three'])]
+
+/**
  * How an entrypoint alias is spelled. Shared verbatim by the entrypoints skill and by every
  * helper prompt that asks a model to invent one — two renderings would drift, and the pipeline
  * splits screen from API access rules on the prefix alone.
@@ -64,6 +82,9 @@ export const ALIAS_CONVENTION = `
   \`web:layout:\` alias and no \`app.web.layout\` — writing either addresses nothing.
 - An endpoint alias is \`api:<entity>:<action>\` — \`api:task:list\`, \`api:task:create\`. The
   group alias that carries the shared path and guard is \`api:<entity>\` — \`api:task\`.
+- A queued job alias is \`job:<entity>:<action>\` — \`job:report:build\`, \`job:contract:analyze\`.
+  A job is never given a \`web:\` or \`api:\` alias, and an endpoint is never given a \`job:\` one:
+  the prefix is what says which side serves it.
 - Lowercase kebab-case in every segment. The prefix is NOT optional and NOT decorative: access
   rules are applied per side by it.
 `.trim()
@@ -225,8 +246,14 @@ in its own language, with no TypeScript syntax and no import statements it does 
   skill(ViableSkill.TsImports, 'Imports and path aliases', `
 - Import shared code as \`project-common/<path>\`, never as \`sources/common/src/<path>\`,
   and never with a \`.js\` extension.
-- Inside a package, \`@/\` is an alias for that package's own \`src\` — use it instead of
-  chains of \`../\`.
+- Inside a BUNDLED package — \`api\`, \`web\`, \`worker\` — \`@/\` is an alias for that package's own
+  \`src\`; use it instead of chains of \`../\`.
+- **The shared backend library has NO \`@/\` alias.** It is built by \`tsc -b\`, not bundled, and
+  declares no tsconfig \`paths\`. Inside \`sources/backend/\` every internal import is RELATIVE and
+  keeps its \`.js\` suffix:
+  \`import { taskResource } from '../../resources/task/task.js'\`.
+  \`@/resources/task/task.js\` there is \`TS2307: Cannot find module\`, and changing the suffix does
+  not help — the alias is what is missing, not the extension.
 - \`@/\` is the ONLY alias that exists. If you find yourself writing any other \`@\`-prefixed
   import that is not a real npm package, you are inventing a module that is not there;
   use a relative path or an existing package instead.
@@ -272,7 +299,12 @@ array:
 - Nest with \`{ parent: <group alias> }\` — the child path is APPENDED to the parent's, so the
   child path is the tail only (\`'/list'\`, not \`'/tasks/list'\`).
 - \`{ method: RouteMethod.POST }\` (from \`@owlmeans/route\`) for anything that is not a GET.
-- \`filter(body<T>(TSchema))\` ONLY when a real AJV schema already exists. Never invent one.
+- \`filter(body<T>(TSchema))\` whenever the body's type has a schema beside it in the shared
+  package — every generated type exports one, named after the type with a \`Schema\` suffix
+  (\`Task\` → \`TaskSchema\`). Import both from the shared package and use them; that is what makes
+  the framework reject a malformed request before your handler runs, so the handler never has to
+  check whether a field arrived. Still never INVENT a schema inline: if the type has none, leave
+  the endpoint unfiltered rather than writing a literal here that nothing else agrees with.
 - Access is declarative: no \`guard()\` = public, \`guard(DEFAULT_GUARD)\` = any signed-in user,
   \`guard(DEFAULT_GUARD, gate(OIDC_GATE, ['<permission>']))\` = a permission is required.
   \`<permission>\` is a SHAPE, never a value: build the real name from the domain being
@@ -1124,6 +1156,12 @@ says before rewriting anything.
 - Two files disagreeing about where something lives is not two problems. Take the registry's
   spelling in both, and never invent a third.
 
+- **"Cannot find module '@/…'" in a file under \`sources/backend/\` is the ALIAS, not the
+  suffix.** That package is the shared library: it is built by \`tsc -b\`, declares no tsconfig
+  \`paths\`, and \`@/\` resolves to nothing in it. Rewrite the specifier as a RELATIVE path keeping
+  its \`.js\` suffix — \`'../../resources/task/task.js'\`. Adding, removing or changing the
+  extension on the alias fixes nothing and the same error comes back under the other spelling;
+  two attempts that differ only in the suffix mean you are in this case.
 - "Cannot find module" for \`postgres\`, \`@/lib/db.js\` or \`@/db/schema/...\` inside a
   \`resources/**\` file means the file was written against the REMOVED Drizzle-DDL layout.
   Rewrite it as an OwlMeans resource: an AJV schema on \`resource.schema\`, built with
@@ -1292,10 +1330,286 @@ A screen's declared path is the TAIL ONLY: \`'/tasks'\`, never \`'/frontoffice/t
 contributes the prefix, so repeating it publishes the screen at a doubled URL nothing links to.
 `),
 
+  skill(ViableSkill.QueueDiscipline, 'When work belongs off the request path', `
+Almost never. Start from "this is a request handler and a table" and stay there unless one of
+the reasons below is TRUE of this feature. A queue turns one request into two processes and a
+message that can be delivered twice; a worker is a second thing that can be down; an LLM agent
+turns a click into a bill. None of that is free, and none of it is undone easily.
+
+## Reasons that are real
+- The work calls an LLM, or any third-party API that is slow or rate-limited.
+- The work walks an unbounded set — every row a user owns, every file in an upload.
+- The work must survive the user closing the tab: a long import, a generated report.
+- The work is scheduled or repeated rather than requested.
+- The work must be retried on failure without the user doing anything.
+
+## Reasons that are NOT real
+- "It might be slow one day." Measure first; moving it later is a small change.
+- "It writes to several tables." That is a transaction, not a job.
+- "It sends one email." One outbound call in a request is fine.
+- "It feels like background work." Feelings are not a reason; name the property.
+- "It is complicated." Complexity belongs in a function, not in another process.
+
+## If the answer is yes
+Say WHY in one sentence naming the property above, and say how the processor is safe to run
+twice — a worker can die mid-job, the lock expires and the step re-runs. There is no way to
+make that automatic. "Skip rows already marked done" and "delete what a previous attempt
+created before recreating it" are answers; "it should be fine" is not.
+
+## And say who watches it
+A queued job has no screen and no session. Name the story whose screen shows its progress, or
+the work is invisible and the user is left pressing a button that appears to do nothing.
+  `),
+
+  skill(ViableSkill.WorkerJobs, 'Queues, jobs and processors', `
+Three files have to agree, and a job that exists in two of the three is worse than one that
+exists in none — a declared name nothing processes is a message that piles up, and a processor
+with no declaration is dead code the barrel still imports.
+
+## 1. The queue — \`sources/backend/src/jobs/index.ts\`
+A queue is an ADDRESS: it says what exists and which job names it accepts. Both the api (which
+enqueues) and the worker (which consumes) read this one list, and a job name the queue does not
+declare is refused at enqueue time.
+
+\`\`\`ts
+export const queues: QueueDeclaration[] = [
+  { name: APP_QUEUE, jobs: [app.job.test, app.job.<name>],
+    worker: { concurrency: 4, lockDuration: 60_000 } },
+]
+\`\`\`
+
+## 2. The alias and the entrypoint — \`sources/common/src\`
+The job's name IS its entrypoint alias. Declare \`app.job.<name>\` in \`consts.ts\` above the
+sentinel, and the entrypoint in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
+
+## 3. The processor — \`sources/worker/src/jobs/<name>.ts\`
+A plain async function wrapped in \`handleRequest\` / \`handleBody<T>\` / \`handleParams<T>\`,
+exactly like an endpoint handler. It RETURNS its result; throwing a \`ResilientError\` subclass
+is how a refusal is reported, and the class survives the broker.
+
+Two rules with no equivalent on the HTTP side:
+- **Call \`job.touch()\` inside every long loop.** The broker judges liveness by the lock, and
+  silence for longer than \`lockDuration\` is indistinguishable from a dead worker — the job is
+  handed to somebody else and the work runs twice.
+- **A processor must be safe to run twice.** Skip what a previous attempt recorded, or delete
+  what it created, and say in a comment which of the two this one does.
+
+Elevate it in \`sources/worker/src/entrypoints.ts\` above the sentinel. Enqueue from an endpoint
+with \`context.jobs().create({ name: app.job.<name>, data })\`.
+  `),
+
+  skill(ViableSkill.TargetAgents, 'LLM agents inside the application', `
+An agent generated into the application is an \`@owlmeans/agent\` model, built in the shared
+backend package and RUN FROM A JOB — never on the request path. A model call takes seconds to
+minutes and costs money per attempt; holding a request open for it gives the user a timeout and
+the operator a bill with no result attached.
+
+- \`makeAgentModel({ exec, tools, ... })\` for a tool loop that converses.
+- \`makePipeline(spec, steps)\` for ordered, resumable steps whose position must survive a crash.
+  Pipeline state holds KEYS, never artifacts — a step writes its output somewhere and puts the
+  id in the state.
+
+The agent module goes in \`sources/backend/src/agents/<alias>.ts\` and is registered in that
+directory's generated barrel. The endpoint the user presses enqueues the job; the job invokes
+the agent; the screen watches the job. Never import an agent from \`sources/api\`.
+  `),
+
+  skill(ViableSkill.AgenticChoice, 'A call, a pipeline, or an agent', `
+Three shapes can perform work with a model, and they are not interchangeable. Pick the
+SIMPLEST one that does the job, and increase complexity only when the simpler shape provably
+cannot. Every step up costs latency, money and a failure mode.
+
+**A call** — one prompt, one answer. The default, and the right answer far more often than it
+is chosen. Summarise, classify, extract, rewrite, draft, translate, answer a question about
+text you already have. If you can write down the prompt, it is a call.
+
+**A pipeline** — fixed, ordered steps, decided by you and not by the model. Choose it when the
+work decomposes cleanly into subtasks you can NAME IN ADVANCE, and each step's output is the
+next step's input: transcribe then summarise then file; extract then validate then store. You
+are trading latency for accuracy, and you know the number of steps before you start.
+
+**An agent** — the model chooses its own path through tools, and you cannot say in advance how
+many steps it will take. Choose it ONLY when all of these are true:
+- the number of steps genuinely cannot be predicted;
+- which tool to use next is a judgement, not a rule you could write down;
+- the input is unstructured and the decision is contextual;
+- and the work runs in a place where an unpredictable number of tool calls is acceptable.
+
+Not reasons to choose an agent: the task is "complex"; it uses more than one piece of data; it
+sounds impressive; a tool exists. A rules engine with a model in it is a pipeline. An app that
+calls a model but does not let the model direct the work is not an agent at all.
+
+If you are unsure between two of them, take the simpler one. A call that turns out to need a
+second step becomes a pipeline with one edit; an agent that never needed to be one is a bill
+nobody can explain.
+
+Whichever shape it is, it runs off the request path — a model call is seconds to minutes and
+costs money per attempt, and holding a request open for it gives the user a timeout and the
+operator a bill with no result attached. So it is ALWAYS reached through something a person does:
+somebody starts it, and somebody watches it finish. Work with no human half is work nobody can
+see, cancel or be told about, and it reaches the user as a button that appears to do nothing.
+
+Describe that work INSIDE the story of the person who starts it — "I request a write-up and come
+back to read it" — rather than as a story of its own told in the machine's voice. A machine has
+no account to sign in with, no screen of its own and no permission that can be granted to it, so
+"As an AI assistant, I want to open the queue…" is a story whose actor can never use what gets
+built for it.
+  `),
+
+  skill(ViableSkill.TargetLlm, 'Calling a model from the application', `
+Model calls happen in \`sources/backend\` and are invoked from a job in \`sources/worker\`.
+NEVER from \`sources/web\` — a browser bundle cannot hold a provider key — and never inline in
+a request handler in \`sources/api\`.
+
+The key is the user's, not the platform's, and it may be absent. Follow the shape
+\`sources/backend/src/config.ts\` already uses for the database and the queue:
+
+\`\`\`ts
+export const anthropicKey = process.env.ANTHROPIC_API_KEY ?? ''
+export const llmConfigured = anthropicKey !== ''
+\`\`\`
+
+- Never throw at module scope when it is missing. The application must still boot, exactly as
+  it does without \`VALKEY_URL\`.
+- The endpoint that would use it answers a refusal explaining that a model API key has not been
+  configured yet — not a 500, and not silence.
+- Declare the variable so the platform can ask the owner for it; do not invent a default.
+
+Give every call a bounded output and treat a refusal or an empty answer as an outcome the code
+handles, never as an exception that reaches the user.
+
+Where the answer has a SHAPE, describe it with the same AJV schema style the rest of this
+application uses — the one already exported beside each type. Do not reach for \`zod\`: it is not
+a dependency of this project, and importing it fails the build with \`TS2307\`.
+  `),
+
+  skill(ViableSkill.TargetAgentTools, 'Tools and skills for the application’s agent', `
+An agent is only as good as the tools it is given, and a bloated tool set is the most common
+way to make one worse.
+
+- Give it the FEWEST tools that can complete the work. If you cannot say which of two tools the
+  agent should reach for in a given situation, neither can it.
+- Name each tool for what it accomplishes, not for the endpoint behind it, and describe it in
+  one sentence that says WHEN to use it.
+- Return human-readable results. An agent reasons better over a name than over a row id, and a
+  large result should be filtered or truncated by the tool rather than by the model.
+- A tool must never reject. Catch inside it and return the failure as text the agent can act
+  on; a thrown tool call aborts the whole turn.
+
+The application's own \`.agents/skills/\` directory is loadable into its agent's prompt. Where
+guidance is long or situational, write it as a skill and let the agent read it when it needs
+it, rather than pasting it into the system prompt where it is paid for on every call.
+  `),
+
+  skill(ViableSkill.GameDesign, 'What a game brief is made of', `
+A game is not a business flow, and analysing it as one produces a menu with nothing behind it.
+
+Describe, in this order:
+1. **The core loop** — the one thing the player does over and over, in a sentence. "Steer, dodge,
+   collect." "Place a tile, score the line."
+2. **The win and lose conditions** — how a session ends, both ways. A game with no end is a toy.
+3. **The controls** — what input does what. Keyboard, pointer, touch.
+4. **Progression** — what changes between the first minute and the tenth: speed, levels, score,
+   unlocks. One axis is enough.
+5. **What is persisted** — usually a score, a run history, a player profile. Almost never the
+   frame-by-frame state of a session.
+
+Steps that are NOT part of a game brief: sign-up, settings, billing, admin. They exist, they are
+ordinary screens, and they are not the product.
+
+Keep it to one game. A brief that describes a platform of several games describes none of them.
+  `),
+
+  skill(ViableSkill.GameScene, 'The three.js scene component', `
+Exactly ONE component owns the 3D scene. It creates the renderer, the camera and the scene,
+runs the animation loop, and tears all of it down again.
+
+\`\`\`tsx
+// right — the loop and the renderer live in one effect, and it cleans up after itself
+useEffect(() => {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  mount.current!.appendChild(renderer.domElement)
+  let frame = 0
+  const tick = () => { frame = requestAnimationFrame(tick); renderer.render(scene, camera) }
+  tick()
+  return () => {
+    cancelAnimationFrame(frame)
+    renderer.dispose()
+    renderer.domElement.remove()
+  }
+}, [])
+\`\`\`
+
+Rules that are not optional:
+- **Never drive the animation loop from React state.** A \`setState\` per frame re-renders the
+  tree sixty times a second and the game stutters. Mutate the object3D directly in the loop and
+  publish to React only what the interface shows — a score, a life count — and only when it
+  changes.
+- **Dispose what you create.** Geometries, materials and the renderer all hold GPU memory that
+  unmounting does not release. A scene mounted and unmounted a few times without disposal
+  exhausts the context and the canvas goes black.
+- **Resize is an event, not a render.** Update \`camera.aspect\`, call
+  \`camera.updateProjectionMatrix()\` and \`renderer.setSize(...)\` from a resize listener.
+- **Geometry is generated, never loaded.** Compose it from the built-in geometries and simple
+  materials — box, sphere, cylinder, plane, lathe, extrude. No textures, no image files, no
+  external model formats. Colour, light and shape carry the whole look.
+  `),
+
+  skill(ViableSkill.GameUi, 'The interface is React, above the canvas', `
+Everything a player reads or presses — score, menus, dialogs, buttons, settings — is an
+ordinary React component rendered ABOVE the canvas, using the same shadcn primitives as the rest
+of the application. Nothing is drawn as text inside the 3D scene.
+
+\`\`\`tsx
+// right — the canvas fills the frame, the interface floats over it
+<div className="relative h-full w-full">
+  <div ref={mount} className="absolute inset-0" />
+  <div className="pointer-events-none absolute inset-0 p-4">
+    <ScoreBadge value={score} />
+    <div className="pointer-events-auto"><Button onClick={pause}>Pause</Button></div>
+  </div>
+</div>
+\`\`\`
+
+- The overlay container carries \`pointer-events-none\` so clicks reach the canvas; each
+  interactive control turns them back on with \`pointer-events-auto\`. Forgetting this makes the
+  game unplayable — every drag lands on an invisible div.
+- Text rendered into the scene cannot be selected, translated, scaled by the browser or read by
+  a screen reader. Use it for nothing that matters.
+- SVG is the second half of the art: icons, badges, backgrounds and 2D games are inline SVG
+  written by hand. No raster images anywhere.
+  `),
+
+  skill(ViableSkill.GameNetworking, 'Who owns the state', `
+Three kinds of game, and the difference is entirely about where the state lives.
+
+**Casual** — one player, one browser. The session runs entirely on the client; the server sees
+only what is worth keeping: a final score, a run record, a profile. No queue, no worker, no
+socket. This is most games, and it is the right answer unless the brief asks otherwise.
+
+**Online, turn-based** — several players acting one after another, minutes or days apart. The
+match is an ordinary record and every move is an ordinary endpoint that validates it and writes
+the next state. Anything slow that follows a move — scoring a finished match, notifying the next
+player, rebuilding a leaderboard — is a job. No realtime anything.
+
+**Online, live** — several players acting at once, and the server simulates.
+- The client sends INTENT ("move forward", "fire"), never an outcome ("I am at x=12", "I hit
+  them"). A client that reports outcomes is a client that decides them, and one player's browser
+  then decides everybody's game.
+- The server holds the authoritative state, advances it on a fixed tick, and broadcasts it.
+- The client may predict its own movement locally so it feels immediate, and corrects when the
+  server's answer disagrees. Other players' entities are interpolated between the last two
+  updates rather than snapped.
+- Anything the outcome depends on — damage, scoring, currency, who won — is decided on the
+  server and nowhere else.
+  `),
+
   libraries(ViableSkill.LibrariesCommon, 'Libraries — shared code', commonLibraryList),
   libraries(ViableSkill.LibrariesUiState, 'Libraries — UI state', uiStateLibraryList),
   libraries(ViableSkill.LibrariesUi, 'Libraries — UI', fullUiLibraryList),
   libraries(ViableSkill.LibrariesBackend, 'Libraries — backend', backendLibraryList),
+  libraries(ViableSkill.LibrariesAi, 'Libraries — model calls and agents', aiLibraryList),
+  libraries(ViableSkill.LibrariesGame, 'Libraries — game', gameLibraryList),
 ]
 
 /** Look one up by alias — for the places that still splice a rule into a task prompt. */
