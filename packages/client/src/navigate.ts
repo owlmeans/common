@@ -26,11 +26,11 @@ export const useNavigate = (): Navigator => {
         }
       },
 
-      go: async (alias, request) =>
-        navigator.navigate(context.entrypoint<ClientEntrypoint<string>>(alias), request),
+      go: async (target, request) =>
+        navigator.navigate(context.entrypoint<ClientEntrypoint<string>>(target), request),
 
-      press: (alias, request) => () => {
-        void navigator.go(alias, request)
+      press: (target, request) => () => {
+        void navigator.go(target, request)
       },
 
       back: async () => {

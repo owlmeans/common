@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import type { ClientRoute } from '@owlmeans/client-route'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { aliasOf } from '@owlmeans/entrypoint'
+import type { EntrypointTarget } from '@owlmeans/client'
 import type { Location } from '@owlmeans/router'
 import { useContext, useNavigate } from '@owlmeans/client'
 
@@ -53,9 +55,9 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       .filter(section => section.hidden !== true)
       .map(section => ({ ...section, items: visibleItems(section) }))
 
-    const pathOf = (alias: string): string | null => {
+    const pathOf = (target: EntrypointTarget): string | null => {
       try {
-        return normalizePath(context.entrypoint<ClientEntrypoint<string>>(alias).path())
+        return normalizePath(context.entrypoint<ClientEntrypoint<string>>(target).path())
       } catch {
         // An alias the app never elevated addresses nothing — it cannot be the current screen,
         // and it must not take the menu down with it.
@@ -70,7 +72,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       const here = normalizePath(pathname)
       const exact = all.find(item => pathOf(item.alias) === here)
       if (exact != null) {
-        current = exact.alias
+        current = aliasOf(exact.alias)
       } else {
         // Longest prefix: a detail screen under a listed one still belongs to its section.
         const prefixed = all
@@ -78,12 +80,12 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
           .filter((entry): entry is { item: PanelNavItem, path: string } =>
             entry.path != null && entry.path !== '/' && here.startsWith(`${entry.path}/`))
           .sort((a, b) => b.path.length - a.path.length)[0]
-        current = prefixed?.item.alias ?? null
+        current = prefixed == null ? null : aliasOf(prefixed.item.alias)
       }
     }
 
     const sectionOf = (alias: string | null): PanelNavSection | null =>
-      alias == null ? null : sections.find(section => section.items.some(item => item.alias === alias)) ?? null
+      alias == null ? null : sections.find(section => section.items.some(item => aliasOf(item.alias) === alias)) ?? null
 
     let active = sectionOf(current)
     if (active == null && current != null) {
@@ -106,7 +108,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       }
     }
 
-    const isItemActive = (item: PanelNavItem): boolean => item.alias === current
+    const isItemActive = (item: PanelNavItem): boolean => aliasOf(item.alias) === current
     const isSectionActive = (section: PanelNavSection): boolean =>
       active != null && section.name === active.name
 

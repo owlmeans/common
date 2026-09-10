@@ -6,7 +6,7 @@ import type { StateResourceAppend } from '@owlmeans/state'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { DebugServiceAppend, ModalServiceAppend } from './components/types.js'
 import type { ConfigResourceAppend } from '@owlmeans/config'
-import type { ConfigRecord } from '@owlmeans/context'
+import type { ConfigRecord, EntrypointReference } from '@owlmeans/context'
 import type { NavigateFunction, RouterService, Location, RouteObject, LibraryRouter } from '@owlmeans/router'
 
 
@@ -62,13 +62,16 @@ export interface NavRequest<T extends Record<string, any> = Record<string, any>>
   silent?: boolean
 }
 
+/** A navigation target is a protocol reference in application code, with strings retained for adapters. */
+export type EntrypointTarget = EntrypointReference | string
+
 export interface Navigator {
   _navigate: NavigateFunction
   navigate: <R extends NavRequest = NavRequest>(module: ClientEntrypoint<string, AbstractRequest>, request?: R) => Promise<void>
-  go: <R extends NavRequest = NavRequest>(alias: string, request?: R) => Promise<void>
+  go: <R extends NavRequest = NavRequest>(target: EntrypointTarget, request?: R) => Promise<void>
   back: () => Promise<void>
   pressBack: () => () => void
-  press: <R extends NavRequest = NavRequest>(alias: string, request?: R) => () => void
+  press: <R extends NavRequest = NavRequest>(target: EntrypointTarget, request?: R) => () => void
   location: <R extends NavRequest = NavRequest>() => Location<R>
 }
 

@@ -1,26 +1,56 @@
-import { body, entrypoint, filter, params } from '@owlmeans/entrypoint'
-import { route, RouteMethod } from '@owlmeans/route'
-import { session } from './consts.js'
+import { contract, openProtocol, protocol, protocols, typed } from '@owlmeans/entrypoint'
+import { route, RouteMethod, frontend } from '@owlmeans/route'
 import { AddItemSchema, ItemParamsSchema, SessionParamsSchema } from './schemas.js'
-import type { AddItemPayload, ItemParams, SessionParams } from './types.js'
+import type { SessionItem } from './types.js'
+
+const aliases = {
+  session: {
+    base: '__APP_SLUG__:api:session',
+    list: '__APP_SLUG__:api:session:list',
+    add: '__APP_SLUG__:api:session:add',
+    remove: '__APP_SLUG__:api:session:remove',
+  },
+  web: {
+    base: '__APP_SLUG__:web:base',
+    home: '__APP_SLUG__:web:home',
+    session: '__APP_SLUG__:web:session',
+    about: '__APP_SLUG__:web:about',
+  },
+}
+
+const sessionBase = protocol(route(aliases.session.base, '/session'), contract())
+const webBase = openProtocol(route(aliases.web.base, '/', frontend()))
 
 /**
  * Shared entrypoint declarations. The api elevates these with handlers; the web
  * elevates them with screen components and calls them. Routes resolve under the
  * api service `base` (`/api`), so e.g. `session.list` → `GET /api/session/:sid/items`.
  */
-export const sessionEntrypoints = [
-  entrypoint(route(session.base, '/session')),
-  entrypoint(
-    route(session.list, '/:sid/items', { parent: session.base, method: RouteMethod.GET }),
-    filter(params<SessionParams>(SessionParamsSchema)),
+export const session = {
+  base: sessionBase,
+  list: protocol(
+    route(aliases.session.list, '/:sid/items', { parent: sessionBase, method: RouteMethod.GET }),
+    contract.request({ params: SessionParamsSchema }, typed<SessionItem[]>()),
   ),
-  entrypoint(
-    route(session.add, '/:sid/items', { parent: session.base, method: RouteMethod.POST }),
-    filter(params<SessionParams>(SessionParamsSchema, body<AddItemPayload>(AddItemSchema))),
+  add: protocol(
+    route(aliases.session.add, '/:sid/items', { parent: sessionBase, method: RouteMethod.POST }),
+    contract.request({
+      params: SessionParamsSchema,
+      body: AddItemSchema,
+    }, typed<SessionItem>()),
   ),
-  entrypoint(
-    route(session.remove, '/:sid/items/:id', { parent: session.base, method: RouteMethod.DELETE }),
-    filter(params<ItemParams>(ItemParamsSchema)),
+  remove: protocol(
+    route(aliases.session.remove, '/:sid/items/:id', { parent: sessionBase, method: RouteMethod.DELETE }),
+    contract.request({ params: ItemParamsSchema }, typed<{ removed: boolean }>()),
   ),
-]
+}
+
+/** Frontend routes are protocol declarations too; their renderer is bound by the web project. */
+export const web = {
+  base: webBase,
+  home: openProtocol(route(aliases.web.home, '/', frontend({ default: true, parent: webBase }))),
+  session: openProtocol(route(aliases.web.session, '/session', frontend({ parent: webBase }))),
+  about: openProtocol(route(aliases.web.about, '/about', frontend({ parent: webBase }))),
+}
+
+export const sessionEntrypoints = protocols(session)

@@ -4,6 +4,7 @@ import addFormats from 'ajv-formats'
 import { RouteMethod } from '@owlmeans/route'
 import { connect, ConnectInquiryKind, ConnectJobKind, ConnectOpKind } from '../src/connect/consts.js'
 import { connectEntrypoints } from '../src/connect/entrypoints.js'
+import { connectRef } from '../src/connect/references.js'
 import {
   ConnectCapabilitiesSchema, ConnectConvertCreateBodySchema, ConnectConvertProceedBodySchema,
   ConnectInquiryParamsSchema, ConnectPipelineResumeBodySchema, InquiryAnswerSchema
@@ -112,6 +113,18 @@ describe('viable-common - the conversion additions to the connector contract', (
       expect(route.path, alias).toBe(path)
       expect(route.method, alias).toBe(method)
     }
+  })
+
+  test('every conversion route has the typed reference used by connector adapters', () => {
+    expect(connectRef.convert.create.alias).toBe(connect.convert.create)
+    expect(connectRef.convert.check.alias).toBe(connect.convert.check)
+    expect(connectRef.convert.start.alias).toBe(connect.convert.start)
+    expect(connectRef.convert.proceed.alias).toBe(connect.convert.proceed)
+    expect(connectRef.convert.cancel.alias).toBe(connect.convert.cancel)
+    expect(connectRef.convert.status.alias).toBe(connect.convert.status)
+    expect(connectRef.convert.purge.alias).toBe(connect.convert.purge)
+    expect(connectRef.inquiry.answer.alias).toBe(connect.inquiry.answer)
+    expect(connectRef.project.converterLlm.alias).toBe(connect.project.converterLlm)
   })
 
   test('the conversion routes hang under the connector base and carry no paid gate', () => {

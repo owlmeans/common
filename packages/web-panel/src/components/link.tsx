@@ -4,6 +4,7 @@ import type { LinkProps } from './types.js'
 import { useValue } from '@owlmeans/client'
 import { useContext } from '@owlmeans/web-client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { aliasOf } from '@owlmeans/entrypoint'
 import { cn } from '@/lib/utils'
 
 export const Link: FC<LinkProps> = ({ src, module, name, children, center, open, className, style }) => {
@@ -15,8 +16,10 @@ export const Link: FC<LinkProps> = ({ src, module, name, children, center, open,
       return src
     }
     if (module != null) {
-      module = typeof module === 'string' ? context.entrypoint<ClientEntrypoint<string>>(module) : module
-      const url = await module.url()
+      const entrypoint = typeof module === 'object' && '_entrypoint' in module
+        ? module
+        : context.entrypoint<ClientEntrypoint<string>>(module)
+      const url = await entrypoint.url()
       return url
     }
     return null
@@ -26,7 +29,7 @@ export const Link: FC<LinkProps> = ({ src, module, name, children, center, open,
     ? t(name)
     : children != null || module == null
       ? undefined
-      : t(`modules.${typeof module === 'string' ? module : module.alias}`)
+      : t(`modules.${aliasOf(module)}`)
   const target = open ? '_blank' : undefined
   const rel = open ? 'noopener noreferrer' : undefined
 

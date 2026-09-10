@@ -1,22 +1,28 @@
 ---
 name: entrypoint
-description: How to use @owlmeans/entrypoint — declarative entrypoint definitions over immutable route declarations, with entrypoint(), guard(), gate(), filter(), body(), params(), query() builders, the address accessors, and the transport seam. Auto-invoked when importing from this package or defining a service entrypoint declaration.
+description: How to use @owlmeans/entrypoint — immutable typed protocols, adapter references, legacy entrypoint declarations, guards/gates/schemas, address accessors, and the transport seam. Auto-invoked when importing from this package or defining a service entrypoint declaration.
 user-invocable: false
 ---
 
 # @owlmeans/entrypoint
 
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.10"` in `dependencies`
+**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.11"` in `dependencies`
 
-An entrypoint is a **URL unit**: an immutable route declaration plus the guards, gates and schemas
-it answers under. It is the single concept an application declares once in a shared package and
-elevates on either side.
+An entrypoint is an **addressable unit**. New code declares an immutable typed `protocol` once in a
+shared package, then binds that declaration on the client or server. The older mutable
+`entrypoint(...)` + `elevate(...)` form remains supported while applications migrate.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
+| `protocol(route, contract, opts?)` / `openProtocol(route, opts?)` | Declare an immutable shared protocol |
+| `contract(...)` / `contract.request(...)` | Declare the request sections and response together |
+| `schema<T>(value)` / `typed<T>()` | Carry runtime validation plus type inference, or type information only |
+| `protocols(tree)` | Flatten a named protocol tree for a layer binding |
+| `entrypointRef<Request, Response>(alias)` | Typed adapter reference for dynamic registries |
+| `decorateEntrypoint(protocol, opts)` | Return an immutable protocol with added access/options |
 | `entrypoint(route, opts?)` | Declare an entrypoint on a route model |
 | `guard(alias, opts?)` | Require a guard; returns options, so it wraps rather than takes them |
 | `gate(alias, params, opts?)` | Require a gate; passed as the `opts` of `guard(...)` |
@@ -32,6 +38,43 @@ elevates on either side.
 | `EntrypointOutcome` | Enum: Ok, Accepted, Created, Finished |
 | `EntrypointTransport` | `{ protocol, handle }` — a carrier bound to a route protocol |
 | `transportAlias(protocol?)` | The service alias a transport registers under (`transport:<protocol>`) |
+
+## Typed protocol form
+
+Application contracts export protocol objects, not alias strings or already context-bound
+entrypoints. A protocol owns the route, request/response contract, guards, gate and sticky flag; it
+is frozen and never mutated by either runtime.
+
+```typescript
+import { contract, openProtocol, protocol, protocols, schema, typed } from '@owlmeans/entrypoint'
+import { frontend, route, RouteMethod } from '@owlmeans/route'
+
+const ItemParamsSchema = schema<{ id: string }>({
+  type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false,
+})
+
+const apiBase = protocol(route('api:item', '/items'), contract())
+export const item = {
+  base: apiBase,
+  get: protocol(
+    route('api:item:get', '/:id', { parent: apiBase, method: RouteMethod.GET }),
+    contract.request({ params: ItemParamsSchema }, typed<Item>()),
+  ),
+}
+export const web = {
+  items: openProtocol(route('web:items', '/items', frontend())),
+}
+export const itemEntrypoints = protocols(item)
+```
+
+`contract()` means no payload and an `undefined` reply. With one source it declares only the
+response; with two it declares body then response. Use `contract.request` when params, query,
+headers or several request sections participate. `schema<T>` is the preferred source when runtime
+validation exists; `typed<T>()` is only the compile-time half.
+
+`context.entrypoint(protocolOrRef)` infers the exact registered `call`/`invoke`/`url` signature.
+Use the protocol object inside an application. Use `entrypointRef` only in an adapter package that
+must address a dynamically registered surface without importing its declaration tree.
 
 `guard`, `gate` and `filter` are **options-object combinators, not variadic composers**. Each
 returns a `CommonEntrypointOptions` and takes the next one as its final argument, so they nest:
@@ -143,9 +186,10 @@ context.registerService(transport)
 as a broker job. Nothing at the call site changes — which is the point of putting the protocol on
 the route rather than at the call.
 
-## Usage
+## Legacy declaration form
 
-Define entrypoints in a shared `common` package, then `elevate()` them with handlers in server/web packages:
+Existing applications may define entrypoints in a shared `common` package, then `elevate()` them
+with handlers in server/web packages. Do not introduce this form into a protocol-based surface.
 
 ```typescript
 import { entrypoint, guard, gate, filter, body } from '@owlmeans/entrypoint'

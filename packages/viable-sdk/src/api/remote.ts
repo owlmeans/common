@@ -1,11 +1,10 @@
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { RouteMethod } from '@owlmeans/route'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import { connect } from '@owlmeans/viable-common'
+import { connectRef } from '@owlmeans/viable-common'
 import type {
-  ConnectConvertCreateBody, ConnectJob, ConnectOp, ConnectOpResult, ConnectProjectStatus,
-  ConnectSessionView, ConnectStoryList, ConnectTarget, ConversionDecision, ConversionStatusView,
-  ConvertCheck, InquiryAnswerPayload
+  ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectJob, ConnectOp, ConnectOpResult,
+  ConnectOpSubmission, ConnectPipelineState, ConnectProjectStatus, ConnectSessionView,
+  ConnectStoryDeletion, ConnectStoryItem, ConnectStoryMutation, ConnectTarget,
+  ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
 } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits, StoryQuery } from '../types.js'
@@ -21,108 +20,128 @@ type Ctx = ClientContext<ClientConfig>
  * a job, and a job returns at once.
  */
 export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
-  const call = async <T>(alias: string, args: Record<string, unknown> = {}): Promise<T> => {
-    const entrypoint = context.entrypoint<ClientEntrypoint<T>>(alias)
-    const request: Record<string, unknown> = { timeout: TOOL_DEADLINE_MS, ...args }
-
-    // A POST with nothing to say still has to say it in JSON. Sent with no body, the client sets
-    // no `Content-Type`, and Fastify answers 415 before the handler runs — an error about media
-    // types for a call whose only fault was having no arguments. `close` and `heartbeat` are
-    // exactly that shape.
-    if (entrypoint.route.route.method === RouteMethod.POST && request.body == null) {
-      request.body = {}
-    }
-
-    return await entrypoint.call(request as never)
-  }
-
   return {
-    capabilities: async () => await call(connect.capabilities),
+    capabilities: async (): Promise<ConnectCapabilitiesView> => await context
+      .entrypoint(connectRef.capabilities).call({ timeout: TOOL_DEADLINE_MS }),
 
-    openSession: async (args: OpenSessionArgs) => await call<ConnectSessionView>(
-      // Which route is called is what fixes the mode: the delegated one carries the entitlement
-      // gate, so a caller without the capability is refused at the boundary rather than by a
-      // check somewhere inside.
-      args.llm === 'local' ? connect.session.openDelegated : connect.session.open,
-      { body: args }
-    ),
-
-    closeSession: async sessionId => {
-      await call(connect.session.close, { params: { sessionId } })
+    openSession: async (args: OpenSessionArgs): Promise<ConnectSessionView> => {
+      const { llm, ...body } = args
+      // Which route is called fixes the mode: the delegated one carries the entitlement gate.
+      return await context.entrypoint(llm === 'local'
+        ? connectRef.session.openDelegated : connectRef.session.open
+      ).call({ body, timeout: TOOL_DEADLINE_MS })
     },
 
-    heartbeat: async sessionId => await call(connect.session.heartbeat, { params: { sessionId } }),
+    closeSession: async sessionId => {
+      await context.entrypoint(connectRef.session.close).call({
+        params: { sessionId }, timeout: TOOL_DEADLINE_MS,
+      })
+    },
 
-    pullOps: async (sessionId, waitSec) => await call<ConnectOp[]>(connect.op.pull, {
+    heartbeat: async sessionId => await context.entrypoint(connectRef.session.heartbeat).call({
+      params: { sessionId }, timeout: TOOL_DEADLINE_MS,
+    }),
+
+    pullOps: async (sessionId, waitSec): Promise<ConnectOp[]> => await context.entrypoint(connectRef.op.pull).call({
       params: { sessionId },
       query: { wait: waitSec },
       // The long poll holds the response open on purpose; it must outlast its own wait.
       timeout: (waitSec + 10) * 1000,
     }),
 
-    submitOp: async (sessionId, result: ConnectOpResult) => await call(connect.op.submit, {
+    submitOp: async (sessionId, result: ConnectOpResult): Promise<ConnectOpSubmission> => await context
+      .entrypoint(connectRef.op.submit).call({
       params: { sessionId, opId: result.opId }, body: result,
+      timeout: TOOL_DEADLINE_MS,
     }),
 
     project: {
       create: async (prompt: string, target?: ConnectTarget) =>
-        await call<ConnectJob>(connect.project.create, { body: { prompt, ...(target != null ? { target } : {}) } }),
+        await context.entrypoint(connectRef.project.create).call({
+          body: { prompt, ...(target != null ? { target } : {}) }, timeout: TOOL_DEADLINE_MS,
+        }),
       confirm: async (id: string, edits: ProjectEdits) =>
-        await call<ConnectJob>(connect.project.confirm, { params: { id }, body: edits }),
-      list: async () => await call(connect.project.list),
-      status: async (id: string) => await call<ConnectProjectStatus>(connect.project.status, { params: { id } }),
-      attach: async args => await call<ConnectProjectStatus>(connect.project.attach, { body: args }),
-      reinit: async (id: string) => await call<ConnectJob>(connect.project.reinit, { params: { id } }),
+        await context.entrypoint(connectRef.project.confirm).call({
+          params: { id }, body: edits, timeout: TOOL_DEADLINE_MS,
+        }),
+      list: async () => await context.entrypoint(connectRef.project.list).call({ timeout: TOOL_DEADLINE_MS }),
+      status: async (id: string): Promise<ConnectProjectStatus> => await context
+        .entrypoint(connectRef.project.status).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      attach: async args => await context.entrypoint(connectRef.project.attach).call({
+        body: args, timeout: TOOL_DEADLINE_MS,
+      }),
+      reinit: async (id: string): Promise<ConnectJob> => await context
+        .entrypoint(connectRef.project.reinit).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
       modify: async (id: string, prompt: string) =>
-        await call<ConnectJob>(connect.project.modify, { params: { id }, body: { prompt } }),
-      job: async (id: string, jobId: string, waitSec?: number) => await call<ConnectJob>(
-        connect.project.job,
-        {
+        await context.entrypoint(connectRef.project.modify).call({
+          params: { id }, body: { prompt }, timeout: TOOL_DEADLINE_MS,
+        }),
+      job: async (id: string, jobId: string, waitSec?: number): Promise<ConnectJob> => await context
+        .entrypoint(connectRef.project.job).call({
           params: { id, jobId },
-          ...(waitSec != null ? { query: { wait: waitSec }, timeout: (waitSec + 10) * 1000 } : {}),
-        }
-      ),
+          query: waitSec == null ? {} : { wait: waitSec },
+          timeout: waitSec == null ? TOOL_DEADLINE_MS : (waitSec + 10) * 1000,
+        }),
     },
 
     story: {
       list: async (id: string, query?: StoryQuery) =>
-        await call<ConnectStoryList>(connect.story.list, { params: { id }, query: query ?? {} }),
-      get: async (id: string, storyId: string) => await call(connect.story.get, { params: { id, storyId } }),
-      create: async (id: string, story: string) => await call(connect.story.create, { params: { id }, body: { story } }),
+        await context.entrypoint(connectRef.story.list).call({
+          params: { id }, query: query ?? {}, timeout: TOOL_DEADLINE_MS,
+        }),
+      get: async (id: string, storyId: string): Promise<ConnectStoryItem> => await context
+        .entrypoint(connectRef.story.get).call({ params: { id, storyId }, timeout: TOOL_DEADLINE_MS }),
+      create: async (id: string, story: string): Promise<ConnectStoryMutation> => await context
+        .entrypoint(connectRef.story.create).call({ params: { id }, body: { story }, timeout: TOOL_DEADLINE_MS }),
       update: async (id: string, storyId: string, story: string) =>
-        await call(connect.story.update, { params: { id, storyId }, body: { story } }),
-      remove: async (id: string, storyId: string) => await call(connect.story.delete, { params: { id, storyId } }),
+        await context.entrypoint(connectRef.story.update).call({
+          params: { id, storyId }, body: { story }, timeout: TOOL_DEADLINE_MS,
+        }),
+      remove: async (id: string, storyId: string): Promise<ConnectStoryDeletion> => await context
+        .entrypoint(connectRef.story.delete).call({ params: { id, storyId }, timeout: TOOL_DEADLINE_MS }),
       develop: async (id: string, storyId: string) =>
-        await call<ConnectJob>(connect.story.develop, { params: { id, storyId } }),
+        await context.entrypoint(connectRef.story.develop).call({
+          params: { id, storyId }, timeout: TOOL_DEADLINE_MS,
+        }),
     },
 
     pipeline: {
-      state: async (id: string, runId: string) => await call(connect.pipeline.state, { params: { id, runId } }),
+      state: async (id: string, runId: string): Promise<ConnectPipelineState> => await context
+        .entrypoint(connectRef.pipeline.state).call({ params: { id, runId }, timeout: TOOL_DEADLINE_MS }),
       resume: async (id: string, runId: string, args) =>
-        await call<ConnectJob>(connect.pipeline.resume, { params: { id, runId }, body: args ?? {} }),
+        await context.entrypoint(connectRef.pipeline.resume).call({
+          params: { id, runId }, body: args ?? {}, timeout: TOOL_DEADLINE_MS,
+        }),
     },
 
     convert: {
       create: async (args: ConnectConvertCreateBody) =>
-        await call<ConnectJob>(connect.convert.create, { body: args }),
-      check: async (id: string) => await call<ConvertCheck>(connect.convert.check, { params: { id } }),
-      start: async (id: string) => await call<ConnectJob>(connect.convert.start, { params: { id } }),
-      proceed: async (id: string, decision: ConversionDecision, note?: string) =>
-        await call<ConnectJob>(connect.convert.proceed, {
-          params: { id }, body: { decision, ...(note != null ? { note } : {}) },
+        await context.entrypoint(connectRef.convert.create).call({
+          body: args, timeout: TOOL_DEADLINE_MS,
         }),
-      cancel: async (id: string) => await call<ConnectJob>(connect.convert.cancel, { params: { id } }),
-      status: async (id: string) =>
-        await call<ConversionStatusView>(connect.convert.status, { params: { id } }),
-      purge: async (id: string) => await call<ConnectJob>(connect.convert.purge, { params: { id } }),
+      check: async (id: string): Promise<ConvertCheck> => await context
+        .entrypoint(connectRef.convert.check).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      start: async (id: string): Promise<ConnectJob> => await context
+        .entrypoint(connectRef.convert.start).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      proceed: async (id: string, decision: ConversionDecision, note?: string) =>
+        await context.entrypoint(connectRef.convert.proceed).call({
+          params: { id }, body: { decision, ...(note != null ? { note } : {}) },
+          timeout: TOOL_DEADLINE_MS,
+        }),
+      cancel: async (id: string): Promise<ConnectJob> => await context
+        .entrypoint(connectRef.convert.cancel).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      status: async (id: string): Promise<ConversionStatusView> => await context
+        .entrypoint(connectRef.convert.status).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      purge: async (id: string): Promise<ConnectJob> => await context
+        .entrypoint(connectRef.convert.purge).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
     },
 
     inquiry: {
       answer: async (id: string, inquiryId: string, answer: InquiryAnswerPayload) =>
         // The id travels twice on purpose: in the path, which is what the route addresses, and in
         // the body, which is what the platform validates the answer against.
-        await call(connect.inquiry.answer, {
-          params: { id, inquiryId }, body: { ...answer, inquiryId },
+        await context.entrypoint(connectRef.inquiry.answer).call({
+          params: { id, inquiryId }, body: { ...answer, inquiryId }, timeout: TOOL_DEADLINE_MS,
         }),
     },
   }

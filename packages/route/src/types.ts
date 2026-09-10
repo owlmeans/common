@@ -1,4 +1,4 @@
-import type { AppType } from '@owlmeans/context'
+import type { AppType, EntrypointReference } from '@owlmeans/context'
 import type { RouteProtocols, RouteMethod } from './consts'
 
 export interface BasicRoute {
@@ -65,5 +65,9 @@ export interface RouteModel {
   route: RouteDeclaration
 }
 
-export interface RouteOptions extends Partial<RouteDeclaration> {
+export type RouteParent = string | EntrypointReference
+
+export interface RouteOptions extends Omit<Partial<RouteDeclaration>, 'parent'> {
+  /** A parent protocol is preferred in application declarations; strings remain adapter input. */
+  parent?: RouteParent
 }

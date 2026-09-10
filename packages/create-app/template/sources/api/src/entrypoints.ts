@@ -1,11 +1,8 @@
 import { elevate, entrypoints } from '@owlmeans/server-app'
-import { session, sessionEntrypoints } from '__APP_SLUG__-common'
+import { sessionEntrypoints } from '__APP_SLUG__-common'
 import * as handlers from './app/session/index.js'
 
-// Attach handler implementations to the shared entrypoint declarations.
-elevate(sessionEntrypoints, session.base)
-elevate(sessionEntrypoints, session.list, handlers.list)
-elevate(sessionEntrypoints, session.add, handlers.add)
-elevate(sessionEntrypoints, session.remove, handlers.remove)
+// Each handler is already bound to its protocol; elevation materializes the local server entries.
+const sessionModules = elevate(sessionEntrypoints, [handlers.list, handlers.add, handlers.remove])
 
-export const appEntrypoints = [...entrypoints, ...sessionEntrypoints]
+export const appEntrypoints = [...entrypoints, ...sessionModules]

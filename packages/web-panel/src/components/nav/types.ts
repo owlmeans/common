@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react'
 import type { NavTranslate, PanelNavConfig, PanelNavLink } from '@owlmeans/client-panel'
 import type { StyledProps } from '../types.js'
+import type { EntrypointTarget } from '@owlmeans/client'
 
 interface NavCommonProps extends StyledProps {
   config: PanelNavConfig
@@ -25,7 +26,7 @@ export interface NavLayoutProps extends PropsWithChildren<StyledProps> {
   /** Brand slot — rendered at the far left of the header. */
   title?: ReactNode
   /** Alias the brand navigates to. Defaults to the first section's first item. */
-  home?: string
+  home?: EntrypointTarget
   /** Header right side — sign-in controls, a theme toggle, whatever the app puts there. */
   actions?: ReactNode
   /** Links array renders the standard footer; a node replaces it entirely. */

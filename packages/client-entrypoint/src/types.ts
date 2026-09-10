@@ -1,5 +1,8 @@
 import type { ClientRouteModel, ClientRouteOptions } from '@owlmeans/client-route'
-import type { AbstractRequest, CommonEntrypoint, CommonEntrypointOptions, EntrypointHandler, EntrypointOutcome } from '@owlmeans/entrypoint'
+import type {
+  AbstractRequest, CommonEntrypoint, CommonEntrypointOptions, EntrypointHandler,
+  EntrypointOutcome, EntrypointProtocolDeclaration, RegisteredEntrypoint, RequestOf,
+} from '@owlmeans/entrypoint'
 
 export interface ClientEntrypoint<T = {}, R extends ClientRequest = ClientRequest> extends CommonEntrypoint {
   route: ClientRouteModel
@@ -21,6 +24,18 @@ export interface ClientEntrypoint<T = {}, R extends ClientRequest = ClientReques
   validate: EntrypointFilter<R>
   request: (request?: Partial<R>) => R
 }
+
+/**
+ * The context-bound client view of a protocol.  Unlike the legacy `ClientEntrypoint` generic,
+ * its request and reply types are read directly from the declaration and cannot be replaced at a
+ * call site.
+ */
+export type ClientProtocolEntrypoint<Protocol extends EntrypointProtocolDeclaration> =
+  Omit<ClientEntrypoint, 'call' | 'invoke' | 'url' | 'validate' | 'request'>
+  & RegisteredEntrypoint<RequestOf<Protocol>, import('@owlmeans/entrypoint').ResponseOf<Protocol>>
+  & {
+    readonly protocol: Protocol
+  }
 
 export interface EntrypointCall<T, Req extends ClientRequest = ClientRequest> {
   <Type extends T, R extends Req = Req>(req?: Partial<R>): Promise<Type>
@@ -60,6 +75,6 @@ export interface EntrypointRef<T, R extends AbstractRequest = AbstractRequest> {
   ref?: ClientEntrypoint<T, R>
 }
 
-export interface RefedEntrypointHandler<T, R extends AbstractRequest = AbstractRequest> {
+export interface RefedEntrypointHandler<T = {}, R extends AbstractRequest = AbstractRequest> {
   (ref: EntrypointRef<T, R>): EntrypointHandler
 }
