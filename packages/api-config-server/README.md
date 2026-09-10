@@ -4,7 +4,7 @@ Server-side entrypoint that serves safe configuration values at `GET /assets/con
 
 ## Overview
 
-- Registers the `API_CONFIG` handler that returns non-sensitive config fields to clients
+- Registers the `API_CONFIG` handler that returns package-allowlisted config fields to clients
 - Used alongside `@owlmeans/api-config-client` to push runtime config from server to browser
 - Include `entrypoints` in your server entrypoint registration
 
@@ -28,6 +28,8 @@ context.registerEntrypoints([...appEntrypoints, ...apiConfigEntrypoints])
 ### `entrypoints`
 
 Array of server-side route handlers for the config advertisement endpoint (`GET /assets/config.json`).
+The handler returns only values registered through `apiConfigPlugin()` by packages loaded in the
+server process; it never copies server config generically.
 
 ## Related Packages
 

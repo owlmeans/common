@@ -1,6 +1,6 @@
 ---
 name: api-config-server
-description: How to use @owlmeans/api-config-server — the backend half of the runtime config flow, which answers the api-config endpoint with a redacted copy of the server config. Auto-invoked when serving API config from a server app or deciding what a backend advertises to its clients.
+description: How to use @owlmeans/api-config-server — the backend half of the runtime config flow, which answers the api-config endpoint from package-owned allowlist plugins. Auto-invoked when serving API config from a server app or deciding what a backend advertises to its clients.
 user-invocable: false
 ---
 
@@ -30,30 +30,17 @@ include this one, so spreading those is enough and adding this list again is red
 
 ## What is advertised
 
-The handler answers with the server's own config, minus everything the shared redaction lists name:
+The handler calls `advertisedConfig(ctx.cfg)`. It copies nothing generically: only import-time
+`apiConfigPlugin()` registrations from `@owlmeans/api-config` and packages the application loaded
+can contribute fields.
 
-- `debug` is always present (`{}` when the server sets none).
-- `services` is reduced to `service`, `type`, `host`, `port` and `base` per entry. `internalHost`
-  and `internalPort` are dropped as **keys**, which is not the same as keeping the address private:
-  `sservice` mirrors them into `host` / `port` whenever those are unset, so a service declared with
-  the cluster address only advertises the cluster address under a different name. A peer whose
-  address must not be public needs its own public `host` / `port`.
-- `plugins` keeps only the entries whose `type` is `AppType.Frontend`.
-- Config records (`records`) keep only those whose `recordType` is in `allowedConfigRecords`.
-- `oidc`, when configured, is rebuilt rather than copied: `clientCookie` plus the providers with
-  `secret` and `apiClientId` stripped, and providers marked `internal` dropped entirely.
-- Every remaining config key is copied verbatim, except `debug`, `services`, `plugins` and the keys
-  in `notAdvertizedConfigKeys` (`dbs`, `trusted`, `ready`, `service`, `type`, `records`,
-  `webService`, `oidc`, `storageBuckets`, `secrets`). The answer is assembled in three layers — the
-  seeded keys above, then that verbatim copy, then the conditional `oidc` rebuild — so the verbatim
-  copy overwrites whichever seeded key it also carries. `brand` is on neither exclusion list, so it
-  is carried, and the server's own brand settings are what the client receives; the `{}` the handler
-  seeds survives only for a server that declares no brand at all.
+- Base registration keeps public service routes, branding, login settings, selected debug flags and frontend plugins. An `sservice()` route with only `internalHost`/`internalPort` is omitted rather than re-exposed through its derived `host`/`port`.
+- `@owlmeans/oidc` admits only browser OIDC fields and drops internal providers and credentials.
+- `@owlmeans/flow`, `@owlmeans/i18n` and `@owlmeans/payment` register their own client settings and record types.
+- SMTP, queues, databases, storage, trusted keys, secrets and all unregistered config fields are absent.
 
-The consequence is the rule to work by: **a backend config key is public unless a list says
-otherwise.** Adding a credential, a connection string or an internal address to the config means
-adding its key to `notAdvertizedConfigKeys` in `@owlmeans/api-config` in the same change; adding a
-config-record type means listing it in `allowedConfigRecords` before a client can see it.
+The endpoint carries no guard — it is fetched before the client has any credential — so nothing
+that requires authorization to read belongs in a plugin's `allow` selection.
 
 The endpoint carries no guard — it is fetched before the client has any credential — so nothing
 that requires authorization to read belongs in the answer.

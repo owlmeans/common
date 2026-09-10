@@ -64,10 +64,10 @@ an API client", and it is thrown even for a call a registered transport would ha
 the field is a record with neither the target service's alias nor `DEFAULT_KEY`, the failure is
 ``SyntaxError("Can't cast web service alias for <alias> entrypoint")`` instead.
 
-`webService` is listed in `notAdvertizedConfigKeys` (`@owlmeans/api-config`), so
-`@owlmeans/api-config-server` filters it out of the `ApiConfig` it advertises, and
-`@owlmeans/api-config-client` merges only what came back. Pulling config from the server never
-supplies this field — every client names its API client locally.
+`webService` has no `apiConfigPlugin()` allowlist registration, so
+`@owlmeans/api-config-server` never includes it in the `ApiConfig` it advertises.
+`@owlmeans/api-config-client` merges only what came back, so every client names its API client
+locally.
 
 ## Depends On
 

@@ -79,6 +79,14 @@ package (in the installed packages and at https://github.com/owlmeans/common) or
 already solves the problem **before** proposing a third-party library or a custom solution, and
 simplify whatever you do write. This is required for every planning and development task.
 
+## Runtime config advertisement
+
+The config endpoint is default-deny. A backend config field reaches the browser only when the
+package that owns its browser consumer imports `apiConfigPlugin({ allow, deny? })` from
+`@owlmeans/api-config` at module scope. Name public nested fields precisely; use `every()` and a
+nested `deny` selector when a public collection carries a credential. Databases, queues, SMTP,
+tokens, secrets and internal addresses never belong in an `allow` selector.
+
 ## Skills
 
 Reusable guidance lives in `.agents/skills/<name>/SKILL.md`, deployed by `@owlmeans/agent-skills`

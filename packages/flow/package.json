@@ -21,6 +21,7 @@
     }
   },
   "dependencies": {
+    "@owlmeans/api-config": "^0.1.18-rc.12",
     "@owlmeans/auth": "^0.1.18-rc.9",
     "@owlmeans/config": "^0.1.18-rc.12",
     "@owlmeans/error": "^0.1.18-rc.8",
