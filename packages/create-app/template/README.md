@@ -2,71 +2,8 @@
 
 __APP_DESCRIPTION__
 
-A minimal fullstack [OwlMeans Common](https://github.com/owlmeans/common) app, scaffolded with
-[`@owlmeans/create-app`](https://www.npmjs.com/package/@owlmeans/create-app).
+An OwlMeans application has shared protocol declarations in `sources/common`, server bindings in
+`sources/api`, and browser bindings/screens in `sources/web`. Contracts, request schemas, guards
+and gates are declared once in common; runtime packages bind them without changing the declaration.
 
-No authentication; session data lives in an **in-memory static resource** on the backend.
-
-## Workspaces
-
-```
-sources/
-├── common/   # shared entrypoints (routes), schemas and types — used by api AND web
-├── api/      # @owlmeans/server-app backend; session items in @owlmeans/static-resource
-└── web/      # @owlmeans/web-panel + shadcn UI: navigation, layout and screens
-```
-
-## Develop
-
-```sh
-bun install
-bun run dev
-```
-
-- API: http://localhost:3000
-- Web: http://localhost:3001
-
-Open the **Session** page and add/remove items — they are stored per browser session
-(a `sid` kept in `localStorage`) in an in-memory resource on the API. Restarting the API
-clears them; opening a different browser/incognito window gets an isolated session.
-
-> **Note:** The API runs over plain HTTP in dev (`cfg.security = { unsecure: true }` in
-> `sources/common/src/config.ts`). If you edit `sources/common`, restart `bun run dev` to
-> rebuild it before the API and web pick up the changes.
-
-## How it fits together
-
-1. **`sources/common`** declares the API routes as OwlMeans *entrypoints* (`session.list`,
-   `session.add`, `session.remove`) plus their AJV schemas and shared types.
-2. **`sources/api`** registers a `@owlmeans/static-resource` in its context and `elevate()`s
-   each entrypoint with a handler that does CRUD against it, keyed by the session id.
-3. **`sources/web`** `elevate()`s the same entrypoints to screen components and calls them with
-   `context.entrypoint(alias).call({ params, body })`.
-
-See [OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md)
-for a full walkthrough and the manual (non-scaffolded) version of this project.
-
-## Agent guidance
-
-Always-on project context lives in `AGENTS.md`, which every agent reads; `CLAUDE.md` is a thin
-bridge that imports it. It carries the four mandatory sections a real OwlMeans monorepo uses —
-**Git Workflow**, **Reporting**, **Memory**, **Self-Education** — plus a project-purpose
-placeholder the agent fills in on its first session.
-
-Project memory is a single shared graph store at `.agents/memory/` (index `MEMORY.md`), used by
-every agent — never write memory anywhere else.
-
-Reusable guidance is one skill per topic at `.agents/skills/<name>/SKILL.md` — the
-[Agent Skills](https://agentskills.io) standard location, read natively by Copilot and Codex.
-Claude Code reads them through the generated per-skill symlinks under `.claude/skills/`, which
-`sh .agents/scripts/link-skills.sh` (re)creates; the committed `SessionStart` hook runs it each
-session. Never author a file under `.claude/skills/`.
-
-Files carrying an `AUTO-GENERATED` banner are managed by
-[`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills) — don't hand-edit
-them; write your own guidance as separate, un-bannered files. Refresh after adding or upgrading
-`@owlmeans/*` packages:
-
-```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
-```
+Use `bun run build` from the project root to build every workspace.

@@ -111,4 +111,4 @@ null stage and is rebuilt by the initiator. `connection.stage` holds the current
 ## Related
 
 - `client-socket` — the browser carrier and `useWs`
-- `server-socket` — the Fastify carrier, guard enforcement and `handleConnection`
+- `server-socket` — the Fastify carrier, guard enforcement and `socketHandler`

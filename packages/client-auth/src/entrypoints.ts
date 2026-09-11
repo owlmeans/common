@@ -1,13 +1,10 @@
 
-import { elevate, stab } from '@owlmeans/client-entrypoint'
-import { entrypoints as list } from '@owlmeans/auth-common'
-import { CAUTHEN_FLOW_ENTER, DISPATCHER_AUTHEN } from '@owlmeans/auth'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { bind, bindScreen, stab } from '@owlmeans/client-entrypoint'
+import { authProtocols } from '@owlmeans/auth-common'
 
-elevate(list, DISPATCHER_AUTHEN)
+/** Browser bindings for the authentication protocols every client may call. */
+export const bindings = [bind(authProtocols.dispatcherAuthenticate)]
 
-export const entrypoints: ClientEntrypoint[] = list as ClientEntrypoint[]
-
-export const setupExternalAuthentication = (service: string) => {
-  elevate(list, CAUTHEN_FLOW_ENTER, stab, { routeOptions: { overrides: { service } } })
-}
+/** Bind the external-authentication screen to one explicitly selected service. */
+export const bindExternalAuthentication = (service: string) =>
+  bindScreen(authProtocols.flowEnter, stab, { routeOptions: { overrides: { service } } })

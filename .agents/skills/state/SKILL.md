@@ -119,7 +119,7 @@ back into the store, and let the subscriptions render it:
 ```typescript
 const store = ctx.getStateResource(TASKS)
 
-const tasks = await ctx.entrypoint<ClientEntrypoint<Task[]>>(TASK_LIST).call()
+const tasks = await ctx.entrypoint(taskEntrypoints.list).call()
 await store.replace(tasks)
 ```
 

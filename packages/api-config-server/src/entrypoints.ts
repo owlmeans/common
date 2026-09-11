@@ -1,11 +1,7 @@
 
-import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
-import { elevate } from '@owlmeans/server-entrypoint'
-import { entrypoints as list, API_CONFIG } from '@owlmeans/api-config'
+import { advertise } from '@owlmeans/api-config'
+import { bind } from '@owlmeans/server-entrypoint'
 import { config } from './actions/index.js'
 
-elevate(list, API_CONFIG, config.advertise)
-
-export const entrypoints: ServerEntrypoint<unknown>[] = [
-  ...list.filter((module): module is ServerEntrypoint<unknown> => module.alias === API_CONFIG)
-]
+/** The server-local binding of the shared runtime-config protocol. */
+export const bindings = [bind(advertise, config.advertise(advertise))]

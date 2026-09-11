@@ -20,7 +20,7 @@ progress to the user's screen" is wiring rather than code.
 |--------|-------------|
 | `declareJobEntrypoints(root, opts?)` | The four declarations of one job group, for the SHARED package |
 | `jobEntrypointAliases(root)` | `{ base, list, get, cancel, watch }` — the alias shape both halves use |
-| `serveJobEntrypoints(entrypoints, root, opts?)` | Elevate the group with this package's handlers |
+| `serveJobEntrypoints(protocols, opts?)` | Bind the job protocol group to this package's handlers |
 | `listJobs(opts?)` / `getJob(opts?)` / `cancelJob(opts?)` | The HTTP handlers, for elevating by hand |
 | `watchJobs(opts?)` | The socket handler — pushes `JobEvent` frames under `JOB_EVENT` |
 | `jobOwnerOf(req)` / `requireJobOwner(req)` / `jobViewer(req, ctx, opts?)` | Who a request reads as |
@@ -69,7 +69,7 @@ serveJobEntrypoints(entrypoints, REPORTS, { queue: REPORT_QUEUE })
 context.registerEntrypoints(entrypoints)
 ```
 
-`elevate` replaces in place, so an app wanting one handler of its own elevates that alias again
+`serveJobEntrypoints()` returns local bindings. An app wanting one handler of its own binds that protocol again
 afterwards. `queue` names which declared queue the group reads; omitted, `ctx.jobs()` answers with
 the sole declared queue and refuses to guess once there are two. Passing an array that carries no
 group under that root is a `SyntaxError` — the declarations and the serving call must name the same
@@ -127,9 +127,9 @@ than fanned out to everyone. **Leave completed jobs in place on any queue that i
 ## Depends On
 
 - `@owlmeans/queue` — `ctx.jobs(queue)`, `JobRecord`, `JobEvent`, `JobState`, `UnknownJob`
-- `@owlmeans/server-api` — `handleRequest`, `handleParams`
-- `@owlmeans/server-socket` — `handleConnection`, and the guard enforcement that fills `req.auth`
-- `@owlmeans/server-entrypoint` — `elevate`
+- `@owlmeans/server-api` — `handlers`
+- `@owlmeans/server-socket` — `socketHandler` and guard enforcement that fills `req.auth`
+- `@owlmeans/server-entrypoint` — `bind`
 - `@owlmeans/auth-common` — `DEFAULT_GUARD`
 
 ## Related

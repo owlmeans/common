@@ -135,7 +135,7 @@ the user onward through the flow rather than straight to the provider.
 ## Depends On
 
 - `@owlmeans/oidc` — the guard, the dispatcher entrypoint aliases, the query-parameter constants
-- `@owlmeans/web-client` — the context, plus `elevate` and `parametriseDispatcher`
+- `@owlmeans/web-client` — the browser context and dispatcher parametrisation
 - `@mui/material` (`^7`) and `react` — **peer** dependencies; the host application supplies both.
   This package does not depend on `@owlmeans/mui-panel`; it only renders comfortably beside it
 - `@owlmeans/client-auth` — `DispatcherHOC`, the plugin registry, `adoptToken`

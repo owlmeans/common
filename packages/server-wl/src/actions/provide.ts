@@ -1,12 +1,11 @@
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import { handleParams } from '@owlmeans/server-api'
+import { handlers } from '@owlmeans/server-api'
 import type { Context, WlEntityIdentifier, WlProvider } from '../types.js'
-import { assertContext } from '@owlmeans/context'
 import type { ProvideParams } from '@owlmeans/wled'
+import { wledEntrypoints } from '@owlmeans/wled'
 
-export const provide: RefedEntrypointHandler = handleParams<ProvideParams>(
-  async (params, ctx) => {
-    const context = assertContext(ctx, 'provide') as Context
+export const provide = handlers<Context>().params(
+  wledEntrypoints.provide,
+  async (params: ProvideParams, context) => {
 
     const dns = context.cfg.wlIdentifierService == null ? undefined
       : context.service<WlEntityIdentifier>(context.cfg.wlIdentifierService)

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.18-rc.17"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform
@@ -18,7 +18,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 
 | Import from `@owlmeans/client` | Import from `@owlmeans/web-client` |
 |---|---|
-| `useNavigate`, `useEntrypoint`, `useStoreModel`, `useStoreList`, `useValue`, `useToggle`, `useSetupModalNavigator` — none of these are re-exported | `renderApp`, `makeContext`, `useAuthenticated`, and the re-exported `handler` / `elevate` / `entrypoint` / `route` / `frontend` |
+| `useNavigate`, `useEntrypoint`, `useStoreModel`, `useStoreList`, `useValue`, `useToggle`, `useSetupModalNavigator` — none of these are re-exported | `renderApp`, `makeContext`, `useAuthenticated`, and protocol binding helpers from `@owlmeans/client-entrypoint` |
 | `RoutedComponent`, `EntrypointContextParams`, `Navigator`, `NavRequest`, `ClientContext` | `AppConfig`, `AppContext` |
 | `App`, `Router`, `makeClientContext` — the platform-agnostic mounts | `WebApp`, `renderApp` — the browser mounts that wrap them |
 

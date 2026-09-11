@@ -1,11 +1,10 @@
-import { entrypoint, filter, guard, query } from '@owlmeans/entrypoint'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod, socket } from '@owlmeans/route'
 import type { RouteOptions } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { DEFAULT_JOB_PATH } from './consts.js'
 import { JobListQuerySchema } from './schemas.js'
-import type { JobEntrypointAliases, JobEntrypointOptions } from './types.js'
+import type { JobEntrypointAliases, JobEntrypoints, JobEntrypointOptions, JobListQuery } from './types.js'
 
 /**
  * The aliases one job group answers under.
@@ -33,24 +32,30 @@ export const jobEntrypointAliases = (root: string): JobEntrypointAliases => ({
  */
 export const declareJobEntrypoints = (
   root: string, opts?: JobEntrypointOptions
-): CommonEntrypoint[] => {
+): JobEntrypoints => {
   const aliases = jobEntrypointAliases(root)
   const base: Partial<RouteOptions> = {
     ...(opts?.parent != null ? { parent: opts.parent } : {}),
     ...(opts?.service != null ? { service: opts.service } : {}),
   }
-  const guarded = opts?.guard === null ? undefined : guard(opts?.guard ?? DEFAULT_GUARD)
+  const guarded = opts?.guard === null ? undefined : { guards: opts?.guard ?? DEFAULT_GUARD }
 
-  return [
-    entrypoint(route(aliases.base, opts?.path ?? DEFAULT_JOB_PATH, backend(base)), guarded),
-    entrypoint(
+  return {
+    base: openProtocol(route(aliases.base, opts?.path ?? DEFAULT_JOB_PATH, backend(base)), guarded),
+    list: protocol(
       route(aliases.list, '/', backend(aliases.base)),
-      filter(query(JobListQuerySchema))
+      contract.request({ query: typed<JobListQuery>(JobListQuerySchema) }, typed())
     ),
     // Static before parametric, so `/watch` is not swallowed by `/:id`. The router picks the
     // static branch on its own; the order here is for whoever reads the declaration.
-    entrypoint(route(aliases.watch, '/watch', socket(aliases.base))),
-    entrypoint(route(aliases.get, '/:id', backend(aliases.base))),
-    entrypoint(route(aliases.cancel, '/:id', backend(aliases.base, RouteMethod.DELETE))),
-  ]
+    watch: protocol(route(aliases.watch, '/watch', socket(aliases.base)), contract(typed<void>())),
+    get: protocol(
+      route(aliases.get, '/:id', backend(aliases.base)),
+      contract.request({ params: typed<{ id: string }>() }, typed())
+    ),
+    cancel: protocol(
+      route(aliases.cancel, '/:id', backend(aliases.base, RouteMethod.DELETE)),
+      contract.request({ params: typed<{ id: string }>() }, typed())
+    ),
+  }
 }

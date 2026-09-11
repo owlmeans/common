@@ -1,11 +1,9 @@
-import { handleRequest } from '@owlmeans/server-api'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
 import type { Criteria } from '@owlmeans/resource'
 import type { JobRecord } from '@owlmeans/queue'
 import type { JobState } from '@owlmeans/queue'
 import { DEFAULT_JOB_SORT } from '../consts.js'
-import type { JobHandlerOptions, JobListQuery } from '../types.js'
+import type { Context, JobEntrypoints, JobHandlerOptions, JobListQuery } from '../types.js'
 import { jobScope, jobViewer, jobsOf } from '../utils/index.js'
 
 /**
@@ -17,8 +15,9 @@ import { jobScope, jobViewer, jobsOf } from '../utils/index.js'
  * for this list means the same thing applied to the store the browser holds.
  */
 export const listJobs = (
+  protocol: JobEntrypoints['list'],
   opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> => handleRequest(async (req, ctx) => {
+): ReturnType<ReturnType<typeof handlers<Context>>['request']> => handlers<Context>().request(protocol, async (req, ctx) => {
   const resource = jobsOf(ctx, opts)
   const viewer = await jobViewer(req, ctx, opts)
   const query = (req.query ?? {}) as JobListQuery

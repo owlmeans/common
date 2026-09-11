@@ -12,7 +12,7 @@ IndexedDB-backed client database service for OwlMeans web applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/web-db@^0.1.18-rc.13
+bun add @owlmeans/web-db
 ```
 
 ## Usage
@@ -70,7 +70,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,5 +1,5 @@
 
-import { entrypoints as list } from '@owlmeans/web-client'
-import { entrypoints as config } from '@owlmeans/api-config-client'
+import { bindings as webClientBindings } from '@owlmeans/web-client'
+import { bindings as configBindings } from '@owlmeans/api-config-client'
 
-export const entrypoints = [...list, ...config]
+export const bindings = [...webClientBindings, ...configBindings]

@@ -8,7 +8,7 @@ export { entrypoint, elevate, provideRequest, stab } from '@owlmeans/client-entr
 export type { ClientEntrypoint as Module } from '@owlmeans/client-entrypoint'
 export { route as croute } from '@owlmeans/client-route'
 export { route, frontend } from '@owlmeans/route'
-export { DEFAULT_ALIAS as DAUTH_GUARD, setupExternalAuthentication } from '@owlmeans/client-auth'
+export { DEFAULT_ALIAS as DAUTH_GUARD, bindExternalAuthentication } from '@owlmeans/client-auth'
 
 export { AppType, HOME, ROOT, BASE, GUEST } from '@owlmeans/context'
 

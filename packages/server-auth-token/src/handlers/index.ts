@@ -3,14 +3,14 @@ import {
   AUTH_TOKEN_MAX_TTL, AUTH_TOKEN_RESOURCE
 } from '@owlmeans/auth-token'
 import type {
-  AccessTokenList, AccessTokenParams, AccessTokenRecord, AccessTokenView, CreateAccessToken,
-  IssuedAccessToken
+  AccessTokenList, AccessTokenRecord, AccessTokenView, IssuedAccessToken
 } from '@owlmeans/auth-token'
 import { requireEntityKey } from '@owlmeans/auth-common'
-import { handleBody, handleParams, handleRequest } from '@owlmeans/server-api'
+import { handlers } from '@owlmeans/server-api'
 import { mintAccessToken } from '../hash.js'
 import { prefixOf } from '../guard.js'
 import type { AccessTokenResource, AuthTokenContext } from '../types.js'
+import type { AuthTokenEntrypoints } from '@owlmeans/auth-token'
 
 const view = (record: AccessTokenRecord): AccessTokenView => {
   const { hash, ...rest } = record
@@ -36,7 +36,7 @@ const refuseTokenAuth = (req: { auth?: { type?: string } }, what: string): void 
   }
 }
 
-export const listAccessTokens = handleRequest(async (req, context) => {
+export const listAccessTokens = (protocol: AuthTokenEntrypoints['list']) => handlers<AuthTokenContext>().request(protocol, async (req, context) => {
   const ctx = context as AuthTokenContext
   const entityId = requireEntityKey(req)
   const profileId = req.auth?.profileId
@@ -51,7 +51,7 @@ export const listAccessTokens = handleRequest(async (req, context) => {
   } satisfies AccessTokenList
 })
 
-export const createAccessToken = handleBody<CreateAccessToken>(async (payload, context, req) => {
+export const createAccessToken = (protocol: AuthTokenEntrypoints['create']) => handlers<AuthTokenContext>().body(protocol, async (payload, context, req) => {
   const ctx = context as AuthTokenContext
   refuseTokenAuth(req, 'token-mint')
 
@@ -91,7 +91,7 @@ export const createAccessToken = handleBody<CreateAccessToken>(async (payload, c
   return { token: minted.token, record: view(record) } satisfies IssuedAccessToken
 })
 
-export const revokeAccessToken = handleParams<AccessTokenParams>(async (payload, context, req) => {
+export const revokeAccessToken = (protocol: AuthTokenEntrypoints['revoke']) => handlers<AuthTokenContext>().params(protocol, async (payload, context, req) => {
   const ctx = context as AuthTokenContext
   refuseTokenAuth(req, 'token-revoke')
 

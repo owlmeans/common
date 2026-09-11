@@ -1,6 +1,6 @@
 ---
 name: wled
-description: How to use @owlmeans/wled — the shared white-label contract — company info, custom styles, brand media and DNS shapes, their AJV schemas, the wl type constants and the single WL_PROVIDE entrypoint both sides elevate. Auto-invoked when importing white-label types or schemas, or when adding a white-label provider.
+description: How to use @owlmeans/wled — the shared white-label contract — company info, custom styles, brand media and DNS shapes, their AJV schemas, the WL type constants and the single WL_PROVIDE protocol both sides bind. Auto-invoked when importing white-label types or schemas, or when adding a white-label provider.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -18,8 +18,8 @@ Everything that produces a white-label record lives downstream.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The single `WL_PROVIDE` declaration — a backend `GET /wl/provide/:entity`, filtered by `params(ProvideParamsSchema)` and guarded by nothing. Elevate it, never redeclare it |
-| `WL_PROVIDE` | That entrypoint's alias. Both `@owlmeans/server-wl` and `@owlmeans/web-wl` elevate this exact alias |
+| `wledEntrypoints.provide` | The `WL_PROVIDE` protocol — a backend `GET /wl/provide/:entity`, with typed params and no guard. Bind it; never redeclare it. |
+| `WL_PROVIDE` | The protocol alias. Both `@owlmeans/server-wl` and `@owlmeans/web-wl` bind this exact declaration. |
 | `WL_PROVIDE_PATH` | `'/wl/provide/:entity'` |
 | `WL_TYPE_COMPANY_INFO`, `WL_TYPE_STYLES`, `WL_TYPE_MEDIA`, `WL_TYPE_DNS` | The `type` a provider stamps on the record it returns — `'company-info'`, `'styles'`, `'media'`, `'dns'` |
 | `ProvidedWL<T>` | What one provider answers: `T & { type: string; exists: boolean \| null }` |

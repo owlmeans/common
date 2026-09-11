@@ -95,19 +95,20 @@ const granted = entitlementList(capabilities)
 ## Checkout
 
 Register `serviceEntrypoints` (and `entrypoints` where subscriptions are propagated back), then
-call the alias. `ClientEntrypoint.call` resolves to the response value itself and throws the reply's
-error; `invoke` is the form that hands back the value and the outcome together.
+bind the shared declaration in the caller runtime. `call` resolves to the response value itself and
+throws the reply's error; `invoke` returns the value and outcome together.
 
 ```typescript
 import { paymentApi, serviceEntrypoints } from '@owlmeans/payment'
 import type { CreateCheckoutBody, CreateCheckoutResponse } from '@owlmeans/payment'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { entrypointRef } from '@owlmeans/entrypoint'
 
 export const appEntrypoints = [...myEntrypoints, ...serviceEntrypoints]
 
-const result = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
+const checkout = entrypointRef<{ body: CreateCheckoutBody }, CreateCheckoutResponse>(
   paymentApi.service.checkout.session.external.create
-).call({
+)
+const result = await ctx.entrypoint(checkout).call({
   body: { productSku, entityId, service, successUrl } satisfies CreateCheckoutBody
 })
 window.open(result.url, '_blank')

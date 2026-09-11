@@ -1,9 +1,8 @@
-import { body, entrypoint, filter, guard, params } from '@owlmeans/entrypoint'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { authToken } from './consts.js'
 import { AccessTokenParamsSchema, CreateAccessTokenSchema } from './schemas.js'
-import type { AuthTokenEntrypointOptions } from './types.js'
+import type { AccessTokenList, AccessTokenParams, AuthTokenEntrypoints, AuthTokenEntrypointOptions, CreateAccessToken, IssuedAccessToken } from './types.js'
 
 /**
  * The three routes a token surface needs, ready to be spread into an application's entrypoints.
@@ -18,24 +17,24 @@ import type { AuthTokenEntrypointOptions } from './types.js'
  */
 export const makeAuthTokenEntrypoints = (
   opts: AuthTokenEntrypointOptions = {}
-): CommonEntrypoint[] => {
+): AuthTokenEntrypoints => {
   const path = opts.path ?? '/tokens'
   const base = opts.parent != null
-    ? entrypoint(route(authToken.base, path, { parent: opts.parent }))
-    : entrypoint(route(authToken.base, path), opts.guard != null ? guard(opts.guard) : undefined)
+    ? openProtocol(route(authToken.base, path, { parent: opts.parent }))
+    : openProtocol(route(authToken.base, path), opts.guard == null ? undefined : { guards: opts.guard })
 
-  return [
+  return {
     base,
-    entrypoint(route(authToken.list, '/', {
+    list: protocol(route(authToken.list, '/', {
       parent: authToken.base, method: RouteMethod.GET
-    })),
-    entrypoint(
+    }), contract(typed<AccessTokenList>())),
+    create: protocol(
       route(authToken.create, '/', { parent: authToken.base, method: RouteMethod.POST }),
-      filter(body(CreateAccessTokenSchema))
+      contract.request({ body: typed<CreateAccessToken>(CreateAccessTokenSchema) }, typed<IssuedAccessToken>())
     ),
-    entrypoint(
+    revoke: protocol(
       route(authToken.revoke, '/:id', { parent: authToken.base, method: RouteMethod.DELETE }),
-      filter(params(AccessTokenParamsSchema))
+      contract.request({ params: typed<AccessTokenParams>(AccessTokenParamsSchema) }, typed<{ id: string }>())
     ),
-  ]
+  }
 }

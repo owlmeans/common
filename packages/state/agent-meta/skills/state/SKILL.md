@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/state
 
 **Layer:** Core
-**Install:** `"@owlmeans/state": "^0.1.18-rc.10"` in `dependencies`
+**Install:** `"@owlmeans/state": "^0.1.18-rc.11"` in `dependencies`
 
 The framework's client store. A state resource is a `Resource` like any other, registered **on the
 context** — which is what separates it from a store held beside the app: a screen, a service and a
@@ -120,7 +120,7 @@ back into the store, and let the subscriptions render it:
 ```typescript
 const store = ctx.getStateResource(TASKS)
 
-const tasks = await ctx.entrypoint<ClientEntrypoint<Task[]>>(TASK_LIST).call()
+const tasks = await ctx.entrypoint(taskEntrypoints.list).call()
 await store.replace(tasks)
 ```
 

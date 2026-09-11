@@ -18,7 +18,7 @@ answer into the client config. Nothing here runs — it is the shared declaratio
 | Export | Description |
 |--------|-------------|
 | `entrypoints` | The single declaration — alias `API_CONFIG`, route `/assets/config.json`, `sticky: true` so a router attaches it unconditionally |
-| `API_CONFIG` | The alias (`api-config:advertise`) both sides elevate |
+| `apiConfigEntrypoints.config` | The shared `api-config:advertise` protocol both sides bind |
 | `apiConfigPlugin(plugin)` | Registers one package's public config selection as its module loads |
 | `every(selection, where?)` | Applies a selection to every list item or object-map value, optionally filtering items |
 | `ApiConfigPlugin` | `{ allow, deny? }` — nested allowlist with an optional nested redaction selector |

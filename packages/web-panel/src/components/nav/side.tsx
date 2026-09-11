@@ -1,6 +1,5 @@
 import type { FC } from 'react'
 import { defaultNavTranslate, resolveNavLabel, usePanelNav } from '@owlmeans/client-panel'
-import { aliasOf } from '@owlmeans/entrypoint'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -23,11 +22,10 @@ export const SideNav: FC<SideNavProps> = (
   }
 
   const items = model.active.items.map(item => {
-    const alias = aliasOf(item.alias)
-    const label = resolveNavLabel(translate, item.label, `modules.${alias}`, alias)
+    const label = resolveNavLabel(translate, item.label, `modules.${item.alias}`, item.alias)
 
     return <Button
-      key={alias}
+      key={item.alias}
       variant="ghost"
       size={variant === 'bar' ? 'sm' : 'default'}
       onClick={model.goItem(item)}

@@ -1,11 +1,14 @@
-import { filter, entrypoint, params } from '@owlmeans/entrypoint'
+import { contract, protocol, protocols, typed } from '@owlmeans/entrypoint'
+import type { ProvideParams } from './types.js'
 import { route, backend } from '@owlmeans/route'
 import { WL_PROVIDE, WL_PROVIDE_PATH } from './consts.js'
 import { ProvideParamsSchema } from './model/provider.js'
 
-export const entrypoints = [
-  entrypoint(
+export const wledEntrypoints = {
+  provide: protocol(
     route(WL_PROVIDE, WL_PROVIDE_PATH, backend()),
-    filter(params(ProvideParamsSchema))
+    contract.request({ params: typed<ProvideParams>(ProvideParamsSchema) }, typed())
   )
-]
+}
+
+export const entrypoints = protocols(wledEntrypoints)

@@ -4,6 +4,7 @@ import type { JSONSchemaType, AnySchemaObject } from 'ajv'
 import type { RouteModel } from '@owlmeans/route'
 import type { EntrypointOutcome } from './consts.js'
 import type { ResolvedEntity } from './types.js'
+import type { AbstractRequest } from './types.js'
 
 /** A deliberately broad value used only by declarations without an I/O contract. */
 export type OpenValue = object | string | number | boolean | bigint | null | undefined
@@ -115,6 +116,12 @@ export interface EntrypointProtocolDeclaration {
   }
 }
 
+/** An access gate declared by a protocol, including inherited parent declarations. */
+export interface EntrypointGate {
+  readonly alias: string
+  readonly params: readonly string[]
+}
+
 type SourceValue<Source> =
   Source extends Typed<infer Value> ? Value
     : Source extends EntrypointSchema<infer Value> ? Value
@@ -219,7 +226,13 @@ export interface EntrypointRequestMeta {
   cancel?: () => void
 }
 
-export type HandlerRequest<Request extends RequestShape> = Request & EntrypointRequestMeta
+/**
+ * A protocol request at an implementation boundary.
+ *
+ * Transport metadata and empty request sections remain available to handlers; a declared section
+ * then refines that base shape to its protocol contract.
+ */
+export type HandlerRequest<Request extends RequestShape> = AbstractRequest & Request & EntrypointRequestMeta
 
 /** The context-bound counterpart of an immutable protocol declaration. */
 export interface RegisteredEntrypoint<Request extends RequestShape, Response> extends BasicEntrypoint {
@@ -334,6 +347,29 @@ export const protocols = (tree: EntrypointTree): EntrypointProtocolDeclaration[]
   }
 
   visit(tree)
+  return result
+}
+
+/** Resolve the gates a protocol inherits through its route parents without materializing it. */
+export const gatesOf = (
+  protocol: EntrypointProtocolDeclaration,
+  tree: EntrypointTree,
+): readonly EntrypointGate[] => {
+  const byAlias = new Map(protocols(tree).map(candidate => [candidate.alias, candidate]))
+  const result: EntrypointGate[] = []
+  const visited = new Set<string>()
+  let current: EntrypointProtocolDeclaration | undefined = protocol
+
+  while (current != null && !visited.has(current.alias)) {
+    visited.add(current.alias)
+    if (current.gate != null && !result.some(gate => gate.alias === current!.gate!.alias)) {
+      result.push(current.gate)
+    }
+    current = current.route.route.parent == null
+      ? undefined
+      : byAlias.get(current.route.route.parent)
+  }
+
   return result
 }
 

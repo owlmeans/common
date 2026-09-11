@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/i18n",
-  "version": "0.1.18-rc.8",
+  "version": "0.1.18-rc.7",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -8,9 +8,6 @@
     "test": "bun test ./tests",
     "dev": "sleep 168 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
-  },
-  "dependencies": {
-    "@owlmeans/api-config": "^0.1.18-rc.12"
   },
   "main": "build/index.js",
   "module": "build/index.js",

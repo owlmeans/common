@@ -53,7 +53,7 @@ declarations and the form model all survive it.
 | `scalingToStyles(h, v, theme)` | `BlockScaling` → `SxProps`, the sizing every panel here shares |
 | `useBreakPoint()` | The current MUI breakpoint name — `xs`/`sm`/`md`/`lg`/`xl`, or `unknown` when none matches |
 | `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
-| Re-exports | `entrypoint`, `elevate`, `handler`, `route`, `croute`, `frontend`, `provideRequest`, `stab`, `guard`, `useNavigate`, `useEntrypoint`, `useValue`, `config`, `service`, `addWebService`, `DAUTH_GUARD` / `setupExternalAuthentication`, `useI18n` / `useI18nApp` / `useI18nLib` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `Dispatcher`, `appendWebAuthService`, `HOME` / `ROOT` / `BASE` / `GUEST` / `AppType`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, and the types `AuthToken` and `Module` (`ClientEntrypoint` under its legacy name — what applications type their entrypoints with) |
+| Re-exports | Protocol binding helpers (`bind`, `bindAll`, `bindScreen`), `handler`, route and frontend helpers, navigation/state/config APIs, authentication exports and theme integration. Use shared protocol references for typed entrypoint calls. |
 | Re-export of `@owlmeans/client-panel` | The whole cross-platform panel surface — `ClientForm`, `PanelContext`, `usePanelI18n`, `useFormRef`, `BlockScaling`, … |
 
 ## Subpath Exports
@@ -109,7 +109,7 @@ consistent surface. `PanelApp` memoises the theme on identity — hand it a stab
   at v7 for the MUI packages. A second copy of `@mui/material` in the tree gives two theme contexts
   and components that read the wrong one.
 - **`Link` takes the screen on a prop named `module`, not `entrypoint`.** `LinkProps` declares
-  `module?: string | ClientEntrypoint` — the legacy name, kept while the prose and the rest of the
+  `module?: string | RegisteredEntrypoint` — the context-bound protocol registration used by the
   tree say entrypoint. There is no `entrypoint` prop, and a `Link` given none renders an anchor with
   no `href`. Its default label key is `modules.<alias>`, from the same legacy family.
 - **`Link` resolves its `href` asynchronously.** It asks the entrypoint for its own URL, so the

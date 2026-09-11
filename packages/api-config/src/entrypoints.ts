@@ -1,7 +1,8 @@
-import { entrypoint } from '@owlmeans/entrypoint'
+import { openProtocol } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { API_CONFIG } from './consts.js'
 
-export const entrypoints = [
-  entrypoint(route(API_CONFIG, '/assets/config.json'), { sticky: true }),
-]
+/** The public runtime-config endpoint protocol. */
+export const advertise = openProtocol(route(API_CONFIG, '/assets/config.json'), { sticky: true })
+
+export const protocols = [advertise]

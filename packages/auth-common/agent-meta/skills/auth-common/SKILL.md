@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.14"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
 entrypoint declarations, the signature guard, and the contract for resolving the organization
@@ -35,7 +35,7 @@ entity a token names.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The shared auth entrypoint list — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages elevate the entries they serve |
+| `authEntrypoints` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
 | `managerEntrypoints` | The auth-manager web API entrypoints (profile → entity slug, auth delegation) |
 | `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server |
 | `authMiddleware` | Loading-stage context middleware that attaches the guard's token to every guarded backend entrypoint's `invoke`/`call` |

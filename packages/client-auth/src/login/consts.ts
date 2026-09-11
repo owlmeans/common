@@ -47,24 +47,5 @@ export const LOGIN_NEXT_QUERY = 'next'
  */
 export const LOGIN_METHOD_QUERY = 'method'
 
-/**
- * Says that this window was opened to PRODUCE a session, not to find one.
- *
- * A surrogate window runs on the application's own origin, so it can see a session the application
- * left there earlier — and a session that is merely present is not a session that still works. The
- * document holding it has no way to tell: `authenticated()` reads storage and decodes an envelope,
- * and nothing in the client asks the server whether the record behind it is still there. So a
- * revoked, replaced or expired token was handed straight back to the window that asked for a
- * login, which adopted it, failed every call it made with it, and asked again — the same dead
- * token, every time, for as long as the browser kept it. Clearing site data was the only exit,
- * which is exactly how the defect was reported.
- *
- * With this set, the surrogate and the dispatcher both skip the resume and run the authorization
- * flow. That is not the expensive path it sounds like: the provider's own session normally answers
- * the request without asking the person anything, and what comes back is a token the provider has
- * just vouched for. It is also what makes signing in as somebody else possible at all.
- */
-export const LOGIN_FRESH_QUERY = 'fresh'
-
 /** Where a browser records that it agreed to one exact set of legal documents. */
 export const LOGIN_TERMS_STORAGE = '_owlmeans-login-terms'

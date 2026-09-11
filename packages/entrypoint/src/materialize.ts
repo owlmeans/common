@@ -44,6 +44,6 @@ const optionsOf = (protocol: EntrypointProtocolDeclaration): CommonEntrypointOpt
 export const materializeEntrypoint = <Protocol extends EntrypointProtocolDeclaration>(
   protocol: Protocol,
 ): MaterializedEntrypoint<Protocol> => Object.assign(
-  entrypoint(protocol.route, optionsOf(protocol)),
+  entrypoint({ route: { ...protocol.route.route } }, optionsOf(protocol)),
   { protocol },
 )

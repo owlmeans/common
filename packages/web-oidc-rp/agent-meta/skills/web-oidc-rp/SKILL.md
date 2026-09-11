@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.26"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.25"` in `dependencies`
 
 ## Key Exports
 
@@ -132,10 +132,11 @@ concatenation, and never a hand-built query string:
 
 ```typescript
 import { HOME } from '@owlmeans/web-client'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { entrypointRef } from '@owlmeans/entrypoint'
 
-const home = await context.entrypoint<ClientEntrypoint<string>>(HOME).url(undefined, { absolute: true })
-const typed = await context.entrypoint<ClientEntrypoint<string>>(alias).url({ params }, { absolute: true })
+const home = await context.entrypoint(entrypointRef(HOME)).url(undefined, { absolute: true })
+const typed = await context.entrypoint(entrypointRef<{ params: Record<string, string> }, string>(alias))
+  .url({ params }, { absolute: true })
 ```
 
 `url(req?, opts?)` fills the `:params` in and appends the query. It is already absolute when the

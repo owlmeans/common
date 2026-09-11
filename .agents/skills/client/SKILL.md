@@ -17,7 +17,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 
 | Import from `@owlmeans/client` | Import from `@owlmeans/web-client` |
 |---|---|
-| `useNavigate`, `useEntrypoint`, `useStoreModel`, `useStoreList`, `useValue`, `useToggle`, `useSetupModalNavigator` — none of these are re-exported | `renderApp`, `makeContext`, `useAuthenticated`, and the re-exported `handler` / `elevate` / `entrypoint` / `route` / `frontend` |
+| `useNavigate`, `useEntrypoint`, `useStoreModel`, `useStoreList`, `useValue`, `useToggle`, `useSetupModalNavigator` — none of these are re-exported | `renderApp`, `makeContext`, `useAuthenticated`, and protocol binding helpers from `@owlmeans/client-entrypoint` |
 | `RoutedComponent`, `EntrypointContextParams`, `Navigator`, `NavRequest`, `ClientContext` | `AppConfig`, `AppContext` |
 | `App`, `Router`, `makeClientContext` — the platform-agnostic mounts | `WebApp`, `renderApp` — the browser mounts that wrap them |
 

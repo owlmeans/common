@@ -43,7 +43,7 @@ serves this entrypoint with the key unset fails the request rather than returnin
 
 The declaration `@owlmeans/wled` ships carries **no guard**, and this package elevates it with a
 handler only — so the endpoint answers anonymously and any caller who can name an organization reads
-every section the deployment registered. Keep white-label records public by design, or elevate the
+every section the deployment registered. Keep white-label records public by design, or bind the
 alias with a guard of your own in the application's entrypoint list.
 
 ## The response is keyed by service alias

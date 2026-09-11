@@ -1,4 +1,5 @@
-import { entrypoints as apiConfig } from '@owlmeans/api-config-server'
-import { entrypoints as list } from '@owlmeans/server-auth'
+import { bindings as apiConfigBindings } from '@owlmeans/api-config-server'
+import { bindings as authBindings } from '@owlmeans/server-auth'
 
-export const entrypoints = [...list, ...apiConfig]
+/** Framework server bindings every application receives. */
+export const bindings = [...authBindings, ...apiConfigBindings]

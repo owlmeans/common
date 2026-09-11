@@ -1,7 +1,6 @@
 
-import { entrypoints as config, API_CONFIG } from '@owlmeans/api-config'
-import { elevate } from '@owlmeans/client-entrypoint'
+import { advertise } from '@owlmeans/api-config'
+import { bind } from '@owlmeans/client-entrypoint'
 
-elevate(config, API_CONFIG)
-
-export const entrypoints = config
+/** The browser-local binding of the shared runtime-config protocol. */
+export const bindings = [bind(advertise)]

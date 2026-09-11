@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/config
 
 **Layer:** Core
-**Install:** `"@owlmeans/config": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/config": "^0.1.18-rc.13"` in `dependencies`
 
 ## Key Exports
 
@@ -117,8 +117,8 @@ Scheme selection, in the order it is decided:
   `RouteProtocols.SOCKET` — and the host is reduced to the authority. It does not decide TLS; the
   `s` is still appended from the steps above.
 
-On the client prefer `context.entrypoint<ClientEntrypoint<string>>(alias).url()`, which delegates
-here — see `@owlmeans/client-entrypoint`.
+On the client prefer `context.entrypoint(protocol).url()`, which delegates here; keep the route
+reference and its request/response types in the shared declaration.
 
 ## Config records as a resource
 

@@ -1,8 +1,10 @@
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { ApiConfig } from '@owlmeans/api-config'
+import { implementation } from '@owlmeans/server-entrypoint'
+import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import { advertisedConfig } from '@owlmeans/api-config'
-import { handleRequest } from '@owlmeans/server-api'
+import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 
-export const advertise: RefedEntrypointHandler<ApiConfig> = handleRequest(async (_, ctx) => {
-  return advertisedConfig(ctx.cfg) as ApiConfig
+export const advertise = (protocol: EntrypointProtocol<OpenRequest, OpenValue>) =>
+  implementation(protocol, async (_, context) => {
+  const ctx = context as ServerContext<ServerConfig>
+  return advertisedConfig(ctx.cfg)
 })

@@ -6,14 +6,13 @@ The main entry point for OwlMeans backend services — aggregates server package
 
 - `makeContext(cfg)` creates a fully initialized server context with Fastify, auth, WebSocket, and static resource support
 - `main(ctx, entrypoints)` registers entrypoints, initializes the context, and starts the HTTP server
-- `holdApiPort` + the boot-state module give a bind-first boot: the port answers for the app before it initializes
 - Re-exports the most commonly used symbols from lower-level packages so backend code has a single import target
 - Used by every service in the viable monorepo
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app@^0.1.18-rc.17
+bun add @owlmeans/server-app
 ```
 
 ## Usage
@@ -45,47 +44,6 @@ elevate(appEntrypoints, 'project-create', handleBody<CreateProject>(async (paylo
 }), guard(GUARD_ED25519))
 ```
 
-### Bind-first boot
-
-`main()` is the short path. An app that must explain a **failed** boot binds the port first instead,
-so a startup failure has somewhere to be reported from — without a listener the edge answers a bare
-connect error that names neither the app nor the cause:
-
-```typescript
-import { holdApiPort, bootHold, setBootPhase, bootHealthPayload } from '@owlmeans/server-app'
-
-const hold = await holdApiPort(ctx.cfg, bootHold(HEALTH_PATH)).catch((error: Error) => {
-  // A failure to BIND is fatal: carried past, the boot ends with nothing listening and exits 0
-  // while a predecessor keeps serving stale code. Exit non-zero so a supervisor reclaims the port.
-  console.error(`[boot] STARTUP FAILED — ${error.message}`)
-  process.exit(1)
-})
-
-try {
-  await ctx.configure().init()
-} catch (error) {
-  // Stay alive: the hold is the only thing that can explain why nothing is serving.
-  setBootPhase('failed', (error as Error).message)
-  return
-}
-
-await hold.release()          // awaited — `listen()` throws while a predecessor holds the socket
-setBootPhase('ready')
-await ctx.getApiServer().listen()
-```
-
-The hold answers `HEALTH_PATH` with `bootHealthPayload()` and everything else with **503** (not 404
-— the real routes do not exist yet). Once the app's own server takes the socket, its health handler
-spreads the same `bootHealthPayload()` into its answer, so a consumer polling across the handover
-never sees the body change under it:
-
-```typescript
-export const handleHealtz = handleRequest(async (_req, ctx) => ({
-  ...bootHealthPayload(),
-  db: await pingDb(ctx)
-}))
-```
-
 ## API
 
 ### `makeContext<C, T>(cfg, customize?): T`
@@ -95,23 +53,6 @@ Creates a server context with Fastify HTTP, WebSocket, static resources, and aut
 ### `main<R, C, T>(ctx, entrypoints): Promise<void>`
 
 Registers entrypoints, calls `configure().init()`, then starts the Fastify server.
-
-### Boot state
-
-Process-wide boot phase, shared by the port hold and the app's own health handler.
-
-| Symbol | Description |
-|---|---|
-| `setBootPhase(phase, detail?)` | Record the phase; `detail` is free text kept for every phase |
-| `getBootPhase(): BootPhase` / `getBootDetail()` | Current phase and its detail |
-| `bootHealthPayload(): BootHealth` | `{ status, phase, ok, reason?, bootId, pid }` — the health body |
-| `bootHold(okPath?): ApiPortHoldOptions` | `holdApiPort` options wired to this module |
-| `BootPhase` | `'initializing' \| 'ready' \| 'failed'` |
-| `BOOT_ID_ENV` | `'OWLMEANS_BOOT_ID'` — a supervisor stamps the child, `bootId` echoes it back |
-
-`bootId` is identity, not health: an answer carrying an id other than the one the supervisor spawned
-means a leftover process still owns the port and the health it reports describes code nobody asked
-for.
 
 ### Re-exported symbols (for convenience)
 
@@ -153,7 +94,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

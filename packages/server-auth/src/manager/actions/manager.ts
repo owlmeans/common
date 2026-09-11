@@ -1,23 +1,23 @@
-import type { AllowanceRequest, AuthCredentials } from '@owlmeans/auth'
-import { handleBody } from '@owlmeans/server-api'
+import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
+import type { EntrypointProtocol } from '@owlmeans/entrypoint'
+import { implementation } from '@owlmeans/server-entrypoint'
 import { makeAuthModel } from '../model.js'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import type { AppContext, AppConfig } from '../types.js'
-import { handleConnection } from '@owlmeans/server-socket'
+import { connection } from '@owlmeans/server-socket'
 
-export const authenticationInit: RefedEntrypointHandler<AllowanceRequest> = handleBody(
-  async (payload: AllowanceRequest, ctx) =>
-    await makeAuthModel(ctx as AppContext<AppConfig>).init(payload)
+export const authenticationInit = (protocol: EntrypointProtocol<{ body: AllowanceRequest }, AllowanceResponse>) =>
+  implementation(protocol, async (request, context) =>
+  await makeAuthModel(context as AppContext<AppConfig>).init(request.body)
 )
 
-export const authenticate: RefedEntrypointHandler<AuthCredentials> = handleBody(
-  async (payload: AuthCredentials, ctx) =>
-    await makeAuthModel(ctx as AppContext<AppConfig>).authenticate(payload)
+export const authenticate = (protocol: EntrypointProtocol<{ body: AuthCredentials }, AuthToken>) =>
+  implementation(protocol, async (request, context) =>
+  await makeAuthModel(context as AppContext<AppConfig>).authenticate(request.body)
 )
 
-export const rely: RefedEntrypointHandler<void> = handleConnection(
+export const rely = (protocol: EntrypointProtocol<{ query: Partial<AuthToken> }, undefined>) => connection(protocol,
   // @TODO Request will contain information is there requrest 
   // privileged or not (privileged request implies auth provider)
-  async (conn, ctx, req) =>
-    await makeAuthModel(ctx as AppContext<AppConfig>).rely(conn, req.auth)
+  async (conn, context, request) =>
+    await makeAuthModel(context as AppContext<AppConfig>).rely(conn, request.auth)
 )

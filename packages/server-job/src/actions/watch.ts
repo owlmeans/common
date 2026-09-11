@@ -1,11 +1,9 @@
-import { handleConnection } from '@owlmeans/server-socket'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
+import { connection } from '@owlmeans/server-socket'
 import type { EventMessage } from '@owlmeans/socket'
 import { MessageType } from '@owlmeans/socket'
 import type { JobEvent } from '@owlmeans/queue'
 import { JOB_EVENT } from '../consts.js'
-import type { JobHandlerOptions } from '../types.js'
+import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
 import { jobViewer, jobsOf, owns } from '../utils/index.js'
 
 /**
@@ -21,8 +19,9 @@ import { jobViewer, jobsOf, owns } from '../utils/index.js'
  * rather than fanned out to everyone. Leave completed jobs in place on any queue that is watched.
  */
 export const watchJobs = (
+  protocol: JobEntrypoints['watch'],
   opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> => handleConnection(async (conn, ctx, req) => {
+): ReturnType<typeof connection> => connection<typeof protocol, Context>(protocol, async (conn, ctx, req) => {
   const resource = jobsOf(ctx, opts)
   const viewer = await jobViewer(req, ctx, opts)
   const mine = new Set<string>()

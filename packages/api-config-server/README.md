@@ -4,14 +4,14 @@ Server-side entrypoint that serves safe configuration values at `GET /assets/con
 
 ## Overview
 
-- Registers the `API_CONFIG` handler that returns package-allowlisted config fields to clients
+- Registers the `API_CONFIG` handler that returns non-sensitive config fields to clients
 - Used alongside `@owlmeans/api-config-client` to push runtime config from server to browser
 - Include `entrypoints` in your server entrypoint registration
 
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config-server@^0.1.18-rc.16
+bun add @owlmeans/api-config-server
 ```
 
 ## Usage
@@ -28,8 +28,6 @@ context.registerEntrypoints([...appEntrypoints, ...apiConfigEntrypoints])
 ### `entrypoints`
 
 Array of server-side route handlers for the config advertisement endpoint (`GET /assets/config.json`).
-The handler returns only values registered through `apiConfigPlugin()` by packages loaded in the
-server process; it never copies server config generically.
 
 ## Related Packages
 
@@ -44,7 +42,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
