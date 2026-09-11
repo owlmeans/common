@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/llm-delegate",
-  "version": "0.1.18-rc.1",
+  "version": "0.1.18-rc.2",
   "license": "MIT",
   "description": "A model whose calls are performed by somebody else — a coding agent, a person, a test — through a transport the application seats. Same BaseChatModel contract, no endpoint.",
   "type": "module",
@@ -23,10 +23,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.18-rc.9",
-    "@owlmeans/error": "^0.1.18-rc.8",
-    "@owlmeans/llm": "^0.1.18-rc.13",
-    "@owlmeans/llm-common": "^0.1.18-rc.12"
+    "@owlmeans/basic-ids": "^0.1.18-rc.11",
+    "@owlmeans/error": "^0.1.18-rc.10",
+    "@owlmeans/llm": "^0.1.18-rc.15",
+    "@owlmeans/llm-common": "^0.1.18-rc.14"
   },
   "peerDependencies": {
     "@langchain/core": "^1.2.9"

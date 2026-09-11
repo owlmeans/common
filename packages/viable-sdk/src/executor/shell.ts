@@ -142,7 +142,12 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       const refused = await refusal()
       if (refused != null) return refused
 
-      const cmd = `bun ${args ?? 'install'}`
+      // A connector target is agent-writable. Bun's default hardlink backend makes every file in
+      // node_modules share an inode with the machine cache, so an accidental dependency edit can
+      // poison every later install on that machine. Copy the registry payload into the target and
+      // refresh it for the initial install; this also prevents a stale development cache from
+      // winning over the immutable package body named by the lockfile.
+      const cmd = `bun ${args ?? 'install --force --backend=copyfile'}`
 
       return await runCommand(cmd, { cwd: fileHelper.getRootPath(options?.subproject ?? subproject) })
     },
@@ -167,7 +172,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
         // No lockfile to clear is not a failure — a tree may predate one, or have had it removed.
       }
 
-      return await runCommand('bun install', { cwd: root })
+      return await runCommand('bun install --force --backend=copyfile', { cwd: root })
     },
 
     buildCommon: async (): Promise<string | null> => {

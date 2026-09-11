@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.15"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), the subscription
 record, the entitlement grammar, and the entrypoint declarations both sides of a checkout share. It

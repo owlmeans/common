@@ -60,7 +60,7 @@ const marked = (body: string): string =>
 
 const mcpJsonEntry = {
   command: 'npx',
-  args: ['-y', '@owlmeans/viable-mcp'],
+  args: ['-y', '@owlmeans/viable-mcp@next'],
   env: {
     [ENV_TOKEN]: `\${${ENV_TOKEN}}`,
   },
@@ -109,7 +109,7 @@ ${WORKER_BODY}
           content: `# Add to ~/.codex/config.toml
 [mcp_servers.viable]
 command = "npx"
-args = ["-y", "@owlmeans/viable-mcp"]
+args = ["-y", "@owlmeans/viable-mcp@next"]
 env_vars = ["${ENV_TOKEN}"]
 startup_timeout_sec = 20
 # Every viable tool answers within 45s; the default 60 leaves no margin for a slow network.
@@ -143,7 +143,7 @@ ${WORKER_BODY}
           content: JSON.stringify({
             type: 'stdio',
             command: 'npx',
-            args: ['-y', '@owlmeans/viable-mcp'],
+            args: ['-y', '@owlmeans/viable-mcp@next'],
             env: { [ENV_TOKEN]: '${input:viable-token}' },
           }, null, 2),
         },
@@ -167,7 +167,7 @@ ${WORKER_BODY}
           jsonKey: ['mcp', 'viable'],
           content: JSON.stringify({
             type: 'local',
-            command: ['npx', '-y', '@owlmeans/viable-mcp'],
+            command: ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.1'],
             environment: { [ENV_TOKEN]: `{env:${ENV_TOKEN}}` },
             enabled: true,
           }, null, 2),

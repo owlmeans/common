@@ -77,6 +77,9 @@ export const connectRef = {
     delete: entrypointRef<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>(connect.story.delete),
     develop: entrypointRef<{ params: { id: string, storyId: string } }, ConnectJob>(connect.story.develop),
   },
+  files: {
+    list: entrypointRef<{ params: { id: string } }, string[]>(connect.files.list),
+  },
   pipeline: {
     state: entrypointRef<{ params: ConnectPipelineParams }, ConnectPipelineState>(connect.pipeline.state),
     resume: entrypointRef<{

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-payment
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.20"` in `dependencies` (peer `react`)
+**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.22"` in `dependencies` (peer `react`)
 
 The same `PaymentService` as `@owlmeans/payment`, with one method adapted for a browser. Everything
 else — the catalogue reads, the entitlement helpers, the entrypoint aliases — is imported from the

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-app
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-app": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/server-app": "^0.1.18-rc.20"` in `dependencies`
 
 The one package a backend application depends on directly. It assembles the server context, owns the
 process entry point, and re-exports everything an app needs to declare its config, its entrypoints

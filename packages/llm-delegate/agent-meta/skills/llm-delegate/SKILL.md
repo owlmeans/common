@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-delegate
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/llm-delegate": "^0.1.18-rc.1"` in `dependencies` (peer `@langchain/core`)
+**Install:** `"@owlmeans/llm-delegate": "^0.1.18-rc.2"` in `dependencies` (peer `@langchain/core`)
 **Contracts:** `@owlmeans/llm-common` (`./delegate`) — `DelegatedTask`, `DelegatedResult`,
 `DelegateTransport`, `DelegatedMode`/`Role`/`ResultKind`; the provider value is
 `ModelProvider.Delegated`
@@ -24,7 +24,7 @@ rather than of the code: same pipeline, same prompts, same retry rules, billed t
 
 | Export | Description |
 |--------|-------------|
-| `DelegatedChatModel` | The `BaseChatModel`. Fields: `delegate`, `tier`, `role`, `attempt`, `feedback`, `maxOutputChars`; `withAttempt(n, feedback?)` |
+| `DelegatedChatModel` | The `BaseChatModel`. Fields: `delegate`, `tier`, `role`, `model`/`modelName`, `attempt`, `feedback`, `maxOutputChars`; `withAttempt(n, feedback?)` |
 | `delegatedPlugin` | The `LlmPlugin`, self-registered on import |
 | `registerDelegateTransport(key, transport)` · `releaseDelegateTransport(key)` · `hasDelegateTransport(key)` · `transportFor(key)` | The registry. `transportFor` throws rather than waits |
 | `DelegateError` · `DelegateUnavailable` | `ResilientError` classes, both registered |
@@ -109,6 +109,22 @@ name, because a performer has no provider. No pipeline vocabulary travels: a `ro
 only, because the performer has to choose a model. Usage the performer reports is carried for the
 trace and costs this deployment nothing.
 
+## A model with no endpoint still has to say which model it is
+
+The runtime identifies the instance that ran by `lc_kwargs.model` — the field name every provider
+client is constructed with — for the line it logs on every call and for the model section of a
+null-result report. `lc_kwargs` is nothing but the fields handed to the constructor, so a delegated
+model built without that key was logged as `DelegatedChatModel undefined`: a call performed by
+somebody outside this process, with nothing anywhere saying which one. The constructor therefore
+writes it, rather than leaving it to the caller — the name is DERIVED (`delegated:<tier>`) where
+none was given, and a model has to be identifiable however it was built. `withAttempt` carries it,
+because a refined instance is what the next attempt logs, and the plugin passes `config.model` so
+the logged name and `metadata.config.model` are one string. `modelName` stays the same value on the
+instance, which is what a spectator reads.
+
+The identifier is the TIER, never the role: `metadata.config.model` groups a run's token usage by
+it, and a second vocabulary in the same field would split one deployment's calls across two names.
+
 ## `DELEGATED_SECRET` is a placeholder, not a credential
 
 The model factory refuses a config with no `secret`, because for every other provider that means a
@@ -121,7 +137,8 @@ clamps something sane to work with.
 ## Tests
 
 `bun test ./tests` — offline throughout, with a seated test transport recording what the performer
-was asked and answering what the test says.
+was asked and answering what the test says; plus the name a call is logged under, on a model built
+with nothing, one built by the plugin, and one rebuilt for a retry.
 
 ## Depends On
 

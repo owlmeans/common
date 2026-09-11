@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/basic-envelope
 
 **Layer:** Core
-**Install:** `"@owlmeans/basic-envelope": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/basic-envelope": "^0.1.18-rc.14"` in `dependencies`
 
 An envelope is a signed, self-expiring container: a type tag, an encoded message, a timestamp and a
 TTL, plus the signature over all of it. It is what carries auth challenges and tokens between

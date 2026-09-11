@@ -1,6 +1,6 @@
 ---
 name: viable-mcp
-description: How to use @owlmeans/viable-mcp — the npx MCP server a coding agent drives the OwlMeans Viable platform with — the stdout guard that keeps everything but JSON-RPC off the protocol stream, the environment-only token, the lazily opened single-flight session, and the marker-based attach. Auto-invoked when changing the MCP server, its configuration, its startup behaviour, or diagnosing a host that reports the server as broken.
+description: How to use @owlmeans/viable-mcp — the npx MCP server a coding agent drives the OwlMeans Viable platform with — the stdout guard that keeps everything but JSON-RPC off the protocol stream, the environment-only token, the lazily opened single-flight session, the marker-based attach, and the capabilities each target × llm mode advertises. Auto-invoked when changing the MCP server, its configuration, its startup behaviour, or diagnosing a host that reports the server as broken.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,8 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp`; bin name `viable-mcp`
+**Install:** nothing — during the prerelease a coding agent runs
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
 configuration, the stdout guard, and the server object. Operator-facing setup is the viable repo's
 `mcp.md`.
@@ -19,6 +20,7 @@ configuration, the stdout guard, and the server object. Operator-facing setup is
 |--------|-------------|
 | `makeViableMcpServer(cfg)` → `{ server, close }` | The configured `McpServer` with the catalogue registered |
 | `readConfig(argv, env)` · `parseArgs(argv)` · `HELP` | What this server was started with |
+| `sessionCapabilities(cfg)` → `ConnectCapabilities` | What the session opened from that configuration advertises |
 | `DEFAULT_API_URL` · `DEFAULT_TARGET` (`local`) · `DEFAULT_LLM` (`cloud`) | The defaults a user who set nothing gets |
 | `protocolStdout` | The one stream that reaches the real stdout |
 | `VERSION` | Reported to the host and sent as `clientVersion` |
@@ -90,25 +92,64 @@ leaves a session filed on the platform that nothing will ever close, and only th
 
 For a local target the directory's `.viable/connect.json` is read at startup, so a connector started
 in a project that was worked on before picks up where the last one left off rather than asking the
-user which project this is. Capabilities are reported honestly per mode: a cloud target offers no
-executors at all.
+user which project this is.
 
 `serverInstructions` (from the SDK) states the workflow and the two rules that are not discoverable
-from a tool list — long operations are jobs, and in the delegated mode this session performs the
-platform's model calls — so a parent that read only that could still drive the platform correctly.
+from a tool list — long operations are jobs, and which of the platform's model calls this session is
+the one to perform — so a parent that read only that could still drive the platform correctly.
+
+## What the connector advertises is what the platform will ask of it
+
+`sessionCapabilities(cfg)` (`src/capabilities.ts`) composes the `ConnectCapabilities` the session
+opens with. It lives beside the server rather than inside it because the platform goes by nothing
+else: an executor claimed by mistake is an operation queued for a connector that will never answer
+it, and one omitted by mistake is a run that quietly does without.
+
+An executor says what this connector **can** do, never what the platform must ask of it, and never
+who pays for it.
+
+- `Files` / `Shell` / `Git` follow the **target** — a cloud project's files are not on this machine.
+- `Model` and `Human` are advertised **always**, by every connector and in every mode. A coding
+  agent is a model with a person in front of it by definition, which is the whole reason the
+  platform can hand it either kind of work; a run that finds no `human` executor assumes an answer
+  instead of asking for one, and one that finds no `model` executor performs the call itself.
+
+Who pays is decided per kind of work, elsewhere, and never off this list. The platform's own STORY
+and FREE-FLIGHT calls follow `session.llm` — the route the session attached through, which is the
+one carrying the paid delegated capability. A CONVERSION follows `converterLlmMode`, whose default
+is the parent agent and whose floor is "a live session advertises `Model`". So gating `Model` on
+`llm=local` did not protect anything: it made that floor unreachable for every ordinary free
+session and moved every conversion onto the platform's models.
+
+`tiers` stays `{}`: an entry is the parent's OWN name for the model it runs a tier on, which
+nothing on this side knows, and a guess would be shown to the user as fact. **Nothing on the
+platform may key a decision on it** for the same reason — it is empty on every session this server
+opens, so a floor reading it clamps every connector. `subagents` and `effortControl` are true for
+every supported harness.
+
+Because `executors` crosses a version skew — users run `npx -y @owlmeans/viable-mcp@^0.1.18-rc.1` (the
+moving prerelease tag) against a separately deployed platform — `ConnectCapabilitiesSchema.executors.items`
+carries no `enum`. A newer executor kind must remain an unused capability on an older platform,
+never a refused session.
 
 ## Modes
 
-`target=local, llm=cloud` is the default: the project lives in the user's working directory, the
-model calls are the platform's and billed to their credits. `VIABLE_API_URL` points the server at a
+`target=local, llm=cloud` is the default: the project lives in the user's working directory, and the
+platform's own model calls are the platform's, billed to their credits. A CONVERSION's calls still
+come to the parent on that default, so `next_task` / `submit_task_result` are announced in every
+mode — the `llm` axis is about stories and free flight. `VIABLE_API_URL` points the server at a
 self-hosted or development deployment, which is what every end-to-end test does.
 
 ## Tests
 
-`bun test ./tests` — `config.spec.ts` (argument/environment precedence), `stdio.spec.ts` (the built
-binary over a real stdio transport, against an unreachable API: what the server announces, answers
-and contains before its first successful call) and `session-holder.spec.ts` (re-binding, the
-single-flight guard, and recovery from a failed open — all offline, over a fake opener).
+`bun test ./tests` — `config.spec.ts` (argument/environment precedence), `capabilities.spec.ts`
+(the CLOSED executor set each of the four target × llm modes advertises, built from a real
+configuration so a flag that stops reaching the capabilities is caught too; closed rather than
+containment, because an executor claimed by mistake is an operation queued for a connector that
+will never answer it), `stdio.spec.ts` (the built binary over a real
+stdio transport, against an unreachable API: what the server announces, answers and contains before
+its first successful call) and `session-holder.spec.ts` (re-binding, the single-flight guard, and
+recovery from a failed open — all offline, over a fake opener).
 
 `stdio.spec.ts` needs `build/bin.js`, so `bun run build` comes first.
 
@@ -121,3 +162,4 @@ single-flight guard, and recovery from a failed open — all offline, over a fak
 
 - [[viable-sdk]] — every rule about tools, deadlines, sessions and the local executor
 - [[auth-token]] — where the token comes from and how it is presented
+- [[inquiry]] — what the `human` executor is for: how a run asks a person and waits for the answer

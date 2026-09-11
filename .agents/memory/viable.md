@@ -19,9 +19,9 @@ product repo, which consumes all three. Related: [[llm]], [[agent]], [[versionin
 - The platform's REFUSAL classes (conversion, moderation, reserved name, target integrity) are
   declared in the product repo, not here, so the SDK cannot `instanceof` them: they arrive as a
   marshalled `type|||marker|||stack` and are matched by marker.
-- `viable-mcp` is run as `npx -y @owlmeans/viable-mcp`, i.e. always the LATEST version against a
-  separately deployed platform. Version-skew tolerance is a design constraint for this family and
-  for nothing else in the repo.
+- During prerelease, `viable-mcp` is distributed under `next` but install commands carry its
+  compatible caret range, currently `^0.1.18-rc.3`. Version-skew tolerance against the separately
+  deployed platform is a design constraint for this family and for nothing else in the repo.
 - The `viable-sdk` local executor is the publisher's dispatcher re-implemented for a laptop —
   same commands, same "error text or null" answers — so the platform's remote helpers cannot tell
   which side answered.
@@ -35,6 +35,12 @@ product repo, which consumes all three. Related: [[llm]], [[agent]], [[versionin
   when violated: an answer accepted on the wire and silently halved further in.
 - A tool a host cannot serve is HIDDEN by `visibleTools`, never offered and refused; anything that
   can take minutes returns a job rather than holding the 45-second tool deadline.
+- A transient job long-poll failure falls back once to `wait=0`; a second long poll can overrun the
+  tool ceiling. Story mutations attach the session before touching local file-backed state.
+- `delete_story` returns only after two observations prove the asynchronous scaffold cleanup left
+  the project unlocked; otherwise the next project tool can lose an invisible `AgentLocked` race.
+- Local installs use `bun install --force --backend=copyfile`: agent-writable dependencies must not
+  share cache inodes, and a stale host cache must not outrank the locked package body.
 
 ## Pointers
 

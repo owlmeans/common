@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-client
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.18-rc.23"` in `dependencies`
+**Install:** `"@owlmeans/web-client": "^0.1.18-rc.26"` in `dependencies`
 
 The browser layer over `@owlmeans/client`. It builds the context, mounts the app, and brings
 working authentication with nothing registered by hand.

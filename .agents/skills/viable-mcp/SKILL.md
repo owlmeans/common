@@ -7,7 +7,8 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp`; bin name `viable-mcp`
+**Install:** nothing — during the prerelease a coding agent runs
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
 configuration, the stdout guard, and the server object. Operator-facing setup is the viable repo's
 `mcp.md`.
@@ -125,8 +126,8 @@ platform may key a decision on it** for the same reason — it is empty on every
 opens, so a floor reading it clamps every connector. `subagents` and `effortControl` are true for
 every supported harness.
 
-Because `executors` crosses a version skew — users run `npx -y @owlmeans/viable-mcp` (always
-latest) against a separately deployed platform — `ConnectCapabilitiesSchema.executors.items`
+Because `executors` crosses a version skew — users run `npx -y @owlmeans/viable-mcp@^0.1.18-rc.1` (the
+moving prerelease tag) against a separately deployed platform — `ConnectCapabilitiesSchema.executors.items`
 carries no `enum`. A newer executor kind must remain an unused capability on an older platform,
 never a refused session.
 

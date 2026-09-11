@@ -58,6 +58,10 @@ export interface ConnectorApi {
     develop: (projectId: string, storyId: string) => Promise<ConnectJob>
   }
 
+  files: {
+    list: (projectId: string) => Promise<string[]>
+  }
+
   pipeline: {
     state: (projectId: string, runId: string) => Promise<ConnectPipelineState>
     resume: (projectId: string, runId: string, args?: { from?: string, force?: boolean }) => Promise<ConnectJob>

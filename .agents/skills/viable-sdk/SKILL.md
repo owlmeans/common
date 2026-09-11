@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.3"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`) — every name on the
 wire is declared there, so the SDK and the platform cannot spell one differently.
@@ -77,6 +77,11 @@ tool is written against it, so a tool cannot accidentally work in only one of th
 `openSession` calls fixes the mode: the delegated route carries the entitlement gate, so a caller
 without the capability is refused at the boundary rather than by a check somewhere inside.
 
+Cloud-target `list_files` goes through `ConnectorApi.files.list`, backed by the shared
+`connect.files.list` route. The platform reuses its ownership-checked file-browser handler, while
+the SDK only renders the returned relative paths; a local target hides the tool because its files
+are already in the parent agent's directory.
+
 ## A SESSION belongs to a host that stays; `sessionCapable` is what says so
 
 A session is a connector ATTACHED — a process that drains the project's operations and holds a model
@@ -84,9 +89,9 @@ task until its answer comes back. The URL-configured host answers one request an
 opening one there would claim the project's single connector slot, **supersede the stdio connector
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
-So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`,
-`modify_project` and `resume_pipeline` call before returning their job — opens one only on a
-`sessionCapable` host, and **every tool that answers for the parent is gated on that predicate**:
+So `ensureSession` — what `confirm_project`, `reinitialize_project`, every story mutation,
+`develop_story`, `modify_project` and `resume_pipeline` call before doing their work — opens one
+only on a `sessionCapable` host, and **every tool that answers for the parent is gated on that predicate**:
 `next_task`/`submit_task_result` as much as `next_question`/`answer_question`. A host that cannot
 serve the delegated mode says so in one sentence instead, naming the stdio connector — a parent
 told to call a tool that is not in its list waits for a run nobody will advance.
@@ -124,6 +129,19 @@ model can read and act on, because an exception crossing the transport tells it 
 went wrong somewhere. `renderJob` ends every job with a single `next:` line — that is what keeps a
 parent from inventing a polling strategy of its own, or from concluding that a blocked run has
 failed.
+
+A dropped project-job long poll is retried as one immediate snapshot, never as a second long poll.
+`recoverLongPoll` recognises transport resets/timeouts through their cause chain and reads the same
+durable job row with `wait=0`; replaying another thirty-second wait can cross the MCP tool ceiling
+after the first response failed near its end. Deliberate API refusals are not transport failures and
+are rethrown unchanged.
+
+`delete_story` settles the asynchronous scaffold cleanup before it returns. The manager mutation
+acknowledges the queued agent work while that work may still be acquiring or holding the project
+lock, so the SDK samples project status until it has observed the project unlocked for 500 ms; one
+unlocked read is not proof that cleanup has started. If cleanup does not settle within five minutes,
+the tool reports that boundary instead of letting the parent's next project operation lose an
+unobservable `AgentLocked` race.
 
 ## A refusal is PHRASED from its marker, and a stack never reaches the parent
 
@@ -517,6 +535,11 @@ directory becomes that project's. Best-effort and idempotent: a session that wor
 than a note about it, and it is skipped when the marker already names the same project. It holds
 no secret and is meant to be committed, which is why the API URL and the slug are in it and the
 token never is.
+
+Package installation always uses `bun install --force --backend=copyfile`. Local targets are
+agent-writable, so Bun's default hardlinks would let a dependency edit mutate the machine cache and
+poison later projects; the copy backend gives the project its own inodes, and `--force` prevents a
+stale development cache from winning over the lockfile's package body.
 
 ## The managed block yields to every key the user assigned
 

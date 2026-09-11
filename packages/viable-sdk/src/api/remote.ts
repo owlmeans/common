@@ -11,6 +11,49 @@ import type { ConnectorApi, OpenSessionArgs, ProjectEdits, StoryQuery } from '..
 
 type Ctx = ClientContext<ClientConfig>
 
+const TRANSIENT_TRANSPORT_CODES = new Set([
+  'ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_SOCKET',
+])
+
+/** A broken HTTP connection, as opposed to a refusal the platform deliberately answered. */
+export const isTransientTransportError = (value: unknown): boolean => {
+  const seen = new Set<unknown>()
+  let current: unknown = value
+
+  while (current != null && !seen.has(current)) {
+    seen.add(current)
+    const error = current as { code?: unknown, message?: unknown, cause?: unknown }
+    if (typeof error.code === 'string' && TRANSIENT_TRANSPORT_CODES.has(error.code)) return true
+    const message = typeof error.message === 'string' ? error.message : String(current)
+    if (/\b(?:ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|UND_ERR_(?:CONNECT_TIMEOUT|HEADERS_TIMEOUT|SOCKET))\b/.test(message)) {
+      return true
+    }
+    current = error.cause
+  }
+
+  return false
+}
+
+/**
+ * Recover a long poll with one non-blocking snapshot.
+ *
+ * Repeating the whole poll can exceed the MCP host's 45-second tool ceiling after a proxy drops a
+ * response near the end of its 30-second window. A snapshot asks for the same durable job row with
+ * no wait, so the caller receives the current state without duplicating or restarting any work.
+ */
+export const recoverLongPoll = async <T>(
+  poll: () => Promise<T>, snapshot: () => Promise<T>
+): Promise<T> => {
+  try {
+    return await poll()
+  } catch (error) {
+    if (!isTransientTransportError(error)) throw error
+
+    return await snapshot()
+  }
+}
+
 /**
  * The connector API over HTTP.
  *
@@ -76,12 +119,18 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
         await context.entrypoint(connectRef.project.modify).call({
           params: { id }, body: { prompt }, timeout: TOOL_DEADLINE_MS,
         }),
-      job: async (id: string, jobId: string, waitSec?: number): Promise<ConnectJob> => await context
-        .entrypoint(connectRef.project.job).call({
+      job: async (id: string, jobId: string, waitSec?: number): Promise<ConnectJob> => {
+        const endpoint = context.entrypoint(connectRef.project.job)
+        const read = async (wait?: number): Promise<ConnectJob> => await endpoint.call({
           params: { id, jobId },
-          query: waitSec == null ? {} : { wait: waitSec },
-          timeout: waitSec == null ? TOOL_DEADLINE_MS : (waitSec + 10) * 1000,
-        }),
+          query: wait == null ? {} : { wait },
+          timeout: wait == null ? TOOL_DEADLINE_MS : (wait + 10) * 1000,
+        })
+
+        return waitSec == null
+          ? await read()
+          : await recoverLongPoll(async () => await read(waitSec), async () => await read(0))
+      },
     },
 
     story: {
@@ -103,6 +152,12 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
         await context.entrypoint(connectRef.story.develop).call({
           params: { id, storyId }, timeout: TOOL_DEADLINE_MS,
         }),
+    },
+
+    files: {
+      list: async (id: string) => await context.entrypoint(connectRef.files.list).call({
+        params: { id }, timeout: TOOL_DEADLINE_MS,
+      }),
     },
 
     pipeline: {

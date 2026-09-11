@@ -21,7 +21,7 @@ filesystem, no inference SDK. It is safe to import from a browser bundle.
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.0.4
+bun add @owlmeans/viable-common@^0.0.6
 ```
 
 ## Rules worth knowing before you change something
@@ -39,7 +39,7 @@ means "inherit" has no other spelling. `tests/convert.spec.ts` walks every expor
 both faults, and for draft-04 tuple `items`.
 
 **A field that crosses a version skew carries no `enum`.** A connector is installed with
-`npx -y @owlmeans/viable-mcp` and talks to a separately deployed platform, so an executor kind it
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1` and talks to a separately deployed platform, so an executor kind it
 sends must remain an unused capability on an older platform rather than a refused session.
 
 **A ceiling exists once.** The inquiry answer cap here equals `DEFAULT_INQUIRY_ANSWER_CHARS` in
@@ -50,3 +50,19 @@ at the smaller.
 
 - `@owlmeans/viable-sdk` — the connector SDK written against these contracts
 - `@owlmeans/viable-mcp` — the npx MCP server built on that SDK
+
+<!-- owlmeans:agent-guidance:start -->
+## Agent guidance
+
+This package ships embedded agent skills under `agent-meta/`. After installing your
+`@owlmeans/*` packages, run the OwlMeans agent-skills installer to place them into
+your project's skill store (`.agents/skills/`):
+
+```sh
+npx @owlmeans/agent-skills@^0.1.18-rc.14
+```
+
+The embedded files are version-matched to this package release. Do not edit them
+directly — they are regenerated on each publish. To contribute guidance edits,
+open a PR against the source monorepo.
+<!-- owlmeans:agent-guidance:end -->

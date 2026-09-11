@@ -1,6 +1,6 @@
 ---
 name: server-entrypoint
-description: How to use @owlmeans/server-entrypoint — server-side entrypoints extending @owlmeans/entrypoint with handler attachment, elevate() forms, intermediates, guards and mount(). Auto-invoked when importing server-entrypoint types or writing a custom entrypoint helper.
+description: How to use @owlmeans/server-entrypoint — binding immutable protocols to server handlers, plus legacy elevate() forms, intermediates, guards and mount(). Auto-invoked when importing server-entrypoint types or writing a custom entrypoint helper.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,12 +8,15 @@ user-invocable: false
 # @owlmeans/server-entrypoint
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-entrypoint": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/server-entrypoint": "^0.1.18-rc.13"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
+| `bind(protocol, implementation?, opts?)` | Materialize a protocol and its protocol-bound handler |
+| `ServerProtocolEntrypoint<P>` | The server module whose request/reply types come from `P` |
+| `BoundEntrypointHandler<P>` | A handler implementation tied to exactly one protocol |
 | `ServerEntrypoint<R>` | Server entrypoint interface — a common entrypoint whose `route` is a `ServerRouteModel` plus `handle` and an optional `fixer` |
 | `entrypoint(arg, handler?, opts?)` | Build one from an existing declaration, a server route model, or a plain route model |
 | `elevate(entrypoints, alias, handler?, opts?)` | Replace the declaration under `alias` in-place with its elevated counterpart |
@@ -24,8 +27,27 @@ user-invocable: false
 
 ## Usage
 
-Most app code uses `elevate()` from `@owlmeans/server-app` (which re-exports this one). Import
-directly only when implementing custom entrypoint helpers.
+New code pairs `bind` with `handlers<Context>()` from `@owlmeans/server-api` (both are re-exported
+by `@owlmeans/server-app`). The callback request and reply are inferred from the protocol, so no
+call-site generic or alias lookup can drift from the shared declaration:
+
+```typescript
+import { bind, handlers } from '@owlmeans/server-app'
+import { item } from 'project-common'
+
+const handle = handlers<Context>()
+export const getItem = handle.params(item.get, async ({ id }, context) =>
+  await context.resource<ItemResource>('item').load(id))
+
+export const appEntrypoints = [bind(item.get, getItem)]
+```
+
+Use `handle.body`, `handle.params`, or `handle.request` according to the protocol contract. A
+body/params helper refuses a protocol that did not declare that section, and the callback return
+must match the protocol response.
+
+Most legacy app code uses `elevate()` from `@owlmeans/server-app`. Import directly only when
+implementing custom entrypoint helpers.
 
 ```typescript
 import { elevate, guard } from '@owlmeans/server-entrypoint'

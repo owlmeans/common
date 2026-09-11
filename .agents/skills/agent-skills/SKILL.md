@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.11"` — in `devDependencies` for the CLI, in
+**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.14"` — in `devDependencies` for the CLI, in
 `dependencies` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
 `@langchain/core` **optional peers**)
 

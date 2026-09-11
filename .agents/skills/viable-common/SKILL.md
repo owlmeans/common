@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.4"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.6"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/entrypoint`, `@owlmeans/route`,
@@ -65,8 +65,9 @@ in a design, a slot or a connector schema:
 - **`items` is never an array.** A draft-04 tuple is refused wherever the schema reaches a
   provider or a collection validator.
 
-**A field that crosses a version skew carries no `enum`.** Users run `npx -y @owlmeans/viable-mcp`
-(always latest) against a separately deployed platform, so `ConnectCapabilitiesSchema.executors.items`
+**A field that crosses a version skew carries no `enum`.** Users run
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1` (the moving prerelease tag) against a separately deployed
+platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
 platform, and nowhere else — a closed set is worth more than a tolerant one everywhere both ends

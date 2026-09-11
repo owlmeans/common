@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-job
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-job": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/client-job": "^0.1.18-rc.2"` in `dependencies`
 
 The browser half of a job feed. It holds `JobRecord`s in a `@owlmeans/state` store, keeps that
 store current from the entrypoints `@owlmeans/server-job` declares, and hands screens the ordinary

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/entrypoint
 
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.13"` in `dependencies`
 
 An entrypoint is an **addressable unit**. New code declares an immutable typed `protocol` once in a
 shared package, then binds that declaration on the client or server. The older mutable

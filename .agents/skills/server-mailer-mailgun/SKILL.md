@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-mailer-mailgun`
 
-**Install:** `"@owlmeans/server-mailer-mailgun": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/server-mailer-mailgun": "^0.1.18-rc.10"` in `dependencies`
 
 Production Mailgun transport implementing `@owlmeans/mailer`'s `MailerService` interface. Reads
 config from `ctx.cfg.mailgun` at send time and posts to Mailgun's HTTP API with `fetch` — no SMTP

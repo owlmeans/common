@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.31"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.34"` in `dependencies`
 
 ## Key Exports
 

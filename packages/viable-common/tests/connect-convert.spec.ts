@@ -95,7 +95,7 @@ describe('viable-common - the conversion additions to the connector contract', (
     })).toBe(true)
   })
 
-  test('the nine conversion routes are declared, at their paths and methods', () => {
+  test('the conversion and generated-file routes are declared, at their paths and methods', () => {
     const expected: [string, string, RouteMethod][] = [
       [connect.convert.create, '/convert', RouteMethod.POST],
       [connect.convert.check, '/convert/:id/check', RouteMethod.GET],
@@ -106,6 +106,7 @@ describe('viable-common - the conversion additions to the connector contract', (
       [connect.convert.purge, '/convert/:id/purge', RouteMethod.POST],
       [connect.inquiry.answer, '/project/:id/inquiry/:inquiryId', RouteMethod.POST],
       [connect.project.converterLlm, '/project/:id/converter-llm', RouteMethod.POST],
+      [connect.files.list, '/project/:id/files', RouteMethod.GET],
     ]
 
     for (const [alias, path, method] of expected) {
@@ -125,6 +126,7 @@ describe('viable-common - the conversion additions to the connector contract', (
     expect(connectRef.convert.purge.alias).toBe(connect.convert.purge)
     expect(connectRef.inquiry.answer.alias).toBe(connect.inquiry.answer)
     expect(connectRef.project.converterLlm.alias).toBe(connect.project.converterLlm)
+    expect(connectRef.files.list.alias).toBe(connect.files.list)
   })
 
   test('the conversion routes hang under the connector base and carry no paid gate', () => {

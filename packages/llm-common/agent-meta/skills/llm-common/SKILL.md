@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.14"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -36,6 +36,10 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `CacheTtl`, `CacheUsage` | `'5m' \| '1h'`; normalized prompt-cache accounting. |
 | `LlmFileProvider`, `FileProviderRef`, `resolveFileProvider` | The file contract prompt plugins work against — four members, every path relative to the host's project root. `FileProviderRef` accepts the provider or a thunk returning one; `resolveFileProvider` unwraps whichever form arrived, or `undefined`. |
 | `NullCapture`, `NullKind` | Full diagnostics of a call that returned nothing usable. |
+| `Inquiry`, `InquiryAnswer`, `InquiryOption`, `InquiryTransport`, `InquiryConfig` | One question put to a person mid-run, and the answer that comes back. |
+| `InquiryKind`, `InquiryPolicy` | `choice`/`text`/`confirm`; `ask`/`default`/`refuse`. |
+| `DEFAULT_INQUIRY_ANSWER_CHARS`, `DEFAULT_INQUIRY_OPTIONS`, `INQUIRY_STATE_TEXT_CHARS`, `CONFIRM_YES`, `CONFIRM_NO` | The one answer ceiling, the option ceiling, what a pipeline state may hold of an answer's prose, and the two confirmation values. |
+| `defaultAnswerFor`, `answeredWith`, `capAnswer`, `isDeclined`, `stateAnswerOf`, `renderInquiry` | The pure reading of an inquiry and its answer, shared by every layer. |
 | `SpectatorArgument`, `SpectatorEntry`, `SpectatorEntryLogged`, `SpectatorEntryMessage` | What an observability sink stores. |
 
 ## `LlmFileProvider` — what a host must supply
@@ -86,11 +90,34 @@ export interface MyTaskState
 `SpectatorEntry.kind` is an open `string` for the same reason: declare your own kind enum
 and narrow it on your own entry interface.
 
+## Inquiry — the contracts half
+
+`src/inquiry/` carries the human-in-the-loop primitive's serializable half: the question, the
+answer, the transport interface, and the pure helpers every layer reads an answer through.
+`ExecutionState.inquiry?: InquiryConfig` says how one run may put a question to a person, and it is
+STATE rather than a collaborator — a resumed run must ask through the same channel under the same
+policy, so it travels into every snapshot (it is deliberately absent from `@owlmeans/llm`'s
+`COLLABORATOR_KEYS`).
+
+`DEFAULT_INQUIRY_ANSWER_CHARS` is the ONE ceiling on a stored answer; every other layer references
+it rather than choosing its own, and `capAnswer` reports the cut (`truncated: true`) instead of
+truncating silently. It cuts the PROSE only: a `value` is the decision itself, so a shortened one
+matches no option and is passed through whole with `truncated` raised on it.
+`INQUIRY_STATE_TEXT_CHARS` is the much smaller amount a resumable pipeline
+state may hold of an answer's free text (`stateAnswerOf`, the other writer of `truncated`) — a
+state is keys and markers, not prose.
+The primitive end to end, including the runtime registry and the pipeline park: [[inquiry]].
+
 ## What must NOT go here
 
 Anything that cannot survive `JSON.stringify` or that needs an inference SDK: model
 instances, credentials, file handles, callbacks, `ModelConfig` (it carries `secret` /
 `headers` / `fallback` — that lives in `@owlmeans/llm`).
+
+## Tests
+
+`bun test ./tests` in the package. Contracts and enums are not tested (nothing to assert); the
+specs cover the pure helpers that carry a decision — `tests/inquiry.spec.ts`.
 
 ## Depends On
 
@@ -100,3 +127,4 @@ on a spectator message only.
 ## Related
 
 - [[llm]] — the runtime that implements these contracts
+- [[inquiry]] — the human-in-the-loop primitive whose contracts live here

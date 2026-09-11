@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.13"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.15"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -33,6 +33,8 @@ symbol "because a test needs it".
 | `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table below. Consumers pin presets against them. |
 | `withRetry`, `registerFatalError`, `isFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
 | `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
+| `registerInquiryTransport`, `releaseInquiryTransport`, `hasInquiryTransport`, `inquiryTransportFor` | The inquiry-channel registry — how a question reaches a person. `inquiryTransportFor` throws rather than waits. |
+| `executionInquiry(service, exec)` · `InquiryError`, `InquiryUnavailable`, `InquiryDeclined` | The ONE adapter mapping an absent channel to `null`, and the error family behind it. `InquiryUnavailable` is registered fatal. |
 | `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role. |
 | `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
@@ -124,6 +126,20 @@ asked on keeps its own tier — and `utilityRole` travels on `ModelPolicy`, so i
 handle comes from the other end — `PromptComposeParams.utility` (and `AgentOptions.utility`) is an
 OPTIONAL resolver, unset wherever no cheap tier is wired, so a plugin that cannot get one degrades
 rather than fails.
+
+### Asking a person: `ask(exec, inquiry, signal?)`
+
+A run that needs a decision which is genuinely not its own puts ONE question to whoever is behind
+it, under `ExecutionState.inquiry` — `ask` hands it to the transport seated under
+`inquiry.transport`, `default` returns the question's own default (or a decline) and asks nobody,
+`refuse` throws `InquiryDeclined`. **No configuration means `default`**: a run that was never given
+a channel must never block on one. The answer comes back capped by `capAnswer`, and
+`inquiry` is NOT in `COLLABORATOR_KEYS` — it is state, so a resumed run asks the same way.
+
+`inquiryTransportFor` throws `InquiryUnavailable`, registered fatal beside the throw so no retry
+ladder spends itself on a channel nobody is behind. Wire a pipeline or an agent through
+`executionInquiry(service, exec)`, the one place that reads that as "nobody is there" (`null`) while
+letting a decline escape. Everything else about the primitive: [[inquiry]].
 
 ### The plugin seam is `advise`-only, and `use()` seats by alias
 
@@ -296,7 +312,8 @@ blank tool results are stubbed to keep their `tool_use` pairing). Details: packa
 suite is gated on `ANTHROPIC_SECRET` and self-skips with a printed reason without it, and the OpenRouter
 suite is disabled unconditionally: an aggregator on a separate account serving models no deployment runs,
 whose `402 requires more credits` reads as a failure of the code under test. `plugins.spec.ts` covers the
-`Compatible` provider offline.
+`Compatible` provider offline, and `inquiry.spec.ts` covers the channel registry, the `ask` policy
+matrix and the `executionInquiry` bridge — no provider, no network.
 
 ## Depends On
 
@@ -308,4 +325,5 @@ whose `402 requires more credits` reads as a failure of the code under test. `pl
 
 - [[llm-common]] — the serializable contracts · [[llm-prompt-caching]] — prompt composition, block
   order and the cache invariants
+- [[inquiry]] — the human-in-the-loop primitive: contracts, the registry, `ask`, and the pipeline park
 - [[context]] — service registration · [[error]] — the `ResilientError` family

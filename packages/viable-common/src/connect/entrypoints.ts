@@ -201,6 +201,14 @@ export const connectEntrypoints = (opts: ConnectEntrypointOptions): CommonEntryp
       filter(params(ConnectStoryParamsSchema))
     ),
 
+    // --- generated files -------------------------------------------------------------------
+    entrypoint(
+      route(connect.files.list, '/project/:id/files', {
+        parent: connect.base, method: RouteMethod.GET
+      }),
+      filter(params(ConnectProjectIdSchema))
+    ),
+
     entrypoint(
       route(connect.project.converterLlm, '/project/:id/converter-llm', {
         parent: connect.base, method: RouteMethod.POST

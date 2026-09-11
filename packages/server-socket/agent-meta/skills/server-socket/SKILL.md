@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-socket
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-socket": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/server-socket": "^0.1.18-rc.20"` in `dependencies`
 
 The server carrier for `@owlmeans/socket`, mounted on the same Fastify instance
 `@owlmeans/server-api` runs. It supplies the abstract members of the connection model and hands a

@@ -112,6 +112,33 @@ const ensureSession = async (deps: ToolDeps, projectId: string): Promise<void> =
   await deps.session()
 }
 
+/**
+ * A story deletion starts its slot cleanup through the agent queue. The manager mutation returns
+ * once that work has been accepted, while the cleanup still owns the project lock; returning the
+ * MCP tool at that boundary lets the parent's very next project operation lose a race it cannot
+ * observe. Wait for two stable unlocked observations so a just-dispatched cleanup also has time
+ * to acquire the lock before this tool declares the mutation settled.
+ */
+const waitForStoryCleanup = async (deps: ToolDeps, projectId: string): Promise<void> => {
+  const deadline = Date.now() + 5 * 60_000
+  let unlockedAt: number | null = null
+
+  while (Date.now() < deadline) {
+    const status = await deps.api.project.status(projectId)
+    if (status.agent.locked) {
+      unlockedAt = null
+    } else if (unlockedAt == null) {
+      unlockedAt = Date.now()
+    } else if (Date.now() - unlockedAt >= 500) {
+      return
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 150))
+  }
+
+  throw new Error('Story deleted, but its scaffold cleanup did not release the project lock.')
+}
+
 /** The project a tool acts on when it can also work without one. */
 const projectOrNull = (args: Record<string, unknown>, deps: ToolDeps): string | null =>
   typeof args.projectId === 'string' ? args.projectId : deps.attached()
@@ -713,7 +740,12 @@ export const catalogue: ToolDefinition[] = [
     input: { story: z.string().min(1), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const created = await deps.api.story.create(projectOf(args, deps), args.story as string)
+      const project = projectOf(args, deps)
+      // Formatting reads the target's file-backed entities before it persists the story. A local
+      // project therefore needs its connector back after an MCP restart even though this tool does
+      // not itself return a long-running job.
+      await ensureSession(deps, project)
+      const created = await deps.api.story.create(project, args.story as string)
 
       return ok('Story created.', created)
     },
@@ -726,8 +758,10 @@ export const catalogue: ToolDefinition[] = [
     input: { storyId: z.string(), story: z.string().min(1), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
       const updated = await deps.api.story.update(
-        projectOf(args, deps), args.storyId as string, args.story as string
+        project, args.storyId as string, args.story as string
       )
 
       return ok('Story updated.', updated)
@@ -741,7 +775,12 @@ export const catalogue: ToolDefinition[] = [
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      await deps.api.story.remove(projectOf(args, deps), args.storyId as string)
+      const project = projectOf(args, deps)
+      // Removing a story also retires its file-backed scaffold, so it has the same local-session
+      // requirement as formatting and development.
+      await ensureSession(deps, project)
+      await deps.api.story.remove(project, args.storyId as string)
+      await waitForStoryCleanup(deps, project)
 
       return ok('Story deleted.')
     },
@@ -1214,7 +1253,17 @@ export const catalogue: ToolDefinition[] = [
     description: 'What the platform generated, for a project whose sources live in its own slot.',
     input: { projectId: z.string().optional() },
     availability: cloudTarget,
-    run: async () => fail('Not available yet in this build.'),
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const files = await deps.api.files.list(project)
+
+      return ok(
+        files.length > 0
+          ? `${files.length} generated file(s):\n${files.join('\n')}`
+          : 'No generated files were found.',
+        { projectId: project, total: files.length, files }
+      )
+    },
   },
 
   {

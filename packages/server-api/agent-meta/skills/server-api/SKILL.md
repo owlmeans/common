@@ -1,6 +1,6 @@
 ---
 name: server-api
-description: How to use @owlmeans/server-api — the Fastify-based API server factory, what it mounts and validates, the request pipeline (intermediates, guards, gates, handlers), holdApiPort() for the boot window, and the error-to-status mapping. Auto-invoked when importing server-api types, extending the server middleware stack, or working out why a request answered the status it did.
+description: How to use @owlmeans/server-api — typed protocol handlers, the Fastify-based API server factory, request pipeline, validation, holdApiPort() boot window, and error-to-status mapping. Auto-invoked when importing server-api types, writing protocol handlers, extending the middleware stack, or working out why a request answered the status it did.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,12 +8,14 @@ user-invocable: false
 # @owlmeans/server-api
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/server-api": "^0.1.18-rc.19"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
+| `handlers<Context>()` | Build `body`, `params`, and `request` handlers inferred from an immutable protocol |
+| `uploadedFile(request)` | Read Fastify multipart through the typed handler boundary |
 | `createApiServer(alias)` | Factory for the Fastify-based API server |
 | `appendApiServer(ctx, alias?)` | Register it and expose `ctx.getApiServer()` |
 | `handleRequest` / `handleBody` / `handleParams` / `handleIntermediate` | Wrap an async function as an entrypoint handler |
@@ -42,9 +44,30 @@ appendApiServer(context)
 
 ## Writing handlers
 
-`handleRequest(fn)` gives the whole request, `handleBody<T>(fn)` the validated body, `handleParams<T>(fn)`
-the validated URL params, and `handleIntermediate(fn)` a function that returns a context (or `null`
-to leave the chain unchanged) instead of a value. All four resolve the handler's context the same
+For a typed protocol, pass the declaration once and let `handlers<Context>()` infer every request
+section and the response. `body` and `params` are available only when the protocol contract
+declares that section; `request` receives the complete typed request plus alias/auth/entity/path
+metadata.
+
+```typescript
+const handle = handlers<Context>()
+
+export const create = handle.body(item.create, async (payload, context, request) => {
+  const owner = request.entity?.id
+  return await context.resource<ItemResource>('item').create({ ...payload, owner })
+})
+```
+
+The result is a protocol-bound implementation consumed by `bind(protocol, implementation)` from
+`@owlmeans/server-entrypoint` (both exports are available from `@owlmeans/server-app`). Throwing is
+still the failure path; the wrapper resolves successful returns with `EntrypointOutcome.Ok`.
+Use `uploadedFile(request)` when the protocol handler needs the Fastify multipart object.
+
+For a legacy entrypoint, `handleRequest(fn)` gives the whole request, `handleBody<T>(fn)` the
+validated body, `handleParams<T>(fn)` the validated URL params, and `handleIntermediate(fn)` a
+function that returns a context (or `null` to leave the chain unchanged) instead of a value.
+
+All handler forms resolve the handler's context the same
 way: from the request when it arrived over HTTP, and from the entrypoint's own context otherwise —
 the same handler runs unchanged when a queued job or a socket frame reaches it, and only the way it
 was reached differs.

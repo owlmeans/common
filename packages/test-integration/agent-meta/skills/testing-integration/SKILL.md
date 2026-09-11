@@ -6,7 +6,7 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
-**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.8"` in `devDependencies`
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.10"` in `devDependencies`
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,

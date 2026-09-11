@@ -15,7 +15,7 @@ around it.
 ## Running it
 
 ```sh
-VIABLE_API_TOKEN=vib_… npx -y @owlmeans/viable-mcp
+VIABLE_API_TOKEN=vib_… npx -y @owlmeans/viable-mcp@^0.1.18-rc.1
 ```
 
 Configure it as an MCP server in your agent, or let the agent's own `install_harness` tool write
@@ -81,7 +81,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.12
+npx @owlmeans/agent-skills@^0.1.18-rc.14
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

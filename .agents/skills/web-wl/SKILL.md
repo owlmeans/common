@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-wl
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-wl": "^0.1.18-rc.14"` in `dependencies`
+**Install:** `"@owlmeans/web-wl": "^0.1.18-rc.17"` in `dependencies`
 
 Reads what `@owlmeans/server-wl` serves. One service call per organization entity, cached inside the
 service, plus a component for the one piece of branding almost every app needs.

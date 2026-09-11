@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.18-rc.11"` in `dependencies`
 
 Types, enums, errors and schemas only — no services, no wiring. Every other auth package builds on
 this vocabulary, so a symbol belongs here exactly when both a server and a browser need to agree on

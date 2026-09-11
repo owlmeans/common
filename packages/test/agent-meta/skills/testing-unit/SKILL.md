@@ -6,7 +6,7 @@ description: Category-A unit tests for OwlMeans Common packages — no mocks, re
 
 # Unit Tests — Category A (no mocks)
 
-**Install:** `"@owlmeans/test": "^0.1.18-rc.8"` in `devDependencies`
+**Install:** `"@owlmeans/test": "^0.1.18-rc.10"` in `devDependencies`
 
 Apply this skill when adding tests to packages in category A (see `testing-overview`). The list includes core abstractions (`context`, `config`, `error`, `entrypoint`, `route`, `resource`, …) and platform-agnostic services (`api`, `state`, `flow`, `i18n`, `client-flow`, `client-socket`, `client-job`, `server-route`, `server-context`, `web-db`, …).
 

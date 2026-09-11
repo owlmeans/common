@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/llm",
-  "version": "0.1.18-rc.13",
-  "generatedAt": "2026-09-09T22:01:57.468Z",
+  "version": "0.1.18-rc.15",
+  "generatedAt": "2026-09-10T23:10:57.037Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -11,6 +11,13 @@
       "category": "package-specific",
       "file": "skills/llm/SKILL.md",
       "canonicalPath": ".agents/skills/llm/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "inquiry",
+      "category": "multi-package",
+      "file": "skills/inquiry/SKILL.md",
+      "canonicalPath": ".agents/skills/inquiry/SKILL.md"
     },
     {
       "kind": "skill",

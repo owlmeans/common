@@ -52,6 +52,36 @@ describe('viable-sdk — what a parent agent is offered', () => {
     expect(names(host({ target: ConnectTarget.Local }))).not.toContain('list_files')
   })
 
+  test('the cloud file tool returns the platform source listing', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_files')!
+    const requested: string[] = []
+    const result = await tool.run({ projectId: 'p1' }, {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          list: async (projectId: string) => {
+            requested.push(projectId)
+
+            return ['sources/api/src/index.ts', 'sources/web/src/render.tsx']
+          },
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => null,
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(requested).toEqual(['p1'])
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('2 generated file(s)')
+    expect(result.structured).toEqual({
+      projectId: 'p1', total: 2,
+      files: ['sources/api/src/index.ts', 'sources/web/src/render.tsx'],
+    })
+  })
+
   test('the URL-configured host offers nothing that needs a disk', () => {
     const http = names(host({
       kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false,
@@ -156,7 +186,27 @@ describe('a tool that starts work attaches its project before opening a session'
     const deps = {
       host: host(),
       api: {
+        project: {
+          status: async (projectId: string) => {
+            order.push(`status:${projectId}`)
+
+            return { agent: { locked: false } }
+          },
+        },
         story: {
+          create: async (projectId: string) => {
+            order.push(`create:${projectId}`)
+
+            return { id: 's1' }
+          },
+          update: async (projectId: string) => {
+            order.push(`update:${projectId}`)
+
+            return { id: 's1' }
+          },
+          remove: async (projectId: string) => {
+            order.push(`remove:${projectId}`)
+          },
           develop: async (projectId: string) => {
             order.push(`develop:${projectId}`)
 
@@ -197,6 +247,40 @@ describe('a tool that starts work attaches its project before opening a session'
     await toolNamed('develop_story').run({ storyId: 's1' }, deps as never)
 
     expect(order).toEqual(['session:p-current', 'develop:p-current'])
+  })
+
+  test.each([
+    ['create_story', { story: 'As a user, I want a note.' }, 'create'],
+    ['update_story', { storyId: 's1', story: 'As a user, I want a revised note.' }, 'update'],
+    ['delete_story', { storyId: 's1' }, 'remove'],
+  ] as const)('%s restores the session before its slot-backed mutation', async (name, args, call) => {
+    const { deps, order } = depsFor('p-current')
+
+    await toolNamed(name).run(args, deps as never)
+
+    expect(order.slice(0, 2)).toEqual(['session:p-current', `${call}:p-current`])
+    if (name === 'delete_story') {
+      expect(order.filter(entry => entry === 'status:p-current').length).toBeGreaterThanOrEqual(2)
+    } else {
+      expect(order).toEqual(['session:p-current', `${call}:p-current`])
+    }
+  })
+
+  test('delete_story waits through its asynchronous cleanup lock', async () => {
+    const { deps, order } = depsFor('p-current')
+    let checks = 0
+    deps.api.project.status = async (projectId: string) => {
+      order.push(`status:${projectId}`)
+      checks++
+
+      return { agent: { locked: checks < 3 } } as never
+    }
+
+    const result = await toolNamed('delete_story').run({ storyId: 's1' }, deps as never)
+
+    expect(result.isError).not.toBe(true)
+    expect(checks).toBeGreaterThanOrEqual(4)
+    expect(order.slice(0, 2)).toEqual(['session:p-current', 'remove:p-current'])
   })
 })
 

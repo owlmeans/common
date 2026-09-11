@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/agent-common
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-common": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/agent-common": "^0.1.18-rc.18"` in `dependencies`
 
 Serializable contracts for the agent family. No LangChain, no LangGraph, no storage driver — a
 backend or a browser bundle imports these to read what an agent wrote without pulling the runtime.
@@ -27,12 +27,13 @@ The runtime is `@owlmeans/agent`.
 | `MemoryNode`, `MemoryEvent` (+ `MemoryEventInput`) | Agent-authored memory records. |
 | `AgentRunMessage` | What a transport carries — a POINTER (`runId`, `conversationId`, optional `pipeline`/`step`), never state. |
 | `PipelineStepSpec`, `PipelineSpec` | The declaration: named steps, `after: string[]` edges, `optional`, `nonIdempotent`, `attempts`, `timeout`. |
-| `PipelineRun`, `PipelineRunStatus`, `PipelineProgress` | The persisted run row — `state` is JSON **text** plus `stateChars`; `completed`/`pending`/`warnings`; `heartbeatAt`. |
+| `PipelineRun`, `PipelineRunStatus`, `PipelineProgress` | The persisted run row — `state` is JSON **text** plus `stateChars`; `completed`/`pending`/`warnings`; `heartbeatAt`. `PipelineRunStatus.Waiting` is a run parked on a question. |
+| `PipelineRunInquiry` · `INQUIRY_ANSWERS_KEY` | What a `Waiting` run is waiting for (`step`, `askedAt`, the `Inquiry`), and the one state key answers live under. |
 | `validatePipelineSpec`, `orderPipelineSteps`, `pipelineDescendants`, `pipelineStep` | Pure spec helpers — no runtime, no graph engine. |
 | `AGENTS_SERVICE` | The service alias — **`agents`**, plural. |
 | `AGENT_*_STORE` | Port names a consumer binds its storage under. |
 | `AgentRunStatus` | `ok` / `failed`, written on a conversation event. |
-| `AgentCommonError`, `AgentRunStateError`, `PipelineSpecError`, `PipelineVersionError`, `PipelineUnknownStepError`, `PipelineNotIdempotentError`, `PipelineStateTooLargeError` | The error family. |
+| `AgentCommonError`, `AgentRunStateError`, `PipelineSpecError`, `PipelineVersionError`, `PipelineUnknownStepError`, `PipelineNotIdempotentError`, `PipelineStateTooLargeError`, `PipelineNotResumableError` | The error family. |
 | `DEFAULT_SUMMARY_CHARS` (1200) · `DEFAULT_ADVICE_CHARS` (400) · `DEFAULT_EVENT_WINDOW` (3) · `DEFAULT_MEMORY_NODE_CHARS` (2000) · `DEFAULT_MEMORY_EVENTS_LIMIT` (50) | The caps the runtime's plugins default to. Override them per plugin; read them here rather than restating a number. |
 | `DEFAULT_MAX_STATE_CHARS` (256_000) · `DEFAULT_STEP_ATTEMPTS` (1) · `DEFAULT_STEP_TIMEOUT` (30 min) | Pipeline defaults. The state cap is a TRIPWIRE, not a budget. |
 
@@ -58,6 +59,13 @@ the checkpointer and the stores all live in `@owlmeans/agent`; what is here is w
 a reconciler or an operator console must read to say where a run stands without importing LangGraph.
 That is also why `PipelineRun.state` is JSON **text** with a `stateChars` beside it rather than a
 subdocument: a run row crosses a `$jsonSchema`, and a state whose keys are dotted paths does not.
+
+**A `Waiting` run is stopped on purpose and is NOT stale.** It has no process behind it and its
+`heartbeatAt` will not move again until somebody answers `run.inquiry`, so anything that sweeps
+stale runs must exclude it — reading it as a crashed run repairs what is merely waiting. The row
+carries `inquiry` only while it waits, and the runner clears it on every entry: a row still
+advertising an answered question has every reader offer it again. A pipeline with no run store
+cannot wait at all, which is what `PipelineNotResumableError` says. See [[inquiry]].
 
 **`validatePipelineSpec` names EVERY fault at once** — unknown `after` targets, cycles, duplicate
 step names, `attempts > 1` on a `nonIdempotent` step. A spec is authored once and fixed once, and
@@ -92,6 +100,7 @@ every other consumer of that package is client-side.
 
 ## Related
 
+- [[inquiry]] — the human-in-the-loop primitive `Waiting` and `PipelineRunInquiry` belong to
 - [[agent]] — the runtime that writes these records
 - [[llm-common]] — `LlmPurpose` and `ExecutionState`, which a run's execution is built from
 - [[flow]] — the flow model the run lifecycle is declared against

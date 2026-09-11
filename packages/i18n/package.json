@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/i18n",
-  "version": "0.1.18-rc.8",
+  "version": "0.1.18-rc.10",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
   "dependencies": {
-    "@owlmeans/api-config": "^0.1.18-rc.12"
+    "@owlmeans/api-config": "^0.1.18-rc.14"
   },
   "main": "build/index.js",
   "module": "build/index.js",

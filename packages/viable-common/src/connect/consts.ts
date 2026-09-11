@@ -369,6 +369,7 @@ export const CONNECT_EVENT_SESSION = 'connect:session'
 export const CONNECT_OP_PUBSUB = 'connect-op-pubsub'
 export const CONNECT_RESULT_PUBSUB = 'connect-result-pubsub'
 export const CONNECT_OP_STORE = 'connect-op-store'
+export const CONNECT_RESULT_STORE = 'connect-result-store'
 export const CONNECT_SESSION_PUBSUB = 'connect-session-pubsub'
 
 /** The backend resource alias for session records. */
@@ -430,6 +431,9 @@ export const connect = Object.freeze({
     update: 'viable:manager-api:connect:story:update',
     delete: 'viable:manager-api:connect:story:delete',
     develop: 'viable:manager-api:connect:story:develop',
+  }),
+  files: Object.freeze({
+    list: 'viable:manager-api:connect:files:list',
   }),
   pipeline: Object.freeze({
     state: 'viable:manager-api:connect:pipeline:state',

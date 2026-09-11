@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/viable-common",
+  "version": "0.0.6",
+  "generatedAt": "2026-09-11T04:12:26.759Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "viable-common",
+      "category": "package-specific",
+      "file": "skills/viable-common/SKILL.md",
+      "canonicalPath": ".agents/skills/viable-common/SKILL.md"
+    }
+  ]
+}
