@@ -1,6 +1,6 @@
 ---
 name: server-entrypoint
-description: How to use @owlmeans/server-entrypoint — server-side entrypoints extending @owlmeans/entrypoint with handler attachment, elevate() forms, intermediates, guards and mount(). Auto-invoked when importing server-entrypoint types or writing a custom entrypoint helper.
+description: How to use @owlmeans/server-entrypoint — binding immutable protocol objects to exact handlers, protocol-tree elevation, and legacy materialized elevation. Auto-invoked when importing server entrypoint types or wiring handlers.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -14,6 +14,9 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
+| `bind(protocol, implementation?)` | Materialize one protocol for a server, preserving its exact type and identity. |
+| `elevate(protocols(tree), [boundHandlers])` | Bind a protocol list; implementations match by exact protocol object. |
+| `BoundEntrypointHandler<P>` / `ServerProtocolEntrypoint<P>` | Protocol-bound implementation and registered server forms. |
 | `ServerEntrypoint<R>` | Server entrypoint interface — a common entrypoint whose `route` is a `ServerRouteModel` plus `handle` and an optional `fixer` |
 | `entrypoint(arg, handler?, opts?)` | Build one from an existing declaration, a server route model, or a plain route model |
 | `elevate(entrypoints, alias, handler?, opts?)` | Replace the declaration under `alias` in-place with its elevated counterpart |
@@ -24,13 +27,21 @@ user-invocable: false
 
 ## Usage
 
-Most app code uses `elevate()` from `@owlmeans/server-app` (which re-exports this one). Import
-directly only when implementing custom entrypoint helpers.
+New server code combines `protocols(tree)` with handlers from `@owlmeans/server-api`:
 
 ```typescript
-import { elevate, guard } from '@owlmeans/server-entrypoint'
-import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
+import { elevate } from '@owlmeans/server-entrypoint'
+import { protocols } from '@owlmeans/entrypoint'
+import { handlers } from '@owlmeans/server-api'
+
+const h = handlers<Context>()
+const create = h.body(project.create, async (body, context) => context.project().create(body))
+export const entrypoints = elevate(protocols(project), [create])
 ```
+
+Implementation matching is by `handler.protocol === declaration`, not by equal alias text. This
+prevents a handler typed for a lookalike declaration from binding. The alias-based overload below
+is the legacy materialized API.
 
 ### elevate forms
 

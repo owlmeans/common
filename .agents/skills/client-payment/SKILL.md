@@ -7,11 +7,12 @@ user-invocable: false
 # @owlmeans/client-payment
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.19"` in `dependencies` (peer `react`)
+**Install:** `"@owlmeans/client-payment": "^0.1.18-rc.20"` in `dependencies` (peer `react`)
 
 The same `PaymentService` as `@owlmeans/payment`, with one method adapted for a browser. Everything
-else — the catalogue reads, the entitlement helpers, the entrypoint aliases — is imported from the
-core package unchanged.
+else — catalogue reads, entitlement helpers and protocol objects — comes from the core package.
+Reusable checkout hooks and UI live in `@owlmeans/web-payment`; this package remains the underlying
+browser service.
 
 ## Key exports
 
@@ -53,4 +54,5 @@ on every call.
 ## Related
 
 - [[payment]] — the contracts, the catalogue and the entitlement grammar
+- `web-payment` — protocol-bound hooks, same-window checkout navigation and amount dialog
 - [[client-auth]] — the auth resource the shallow identity is cached in

@@ -1,6 +1,6 @@
 ---
 name: entrypoint
-description: How to use @owlmeans/entrypoint — declarative entrypoint definitions over immutable route declarations, with entrypoint(), guard(), gate(), filter(), body(), params(), query() builders, the address accessors, and the transport seam. Auto-invoked when importing from this package or defining a service entrypoint declaration.
+description: How to use @owlmeans/entrypoint — immutable protocol objects, typed contracts and schemas, protocol trees, registered entrypoints, route inheritance, and the transport seam. Auto-invoked when importing from this package or defining a service protocol.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -10,14 +10,22 @@ user-invocable: false
 **Layer:** Core
 **Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.11"` in `dependencies`
 
-An entrypoint is a **URL unit**: an immutable route declaration plus the guards, gates and schemas
-it answers under. It is the single concept an application declares once in a shared package and
-elevates on either side.
+An entrypoint protocol is an **immutable contract object**: route, request/reply types, runtime
+schemas, guards and gate. Shared packages export protocol objects; server and client packages bind
+those exact objects into context-owned registered entrypoints. Public trees expose objects, never
+alias strings. An alias is only a registry/broker adapter detail available as `protocol.alias`.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
+| `protocol(route, contract, opts?)` / `openProtocol(route, opts?)` | Declare an immutable typed protocol; use `openProtocol` only while a surface has no contract. |
+| `contract()` / `contract(response)` / `contract(body, response)` / `contract.request({...}, response)` | Declare exact request sections and reply type. |
+| `schema<T>(jsonSchema)` / `typed<T>(schema?)` | Brand a reusable AJV schema with its model type, or supply a type-only contract. |
+| `protocols(tree)` | Flatten a nested protocol tree without losing declaration identity. |
+| `RequestOf<P>` / `ResponseOf<P>` / `BodyOf<P>` / `ParamsOf<P>` | Infer a declaration's exact I/O types. |
+| `RegisteredEntrypoint<Request, Response>` | Context-bound callable form returned for a protocol lookup. |
+| `entrypointRef(alias)` | Explicit typed adapter for code that cannot yet import the protocol object. |
 | `entrypoint(route, opts?)` | Declare an entrypoint on a route model |
 | `guard(alias, opts?)` | Require a guard; returns options, so it wraps rather than takes them |
 | `gate(alias, params, opts?)` | Require a gate; passed as the `opts` of `guard(...)` |
@@ -34,7 +42,9 @@ elevates on either side.
 | `EntrypointTransport` | `{ protocol, handle }` — a carrier bound to a route protocol |
 | `transportAlias(protocol?)` | The service alias a transport registers under (`transport:<protocol>`) |
 
-`guard`, `gate` and `filter` are **options-object combinators, not variadic composers**. Each
+`entrypoint`, `guard`, `gate` and `filter` are the materialized compatibility surface. New shared
+declarations use protocol objects. On that compatibility surface, `guard`, `gate` and `filter` are
+**options-object combinators, not variadic composers**. Each
 returns a `CommonEntrypointOptions` and takes the next one as its final argument, so they nest:
 
 ```typescript
@@ -93,30 +103,29 @@ so read it defensively rather than assuming it.
 `timeout` and `signal` on a request are forwarded to the transport, so a caller can bound or abort a
 single round trip.
 
-## Calling an entrypoint
+## Calling a registered protocol
 
 Three explicit verbs, so the caller says which answer it wants:
 
 ```typescript
-const project = await ep.call({ params: { id } })            // the VALUE; the reply error is thrown
-const { value, outcome } = await ep.invoke({ body })         // value AND outcome
-const href = await ep.url({ params: { id } }, { absolute: true })   // the URL string
+const project = await ctx.entrypoint(app.project.get).call({ params: { id } })
+const { value, outcome } = await ctx.entrypoint(app.project.create).invoke({ body })
+const href = await ctx.entrypoint(app.project.get).url({ params: { id } }, { absolute: true })
 ```
 
 Use `invoke` only where the outcome decides what happens next; `call` covers everything else. An
 entrypoint that **renders a screen** is addressed by URL and never over the wire — it throws from
 `call()`/`invoke()` telling the caller to use `url()`.
 
-The three verbs sit on the callable entrypoint that `@owlmeans/client-entrypoint` produces; the
-declaration built here is what they address.
+`ctx.entrypoint(protocol)` reads the exact registered type through the object's branded reference;
+never replace it with `ctx.entrypoint<SomeGeneric>(protocol.alias)`. The latter lets a caller claim
+an I/O type the declaration never made.
 
 ## Elevation
 
-`elevate` replaces the declaration in the entrypoint list with its elevated counterpart, so it is
-**idempotent**: elevating the same alias again simply replaces the element once more. Guards passed
-at elevation are **unioned** with the ones the entrypoint declared — elevating adds guards, it never
-swaps them. Server-side elevation lives in `@owlmeans/server-entrypoint`, client-side callability is
-an explicit opt-in through `@owlmeans/client-entrypoint`.
+Server code binds `protocols(tree)` with protocol-bound handlers. Client code registers
+`bindAll(tree)` or `bind(protocol)`. Both preserve object identity and exact inference. String
+`elevate(list, alias, ...)` remains only for legacy materialized declarations.
 
 ## Transport seam
 
@@ -144,31 +153,36 @@ context.registerService(transport)
 as a broker job. Nothing at the call site changes — which is the point of putting the protocol on
 the route rather than at the call.
 
-## Usage
+## Protocol declaration
 
-Define entrypoints in a shared `common` package, then `elevate()` them with handlers in server/web packages:
+Define a tree in a shared package. Parent routes receive the parent protocol object, not its alias:
 
 ```typescript
-import { entrypoint, guard, gate, filter, body } from '@owlmeans/entrypoint'
-import { route, RouteMethod } from '@owlmeans/route'
+import { contract, protocol, protocols, schema } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
-import { OIDC_GATE } from '@owlmeans/oidc'
 import { CreateProjectSchema } from './schemas.js'
 
-export const managerEntrypoints = [
-  entrypoint(
-    route(manager.back.account.base, '/account'),
-    guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
+const base = protocol(route('app:project', '/project', backend()), contract(), {
+  guards: DEFAULT_GUARD,
+})
+export const project = {
+  base,
+  create: protocol(
+    route('app:project:create', '/create', backend({ parent: base, method: RouteMethod.POST })),
+    contract(CreateProjectSchema, ProjectSchema),
   ),
-  entrypoint(
-    route(manager.back.project.create, '/create', {
-      parent: manager.back.project.base,
-      method: RouteMethod.POST,
-    }),
-    filter(body(CreateProjectSchema))
-  ),
-]
+} as const
+export const projectEntrypoints = protocols(project)
 ```
+
+Brand model schemas once with `schema<Model>(...)`. `contract(body, response)` means a body
+request; use `contract.request({ params, query, headers, body }, response)` when sections differ.
+Use `typed<T>()` only when no runtime schema can exist, because it supplies no validation.
+
+When a protocol is materialized for Fastify, its default response schema is registered under
+HTTP status `200`; explicit response-status schemas retain their declared status key. A bare
+response schema is not a valid Fastify serializer declaration.
 
 ## Depends On
 

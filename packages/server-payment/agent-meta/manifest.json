@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/server-payment",
+  "version": "0.1.18-rc.0",
+  "generatedAt": "2026-09-10T19:12:22.790Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "server-payment",
+      "category": "package-specific",
+      "file": "skills/server-payment/SKILL.md",
+      "canonicalPath": ".agents/skills/server-payment/SKILL.md"
+    }
+  ]
+}

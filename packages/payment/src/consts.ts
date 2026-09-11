@@ -6,6 +6,11 @@ export enum ProductType {
   Consumable = 'consumable'
 }
 
+export enum CheckoutPricingMode {
+  Quantity = 'quantity',
+  Amount = 'amount',
+}
+
 export enum PaymentEntityType {
   Product = 'product',
   Plan = 'plan',
@@ -49,6 +54,11 @@ export enum SubscriptionStatus {
 export const ProductTypeSchema: JSONSchemaType<ProductType> = {
   type: 'string',
   enum: Object.values(ProductType)
+}
+
+export const CheckoutPricingModeSchema: JSONSchemaType<CheckoutPricingMode> = {
+  type: 'string',
+  enum: Object.values(CheckoutPricingMode),
 }
 
 export const PaymentEntityTypeSchema: JSONSchemaType<PaymentEntityType> = {
@@ -95,27 +105,3 @@ export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
 export const DEFAULT_ALIAS = 'payment'
 
 export const PAYMENT_SERVICE = DEFAULT_ALIAS
-
-export const paymentApi = {
-  subscription: {
-    base: 'payment-api:subscription',
-    /**
-     * @deprecated Use propagate instead
-     */
-    propogate: 'payment-api:subscription:propogate',
-    propagate: 'payment-api:subscription:propagate',
-  },
-  service: {
-    base: 'payment-service:base',
-    checkout: {
-      base: 'payment-service:checkout',
-      session: {
-        base: 'payment-service:checkout:session',
-        external: {
-          base: 'payment-service:checkout:session:external',
-          create: 'payment-service:checkout:session:external:create',
-        }
-      }
-    }
-  }
-}

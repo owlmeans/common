@@ -144,6 +144,11 @@ when it gives up on one (`'failed'`); `wrapHandler` wraps every dispatch.
 or stalled past the limit. It is where the application COMPENSATES: the lock an admission step took
 is not released by the broker, and without this it is only freed when its TTL expires.
 
+For a per-entity single-flight projection, `onJobResult` is the release point: compare the completed
+job id and applied revision atomically, release only that claim, then enqueue one follow-up if the
+dirty revision advanced. `onJobDead` marks/releases the claim so the next read or write can recover.
+Keep enough completed jobs for any `waitForProtocol` caller; immediate removal races the waiter.
+
 ## Tests
 
 Queue integration specs live HERE, not in `queue` — the contract package has no broker to test

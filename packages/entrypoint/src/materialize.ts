@@ -18,13 +18,13 @@ const filterOf = (protocol: EntrypointProtocolDeclaration): Filter | undefined =
     params: request?.params == null ? undefined : structuredClone(request.params),
     query: request?.query == null ? undefined : structuredClone(request.query),
     headers: request?.headers == null ? undefined : structuredClone(request.headers),
-    response: response?.byStatus == null
-      ? response?.default == null ? undefined : structuredClone(response.default)
-      : {
-        ...(response.default == null ? {} : { default: structuredClone(response.default) }),
-        ...Object.fromEntries(Object.entries(response.byStatus).map(([status, schema]) => [
-          status, structuredClone(schema),
-        ])),
+    // Fastify requires response serializers to be keyed by a status code. A protocol's
+    // ordinary response has no explicit outcome, so it is the normal successful 200 reply.
+    response: response == null ? undefined : {
+      ...(response.default == null ? {} : { 200: structuredClone(response.default) }),
+      ...Object.fromEntries(Object.entries(response.byStatus ?? {}).map(([status, schema]) => [
+        status, structuredClone(schema),
+      ])),
     },
   }
 }

@@ -1,13 +1,13 @@
 ---
 name: payment
-description: "How to use @owlmeans/payment — the provider-agnostic payment contracts: the product/plan/subscription catalogue and its schemas, the paymentApi entrypoint aliases, PaymentService, and the entitlement grammar that gates paid capabilities. Auto-invoked when importing payment types or errors, declaring an entrypoint with entitled(), reading entitlements, or calling the checkout entrypoint."
+description: "How to use @owlmeans/payment — provider-agnostic payment contracts, immutable payment protocols, amount/quantity checkout policies and pricing, catalogue records, and entitlement gates. Auto-invoked when importing payment types or errors, declaring paid routes, or creating checkout."
 user-invocable: false
 ---
 
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.13"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), the subscription
 record, the entitlement grammar, and the entrypoint declarations both sides of a checkout share. It
@@ -20,8 +20,12 @@ talks to no paygate — a server-side integration implements against these, and
 |---|---|
 | `makePaymentService(alias?)` · `appendPaymentService(ctx, alias?)` | The catalogue reader, registered under `DEFAULT_ALIAS` / `PAYMENT_SERVICE` (`'payment'`). |
 | `PaymentService` | `product(sku)` · `products()` · `plans(productSku, duration)` · `plan(planSku)` · `allPlans(productSku)` · `localize(lng, entity)` · `shallowAuthentication(token)`. |
-| `paymentApi` | The entrypoint alias tree — `paymentApi.subscription.propagate`, `paymentApi.service.checkout.session.external.create`. |
-| `entrypoints` · `serviceEntrypoints` | The declarations to register: the subscription callback surface, and the checkout service surface. |
+| `paymentApi` | Immutable protocol tree — `paymentApi.subscription.propagate`, `paymentApi.service.checkout.session.external.create`. |
+| `entrypoints` · `serviceEntrypoints` | Flattened protocol declarations for registration; values retain their protocol identity. |
+| `CheckoutPricingMode` | `Amount` for a caller-selected net monetary value; `Quantity` for reusable unit prices. |
+| `AmountCheckoutPolicy` / `QuantityCheckoutPolicy` (+ schemas) | Configured bounds/default/presets and adjustment, or quantity bounds/default. |
+| `assertAmountCheckoutPolicy` / `assertQuantityCheckoutPolicy` / `assertCheckoutAmount` | Startup and request-boundary validation. |
+| `chargeAmountMinor(amount, policy)` | Integer-only gross-up of net amount before tax. |
 | `entitled(params, opts?)` · `ENTITLEMENT_GATE` | Declare on a route that an entrypoint needs a paid capability. |
 | `hasEntitlement(capabilities, param)` · `entitlementList(capabilities)` · `parseEntitlementParam` · `formatEntitlementParam` | The entitlement grammar — pure, and shared by the server gate and the UI. |
 | `CAPABILITY_FEATURE_SCOPE` | `'feature'`, the scope that carries flags. |
@@ -93,32 +97,48 @@ const granted = entitlementList(capabilities)
 
 ## Checkout
 
-Register `serviceEntrypoints` (and `entrypoints` where subscriptions are propagated back), then
-call the alias. `ClientEntrypoint.call` resolves to the response value itself and throws the reply's
-error; `invoke` is the form that hands back the value and the outcome together.
+Register `bindAll(paymentApi.service)` on a client and bind `serviceEntrypoints` on a server. Call
+the protocol object; its body and response are inferred without a consumer generic.
 
 ```typescript
 import { paymentApi, serviceEntrypoints } from '@owlmeans/payment'
-import type { CreateCheckoutBody, CreateCheckoutResponse } from '@owlmeans/payment'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { bindAll } from '@owlmeans/client-entrypoint'
 
-export const appEntrypoints = [...myEntrypoints, ...serviceEntrypoints]
+export const appEntrypoints = [...bindAll(paymentApi.service)]
 
-const result = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
-  paymentApi.service.checkout.session.external.create
-).call({
-  body: { productSku, entityId, service, successUrl } satisfies CreateCheckoutBody
+const result = await ctx.entrypoint(paymentApi.service.checkout.session.external.create).call({
+  body: { productSku, entitySlug, service, amountMinor, successUrl }
 })
-window.open(result.url, '_blank')
+window.location.assign(result.url)
 ```
 
-`entityId` on a checkout and on a `PlanSubscription` is the organization entity a subscription is
-billed to — a stable record id, never an `entitySlug`, so a rename costs nothing.
+`entitySlug` is the only organization value on a public checkout body. A server resolves it to the
+stable `entityId` before persisting a customer/session. `PlanSubscription.entityId` remains an
+internal record key, not an HTTP body convention.
+
+### Amount checkout
+
+`amountMinor` is the net value credited to the customer, in integer currency minor units. The
+policy bounds that value; fees and tax do not enlarge the credit. Gross up the pre-tax charge with:
+
+```
+ceil((amountMinor + fixedMinor) * 10_000 / (10_000 - rateBps))
+```
+
+Validate the whole policy when configuration is declared, then validate every selected amount at
+the backend boundary. Minimum, default, maximum, preset entries, fixed adjustment and basis-point
+rate are safe integers; presets are unique/in-range and the rate is below 100%. The maximum applies
+to `amountMinor`, not the adjusted checkout subtotal or Stripe tax-inclusive total.
+
+Quantity checkout remains supported. It uses its reusable unit price and quantity policy; do not
+infer a pricing mode from the presence of `amountMinor`.
 
 ## Two spellings, both registered
 
 `entrypoints` declares `/propogate` and `/propagate` as two routes over the same
 `SubscriptionPropagateBodySchema`, and `paymentApi.subscription` carries an alias for each.
+The protocol body carries the organization as `entitySlug`; `entityId` belongs only to stored
+`PlanSubscription` records and in-process services.
 `propogate` is marked `@deprecated`, as are the type alias `SubscriptionPropogateBody` and the
 duplicate `SubscriptionPropogateBodySchema`: write every new declaration and every new call against
 `propagate` / `SubscriptionPropagateBody` / `SubscriptionPropagateBodySchema`. The misspelled route

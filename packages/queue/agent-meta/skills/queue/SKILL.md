@@ -1,6 +1,6 @@
 ---
 name: queue
-description: How to use @owlmeans/queue — job queues as resources, the QUEUE route protocol that makes a queued call indistinguishable from an HTTP one, declaring queues and job names, the producer/consumer split, job graphs, envelope freshness, and the rules a processor must follow. Auto-invoked when importing queue types or declaring a job route.
+description: How to use @owlmeans/queue — protocol-object enqueue/wait, job queues as resources, QUEUE declarations, producer/consumer split, single-flight job ids, lifecycle hooks, and processor rules. Auto-invoked when importing queue types or declaring a job protocol.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -16,9 +16,11 @@ application wires itself up.
 
 ## The one idea
 
-A queued call is an ordinary entrypoint call. The route names `RouteProtocols.QUEUE`, the
-transport registered under that protocol takes it, and the caller writes `ep.call(...)` exactly as
-for HTTP. Nothing at a call site says "queue".
+A queued call is an immutable entrypoint protocol whose route names `RouteProtocols.QUEUE`.
+Ordinary calls use `ctx.entrypoint(protocol).call(request)`. Code that needs broker options or a
+job handle uses `enqueueProtocol(ctx, protocol, request, options)` and
+`waitForProtocol(ctx, protocol, job)`. Both derive queue and job name from the protocol object and
+preserve its exact request/reply pair; raw strings and non-QUEUE declarations are rejected.
 
 That is what makes it worth having: moving a service-to-service call onto the broker is a change
 to a declaration, not to the places that call it, and the broker holds the work across a restart of
@@ -30,7 +32,7 @@ Queues and the jobs they accept live in the SHARED backend package, so producers
 read one list:
 
 ```typescript
-declareQueue(cfg, AGENT_WORK, ['agent:story:develop', 'agent:story:code'], {
+declareQueue(cfg, AGENT_WORK, [story.develop.alias], {
   worker: { concurrency: 3, lockDuration: 60_000 }
 })
 ```
@@ -48,15 +50,31 @@ listenQueues(cfg, AGENT_WORK, AGENT_OPS)   // absent ⇒ producer only
 Keep them apart. A declaration is an address; `listen` is a deployment fact. If a worker bound
 whatever it could serve, every deployment of the same binary would consume everything it imports.
 
-A queued entrypoint is declared like any other, with `job()` in place of `backend()`:
+A queued entrypoint is an immutable protocol with `job()` in place of `backend()`:
 
 ```typescript
-entrypoint(
-  route(agent.story.develop, '/:id/develop',
-    job({ parent: agent.story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-  filter(params(StoryParamsSchema))
+protocol(
+  route('agent:story:develop', '/:id/develop',
+    job({ parent: story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
+  contract.request({ params: StoryParamsSchema }, StoryResultSchema),
 )
 ```
+
+The alias appears in `declareQueue(...jobs)` only because the broker is a string-keyed adapter.
+Application producers and handlers keep the protocol object.
+
+When an admission record owns single flight, select the job id atomically first, then enqueue it:
+
+```typescript
+const queued = await enqueueProtocol(context, tokenBalance.reconcile, {
+  body: { projectionId },
+}, { id: claimId, delay: 250, attempts: 3, backoff: { type: 'exponential', delay: 250 } })
+const result = await waitForProtocol(context, tokenBalance.reconcile, queued)
+```
+
+Per-call `id`, delay, attempts, backoff and retention belong here; putting them into an alias-based
+helper forfeits protocol inference. `queueJobOf(request)` exposes `{ id, name, queue, attempt }` to
+the rare protocol handler that must compare a broker job with its persisted claim.
 
 `reply: false` makes it fire-and-forget: the call resolves `Accepted` with `{ id, queue }` as soon
 as the BROKER has accepted the enqueue — before any worker has picked the job up, so the resolution
@@ -162,6 +180,8 @@ listens to, grouped by queue, which is what a driver binds.
 
 | Export | Description |
 |--------|-------------|
+| `enqueueProtocol` / `waitForProtocol` | Typed protocol-object enqueue and result wait; validates protocol kind and queue configuration. |
+| `queueJobOf(request)` / `QueueJobMeta` | Explicit broker identity boundary for a protocol handler, including `touch()` for long work. |
 | `declareQueue` / `listenQueues` | Configuration — what exists, and what this process consumes |
 | `queueOf` / `queueOfJob` / `isListening` | Reading it back; `queueOf` throws `UnknownQueue` |
 | `QueueConfig` / `QueueDeclaration` / `QueueWorkerOptions` / `JobOptions` | The configuration shapes |

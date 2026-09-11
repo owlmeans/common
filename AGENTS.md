@@ -90,9 +90,9 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Configuration & tooling**: `dep-config` (shared TypeScript configs), `agent-skills` (the skills installer CLI), `create-app` (the scaffolder)
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
 - **Auth shared / API plumbing**: `auth-common`, `api`, `api-config`, `api-config-client`, `api-config-server`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-payment`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
 - **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`; `client-iam` carries the prefix but depends on `web-client`, so it is browser-only
-- **Web** (React): `web-client`, `web-router`, `web-router-react-router`, `web-panel`, `web-auth`, `web-db`, `web-flow`, `web-oidc-*`, `web-wl`, `web-consent`, `web-gtm` — the current browser family: shadcn UI + Tailwind v4 over `client-panel`, using the `@` app-provides contract (see `shadcn-web` skill). `astro` carries the same consent and tag-manager strings into a static Astro site. `mui-panel` and `mui-oidc-rp` are the LEGACY MUI v7 family — maintain the apps already on them, start nothing new there
+- **Web** (React): `web-client`, `web-router`, `web-router-react-router`, `web-panel`, `web-auth`, `web-db`, `web-flow`, `web-oidc-*`, `web-payment`, `web-wl`, `web-consent`, `web-gtm` — the current browser family: shadcn UI + Tailwind v4 over `client-panel`, using the `@` app-provides contract (see `shadcn-web` skill). `astro` carries the same consent and tag-manager strings into a static Astro site. `mui-panel` and `mui-oidc-rp` are the LEGACY MUI v7 family — maintain the apps already on them, start nothing new there
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `redis-queue`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
 - **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service), `agent-common` (run + pipeline contracts), `agent` (the ReAct runtime and the resumable pipeline runner), `viable-common` (the OwlMeans Viable platform's runtime-free contracts: analysis/design/metadata shapes, the target-shape manifest, the slot command vocabulary and the connector protocol)
@@ -104,8 +104,8 @@ Which of these a feature should use — a database, Redis, a bucket, client stat
 
 ## Key Facts
 
-- 101 packages under `packages/`, all `@owlmeans/*` namespace — 96 framework packages plus five test
-  helpers; `_tpl` is a template excluded from every root script
+- 110 package manifests under `packages/`, all `@owlmeans/*` namespace — 104 framework packages,
+  five test helpers, and `_tpl`, which is excluded from every root script
 - TypeScript 7 (`^7.0.2`) — the same range in `internal`, `viable` and `viable-agent`; `static`
   links a few packages from here while declaring `^5.8.3`, so read a consumer's own manifest before
   assuming its compiler. ESM only (`"type": "module"`, every exports condition pointing at the same
@@ -199,6 +199,9 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **Jobs and queues**: `queue` (contracts and the QUEUE transport), `redis-queue` (the driver),
   `server-job` and `client-job` (the two transports). `resource-choice` decides whether a feature
   wants one at all.
+- **Payments**: `payment` (catalogue, entitlement and amount/quantity contracts), `server-payment`
+  (public Stripe gateway), `client-payment` (browser service), and `web-payment` (protocol-bound
+  hooks plus the shadcn/Tailwind amount dialog).
 - **Prompt composition and caching**: `llm-prompt-caching` — how a system prompt is assembled from a
   role plus skills, block order, breakpoint budget and the determinism invariants that make the
   provider cache hit. Read before changing anything a request sends ahead of its first per-call byte.

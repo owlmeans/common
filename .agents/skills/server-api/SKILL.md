@@ -7,12 +7,14 @@ user-invocable: false
 # @owlmeans/server-api
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/server-api": "^0.1.18-rc.17"` in `dependencies`
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
+| `handlers<Context>()` | Protocol-bound `body`, `params`, and `request` handler builders with inferred request/reply types. |
+| `uploadedFile(request)` | Explicit multipart boundary helper for a protocol-bound request. |
 | `createApiServer(alias)` | Factory for the Fastify-based API server |
 | `appendApiServer(ctx, alias?)` | Register it and expose `ctx.getApiServer()` |
 | `handleRequest` / `handleBody` / `handleParams` / `handleIntermediate` | Wrap an async function as an entrypoint handler |
@@ -40,6 +42,22 @@ appendApiServer(context)
 ```
 
 ## Writing handlers
+
+Use protocol-bound handlers for every immutable declaration. The declaration is passed once and
+the callback infers its body/params/request and required response; a mismatched return fails at
+compile time. `request` is the general form and receives the full typed request.
+
+```typescript
+const bind = handlers<Context>()
+
+export const topUp = bind.body(account.topUp, async ({ amountMinor }, context, request) => {
+  const entityId = requireEntityKey(request)
+  return await context.payments().checkout(entityId, amountMinor)
+})
+```
+
+Transport-specific metadata belongs behind an explicit helper (`uploadedFile`, or a transport
+package's equivalent), not an application cast of `request.original`.
 
 `handleRequest(fn)` gives the whole request, `handleBody<T>(fn)` the validated body, `handleParams<T>(fn)`
 the validated URL params, and `handleIntermediate(fn)` a function that returns a context (or `null`

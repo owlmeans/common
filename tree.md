@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 103 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 104 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -142,6 +142,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
 - [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
+- [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 
 > **Note.** Several server packages depend on `client-config` / `client-entrypoint` for the shared entrypoint/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
 
@@ -185,6 +186,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
 - [`web-wl`](packages/web-wl) → `client`, `client-entrypoint`, `context`, `wled`
 - [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `queue`, `route`, `web-client`, `web-consent`, `web-db`, `web-flow`, `web-router`
+- [`web-payment`](packages/web-payment) → `client-i18n`, `client-payment`, `entrypoint`, `i18n`, `payment`
 - [`mui-panel`](packages/mui-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `route`, `web-client`, `web-db`, `web-flow`, `web-router`
 - [`mui-oidc-rp`](packages/mui-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
 - [`astro`](packages/astro) → `consent`, `web-gtm`
@@ -232,9 +234,9 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L7**: `agent-skills`, `api-config-server`, `client`, `iam`, `image-resource`, `mongo`, `postgres`, `redis`, `server-auth-identity`, `server-oidc-provider`, `server-wl`, `viable-sdk`, `web-db`
 - **L8**: `client-did`, `client-flow`, `client-i18n`, `client-socket`, `create-app`, `redis-queue`, `server-auth-token`, `viable-mcp`, `web-wl`, `{server-auth | server-socket}`
 - **L9**: `server-app`, `server-auth-otp`, `server-job`, `server-oidc-rp`, `web-auth-token`, `web-flow`
-- **L10**: `client-auth`, `server-iam`
+- **L10**: `client-auth`, `server-iam`, `server-payment`
 - **L11**: `client-job`, `client-panel`, `client-payment`, `web-client`
-- **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`
+- **L12**: `mui-oidc-rp`, `mui-panel`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `web-panel`, `web-payment`
 - **L13**: `client-iam`
 
 > Levels are computed from `dependencies` + `peerDependencies` over the `@owlmeans/*` namespace, with strongly connected components collapsed. They are advisory — the authoritative build order is whatever Bun resolves at install time.
@@ -253,7 +255,8 @@ Dependencies flow downward: every package can only import from the layers below 
  ║                                                                              ║
  ║  web-panel        web-client      web-flow        web-router                 ║
  ║  web-oidc-rp      web-oidc-provider  web-auth     web-wl        web-db       ║
- ║  mui-panel        mui-oidc-rp     web-consent     web-gtm       astro        ║
+ ║  mui-panel        mui-oidc-rp     web-payment     web-consent    web-gtm      ║
+ ║  astro                                                                       ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  CLIENT  (platform-agnostic React — web + React Native)          L0–L13      ║
  ║                                                                              ║
@@ -271,7 +274,7 @@ Dependencies flow downward: every package can only import from the layers below 
  ║  server-oidc-rp   server-socket┘ SCC              server-oidc-provider       ║
  ║  server-auth-identity  server-auth-otp  server-iam   server-job              ║
  ║  server-entrypoint  server-route  server-context   server-config             ║
- ║  server-wl                                                                   ║
+ ║  server-wl        server-payment                                             ║
  ╠══════════════════════════════════════════════════════════════════════════════╣
  ║  STORAGE & INFRASTRUCTURE                                         L3–L8      ║
  ║                                                                              ║
@@ -311,10 +314,10 @@ Dependencies flow downward: every package can only import from the layers below 
 
 ```
   L13  █ client-iam
-  L12  ██████ mui-oidc-rp  mui-panel  web-auth  web-oidc-provider
-               web-oidc-rp  web-panel
+  L12  ███████ mui-oidc-rp  mui-panel  web-auth  web-oidc-provider
+               web-oidc-rp  web-panel  web-payment
   L11  ████ client-job  client-panel  client-payment  web-client
-  L10  ██ client-auth  server-iam
+  L10  ███ client-auth  server-iam  server-payment
    L9  █████ server-app  server-auth-otp  server-job  server-oidc-rp  web-flow
    L8  ███████ client-did  client-flow  client-i18n  client-socket  create-app
                redis-queue  web-wl

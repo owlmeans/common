@@ -1,18 +1,21 @@
 # @owlmeans/payment
 
-Payment service abstraction — product catalog, subscription management, and Stripe checkout integration.
+Payment contracts and service abstractions for product catalogs, subscriptions, and amount- or
+quantity-priced checkout.
 
 ## Overview
 
 - `makePaymentService(alias?)` — creates a payment service for context registration
 - `appendPaymentService(context, alias?)` — registers the payment service in the context
 - `PaymentService` — interface for products, plans, subscriptions, and checkout session creation
-- `CreateCheckoutBody` / `CreateCheckoutResponse` — request/response types for checkout
+- `paymentApi` — immutable protocol declarations for subscription propagation and checkout
+- `CheckoutPricingMode` plus amount/quantity checkout policy schemas and validators
+- `chargeAmountMinor()` — integer-minor-unit processing adjustment calculation
 
 ## Installation
 
 ```bash
-bun add @owlmeans/payment@^0.1.18-rc.12
+bun add @owlmeans/payment@^0.1.18-rc.13
 ```
 
 ## Usage
@@ -20,34 +23,20 @@ bun add @owlmeans/payment@^0.1.18-rc.12
 Create a checkout session:
 
 ```typescript
-import type { CreateCheckoutBody, CreateCheckoutResponse } from '@owlmeans/payment'
+import { paymentApi } from '@owlmeans/payment'
 
-const result = await ctx.entrypoint<ClientEntrypoint<CreateCheckoutResponse>>(
-  paymentApi.service.checkout.session.external.create
+const result = await ctx.entrypoint(
+  paymentApi.service.checkout.session.external.create,
 ).call({
   body: {
     productSku: 'vib-tokens',
-    entityId,
+    entitySlug,
     service: VIB_ALIAS,
+    amountMinor: 1_000,
     successUrl: helper.makeUrl(service)
-  } satisfies CreateCheckoutBody
-})
-window.open(result.url, '_blank')
-```
-
-Handle subscription propagation:
-
-```typescript
-import { SubscriptionPropagateBody, PlanDuration, SubscriptionStatus } from '@owlmeans/payment'
-
-const handler = handleBody<SubscriptionPropagateBody>(async (body, context) => {
-  if (body.status === SubscriptionStatus.Consumable) {
-    const tokens = body.capabilities?.find(
-      c => c.scope === PlanDuration.Consumable
-    )?.permissions.units ?? 0
-    await ctx.agentToken().topUpTokens(entityId, tokens * 1000)
   }
 })
+window.location.assign(result.url)
 ```
 
 ## API
@@ -67,9 +56,11 @@ Creates the payment service.
 
 ### Types
 
-- `CreateCheckoutBody` — `{ productSku, entityId, service, successUrl?, cancelUrl? }`
+- `CreateCheckoutBody` — `{ productSku, entitySlug, service, amountMinor?, successUrl?, cancelUrl? }`
 - `CreateCheckoutResponse` — `{ url: string }`
-- `SubscriptionPropagateBody` — extends `PlanSubscription`
+- `AmountCheckoutPolicy` — integer minor-unit bounds, presets, currency, fixed and basis-point adjustments
+- `QuantityCheckoutPolicy` — integer quantity bounds and default
+- `SubscriptionPropagateBody` — propagation wire shape with `entitySlug`, never the stored `entityId`
 - `PlanSubscription` — `{ sku, entityId, createdAt, status, capabilities? }`
 
 ### Enums
@@ -78,6 +69,7 @@ Creates the payment service.
 - `SubscriptionStatus` — `Active`, `Consumable`, `Canceled`, etc.
 - `ProductType` — product category enum
 - `PaymentEntityType` — entity classification enum
+- `CheckoutPricingMode` — `Amount` or `Quantity`
 
 ## Related Packages
 

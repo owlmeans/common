@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.3"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -142,6 +142,11 @@ when it gives up on one (`'failed'`); `wrapHandler` wraps every dispatch.
 `onJobDead` fires when the job is finished for good — attempts exhausted, an unrecoverable failure,
 or stalled past the limit. It is where the application COMPENSATES: the lock an admission step took
 is not released by the broker, and without this it is only freed when its TTL expires.
+
+For a per-entity single-flight projection, `onJobResult` is the release point: compare the completed
+job id and applied revision atomically, release only that claim, then enqueue one follow-up if the
+dirty revision advanced. `onJobDead` marks/releases the claim so the next read or write can recover.
+Keep enough completed jobs for any `waitForProtocol` caller; immediate removal races the waiter.
 
 ## Tests
 

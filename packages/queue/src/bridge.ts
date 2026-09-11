@@ -5,7 +5,7 @@ import type { Auth } from '@owlmeans/auth'
 import { AuthorizationError } from '@owlmeans/auth'
 import { attachEntity } from '@owlmeans/auth-common'
 import { ResilientError } from '@owlmeans/error'
-import type { Config, Context, JobContext, JobEnvelope, JobReply } from './types.js'
+import type { Config, Context, JobContext, JobEnvelope, JobReply, QueueJobMeta } from './types.js'
 import { EnvelopeExpired, JobNotServed } from './errors.js'
 
 /**
@@ -13,7 +13,7 @@ import { EnvelopeExpired, JobNotServed } from './errors.js'
  * same filter, the same handler run against it — only the wire is different.
  */
 export const requestOf = (
-  envelope: JobEnvelope, path: string, context?: BasicContext<any>
+  envelope: JobEnvelope, path: string, context?: BasicContext<any>, job?: QueueJobMeta,
 ): AbstractRequest => ({
   alias: envelope.alias,
   params: (envelope.params ?? {}) as AbstractRequest['params'],
@@ -24,8 +24,16 @@ export const requestOf = (
   // Handlers reach their context through `original._ctx`, which the HTTP boundary sets on the raw
   // Fastify request. There is no raw request here, so the shape is supplied deliberately — a
   // handler must not have to know which transport delivered it.
-  original: context != null ? { _ctx: context } : undefined,
+  original: context != null || job != null ? { _ctx: context, _job: job } : undefined,
 })
+
+/** Read broker identity only where an entrypoint truly needs to bind work to an admission claim. */
+export const queueJobOf = (request: unknown): QueueJobMeta | null => {
+  if (request == null || typeof request !== 'object' || !('original' in request)) return null
+  const original = (request as { original?: unknown }).original
+  if (original == null || typeof original !== 'object' || !('_job' in original)) return null
+  return (original as { _job?: QueueJobMeta })._job ?? null
+}
 
 /**
  * Freshness is judged from when the job was ENQUEUED, not from now.
@@ -67,7 +75,9 @@ export const handleJob = async <C extends Config, T extends Context<C>>(
       throw new JobNotServed(envelope.alias)
     }
 
-    const request = requestOf(envelope, entrypoint.path(), context)
+    const request = requestOf(envelope, entrypoint.path(), context, {
+      id: job.id, name: job.name, queue: job.queue, attempt: job.attempt, touch: job.touch,
+    })
     const response = provideResponse<unknown>()
 
     const guards = entrypoint.getGuards()

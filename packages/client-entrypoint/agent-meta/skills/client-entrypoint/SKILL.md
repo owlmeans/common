@@ -1,6 +1,6 @@
 ---
 name: client-entrypoint
-description: How to use @owlmeans/client-entrypoint — client-side entrypoints extending @owlmeans/entrypoint with the call/invoke/url verbs, React component attachment and elevation. Auto-invoked when importing client entrypoint helpers.
+description: How to use @owlmeans/client-entrypoint — binding immutable protocol objects into typed client entrypoints, tree registration, screen binding, and legacy materialized elevation. Auto-invoked when importing client entrypoint helpers.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -14,6 +14,10 @@ user-invocable: false
 
 | Export | Description |
 |--------|-------------|
+| `bind(protocol, opts?)` | Bind one immutable protocol as an exactly typed client entrypoint. |
+| `bindAll(tree)` | Flatten and bind a protocol tree for context registration. |
+| `bindScreen(protocol, handler, opts?)` | Bind a frontend protocol to its renderer. |
+| `ClientProtocolEntrypoint<P>` | Registered client form whose request/reply pair is inferred from `P`. |
 | `ClientEntrypoint<T, R>` | Client entrypoint interface — `call`, `invoke`, `url`, `validate`, `request` |
 | `entrypoint(arg, handler?, opts?)` | Build a client entrypoint from a route model or an existing declaration |
 | `elevate(entrypoints, alias, handler?, opts?)` | Make a declared entrypoint client-callable, optionally attaching a screen |
@@ -34,11 +38,19 @@ user-invocable: false
 
 ## Usage
 
-Most app code uses `elevate()` from `@owlmeans/web-client` (which builds on this). Use this directly only for cross-platform entrypoint helpers.
+Protocol-object applications register shared trees directly:
 
 ```typescript
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { bindAll } from '@owlmeans/client-entrypoint'
+import { account } from 'app-common'
+
+export const appEntrypoints = [...bindAll(account)]
+const result = await context.entrypoint(account.topUp).call({ body: { amountMinor: 1000 } })
 ```
+
+The lookup needs no `ClientEntrypoint<T>` generic: the protocol carries the request and response.
+Most older app code uses string `elevate()` from `@owlmeans/web-client`; keep that only for legacy
+materialized declarations.
 
 Client-side callability is an **explicit opt-in**: a declaration only becomes callable from a client
 once a bare client `elevate` (or `celevate` on the server side) has been applied to it. Elevating is

@@ -210,6 +210,15 @@ export interface JobEnvelope {
   enqueuedAt?: string
 }
 
+export interface QueueJobMeta {
+  id: string
+  name: string
+  queue: string
+  attempt: number
+  /** Renew the broker lock for protocol handlers whose work can outlive one lock duration. */
+  touch: () => Promise<void>
+}
+
 /** What a processor returns for an entrypoint job, so the caller can rebuild the reply. */
 export interface JobReply<T = unknown> {
   value?: T
