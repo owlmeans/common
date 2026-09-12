@@ -20,7 +20,7 @@ export const authProtocols = {
   authenticate: protocol(route(AUTHEN_AUTHEN, '/authenticate', backend(AUTHEN, RouteMethod.POST)),
     contract.request({ body: typed<AuthCredentials>(AuthCredentialsSchema) }, typed<AuthToken>())),
   rely: protocol(route(AUTHEN_RELY, '/rely', socket(AUTHEN)),
-    contract.request({ query: typed<Partial<AuthToken>>(OptionalAuthTokenSchema) }, typed())),
+    contract.request({ query: typed<Partial<AuthToken>>(OptionalAuthTokenSchema) }, typed<undefined>())),
   client: openProtocol(route(CAUTHEN, '/authentication', frontend())),
   login: openProtocol(route(CAUTHEN_AUTHEN, '/login', frontend(CAUTHEN))),
   loginDefault: openProtocol(route(CAUTHEN_AUTHEN_DEFAULT, '/', frontend(CAUTHEN_AUTHEN, true))),

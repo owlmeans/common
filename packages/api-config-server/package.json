@@ -23,7 +23,7 @@
   "dependencies": {
     "@owlmeans/api-config": "^0.1.18-rc.20",
     "@owlmeans/server-api": "^0.1.18-rc.25",
-    "@owlmeans/server-context": "^0.1.18-rc.19",
+    "@owlmeans/server-context": "^0.1.18-rc.20",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.19"
   },
   "devDependencies": {

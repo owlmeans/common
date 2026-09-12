@@ -34,11 +34,11 @@
     "@owlmeans/client-auth": "^0.1.18-rc.28",
     "@owlmeans/client-context": "^0.1.18-rc.21",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.21",
-    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.16",
     "@owlmeans/queue": "^0.1.18-rc.17",
-    "@owlmeans/resource": "^0.1.18-rc.16",
-    "@owlmeans/socket": "^0.1.18-rc.16",
-    "@owlmeans/state": "^0.1.18-rc.17"
+    "@owlmeans/resource": "^0.1.18-rc.17",
+    "@owlmeans/socket": "^0.1.18-rc.17",
+    "@owlmeans/state": "^0.1.18-rc.18"
   },
   "publishConfig": {
     "access": "public"

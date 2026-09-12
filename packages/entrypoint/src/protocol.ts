@@ -7,7 +7,7 @@ import type { ResolvedEntity } from './types.js'
 import type { AbstractRequest } from './types.js'
 
 /** A deliberately broad value used only by declarations without an I/O contract. */
-export type OpenValue = object | string | number | boolean | bigint | null | undefined | void
+export type OpenValue = object | string | number | boolean | bigint | null | undefined
 
 /** The request accepted by a declaration that intentionally supplies no contract. */
 export interface OpenRequest {
@@ -123,8 +123,8 @@ export interface EntrypointGate {
 }
 
 type SourceValue<Source> =
-  Source extends Typed<infer Value> ? Value extends OpenValue ? Value : OpenValue
-    : Source extends EntrypointSchema<infer Value> ? Value extends OpenValue ? Value : OpenValue
+  Source extends Typed<infer Value> ? Value
+    : Source extends EntrypointSchema<infer Value> ? Value
       : Source extends JSONSchemaType<infer Value>
         ? Value extends OpenValue ? Value : OpenValue
         : OpenValue
@@ -154,15 +154,13 @@ const responseSchemasOf = (source: AnyShapeSource | undefined): RuntimeResponseS
  * `contract.request` for independently-shaped request sections.
  */
 export function contract(): EntrypointContract<{}, undefined>
-export function contract<ResponseSource extends AnyShapeSource>(
-  response: ResponseSource
-): EntrypointContract<{}, SourceValue<ResponseSource>>
-export function contract<BodySource extends AnyShapeSource, ResponseSource extends AnyShapeSource>(
-  body: BodySource, response: ResponseSource
-): EntrypointContract<{ body: SourceValue<BodySource> }, SourceValue<ResponseSource>>
+export function contract<Response>(response: ShapeSource<Response>): EntrypointContract<{}, Response>
+export function contract<Body extends OpenValue, Response>(
+  body: ShapeSource<Body>, response: ShapeSource<Response>
+): EntrypointContract<{ body: Body }, Response>
 export function contract(
   first?: AnyShapeSource, second?: AnyShapeSource
-): EntrypointContract<any, any> {
+): EntrypointContract<RequestShape, OpenValue> {
   const body = second == null ? undefined : first
   const response = second ?? first
 
@@ -174,14 +172,10 @@ export function contract(
 }
 
 export namespace contract {
-  /**
-   * Keep the exact `typed<T>()` source through inference.  Constraining only the response
-   * value as `ShapeSource<Response>` widens an otherwise precise declaration to `OpenValue`.
-   */
-  export function request<Sources extends RequestSources, ResponseSource extends AnyShapeSource>(
+  export function request<Sources extends RequestSources, Response>(
     request: Sources,
-    response: ResponseSource
-  ): EntrypointContract<RequestFromSources<Sources>, SourceValue<ResponseSource>> {
+    response: ShapeSource<Response>
+  ): EntrypointContract<RequestFromSources<Sources>, Response> {
     return {
       kind: 'entrypoint-contract',
       requestSchemas: {

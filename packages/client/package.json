@@ -28,17 +28,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.16",
+    "@owlmeans/auth": "^0.1.18-rc.17",
     "@owlmeans/client-context": "^0.1.18-rc.21",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.21",
     "@owlmeans/client-resource": "^0.1.18-rc.21",
-    "@owlmeans/config": "^0.1.18-rc.19",
-    "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.15",
+    "@owlmeans/config": "^0.1.18-rc.20",
+    "@owlmeans/context": "^0.1.18-rc.16",
+    "@owlmeans/error": "^0.1.18-rc.16",
     "@owlmeans/entrypoint": "^0.1.18-rc.19",
-    "@owlmeans/resource": "^0.1.18-rc.16",
-    "@owlmeans/router": "^0.1.18-rc.15",
-    "@owlmeans/state": "^0.1.18-rc.17"
+    "@owlmeans/resource": "^0.1.18-rc.17",
+    "@owlmeans/router": "^0.1.18-rc.16",
+    "@owlmeans/state": "^0.1.18-rc.18"
   },
   "peerDependencies": {
     "@remix-run/router": "*",

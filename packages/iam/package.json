@@ -22,11 +22,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.16",
-    "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.17",
+    "@owlmeans/context": "^0.1.18-rc.16",
+    "@owlmeans/error": "^0.1.18-rc.16",
     "@owlmeans/oidc": "^0.1.18-rc.29",
-    "@owlmeans/route": "^0.1.18-rc.16"
+    "@owlmeans/route": "^0.1.18-rc.17"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

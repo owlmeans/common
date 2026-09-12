@@ -38,8 +38,8 @@
     "vite": "^8.1.2"
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/router": "^0.1.18-rc.15"
+    "@owlmeans/context": "^0.1.18-rc.16",
+    "@owlmeans/router": "^0.1.18-rc.16"
   },
   "publishConfig": {
     "access": "public"

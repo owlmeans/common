@@ -51,11 +51,11 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.23",
+    "@owlmeans/agent-common": "^0.1.18-rc.24",
     "@owlmeans/entrypoint": "^0.1.18-rc.19",
-    "@owlmeans/error": "^0.1.18-rc.15",
-    "@owlmeans/llm-common": "^0.1.18-rc.19",
-    "@owlmeans/route": "^0.1.18-rc.16"
+    "@owlmeans/error": "^0.1.18-rc.16",
+    "@owlmeans/llm-common": "^0.1.18-rc.20",
+    "@owlmeans/route": "^0.1.18-rc.17"
   },
   "publishConfig": {
     "access": "public"

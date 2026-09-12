@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@owlmeans/client-auth": "^0.1.18-rc.28",
-    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.16",
     "@owlmeans/payment": "^0.1.18-rc.21"
   },
   "peerDependencies": {

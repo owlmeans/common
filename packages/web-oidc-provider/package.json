@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.16",
+    "@owlmeans/auth": "^0.1.18-rc.17",
     "@owlmeans/client-flow": "^0.1.18-rc.25",
     "@owlmeans/oidc": "^0.1.18-rc.29",
-    "@owlmeans/resource": "^0.1.18-rc.16",
+    "@owlmeans/resource": "^0.1.18-rc.17",
     "@owlmeans/web-client": "^0.1.18-rc.32",
     "universal-cookie": "^7.2.1"
   },

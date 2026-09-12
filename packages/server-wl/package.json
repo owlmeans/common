@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.16",
     "@owlmeans/server-api": "^0.1.18-rc.25",
-    "@owlmeans/server-context": "^0.1.18-rc.19",
+    "@owlmeans/server-context": "^0.1.18-rc.20",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.19",
     "@owlmeans/wled": "^0.1.18-rc.19"
   },

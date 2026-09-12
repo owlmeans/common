@@ -26,13 +26,13 @@
     "@owlmeans/client-context": "^0.1.18-rc.21",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.21",
     "@owlmeans/client-resource": "^0.1.18-rc.21",
-    "@owlmeans/config": "^0.1.18-rc.19",
-    "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.15",
-    "@owlmeans/flow": "^0.1.18-rc.21",
+    "@owlmeans/config": "^0.1.18-rc.20",
+    "@owlmeans/context": "^0.1.18-rc.16",
+    "@owlmeans/error": "^0.1.18-rc.16",
+    "@owlmeans/flow": "^0.1.18-rc.22",
     "@owlmeans/entrypoint": "^0.1.18-rc.19",
-    "@owlmeans/resource": "^0.1.18-rc.16",
-    "@owlmeans/route": "^0.1.18-rc.16"
+    "@owlmeans/resource": "^0.1.18-rc.17",
+    "@owlmeans/route": "^0.1.18-rc.17"
   },
   "peerDependencies": {
     "react": "*"

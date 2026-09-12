@@ -56,10 +56,6 @@ export const projectEntrypoints = {
 Use `typed<Model>(schema)` rather than a bare `JSONSchemaType<Model>` when the model must remain
 exact. A bare AJV generic can widen a protocol section to `OpenValue`.
 
-`contract(typed<Model>())` and `contract.request(..., typed<Model>())` preserve `Model` as the
-protocol response. Use the inferred result whenever the declaration supplies that contract;
-only a deliberately open remote protocol may need an adapter-bound result annotation.
-
 `RequestOf<Protocol>`, `ResponseOf<Protocol>`, `BodyOf<Protocol>`, `ParamsOf<Protocol>`,
 `QueryOf<Protocol>`, and `HeadersOf<Protocol>` derive the contract types. A handler receives
 `HandlerRequest<RequestOf<Protocol>>`, which includes the transport metadata as well as the typed

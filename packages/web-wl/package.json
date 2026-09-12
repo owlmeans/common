@@ -23,7 +23,7 @@
   "dependencies": {
     "@owlmeans/client": "^0.1.18-rc.24",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.21",
-    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.16",
     "@owlmeans/wled": "^0.1.18-rc.19"
   },
   "peerDependencies": {
