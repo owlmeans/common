@@ -13,6 +13,18 @@ registry that holds them is [[context]].
 
 ## Facts
 
+- Public declarations are immutable `EntrypointProtocol` objects made with `protocol(route,
+  contract, opts)`. `contract` carries exact request/reply types and branded AJV schemas;
+  `protocols(tree)` flattens a nested exported tree without replacing object identity.
+- Materialized protocol replies use a status-keyed serializer: an ordinary contract reply is
+  `200`, and explicitly status-keyed replies retain that key. Fastify rejects a bare schema.
+- A protocol tree keeps alias literals private. Consumers pass the object itself:
+  `ctx.entrypoint(tree.action)`, clients register `bindAll(tree)`, and servers bind each protocol
+  with `bind(protocol, handler)`. `protocol.alias` is reserved for string-keyed adapters
+  such as registries and brokers.
+- Server implementations come from `handlers<Context>().body/params/request(protocol, callback)`.
+  Handler association is exact-object identity, so an equal alias on another declaration does not
+  bind. Request and response types are inferred from the protocol.
 - Canonical packages: `@owlmeans/entrypoint`, `@owlmeans/server-entrypoint`,
   `@owlmeans/client-entrypoint`. There are no `@owlmeans/*module` packages in the repo (published
   shim versions remain on npm; external consumers must migrate).

@@ -6,10 +6,11 @@
 ## The shape
 
 Contracts in `@owlmeans/queue`, broker in `@owlmeans/redis-queue` (BullMQ). A queued call is an
-ordinary entrypoint call: the route names `RouteProtocols.QUEUE`, the transport registered under
-`transportAlias(protocol)` takes it, and the caller writes `ep.call(...)`. That is the whole point —
-moving a service-to-service call onto the broker is one declaration change, not a sweep of call
-sites, and the call survives a process restart.
+immutable protocol object whose route names `RouteProtocols.QUEUE`. Ordinary transport calls use
+`ctx.entrypoint(protocol).call(request)`. Calls that need a job id, delay, retries, backoff or
+retention use `enqueueProtocol(ctx, protocol, request, options)` and
+`waitForProtocol(ctx, protocol, job)`: both infer exact I/O and reject raw aliases, non-QUEUE
+protocols and queue mismatches.
 
 Declaring a queue and consuming it are deliberately separate statements. `declareQueue` goes in the
 SHARED backend package so producer and consumer agree; `listenQueues` goes in the individual
@@ -29,6 +30,9 @@ remain protocol declarations end-to-end.
   request-scoped context from `req.original._ctx`. A queued request is rebuilt from an envelope and
   has no raw request, so the bridge supplies `original: { _ctx }` and the helper reads it
   optionally. Any future transport owes the same.
+- **Broker identity has one boundary helper.** The bridge attaches `{ id, name, queue, attempt }`
+  and `queueJobOf(request)` reads it. A handler uses this only to compare a queued run with an
+  atomic admission claim; ordinary business handlers never inspect transport metadata.
 - **Blocking connections cannot be shared.** `Worker` and `QueueEvents` block on reads and get their
   own clients from `RedisDbService.options()`; `Queue` and `FlowProducer` may share the pooled one.
 - **Never set ioredis `keyPrefix` for queue connections** — BullMQ builds its own keys. Pass the
@@ -55,6 +59,11 @@ that idempotency is what makes an admission step retry-safe. `WriteOptions.ttl` 
 `close()` on the resource and `hooks()` on the worker are contract members, not driver extras: a
 producer that waited on a job holds a blocking events connection and will not exit without
 `close()`, and `onJobDead` is where an application releases the lock its admission step took.
+
+For per-entity single flight, admission first claims an opaque job id in the entity's projection.
+Scheduled/running writes advance its dirty revision and reuse the claim. `onJobResult` releases it
+with a job-id/revision compare-and-set and schedules at most one follow-up; `onJobDead` releases or
+fails it so the next read/write recovers. Queue concurrency remains available across entities.
 
 ## Release note
 

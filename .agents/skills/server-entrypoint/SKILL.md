@@ -15,7 +15,7 @@ import { handlers } from '@owlmeans/server-api'
 const api = handlers<AppContext>()
 
 export const entrypoints = [
-  bind(projectEntrypoints.create, api.body(async (body, context) =>
+  bind(projectEntrypoints.create, api.body(projectEntrypoints.create, async (body, context) =>
     context.projects.create(body)
   )),
 ]

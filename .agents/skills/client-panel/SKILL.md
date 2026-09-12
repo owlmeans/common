@@ -14,6 +14,10 @@ user-invocable: false
 Everything below is a **root** export — this package has no `./components` or `./helpers`
 subpath. Only auth is split out (see below).
 
+Importing the root also registers the package-owned seven-language `client-panel` bundle. Its
+generic `buttons.submit` fallback is always available after an application imports any root form
+controller; apps may override it through their own `buttons` resource.
+
 | Export | Description |
 |--------|-------------|
 | `ClientForm` | The form model: `react-hook-form` + an AJV resolver with `coerceTypes` and `ajv-formats`, publishing a `FormContext` and a loader toggle |

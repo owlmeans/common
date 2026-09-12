@@ -1,6 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import type { PlanSubscription, SubscriptionPropagateBody } from '../types.js'
 import { ResourceValueSchema, PermissionSetSchema, DateSchema, EntityValueSchema, IdValueSchema } from '@owlmeans/auth'
+import { schema } from '@owlmeans/entrypoint'
 import { SubscriptionStatusSchema } from '../consts.js'
 import { CapabilityUsageSchema, LimitConfigSchema } from './utils.js'
 
@@ -37,27 +38,23 @@ export const PlanSubscriptionSchema: JSONSchemaType<PlanSubscription> = {
   additionalProperties: false,
 }
 
-export const SubscriptionPropagateBodySchema: JSONSchemaType<SubscriptionPropagateBody> = {
+const { entityId: _entityId, ...SubscriptionWireProperties } =
+  PlanSubscriptionSchema.properties as Record<string, unknown>
+const SubscriptionWireRequired = PlanSubscriptionSchema.required.filter(field => field !== 'entityId')
+
+export const SubscriptionPropagateBodySchema = schema<SubscriptionPropagateBody>({
   type: 'object',
   properties: {
-    ...PlanSubscriptionSchema.properties,
+    ...SubscriptionWireProperties,
+    entitySlug: EntityValueSchema,
     service: { ...ResourceValueSchema, minLength: 2 },
     externalId: IdValueSchema,
   } as any, // @TODO Figure out why it doesn't work (probably different version of ajv)
-  required: ['externalId', 'service', ...PlanSubscriptionSchema.required],
+  required: ['externalId', 'entitySlug', 'service', ...SubscriptionWireRequired],
   additionalProperties: false,
-}
+} as JSONSchemaType<SubscriptionPropagateBody>)
 
 /**
  * @deprecated Use SubscriptionPropogateBodySchema instead
  */
-export const SubscriptionPropogateBodySchema: JSONSchemaType<SubscriptionPropagateBody> = {
-  type: 'object',
-  properties: {
-    ...PlanSubscriptionSchema.properties,
-    service: { ...ResourceValueSchema, minLength: 2 },
-    externalId: IdValueSchema,
-  } as any, // @TODO Figure out why it doesn't work (probably different version of ajv)
-  required: ['externalId', 'service', ...PlanSubscriptionSchema.required],
-  additionalProperties: false,
-}
+export const SubscriptionPropogateBodySchema = SubscriptionPropagateBodySchema

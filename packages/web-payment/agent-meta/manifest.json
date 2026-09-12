@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-payment",
+  "version": "0.1.18-rc.0",
+  "generatedAt": "2026-09-12T12:19:50.950Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-payment",
+      "category": "package-specific",
+      "file": "skills/web-payment/SKILL.md",
+      "canonicalPath": ".agents/skills/web-payment/SKILL.md"
+    }
+  ]
+}
