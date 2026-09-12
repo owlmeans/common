@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-payment",
-  "version": "0.1.18-rc.0",
+  "version": "0.1.18-rc.1",
   "license": "MIT",
   "description": "Protocol-bound payment resources, entitlement gates, and Stripe checkout for OwlMeans servers.",
   "type": "module",
