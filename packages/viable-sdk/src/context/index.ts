@@ -2,11 +2,11 @@ import { AppType } from '@owlmeans/context'
 import { makeClientContext } from '@owlmeans/client-context'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { bind } from '@owlmeans/client-entrypoint'
-import { openProtocol } from '@owlmeans/entrypoint'
+import { openProtocol, protocols } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { authMiddleware, DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeTokenCarrierGuard } from '@owlmeans/auth-token'
-import { connect, connectEntrypoints, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
+import { connect, connectProtocols, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
 import { SDK_SERVICE } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
 
@@ -84,7 +84,7 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
   }))
   context.registerMiddleware(authMiddleware)
 
-  const surface = connectEntrypoints({
+  const surface = connectProtocols({
     guard: DEFAULT_GUARD,
     updateBase: UPDATE_BASE,
   })
@@ -94,7 +94,7 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
   // call that would have used it. It is a declaration-only namespace, so its client binding has
   // no screen or request implementation.
   const parent = openProtocol(route(UPDATE_BASE, '/update'))
-  const entrypoints = [bind(parent), ...surface.map(declaration => bind(declaration))]
+  const entrypoints = [bind(parent), ...protocols(surface).map(declaration => bind(declaration))]
 
   // Every caller gets a context-local client binding from the immutable protocol it shares with
   // the server. No alias lookup can drift from a path or contract declaration.

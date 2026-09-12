@@ -350,6 +350,23 @@ export const protocols = (tree: EntrypointTree): EntrypointProtocolDeclaration[]
   return result
 }
 
+/**
+ * Rebuild an immutable protocol tree while transforming its declarations.
+ *
+ * Protocol consumers keep addressing declarations by their exported tree path; a cross-cutting
+ * concern such as a coguard therefore never needs to flatten the tree and recover declarations
+ * by alias.
+ */
+export const mapProtocols = <Tree extends EntrypointTree>(
+  tree: Tree,
+  mapper: (protocol: EntrypointProtocolDeclaration) => EntrypointProtocolDeclaration,
+): Tree => Object.freeze(Object.fromEntries(
+  Object.entries(tree).map(([key, entry]) => [
+    key,
+    isEntrypointProtocol(entry) ? mapper(entry) : mapProtocols(entry, mapper),
+  ])
+)) as Tree
+
 /** Resolve the gates a protocol inherits through its route parents without materializing it. */
 export const gatesOf = (
   protocol: EntrypointProtocolDeclaration,
