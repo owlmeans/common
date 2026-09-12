@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/client": "^0.1.18-rc.23",
     "@owlmeans/client-context": "^0.1.18-rc.20",
     "@owlmeans/client-resource": "^0.1.18-rc.20",

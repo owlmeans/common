@@ -31,11 +31,11 @@
     "access": "public"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/auth-common": "^0.1.18-rc.20",
     "@owlmeans/context": "^0.1.18-rc.15",
     "@owlmeans/entrypoint": "^0.1.18-rc.18",
-    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.15",
     "@owlmeans/resource": "^0.1.18-rc.16",
     "@owlmeans/route": "^0.1.18-rc.16"
   }

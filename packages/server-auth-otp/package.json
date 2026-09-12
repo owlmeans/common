@@ -22,9 +22,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/auth-otp": "^0.1.18-rc.15",
-    "@owlmeans/basic-ids": "^0.1.18-rc.15",
+    "@owlmeans/basic-ids": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.15",
     "@owlmeans/mailer": "^0.1.18-rc.15",
     "@owlmeans/oidc": "^0.1.18-rc.28",

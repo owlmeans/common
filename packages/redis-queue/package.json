@@ -22,9 +22,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/basic-ids": "^0.1.18-rc.15",
+    "@owlmeans/basic-ids": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.15",
     "@owlmeans/queue": "^0.1.18-rc.16",
     "@owlmeans/redis": "^0.1.18-rc.19",
     "@owlmeans/redis-resource": "^0.1.18-rc.19",

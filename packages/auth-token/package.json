@@ -23,7 +23,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.15",
     "@owlmeans/entrypoint": "^0.1.18-rc.18",
     "@owlmeans/resource": "^0.1.18-rc.16",

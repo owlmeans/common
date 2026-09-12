@@ -26,10 +26,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.701.0",
     "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.15",
     "@owlmeans/resource": "^0.1.18-rc.16",
     "@owlmeans/server-context": "^0.1.18-rc.19",
-    "@owlmeans/storage-common": "^0.1.18-rc.15",
+    "@owlmeans/storage-common": "^0.1.18-rc.16",
     "file-type": "^22.0.1"
   },
   "devDependencies": {

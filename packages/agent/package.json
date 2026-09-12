@@ -69,12 +69,12 @@
   },
   "dependencies": {
     "@owlmeans/agent-common": "^0.1.18-rc.23",
-    "@owlmeans/basic-ids": "^0.1.18-rc.15",
+    "@owlmeans/basic-ids": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.15",
     "@owlmeans/flow": "^0.1.18-rc.21",
     "@owlmeans/llm": "^0.1.18-rc.20",
-    "@owlmeans/llm-common": "^0.1.18-rc.18",
+    "@owlmeans/llm-common": "^0.1.18-rc.19",
     "ajv": "^8.17.1"
   },
   "publishConfig": {

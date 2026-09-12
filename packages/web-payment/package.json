@@ -26,7 +26,7 @@
     "@owlmeans/client-i18n": "^0.1.18-rc.22",
     "@owlmeans/client-payment": "^0.1.18-rc.27",
     "@owlmeans/entrypoint": "^0.1.18-rc.18",
-    "@owlmeans/i18n": "^0.1.18-rc.14",
+    "@owlmeans/i18n": "^0.1.18-rc.15",
     "@owlmeans/payment": "^0.1.18-rc.20"
   },
   "peerDependencies": {

@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.1",
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/basic-envelope": "^0.1.18-rc.19",
     "@owlmeans/context": "^0.1.18-rc.15",
     "@owlmeans/entrypoint": "^0.1.18-rc.18",
@@ -39,7 +39,7 @@
     "@owlmeans/server-auth": "^0.1.18-rc.26",
     "@owlmeans/server-context": "^0.1.18-rc.19",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.18",
-    "@owlmeans/socket": "^0.1.18-rc.15"
+    "@owlmeans/socket": "^0.1.18-rc.16"
   },
   "publishConfig": {
     "access": "public"

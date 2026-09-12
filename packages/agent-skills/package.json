@@ -35,7 +35,7 @@
     "@langchain/core": "^1.2.9",
     "@owlmeans/dep-config": "workspace:*",
     "@owlmeans/llm": "^0.1.18-rc.20",
-    "@owlmeans/llm-common": "^0.1.18-rc.18",
+    "@owlmeans/llm-common": "^0.1.18-rc.19",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
@@ -43,7 +43,7 @@
   },
   "peerDependencies": {
     "@owlmeans/llm": "^0.1.18-rc.20",
-    "@owlmeans/llm-common": "^0.1.18-rc.18"
+    "@owlmeans/llm-common": "^0.1.18-rc.19"
   },
   "peerDependenciesMeta": {
     "@owlmeans/llm": {

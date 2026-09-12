@@ -28,13 +28,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/client-context": "^0.1.18-rc.20",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.20",
     "@owlmeans/client-resource": "^0.1.18-rc.20",
     "@owlmeans/config": "^0.1.18-rc.19",
     "@owlmeans/context": "^0.1.18-rc.15",
-    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.15",
     "@owlmeans/entrypoint": "^0.1.18-rc.18",
     "@owlmeans/resource": "^0.1.18-rc.16",
     "@owlmeans/router": "^0.1.18-rc.15",
