@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/postgres-resource",
-  "version": "0.1.18-rc.19",
+  "version": "0.1.18-rc.20",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,15 +28,15 @@
   "dependencies": {
     "@noble/hashes": "^1.5.0",
     "@owlmeans/basic-ids": "^0.1.18-rc.15",
-    "@owlmeans/context": "^0.1.18-rc.14",
-    "@owlmeans/resource": "^0.1.18-rc.15",
-    "@owlmeans/server-context": "^0.1.18-rc.18",
+    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/resource": "^0.1.18-rc.16",
+    "@owlmeans/server-context": "^0.1.18-rc.19",
     "@scure/base": "^2.3.0",
     "drizzle-orm": "~0.45.2"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-integration": "^0.1.18-rc.14",
+    "@owlmeans/test-integration": "^0.1.18-rc.15",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "@types/pg": "^8.20.4",

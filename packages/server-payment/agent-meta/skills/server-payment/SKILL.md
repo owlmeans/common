@@ -7,6 +7,8 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.3`
+
 Public MIT package in the common monorepo. It embeds Stripe into an application backend; the
 consumer owns products, credit conversion and entitlement side effects. It persists customers,
 subscriptions/fulfilled sessions and sync fingerprints in Mongo.

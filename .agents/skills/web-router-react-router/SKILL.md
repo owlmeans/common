@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-router-react-router
 
 **Layer:** Web (React), build level L2
-**Install:** `"@owlmeans/web-router-react-router": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/web-router-react-router": "^0.1.18-rc.14"` in `dependencies`
 
 The React Router v8 mechanic as an OwlMeans routing plugin. react-router is **opt-in**: OwlMeans
 in-browser routing is the default, and you add this plugin only when you specifically want

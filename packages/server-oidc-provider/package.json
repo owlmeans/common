@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-oidc-provider",
-  "version": "0.1.18-rc.24",
+  "version": "0.1.18-rc.25",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/context": "^0.1.18-rc.15",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "@types/oidc-provider": "9.5.0",
@@ -35,13 +35,13 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/config": "^0.1.18-rc.18",
-    "@owlmeans/context": "^0.1.18-rc.14",
-    "@owlmeans/entrypoint": "^0.1.18-rc.17",
-    "@owlmeans/oidc": "^0.1.18-rc.27",
-    "@owlmeans/route": "^0.1.18-rc.15",
-    "@owlmeans/server-api": "^0.1.18-rc.23",
-    "@owlmeans/server-context": "^0.1.18-rc.18",
+    "@owlmeans/config": "^0.1.18-rc.19",
+    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/entrypoint": "^0.1.18-rc.18",
+    "@owlmeans/oidc": "^0.1.18-rc.28",
+    "@owlmeans/route": "^0.1.18-rc.16",
+    "@owlmeans/server-api": "^0.1.18-rc.24",
+    "@owlmeans/server-context": "^0.1.18-rc.19",
     "@scure/base": "^2.3.0",
     "jose": "6.2.5",
     "oidc-provider": "9.11.1"

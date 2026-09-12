@@ -7,6 +7,8 @@ user-invocable: false
 
 # @owlmeans/web-payment
 
+**Install:** `bun add @owlmeans/web-payment@^0.1.18-rc.2`
+
 Public MIT web package paired with `@owlmeans/server-payment`. It incorporates checkout, balance,
 entitlement and shallow-auth helpers over the underlying `@owlmeans/client-payment` service.
 

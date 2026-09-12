@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-oidc-provider
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-provider": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-provider": "^0.1.18-rc.30"` in `dependencies`
 
 The browser side of an application that **hosts** the OIDC provider screens — the login and consent
 pages `oidc-provider` redirects to. An application that merely signs in against someone else's issuer

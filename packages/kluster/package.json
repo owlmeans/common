@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/kluster",
-  "version": "0.1.18-rc.18",
+  "version": "0.1.18-rc.19",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
-    "@owlmeans/config": "^0.1.18-rc.18",
-    "@owlmeans/context": "^0.1.18-rc.14",
-    "@owlmeans/server-config": "^0.1.18-rc.18",
-    "@owlmeans/server-context": "^0.1.18-rc.18"
+    "@owlmeans/config": "^0.1.18-rc.19",
+    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/server-config": "^0.1.18-rc.19",
+    "@owlmeans/server-context": "^0.1.18-rc.19"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

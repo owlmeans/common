@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/entrypoint",
-  "version": "0.1.18-rc.17",
+  "version": "0.1.18-rc.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.15",
-    "@owlmeans/context": "^0.1.18-rc.14",
-    "@owlmeans/route": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.15",
+    "@owlmeans/route": "^0.1.18-rc.16",
     "ajv": "^8.17.1"
   },
   "devDependencies": {

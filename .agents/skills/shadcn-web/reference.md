@@ -146,7 +146,7 @@ Every shadcn-based OwlMeans package declares the shadcn utility libs as peerDepe
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.20",
+    "@owlmeans/test-ui": "^0.1.18-rc.21",
     "@tailwindcss/vite": "*",
     "@vitejs/plugin-react": "*",
     "playwright": "^1.49.0",

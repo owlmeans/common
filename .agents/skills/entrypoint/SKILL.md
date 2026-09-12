@@ -6,6 +6,8 @@ user-invocable: false
 
 # @owlmeans/entrypoint
 
+**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.17`
+
 **Layer:** Core
 
 An entrypoint protocol is the immutable shared contract for one addressable route. It owns the

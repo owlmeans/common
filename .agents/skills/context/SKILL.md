@@ -5,6 +5,8 @@ description: Use OwlMeans context services, resources and typed entrypoint proto
 
 # Context lookups
 
+**Install:** `bun add @owlmeans/context@^0.1.18-rc.14`
+
 Use a protocol declaration directly when obtaining an entrypoint. The declaration supplies the
 registered entrypoint’s request and response types.
 
