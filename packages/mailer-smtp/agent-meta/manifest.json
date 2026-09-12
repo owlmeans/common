@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/mailer-smtp",
-  "version": "0.1.18-rc.12",
-  "generatedAt": "2026-09-10T19:57:26.110Z",
+  "version": "0.1.18-rc.15",
+  "generatedAt": "2026-09-12T08:39:52.718Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

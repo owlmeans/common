@@ -1,5 +1,5 @@
 
-import { bindings as authBindings } from '@owlmeans/client-auth/manager/entrypoints'
-import { bindings as configBindings } from '@owlmeans/api-config-client'
+import { entrypoints as authBindings } from '@owlmeans/client-auth/manager/entrypoints'
+import { entrypoints as configBindings } from '@owlmeans/api-config-client'
 
-export const bindings = [...authBindings, ...configBindings]
+export const entrypoints = [...authBindings, ...configBindings]

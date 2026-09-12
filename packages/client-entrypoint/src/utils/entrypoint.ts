@@ -1,12 +1,11 @@
 import Ajv from 'ajv'
 import type { ErrorObject } from 'ajv'
-import type { EntrypointFilter, ClientEntrypointOptions } from '../types.js'
+import type { EntrypointFilter } from '../types.js'
 import { ClientValidationError } from '../errors.js'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
-import type { EntrypointRef, RefedEntrypointHandler } from '../types.js'
+import type { EntrypointRef } from '../types.js'
 import formatsPlugin from 'ajv-formats'
 
-export { entrypoint as makeBasicEntrypoint } from '@owlmeans/entrypoint'
 export { isEntrypoint } from '@owlmeans/entrypoint/utils'
 
 const ajv = new Ajv({ strict: false })
@@ -50,17 +49,3 @@ export const validate: <T, R extends AbstractRequest = AbstractRequest>(ref: Ent
 
     return true
   }
-
-export const normalizeHelperParams = <T, R extends AbstractRequest = AbstractRequest>(
-  handler?: RefedEntrypointHandler<T, R> | ClientEntrypointOptions | boolean,
-  opts?: ClientEntrypointOptions | boolean
-): [RefedEntrypointHandler<T, R> | undefined, ClientEntrypointOptions | undefined] => {
-  if (typeof handler !== 'function' && handler != null) {
-    opts = handler as ClientEntrypointOptions | boolean
-    handler = undefined
-  }
-
-  opts = typeof opts === 'boolean' ? { validateOnCall: opts } : opts
-
-  return [handler, opts]
-}

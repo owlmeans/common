@@ -4,7 +4,7 @@ description: Build OwlMeans server applications from immutable entrypoint protoc
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
-# Server application bindings
+# Server application entrypoints
 
 Declare routes and request/response contracts in a shared package with `protocol()` or
 `openProtocol()`. A server package supplies local implementations with `bind()` and `handlers()`;
@@ -25,8 +25,8 @@ export const appEntrypoints = [
 ```
 
 `handlers<Context>().body`, `.params` and `.request` infer request sections and response values
-from the declaration. Use `implementation(protocol, handler)` only for a transport-level handler
-that needs the complete request and response boundary.
+from the declaration. Use `.request` for a transport-level handler that needs the complete request
+boundary.
 
 ## Rules
 
@@ -36,7 +36,7 @@ that needs the complete request and response boundary.
   response generic.
 - Model validation belongs in `contract()` with `typed()` or `schema()`, not in a wrapper around a
   handler.
-- `entrypoints` contains framework registrations. Add local bindings to a new array and register
+- `entrypoints` contains framework registrations. Add local entrypoints to a new array and register
   that array during context initialization.
 
 `holdApiPort`, `config`, `sservice`, `service`, `AppType` and the context bootstrap exports remain

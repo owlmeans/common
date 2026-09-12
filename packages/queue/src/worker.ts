@@ -10,7 +10,7 @@ import { DEFAULT_ALIAS } from './consts.js'
  * Every queued entrypoint this process both SERVES and LISTENS to, grouped by queue.
  *
  * Both halves are required and they answer different questions. Serving is about code — the alias
- * was elevated here, so a handler exists. Listening is about deployment — this process was
+ * was bound here, so a handler exists. Listening is about deployment — this process was
  * configured to consume that queue. A worker that bound queues by what it can serve would make
  * every deployment of the same binary a worker for everything it happens to import.
  */

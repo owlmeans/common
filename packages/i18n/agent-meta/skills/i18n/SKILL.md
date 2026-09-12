@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/i18n
 
 **Layer:** Core (no runtime deps)
-**Install:** `"@owlmeans/i18n": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `"@owlmeans/i18n": "^0.1.18-rc.11"` in `dependencies`
 
 ## Purpose
 

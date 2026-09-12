@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/server-iam`
 
-**Install:** `"@owlmeans/server-iam": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/server-iam": "^0.1.18-rc.24"` in `dependencies`
 
 Boilerplate-less server-side consumer of the OwlMeans IAM. One call wires the OIDC RP stack and the
 IAM gate; the consumer never knows which IAM backend (Keycloak or integrated) is active.
@@ -85,7 +85,7 @@ simply skipped rather than the whole audit being lost.
 
 ```ts
 // module declaration
-gate(OIDC_GATE, ['department--modify@depId'])
+{ gate: { alias: OIDC_GATE, params: ['department--modify@depId'] } }
 
 // or imperative
 await ctx.service<GateService>(OIDC_GATE).assert(req, res, ['article--modify'])

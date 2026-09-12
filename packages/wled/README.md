@@ -21,7 +21,7 @@ bun add @owlmeans/wled@^0.1.18-rc.10
 Use the shared entrypoint declarations and types when wiring server- and web-side whitelabel features:
 
 ```typescript
-import { entrypoints as wlEntrypoints } from '@owlmeans/wled'
+import { wledEntrypoints } from '@owlmeans/wled'
 import type { ProvidedWL, CompanyInfo, CustomStyles } from '@owlmeans/wled'
 ```
 
@@ -72,7 +72,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,18 +1,20 @@
 import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
 import type { EntrypointProtocol } from '@owlmeans/entrypoint'
-import { implementation } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
 import { makeAuthModel } from '../model.js'
 import type { AppContext, AppConfig } from '../types.js'
 import { connection } from '@owlmeans/server-socket'
 
+const api = handlers<AppContext<AppConfig>>()
+
 export const authenticationInit = (protocol: EntrypointProtocol<{ body: AllowanceRequest }, AllowanceResponse>) =>
-  implementation(protocol, async (request, context) =>
-  await makeAuthModel(context as AppContext<AppConfig>).init(request.body)
+  api.body(protocol, async (body, context) =>
+  await makeAuthModel(context).init(body)
 )
 
 export const authenticate = (protocol: EntrypointProtocol<{ body: AuthCredentials }, AuthToken>) =>
-  implementation(protocol, async (request, context) =>
-  await makeAuthModel(context as AppContext<AppConfig>).authenticate(request.body)
+  api.body(protocol, async (body, context) =>
+  await makeAuthModel(context).authenticate(body)
 )
 
 export const rely = (protocol: EntrypointProtocol<{ query: Partial<AuthToken> }, undefined>) => connection(protocol,

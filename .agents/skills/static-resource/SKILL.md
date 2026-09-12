@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/static-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/static-resource": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `"@owlmeans/static-resource": "^0.1.18-rc.12"` in `dependencies`
 
 The whole `Resource` contract over a `Map` held at module scope. Use it where records must be
 reachable through the context like any other resource but have no database behind them — fixtures,

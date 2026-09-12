@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-auth-token
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-auth-token": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-token": "^0.1.18-rc.3"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — records, `CreateAccessToken`, `authToken` aliases,
 `makeAuthTokenEntrypoints`
 
@@ -72,17 +72,14 @@ unstyled with nothing in the app's own sources to blame. Every consuming app add
 @source "../../../node_modules/@owlmeans/web-auth-token/src";
 ```
 
-Point at `src`, never `build` — a linked checkout resolves into a monorepo whose `.gitignore`
-covers every `build/`, so a `build` source scans zero files and reports nothing.
+Point at the shipped `src`, not `build`, so the scanner sees source in both an installed tarball and
+a linked workspace.
 
-The app must also vendor every primitive the package imports into its own `@/components/ui/`:
-`alert`, `badge`, `button`, `card`, `dialog`, `input`, `label`, `select`, `table`. Its Radix peers
-are `@radix-ui/react-dialog`, `@radix-ui/react-label`, `@radix-ui/react-select` and
-`@radix-ui/react-slot`.
-
-The vendored `dialog.tsx` takes the close button's screen-reader label as a `closeLabel` prop. A
-primitive belongs to whichever application resolves `@`, so it must never reach into one app's i18n
-namespace for copy.
+The package owns its private shadcn primitives under `src/@/` and imports them only through
+relative specifiers; the consuming application's `@` alias is never part of this package's runtime.
+Do not vendor `alert`, `badge`, `button`, `card`, `dialog`, `input`, `label`, `select` or `table`.
+Provide the documented Radix peers instead: `@radix-ui/react-dialog`, `@radix-ui/react-label`,
+`@radix-ui/react-select` and `@radix-ui/react-slot`.
 
 ## Translations
 

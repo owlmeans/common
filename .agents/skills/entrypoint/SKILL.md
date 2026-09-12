@@ -79,7 +79,7 @@ on the client-bound protocol and do not branch on a transport.
 
 - Server: `bind(protocol, handlers<Context>().body|params|request(...))` from
   `@owlmeans/server-entrypoint` / `@owlmeans/server-api`.
-- Socket: `bind(protocol, socketHandler(protocol, handler))`.
+- Socket: `bind(protocol, connection(protocol, handler))`.
 - Client API route: `bind(protocol)` or `bindAll(tree)` from `@owlmeans/client-entrypoint`.
 - Client screen: `bindScreen(protocol, componentHandler)`.
 

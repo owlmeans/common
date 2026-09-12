@@ -1,24 +1,52 @@
 import { materializeEntrypoint } from '@owlmeans/entrypoint'
-import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import type {
-  AbstractRequest, AbstractResponse, EntrypointProtocolDeclaration, HandlerRequest, RequestOf, ResponseOf,
+  CommonEntrypoint, EntrypointProtocolDeclaration,
 } from '@owlmeans/entrypoint'
-import { assertContext } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { entrypoint } from './entrypoint.js'
+import { isServerRouteModel, route } from '@owlmeans/server-route'
 import type {
-  BoundEntrypointHandler, EntrypointOptions, ServerProtocolEntrypoint,
+  BoundEntrypointHandler, EntrypointOptions, EntrypointRef, RefedEntrypointHandler, ServerEntrypoint,
+  ServerProtocolEntrypoint,
 } from './types.js'
+
+type ServerBinding<Protocol extends EntrypointProtocolDeclaration> =
+  | BoundEntrypointHandler<Protocol>
+  | RefedEntrypointHandler
+
+/** Attach a server implementation to an entrypoint materialized from a protocol declaration. */
+const bindMaterializedEntrypoint = <R>(
+  declaration: CommonEntrypoint,
+  handler?: RefedEntrypointHandler<R>,
+  options?: EntrypointOptions<R>,
+): ServerEntrypoint<R> => {
+  const ref: EntrypointRef<R> = { ref: undefined }
+  const intermediate = options?.intermediate
+    ?? (isServerRouteModel(declaration.route) ? declaration.route.isIntermediate() : false)
+  const bound = declaration as ServerEntrypoint<R>
+
+  bound.route = route(declaration.route, intermediate, options?.routeOptions)
+  bound.filter = options?.filter ?? declaration.filter
+  bound.guards = [...new Set([...(declaration.guards ?? []), ...(options?.guards ?? [])])]
+  bound.gate = options?.gate ?? declaration.gate
+  bound.gateParams = options?.gateParams ?? declaration.gateParams
+  bound.fixer = options?.fixer ?? bound.fixer
+  if (handler != null) bound.handle = handler(ref)
+  ref.ref = bound
+
+  return bound
+}
 
 /** Bind one immutable protocol and, when present, its protocol-bound implementation. */
 export const bind = <Protocol extends EntrypointProtocolDeclaration>(
   protocol: Protocol,
-  implementation?: BoundEntrypointHandler<Protocol>,
+  implementation?: ServerBinding<Protocol>,
   options?: EntrypointOptions<object>,
 ): ServerProtocolEntrypoint<Protocol> => {
-  const bound = Object.assign(entrypoint(
+  const handler = typeof implementation === 'function'
+    ? implementation
+    : implementation?.bind
+  const bound = Object.assign(bindMaterializedEntrypoint(
     materializeEntrypoint(protocol),
-    implementation?.bind,
+    handler,
     options,
   ), { protocol })
 
@@ -32,50 +60,3 @@ export const bindAll = <Protocol extends EntrypointProtocolDeclaration>(
 ): ServerProtocolEntrypoint<Protocol>[] => declarations.map(declaration =>
   bind(declaration, implementations.find(implementation => implementation.protocol === declaration)),
 )
-
-interface ContextCarrier<Context> {
-  _ctx?: Context
-}
-
-const contextFor = <Context extends BasicContext<BasicConfig>>(
-  request: AbstractRequest,
-  fallback: Context,
-): Context => {
-  const original = request.original
-  if (original != null && typeof original === 'object' && '_ctx' in original) {
-    return (original as ContextCarrier<Context>)._ctx ?? fallback
-  }
-
-  return fallback
-}
-
-/** Bind one protocol to a handler without a mutable declaration or an alias lookup. */
-export const implementation = <
-  Protocol extends EntrypointProtocolDeclaration,
-  Context extends BasicContext<BasicConfig>,
->(
-  protocol: Protocol,
-  handler: (
-    request: HandlerRequest<RequestOf<Protocol>>,
-    context: Context,
-    response: AbstractResponse<ResponseOf<Protocol>>,
-  ) => ResponseOf<Protocol> | Promise<ResponseOf<Protocol>>,
-): BoundEntrypointHandler<Protocol> => ({
-  protocol,
-  bind: ref => async (request, response) => {
-    const fallback = assertContext<BasicConfig, Context>(ref.ref?.ctx, protocol.alias)
-
-    try {
-      const value = await handler(
-        request as unknown as HandlerRequest<RequestOf<Protocol>>,
-        contextFor(request, fallback),
-        response as AbstractResponse<ResponseOf<Protocol>>,
-      )
-      response.resolve(value, EntrypointOutcome.Ok)
-    } catch (error) {
-      response.reject(error as Error)
-    }
-
-    return response.value
-  },
-})

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/config
 
 **Layer:** Core
-**Install:** `"@owlmeans/config": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/config": "^0.1.18-rc.15"` in `dependencies`
 
 ## Key Exports
 

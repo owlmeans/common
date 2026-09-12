@@ -4,8 +4,8 @@ import { handler } from '@owlmeans/client'
 import { bind, bindScreen, stab } from '@owlmeans/client-entrypoint'
 import { AuthenticationHOC } from './components/authentication/component.js'
 
-/** Browser bindings for the manager's authentication flows. */
-export const bindings = [
+/** Browser entrypoints for the manager's authentication flows. */
+export const entrypoints = [
   bind(authProtocols.authen),
   bind(authProtocols.init),
   bind(authProtocols.authenticate),

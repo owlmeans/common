@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-iam",
-  "version": "0.1.18-rc.20",
-  "generatedAt": "2026-09-10T19:57:26.111Z",
+  "version": "0.1.18-rc.24",
+  "generatedAt": "2026-09-12T08:39:52.720Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

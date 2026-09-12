@@ -1,6 +1,6 @@
 # @owlmeans/server-job
 
-Server bindings for a queue job protocol group: list, get, cancel and lifecycle watch.
+Server entrypoints for a queue job protocol group: list, get, cancel and lifecycle watch.
 
 Declare a group in shared code with `declareJobEntrypoints(root, options)`, then register
 `...serveJobEntrypoints(jobProtocols)` in the API runtime. The package returns local bindings and
@@ -14,7 +14,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

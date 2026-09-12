@@ -1,6 +1,6 @@
 import type { FC } from 'react'
 import { defaultNavTranslate, resolveNavLabel } from '@owlmeans/client-panel'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 import { Link } from '../link.js'
 
 import type { FooterProps } from './types.js'

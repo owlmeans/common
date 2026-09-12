@@ -1,6 +1,6 @@
 ---
 name: web-wl
-description: How to use @owlmeans/web-wl — the browser half of the white-label contract — the elevated WL_PROVIDE entrypoint, the caching WlWebService that loads an organization's white-label set, and the WlLogo component. Auto-invoked when reading white-label data in a web app or rendering a customer's branding.
+description: How to use @owlmeans/web-wl — the browser half of the white-label contract — the bound WL_PROVIDE entrypoint, the caching WlWebService that loads an organization's white-label set, and the WlLogo component. Auto-invoked when reading white-label data in a web app or rendering a customer's branding.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-wl
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-wl": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/web-wl": "^0.1.18-rc.18"` in `dependencies`
 
 Reads what `@owlmeans/server-wl` serves. One service call per organization entity, cached inside the
 service, plus a component for the one piece of branding almost every app needs.
@@ -17,7 +17,7 @@ service, plus a component for the one piece of branding almost every app needs.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The `WL_PROVIDE` declaration elevated for the browser. Spread it into the app's entrypoint list or `call()` misses |
+| `entrypoints` | The `WL_PROVIDE` protocol bound for the browser. Spread it into the app's entrypoint list or `call()` misses |
 | `makeWlService(alias?)` | The service factory. Defaults to `DEFAULT_ALIAS` |
 | `DEFAULT_ALIAS` | `'wl-web-serivce'` — spelled exactly that way. Always register and look the service up through this constant rather than a literal |
 | `WlWebService` | `load<T>(entityId, resource?) => Promise<ProvidedWLSet<T>>` and `extract<T>(key, set) => ProvidedWL<T>`. The `resource` argument is accepted and ignored — the whole set always comes back |

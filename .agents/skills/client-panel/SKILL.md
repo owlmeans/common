@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.22"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.26"` in `dependencies`
 
 ## Key Exports
 
@@ -121,10 +121,10 @@ alias, or null), `active` (its section), `showSide`, `isSectionActive` / `isItem
   first, then by longest prefix, so a detail screen under a listed one still belongs to its section.
   A screen listed in no section resolves its section by walking `route.route.parent` upward.
 - **`hrefOf` gives a menu entry a real URL**, resolved synchronously from
-  `context.entrypoint(alias).path()` — an entrypoint composes its path from its own declaration and
+  `context.entrypoint(protocol).path()` — a protocol composes its path from its own declaration and
   its ancestors', so matching one is a lookup rather than a guess. It returns undefined for a path
   carrying route parameters (`:id`) — there is no honest URL for a screen whose address is not
-  known yet. An alias the app never elevated resolves to null and is skipped rather than taking the
+  known yet. A protocol the app never bound resolves to null and is skipped rather than taking the
   menu down.
 
 ## Depends On

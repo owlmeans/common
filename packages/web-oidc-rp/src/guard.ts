@@ -1,14 +1,13 @@
-import { DISPATCHER } from '@owlmeans/auth'
 import { handler } from '@owlmeans/client'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import type { OidcGuardOptions } from '@owlmeans/oidc'
 import {
   appendOidcGuard as appendBasicOidcGuard,
-  DISPATCHER_OIDC, DISPATCHER_OIDC_INIT,
-  setupOidcGuard as setupBasicOidcGuard
+  oidcProtocols,
 } from '@owlmeans/oidc'
 import type { ParametrisedProps } from '@owlmeans/web-client'
-import { elevate, parametriseDispatcher } from '@owlmeans/web-client'
+import { parametriseDispatcher } from '@owlmeans/web-client'
+import { bind, bindScreen } from '@owlmeans/client-entrypoint'
+import { authProtocols } from '@owlmeans/auth-common'
 import { ensureLoginService } from '@owlmeans/client-auth/login'
 import { Dispatcher } from './components/dispatcher.js'
 import { oidcMethodSource } from './auth/methods.js'
@@ -30,12 +29,13 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[], extras?: Partial<ParametrisedProps>) => {
+/** Browser-local OIDC handlers and dispatcher screen for the shared protocol declarations. */
+export const oidcEntrypoints = (extras?: Partial<ParametrisedProps>) => {
   const DispatcherCom = extras ? parametriseDispatcher(extras, Dispatcher) : Dispatcher
 
-  setupBasicOidcGuard(entrypoints, coguards)
-
-  elevate(entrypoints, DISPATCHER_OIDC_INIT)
-  elevate(entrypoints, DISPATCHER_OIDC)
-  elevate(entrypoints, DISPATCHER, handler(DispatcherCom))
+  return [
+    bind(oidcProtocols.init),
+    bind(oidcProtocols.authenticate),
+    bindScreen(authProtocols.dispatcher, handler(DispatcherCom)),
+  ]
 }

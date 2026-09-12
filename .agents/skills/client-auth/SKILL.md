@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.23"` in `dependencies`
 
 Five subpaths, five jobs:
 
@@ -15,7 +15,7 @@ Five subpaths, five jobs:
 |---------|-----|
 | `.` | The client `AuthService`, the shared auth entrypoints, and the dispatcher HOC |
 | `./manager` | The registry's four names plus the authentication screen, control and error — *how* a user proves identity. Importing it registers the three shipped browser plugins and `pluginMethodSource` by side effect |
-| `./manager/entrypoints` | The manager application's own front-end entrypoint elevations |
+| `./manager/entrypoints` | The manager application's own front-end entrypoint bindings |
 | `./manager/plugins` | The plugin-authoring surface, and a superset of the registry: the `AuthenticationPlugin` contract, `pluginMethodSource`, the wallet-tunnel helpers and the shipped plugin objects — with no registration side effect |
 | `./login` | The **login**-plugin host — *where* the authorization round trip runs, and which method a person picks |
 
@@ -36,7 +36,7 @@ conflate them.
 | `makeAuthService(alias?)` | The client `AuthService` — `authenticate(token)`, `update(token)`, `authenticated()`, `user()`, `store()`. Decodes the bearer envelope and persists the record |
 | `appendAuthService(ctx, alias?)` | Register it, register `authMiddleware`, and expose `context.auth()` |
 | `setupExternalAuthentication(service)` | Point the `CAUTHEN_FLOW_ENTER` entrypoint at a service, so an external provider can redirect into this app |
-| `entrypoints` | The shared auth entrypoint list with `DISPATCHER_AUTHEN` elevated |
+| `entrypoints` | The shared auth entrypoint list with `DISPATCHER_AUTHEN` bound |
 | `DEFAULT_ALIAS` | `'auth'` — the client-side counterpart of `DEFAULT_GUARD` |
 | `AUTH_RESOURCE` | `'auth'` — the resource the token record is stored in |
 | `USER_ID` | `'user'` — the id of that single record |

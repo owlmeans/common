@@ -16,7 +16,7 @@ headless navigation model.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-panel
+bun add @owlmeans/client-panel@^0.1.18-rc.22
 ```
 
 ## Usage
@@ -26,12 +26,13 @@ A complete form with submit and cancel actions:
 ```typescript
 import { ClientForm, InputCtrl, ActionCtrl, useFormRef } from '@owlmeans/client-panel'
 import type { FormOnSubmit } from '@owlmeans/client-panel'
+import { appEntrypoints } from 'my-app-common'
 
 function CreateProjectForm() {
   const formRef = useFormRef()
 
   const onSubmit: FormOnSubmit<CreateProject> = async (data) => {
-    await ctx.entrypoint<ClientEntrypoint<Project>>('project-create').call({ body: data })
+    await ctx.entrypoint(appEntrypoints.api.projectCreate).call({ body: data })
   }
 
   return (
@@ -152,7 +153,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

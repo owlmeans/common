@@ -1,5 +1,7 @@
 
 import { DispatcherHOC } from '@owlmeans/client-auth'
+import type { DispatcherProps } from '@owlmeans/client-auth'
+import type { RoutedComponent } from '@owlmeans/client'
 import { useCallback, useEffect, useState } from 'react'
 import { useContext } from '@owlmeans/web-client'
 import { useI18nLib } from '@owlmeans/client-i18n'
@@ -13,7 +15,7 @@ import {
 } from '@owlmeans/client-auth/login'
 import { LoginSurrogateView, SurrogateStage } from '@owlmeans/web-client'
 
-export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
+export const Dispatcher: RoutedComponent<DispatcherProps> = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
   const [query] = context.router().useSearchParams()
   const client = useFlow()

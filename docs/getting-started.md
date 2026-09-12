@@ -114,9 +114,10 @@ package) — add it as a dev dependency in each workspace and `extends` its `tsc
 
 ### 2. `sources/common` — the shared contract
 
-Declare the API as OwlMeans **entrypoints**: a `route()` (id + path + method) wrapped by
-`entrypoint()`, with `filter(params(...) / body(...))` for AJV validation. Use a session id as a
-route param so the demo needs no auth.
+Declare the API as OwlMeans **protocols**: a `route()` (id + path + method) wrapped by
+`protocol()` (or `openProtocol()` when a route intentionally has no payload contract). Put AJV
+validation and TypeScript types in `contract.request(...)`, and access rules in protocol options.
+Use a session id as a route param so the demo needs no auth.
 
 `sources/common/src/consts.ts`:
 
@@ -139,20 +140,29 @@ export const web = { session: 'my-app:web:session', about: 'my-app:web:about' }
 `sources/common/src/entrypoints.ts`:
 
 ```ts
-import { body, entrypoint, filter, params } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { session } from './consts.js'
 import { AddItemSchema, ItemParamsSchema, SessionParamsSchema } from './schemas.js'
 import type { AddItemPayload, ItemParams, SessionParams } from './types.js'
 
 export const sessionEntrypoints = [
-  entrypoint(route(session.base, '/session')),
-  entrypoint(route(session.list, '/:sid/items', { parent: session.base, method: RouteMethod.GET }),
-    filter(params<SessionParams>(SessionParamsSchema))),
-  entrypoint(route(session.add, '/:sid/items', { parent: session.base, method: RouteMethod.POST }),
-    filter(params<SessionParams>(SessionParamsSchema, body<AddItemPayload>(AddItemSchema)))),
-  entrypoint(route(session.remove, '/:sid/items/:id', { parent: session.base, method: RouteMethod.DELETE }),
-    filter(params<ItemParams>(ItemParamsSchema))),
+  openProtocol(route(session.base, '/session')),
+  protocol(
+    route(session.list, '/:sid/items', { parent: session.base, method: RouteMethod.GET }),
+    contract.request({ params: typed<SessionParams>(SessionParamsSchema) }, typed<unknown>()),
+  ),
+  protocol(
+    route(session.add, '/:sid/items', { parent: session.base, method: RouteMethod.POST }),
+    contract.request({
+      params: typed<SessionParams>(SessionParamsSchema),
+      body: typed<AddItemPayload>(AddItemSchema),
+    }, typed<unknown>()),
+  ),
+  protocol(
+    route(session.remove, '/:sid/items/:id', { parent: session.base, method: RouteMethod.DELETE }),
+    contract.request({ params: typed<ItemParams>(ItemParamsSchema) }, typed<unknown>()),
+  ),
 ]
 ```
 
@@ -184,7 +194,7 @@ Add `types.ts` (`SessionItem`, `AddItemPayload`, `SessionParams`, `ItemParams`) 
 
 ### 3. `sources/api` — backend with an in-memory session resource
 
-Register the static resource in the context and `elevate()` each entrypoint with a handler.
+Register the static resource in the context and `bind()` each shared protocol with a handler.
 
 `sources/api/src/context.ts`:
 
@@ -200,27 +210,22 @@ export const makeContext = (cfg) => {
 }
 ```
 
-Handlers read/write `ctx.getStaticResource(SESSION_ITEMS)`. `handleParams` / `handleBody` give you
-the validated params/body; the second argument is the context:
+Handlers read/write `ctx.getStaticResource(SESSION_ITEMS)`. Create them from the shared protocol so
+the callback receives the validated body/params and the context with no local casts:
 
 ```ts
-import { handleBody } from '@owlmeans/server-app'
+import { handlers } from '@owlmeans/server-api'
+import { appEntrypoints as protocols } from 'my-app-common'
+import type { Context } from 'my-app-backend'
 import { randomUUID } from 'node:crypto'
 
-export const add = handleBody(async (payload, context, req) => {
+const api = handlers<Context>()
+export const add = api.body(protocols.api.session.add, async (payload, context, req) => {
   const { sid } = req.params
   const resource = context.getStaticResource(SESSION_ITEMS)
   return await resource.create({ id: randomUUID(), sessionId: sid, text: payload.text, createdAt: new Date().toISOString() })
 })
-```
-
-The `list` handler asks the resource the whole question rather than filtering afterwards — every
-resource takes the same criteria language, and the in-memory ones are unpaged:
-
-```ts
-import { handleParams } from '@owlmeans/server-app'
-
-export const list = handleParams<SessionParams>(async (params, context) => {
+export const list = api.params(protocols.api.session.list, async (params, context) => {
   const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
   const { items } = await resource.list(
     { sessionId: params.sid },
@@ -229,7 +234,16 @@ export const list = handleParams<SessionParams>(async (params, context) => {
 
   return items
 })
+
+export const remove = api.params(protocols.api.session.remove, async ({ sid, id }, context) => {
+  const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
+  await resource.delete(id)
+  return { sid, id }
+})
 ```
+
+The `list` handler asks the resource the whole question rather than filtering afterwards — every
+resource takes the same criteria language, and the in-memory ones are unpaged.
 
 > `list` answers `{ items, total }`. A bare criteria value means equality and a bare array means
 > "any of these"; `sort` is a field name or `{ field, order }`. That criteria on `sessionId` is the
@@ -238,21 +252,21 @@ export const list = handleParams<SessionParams>(async (params, context) => {
 `sources/api/src/entrypoints.ts` attaches handlers and merges the framework's default `entrypoints`:
 
 ```ts
-import { elevate, entrypoints } from '@owlmeans/server-app'
-import { session, sessionEntrypoints } from 'my-app-common'
-import * as handlers from './app/session/index.js'
-
-elevate(sessionEntrypoints, session.base)
-elevate(sessionEntrypoints, session.list, handlers.list)
-elevate(sessionEntrypoints, session.add, handlers.add)
-elevate(sessionEntrypoints, session.remove, handlers.remove)
-
-export const appEntrypoints = [...entrypoints, ...sessionEntrypoints]
+import { entrypoints as frameworkEntrypoints } from '@owlmeans/server-app'
+import { bind } from '@owlmeans/server-entrypoint'
+import { appEntrypoints as protocols } from 'my-app-common'
+import * as handlersForSession from './app/session/index.js'
+export const appEntrypoints = [
+  ...frameworkEntrypoints,
+  bind(protocols.api.session.base),
+  bind(protocols.api.session.list, handlersForSession.list),
+  bind(protocols.api.session.add, handlersForSession.add),
+  bind(protocols.api.session.remove, handlersForSession.remove),
+]
 ```
 
-`elevate` replaces the declaration in the list it is given, and it is idempotent — elevating an
-alias again is allowed, and any guards named at elevation are added to the ones the declaration
-already carries rather than replacing them.
+`bind` materializes the immutable protocol declaration without changing the shared tree. The
+protocol carries its request/response types and access rules to every package that binds it.
 
 `sources/api/src/index.ts` boots it:
 
@@ -341,25 +355,27 @@ export const render = (context) =>
 ```
 
 Wire routes to components in `src/entrypoints.ts`. A parent `BASE` route renders the layout; `HOME`
-is its default child; the session and about screens are further children. `elevate` the backend
-entrypoints (no component) so the client can call them:
+is its default child; the session and about screens are further children. Bind backend protocols with
+`bindAll` so the client can call them:
 
 ```ts
-import { BASE, elevate, entrypoint, entrypoints as baseEntrypoints, frontend, handler, HOME, route } from '@owlmeans/web-panel'
-import { session, sessionEntrypoints, web } from 'my-app-common'
+import { bindAll, bindScreen } from '@owlmeans/client-entrypoint'
+import { handler } from '@owlmeans/client'
+import { entrypoints as baseEntrypoints } from '@owlmeans/web-client'
+import { appEntrypoints as protocols } from 'my-app-common'
 import { MainLayout } from './layout/main.js'
 import { AboutScreen } from './screens/about.js'
 import { HomeScreen } from './screens/home.js'
 import { SessionScreen } from './screens/session.js'
 
-const entrypoints = [...baseEntrypoints, ...sessionEntrypoints]
-elevate(entrypoints, session.base); elevate(entrypoints, session.list)
-elevate(entrypoints, session.add);  elevate(entrypoints, session.remove)
-
-entrypoints.push(entrypoint(route(BASE, '/', frontend()), handler(MainLayout)))
-entrypoints.push(entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen)))
-entrypoints.push(entrypoint(route(web.session, '/session', frontend({ parent: BASE })), handler(SessionScreen)))
-entrypoints.push(entrypoint(route(web.about, '/about', frontend({ parent: BASE })), handler(AboutScreen)))
+const entrypoints = [
+  ...baseEntrypoints,
+  ...bindAll(protocols.api),
+  bindScreen(protocols.web.base, handler(MainLayout)),
+  bindScreen(protocols.web.home, handler(HomeScreen)),
+  bindScreen(protocols.web.session, handler(SessionScreen)),
+  bindScreen(protocols.web.about, handler(AboutScreen)),
+]
 
 export const appEntrypoints = entrypoints
 ```
@@ -367,12 +383,12 @@ export const appEntrypoints = entrypoints
 A frontend entrypoint that **has children needs one of them declared `default: true`** — that is
 why `BASE` gets `HOME`. Without a default child a parent route renders blank at its own path.
 
-Calling a backend alias from the client is that bare `elevate` — an explicit opt-in, so nothing the
-app never asked for becomes reachable from the browser. Once elevated, an entrypoint answers three
-explicit questions:
+Calling a backend protocol from the client requires its `bind`/`bindAll` entry in the browser package,
+so nothing the app never asked for becomes reachable from the browser. Once bound, a protocol answers
+three explicit questions:
 
 ```tsx
-const items = await ctx.entrypoint(session.list).call({ params: { sid } })   // the value
+const items = await ctx.entrypoint(protocols.api.session.list).call({ params: { sid } })   // the value
 const { value, outcome } = await ctx.entrypoint(session.add)
   .invoke({ params: { sid }, body: { text } })                              // value + outcome
 const href = await ctx.entrypoint(web.about).url()                          // the address
@@ -500,22 +516,22 @@ under `sources/*` (bun often keeps workspace-only deps there) — and copies gui
 | Concern | Package | What you wrote |
 |---------|---------|----------------|
 | Shared routes + validation + types | `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/config` | `sources/common` |
-| Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `elevate`, `main` |
+| Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `bind`, `main` |
 | In-memory session store | `@owlmeans/static-resource` | `appendStaticResource` + `getStaticResource` |
-| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `elevate(handler(...))` |
+| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `bindScreen(handler(...))` |
 | Client store the screens read | `@owlmeans/state` (hooks: `@owlmeans/client`) | `appendStateResource`, `store.replace`, `useStoreList` |
 | Two-layer navigation + footer | `@owlmeans/web-panel` (model: `@owlmeans/client-panel`) | `src/nav.ts`, `NavLayout` in `src/layout/main.tsx` |
 | shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts`, the `@source` line in `src/index.css` |
 
-**The single source of truth is `sources/common`.** The api elevates its entrypoints with handlers;
-the web elevates the same entrypoints with screen components and calls them. Change a route or
+**The single source of truth is `sources/common`.** The api materializes its entrypoints with handlers;
+the web materializes the same entrypoints with screen components and calls them. Change a route or
 schema once and both sides stay in sync.
 
 ## Where to go next
 
 - Swap in a real database: `@owlmeans/mongo` + `@owlmeans/mongo-resource` (or
   `@owlmeans/redis` + `@owlmeans/redis-resource`) instead of `@owlmeans/static-resource`.
-- Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth` and `guard(...)` on
-  entrypoints.
+- Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth`, then set
+  `{ guards: DEFAULT_GUARD }` on the relevant protocol declarations.
 - Per-package guidance lives in each package's skill (`.agents/skills/<name>/SKILL.md`) — installed
   into your project by `@owlmeans/agent-skills`.

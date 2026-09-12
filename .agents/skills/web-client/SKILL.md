@@ -3,7 +3,7 @@ name: web-client
 description: Bind OwlMeans shared entrypoint protocols in a browser application. Use when registering client routes, attaching React screens, calling API protocols, or configuring the browser context.
 ---
 
-# Browser protocol bindings
+# Browser protocol entrypoints
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.
@@ -34,5 +34,5 @@ const project = await context.entrypoint(projectEntrypoints.get).call({
 - Bind every API declaration the browser calls, including route parents.
 - Use `bindScreen(protocol, handler(Component))` only for frontend route declarations.
 - Do not replace request/response typing at a call site; update the shared contract instead.
-- Keep framework bindings and application bindings in one registered array, without mutating a
+- Keep framework entrypoints and application entrypoints in one registered array, without mutating a
   shared declaration collection.

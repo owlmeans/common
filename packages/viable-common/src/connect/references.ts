@@ -1,4 +1,6 @@
 import { entrypointRef } from '@owlmeans/entrypoint'
+import type { RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
+import type { EntrypointReference } from '@owlmeans/context'
 import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
 import type {
@@ -10,12 +12,60 @@ import type {
   ConnectStoryMutation, ConnectStoryQuery, ConnectWaitQuery,
 } from './types.js'
 
+type ConnectReference<Request extends RequestShape, Response> =
+  EntrypointReference<RegisteredEntrypoint<Request, Response>>
+
+export interface ConnectReferences {
+  capabilities: ConnectReference<{}, ConnectCapabilitiesView>
+  session: {
+    open: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
+    openDelegated: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
+    get: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
+    heartbeat: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
+    close: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
+  }
+  op: {
+    pull: ConnectReference<{ params: ConnectSessionParams, query: ConnectWaitQuery }, ConnectOp[]>
+    submit: ConnectReference<{
+      params: { sessionId: string, opId: string }, body: ConnectOpResult
+    }, ConnectOpSubmission>
+  }
+  project: {
+    create: ConnectReference<{ body: ConnectCreateBody }, ConnectJob>
+    confirm: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectJob>
+    list: ConnectReference<{}, ConnectProjectSummary[]>
+    status: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
+    attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
+    reinit: ConnectReference<{ params: { id: string } }, ConnectJob>
+    modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectJob>
+    settings: ConnectReference<{ params: { id: string } }, ConnectProjectSettings>
+    llm: ConnectReference<{ params: { id: string }, body: ConnectProjectLlmBody }, ConnectProjectSettings>
+    job: ConnectReference<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>
+  }
+  story: {
+    list: ConnectReference<{ params: { id: string }, query: ConnectStoryQuery }, ConnectStoryList>
+    get: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryItem>
+    create: ConnectReference<{ params: { id: string }, body: ConnectStoryBody }, ConnectStoryMutation>
+    update: ConnectReference<{
+      params: { id: string, storyId: string }, body: ConnectStoryBody
+    }, ConnectStoryMutation>
+    delete: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>
+    develop: ConnectReference<{ params: { id: string, storyId: string } }, ConnectJob>
+  }
+  pipeline: {
+    state: ConnectReference<{ params: ConnectPipelineParams }, ConnectPipelineState>
+    resume: ConnectReference<{
+      params: ConnectPipelineParams, body: ConnectPipelineResumeBody
+    }, ConnectJob>
+  }
+}
+
 /**
  * Typed references for adapter packages that address the connector dynamically.  Applications
  * export protocol objects instead; an adapter may use this compact form because it never exposes
  * aliases to UI or domain code.
  */
-export const connectRef = {
+export const connectRef: ConnectReferences = {
   capabilities: entrypointRef<{}, ConnectCapabilitiesView>(connect.capabilities),
   session: {
     open: entrypointRef<{ body: ConnectSessionOpen }, ConnectSessionView>(connect.session.open),

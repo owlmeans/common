@@ -6,15 +6,15 @@ Server-side OIDC relying party — registers the OIDC guard, wrapping service, g
 
 - `appendOidcGuard(context)` — registers the OIDC guard service
 - `makeOidcWrappingService()` / `makeOidcGate()` — token wrapping service and gate factory
-- `setupOidcGuard(entrypoints, coguards?, extras?)` — attaches the OIDC guard to entrypoint declarations
-- `setupAuthServiceEntrypoints(...)` — wires external auth entrypoints
+- `oidcEntrypoints` — local bindings for the shared OIDC protocol pair
+- `makeAuthServiceEntrypoints(...)` — returns external-auth protocol declarations
 - `makeOidcClientService()` / `OidcClientService` — IdP-side client (e.g., Keycloak admin)
 - Subpath `./auth` — admin-client constants like `OIDC_ADMIN_CLIENT`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-oidc-rp
+bun add @owlmeans/server-oidc-rp@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -32,13 +32,17 @@ context.registerService(makeOidcClientService())
 appendOidcGuard<C, T>(context)
 ```
 
-Wire onto entrypoints in `entrypoints.ts`:
+Decorate shared declarations immutably, then bind OIDC in `entrypoints.ts`:
 
 ```typescript
-import { setupOidcGuard, setupAuthServiceEntrypoints } from '@owlmeans/server-oidc-rp'
+import { withOidcGuard } from '@owlmeans/oidc'
+import { oidcEntrypoints } from '@owlmeans/server-oidc-rp'
 
-setupOidcGuard(appEntrypoints)
-setupAuthServiceEntrypoints(appEntrypoints)
+const configuredProtocols = withOidcGuard(protocols)
+const appEntrypoints = [
+  // Bind application protocols against configuredProtocols here.
+  ...oidcEntrypoints,
+]
 ```
 
 Configure providers in `config.ts`:
@@ -77,8 +81,9 @@ const oidc = context.service<OidcClientService>(OIDC_SERVICE)
 
 ### Entrypoint wiring
 
-- `setupOidcGuard(entrypoints, coguards?, extras?)` — attach guard to entrypoint declarations
-- `setupAuthServiceEntrypoints(entrypoints, ...)` — register external auth entrypoints
+- `withOidcGuard(protocols, coguards?)` (`@owlmeans/oidc`) — return a decorated immutable protocol tree
+- `oidcEntrypoints` — local bindings for the shared OIDC init and authenticate protocols
+- `makeAuthServiceEntrypoints(serviceAlias, prefix?)` — return external auth protocol declarations
 
 ### Constants
 
@@ -94,15 +99,15 @@ const oidc = context.service<OidcClientService>(OIDC_SERVICE)
 
 - `makeOidcClientService()` reads provider descriptors from `cfg.oidc.providers`, including Google and internal admin providers.
 - Use `findProvider(predicate)`, `hasProvider(params)`, and `entityToClientId(params)` for provider lookup rather than ad hoc config scans.
-- `setupAuthServiceModules(managerModules, AUTH_API)` wires provider-list and token-update endpoints protected by `GUARD_ED25519`.
-- If OIDC/Google is only the login provider and local identity records hold authorization, do not re-add `appendOidcGuard()`, `makeOidcGate()`, or `setupOidcGuard()` as product authorization. Use a product-specific `GateService` over local profile scopes.
+- `makeAuthServiceEntrypoints(AUTH_API)` declares provider-list and token-update endpoints protected by `GUARD_ED25519`; bind them in the service that serves the routes.
+- If OIDC/Google is only the login provider and local identity records hold authorization, do not re-add `appendOidcGuard()` or `makeOidcGate()` as product authorization. Use a product-specific `GateService` over local profile scopes.
 
 ## Related Packages
 
 - [`@owlmeans/oidc`](../oidc) — shared `OIDC_GATE`, `OIDC_GUARD`, types
 - [`@owlmeans/server-auth`](../server-auth) — works alongside the OIDC guard for token verification
 - [`@owlmeans/server-context`](../server-context) — base context where services are registered
-- [`@owlmeans/auth-common`](../auth-common) — `DEFAULT_GUARD` co-attached via `setupOidcGuard`
+- [`@owlmeans/auth-common`](../auth-common) — `DEFAULT_GUARD`, which `withOidcGuard()` decorates
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -112,7 +117,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

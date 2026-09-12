@@ -16,7 +16,7 @@ code-registered migrations, and custom SQL with resource-alias placeholders.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres-resource @owlmeans/postgres pg
+bun add @owlmeans/postgres-resource@^0.1.18-rc.12 @owlmeans/postgres@^0.1.18-rc.13 pg
 ```
 
 `pg` and `ajv` are peer dependencies of this package. `@owlmeans/postgres` provides the connection
@@ -224,7 +224,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

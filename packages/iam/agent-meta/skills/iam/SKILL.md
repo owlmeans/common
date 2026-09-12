@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/iam`
 
-**Install:** `"@owlmeans/iam": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.19"` in `dependencies`
 
 Provider-agnostic IAM abstraction: the `IamService` interface, the permission and grant shapes, the
 gate-param grammar, and `hasPermission`. It contains no implementation and talks to no provider —
@@ -24,22 +24,16 @@ lines.
 | Export | Description |
 |--------|-------------|
 | `appendIam(context, opts?)` | Wires the OIDC guard onto a web context **and** installs the consent-before-sign-in precondition |
-| `setupIam(entrypoints, coguards?)` | Wires the same guard onto the entrypoint list, and attaches the dispatcher screen |
+| `withIamGuard(protocolTree, coguards?)` | Returns a decorated immutable protocol tree with IAM's OIDC guard applied |
+| `iamEntrypoints(dispatcherProps?)` | Browser-local OIDC bindings and dispatcher-screen binding |
 | `requireConsentForLogin(ctx, opts?)` | That precondition on its own, for a context wired some other way |
 | `CONSENT_LOGIN_PRECONDITION` / `CLIENT_IAM_SERVICE` | The precondition alias and the service alias |
 | `useLogin` / `useLogout`, `LoginOutcome` / `LoginIntent`, `LoginPlugin` / `LoginService` / … | Re-exported sign-in surface, so an app has one IAM import rather than three |
 | Everything from `@owlmeans/iam` | The types above, plus `hasPermission` |
 
-Two rules ride on it. **`setupIam` is called exactly once per entrypoint list** — it appends the OIDC
-dispatcher entrypoints to the list it is given rather than returning a new one, and then elevates
-three aliases in place. **Calling it twice fails silently, it does not throw.** Elevation is
-idempotent: it replaces the *first* element carrying the alias and only raises when the alias is
-absent (`Entrypoint with alias … not present`, which a list missing the `DISPATCHER` declaration
-hits). So a second `setupIam` — or a `setupOidcGuard` from `@owlmeans/web-oidc-rp` called alongside
-it — leaves the same declarations in the list twice and re-elevates them, with no error and no
-warning, and the dispatcher screen ends up as whatever the later call attached: a parametrised
-dispatcher is quietly swapped for the default. An app that calls `setupIam` must therefore not also
-call `setupOidcGuard` itself.
+The protocol tree is immutable. Decorate it once with `withIamGuard(protocols)` before binding local
+screens and API callers, then spread `iamEntrypoints()` once into that browser binding list. The
+helper deliberately does not add declarations to a flattened entrypoint array.
 
 And the consent precondition sits on `LoginService.begin` rather than on a hook, a screen or a login
 plugin, because `begin` is the single funnel every sign-in mechanic passes through and the one place

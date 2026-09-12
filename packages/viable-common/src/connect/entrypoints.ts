@@ -45,7 +45,7 @@ export interface ConnectEntrypointOptions {
 /**
  * Declare the connector's HTTP and socket surface.
  *
- * One list, spread into the platform's own entrypoints. Handlers are elevated onto these aliases
+ * One list, spread into the platform's own entrypoints. Handlers are bound to these protocols
  * server-side and onto client entrypoints in the SDK — the same declarations both times, which is
  * what makes a path or a schema impossible to get wrong on one side only.
  */

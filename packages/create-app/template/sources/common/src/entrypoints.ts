@@ -1,4 +1,4 @@
-import { contract, openProtocol, protocol, protocols, typed } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod, frontend } from '@owlmeans/route'
 import { AddItemSchema, ItemParamsSchema, SessionParamsSchema } from './schemas.js'
 import type { SessionItem } from './types.js'
@@ -22,8 +22,8 @@ const sessionBase = protocol(route(aliases.session.base, '/session'), contract()
 const webBase = openProtocol(route(aliases.web.base, '/', frontend()))
 
 /**
- * Shared entrypoint declarations. The api elevates these with handlers; the web
- * elevates them with screen components and calls them. Routes resolve under the
+ * Shared entrypoint declarations. The api materializes these with handlers; the web
+ * materializes them with screen components and calls them. Routes resolve under the
  * api service `base` (`/api`), so e.g. `session.list` → `GET /api/session/:sid/items`.
  */
 export const session = {
@@ -53,4 +53,8 @@ export const web = {
   about: openProtocol(route(aliases.web.about, '/about', frontend({ parent: webBase }))),
 }
 
-export const sessionEntrypoints = protocols(session)
+/** The shared immutable protocol tree. Runtime packages bind their own local handlers and screens. */
+export const appEntrypoints = {
+  api: { session },
+  web,
+}

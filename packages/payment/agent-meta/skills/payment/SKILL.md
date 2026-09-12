@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.16"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), the subscription
 record, the entitlement grammar, and the entrypoint declarations both sides of a checkout share. It
@@ -72,8 +72,8 @@ is written as a string:
   flag, however true, does not answer it.
 - **A malformed parameter answers `false`, it never throws.** A gate that crashed on a typo would
   take down the endpoint it guards, which is strictly worse than refusing the request.
-- **Declare the requirement on the route, not in the handler.** `entitled(...)` is sugar over
-  `gate(ENTITLEMENT_GATE, params)`; the framework asserts a gate before the handler is entered, so
+- **Declare the requirement on the protocol, not in the handler.** `entitled(...)` is sugar over
+  the protocol's `gate: { alias: ENTITLEMENT_GATE, params }` option; the framework asserts a gate before the handler is entered, so
   the route table states what a feature costs and no new endpoint can forget to check. Several
   parameters are OR'd, as with every other gate.
 - The gate service itself is not here — bind something under `ENTITLEMENT_GATE` in the server
@@ -82,9 +82,12 @@ is written as a string:
 ```typescript
 import { entitled, hasEntitlement, entitlementList } from '@owlmeans/payment'
 
-// On the route:
-entrypoint(route(MY_ROUTE, '/whitelabel', backend(BASE, RouteMethod.POST)),
-  entitled('feature:branding--whitelabel'))
+// On the protocol:
+protocol(
+  route(MY_ROUTE, '/whitelabel', backend(BASE, RouteMethod.POST)),
+  contract(typed()),
+  { gate: { alias: ENTITLEMENT_GATE, params: ['feature:branding--whitelabel'] } },
+)
 
 // In the UI, to render a control disabled rather than let it fail:
 const allowed = hasEntitlement(capabilities, 'renewable:credits>=100')

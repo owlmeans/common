@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/route
 
 **Layer:** Core
-**Install:** `"@owlmeans/route": "^0.1.18-rc.10"` in `dependencies`
+**Install:** `"@owlmeans/route": "^0.1.18-rc.12"` in `dependencies`
 
 ## Key Exports
 
@@ -81,18 +81,19 @@ Application code rarely calls these directly — `@owlmeans/entrypoint` exposes 
 
 ```typescript
 import { route, frontend, RouteMethod } from '@owlmeans/route'
-import { entrypoint } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 
 // Server route
-entrypoint(
+protocol(
   route(manager.back.project.create, '/create', {
     parent: manager.back.project.base,
     method: RouteMethod.POST,
-  })
+  }),
+  contract(typed<Project>()),
 )
 
 // Web route — frontend() marks it as a React page
-entrypoint(
+openProtocol(
   route(HOME, '/', frontend({ default: true, parent: BASE }))
 )
 ```

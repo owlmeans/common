@@ -1,13 +1,13 @@
 ---
 name: server-oidc-rp
-description: How to use @owlmeans/server-oidc-rp — the server-side OIDC relying party — appendOidcGuard and setupOidcGuard, the OidcClientService and its adapter, the requested-scope contract, the UMA2 gate, the wrapped-token service, and the owned public types that keep openid-client out of the public surface. Auto-invoked when importing server-oidc-rp helpers or configuring identity providers on a server.
+description: How to use @owlmeans/server-oidc-rp — the server-side OIDC relying party — appendOidcGuard, oidcEntrypoints and makeAuthServiceEntrypoints, the OidcClientService and its adapter, the requested-scope contract, the UMA2 gate, the wrapped-token service, and the owned public types that keep openid-client out of the public surface. Auto-invoked when importing server-oidc-rp helpers or configuring identity providers on a server.
 user-invocable: false
 ---
 
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.21"` in `dependencies`
 
 ## Key Exports
 
@@ -17,8 +17,8 @@ user-invocable: false
 | `makeOidcWrappingService()` | Registers `WRAPPED_OIDC` — refreshes and re-issues an OIDC-wrapped token before it goes stale |
 | `makeOidcGate(alias?)` | The UMA2 gate, registered under `OIDC_GATE` |
 | `appendOidcGuard<C, T>(context, opts?)` | Registers the OIDC guard on a server context. `opts` is `OidcGuardOptions` (`@owlmeans/oidc`) and is forwarded to the base guard unchanged |
-| `setupOidcGuard(entrypoints, coguards?)` | Appends the dispatcher entrypoints and elevates them with the `init` and `authenticate` handlers |
-| `setupAuthServiceEntrypoints(entrypoints, serviceAlias, prefix?)` | Declares and elevates the provider-list and token-update service entrypoints, guarded by `GUARD_ED25519`. `prefix` defaults to `oidc-api` |
+| `oidcEntrypoints` | Server-local bindings for the shared `oidcProtocols.init` and `.authenticate` declarations |
+| `makeAuthServiceEntrypoints(serviceAlias, prefix?)` | Returns provider-list and token-update protocol declarations, guarded by `GUARD_ED25519`. `prefix` defaults to `oidc-api` |
 | `requestedScope(extraScopes?)` | The `scope` of an authorization request — base scopes plus the provider's extras, deduplicated |
 | `createGateModel(ctx)` | The UMA2 permission model — `loadPermissions(auth, params)` |
 | `extractPermissionSets(claim)` | Shape-validates a `permissions` claim into `PermissionSet[]`, or `undefined` |
@@ -51,13 +51,21 @@ appendOidcGuard<C, T>(context)
 ```
 
 ```typescript
-import { setupOidcGuard, setupAuthServiceEntrypoints } from '@owlmeans/server-oidc-rp'
+import { withOidcGuard } from '@owlmeans/oidc'
+import { oidcEntrypoints, makeAuthServiceEntrypoints } from '@owlmeans/server-oidc-rp'
+import { bindAll } from '@owlmeans/server-entrypoint'
 
-setupOidcGuard(appEntrypoints)
-// second argument: the alias of the registered service that hosts these two auth-service
-// routes — they are elevated caller-side, so it addresses them rather than mounting them
-setupAuthServiceEntrypoints(managerEntrypoints, 'my-auth-api')
+export const configuredProtocols = withOidcGuard(protocols)
+export const appEntrypoints = [
+  ...bindAll(configuredProtocols.api),
+  ...oidcEntrypoints,
+  ...bindAll(makeAuthServiceEntrypoints('my-auth-api')),
+]
 ```
+
+Decorate the application tree before binding it; do not mutate declarations or append protocol
+objects to a server entrypoint list. `oidcEntrypoints` are bindings and are spread once. The
+auth-service helper returns declarations, so bind those declarations in the serving app.
 
 ```typescript
 // config
@@ -180,8 +188,8 @@ modules — what the owned names buy is that it stops there and never reaches a 
 ## Rules
 
 - An application that uses an identity provider **only to log in**, and then maps the subject onto a
-  local identity through `@owlmeans/server-auth-identity`, must not adopt `appendOidcGuard()`,
-  `makeOidcGate()` or `setupOidcGuard()` as its authorization mechanism. Those decide against the
+  local identity through `@owlmeans/server-auth-identity`, must not adopt `appendOidcGuard()` or
+  `makeOidcGate()` as its authorization mechanism. Those decide against the
   provider's grants; a product that owns its own identity records declares its own `GateService` over
   them.
 - The browser starts the flow and the server finishes it: the exchange, the account linking and the

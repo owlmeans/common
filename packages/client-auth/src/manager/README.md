@@ -21,9 +21,9 @@ React components that handle various authentication scenarios:
 - **Tunnel Consumer**: Component for handling WebSocket authentication tunnels
 - **Credential Management**: Secure handling of user credentials
 
-### Module Integration
-The manager integrates with the OwlMeans module system to provide:
-- **Elevated Modules**: Enhanced modules with client-specific authentication handling
+### Entrypoint Integration
+The manager integrates with the OwlMeans entrypoint system to provide:
+- **Enhanced Entrypoints**: Entrypoints with client-specific authentication handling
 - **Route Protection**: Automatic authentication requirements for protected routes
 - **API Integration**: Seamless integration with authentication APIs
 
@@ -37,7 +37,7 @@ Comprehensive error handling for authentication scenarios:
 This manager is part of the `@owlmeans/client-auth` package:
 
 ```bash
-npm install @owlmeans/client-auth
+npm install @owlmeans/client-auth@^0.1.18-rc.19
 ```
 
 ## API Reference
@@ -134,37 +134,22 @@ try {
 }
 ```
 
-### Modules
+### Entrypoints
 
-#### `modules`
-Pre-configured authentication modules for client applications.
-
-```typescript
-const modules: CommonModule[]
-```
-
-Contains elevated modules for:
-- `AUTHEN` - Base authentication module
-- `AUTHEN_INIT` - Authentication initialization
-- `AUTHEN_AUTHEN` - User authentication
-- `AUTHEN_RELY` - Authentication relay
-- `CAUTHEN` - Client authentication
-- `CAUTHEN_AUTHEN` - Client authentication handler
-- `CAUTHEN_AUTHEN_DEFAULT` - Default authentication component
-- `CAUTHEN_AUTHEN_TYPED` - Typed authentication component
-- `DISPATCHER` - Authentication dispatcher
+#### `entrypoints`
+The shared, immutable authentication declarations. Bind them into the client context alongside
+the application's own entrypoints.
 
 ## Usage Examples
 
 ### Basic Authentication Setup
 
 ```typescript
-import { modules } from '@owlmeans/client-auth/manager'
-import { makeClientContext } from '@owlmeans/client-context'
+import { entrypoints } from '@owlmeans/client-auth/manager'
+import { makeContext } from '@owlmeans/web-client'
 
-// Register authentication modules with context
-const context = makeClientContext(config)
-context.registerModules(modules)
+const context = makeContext(config)
+context.registerEntrypoints(entrypoints)
 
 await context.configure().init()
 ```
@@ -256,48 +241,27 @@ function RealtimeApp() {
 
 ### Custom Authentication Flow
 
+Use the typed authentication protocols from `@owlmeans/auth-common`; the context supplies the
+registered client binding and infers the request and response types from the protocol.
+
 ```typescript
-import { modules, AuthenCredError } from '@owlmeans/client-auth/manager'
-import { useModule } from '@owlmeans/client'
+import { AuthenticationType } from '@owlmeans/auth'
+import { authProtocols } from '@owlmeans/auth-common'
+import { AuthenCredError } from '@owlmeans/client-auth/manager'
+import type { ClientContext } from '@owlmeans/client-context'
 
-function CustomAuthFlow() {
-  const authModule = useModule('auth')
-  
-  const handleLogin = async (credentials) => {
-    try {
-      const initResponse = await authModule.init({
-        type: AuthenticationType.PasswordLogin
-      })
-      
-      const authResponse = await authModule.authenticate({
-        ...credentials,
-        challenge: initResponse.challenge
-      })
-      
-      console.log('Authentication successful:', authResponse)
-    } catch (error) {
-      if (error instanceof AuthenCredError) {
-        console.error('Invalid credentials:', error.message)
-      } else {
-        console.error('Authentication failed:', error)
-      }
-    }
+async function authenticate(context: ClientContext, credentials: { username: string, password: string }) {
+  try {
+    const allowance = await context.entrypoint(authProtocols.init).call({
+      body: { type: AuthenticationType.PasswordLogin },
+    })
+    return await context.entrypoint(authProtocols.authenticate).call({
+      body: { ...credentials, challenge: allowance.challenge },
+    })
+  } catch (error) {
+    if (error instanceof AuthenCredError) console.error('Invalid credentials:', error.message)
+    throw error
   }
-
-  return (
-    <form onSubmit={(e) => {
-      e.preventDefault()
-      const formData = new FormData(e.target)
-      handleLogin({
-        username: formData.get('username'),
-        password: formData.get('password')
-      })
-    }}>
-      <input name="username" placeholder="Username" required />
-      <input name="password" type="password" placeholder="Password" required />
-      <button type="submit">Login</button>
-    </form>
-  )
 }
 ```
 
@@ -408,18 +372,11 @@ Single-use token authentication for enhanced security.
 5. **Graceful Fallbacks**: Provide fallback UI for authentication failures
 6. **Security**: Never store sensitive credentials in local storage
 
-## Module Elevation
+## Entrypoint wiring
 
-The manager uses module elevation to enhance base authentication modules:
-
-```typescript
-// Base modules are elevated with client-specific handlers
-elevate(list, AUTHEN_INIT, true)           // API call elevation
-elevate(list, AUTHEN_AUTHEN, true)         // Authentication elevation
-elevate(list, CAUTHEN_AUTHEN_DEFAULT, handler(AuthenticationHOC()))  // Component handler
-```
-
-This provides seamless integration between the module system and React components.
+The manager exports a ready-to-use `entrypoints` collection. Compose it with the application's
+own declarations and use `bind`/`bindScreen` from `@owlmeans/client-entrypoint` when adding a
+custom client handler; handlers are attached to declaration objects, never looked up by alias.
 
 ## Dependencies
 
@@ -427,7 +384,7 @@ This manager depends on:
 - `@owlmeans/auth` - Core authentication functionality
 - `@owlmeans/auth-common` - Shared authentication components
 - `@owlmeans/client` - Client-side framework functionality
-- `@owlmeans/client-module` - Client module system
+- `@owlmeans/client-entrypoint` - Typed protocol binding system
 - `@owlmeans/error` - Error management system
 - `react` - React framework for UI components
 

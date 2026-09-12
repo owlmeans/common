@@ -44,16 +44,17 @@ same binary run as a producer in one deployment and a worker in another.
 ## Declaring a queued entrypoint
 
 ```typescript
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { job } from '@owlmeans/route'
 
-entrypoint(
+protocol(
   route(agent.story.develop, '/:id/develop',
     job({ parent: agent.story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-  filter(params(StoryParamsSchema))
+  contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
 )
 ```
 
-It is served with `elevate(...)` and called with `call()` like any backend entrypoint. Add
+It is served by binding its shared job protocol and called with `call()` like any backend entrypoint. Add
 `reply: false` to return as soon as the job is accepted — the call resolves `Accepted` with
 `{ id, queue }`, which is what a long pipeline wants.
 
@@ -132,7 +133,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

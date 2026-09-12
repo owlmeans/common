@@ -159,7 +159,7 @@ ${WORKER_BODY}
           jsonKey: ['mcp', 'viable'],
           content: JSON.stringify({
             type: 'local',
-            command: ['npx', '-y', '@owlmeans/viable-mcp'],
+            command: ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.1'],
             environment: { [ENV_TOKEN]: `{env:${ENV_TOKEN}}` },
             enabled: true,
           }, null, 2),

@@ -131,7 +131,7 @@ export const createApiServer = (alias: string): ApiServer => {
           return context
         }
 
-        // Actually intermediate module can be created without handler by elevate function
+        // An intermediate route can be created without a handler by the binding layer.
         if (module.route.match(request, module.mount()) && module.handle != null) {
           const response = provideResponse(reply)
           const currentRequest = provideRequest(module.alias, request, true)
@@ -199,5 +199,4 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
 
   return context
 }
-
 

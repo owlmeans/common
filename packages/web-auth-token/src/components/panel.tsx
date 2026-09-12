@@ -4,23 +4,23 @@ import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { AUTH_TOKEN_NAME_MAX } from '@owlmeans/auth-token'
 import { Check, Copy, Loader2, Plus, Trash2 } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '../@/components/ui/alert.js'
+import { Badge } from '../@/components/ui/badge.js'
+import { Button } from '../@/components/ui/button.js'
 import {
   Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle
-} from '@/components/ui/card'
+} from '../@/components/ui/card.js'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+} from '../@/components/ui/dialog.js'
+import { Input } from '../@/components/ui/input.js'
+import { Label } from '../@/components/ui/label.js'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select'
+} from '../@/components/ui/select.js'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table'
+} from '../@/components/ui/table.js'
 
 import { AUTH_TOKEN_I18N, DAY_SECONDS, TOKEN_EXPIRY_CHOICES, TOKEN_EXPIRY_NEVER } from '../consts.js'
 import { formatMoment, tokenStatus } from '../helpers.js'

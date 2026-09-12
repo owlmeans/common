@@ -16,11 +16,16 @@ SHARED backend package so producer and consumer agree; `listenQueues` goes in th
 process's config and is what makes that process a worker. A worker that bound whatever it could
 serve would turn every deployment of a shared binary into a consumer of everything it imports.
 
+The job read surface follows the same split: `declareJobEntrypoints()` returns a named protocol
+group in the shared tree, while `serveJobEntrypoints(protocols.jobs, opts)` returns server-local
+bindings. Pass the group itself, never a flattened list or a root alias, so queue-backed interactions
+remain protocol declarations end-to-end.
+
 ## Facts that cost time to rediscover
 
 - **`canServeModule` must exclude every non-HTTP protocol.** SOCKET and QUEUE are both excluded; a
   QUEUE route left mounted on Fastify answers the same call twice.
-- **`req.original` is Fastify-only.** `server-api`'s `handleBody`/`handleParams` read the
+- **`req.original` is Fastify-only.** Typed `handlers<Context>()` callbacks read the
   request-scoped context from `req.original._ctx`. A queued request is rebuilt from an envelope and
   has no raw request, so the bridge supplies `original: { _ctx }` and the helper reads it
   optionally. Any future transport owes the same.
@@ -56,5 +61,5 @@ producer that waited on a job holds a blocking events connection and will not ex
 Publishing common is not "installable" until npm serves it — see the `publishing` skill. Integration
 specs for queue behaviour live in `redis-queue`, never in `queue`, which has no broker to test.
 
-Related: [[entrypoints]] (transport seam, elevation), [[resources]] (criteria and paging the job
+Related: [[entrypoints]] (transport seam, binding), [[resources]] (criteria and paging the job
 list follows), [[context]] (middleware stages — the worker starts at Ready).

@@ -1,5 +1,5 @@
 import type { FC, ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 import type { LoginTermsModel } from '@owlmeans/client-panel/auth'
 
 export interface LoginTermsProps {

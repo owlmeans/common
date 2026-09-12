@@ -89,7 +89,7 @@ Async data loader hook. Re-runs when `deps` change. Returns `null` while loading
 ### `useNavigate(): Navigator`
 
 Returns a navigator with:
-- `navigate(entrypoint, request?)` — navigate to a `ClientEntrypoint`, addressed by its `url()`
+- `navigate(entrypoint, request?)` — navigate to a bound protocol, addressed by its `url()`
 - `go(alias, request?)` — navigate by entrypoint alias
 - `press(alias, request?)` / `pressBack()` — the same as event handlers
 - `back()` / `location()`
@@ -109,7 +109,7 @@ Simple boolean toggle hook.
 ## Related Packages
 
 - [`@owlmeans/state`](../state) — `StateModel`, `StateResource` used by `useStoreModel`
-- [`@owlmeans/client-entrypoint`](../client-entrypoint) — `ClientEntrypoint` used by `useNavigate`
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — protocol bindings used by `useNavigate`
 - [`@owlmeans/client-context`](../client-context) — `ClientContext` returned by `useContext`
 
 <!-- owlmeans:agent-guidance:start -->
@@ -120,7 +120,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

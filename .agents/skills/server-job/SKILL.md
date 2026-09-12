@@ -1,16 +1,16 @@
 ---
 name: server-job
-description: How to use @owlmeans/server-job — declaring and elevating the list/get/cancel/watch entrypoints over a queue, the ownership rule that scopes them to the authenticated subject, the admin escape hatch, and the socket that pushes JobEvent frames. Auto-invoked when exposing queue jobs to an application's UI or importing job entrypoint helpers.
+description: How to use @owlmeans/server-job — declaring and binding the list/get/cancel/watch entrypoints over a queue, the ownership rule that scopes them to the authenticated subject, the admin escape hatch, and the socket that pushes JobEvent frames. Auto-invoked when exposing queue jobs to an application's UI or importing job entrypoint helpers.
 user-invocable: false
 ---
 
 # @owlmeans/server-job
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-job": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/server-job": "^0.1.18-rc.3"` in `dependencies`
 
 The READ side of a queue. `@owlmeans/queue` and its driver enqueue and process; this package turns
-what they leave behind into four entrypoints an application elevates, so that "a long job reports
+what they leave behind into four entrypoints an application binds, so that "a long job reports
 progress to the user's screen" is wiring rather than code.
 
 ## Key Exports
@@ -19,8 +19,8 @@ progress to the user's screen" is wiring rather than code.
 |--------|-------------|
 | `declareJobEntrypoints(root, opts?)` | The four declarations of one job group, for the SHARED package |
 | `jobEntrypointAliases(root)` | `{ base, list, get, cancel, watch }` — the alias shape both halves use |
-| `serveJobEntrypoints(protocols, opts?)` | Bind the job protocol group to this package's handlers |
-| `listJobs(opts?)` / `getJob(opts?)` / `cancelJob(opts?)` | The HTTP handlers, for elevating by hand |
+| `serveJobEntrypoints(jobProtocols, opts?)` | Return the local bindings for one declared job protocol group |
+| `listJobs(opts?)` / `getJob(opts?)` / `cancelJob(opts?)` | The HTTP handlers, for binding by hand |
 | `watchJobs(opts?)` | The socket handler — pushes `JobEvent` frames under `JOB_EVENT` |
 | `jobOwnerOf(req)` / `requireJobOwner(req)` / `jobViewer(req, ctx, opts?)` | Who a request reads as |
 | `jobScope(viewer, opts?)` / `owns(record, viewer, opts?)` / `readOwnedJob(...)` | Applying that to records |
@@ -39,9 +39,9 @@ the package its API and its browser both import, and neither side ever writes a 
 import { declareJobEntrypoints } from '@owlmeans/server-job'
 
 export const REPORTS = 'reports'
-export const entrypoints = [
-  ...declareJobEntrypoints(REPORTS, { path: '/reports/jobs', parent: app.api.base }),
-]
+export const protocols = {
+  jobs: declareJobEntrypoints(REPORTS, { path: '/reports/jobs', parent: app.api.base }),
+}
 ```
 
 Aliases are `<root>`, `<root>:list`, `<root>:get`, `<root>:cancel`, `<root>:watch`. **That shape,
@@ -64,15 +64,16 @@ import { serveJobEntrypoints } from '@owlmeans/server-job'
 import { appendRedisQueue } from '@owlmeans/redis-queue'
 
 appendRedisQueue(context)
-serveJobEntrypoints(entrypoints, REPORTS, { queue: REPORT_QUEUE })
-context.registerEntrypoints(entrypoints)
+export const appEntrypoints = [
+  ...serveJobEntrypoints(protocols.jobs, { queue: REPORT_QUEUE }),
+]
+context.registerEntrypoints(appEntrypoints)
 ```
 
-`serveJobEntrypoints()` returns local bindings. An app wanting one handler of its own binds that protocol again
-afterwards. `queue` names which declared queue the group reads; omitted, `ctx.jobs()` answers with
-the sole declared queue and refuses to guess once there are two. Passing an array that carries no
-group under that root is a `SyntaxError` — the declarations and the serving call must name the same
-root, and they usually do because both read it from one exported constant.
+Pass the declared protocol group, never a flattened or materialized entrypoint list. `serveJobEntrypoints()`
+returns only local bindings; an app wanting a custom handler binds the same protocol afterwards.
+`queue` names which declared queue the group reads; omitted, `ctx.jobs()` answers with the sole
+declared queue and refuses to guess once there are two.
 
 ## The ownership rule
 
@@ -97,7 +98,7 @@ The escape hatch is a predicate, never a permission name — which permission, g
 "operator" is the application's decision:
 
 ```typescript
-serveJobEntrypoints(entrypoints, REPORTS, {
+serveJobEntrypoints(protocols.jobs, {
   queue: REPORT_QUEUE,
   admin: req => req.auth?.scopes?.includes('ops') === true,
 })
@@ -127,7 +128,7 @@ than fanned out to everyone. **Leave completed jobs in place on any queue that i
 
 - `@owlmeans/queue` — `ctx.jobs(queue)`, `JobRecord`, `JobEvent`, `JobState`, `UnknownJob`
 - `@owlmeans/server-api` — `handlers`
-- `@owlmeans/server-socket` — `socketHandler` and guard enforcement that fills `req.auth`
+- `@owlmeans/server-socket` — `connection(protocol, callback)` and guard enforcement that fills `req.auth`
 - `@owlmeans/server-entrypoint` — `bind`
 - `@owlmeans/auth-common` — `DEFAULT_GUARD`
 

@@ -31,9 +31,14 @@ Protect a route with the ED25519 signature guard (re-exported via `@owlmeans/ser
 
 ```typescript
 import { GUARD_ED25519 } from '@owlmeans/auth-common'
-import { entrypoint, guard } from '@owlmeans/server-app'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { route } from '@owlmeans/route'
 
-const adminEntrypoint = entrypoint(route('admin', '/api/admin'), guard(GUARD_ED25519))
+const adminProtocol = protocol(
+  route('admin', '/api/admin'),
+  contract(typed<AdminResponse>()),
+  { guards: GUARD_ED25519 },
+)
 ```
 
 ## API
@@ -66,9 +71,9 @@ BED255_CASHE_RESOURCE // resource alias for nonce cache
 ## Product-Viable Integration Notes
 
 - `DEFAULT_GUARD` protects manager routes after bearer authentication is installed by `@owlmeans/server-auth`.
-- Product authorization composes a custom gate inside `guard(DEFAULT_GUARD, gate(VIABLE_AUTH_GATE, [...]))` rather than using `OIDC_GATE` for Google login flows.
+- Product authorization composes a custom gate in the protocol options rather than using `OIDC_GATE` for Google login flows.
 - `GUARD_ED25519` remains the service-to-service guard for internal/publisher/payment/auth-service calls.
-- The browser-side alias from `@owlmeans/client-auth` must match the default guard name so shared entrypoint declarations elevate consistently.
+- The browser-side binding from `@owlmeans/client-auth` uses the same protocol references as the shared declarations.
 
 ## Related Packages
 
@@ -84,7 +89,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

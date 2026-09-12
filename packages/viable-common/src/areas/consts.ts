@@ -63,7 +63,7 @@ export const ADMIN_PERMISSION = 'project--admin'
  * The back office's marker permission.
  *
  * The operator area is where an organization's own staff work, and until this existed it was
- * declared `guard(DEFAULT_GUARD)` alone — any signed-in person, which for a generated application
+ * declared `{ guards: DEFAULT_GUARD }` alone — any signed-in person, which for a generated application
  * means any visitor who typed an email address. The per-screen gates story development adds narrow
  * particular screens; they cannot narrow the area, and a project with nothing developed yet has
  * none of them at all, so the whole back office stood open by construction.

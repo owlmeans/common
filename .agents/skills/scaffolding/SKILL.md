@@ -55,8 +55,8 @@ screen and the getting-started guide — or, with `--bare`, straight at
 `--bare` generates the same three workspaces, config/context/entrypoint wiring, layout, nav and a
 single Home screen, and leaves out every piece of example code: the `SessionItem` types and
 schemas, the api's `app/session/**` handlers and its static resource, and the About/Session
-screens with their nav entries. `sources/common/src/entrypoints.ts` then exports an empty
-`sharedEntrypoints` protocol tree that both sides bind — the first feature is a declaration added
+screens with their nav entries. `sources/common/src/entrypoints.ts` then exports an immutable
+`appEntrypoints` protocol tree with an empty `api` branch; the first feature adds a declaration
 there, a server implementation bound in the api and a screen bound to a frontend route in the web.
 Use it whenever the app is being generated for someone (or something) that will write the real
 features immediately; use the full template when the user wants a worked example to read.

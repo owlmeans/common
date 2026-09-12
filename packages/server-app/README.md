@@ -12,7 +12,7 @@ The main entry point for OwlMeans backend services — aggregates server package
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app
+bun add @owlmeans/server-app@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -33,15 +33,19 @@ const context = makeContext(appConfig)
 await main(context, [...entrypoints, ...appEntrypoints])
 ```
 
-Elevate an entrypoint with a handler:
+Bind a shared protocol with a handler:
 
 ```typescript
-import { elevate, handleBody, guard, GUARD_ED25519 } from '@owlmeans/server-app'
-import { appEntrypoints } from './entrypoints'
+import { bind } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import { appEntrypoints as protocols } from 'my-app-common'
+import type { Context } from 'my-app-backend'
 
-elevate(appEntrypoints, 'project-create', handleBody<CreateProject>(async (payload, ctx) => {
-  return await (ctx as Context).project().create(payload)
-}), guard(GUARD_ED25519))
+const api = handlers<Context>()
+const appEntrypoints = [
+  bind(protocols.api.projectCreate, api.request(protocols.api.projectCreate, async (req, ctx) =>
+    (ctx as Context).project().create(req.body))),
+]
 ```
 
 ## API
@@ -58,9 +62,8 @@ Registers entrypoints, calls `configure().init()`, then starts the Fastify serve
 
 | Symbol | Source |
 |---|---|
-| `handleBody`, `handleParams`, `handleRequest` | `@owlmeans/server-api` |
-| `elevate`, `entrypoint`, `guard` | `@owlmeans/server-entrypoint` |
-| `celevate` | `@owlmeans/client-entrypoint` |
+| `handlers` | `@owlmeans/server-api` |
+| `bind`, `bindAll`, `guard` | `@owlmeans/server-entrypoint` |
 | `route` | `@owlmeans/route` |
 | `broute` | `@owlmeans/server-route` |
 | `filter`, `body`, `params`, `EntrypointOutcome` | `@owlmeans/entrypoint` |
@@ -70,7 +73,7 @@ Registers entrypoints, calls `configure().init()`, then starts the Fastify serve
 | `GUARD_ED25519`, `BED255_CASHE_RESOURCE` | `@owlmeans/auth-common` |
 | `klusterize` | `@owlmeans/kluster` |
 | `createListSchema`, `filterObject` | `@owlmeans/resource` |
-| `Request`, `Response`, `ClientEntrypoint`, `RefedEntrypointHandler` | type re-exports |
+| `Request`, `Response`, `RefedEntrypointHandler` | type re-exports |
 | `Criteria`, `ListOptions`, `ListQuery`, `ListResult`, `Sort` | type re-exports from `@owlmeans/resource` |
 
 ### `entrypoints`
@@ -83,8 +86,8 @@ await main(context, [...entrypoints, ...myEntrypoints])
 ## Related Packages
 
 - [`@owlmeans/server-context`](../server-context) — `makeServerContext` called internally by `makeContext`
-- [`@owlmeans/server-api`](../server-api) — handler wrappers re-exported here
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `elevate` re-exported here
+- [`@owlmeans/server-api`](../server-api) — typed handler factories re-exported here
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — protocol binding helpers
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -94,7 +97,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

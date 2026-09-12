@@ -17,7 +17,7 @@ export const createRouteRenderer: (params: RendererParams) => FC = ({ context, m
 
   // Own guards plus every ancestor's — the same set the request would be judged by. Whether a
   // screen is guarded is a question about THIS list being non-empty, never about the declaration
-  // carrying a `guards` property: elevation always assigns the array, empty when nothing was
+  // carrying a `guards` property: binding always assigns the array, empty when nothing was
   // declared, and an empty list means an open screen. Asking the wrong question refuses every
   // guest screen with `frontend-guard`, since no guard can match when there are none.
   const aliases = module.getGuards()

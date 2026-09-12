@@ -6,7 +6,7 @@ instead of Material UI.
 
 ## When to use this package
 
-- New OwlMeans web apps where the consumer owns its shadcn primitives and
+- New OwlMeans web apps using the package's shipped shadcn primitives and a
   Tailwind v4 theme.
 - Drop-in replacement for the previous Material-UI based `@owlmeans/web-panel`
   (which has been renamed to [`@owlmeans/mui-panel`](../mui-panel) for
@@ -15,7 +15,7 @@ instead of Material UI.
 ## Install
 
 ```sh
-bun add @owlmeans/web-panel
+bun add @owlmeans/web-panel@^0.1.18-rc.31
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -23,29 +23,14 @@ Peer requirements (the consuming app provides these): `react`, `react-dom`,
 `tailwind-merge`, `class-variance-authority`, plus the radix primitives
 listed in `peerDependencies`.
 
-## Consumer setup — the `@` contract
+## Consumer setup — package boundary
 
-This package imports its shadcn primitives as `@/components/ui/<name>` and
-its utility as `@/lib/utils`. Build emits these specifiers verbatim
-(TypeScript `moduleResolution: Bundler`). The consumer's bundler must
-resolve `@/*` to its own shadcn primitive copy.
+The package ships its shadcn primitives and `cn` helper as private implementation files. Its build
+uses relative imports into that private tree, so a consumer needs neither an `@` bundler alias nor
+a matching copy of the primitives. The consumer supplies the declared React, Tailwind and Radix peer
+dependencies and may use its own unrelated shadcn setup.
 
-### 1. Add the package's primitives to your app
-
-Generate the matching primitives in your app once. You can either copy them
-from this package's `src/@/components/ui/` or use the shadcn CLI:
-
-```sh
-npx shadcn add button card input label progress alert separator navigation-menu
-```
-
-`navigation-menu` also needs `@radix-ui/react-navigation-menu` in your app's
-dependencies — the `TopNav` section menu is built on it.
-
-This package was authored against the shadcn `new-york` style with
-`baseColor: neutral`. See `components.json` for the exact config.
-
-### 2. Add Tailwind v4 theme tokens
+### 1. Add Tailwind v4 theme tokens
 
 The components rely on the following CSS variables (defined inside
 `@theme` in your app's globals.css):
@@ -65,14 +50,7 @@ The components rely on the following CSS variables (defined inside
 
 A working set is shipped at `src/@/globals.css` (for dev/test only).
 
-### 3. Bundler alias
-
-```ts
-// vite.config.ts
-resolve: { alias: { '@': fileURLToPath(new URL('./src/@', import.meta.url)) } }
-```
-
-### 4. Tailwind `@source` for this package
+### 2. Tailwind `@source` for this package
 
 Tailwind's scanner reads your CSS root plus its `@source` directives, and it
 excludes `node_modules`. Classes that exist only inside this package's
@@ -82,16 +60,16 @@ stylesheet unless you point Tailwind at the built package:
 ```css
 @import "tailwindcss";
 
-@source "../../../node_modules/@owlmeans/web-panel/build";
+@source "../../../node_modules/@owlmeans/web-panel/src";
 ```
 
 Adjust the relative depth to your own layout; the target is this package's
-installed `build` directory.
+installed `src` directory.
 
 ## Navigation shell
 
 `NavLayout` is the standard application shell — header, section menu, the active
-section's screen menu, content, footer. A layout entrypoint elevates a component
+section's screen menu, content, footer. A layout entrypoint binds a component
 that renders it and nothing else; the matched screen arrives as `children`.
 
 ```tsx
@@ -213,7 +191,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

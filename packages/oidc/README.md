@@ -4,7 +4,7 @@ Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint
 
 ## Overview
 
-- `OIDC_GATE` — gate alias to compose with `gate(...)` inside `guard(...)` declarations
+- `OIDC_GATE` — gate alias to put in a protocol's `gate` option
 - `OIDC_GUARD`, `WRAPPED_OIDC`, `OIDC_FLOW`, `OIDC_AUTHEN_MODULE`, `OIDC_WRAPPED_TOKEN` — shared aliases
 - `OidcGuard`, `WithSharedConfig`, `OidcProviderConfig` — shared types
 - Entrypoint declarations for the OIDC dispatcher (`/authenticate/oidc/init`, `/authenticate/oidc/process`)
@@ -12,22 +12,23 @@ Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint
 ## Installation
 
 ```bash
-bun add @owlmeans/oidc
+bun add @owlmeans/oidc@^0.1.18-rc.24
 ```
 
 ## Usage
 
-Compose `OIDC_GATE` into a guard on an entrypoint:
+Compose `OIDC_GATE` into a protocol declaration:
 
 ```typescript
-import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { OIDC_GATE } from '@owlmeans/oidc'
 
-entrypoint(
+protocol(
   route(manager.back.account.base, '/account'),
-  guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
+  contract(typed<Account>()),
+  { guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: [`my-service-account-{entity}`] } },
 )
 ```
 
@@ -92,7 +93,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.10"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.12"` in `dependencies`
 
 Contracts only. It carries no broker code — a driver package (`@owlmeans/redis-queue`) implements
 them. Depend on this one from a shared contract package; depend on the driver only where the
@@ -51,10 +51,10 @@ whatever it could serve, every deployment of the same binary would consume every
 A queued entrypoint is declared like any other, with `job()` in place of `backend()`:
 
 ```typescript
-entrypoint(
+protocol(
   route(agent.story.develop, '/:id/develop',
     job({ parent: agent.story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-  filter(params(StoryParamsSchema))
+  contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
 )
 ```
 
@@ -193,5 +193,5 @@ listens to, grouped by queue, which is what a driver binds.
 - `redis-queue` — the BullMQ driver; integration tests for queue behaviour live there
 - `server-job` / `client-job` — exposing a queue's jobs to an application's UI (list, cancel,
   progress over a socket), without touching the contracts here
-- `entrypoint` — declarations, elevation, and the transport lookup
+- `entrypoint` — protocol declarations, bindings, and the transport lookup
 - `resource` — the criteria and paging semantics `list` follows

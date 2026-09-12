@@ -6,7 +6,7 @@ Server-side route model factory and request matcher for the Fastify integration 
 
 - `route()` wraps a `RouteModel` into a `ServerRouteModel` that Fastify can register
 - Handles intermediate routes (parent routes without handlers) and request path matching
-- Used internally by `elevate()` in `@owlmeans/server-entrypoint`
+- Used internally by `bind()` in `@owlmeans/server-entrypoint`
 - Re-exported as `broute` from `@owlmeans/server-app`
 
 ## Installation
@@ -17,7 +17,7 @@ bun add @owlmeans/server-route@^0.1.18-rc.8
 
 ## Usage
 
-Used automatically when calling `elevate()`. For explicit use:
+Used automatically when calling `bind()`. For explicit use:
 
 ```typescript
 import { route as broute } from '@owlmeans/server-route'
@@ -57,7 +57,7 @@ Type guard to check if an entrypoint's route is already a `ServerRouteModel`.
 
 - [`@owlmeans/route`](../route) — `RouteModel` base type and the pure `resolveMount` /
   `resolveAddress` utilities under `@owlmeans/route/utils` that compute where a route answers
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — calls `route()` internally when elevating
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — calls `route()` internally when binding
 - [`@owlmeans/server-app`](../server-app) — re-exports `route` as `broute`
 
 <!-- owlmeans:agent-guidance:start -->
@@ -68,7 +68,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

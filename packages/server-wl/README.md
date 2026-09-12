@@ -40,7 +40,8 @@ await main(context, [...entrypoints, ...wlDnsEntrypoints, ...appEntrypoints])
 
 ### `entrypoints`
 
-Array of `ServerEntrypoint` instances providing the WL configuration API endpoint.
+Array of bound server entrypoints providing the WL configuration API endpoint. The declarations
+come from `@owlmeans/wled`; this package supplies their server-side bindings.
 
 ### `WlConfig` / `WlRecord` (types)
 
@@ -59,7 +60,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

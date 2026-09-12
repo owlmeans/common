@@ -2,8 +2,8 @@ import type { FC } from 'react'
 import { useFormContext, Controller } from 'react-hook-form'
 import type { TextInputProps } from './types.js'
 import { useFormError, useFormI18n, useClientFormContext } from '@owlmeans/client-panel'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Input } from '../../../@/components/ui/input.js'
+import { Label } from '../../../@/components/ui/label.js'
 
 export const TextInput: FC<TextInputProps> = ({ name, label, placeholder, hint, type, def, disableAutocomplete }) => {
   const { control } = useFormContext()

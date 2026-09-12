@@ -20,9 +20,13 @@ bun add @owlmeans/auth@^0.1.18-rc.8
 Throw a typed auth error when a request lacks an entity:
 
 ```typescript
+import { handlers } from '@owlmeans/server-api'
 import { AuthUnknown } from '@owlmeans/auth'
+import type { Context } from 'my-app-backend'
+import { projectEntrypoints } from 'my-app-common/entrypoints'
 
-export const create = handleBody(async (body, context, request) => {
+const api = handlers<Context>()
+export const create = api.request(projectEntrypoints.create, async (request, context) => {
   if (request.auth?.entityId == null) {
     throw new AuthUnknown('entity')
   }
@@ -88,7 +92,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

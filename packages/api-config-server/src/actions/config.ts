@@ -1,10 +1,9 @@
-import { implementation } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
 import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import { advertisedConfig } from '@owlmeans/api-config'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 
+const api = handlers<ServerContext<ServerConfig>>()
+
 export const advertise = (protocol: EntrypointProtocol<OpenRequest, OpenValue>) =>
-  implementation(protocol, async (_, context) => {
-  const ctx = context as ServerContext<ServerConfig>
-  return advertisedConfig(ctx.cfg)
-})
+  api.request(protocol, async (_, context) => advertisedConfig(context.cfg))

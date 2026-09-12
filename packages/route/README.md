@@ -4,7 +4,7 @@ Route model factory and type definitions for OwlMeans entrypoints.
 
 ## Overview
 
-- `route()` creates a `RouteModel` used as the first argument to `entrypoint()`
+- `route()` creates a `RouteModel` used as the first argument to `protocol()` or `openProtocol()`
 - `frontend()` / `backend()` / `socket()` helpers set the route's `AppType` and parent
 - `RouteMethod` enum covers HTTP verbs; `RouteProtocols` covers `http`/`ws`
 - This package is a dependency of `@owlmeans/entrypoint` — you rarely use it directly unless defining entrypoint-level routes
@@ -22,25 +22,27 @@ bun add @owlmeans/route@^0.1.18-rc.8
 
 ## Usage
 
-Define routes for entrypoints (typically via `@owlmeans/server-app` re-exports):
+Define routes for protocols:
 
 ```typescript
 import { route, frontend, backend, socket, RouteMethod } from '@owlmeans/route'
-import { entrypoint } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 
 // Backend REST route
-const createEntrypoint = entrypoint(
-  route('story-create', '/stories', backend('api', RouteMethod.POST))
+const createProtocol = protocol(
+  route('story-create', '/stories', backend('api', RouteMethod.POST)),
+  contract(typed<CreateStory>()),
 )
 
 // Frontend client route nested under parent
-const storyEntrypoint = entrypoint(
+const storyProtocol = openProtocol(
   route('story-view', '/stories/:id', frontend('app'))
 )
 
 // WebSocket route
-const wsEntrypoint = entrypoint(
-  route('story-ws', '/stories/stream', socket('api'))
+const wsProtocol = protocol(
+  route('story-ws', '/stories/stream', socket('api')),
+  contract(typed<StoryEvent>()),
 )
 ```
 
@@ -95,7 +97,7 @@ The pure functions the entrypoint accessors are built on. Each takes a context a
 
 ## Related Packages
 
-- [`@owlmeans/entrypoint`](../entrypoint) — `entrypoint()` takes a `RouteModel` as first argument
+- [`@owlmeans/entrypoint`](../entrypoint) — `protocol()` and `openProtocol()` consume a `RouteModel`
 - [`@owlmeans/server-app`](../server-app) — re-exports `route` as `broute` (backend) alongside `route`
 
 <!-- owlmeans:agent-guidance:start -->
@@ -106,7 +108,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

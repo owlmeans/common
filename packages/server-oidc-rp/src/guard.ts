@@ -1,12 +1,10 @@
 import type { OidcGuardOptions } from '@owlmeans/oidc'
 import type { Config, Context } from './types.js'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { 
-  appendOidcGuard as appendBasicOidcGuard, 
-  setupOidcGuard as setupBasicOidcGuard, 
-  DISPATCHER_OIDC, DISPATCHER_OIDC_INIT 
+  appendOidcGuard as appendBasicOidcGuard,
+  oidcProtocols,
 } from '@owlmeans/oidc'
-import { elevate } from '@owlmeans/server-entrypoint'
+import { bind } from '@owlmeans/server-entrypoint'
 import * as actions from './actions/index.js'
 
 export const appendOidcGuard = <C extends Config, T extends Context<C>>(
@@ -17,9 +15,8 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[]) => {
-  setupBasicOidcGuard(entrypoints, coguards)
-
-  elevate(entrypoints, DISPATCHER_OIDC_INIT, actions.init)
-  elevate(entrypoints, DISPATCHER_OIDC, actions.authenticate)
-}
+/** Server-local OIDC handlers for the shared OIDC protocol pair. */
+export const oidcEntrypoints = [
+  bind(oidcProtocols.init, actions.init),
+  bind(oidcProtocols.authenticate, actions.authenticate),
+]

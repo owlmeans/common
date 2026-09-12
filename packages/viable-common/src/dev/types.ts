@@ -16,8 +16,9 @@ export interface FileBlock {
 
 export interface AccessBlock {
   /**
-   * The gate parameters this entrypoint requires, written exactly as they appear in
-   * `gate(OIDC_GATE, [...])`: `<resource>--<action>`, optionally suffixed `@<routeParam>` to bind
+   * The gate parameters this protocol requires, written exactly as they appear in its
+   * `gate: { alias: OIDC_GATE, params: [...] }` option: `<resource>--<action>`, optionally suffixed
+   * `@<routeParam>` to bind
    * the check to one resource instance.
    *
    * The selector lives in the STRING rather than in a sibling field, because that is what the model

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api-config-client
 
 **Layer:** Client
-**Install:** `"@owlmeans/api-config-client": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/api-config-client": "^0.1.18-rc.16"` in `dependencies`
 
 Consumes the declaration shared by `@owlmeans/api-config` and answered by
 `@owlmeans/api-config-server`.
@@ -18,7 +18,7 @@ Consumes the declaration shared by `@owlmeans/api-config` and answered by
 | Export | Description |
 |--------|-------------|
 | `apiConfigMiddleware` | Context middleware, `Loading` stage — fetches the advertised config and merges it into `context.cfg` |
-| `entrypoints` | The `API_CONFIG` declaration elevated for client use, so the middleware can call it |
+| `entrypoints` | The `API_CONFIG` protocol bound for client use, so the middleware can call it |
 
 ## Usage
 

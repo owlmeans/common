@@ -114,7 +114,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       '',
       'Your account asks for the delegated model mode, which this URL-configured server cannot'
       + ' run: it holds no session between calls. The platform performs the model calls of a run'
-      + ' started here, unless the stdio connector (npx -y @owlmeans/viable-mcp) is attached to'
+      + ' started here, unless the stdio connector (`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1`) is attached to'
       + ' the project.'
     )
   }

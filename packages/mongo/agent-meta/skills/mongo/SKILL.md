@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/mongo
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/mongo": "^0.1.18-rc.16"` in `dependencies`
 
 ## Key Exports
 

@@ -7,7 +7,7 @@ import type { JobEntrypoints, JobHandlerOptions } from './types.js'
  *
  * The whole server half of "a long job reports progress to the user's screen" is this call plus
  * the queue driver an app already wires — nothing is subclassed, and an app that wants one
- * handler of its own elevates that alias itself afterwards, since `elevate` replaces in place.
+ * handler of its own binds that alias itself afterwards.
  *
  * @throws {SyntaxError} when the array carries no group under that root.
  */

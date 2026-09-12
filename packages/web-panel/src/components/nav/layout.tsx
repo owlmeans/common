@@ -1,6 +1,6 @@
 import type { FC } from 'react'
 import { useNavigate } from '@owlmeans/client'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 import { Footer } from '../footer/component.js'
 
 import { SideNav } from './side.js'
@@ -21,7 +21,7 @@ const CONTAINER = 'mx-auto w-full max-w-6xl px-4'
 /**
  * The standard two-layer application shell.
  *
- * A layout entrypoint elevates a component that renders this and nothing else — the screen
+ * A layout entrypoint binds a component that renders this and nothing else — the screen
  * arrives as `children`. The side menu is mounted twice on purpose: one column for wide
  * viewports and one strip for narrow ones. Both render only when the active section has
  * more than one screen, so the single-screen case costs nothing but the elements' absence.

@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 import type { LoginCreditModel } from '@owlmeans/client-panel/auth'
 
 export interface LoginCreditProps {

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/wled
 
 **Layer:** Core
-**Install:** `"@owlmeans/wled": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/wled": "^0.1.18-rc.14"` in `dependencies`
 
 The contract only. It owns no service and reaches no store: it declares the white-label record
 shapes, their schemas, and one entrypoint that the server side answers and the browser side calls.
@@ -55,10 +55,10 @@ default, `null` unknown.
 
 ## Rules
 
-- **The declaration carries no guard.** Whatever elevates `WL_PROVIDE` serves it anonymously unless
+- **The declaration carries no guard.** Whatever binds `WL_PROVIDE` serves it anonymously unless
   it adds one, so every section a deployment registers is readable by anyone who can name an
   organization. Put nothing in a white-label record that is not meant to be public, or add a guard
-  where the entrypoint is elevated.
+  where the entrypoint is bound.
 - `entityId`, `slug` and the `entity` param are declared with `EntityValueSchema` from
   `@owlmeans/auth`, a plain `{ type: 'string', minLength: 3, maxLength: 256 }` — it bounds length and
   nothing else, so a record id and a slug both pass (`CompanyInfo.slug` relaxes `minLength` to 0 on
@@ -80,5 +80,5 @@ default, `null` unknown.
 - `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`
 - `ajv` (peer)
 
-Server side elevates the declaration through `@owlmeans/server-wl`; browser side through
+Server side binds the declaration through `@owlmeans/server-wl`; browser side through
 `@owlmeans/web-wl`.

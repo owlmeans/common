@@ -2,7 +2,7 @@ import type { FC } from 'react'
 import { ImageUploader as Uploader } from '@owlmeans/web-client'
 import { ImagePlus } from 'lucide-react'
 import type { ImageUploaderProps } from './types.js'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 
 // Tailwind responsive sizes — mirrors the previous MUI breakpoint object.
 //   xs:  60/65px   md: 120/125px   lg: 200/205px

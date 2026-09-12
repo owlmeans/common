@@ -1,10 +1,10 @@
 # @owlmeans/server-api
 
-Fastify-based HTTP/WebSocket server with handler wrappers for the OwlMeans entrypoint system.
+Fastify-based HTTP/WebSocket server with typed handler factories for the OwlMeans entrypoint system.
 
 ## Overview
 
-- `handleBody`, `handleParams`, `handleRequest` wrap business logic with context injection and error handling
+- `handlers<Context>()` creates protocol-bound `body()`, `params()`, `request()` and upload handlers
 - Built on [Fastify](https://fastify.dev/) — registered entrypoints become Fastify routes automatically
 - `createApiServer` / `appendApiServer` initialize the HTTP server in a context
 - Not typically used directly — import handlers from `@owlmeans/server-app`
@@ -17,54 +17,52 @@ bun add @owlmeans/server-api@^0.1.18-rc.16
 
 ## Usage
 
-Handler functions attached with `elevate()`:
+Handlers are derived from the shared protocol and attached with `bind()`:
 
 ```typescript
-import { handleBody, handleParams, handleRequest } from '@owlmeans/server-app'
+import { handlers } from '@owlmeans/server-api'
+import { bind } from '@owlmeans/server-entrypoint'
+import { projectEntrypoints } from 'project-common/entrypoints'
+
+const api = handlers<Context>()
 
 // Body handler: receives parsed + validated body as first arg
-export const create = handleBody<CreateProject>(async (payload, context, req) => {
+const create = api.body(projectEntrypoints.create, async (payload, context, req) => {
   const ctx = context as Context
   return await ctx.project().create({ ...payload, entityId: req.entity!.id })
 })
 
 // Params handler: receives validated URL params as first arg
-export const get = handleParams<{ id: string }>(async (params, context, req) => {
+const get = api.params(projectEntrypoints.get, async (params, context, req) => {
   return await (context as Context).project().get(params.id)
 })
 
 // Request handler: receives the full AbstractRequest
-export const health = handleRequest(async (req, context) => {
+const health = api.request(projectEntrypoints.health, async (req, context) => {
   return { status: 'ok' }
 })
+
+export const entrypoints = [
+  bind(projectEntrypoints.create, create),
+  bind(projectEntrypoints.get, get),
+  bind(projectEntrypoints.health, health),
+]
 ```
 
 ## API
 
-### `handleBody<T>(handler): RefedEntrypointHandler`
+### `handlers<Context>()`
 
-Wraps a handler that receives the validated request body as the first argument.
+Creates factories whose first argument is the protocol declaration, coupling the callback to its
+request and response contract.
 ```typescript
-handler: (payload: T, ctx: Context, req: AbstractRequest) => Promise<any>
+handlers<Context>().body(protocol, handler)
+handlers<Context>().params(protocol, handler)
+handlers<Context>().request(protocol, handler)
 ```
 
-### `handleParams<T>(handler): RefedEntrypointHandler`
-
-Wraps a handler that receives the validated URL params as the first argument.
-```typescript
-handler: (payload: T, ctx: Context, req: AbstractRequest) => Promise<any>
-```
-
-### `handleRequest(handler): RefedEntrypointHandler`
-
-Wraps a handler that receives the full request object.
-```typescript
-handler: (req: AbstractRequest, ctx: Context, res?: AbstractResponse) => Promise<any>
-```
-
-### `handleIntermediate(handler): RefedEntrypointHandler`
-
-Wraps middleware-layer handlers that do not return a final response.
+Each callback returns the response value; thrown `ResilientError` subclasses are mapped by the
+server. `uploadedFile(request)` remains the multipart boundary.
 
 ### `extractUploadedFile(req, fieldName): UploadedFile | null`
 
@@ -72,9 +70,9 @@ Extract a multipart-uploaded file from the request.
 
 ## Related Packages
 
-- [`@owlmeans/server-app`](../server-app) — re-exports all handlers; preferred import point
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `elevate()` attaches handlers to entrypoints
-- [`@owlmeans/server-socket`](../server-socket) — WebSocket `handleConnection` counterpart
+- [`@owlmeans/server-app`](../server-app) — application bootstrap and convenience re-exports
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — `bind()` attaches handlers to protocols
+- [`@owlmeans/server-socket`](../server-socket) — WebSocket `connection` counterpart
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -84,7 +82,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

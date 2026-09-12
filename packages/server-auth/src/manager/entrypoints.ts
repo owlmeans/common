@@ -1,7 +1,7 @@
 
 import { MOD_RECAPTCHA } from '@owlmeans/auth'
 import { authProtocols } from '@owlmeans/auth-common'
-import { bindings as apiConfigBindings } from '@owlmeans/api-config-server'
+import { entrypoints as apiConfigBindings } from '@owlmeans/api-config-server'
 import { bind } from '@owlmeans/server-entrypoint'
 import { decorateEntrypoint, openProtocol } from '@owlmeans/entrypoint'
 import * as actions from './actions/index.js'
@@ -15,8 +15,8 @@ const reCaptchaProtocol = openProtocol(route(MOD_RECAPTCHA, '/api/siteverify', b
   secure: true,
 }, RouteMethod.POST)))
 
-/** Server bindings for the full authentication manager. */
-export const bindings = [
+/** Server entrypoints for the full authentication manager. */
+export const entrypoints = [
   bind(authProtocols.authen, undefined, { intermediate: true }),
   bind(authProtocols.init, actions.authenticationInit(authProtocols.init)),
   bind(authProtocols.authenticate, actions.authenticate(authProtocols.authenticate)),

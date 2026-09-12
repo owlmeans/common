@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.6"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -80,7 +80,7 @@ a drop-in; break any of them and this stops being true.
 
 One BullMQ worker per queue named in `cfg.queue.listen`, dispatching by job name — to a processor
 registered with `process()`, or to an entrypoint this process both serves and listens to. Which
-entrypoints those are is read ONCE, when the worker starts: an alias elevated afterwards is not
+entrypoints those are is read ONCE, when the worker starts: a protocol bound afterwards is not
 part of what this process promised.
 
 A name neither answers fails as an `UnrecoverableError` carrying a marshalled `UnknownJobName`, so

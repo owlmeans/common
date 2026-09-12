@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.4"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`) — every name on the
 wire is declared there, so the SDK and the platform cannot spell one differently.
@@ -22,7 +22,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector routes elevated |
+| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector protocols bound |
 | `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP |
 | `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
 | `renderTaskEnvelope(task, { harness })` · `parseTaskResult(task, raw)` | What the parent agent is told; what its answer is checked against |
@@ -39,7 +39,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 ## One credential, and the routes the server declares
 
-`makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and elevates the SAME
+`makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and binds the SAME
 `connectEntrypoints(...)` list the server mounts, so a path or a schema cannot be right on one end
 and wrong on the other. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
@@ -50,7 +50,7 @@ nothing about which of several plausible mistakes was made and the answer is alw
 hangs under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
 context at init** rather than the one call that would have used it — a server that exited at startup
 with `Entrypoint viable:manager-api:update:base not found`. It is declared with the path the
-platform declares and never elevated: it is a namespace, and nothing calls it.
+platform declares and never binds: it is a namespace, and nothing calls it.
 
 **`cfg.webService` names the API CLIENT, never the backend.** It is the alias the entrypoint handler
 looks up with `context.service(...)`, and the only thing registered under it is the `ApiClient` that

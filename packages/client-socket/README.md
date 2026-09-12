@@ -12,7 +12,7 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 ## Installation
 
 ```bash
-bun add @owlmeans/client-socket
+bun add @owlmeans/client-socket@^0.1.18-rc.13
 ```
 
 ## Usage
@@ -22,9 +22,12 @@ Connect to a WebSocket entrypoint and observe events:
 ```typescript
 import { useWs } from '@owlmeans/client-socket'
 import { MessageType } from '@owlmeans/socket'
+import { useContext } from '@owlmeans/web-client'
+import { appEntrypoints } from 'my-app-common'
 
 function ThinkingPanel({ storyId }: { storyId: string }) {
-  const conn = useWs('story-thinking', { params: { id: storyId } })
+  const context = useContext()
+  const conn = useWs(context.entrypoint(appEntrypoints.api.storyThinking), { params: { id: storyId } })
 
   useEffect(() => {
     if (!conn) return
@@ -40,9 +43,9 @@ Direct connection (non-hook):
 
 ```typescript
 import { ws } from '@owlmeans/client-socket'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { appEntrypoints } from 'my-app-common'
 
-const wsEntrypoint = context.entrypoint<ClientEntrypoint<string>>('story-thinking')
+const wsEntrypoint = context.entrypoint(appEntrypoints.api.storyThinking)
 const connection = await ws(wsEntrypoint, { params: { id: storyId } })
 ```
 
@@ -60,7 +63,7 @@ React hook version of `ws()`. Returns `null` while connecting. Manages connectio
 
 - [`@owlmeans/socket`](../socket) — `Connection` interface with `notify`, `observe`, `call` methods
 - [`@owlmeans/server-socket`](../server-socket) — server-side connection handler
-- [`@owlmeans/client-entrypoint`](../client-entrypoint) — `ClientEntrypoint` passed to `ws()`
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — protocol bindings passed to `ws()`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -70,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

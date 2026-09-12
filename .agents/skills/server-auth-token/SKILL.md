@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth-token
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.3"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — the record, the routes, the format helpers
 
 ## Key Exports
@@ -107,7 +107,7 @@ never substitutes: the primary guard stays first and still claims its own creden
 matches only a value carrying the prefix. It skips entrypoints that have no guard, and it is
 idempotent.
 
-**Run it after the last elevation**, because it reads the guard list each entrypoint actually ended
+**Run it after the final binding**, because it reads the guard list each entrypoint actually ended
 up with.
 
 Routes that must stay behind an interactive session — opening a checkout, starting an OAuth flow,

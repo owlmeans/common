@@ -291,7 +291,7 @@ const gateOf = (gate: EntrypointOptions['gate']): EntrypointProtocol['gate'] => 
       params: gate.params == null ? [] : typeof gate.params === 'string' ? [gate.params] : [...gate.params],
     }
 
-/** Create the immutable protocol form while legacy contextual entrypoints are migrated. */
+/** Create an immutable protocol declaration from a route and its contract. */
 export const protocol = <Request extends RequestShape, Response>(
   route: RouteModel,
   entrypointContract: EntrypointContract<Request, Response>,

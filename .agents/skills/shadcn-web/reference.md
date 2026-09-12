@@ -146,7 +146,7 @@ Every shadcn-based OwlMeans package declares the shadcn utility libs as peerDepe
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.15",
+    "@owlmeans/test-ui": "^0.1.18-rc.18",
     "@tailwindcss/vite": "*",
     "@vitejs/plugin-react": "*",
     "playwright": "^1.49.0",
@@ -201,7 +201,7 @@ Every shadcn-based OwlMeans package declares the shadcn utility libs as peerDepe
 import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { cn } from '@/lib/utils'
+import { cn } from '../../lib/utils.js'
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors ...',

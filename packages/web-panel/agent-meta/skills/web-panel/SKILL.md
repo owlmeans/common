@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.31"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.35"` in `dependencies`
 
 ## Key Exports
 
@@ -67,7 +67,7 @@ entrypoint binds to exactly the one context it was appended to.
 
 ### Navigation — `NavLayout`
 
-`NavLayout` is the application shell. A layout entrypoint elevates a component that renders it and
+`NavLayout` is the application shell. A layout entrypoint binds a component that renders it and
 nothing else; the matched screen arrives as `children`. Keep the navigation as data in its own
 module (`src/nav.ts`) so screens, entrypoints and the shell all read the same aliases.
 
@@ -166,8 +166,8 @@ Rules that make the shell behave:
 - **A parent route needs a `default: true` child.** A frontend entrypoint that has children but no
   child declared `default: true` renders blank at its own path — give a grouping screen an index
   child at `'/'`.
-- **Vendor `navigation-menu`.** `SideNav` builds on the existing `Button`; `TopNav` uses the shadcn
-  `navigation-menu` primitive — see the `@` contract below.
+- **Vendor `navigation-menu`.** `SideNav` builds on the package-local `Button`; `TopNav` uses the
+  package-local shadcn `navigation-menu` primitive — see the package-boundary rule below.
 
 ### Menus — `PanelMenu`
 
@@ -352,20 +352,19 @@ A re-export does not move Tailwind class strings, so a consumer adds a second `@
 `@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
 under *Consumer setup* below. Without it the dialog renders half-styled.
 
-## Consumer setup — the `@` contract and Tailwind
+## Consumer setup — package boundary and Tailwind
 
-`web-panel` emits `@/components/ui/*` and `@/lib/utils` verbatim; the app's bundler resolves `@` to
-its own shadcn copy. Vendor every primitive the package imports: `alert`, `button`, `card`,
-`dropdown-menu`, `input`, `label`, `navigation-menu`, `progress` (plus `separator` if you use it),
-and add `@radix-ui/react-navigation-menu` and `@radix-ui/react-dropdown-menu` alongside the other
-Radix peers.
+`web-panel` ships its shadcn primitives and `cn` helper as private implementation files under its
+own `build/@/` tree. Package source imports them only through relative specifiers; it must never
+emit an absolute `@/…` import, because that alias belongs to the consuming application and makes a
+fresh installation depend on unrelated files. Consumers import the public `cn` export when needed
+and do not vendor this package's UI primitives.
 
-The vendored `@/lib/utils` stays — the package's own components resolve `cn` through it — but the
-app's own components import `cn` from `@owlmeans/web-panel` instead of declaring a third copy. The
-public export is a package-owned function, deliberately not a re-export of `@/lib/utils`: that
-specifier is emitted verbatim and would resolve back to the consumer's file.
+Consumers still supply the package's peer dependencies: the Radix primitives (`label`,
+`navigation-menu`, `progress`, `separator`, `slot`) plus React, Tailwind and the usual utility
+libraries. A consumer may have its own shadcn `@` alias, but it is unrelated to this package.
 
-Then point Tailwind at the installed package's **`src`**. Its oxide scanner reads the CSS root
+Then point Tailwind at the installed package's **`src`** directory. Its oxide scanner reads the CSS root
 plus `@source` directives only, and excludes `node_modules` — so classes that exist **only** inside
 `web-panel` components (the whole navigation shell and footer) never reach the stylesheet, and the
 app renders an unstyled menu. In the app's Tailwind entry:
@@ -376,12 +375,8 @@ app renders an unstyled menu. In the app's Tailwind entry:
 @source "../../../node_modules/@owlmeans/web-panel/src";
 ```
 
-Adjust the relative depth to your own layout. **Point at `src`, never at `build`:** the scanner
-applies the `.gitignore` of whatever repository a path resolves into, and a linked `node_modules`
-entry resolves into a monorepo whose `.gitignore` covers every package build directory — a `build`
-source there scans zero files and reports nothing, while the shell renders unstyled with nothing to
-blame. `src` is tracked in the repository and ships in the published tarball, so one path serves a
-linked checkout and an npm install alike.
+Adjust the relative depth to your own layout. Source ships in the published tarball and is tracked
+in a linked workspace, so it is the reliable scan target in both modes.
 
 ## Depends On
 
@@ -389,8 +384,7 @@ linked checkout and an npm install alike.
 - `@owlmeans/queue` — `JobRecord` / `JobState`, read by the `./jobs` subpath
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
-  (`dropdown-menu`, `label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no
-  react-router.
+  (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.
 - `ajv-formats` is imported at module scope by the form model but is declared in no dependency
   section of the manifest, which lists `ajv` alone. An install that does not otherwise pull it in
   fails at import time, so declare `ajv-formats` next to `ajv` in the consuming application.

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.18-rc.19"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform
@@ -34,7 +34,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `useNavigate()` | The `Navigator` — programmatic navigation by entrypoint alias |
 | `Navigator` / `NavRequest` | `navigate` `go` `press` `back` `pressBack` `location`; a request adds `replace` and `silent` to an `AbstractRequest` |
 | `useEntrypoint<T>()` | The `EntrypointContextParams` of the screen currently rendering — `{ alias, path, params, context }` |
-| `RoutedComponent<Extra>` | Type of a component elevated on a frontend entrypoint |
+| `RoutedComponent<Extra>` | Type of a component bound to a frontend protocol |
 | `handler(Component, preprender?)` | Wrap a React component as an entrypoint handler |
 | `useStoreModel` / `useStoreList` | React hooks over a `@owlmeans/state` resource — one record by id, or a live query |
 | `useValue(loader, deps?, forceDefault?)` / `UseValueParams<T>` | Render an async result. The second argument is the **dependency list**, not a default — see Async values |
@@ -78,7 +78,7 @@ A URL that comes back starting with `http` belongs to another service, and the n
 entrypoint itself when you already hold it; `nav.back()` / `nav.pressBack()` go one entry back, and
 `nav.location()` reads the current one.
 
-An elevated screen receives `{ alias, path, params, context }` as props, and `useEntrypoint()`
+A bound screen receives `{ alias, path, params, context }` as props, and `useEntrypoint()`
 reads the same values from anywhere below it — read path parameters from `params` and pass them
 down; a nested component never resolves route parameters itself.
 

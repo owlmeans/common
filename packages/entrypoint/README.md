@@ -1,14 +1,13 @@
 # @owlmeans/entrypoint
 
-Entrypoint system — the URL unit abstraction shared between server and client in OwlMeans apps.
+Entrypoint protocol system — the typed route contract shared between server and client in OwlMeans apps.
 
 ## Overview
 
-- An **entrypoint** is a URL unit: an alias + a route declaration + optional guards/gates/filters
-- On the server, entrypoints become API routes with attached handlers
-- On the client, entrypoints provide URL generation and navigation
-- All AJV validation schemas are defined at entrypoint level, keeping data contracts consistent fullstack
-- Most commonly used via re-exports in `@owlmeans/server-app` or `@owlmeans/client-entrypoint`
+- A **protocol** is one immutable URL unit: an alias + route + typed contract + access options
+- On the server and client, corresponding bindings add handlers, screens or calls to that protocol
+- All AJV validation schemas live at protocol level, keeping data contracts consistent fullstack
+- Most commonly used with `@owlmeans/server-entrypoint` and `@owlmeans/client-entrypoint`
 
 The route declaration an entrypoint carries is immutable: its `path` always stays the segment this
 entrypoint contributes under its parent. Addresses are computed on demand against the context the
@@ -23,64 +22,58 @@ bun add @owlmeans/entrypoint@^0.1.18-rc.10
 
 ## Usage
 
-Define an entrypoint with body validation and a guard:
+Define a protocol with a typed request and guard:
 
 ```typescript
-import { entrypoint, guard, filter, body, params } from '@owlmeans/server-app'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 
-const createStoryEntrypoint = entrypoint(
+const createStoryProtocol = protocol(
   route('story-create', '/stories', { method: 'POST', parent: 'api' }),
-  filter(body({
-    type: 'object',
-    properties: { story: { type: 'string' }, projectId: { type: 'string' } },
-    required: ['story', 'projectId']
-  }), guard('authenticated'))
+  contract.request({ body: typed<CreateStory>(CreateStorySchema) }, typed<Story>()),
+  { guards: ['authenticated'] },
 )
 ```
 
-Use `AbstractRequest` type in a handler:
+Bind the protocol to a typed server handler:
 
 ```typescript
-import type { AbstractRequest } from '@owlmeans/entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import { bind } from '@owlmeans/server-entrypoint'
+import type { Context } from 'my-app-backend'
 
-export const create = handleBody(async (body, context, request) => {
-  const req = request as AbstractRequest<{ id: string }>
-  const projectId = req.params.id
-})
+const api = handlers<Context>()
+const create = api.params(createStoryProtocol, async ({ id }, context) =>
+  context.project().get(id))
+export const entrypoints = [bind(createStoryProtocol, create)]
 ```
 
 ## API
 
-### `entrypoint(route, opts?): CommonEntrypoint`
+### `protocol(route, contract, options?): EntrypointProtocol`
 
-Creates an entrypoint. `opts` is typically produced by `filter()`, `guard()`, or `gate()`.
+Creates an immutable typed protocol declaration.
 
-### `guard(guard, opts?): CommonEntrypointOptions`
+### `openProtocol(route, options?): EntrypointProtocol`
 
-Adds an authentication guard requirement.
+Creates an intentionally untyped protocol, used only for framework escape hatches.
 
-### `gate(gate, params, opts?): CommonEntrypointOptions`
+### `contract(...)`, `contract.request(...)`, `typed<T>(schema?)`
 
-Adds an authorization gate with parameters.
+Describe typed body, params, query, headers and response sections.
 
-### `filter(filter, opts?): CommonEntrypointOptions`
-
-Attaches validation schemas (AJV format) to the entrypoint.
-
-### `body(schema, filter?) / query(schema, filter?) / params(schema, filter?)`
-
-Build a `Filter` object with the given AJV schema applied to the corresponding request part.
+Access is declared directly in `EntrypointOptions` as `guards`, `gate` and `sticky`; runtime
+behaviour is added by `bind()`/`bindAll()`/`bindScreen()` in the side-specific package.
 
 ### Parentship
 
 A child names its parent in the route declaration (`route('story-create', '/stories', { parent: 'api' })`).
-`path()` prefixes the parent's segments, and `getGuards()` / `getGates()` collect the parent's on
-every call — so a guard added to a parent later still applies.
+`path()` prefixes the parent's segments, and inherited guards/gates are collected when a runtime
+binds the protocol.
 
 ### `provideResponse<T>(): AbstractResponse<T>`
 
-Creates a response object for use in non-elevated handlers.
+Creates a response object for use in unbound handlers.
 
 ### Transport
 
@@ -107,8 +100,8 @@ enum EntrypointOutcome { Ok, Accepted, Created, Finished }
 
 ## Related Packages
 
-- [`@owlmeans/route`](../route) — `route()` factory used in `entrypoint(route(...), ...)`
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `elevate()` to attach handlers
+- [`@owlmeans/route`](../route) — `route()` factory used in `protocol(route(...), ... )`
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `bind()`/`bindAll()` to attach handlers
 - [`@owlmeans/client-entrypoint`](../client-entrypoint) — client-side entrypoint with API call support
 - [`@owlmeans/server-app`](../server-app) — re-exports everything from this package
 
@@ -120,7 +113,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

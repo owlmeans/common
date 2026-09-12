@@ -1,13 +1,13 @@
 ---
 name: oidc
-description: How to use @owlmeans/oidc — the OIDC names both sides share — the OIDC_GATE alias, the guard, the requested-scope contract, provider descriptors, the dispatcher entrypoints and the error query params. Auto-invoked when importing OIDC types or constants, wiring OIDC into a guard(), or declaring an identity provider in configuration.
+description: How to use @owlmeans/oidc — the OIDC names both sides share — the OIDC_GATE alias, the guard, the requested-scope contract, provider descriptors, the dispatcher entrypoints and the error query params. Auto-invoked when importing OIDC types or constants, wiring OIDC into a protocol gate, or declaring an identity provider in configuration.
 user-invocable: false
 ---
 
 # @owlmeans/oidc
 
 **Layer:** Core
-**Install:** `"@owlmeans/oidc": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/oidc": "^0.1.18-rc.24"` in `dependencies`
 
 The shared half of the OIDC stack: no transport, no library. It owns the names, the shapes and the
 guard that the server relying party (`@owlmeans/server-oidc-rp`), the browser relying party
@@ -17,12 +17,12 @@ guard that the server relying party (`@owlmeans/server-oidc-rp`), the browser re
 
 | Export | Description |
 |--------|-------------|
-| `OIDC_GATE` | Gate alias to pass to `gate(...)` inside `guard(...)` |
+| `OIDC_GATE` | Gate alias to pass in a protocol's `gate` option |
 | `OIDC_GUARD` | The guard's alias |
 | `OIDC_GUARD_CACHE` | A resource-alias constant nothing reads — the guard has no cache lookup, so registering a resource under it changes no behaviour |
 | `makeOidcGuard(opts?)` / `appendOidcGuard(context, opts?)` | The wrapped-token guard, and its registration. The target-specific packages wrap these |
-| `setupOidcGuard(entrypoints, coguards?)` | Appends the two dispatcher entrypoints and prepends `OIDC_GUARD` to every entrypoint already guarded by a coguard (default `DEFAULT_GUARD`) |
-| `entrypoints` | Those two declarations: `DISPATCHER_OIDC_INIT` (`POST /authenticate/oidc/init`) and `DISPATCHER_OIDC` (`POST /authenticate/oidc/process`) |
+| `withOidcGuard(protocolTree, coguards?)` | Returns a decorated immutable protocol tree, prepending `OIDC_GUARD` to selected guarded declarations (default `DEFAULT_GUARD`) |
+| `oidcProtocols` | Shared dispatcher declarations: `DISPATCHER_OIDC_INIT` (`POST /authenticate/oidc/init`) and `DISPATCHER_OIDC` (`POST /authenticate/oidc/process`) |
 | `DISPATCHER_OIDC_INIT`, `DISPATCHER_OIDC` | Their aliases |
 | `OIDC_WRAPPED_TOKEN`, `WRAPPED_OIDC` | The authorization-header scheme for an OIDC-wrapped token, and the service alias that refreshes one |
 | `OIDC_CLIENT_AUTH`, `GOOGLE_CLIENT_AUTH` | Authentication plugin types — the generic OIDC one and the Google one |
@@ -46,14 +46,15 @@ guard that the server relying party (`@owlmeans/server-oidc-rp`), the browser re
 ## Usage
 
 ```typescript
-import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { OIDC_GATE } from '@owlmeans/oidc'
 
-entrypoint(
+protocol(
   route(accountAlias, '/account'),
-  guard(DEFAULT_GUARD, gate(OIDC_GATE, ['my-service-account--read']))
+  contract(typed<Account>()),
+  { guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['my-service-account--read'] } },
 )
 ```
 

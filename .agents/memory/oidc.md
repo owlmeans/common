@@ -23,6 +23,10 @@ Upgrades consult the `oidc-versions` skill. Viable-side usage: [[auth]].
   `TokenEndpointResponse`.
 - After any common OIDC change, verify downstream (`viable`, `viable-agent`, `internal`):
   `bun install && build && test`; check their root `overrides` for stale third-party pins.
+- OIDC entrypoints are split by ownership: `withOidcGuard(tree)` decorates immutable shared
+  declarations; server `oidcEntrypoints` and browser `oidcEntrypoints()` return local bindings;
+  `makeAuthServiceEntrypoints()` returns declarations that the serving application binds. IAM
+  re-exports the browser equivalents as `withIamGuard` and `iamEntrypoints`.
 
 ## Gotchas
 

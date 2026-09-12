@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.21"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -24,7 +24,7 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 |--------|-------------|
 | `appendAuthService(ctx, alias?)` | Register the guard on a server context and expose it as `context.auth()`. Registers a static `AUTH_CACHE` resource when the context has none |
 | `makeAuthService(alias?)` | The guard service itself: `match`, `handle`, `unpack(token)`, `authenticate(token)` |
-| `entrypoints` | `DISPATCHER` and `DISPATCHER_AUTHEN`, elevated — spread these into a service that accepts a manager-issued credential and exchanges it for a bearer |
+| `entrypoints` | `DISPATCHER` and `DISPATCHER_AUTHEN`, server-bound — spread these into a service that accepts a manager-issued credential and exchanges it for a bearer |
 | `DEFAULT_ALIAS` | `'auth'` — the guard's service alias, matching `DEFAULT_GUARD` |
 | `AUTH_CACHE` | `'auth-cache'` — the single-use challenge store |
 | `AUTH_SRV_KEY` | `'auth-service'` — the TRUSTED record whose key signs credential envelopes |

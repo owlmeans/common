@@ -6,13 +6,13 @@ Client-side authentication service providing user auth state and external auth f
 
 - `useSelfAuth()` — React hook that returns the current authenticated user's `Auth` object
 - `setupExternalAuthentication()` — configure the client to authenticate against an external identity provider
-- `entrypoints` — pre-built client entrypoints for the auth flow (login, dispatcher)
+- `entrypoints` — pre-built bindings for the auth protocols (login, dispatcher)
 - `DEFAULT_ALIAS` — the auth service alias (`'auth'`)
 
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth
+bun add @owlmeans/client-auth@^0.1.18-rc.19
 ```
 
 ## Usage
@@ -49,7 +49,9 @@ Configures the context to redirect to an external identity provider for authenti
 
 ### `entrypoints`
 
-Pre-built `ClientEntrypoint[]` for the auth flow (mirrors `@owlmeans/auth-common`'s entrypoints with client route models).
+Pre-built protocol bindings for the auth flow (mirrors `@owlmeans/auth-common`'s declarations with
+client route models). New application code should resolve its shared protocol with
+`context.entrypoint(protocol)` rather than supplying a caller-side type.
 
 ### `DEFAULT_ALIAS`
 
@@ -76,7 +78,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

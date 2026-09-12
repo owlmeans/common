@@ -1,16 +1,16 @@
-import { body, filter, entrypoint } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod, backend } from '@owlmeans/route'
 import { DISPATCHER_OIDC, DISPATCHER_OIDC_INIT } from './consts.js'
 import { OIDCAuthInitParamsSchema, OIDCClientAuthPayloadSchema } from './models.js'
 
-export const entrypoints = [
-  entrypoint(
+/** Shared OIDC browser-to-server protocols, bound by the relying-party packages. */
+export const oidcProtocols = {
+  init: protocol(
     route(DISPATCHER_OIDC_INIT, '/authenticate/oidc/init', backend(null, RouteMethod.POST)),
-    filter(body(OIDCAuthInitParamsSchema))
-
+    contract.request({ body: typed(OIDCAuthInitParamsSchema) }, typed<any>()),
   ),
-  entrypoint(
+  authenticate: protocol(
     route(DISPATCHER_OIDC, '/authenticate/oidc/process', backend(null, RouteMethod.POST)),
-    filter(body(OIDCClientAuthPayloadSchema))
-  )
-]
+    contract.request({ body: typed(OIDCClientAuthPayloadSchema) }, typed<any>()),
+  ),
+}

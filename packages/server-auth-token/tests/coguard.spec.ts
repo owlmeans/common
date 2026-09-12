@@ -1,36 +1,34 @@
 import { describe, expect, test } from 'bun:test'
 import { GUARD_AUTH_TOKEN } from '@owlmeans/auth-token'
-import { setupAuthTokenCoguard } from '../src/coguard.js'
+import { openProtocol } from '@owlmeans/entrypoint'
+import { route } from '@owlmeans/route'
+import { withAuthTokenCoguard } from '../src/coguard.js'
 
 describe('@owlmeans/server-auth-token — the coguard', () => {
-  test('appends to a guarded entrypoint and leaves the primary guard first', () => {
-    const entrypoints = [{ guards: ['auth'] }]
-    setupAuthTokenCoguard(entrypoints)
+  test('decorates a guarded protocol and leaves the primary guard first', () => {
+    const guarded = openProtocol(route('guarded', '/guarded'), { guards: 'auth' })
+    const [decorated] = withAuthTokenCoguard([guarded])
 
-    expect(entrypoints[0].guards).toEqual(['auth', GUARD_AUTH_TOKEN])
+    expect(decorated.guards).toEqual(['auth', GUARD_AUTH_TOKEN])
+    expect(guarded.guards).toEqual(['auth'])
   })
 
-  test('leaves an unguarded entrypoint unguarded', () => {
-    // A public route stays public: adding a guard here would turn an open page into a 401.
-    const entrypoints: Array<{ guards?: string[] }> = [{}, { guards: [] }]
-    setupAuthTokenCoguard(entrypoints)
-
-    expect(entrypoints[0].guards).toBeUndefined()
-    expect(entrypoints[1].guards).toEqual([])
+  test('leaves an unguarded protocol unchanged', () => {
+    const open = openProtocol(route('open', '/open'))
+    expect(withAuthTokenCoguard([open])[0]).toBe(open)
   })
 
-  test('is idempotent — a second pass adds nothing', () => {
-    const entrypoints = [{ guards: ['auth'] }]
-    setupAuthTokenCoguard(entrypoints)
-    setupAuthTokenCoguard(entrypoints)
+  test('is idempotent', () => {
+    const guarded = openProtocol(route('guarded', '/guarded'), { guards: 'auth' })
+    const [once] = withAuthTokenCoguard([guarded])
+    const [twice] = withAuthTokenCoguard([once])
 
-    expect(entrypoints[0].guards).toEqual(['auth', GUARD_AUTH_TOKEN])
+    expect(twice.guards).toEqual(['auth', GUARD_AUTH_TOKEN])
   })
 
   test('honours a custom guard alias', () => {
-    const entrypoints = [{ guards: ['auth'] }]
-    setupAuthTokenCoguard(entrypoints, 'other-guard')
-
-    expect(entrypoints[0].guards).toEqual(['auth', 'other-guard'])
+    const guarded = openProtocol(route('guarded', '/guarded'), { guards: 'auth' })
+    expect(withAuthTokenCoguard([guarded], 'other-guard')[0].guards)
+      .toEqual(['auth', 'other-guard'])
   })
 })

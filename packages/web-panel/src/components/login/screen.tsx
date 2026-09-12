@@ -1,9 +1,9 @@
 import { isValidElement } from 'react'
 import type { FC } from 'react'
 import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { Button } from '../../@/components/ui/button.js'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../@/components/ui/card.js'
+import { cn } from '../../@/lib/utils.js'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { useLoginMethods } from '@owlmeans/client-panel/auth'
 import { loginAttemptError } from '@owlmeans/client-auth/login'
@@ -86,10 +86,9 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
               // why.
               aria-disabled={model.blocked}
               data-blocked={model.blocked ? 'true' : undefined}
-              // `cursor-pointer` explicitly: this screen renders through the CONSUMER's vendored
-              // `@/components/ui/button`, and an app whose shadcn copy predates the cursor rule
-              // shows an arrow over the one control on the page. Stating it here makes the screen
-              // behave the same whichever copy it lands on.
+              // `cursor-pointer` explicitly: the package's private shadcn button stays compatible
+              // with the older primitive style too. Stating it here keeps the sign-in control
+              // visibly actionable independently of a consumer's shadcn setup.
               className={cn(
                 'w-full justify-center gap-2 cursor-pointer',
                 model.blocked && 'opacity-60'

@@ -22,15 +22,10 @@ export const entrypoints = [
 ]
 ```
 
-`bind(protocol, implementation?, options?)` returns a `ServerProtocolEntrypoint<Protocol>`.
-`bindAll(declarations, implementations?)` is for a flat protocol collection. An implementation
-carries `protocol`, and a collection is matched by object identity; an alias is never used to find
-or replace it.
-
-Use `implementation(protocol, callback)` only when a transport-specific package has no more
-precise factory. Its callback receives `HandlerRequest<RequestOf<Protocol>>`, the request-scoped
-context, and response; it returns `ResponseOf<Protocol>` or throws. HTTP code should use
-`handlers<Context>()`; sockets use `socketHandler`.
+`bind(protocol, handler?, options?)` returns a `ServerProtocolEntrypoint<Protocol>`.
+`bindAll(declarations, handlers?)` is for a flat protocol collection. A handler carries its
+`protocol`, and a collection is matched by object identity; an alias is never used to find or
+replace it. HTTP code should use `handlers<Context>()`; sockets use `connection(protocol, callback)`.
 
 Do not create a mutable contextual declaration, use a compatibility entrypoint type, or attach a
 handler with an alias. The declaration is shared data; the binding is its server-local runtime.

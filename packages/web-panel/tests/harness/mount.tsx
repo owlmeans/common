@@ -5,7 +5,8 @@ import { createRoot } from 'react-dom/client'
 import { config } from '@owlmeans/client-context'
 import { AppType, service } from '@owlmeans/config'
 import { BASE, HOME } from '@owlmeans/context'
-import { entrypoint } from '@owlmeans/client-entrypoint'
+import { bindScreen } from '@owlmeans/client-entrypoint'
+import { openProtocol } from '@owlmeans/entrypoint'
 import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
@@ -161,27 +162,32 @@ ensureLoginService(context as never).registerMethodSource({
   ],
 })
 
+const protocols = {
+  base: openProtocol(route(BASE, '/', frontend())),
+  home: openProtocol(route(HOME, '/', frontend({ default: true, parent: BASE }))),
+  dash: openProtocol(route(alias.dash, '/dash', frontend({ parent: BASE }))),
+  reports: openProtocol(route(alias.reports, '/reports', frontend({ parent: BASE }))),
+  reportsIndex: openProtocol(route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports }))),
+  reportDetail: openProtocol(route(alias.reportDetail, '/detail', frontend({ parent: alias.reports }))),
+  prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
+  login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
+}
+
 const entrypoints = [
   // The framework's own entrypoints come first — the api-config middleware the panel context
   // registers resolves one of them during init, and without them init throws before any route
   // is compiled.
   ...baseEntrypoints,
-  entrypoint(route(BASE, '/', frontend()), handler(Layout)),
-  entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(screen('home', 'home-screen'))),
-  entrypoint(route(alias.dash, '/dash', frontend({ parent: BASE })), handler(screen('dash', 'dash-screen'))),
+  bindScreen(protocols.base, handler(Layout)),
+  bindScreen(protocols.home, handler(screen('home', 'home-screen'))),
+  bindScreen(protocols.dash, handler(screen('dash', 'dash-screen'))),
   // A screen that has children needs a `default: true` child of its own — without one its own
   // path matches nothing and the page renders blank.
-  entrypoint(route(alias.reports, '/reports', frontend({ parent: BASE })), handler(ReportsGroup)),
-  entrypoint(
-    route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports })),
-    handler(ReportsIndex)
-  ),
-  entrypoint(
-    route(alias.reportDetail, '/detail', frontend({ parent: alias.reports })),
-    handler(screen('detail', 'detail-screen'))
-  ),
-  entrypoint(route(alias.prefs, '/prefs', frontend({ parent: BASE })), handler(PrefsScreen)),
-  entrypoint(route(alias.login, '/login', frontend({ parent: BASE })), handler(LoginHarness)),
+  bindScreen(protocols.reports, handler(ReportsGroup)),
+  bindScreen(protocols.reportsIndex, handler(ReportsIndex)),
+  bindScreen(protocols.reportDetail, handler(screen('detail', 'detail-screen'))),
+  bindScreen(protocols.prefs, handler(PrefsScreen)),
+  bindScreen(protocols.login, handler(LoginHarness)),
 ]
 
 context.registerEntrypoints(entrypoints)

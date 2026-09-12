@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.16"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
 entrypoint declarations, the signature guard, and the contract for resolving the organization
@@ -101,14 +101,15 @@ Declare an entrypoint with a guard so both sides agree on the alias, and compose
 gate inside the same options object:
 
 ```typescript
-import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route, backend } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 
 // PRODUCT_GATE is the consuming app's own gate alias, registered as a GateService on its context.
-entrypoint(
+protocol(
   route('api:account', '/account', backend()),
-  guard(DEFAULT_GUARD, gate(PRODUCT_GATE, ['my-service-account-{entity}']))
+  contract(typed<Account>()),
+  { guards: DEFAULT_GUARD, gate: { alias: PRODUCT_GATE, params: ['my-service-account-{entity}'] } },
 )
 ```
 

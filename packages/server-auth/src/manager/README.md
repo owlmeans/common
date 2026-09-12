@@ -27,18 +27,18 @@ A specialized guard service that enables authentication token relay between micr
 - **Wallet DID Authentication**: Decentralized identity authentication support
 - **Challenge Validation**: Anti-replay protection using challenge-response mechanisms
 
-### Module-Based Architecture
-The manager is built on the OwlMeans module system, providing:
+### Entrypoint-Based Architecture
+The manager is built on the OwlMeans entrypoint system, providing:
 - **Route Management**: Standardized API endpoints for authentication operations
-- **Handler Registration**: Modular request handlers for different authentication flows
-- **Guard Integration**: Automatic security enforcement at the module level
+- **Handler Registration**: Protocol-backed request handlers for different authentication flows
+- **Guard Integration**: Automatic security enforcement at the entrypoint level
 
 ## Installation
 
 This manager app is part of the `@owlmeans/server-auth` package:
 
 ```bash
-npm install @owlmeans/server-auth
+npm install @owlmeans/server-auth@^0.1.18-rc.17
 ```
 
 ## API Reference
@@ -317,20 +317,16 @@ await authModel.rely(connection, authToken.auth)
 
 ### API Integration
 
+`main(context)` registers the manager's immutable `entrypoints` and starts the API server. For a
+custom bootstrap, register the exported collection yourself; the manager's protocols are then
+addressed through the same `context.entrypoint(protocol)` lookup as application endpoints.
+
 ```typescript
-import { modules } from '@owlmeans/server-auth/manager'
+import { entrypoints, makeContext } from '@owlmeans/server-auth/manager'
 
-// The manager automatically registers these API endpoints:
-
-// POST /api/auth/init - Authentication initialization
-// POST /api/auth/authenticate - User authentication  
-// WebSocket /api/auth/rely - Authentication relay
-
-// Access modules for custom routing
-modules.forEach(module => {
-  console.log(`Route: ${module.getPath()}`)
-  console.log(`Method: ${module.route.method}`)
-})
+const context = makeContext(config)
+context.registerEntrypoints(entrypoints)
+await context.configure().init()
 ```
 
 ## API Endpoints

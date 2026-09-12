@@ -306,7 +306,7 @@ export const RES_CONNECT_SESSION = 'connect-session'
  * Owned here rather than by the platform because they ARE the contract: the SDK, the MCP host and
  * the manager API all address the same aliases, and a client that had to be handed its own copy of
  * the tree would be a second place for a name to drift. The platform spreads the declarations
- * these produce into its own entrypoint list and elevates handlers onto them.
+ * these produce into its own entrypoint list and binds handlers onto them.
  */
 export const connect = Object.freeze({
   base: 'viable:manager-api:connect:base',

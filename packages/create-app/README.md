@@ -65,8 +65,9 @@ is present even with `--no-install`.
 `--bare` keeps the three workspaces, the config/context/entrypoint wiring, the layout, the nav
 skeleton and one Home screen, and drops every piece of example code — the `SessionItem` types and
 schemas, the api's `app/session/**` handlers and its static resource, the About and Session screens.
-`sources/common/src/entrypoints.ts` exports an empty `sharedEntrypoints` that the api and the web
-already spread, so the first feature is one declaration plus a handler and a screen.
+`sources/common/src/entrypoints.ts` exports an immutable `appEntrypoints` tree with an empty `api`
+branch and the web routes. The API and web bind those branches locally, so the first feature adds a
+declaration to the tree, then a handler and a screen binding.
 
 What bare removes and what it swaps in is declared in `template/_bare.json`, next to the
 `.bare.`-infixed variants it points at — not in the scaffolder's code.

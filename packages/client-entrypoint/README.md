@@ -1,16 +1,17 @@
 # @owlmeans/client-entrypoint
 
-Client-side entrypoint system: elevates route definitions into API-calling `ClientEntrypoint` instances.
+Client-side entrypoint system: binds shared protocol declarations into API-calling client views.
 
 ## Overview
 
-- `elevate(entrypoints, alias, handler?, opts?)` — attaches a client handler to an entrypoint (mirrors server `elevate`)
-- `ClientEntrypoint<T>` exposes three explicit verbs: `call()` for the value, `invoke()` for the value
-  plus its outcome, and `url()` for the address
+- `bind(protocol, opts?)` — binds one shared protocol declaration
+- `bindAll(protocolTree)` — binds every protocol in a shared declaration tree
+- `bindScreen(protocol, handler, opts?)` — binds a screen renderer to a shared frontend protocol
+- `ClientProtocolEntrypoint<Protocol>` exposes three explicit verbs: `call()` for the value,
+  `invoke()` for the value plus its outcome, and `url()` for the address
 - `stab` — no-op handler for entrypoints that only need a URL (no logic)
 - `provideRequest(alias, path)` — creates an `AbstractRequest` for programmatic entrypoint calls
 - `pickPerSchema(schema, obj)` — extracts fields from an object matching an AJV schema
-- Re-exported as `celevate` from `@owlmeans/server-app`
 
 ## Installation
 
@@ -20,28 +21,25 @@ bun add @owlmeans/client-entrypoint@^0.1.18-rc.12
 
 ## Usage
 
-Define and elevate a client entrypoint for API calls:
+Bind shared protocols for browser API calls and screens:
 
 ```typescript
-import { elevate, stab } from '@owlmeans/client-entrypoint'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { bindAll, bindScreen, stab } from '@owlmeans/client-entrypoint'
+import { appEntrypoints as protocols } from 'my-app-common'
+import { handler } from '@owlmeans/client'
+import { ProjectListScreen } from './screens/project-list.js'
 
 const appEntrypoints = [
-  entrypoint(route('project-list', '/projects', frontend('base'))),
-  entrypoint(route('project-create', '/projects', backend(RouteMethod.POST))),
+  ...bindAll(protocols.api),
+  bindScreen(protocols.web.projectList, handler(ProjectListScreen)),
+  bindScreen(protocols.web.project, stab),
 ]
-
-// Frontend navigation — a screen, addressed with url(); call()/invoke() throw on it
-elevate(appEntrypoints, 'project-list', stab)
-
-// Backend API call — call() makes a POST request
-elevate(appEntrypoints, 'project-create')
 ```
 
 Call an entrypoint from a service:
 
 ```typescript
-const agentEntrypoint = ctx.entrypoint<ClientEntrypoint<Project>>(agent.project.create)
+const agentEntrypoint = ctx.entrypoint(agent.project.create)
 const result = await agentEntrypoint.call({
   body: { prompt: payload.prompt, entity: req.auth?.entitySlug }
 })
@@ -52,21 +50,29 @@ Take the outcome when it decides what happens next, and build a link with `url()
 ```typescript
 const { value, outcome } = await agentEntrypoint.invoke({ body: payload })
 
-const href = await ctx.entrypoint<ClientEntrypoint>('project-list')
+const href = await ctx.entrypoint(protocols.web.projectList)
   .url({ params: { id: value.id } }, { absolute: true })
 ```
 
 ## API
 
-### `elevate<T, R>(entrypoints, alias, handler?, opts?): ClientEntrypoint<T, R>[]`
+### `bind<Protocol>(protocol, opts?): ClientProtocolEntrypoint<Protocol>`
 
-Replaces the element carrying `alias` with its elevated counterpart, in place, and returns the array typed as `ClientEntrypoint`. The `handler` sets how `call()` behaves. Elevating the same alias again just replaces it again; guards passed here are added to the ones the entrypoint declared. Throws when no entrypoint carries the alias.
+Materializes one immutable protocol declaration for a browser context. The declaration is never mutated.
+
+### `bindAll(protocolTree): ClientProtocolEntrypoint[]`
+
+Materializes every protocol in a shared declaration tree, preserving each protocol reference for typed context lookup.
+
+### `bindScreen<Protocol>(protocol, handler, opts?): ClientProtocolEntrypoint<Protocol>`
+
+Materializes a frontend protocol and attaches its renderer.
 
 ### `stab: RefedEntrypointHandler`
 
 No-op handler for frontend-only entrypoints that are addressed by URL rather than called.
 
-### `ClientEntrypoint<T>` (type)
+### `ClientProtocolEntrypoint<Protocol>` (type)
 
 - `call(request?)` — addresses the entrypoint over the wire and resolves to the value, throwing
   whatever error the reply carried
@@ -98,9 +104,8 @@ The low-level pair the verbs are built on, for code that holds an entrypoint ref
 
 ## Related Packages
 
-- [`@owlmeans/entrypoint`](../entrypoint) — `CommonEntrypoint` base that gets elevated
-- [`@owlmeans/client`](../client) — `useNavigate` navigates by `ClientEntrypoint.url()`
-- [`@owlmeans/server-app`](../server-app) — re-exports `elevate` as `celevate`
+- [`@owlmeans/entrypoint`](../entrypoint) — `CommonEntrypoint` base that gets materialized
+- [`@owlmeans/client`](../client) — `useNavigate` navigates by a bound protocol's `url()`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -110,7 +115,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

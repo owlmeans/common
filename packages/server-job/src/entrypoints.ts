@@ -24,7 +24,7 @@ export const jobEntrypointAliases = (root: string): JobEntrypointAliases => ({
  * Declare the list/get/cancel/watch entrypoints of one job group.
  *
  * It belongs in the SHARED package of a target app — the one both the API and the browser import —
- * so that the server elevates and the client calls the very declarations, and neither side ever
+ * so that the server binds and the client calls the very declarations, and neither side ever
  * writes a path. Declaring a second group is the same call with another root.
  *
  * The guard rides on the base alone: guards are inherited, so stating it once is what keeps the

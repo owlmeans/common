@@ -12,7 +12,7 @@ Redis service for OwlMeans server contexts — connection management with cluste
 ## Installation
 
 ```bash
-bun add @owlmeans/redis
+bun add @owlmeans/redis@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -82,7 +82,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

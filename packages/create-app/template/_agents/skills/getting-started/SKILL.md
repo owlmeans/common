@@ -1,6 +1,6 @@
 ---
 name: getting-started
-description: Start a protocol-first OwlMeans application with shared contracts, server bindings and browser bindings.
+description: Start a protocol-first OwlMeans application with shared contracts, server entrypoints and browser entrypoints.
 metadata:
   scope: general
 ---
@@ -8,7 +8,7 @@ metadata:
 
 # Protocol-first application shape
 
-An OwlMeans application owns one shared protocol declaration and creates local bindings for each
+An OwlMeans application owns one shared protocol declaration and creates local entrypoints for each
 runtime. The declaration is never modified by a server or browser.
 
 ```ts

@@ -1,13 +1,12 @@
 # @owlmeans/server-entrypoint
 
-Elevates route definitions into runnable server entrypoints with attached request handlers.
+Server-side entrypoint system: binds shared protocol declarations to request handlers.
 
 ## Overview
 
-- `elevate(entrypoints, alias, handler?, opts?)` attaches a `RefedEntrypointHandler` to an existing entrypoint in place
-- `entrypoint(commonEntrypoint, handler?, opts?)` wraps a `CommonEntrypoint` into a `ServerEntrypoint`
-- `guard(alias, opts?)` creates `EntrypointOptions` requiring a named guard service
-- Used internally by `@owlmeans/server-app`'s `elevate` re-export
+- `bind(protocol, handler?, opts?)` materializes one immutable protocol with its handler
+- `bindAll(protocols, handlers?)` materializes a declaration collection
+- Used by `@owlmeans/server-app` when assembling a server context
 
 ## Installation
 
@@ -17,39 +16,32 @@ bun add @owlmeans/server-entrypoint@^0.1.18-rc.10
 
 ## Usage
 
-Typical pattern — define entrypoints separately, elevate with handlers:
+Typical pattern — declare protocols in `common`, bind them in `api`:
 
 ```typescript
-import { elevate, guard } from '@owlmeans/server-app'
-import { handleBody, handleParams } from '@owlmeans/server-app'
+import { bind } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
+import { appEntrypoints as protocols } from 'my-app-common'
+import type { Context } from 'my-app-backend'
 
+const api = handlers<Context>()
 const appEntrypoints = [
-  entrypoint(route('project-create', '/projects', backend(RouteMethod.POST)), guard('auth')),
-  entrypoint(route('project-get', '/projects/:id', backend())),
+  bind(protocols.api.projectCreate, api.request(protocols.api.projectCreate, async (req, ctx) =>
+    ctx.project().create(req.body))),
+  bind(protocols.api.projectGet, api.params(protocols.api.projectGet, async (req, ctx) =>
+    ctx.project().get(req.params.id))),
 ]
-
-elevate(appEntrypoints, 'project-create', handleBody(async (payload, ctx) => {
-  return await ctx.project().create(payload)
-}))
-
-elevate(appEntrypoints, 'project-get', handleParams(async (params, ctx) => {
-  return await ctx.project().get(params.id)
-}))
 ```
 
 ## API
 
-### `elevate<R>(entrypoints, alias, handler?, opts?): ServerEntrypoint<R>[]`
+### `bind<Protocol>(protocol, handler?, opts?): ServerProtocolEntrypoint<Protocol>`
 
-Replaces the element carrying `alias` with its elevated counterpart, in place, attaching `handler`. Elevating the same alias again just replaces it again; guards passed here are added to the ones the entrypoint declared. Throws when no entrypoint carries the alias.
+Materializes one immutable protocol declaration and attaches its protocol-bound implementation.
 
-### `entrypoint<R>(commonEntrypoint, handler?, opts?): ServerEntrypoint<R>`
+### `bindAll(protocols, handlers?): ServerProtocolEntrypoint[]`
 
-Wraps a single `CommonEntrypoint` into a `ServerEntrypoint`. Lower-level than `elevate`.
-
-### `guard<R>(guard, opts?): EntrypointOptions<R>`
-
-Returns `EntrypointOptions` that require the named guard service to pass before the handler runs.
+Materializes a flat declaration collection and pairs implementations by protocol reference.
 
 ### `ServerEntrypoint<R>`
 
@@ -64,9 +56,8 @@ A handler factory: `(ref: { ref?: { ctx?: Context } }) => EntrypointHandler`.
 
 ## Related Packages
 
-- [`@owlmeans/entrypoint`](../entrypoint) — `CommonEntrypoint` base that gets elevated
-- [`@owlmeans/server-api`](../server-api) — handler wrappers (`handleBody`, etc.) used with `elevate`
-- [`@owlmeans/server-app`](../server-app) — re-exports `elevate`, `entrypoint`, `guard`
+- [`@owlmeans/entrypoint`](../entrypoint) — immutable protocol declarations
+- [`@owlmeans/server-api`](../server-api) — typed handler factories used with `bind`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -76,7 +67,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

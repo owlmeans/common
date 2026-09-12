@@ -4,7 +4,7 @@ Server-side WebSocket connection handler and service for OwlMeans backends.
 
 ## Overview
 
-- `handleConnection()` wraps WebSocket business logic — analogous to `handleBody` but for WS connections
+- `connection(protocol, callback)` creates a typed WebSocket binding for one protocol
 - `appendSocketService()` + `createSocketMiddleware()` wire the WebSocket service into a server context
 - Used in viable for real-time thinking journal updates and file watching
 - The `Connection` interface (from `@owlmeans/socket`) is the runtime object passed to your handler
@@ -20,10 +20,12 @@ bun add @owlmeans/server-socket@^0.1.18-rc.17
 Handle a WebSocket connection on an entrypoint route:
 
 ```typescript
-import { handleConnection } from '@owlmeans/server-socket'
+import { connection } from '@owlmeans/server-socket'
+import { bind } from '@owlmeans/server-entrypoint'
 import type { Connection } from '@owlmeans/socket'
+import { appEntrypoints as protocols } from 'my-app-common'
 
-export const watch = handleConnection<Connection>(async (conn, context, req) => {
+const watch = connection(protocols.api.fileWatch, async (conn, context, req) => {
   const ctx = context as Context
   const projectId = req.params.id as string
 
@@ -37,13 +39,16 @@ export const watch = handleConnection<Connection>(async (conn, context, req) => 
     conn.notify('file-update', record)
   })
 })
+
+export const entrypoints = [bind(protocols.api.fileWatch, watch)]
 ```
 
 ## API
 
-### `handleConnection<T>(handler): RefedEntrypointHandler`
+### `connection(protocol, handler): BoundEntrypointHandler`
 
-Wraps a WebSocket handler. The handler receives `(conn: T, ctx, req, res)`.
+Creates a protocol-bound WebSocket handler. The callback receives `(conn, ctx, req, res)` with
+request and response types inferred from the protocol.
 
 ```typescript
 handler: (conn: T, ctx: Context, req: AbstractRequest, res: AbstractResponse) => Promise<void>
@@ -73,7 +78,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

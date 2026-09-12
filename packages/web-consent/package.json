@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-consent",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.10",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.14",
+    "@owlmeans/test-ui": "^0.1.18-rc.18",
     "@tailwindcss/vite": "^4.0.0",
     "@types/bun": "^1.4.0",
     "@types/react": "^19.2.17",

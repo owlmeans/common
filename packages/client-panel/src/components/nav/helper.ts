@@ -57,7 +57,7 @@ export const usePanelNav = (config: PanelNavConfig): PanelNavModel => {
       try {
         return normalizePath(context.entrypoint<ClientEntrypoint<string>>(alias).path())
       } catch {
-        // An alias the app never elevated addresses nothing — it cannot be the current screen,
+        // A protocol the app never bound addresses nothing — it cannot be the current screen,
         // and it must not take the menu down with it.
         return null
       }

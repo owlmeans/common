@@ -1,5 +1,4 @@
-import { gate } from '@owlmeans/entrypoint'
-import type { CommonEntrypointOptions } from '@owlmeans/entrypoint'
+import type { EntrypointOptions } from '@owlmeans/entrypoint'
 import type { PermissionSet } from '@owlmeans/auth'
 
 /**
@@ -110,7 +109,8 @@ export const entitlementList = (capabilities: PermissionSet[] | undefined): stri
 /**
  * Declare that an entrypoint needs a paid capability.
  *
- * Sugar over `gate(ENTITLEMENT_GATE, params)` so a route reads as what it means. Several
+ * Compatibility sugar over the protocol option
+ * `{ gate: { alias: ENTITLEMENT_GATE, params } }` so a route reads as what it means. Several
  * parameters are OR'd, matching every other gate in the framework.
  *
  * Putting the requirement HERE rather than in a handler is the point: the framework asserts a gate
@@ -118,5 +118,8 @@ export const entitlementList = (capabilities: PermissionSet[] | undefined): stri
  * endpoint can forget to check.
  */
 export const entitled = (
-  params: string | string[], opts?: CommonEntrypointOptions
-): CommonEntrypointOptions => gate(ENTITLEMENT_GATE, params, opts)
+  params: string | string[], opts?: EntrypointOptions,
+): EntrypointOptions => ({
+  ...opts,
+  gate: { alias: ENTITLEMENT_GATE, params },
+})

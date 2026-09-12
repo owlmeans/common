@@ -1,4 +1,6 @@
 import { GUARD_AUTH_TOKEN } from '@owlmeans/auth-token'
+import { decorateEntrypoint } from '@owlmeans/entrypoint'
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 
 /**
  * Let an access token authenticate every route that already has a guard.
@@ -12,12 +14,10 @@ import { GUARD_AUTH_TOKEN } from '@owlmeans/auth-token'
  * than skipped here — a child entrypoint inherits every guard its ancestors declare and cannot
  * drop one, so the refusal has to live where the credential is inspected.
  */
-export const setupAuthTokenCoguard = (
-  entrypoints: Array<{ guards?: string[] }>, guard: string = GUARD_AUTH_TOKEN
-): void => {
-  entrypoints.forEach(entrypoint => {
-    if (entrypoint.guards == null || entrypoint.guards.length < 1) return
-    if (entrypoint.guards.includes(guard)) return
-    entrypoint.guards = [...entrypoint.guards, guard]
-  })
-}
+export const withAuthTokenCoguard = <Protocol extends EntrypointProtocolDeclaration>(
+  declarations: readonly Protocol[], guard: string = GUARD_AUTH_TOKEN,
+): Protocol[] => declarations.map(declaration => {
+  if (declaration.guards.length < 1 || declaration.guards.includes(guard)) return declaration
+
+  return decorateEntrypoint(declaration, { guards: [...declaration.guards, guard] })
+})

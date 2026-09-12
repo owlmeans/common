@@ -104,7 +104,7 @@ unavailable, which leaves the `window.name` check as the only evidence.
 ## The surrogate window has its own route
 
 `DISPATCHER_SURROGATE` (`@owlmeans/auth`) at `SURROGATE_PATH` = `/surrogate`
-(`@owlmeans/auth-common`), declared in `auth-common`'s shared `entrypoints` list and elevated to the
+(`@owlmeans/auth-common`), declared in `auth-common`'s shared protocol tree and bound to the
 surrogate screen in **`@owlmeans/web-client`'s own entrypoints**. Three properties, each
 load-bearing:
 
@@ -112,7 +112,7 @@ load-bearing:
   showing the application, with its navigation, inside itself is the defect the route exists to
   prevent.
 - **No `service`**, unlike `DISPATCHER` — nothing server-side ever addresses it.
-- **Elevated in `web-client`, not in a relying party** — the mechanic is "run the login route one
+- **Bound in `web-client`, not in a relying party** — the mechanic is "run the login route one
   window up and hand the result back", not an OIDC detail, and every web app already spreads that
   entrypoint list. That is what lets an application which is already deployed gain a working login
   window without editing a line.

@@ -18,7 +18,7 @@ Skills are written to .agents/skills/<name>/SKILL.md — the Agent Skills standa
 location read by Copilot, Codex and other agents. Projects with a .claude/
 directory also get the per-skill symlinks Claude Code needs.
 
-Usage: npx @owlmeans/agent-skills [options]
+Usage: npx @owlmeans/agent-skills@^0.1.18-rc.11 [options]
 
 Options:
   --dir <path>        target project directory (default: cwd)

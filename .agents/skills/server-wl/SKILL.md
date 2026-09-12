@@ -1,13 +1,13 @@
 ---
 name: server-wl
-description: How to use @owlmeans/server-wl — the server half of the white-label contract — the elevated WL_PROVIDE entrypoint, the WlProvider and WlEntityIdentifier service seams, and the cfg.wlProviders wiring that decides what a provide call returns. Auto-invoked when serving white-label data or writing a white-label provider service.
+description: How to use @owlmeans/server-wl — the server half of the white-label contract — the bound WL_PROVIDE entrypoint, the WlProvider and WlEntityIdentifier service seams, and the cfg.wlProviders wiring that decides what a provide call returns. Auto-invoked when serving white-label data or writing a white-label provider service.
 user-invocable: false
 ---
 
 # @owlmeans/server-wl
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-wl": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/server-wl": "^0.1.18-rc.20"` in `dependencies`
 
 Answers the one `WL_PROVIDE` entrypoint `@owlmeans/wled` declares. It stores nothing itself: it fans
 the request out to the provider services the configuration names and returns their answers in one
@@ -17,7 +17,7 @@ object.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The `WL_PROVIDE` declaration, already elevated with the provide handler. Spread it into the app's entrypoint list |
+| `entrypoints` | The `WL_PROVIDE` protocol already bound to the provide handler. Spread it into the app's entrypoint list |
 | `WlProvider` | Service seam a white-label section implements: `provide(entityId) => Promise<ProvidedWL>` |
 | `WlEntityIdentifier` | Optional seam that maps a public identifier (a custom domain, say) to an entity id: `identifyEntity(identifier) => Promise<string \| null>` |
 | `WlProviderAppend` | The config this package reads: `{ wlProviders: string[], wlIdentifierService?: string }` |
@@ -41,10 +41,10 @@ cfg.wlIdentifierService = 'wl-dns'
 `wlProviders` is required, not optional: the handler maps over it unconditionally, so a context that
 serves this entrypoint with the key unset fails the request rather than returning an empty set.
 
-The declaration `@owlmeans/wled` ships carries **no guard**, and this package elevates it with a
+The declaration `@owlmeans/wled` ships carries **no guard**, and this package binds it with a
 handler only — so the endpoint answers anonymously and any caller who can name an organization reads
 every section the deployment registered. Keep white-label records public by design, or bind the
-alias with a guard of your own in the application's entrypoint list.
+alias with a guard of your own in the application's entrypoint bindings.
 
 ## The response is keyed by service alias
 

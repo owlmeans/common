@@ -40,4 +40,4 @@ return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejec
 than reaching through `request.original` in application code.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use
-`@owlmeans/server-socket`'s `socketHandler(protocol, callback)`.
+`@owlmeans/server-socket`'s `connection(protocol, callback)`.

@@ -76,7 +76,7 @@ const project = await context.entrypoint(projectEntrypoints.create).call({
 Use `openProtocol` only where an intentionally untyped boundary is required. Use
 `typed<Model>(ajvSchema)` at an AJV declaration boundary so the runtime validator and TypeScript
 model stay together. Server handlers use `handlers<Context>().body`, `.params`, or `.request`;
-socket handlers use `socketHandler`. Do not create alias-addressed compatibility entrypoints or
+socket handlers use `connection(protocol, callback)`. Do not create alias-addressed compatibility entrypoints or
 replace entries in a mutable declaration list.
 
 ## Package families
@@ -102,7 +102,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.11
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated

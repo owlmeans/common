@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/did
 
 **Layer:** Core
-**Install:** `"@owlmeans/did": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/did": "^0.1.18-rc.15"` in `dependencies`
 
 This package adds a **derivable** key type on top of `@owlmeans/basic-keys` and a wallet that stores
 keys derived from one mnemonic seed. Importing it registers the `owlmk` key type into the shared

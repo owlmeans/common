@@ -17,15 +17,15 @@ and its translations. The contracts it is written against live in `@owlmeans/aut
 bun add @owlmeans/web-auth-token@^0.1.18-rc.1
 ```
 
-The application must vendor every shadcn primitive the package imports — `alert`, `badge`,
-`button`, `card`, `dialog`, `input`, `label`, `select`, `table` — into its own `@/components/ui/`,
-because `@/…` specifiers are emitted verbatim and resolve to the app's copy.
+The package ships its own private shadcn primitives and imports them with relative specifiers.
+Consumers do not vendor its `alert`, `badge`, `button`, `card`, `dialog`, `input`, `label`,
+`select` or `table` files; they provide the documented React, Radix and Tailwind peer dependencies.
 
 ## The `@source` line — required
 
 Tailwind's scanner excludes `node_modules`, so classes that exist only inside this package never
-reach the application's stylesheet and the panel renders unstyled. Add the package's `src` to the
-app's Tailwind entry (never `build` — a linked checkout's `.gitignore` covers it):
+reach the application's stylesheet and the panel renders unstyled. Add the package's shipped `src`
+directory to the app's Tailwind entry:
 
 ```css
 @import "tailwindcss";
@@ -73,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

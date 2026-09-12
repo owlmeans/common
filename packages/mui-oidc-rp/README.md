@@ -5,7 +5,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Overview
 
 - `appendOidcGuard(context)` — registers the OIDC guard on a web context
-- `setupOidcGuard(entrypoints, coguards?, extras?)` — attaches the guard onto entrypoint declarations
+- `oidcEntrypoints(extras?)` — returns local OIDC protocol bindings and the dispatcher screen
 - `makeOidcAuthService(alias?)` — browser-side OIDC auth service (built on `oidc-client-ts`)
 - React components for login and callback handling
 - `OidcAuthPurposes` enum — `Unknown` | `Subscribe` | `Login`
@@ -31,12 +31,17 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 }
 ```
 
-Wire OIDC onto entrypoint declarations:
+Decorate shared declarations immutably, then bind OIDC in the MUI runtime:
 
 ```typescript
-import { setupOidcGuard } from '@owlmeans/mui-oidc-rp'
+import { withOidcGuard } from '@owlmeans/oidc'
+import { oidcEntrypoints } from '@owlmeans/mui-oidc-rp'
 
-setupOidcGuard(entrypoints, undefined, { payload: { simplified: true } })
+const configuredProtocols = withOidcGuard(protocols)
+const appEntrypoints = [
+  // Bind application screens and clients against configuredProtocols here.
+  ...oidcEntrypoints({ payload: { simplified: true } }),
+]
 ```
 
 ## API
@@ -45,9 +50,12 @@ setupOidcGuard(entrypoints, undefined, { payload: { simplified: true } })
 
 Registers the OIDC guard service on the web context.
 
-### `setupOidcGuard(entrypoints, coguards?, extras?)`
+### `oidcEntrypoints(extras?)`
 
-Attaches the OIDC guard to the given entrypoint declarations. `coguards` lets you compose with another guard alias; `extras` overrides the parametrised props (e.g., `payload.simplified`).
+Returns browser-local bindings for the shared OIDC protocols and dispatcher screen. Decorate the
+shared protocol tree with `withOidcGuard(protocols, coguards?)` from `@owlmeans/oidc`; neither
+function mutates declarations or a materialized entrypoint list. `extras` overrides parametrised
+dispatcher props (for example `payload.simplified`).
 
 ### `makeOidcAuthService(alias?): OidcAuthService`
 
@@ -84,7 +92,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.11
+npx @owlmeans/agent-skills@^0.1.18-rc.15
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

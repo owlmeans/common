@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api-config
 
 **Layer:** Core
-**Install:** `"@owlmeans/api-config": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/api-config": "^0.1.18-rc.15"` in `dependencies`
 
 The contract package of a three-package flow: this one declares the endpoint and what may cross it,
 `@owlmeans/api-config-server` answers it, `@owlmeans/api-config-client` fetches it and merges the
@@ -27,7 +27,7 @@ answer into the client config. Nothing here runs — it is the shared declaratio
 
 ## Usage
 
-The declaration is elevated on both sides, so neither imports the other's package — they only share
+The declaration is bound on both sides, so neither imports the other's package — they only share
 this one. Add it to the entrypoint list the way any other entrypoint set is added:
 
 ```typescript
