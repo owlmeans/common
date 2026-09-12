@@ -7,7 +7,7 @@ import type { ResolvedEntity } from './types.js'
 import type { AbstractRequest } from './types.js'
 
 /** A deliberately broad value used only by declarations without an I/O contract. */
-export type OpenValue = object | string | number | boolean | bigint | null | undefined
+export type OpenValue = object | string | number | boolean | bigint | null | undefined | void
 
 /** The request accepted by a declaration that intentionally supplies no contract. */
 export interface OpenRequest {

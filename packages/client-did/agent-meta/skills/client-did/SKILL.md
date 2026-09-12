@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-did
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-did": "^0.1.18-rc.22"` in `dependencies`
+**Install:** `"@owlmeans/client-did": "^0.1.18-rc.23"` in `dependencies`
 
 A `DIDWallet` from `@owlmeans/did` needs three resources to live in — master seed, key pairs, key
 meta. This package registers those as client resources, wraps the wallet in a lazy service, and

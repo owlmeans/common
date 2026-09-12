@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.17"` in `dependencies`
 
 Contracts only. It carries no broker code — a driver package (`@owlmeans/redis-queue`) implements
 them. Depend on this one from a shared contract package; depend on the driver only where the

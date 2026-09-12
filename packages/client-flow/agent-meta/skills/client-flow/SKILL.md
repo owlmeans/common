@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-flow
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.24"` in `dependencies`
+**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.25"` in `dependencies`
 
 Two objects, with different lifetimes. The **service** lives on the context and owns the flow
 definitions and the one live `FlowModel`. The **client** is built per screen, wraps that model with

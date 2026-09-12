@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/server-iam`
 
-**Install:** `"@owlmeans/server-iam": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/server-iam": "^0.1.18-rc.30"` in `dependencies`
 
 Boilerplate-less server-side consumer of the OwlMeans IAM. One call wires the OIDC RP stack and the
 IAM gate; the consumer never knows which IAM backend (Keycloak or integrated) is active.

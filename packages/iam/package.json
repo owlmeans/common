@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/iam",
-  "version": "0.1.18-rc.23",
+  "version": "0.1.18-rc.24",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -25,7 +25,7 @@
     "@owlmeans/auth": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.15",
     "@owlmeans/error": "^0.1.18-rc.15",
-    "@owlmeans/oidc": "^0.1.18-rc.28",
+    "@owlmeans/oidc": "^0.1.18-rc.29",
     "@owlmeans/route": "^0.1.18-rc.16"
   },
   "devDependencies": {

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-flow
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-flow": "^0.1.18-rc.24"` in `dependencies`
+**Install:** `"@owlmeans/web-flow": "^0.1.18-rc.25"` in `dependencies`
 
 The browser half of the flow stack: it supplies the `proceed` that `@owlmeans/client-flow` refuses,
 and it reads and writes the query parameter that carries the state.
