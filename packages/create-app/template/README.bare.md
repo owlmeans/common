@@ -34,10 +34,10 @@ bun run dev
 1. **`sources/common/src/entrypoints.ts`** — declare the route as an OwlMeans *entrypoint* and
    give it an AJV filter. Both sides import this one declaration; neither re-declares the route.
 2. **`sources/api`** — register a resource in `src/context.ts` (widening `Context` in
-   `src/types.ts`), then `elevate()` the entrypoint with a handler in `src/entrypoints.ts`.
+   `src/types.ts`), then `bind()` the entrypoint with a handler in `src/entrypoints.ts`.
 3. **`sources/web`** — add a screen under `src/screens`, hang it off a frontend route in
    `src/entrypoints.ts`, list it in `src/nav.ts`, and call the backend with
-   `context.entrypoint(alias).call({ params, body })`.
+   `context.entrypoint(protocol).call({ params, body })`.
 
 See the [OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md)
 for a worked example of all three steps.

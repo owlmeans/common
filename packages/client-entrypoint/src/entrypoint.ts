@@ -1,48 +1,32 @@
-import type { ClientRouteModel } from '@owlmeans/client-route'
 import type { ClientEntrypoint, ClientEntrypointOptions, EntrypointRef, RefedEntrypointHandler } from './types.js'
 import type { AbstractRequest, CommonEntrypoint } from '@owlmeans/entrypoint'
-import { isEntrypoint, makeBasicEntrypoint, normalizeHelperParams, validate } from './utils/entrypoint.js'
-import { isClientRouteModel, route } from '@owlmeans/client-route'
+import { validate } from './utils/entrypoint.js'
+import { route } from '@owlmeans/client-route'
 import { apiInvoke, apiHandler, entrypointUrl } from './utils/handler.js'
 import { AppType } from '@owlmeans/context'
-import type { RouteModel } from '@owlmeans/route'
 import { provideRequest } from './helper.js'
 
-export const entrypoint = <T, R extends AbstractRequest = AbstractRequest>(
-  arg: CommonEntrypoint | ClientRouteModel | RouteModel,
-  handler?: RefedEntrypointHandler<T, R> | ClientEntrypointOptions | boolean,
-  opts?: ClientEntrypointOptions | boolean
+/** Attach client behaviour to an entrypoint already materialized from a protocol. */
+export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = AbstractRequest>(
+  arg: CommonEntrypoint,
+  handler?: RefedEntrypointHandler<T, R>,
+  opts?: ClientEntrypointOptions,
 ): ClientEntrypoint<T, R> => {
   const entrypointHandle: EntrypointRef<T, R> = { ref: undefined }
 
   let _entrypoint: ClientEntrypoint<T, R>
 
-  ;[handler, opts] = normalizeHelperParams(handler, opts)
+  const _handler = handler ?? (arg.route.route.type === AppType.Backend ? apiHandler : undefined)
 
-  const _handler = handler as RefedEntrypointHandler<T, R> | undefined ??
-    (('route' in arg.route ? arg.route.route.type : arg.route.type)
-      === AppType.Backend ? apiHandler : undefined)
-
-  if (isEntrypoint(arg)) {
-    assertExplicitHandler(arg.route.route.type, handler as RefedEntrypointHandler<T, R>)
-    const routeModel = route(arg.route, opts?.routeOptions)
-    _entrypoint = arg as ClientEntrypoint<T, R>
-    _entrypoint.route = routeModel
-    // Elevating adds guards, it never swaps them: what the entrypoint declared still applies.
-    _entrypoint.guards = [...new Set([...(arg.guards ?? []), ...(opts?.guards ?? [])])]
-    _entrypoint.filter = opts?.filter ?? arg.filter
-    _entrypoint.gate = opts?.gate ?? arg.gate
-    _entrypoint.gateParams = opts?.gateParams ?? arg.gateParams
-  } else if (isClientRouteModel(arg)) {
-    assertExplicitHandler(arg.route.type, handler as RefedEntrypointHandler<T, R>)
-    _entrypoint = makeBasicEntrypoint(arg, { ...opts }) as ClientEntrypoint<T, R>
-    _entrypoint.route = arg
-  } else {
-    assertExplicitHandler(arg.route.type, handler as RefedEntrypointHandler<T, R>)
-    const _route = route(arg, opts?.routeOptions)
-    _entrypoint = makeBasicEntrypoint(_route, { ...opts }) as ClientEntrypoint<T, R>
-    _entrypoint.route = _route
-  }
+  assertExplicitHandler(arg.route.route.type, handler)
+  const routeModel = route(arg.route, opts?.routeOptions)
+  _entrypoint = arg as ClientEntrypoint<T, R>
+  _entrypoint.route = routeModel
+  // Binding adds guards, it never swaps them: what the declaration carries still applies.
+  _entrypoint.guards = [...new Set([...(arg.guards ?? []), ...(opts?.guards ?? [])])]
+  _entrypoint.filter = opts?.filter ?? arg.filter
+  _entrypoint.gate = opts?.gate ?? arg.gate
+  _entrypoint.gateParams = opts?.gateParams ?? arg.gateParams
 
   _entrypoint.url = ((req?: Partial<R>, urlOpts?: { absolute?: boolean }) =>
     entrypointUrl<T, R>(entrypointHandle, req as never, urlOpts)) as ClientEntrypoint<T, R>['url']

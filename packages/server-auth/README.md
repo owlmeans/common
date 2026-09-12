@@ -33,9 +33,15 @@ Reference the guard by alias when protecting routes:
 
 ```typescript
 import { DAUTH_GUARD } from '@owlmeans/server-app'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { route } from '@owlmeans/route'
 // same as DEFAULT_ALIAS from @owlmeans/server-auth
 
-const adminEntrypoint = entrypoint(route('admin', '/admin'), guard(DAUTH_GUARD))
+const adminProtocol = protocol(
+  route('admin', '/admin'),
+  contract(typed<AdminResponse>()),
+  { guards: DAUTH_GUARD },
+)
 ```
 
 ## API
@@ -76,7 +82,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.14
+npx @owlmeans/agent-skills@^0.1.18-rc.20
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

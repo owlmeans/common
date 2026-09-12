@@ -1,7 +1,5 @@
-import { handleParams } from '@owlmeans/server-api'
-import type { AbstractResponse } from '@owlmeans/entrypoint'
-import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { JobHandlerOptions } from '../types.js'
+import { handlers } from '@owlmeans/server-api'
+import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
 import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
 
 /**
@@ -15,9 +13,10 @@ import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
  * @throws {UnknownJob}
  */
 export const cancelJob = (
+  protocol: JobEntrypoints['cancel'],
   opts?: JobHandlerOptions
-): RefedEntrypointHandler<AbstractResponse<any>> =>
-  handleParams<{ id: string }>(async ({ id }, ctx, req) => {
+): ReturnType<ReturnType<typeof handlers<Context>>['params']> =>
+  handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
     const resource = jobsOf(ctx, opts)
     // Read first: `take` cannot tell whose job it removed, so ownership is settled before it.
     await readOwnedJob(resource, id, await jobViewer(req, ctx, opts), opts)

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api-config-server
 
 **Layer:** Server
-**Install:** `"@owlmeans/api-config-server": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/api-config-server": "^0.1.18-rc.25"` in `dependencies`
 
 Answers the declaration shared by `@owlmeans/api-config`; the browser side that consumes it is
 `@owlmeans/api-config-client`.
@@ -16,13 +16,13 @@ Answers the declaration shared by `@owlmeans/api-config`; the browser side that 
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The `API_CONFIG` declaration elevated with the advertise handler, ready to spread into the app's entrypoint list |
+| `entrypoints` | The `API_CONFIG` protocol bound to the advertise handler, ready to spread into the app's entrypoint list |
 
 ## Usage
 
 ```typescript
-import { entrypoints as apiConfigEntrypoints } from '@owlmeans/api-config-server'
-export const appEntrypoints = [...apiConfigEntrypoints, ...myEntrypoints]
+import { entrypoints as apiConfigBindings } from '@owlmeans/api-config-server'
+export const serverBindings = [...apiConfigBindings, ...myServerBindings]
 ```
 
 An app built on `@owlmeans/server-app` already has it: the `entrypoints` that package exports

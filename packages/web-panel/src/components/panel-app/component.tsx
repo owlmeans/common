@@ -3,7 +3,7 @@ import type { PanelAppProps } from './types.js'
 
 import { App } from '@owlmeans/client'
 import { I18nContext } from '@owlmeans/client-i18n'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 
 export const PanelApp: FC<PanelAppProps> = ({ context, provide, children, rootClassName }) => {
   return <div className={cn('min-h-screen bg-background text-foreground', rootClassName)}>

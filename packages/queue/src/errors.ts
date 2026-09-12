@@ -70,7 +70,7 @@ export class QueueNotListening extends QueueError {
 
 /**
  * The job named an entrypoint this process does not serve. Unlike a missing queue this is not a
- * declaration problem: the alias exists, but nothing here elevated it, so the job was taken by a
+ * declaration problem: the alias exists, but nothing here bound it, so the job was taken by a
  * worker that cannot run it.
  */
 export class JobNotServed extends QueueError {

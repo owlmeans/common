@@ -1,13 +1,13 @@
-import { BASE, bind, entrypoint, entrypoints as baseEntrypoints, frontend, handler, HOME, route } from '@owlmeans/web-panel'
-import { sharedEntrypoints } from '__APP_SLUG__-common'
+import { bindAll, bindScreen, entrypoints as baseEntrypoints, handler } from '@owlmeans/web-panel'
+import { appProtocols } from '__APP_SLUG__-common'
 import { MainLayout } from './layout/main.js'
 import { HomeScreen } from './screens/home.js'
 
-// Backend protocol declarations are materialized locally so each can be called from the browser.
-const entrypoints = [...baseEntrypoints, ...sharedEntrypoints.map(protocol => bind(protocol))]
-
-// Frontend layout + screens. BASE renders the shared layout; HOME is its default child.
-entrypoints.push(entrypoint(route(BASE, '/', frontend()), handler(MainLayout)))
-entrypoints.push(entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen)))
-
-export const appEntrypoints = entrypoints
+/** Local browser bindings for shared API and screen protocols. */
+export const appBindings = [
+  ...baseEntrypoints,
+  ...bindAll(appProtocols.api),
+  // BASE renders the shared layout; HOME is its default child.
+  bindScreen(appProtocols.web.base, handler(MainLayout)),
+  bindScreen(appProtocols.web.home, handler(HomeScreen)),
+]

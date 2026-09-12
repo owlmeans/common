@@ -95,9 +95,21 @@ describe('create-app — bare scaffolding', () => {
     expect(html).toContain('<meta name="application-name" content="Bare App" />')
   })
 
-  test('leaves the shared entrypoint list empty but wired', () => {
-    expect(read('sources/common/src/entrypoints.ts')).toContain('sharedEntrypoints')
-    expect(read('sources/api/src/entrypoints.ts')).toContain('sharedEntrypoints')
-    expect(read('sources/web/src/entrypoints.ts')).toContain('sharedEntrypoints')
+  test('leaves an empty API protocol branch but wires the shared tree', () => {
+    expect(read('sources/common/src/entrypoints.ts')).toContain('export const appProtocols = {')
+    expect(read('sources/common/src/entrypoints.ts')).not.toContain('appEntrypoints')
+    expect(read('sources/common/src/entrypoints.ts')).toContain('api: {}')
+    expect(read('sources/api/src/entrypoints.ts')).not.toContain('bindAll(')
+    expect(read('sources/api/src/entrypoints.ts')).toContain('export const appBindings = [...entrypoints]')
+    expect(read('sources/api/src/entrypoints.ts')).not.toContain('appEntrypoints')
+    expect(read('sources/web/src/entrypoints.ts')).toContain('bindAll(appProtocols.api)')
+  })
+
+  test('binds screens from common declarations', () => {
+    const webEntrypoints = read('sources/web/src/entrypoints.ts')
+    expect(webEntrypoints).toContain("import { appProtocols } from 'bare-app-common'")
+    expect(webEntrypoints).toContain('bindScreen(appProtocols.web.base, handler(MainLayout))')
+    expect(webEntrypoints).toContain('bindScreen(appProtocols.web.home, handler(HomeScreen))')
+    expect(webEntrypoints).not.toContain('openProtocol(')
   })
 })

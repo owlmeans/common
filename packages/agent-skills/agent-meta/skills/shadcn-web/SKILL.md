@@ -13,17 +13,15 @@ Shadcn-based web packages are the **current Web layer**. `@owlmeans/web-panel` i
 
 See `reference.md` in this skill folder for full code examples (components.json, tsconfig, globals.css @theme tokens, peerDeps, cn(), MUI→shadcn mapping table).
 
-## The `@` contract — core rule
+## Package-boundary rule
 
 Four invariants govern every shadcn-based OwlMeans package:
 
 1. **No shadcn registries.** Primitives (Button, Input, Card, …) are **hand-copied** into `src/@/components/ui/` and committed. The `registries` field in `components.json` is always empty/absent.
 
-2. **Same `@` import prefix as the final app.** Components inside the package import shadcn primitives as `@/components/ui/button`, `@/lib/utils`, etc. The build leaves `@/…` specifiers **verbatim** (TypeScript Bundler resolution never rewrites them). The downstream app's bundler resolves `@` to **its own** shadcn copy + theme. The package never ships its primitives as a public import.
+2. **Package-local relative imports.** Components import their private shadcn primitives and utilities with relative specifiers. The emitted `build/` tree must contain no absolute `@/…` import: that alias belongs to the consumer and makes a clean installation depend on files it does not own.
 
-3. **Local copy is dev/test-only.** Each package keeps its own copy under `src/@/` so it can build and test in isolation. The `package.json` `exports` map must **not** expose `./@/*` — consumers never accidentally import the package's copy.
-
-   `cn` is the one exception, and it is exported as a **package-owned** function from `src/utils.ts`, never as a re-export of `@/lib/utils`: that specifier is emitted verbatim and would resolve back to the consumer's own file, which is not what an app importing `cn` from the package asked for. The vendored `src/@/lib/utils.ts` stays exactly as shadcn emits it, because the package's own primitives must keep resolving through the `@` contract.
+3. **Private copy, public facade.** Each package keeps its own copy under `src/@/`, emits it under `build/@/`, and does not expose it through `exports`. Consumers import the package's public `cn` function rather than any private helper.
 
 4. **The consumer must add an `@source` for the package's `src`.** Tailwind's oxide scanner reads
    the CSS root plus `@source` directives only, and it excludes `node_modules` — so a class that
@@ -37,20 +35,15 @@ Four invariants govern every shadcn-based OwlMeans package:
    @source "../../../node_modules/@owlmeans/web-panel/src";
    ```
 
-   The relative depth follows the app's layout. **Point at `src`, never at `build`:** the scanner
-   applies the `.gitignore` of whatever repository a path resolves into, and a linked `node_modules`
-   entry resolves into a monorepo whose `.gitignore` covers every package build directory — a
-   `build` source there scans zero files and reports nothing, while the UI renders half-styled with
-   nothing to blame. `src` is tracked in the repository and ships in the published tarball, so one
-   path serves a linked checkout and an npm install alike. This is a **general consumer rule**, not
-   a scaffolding detail.
+   The relative depth follows the app's layout. Source ships in the package tarball and remains
+   tracked in a linked workspace. This is a **general consumer rule**, not a scaffolding detail.
 
 ## Package skeleton (mirrors `web-panel`)
 
 ```
 <your-package>/
 ├── src/
-│   ├── @/                              # dev/test-only primitives — NOT a public export
+│   ├── @/                              # private primitives — NOT a public export
 │   │   ├── components/ui/              # hand-copied shadcn primitives
 │   │   │   ├── button.tsx
 │   │   │   └── input.tsx
@@ -101,7 +94,9 @@ Four invariants govern every shadcn-based OwlMeans package:
 }
 ```
 
-`moduleResolution: Bundler` (from `tsconfig.base.json`) causes `tsc` to emit `@/…` verbatim. `paths` is used only for **type-checking** during build — it finds types for `@/components/ui/button` in `src/@/components/ui/button.tsx` without rewriting the emitted specifier.
+`paths` supports shadcn tooling while copying primitives, but package implementation imports are
+rewritten to relative specifiers before build. Check emitted JavaScript too: no `from '@/…'` or
+`from "@/…"` may remain.
 
 ## components.json
 
@@ -159,14 +154,12 @@ Four invariants govern every shadcn-based OwlMeans package:
 
 1. Find the component source on the [shadcn GitHub](https://github.com/shadcn-ui/ui) (e.g. `registry/new-york/ui/<name>.tsx`) or via `npx shadcn@latest add <name> --cwd <your-package-dir>` in a throwaway branch.
 2. Copy the `.tsx` source into `src/@/components/ui/<name>.tsx`.
-3. Repoint all imports to `@/lib/utils` and `@/components/ui/…` for sub-primitives.
+3. Repoint all imports to relative paths into `src/@/lib` and `src/@/components/ui`.
 4. Add any `@radix-ui/*` packages the file imports as **peerDependencies** in `package.json`.
 5. Add a comment at the top: `// shadcn <name> — sourced from shadcn@<version> <date>`.
 6. Run `bun install` and `bun run build` to verify.
-7. Document it: a consumer must vendor **every** primitive the package imports. `@owlmeans/web-panel`
-   currently imports `alert`, `button`, `card`, `dropdown-menu`, `input`, `label`,
-   `navigation-menu` and `progress` (`separator` is vendored for consumers that use it) — so its
-   Radix peers include `@radix-ui/react-navigation-menu` and `@radix-ui/react-dropdown-menu`.
+7. Document the package's peer dependencies. Consumers never vendor its private primitives;
+   `@owlmeans/web-panel` currently needs the Radix peers declared in its manifest.
 
 Prefer a light custom component over a heavyweight block when only part of it is needed. The
 two-level navigation shell deliberately renders its second level with the existing `Button` rather
@@ -189,9 +182,9 @@ import { TextField } from '@mui/material'
 // ...
 <TextField {...field} label={label} error={fieldState.error != null} />
 
-// shadcn version
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+// shadcn package implementation (from src/components/form/text/component.tsx)
+import { Input } from '../../../@/components/ui/input.js'
+import { Label } from '../../../@/components/ui/label.js'
 // ...
 <div className="flex flex-col gap-1.5">
   <Label htmlFor={field.name}>{label}</Label>

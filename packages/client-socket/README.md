@@ -5,14 +5,14 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 ## Overview
 
 - `ws(entrypoint, request?)` — creates a `Connection` from the entrypoint's URL and opens a WebSocket
-- `useWs(entrypoint, request?)` — React hook wrapping `ws()` with lifecycle management; it takes an
-  alias or an entrypoint
+- `useWs(entrypoint, request?)` — React hook wrapping `ws()` with lifecycle management; pass a
+  protocol-bound entrypoint directly
 - The returned `Connection` implements `@owlmeans/socket`'s `Connection` interface
 
 ## Installation
 
 ```bash
-bun add @owlmeans/client-socket@^0.1.18-rc.13
+bun add @owlmeans/client-socket@^0.1.18-rc.22
 ```
 
 ## Usage
@@ -22,9 +22,12 @@ Connect to a WebSocket entrypoint and observe events:
 ```typescript
 import { useWs } from '@owlmeans/client-socket'
 import { MessageType } from '@owlmeans/socket'
+import { useContext } from '@owlmeans/web-client'
+import { appProtocols } from 'my-app-common'
 
 function ThinkingPanel({ storyId }: { storyId: string }) {
-  const conn = useWs('story-thinking', { params: { id: storyId } })
+  const context = useContext()
+  const conn = useWs(context.entrypoint(appProtocols.api.storyThinking), { params: { id: storyId } })
 
   useEffect(() => {
     if (!conn) return
@@ -40,9 +43,9 @@ Direct connection (non-hook):
 
 ```typescript
 import { ws } from '@owlmeans/client-socket'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { appProtocols } from 'my-app-common'
 
-const wsEntrypoint = context.entrypoint<ClientEntrypoint<string>>('story-thinking')
+const wsEntrypoint = context.entrypoint(appProtocols.api.storyThinking)
 const connection = await ws(wsEntrypoint, { params: { id: storyId } })
 ```
 
@@ -54,13 +57,15 @@ Builds the entrypoint's URL, opens a WebSocket, and returns a `Connection` once 
 
 ### `useWs(entrypoint, request?): Connection | null`
 
-React hook version of `ws()`. Returns `null` while connecting. Manages connection lifecycle (opens on mount, closes on unmount).
+React hook version of `ws()`. Returns `null` while connecting. Manages connection lifecycle (opens
+on mount, closes on unmount). Alias input is reserved for a dynamic external boundary; application
+code calls `context.entrypoint(protocol)` first.
 
 ## Related Packages
 
 - [`@owlmeans/socket`](../socket) — `Connection` interface with `notify`, `observe`, `call` methods
 - [`@owlmeans/server-socket`](../server-socket) — server-side connection handler
-- [`@owlmeans/client-entrypoint`](../client-entrypoint) — `ClientEntrypoint` passed to `ws()`
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — protocol bindings passed to `ws()`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -70,7 +75,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.14
+npx @owlmeans/agent-skills@^0.1.18-rc.20
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

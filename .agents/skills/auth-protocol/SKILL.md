@@ -31,7 +31,7 @@ Use case: browser clients, third-party IdP integration, multi-tenant SaaS.
 1. Standard OAuth2 authorization-code flow. The relying party redirects to the provider and the return leg exchanges the code: `makeOidcClientService` (`@owlmeans/server-oidc-rp`) replays the stored PKCE verifier and grants the token set.
 2. Server decodes the ID token, builds an `Auth` from its claims, and wraps it in an envelope of type `oidc-wrapped-token` signed with the service key — the bearer is `OIDC-WRAPPED-TOKEN <encoded>`.
 3. Subsequent requests are matched and handled by `makeOidcGuard` (`@owlmeans/oidc`), which verifies the envelope signature against the service key and delegates freshness to the `WRAPPED_OIDC` service.
-4. Refresh: `makeOidcWrappingService` (`@owlmeans/server-oidc-rp`) re-validates the stored token set — introspection, or a refresh grant once `expires_at` has passed — and re-signs the wrapped token. When the value changes, the guard returns it in the **`TOKEN_UPDATE` response header** (`'auth-token-refresh'`, `@owlmeans/auth-common`); an empty value means the session is over. It is a header, not a route: `@owlmeans/server-api` lists it in `exposedHeaders` and `@owlmeans/api`'s client service feeds it back into `AuthService.update()`. Where the deployment has a separate auth manager, the wrapper reaches it over the `external-auth:auth:update` entrypoint that `setupAuthServiceEntrypoints` registers at `/<prefix>/auth/update`.
+4. Refresh: `makeOidcWrappingService` (`@owlmeans/server-oidc-rp`) re-validates the stored token set — introspection, or a refresh grant once `expires_at` has passed — and re-signs the wrapped token. When the value changes, the guard returns it in the **`TOKEN_UPDATE` response header** (`'auth-token-refresh'`, `@owlmeans/auth-common`); an empty value means the session is over. It is a header, not a route: `@owlmeans/server-api` lists it in `exposedHeaders` and `@owlmeans/api`'s client service feeds it back into `AuthService.update()`. Where the deployment has a separate auth manager, the wrapper reaches it over the `external-auth:auth:update` declaration from `makeAuthServiceEntrypoints`, bound at `/<prefix>/auth/update`.
 
 ### Provider-Backed Local Identity
 
@@ -102,7 +102,7 @@ rows on never appears in a token, a URL or a body. Read the slug with `entitySlu
 
 `@owlmeans/oidc` constants:
 
-- `OIDC_GATE = 'oidc-gate'` — the `gate(...)` value to attach OIDC enforcement to an entrypoint.
+- `OIDC_GATE = 'oidc-gate'` — the gate alias to put in a protocol's `gate` option for OIDC enforcement.
 - `GOOGLE_CLIENT_AUTH = 'google-oauth'` — browser plugin type for Google OAuth.
 - `GOOGLE_SERVICE = 'google'` — provider service key used by backend config and identity linking.
 
@@ -183,14 +183,14 @@ export interface KeyPairModel {
 
 Server-side:
 - `makeAuthService(alias?)` / `appendAuthService(ctx, alias?)` (`@owlmeans/server-auth`) — the bearer guard.
-- `setupAuthServiceEntrypoints(entrypoints, serviceAlias, prefix = 'oidc-api')` (`@owlmeans/server-oidc-rp`) — registers the `external-auth:provider:list` and `external-auth:auth:update` routes, both behind `GUARD_ED25519`.
-- `makeOidcWrappingService`, `makeOidcGate`, `makeOidcClientService`, `appendOidcGuard`, `setupOidcGuard` — wire OIDC into a server context (`@owlmeans/server-oidc-rp`).
+- `makeAuthServiceEntrypoints(serviceAlias, prefix = 'oidc-api')` (`@owlmeans/server-oidc-rp`) — returns `external-auth:provider:list` and `external-auth:auth:update` declarations, both behind `GUARD_ED25519`; bind them in the serving app.
+- `makeOidcWrappingService`, `makeOidcGate`, `makeOidcClientService`, `appendOidcGuard`, `oidcEntrypoints` — wire OIDC services and server-local bindings into a server context (`@owlmeans/server-oidc-rp`). Decorate the app protocol tree with `withOidcGuard` from `@owlmeans/oidc` before binding it.
 
 Client-side:
 - `appendAuthService(ctx, alias?)` (`@owlmeans/client-auth`) — the client auth service with persistent storage.
 - `setupExternalAuthentication(service)` (`@owlmeans/client-auth`) — point `CAUTHEN_FLOW_ENTER` at the service an external provider redirects into.
 - `appendLogin(ctx)` (`@owlmeans/client-auth/login`) — the login-plugin host; `@owlmeans/web-client`'s `makeContext` already calls it.
-- `appendOidcGuard()`, `setupOidcGuard()` — `@owlmeans/web-oidc-rp` for browser-side.
+- `appendOidcGuard()`, `oidcEntrypoints()` — `@owlmeans/web-oidc-rp` for browser-side bindings; `withOidcGuard` decorates the shared protocol tree.
 
 Local identity and the organization entity:
 - `appendAuthIdentityResources(context)` (`@owlmeans/server-auth-identity`) — registers the org-entity registry, the account/profile/credentials resources, the linking service and the entity resolver.

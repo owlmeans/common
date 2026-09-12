@@ -46,7 +46,7 @@ export const socket = (opts?: RouteOptions | string | null, secondary?: RouteOpt
 /**
  * A backend route carried by the queue rather than by HTTP. Everything else about it is a normal
  * backend route — it has a path, a parent, guards and a filter — so the same declaration is served
- * with `elevate(...)` and called with `call()`; only the transport underneath differs.
+ * with `bind(...)` and called with `call()`; only the transport underneath differs.
  */
 export const job = (opts?: RouteOptions | string | null, secondary?: RouteOptions): Partial<RouteOptions> => {
   const route = backend(opts, secondary)

@@ -107,10 +107,10 @@ These files are the CONTRACT between the packages. Every screen, endpoint and jo
 them, and each has a sentinel comment marking where a new line goes:
 
 - \`sources/common/src/consts.ts\` — the \`app\` alias tree.
-- \`sources/common/src/entrypoints.ts\` — the shared \`entrypoints\` declaration list.
-- \`sources/api/src/entrypoints.ts\` — server elevations (\`appEntrypoints\`).
-- \`sources/web/src/entrypoints.ts\` — client elevations (\`appEntrypoints\`).
-- \`sources/worker/src/entrypoints.ts\` — job elevations.
+- \`sources/common/src/entrypoints.ts\` — the shared immutable protocol tree (\`appEntrypoints\`).
+- \`sources/api/src/entrypoints.ts\` — server bindings (\`bind\` + \`handlers<Context>()\`).
+- \`sources/web/src/entrypoints.ts\` — client bindings (\`bindAll\` + \`bindScreen\`).
+- \`sources/worker/src/entrypoints.ts\` — job bindings (\`bind\`).
 - \`sources/web/src/nav.ts\` — the navigation registry: one line per screen, which
   is the only thing that puts it in the menus.
 
@@ -272,13 +272,13 @@ in its own language, with no TypeScript syntax and no import statements it does 
   skill(ViableSkill.OwlMeansEntrypoints, 'Entrypoints — screens and endpoints', `
 Everything this app addresses — a screen the browser renders, an endpoint the server answers
 — is an OwlMeans **entrypoint**: declared with \`@owlmeans/entrypoint\` and \`@owlmeans/route\`
-in the shared package, elevated with \`@owlmeans/web-client\` in the browser and
-\`@owlmeans/server-app\` on the backend. \`@owlmeans/web-client\` builds the route table from the
+in the shared package, bound with \`@owlmeans/client-entrypoint\` in the browser and
+\`@owlmeans/server-entrypoint\` on the backend. \`@owlmeans/web-client\` builds the route table from the
 entrypoints and renders it over the History API, so there is no router file, no \`<Routes>\` and
 no \`app.get(...)\`. No third-party routing or HTTP-server package is installed — importing one
 fails to resolve.
 
-An entrypoint is DECLARED once in the shared package, then ELEVATED on each side that uses it.
+An entrypoint protocol is DECLARED once in the shared package, then BOUND on each side that uses it.
 
 **1. The alias.** Aliases live in ONE place, the \`app\` tree in
 \`sources/common/src/consts.ts\`. NEVER write an alias string inline — always reference
@@ -286,27 +286,30 @@ An entrypoint is DECLARED once in the shared package, then ELEVATED on each side
 
 ${ALIAS_CONVENTION}
 
-**2. The declaration** — \`sources/common/src/entrypoints.ts\`, one line in the \`entrypoints\`
-array:
+**2. The declaration** — \`sources/common/src/entrypoints.ts\`, one property in the immutable
+\`appEntrypoints\` protocol tree:
 
-    import { entrypoint, guard, gate, filter, body } from '@owlmeans/entrypoint'
+    import { openProtocol, protocol, contract, typed } from '@owlmeans/entrypoint'
     import { route, frontend, RouteMethod } from '@owlmeans/route'
 
-    entrypoint(route(app.api.task.list, '/list', { parent: app.api.task }), guard(DEFAULT_GUARD))
+    task: {
+      list: protocol(route(app.api.task.list, '/list', { parent: app.api.task }),
+        contract(typed<Task[]>()), { guards: DEFAULT_GUARD }),
+    }
 
 - \`route(alias, path)\` is a BACKEND route by default. \`route(alias, path, frontend())\` makes
   it a screen; \`frontend({ default: true, parent: app.web.base })\` makes it the index screen.
 - Nest with \`{ parent: <group alias> }\` — the child path is APPENDED to the parent's, so the
   child path is the tail only (\`'/list'\`, not \`'/tasks/list'\`).
 - \`{ method: RouteMethod.POST }\` (from \`@owlmeans/route\`) for anything that is not a GET.
-- \`filter(body<T>(TSchema))\` whenever the body's type has a schema beside it in the shared
+- \`contract.request({ body: typed<T>(TSchema) }, typed<Response>())\` whenever the body's type has a schema beside it in the shared
   package — every generated type exports one, named after the type with a \`Schema\` suffix
   (\`Task\` → \`TaskSchema\`). Import both from the shared package and use them; that is what makes
   the framework reject a malformed request before your handler runs, so the handler never has to
   check whether a field arrived. Still never INVENT a schema inline: if the type has none, leave
   the endpoint unfiltered rather than writing a literal here that nothing else agrees with.
-- Access is declarative: no \`guard()\` = public, \`guard(DEFAULT_GUARD)\` = any signed-in user,
-  \`guard(DEFAULT_GUARD, gate(OIDC_GATE, ['<permission>']))\` = a permission is required.
+- Access is declarative: no \`guards\` option = public, \`{ guards: DEFAULT_GUARD }\` = any signed-in user,
+  \`{ guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['<permission>'] } }\` = a permission is required.
   \`<permission>\` is a SHAPE, never a value: build the real name from the domain being
   implemented — the resource, TWO hyphens, the action, lowercase kebab-case, singular resource.
   Do not write a bracketed word into an application, and do not copy a name out of this
@@ -316,30 +319,29 @@ array:
   nothing and the gate then refuses every request. Guards and gates are INHERITED by children and
   enforced by the framework — a handler or a screen never re-checks them.
 
-**3. The elevation.** The declaration alone renders and answers nothing.
+**3. The binding.** The protocol declaration alone renders and answers nothing.
 
 - Server, \`sources/api/src/entrypoints.ts\`:
-  \`elevate(appEntrypoints, app.api.task.list, handleRequest(...))\`
+  \`bind(protocols.api.task.list, api.request(protocols.api.task.list, handleTaskList))\`
 - Client screen, \`sources/web/src/entrypoints.ts\`:
-  \`elevate(appEntrypoints, app.web.taskList, handler(TaskListScreen))\`
-- Client CALL, same file: a BARE elevation, no component —
-  \`elevate(appEntrypoints, app.api.task.list)\`. This is what makes the alias callable from the
-  browser. Passing a component to a backend alias is a hard error, not a warning.
+  \`bindScreen(protocols.web.taskList, handler(TaskListScreen))\`
+- Client CALL, same file: \`bindAll(protocols.api.task)\`. This is what makes the protocol callable
+  from the browser. Passing a component to a backend protocol is a hard error, not a warning.
 
-**A missing client elevation is invisible until the app runs.** The whole shared list is
-registered on the browser context, so \`ctx.entrypoint(alias)\` finds the un-elevated declaration
-and returns it; the call site casts it to \`ClientEntrypoint\`, so TypeScript sees a type that has
-\`call\` and the build is clean. The only symptom is in the browser:
+**A missing client binding is invisible until the app runs.** The whole shared tree is
+registered on the browser context, so \`ctx.entrypoint(protocol)\` finds the unbound declaration
+and returns it; the call site assumes the protocol is bound, so the build can still be clean. The
+only symptom is in the browser:
 
     TypeError: entrypoint.call is not a function
 
-That message means EXACTLY one thing — the alias in that \`ctx.entrypoint(...)\` has no
-\`elevate(list, <alias>)\` line in \`sources/web/src/entrypoints.ts\`. Add the bare
-elevation above the \`// owlmeans: add new backend elevations above this line\` sentinel. It is
+That message means EXACTLY one thing — the protocol in that \`ctx.entrypoint(...)\` has no
+\`bindAll(protocols.api)\` or specific \`bind(protocols.api.<name>)\` line in
+\`sources/web/src/entrypoints.ts\`. Add the binding above the API binding sentinel. It is
 never a broken component, never a bad import, and never a reason to rewrite the view model or to
 replace the call with \`fetch\`. If the alias is not declared in
-\`sources/common/src/entrypoints.ts\` either, declare it there FIRST: elevating an alias the
-shared list does not carry throws \`Entrypoint with alias X not present\` while the module is
+\`sources/common/src/entrypoints.ts\` either, declare it there FIRST: binding a protocol the
+shared tree does not carry throws while the module is
 still loading, which blanks the whole app instead of failing one call.
 
 **4. An AREA is the PARENT entrypoint.** The chrome of the app — header, navigation, footer —
@@ -352,16 +354,16 @@ project, and an area contributes chrome AND a URL prefix:
 - \`app.web.area.admin\` at \`/admin\` — the owner of the application.
 - \`app.web.area.operator\` at \`/backoffice\` — staff running the business process; the back office.
 
-Those four declarations and their elevations are FIXED. NEVER add an area, NEVER change one's
-path, NEVER touch its \`guard()\`/\`gate()\`, NEVER re-declare one — put the screen in the area
+Those four declarations and their bindings are FIXED. NEVER add an area, NEVER change one's
+path, NEVER touch its \`guards\`/\`gate\` options, NEVER re-declare one — put the screen in the area
 whose access and audience it needs instead. A product's own roles are not areas: they are users
 or operators holding different permissions.
 
     // sources/common/src/entrypoints.ts — a screen: TAIL path, area as parent, no access
-    entrypoint(route(app.web.taskList, '/tasks', frontend({ parent: app.web.area.user }))),
+    taskList: openProtocol(route(app.web.taskList, '/tasks', frontend({ parent: app.web.area.user }))),
 
     // sources/web/src/entrypoints.ts
-    elevate(list, app.web.taskList, handler(TaskListScreen))
+    bindScreen(protocols.web.taskList, handler(TaskListScreen))
 
 That screen answers at \`/frontoffice/tasks\`. The path you write is the TAIL ONLY — repeating the
 area prefix (\`'/frontoffice/tasks'\`) publishes it at \`/frontoffice/frontoffice/tasks\`, which
@@ -372,7 +374,7 @@ The framework passes the matched child to the area as \`children\`, so an area l
 renders ONLY its own content: importing a layout inside a screen renders the header, the menu
 and the footer a second time, nested inside the first.
 
-- \`app.web.base\` stays BARE — \`elevate(list, app.web.base)\`, no \`handler()\`. It is the
+- \`app.web.base\` stays BOUND with \`stab\` — \`bindScreen(protocols.web.base, stab)\`, no \`handler()\`. It is the
   pass-through shell that hosts the four areas and contributes no chrome.
 - Every area needs a child declared \`frontend({ default: true, parent: app.web.area.<area> })\`.
   An entrypoint with children but no default child matches nothing and renders a BLANK PAGE.
@@ -381,20 +383,20 @@ and the footer a second time, nested inside the first.
 **Access is INHERITED from the area.** Guards and gates cascade to children, so choosing the area
 IS the access decision and a screen declares none of its own:
 
-- guest area — no guard at all; its screens add nothing.
-- user area — \`guard(DEFAULT_GUARD)\`; its screens add nothing.
-- admin area — \`guard(DEFAULT_GUARD, gate(OIDC_GATE, ['project--admin']))\`; its screens add
+- guest area — no guards option; its screens add nothing.
+- user area — \`{ guards: DEFAULT_GUARD }\`; its screens add nothing.
+- admin area — \`{ guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['project--admin'] } }\`; its screens add
   nothing, the marker is the whole rule.
-- operator area — \`guard(DEFAULT_GUARD)\`, and EVERY screen under it additionally declares
-  \`gate(OIDC_GATE, ['<permission>'])\` naming the permission THAT screen needs, built from the
+- operator area — \`{ guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['project--operator'] } }\`, and EVERY screen under it additionally declares
+  a \`gate\` option naming the permission THAT screen needs, built from the
   screen's own resource and action (add \`@<routeParam>\` when the screen shows one specific
   record). This is the ONLY screen that declares access.
 
-An ENDPOINT has no area to inherit from, so it states its level itself: no \`guard()\` for guest,
-\`guard(DEFAULT_GUARD)\` for any signed-in user,
-\`guard(DEFAULT_GUARD, gate(OIDC_GATE, ['<permission>']))\` when a permission is required — built
+An ENDPOINT has no area to inherit from, so it states its level itself: no \`guards\` option for guest,
+\`{ guards: DEFAULT_GUARD }\` for any signed-in user,
+\`{ guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['<permission>'] } }\` when a permission is required — built
 from ITS OWN resource and action — and
-\`guard(DEFAULT_GUARD, gate(OIDC_GATE, ['project--admin']))\` for owner-only.
+\`{ guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['project--admin'] } }\` for owner-only.
 
 \`project--admin\` is the OWNER's marker — holding it passes EVERY gate, so the owner is not a
 role inside the app. It is never one of the permissions this app declares for itself, and it is
@@ -403,17 +405,18 @@ existing guard to make something reachable, and never model a "limited admin" wi
 that is an ordinary user holding some of the app's own permissions.
 
 Insert every new line ABOVE the matching \`// owlmeans: add new ... above this line\` sentinel,
-one declaration or elevation per line. Adding an endpoint touches five files (alias,
-declaration, handler, server elevation, client elevation); a screen touches five too (alias,
-declaration, screen component, client elevation, navigation entry). Skipping one leaves it
+one declaration or binding per line. Adding an endpoint touches five files (alias,
+protocol, handler, server binding, client binding); a screen touches five too (alias,
+protocol, screen component, client binding, navigation entry). Skipping one leaves it
 unreachable.
 
-**Calling an endpoint** from the frontend — \`call()\` resolves to the VALUE, and a non-2xx THROWS:
+**Calling an endpoint** from the frontend — \`call()\` resolves to the VALUE, and a non-2xx THROWS.
+Use the shared protocol reference; request and response types come from its contract:
 
-    const tasks = await owlCtx.entrypoint<ClientEntrypoint<Task[]>>(app.api.task.list).call()
-    const task = await owlCtx.entrypoint<ClientEntrypoint<Task>>(app.api.task.create)
+    const tasks = await owlCtx.entrypoint(protocols.api.task.list).call()
+    const task = await owlCtx.entrypoint(protocols.api.task.create)
       .call({ body: input })
-    const task = await owlCtx.entrypoint<ClientEntrypoint<Task>>(app.api.task.get)
+    const task = await owlCtx.entrypoint(protocols.api.task.get)
       .call({ params: { taskId } })
 
 An entrypoint carries three verbs and each answers a different question:
@@ -426,15 +429,9 @@ An entrypoint carries three verbs and each answers a different question:
   for a fully qualified one. A SCREEN entrypoint answers only this verb — calling \`call()\` or
   \`invoke()\` on one THROWS.
 
-\`ClientEntrypoint\` comes from \`@owlmeans/web-client\` and from nowhere else:
-
-    import type { ClientEntrypoint } from '@owlmeans/web-client'
-
-\`@owlmeans/client\` does NOT export it — importing it from there fails the build with
-\`error TS2305: Module '"@owlmeans/client"' has no exported member 'ClientEntrypoint'\`.
-And the type argument goes on \`ClientEntrypoint\`, never on \`entrypoint\` itself:
-\`owlCtx.entrypoint<Task>(alias)\` fails with \`error TS2739: Type 'Task' is missing the
-following properties from type 'BasicEntrypoint'\`.
+Do not import or cast a legacy client-entrypoint type, and do not put a value type argument on
+\`entrypoint\`. The protocol reference is the only source of request and response types; a call
+site that needs a different shape must fix the shared contract instead of overriding it locally.
 
 Inside a component or a hook — which is where nearly every call belongs — read the context with
 \`useContext()\` from \`@owlmeans/web-client\`. \`owlCtx\` is for module-level code that has no
@@ -491,7 +488,7 @@ resolve.
   a layout. The chrome comes from \`NavLayout\` (\`@owlmeans/web-panel\`), which the four area
   layouts already render off this registry.
 
-A screen with no line here compiles, elevates and renders — it is simply reachable by direct URL
+A screen with no line here compiles, binds and renders — it is simply reachable by direct URL
 only, and nothing reports it.
 `),
 
@@ -502,7 +499,7 @@ copied out of this document is a gate nobody can ever pass.
 
 A permission is ONE string that has to line up in three places:
 
-1. the GATE on the entrypoint — \`gate(OIDC_GATE, ['enquiry--view@enquiryId'])\`
+1. the GATE on the protocol — \`gate: { alias: OIDC_GATE, params: ['enquiry--view@enquiryId'] }\`
 2. the permission DEFINITION registered for the project — name \`enquiry--view\`,
    resource \`enquiry\`, action \`view\`, resource-scoped \`true\`
 3. the GRANT an administrator makes, which addresses that definition by name.
@@ -510,9 +507,10 @@ A permission is ONE string that has to line up in three places:
 **The \`@\` suffix belongs to the GATE ONLY. It is never part of a permission's name.**
 
     // right — the gate scopes the check; the definition and the grant use the bare name
-    entrypoint(
+    protocol(
       route(app.api.enquiry.get, '/:enquiryId', { parent: app.api.enquiry }),
-      guard(DEFAULT_GUARD, gate(OIDC_GATE, ['enquiry--view@enquiryId']))
+      contract(typed<Enquiry>()),
+      { guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: ['enquiry--view@enquiryId'] } },
     )
     // definition: enquiry--view      grant: enquiry--view
 
@@ -556,16 +554,16 @@ examples; yours is not, so read the right-hand column as a shape and build the n
 domain.
 
     // WRONG — a bracketed word from an instruction, written as if it were a name
-    gate(OIDC_GATE, ['<permission>'])
-    gate(OIDC_GATE, ['<resource>--<action>'])
+    gate: { alias: OIDC_GATE, params: ['<permission>'] }
+    gate: { alias: OIDC_GATE, params: ['<resource>--<action>'] }
     // RIGHT — this application's own resource and action
-    gate(OIDC_GATE, ['appointment--modify'])
+    gate: { alias: OIDC_GATE, params: ['appointment--modify'] }
     // Costs: nothing registers a bracketed name, so the gate refuses every request forever.
 
     // WRONG — a name copied out of a skill, a comment or another app's example
-    gate(OIDC_GATE, ['article--modify'])      // in an application that has no articles
+    gate: { alias: OIDC_GATE, params: ['article--modify'] }      // in an application that has no articles
     // RIGHT — a name that exists in THIS domain
-    gate(OIDC_GATE, ['appointment--modify'])
+    gate: { alias: OIDC_GATE, params: ['appointment--modify'] }
     // Costs: the permission is asserted but never declared, so no administrator can grant it.
 
     // WRONG — the selector carried into the stored name
@@ -576,15 +574,15 @@ domain.
 
     // WRONG — a selector naming a param this route does not declare
     route(app.api.appointment.get, '/:appointmentId')
-    gate(OIDC_GATE, ['appointment--view@id'])
+    gate: { alias: OIDC_GATE, params: ['appointment--view@id'] }
     // RIGHT — the name after @ is a ":" segment of this very route
-    gate(OIDC_GATE, ['appointment--view@appointmentId'])
+    gate: { alias: OIDC_GATE, params: ['appointment--view@appointmentId'] }
     // Costs: the id resolves to nothing, so the endpoint refuses every request with nothing logged.
 
     // WRONG — one hyphen
-    gate(OIDC_GATE, ['appointment-modify'])
+    gate: { alias: OIDC_GATE, params: ['appointment-modify'] }
     // RIGHT — two
-    gate(OIDC_GATE, ['appointment--modify'])
+    gate: { alias: OIDC_GATE, params: ['appointment--modify'] }
     // Costs: it registers as a resource with no action, and never lines up with the real one.
 
 **Never spell one permission two ways.** Reuse the exact string an existing declaration already
@@ -1014,7 +1012,7 @@ So a null check around it is dead code that never runs:
     const svc = ctx.service(ALIAS)
     if (!svc) { throw { status: 503 } }
 
-\`ctx.resource(alias)\` and \`ctx.entrypoint(alias)\` throw the same way
+\`ctx.resource(alias)\` and \`ctx.entrypoint(protocol)\` throw the same way
 (\`Resource X not found\`, \`Entrypoint X not found\`).
 
 **Only when a real lifecycle-owning singleton is needed** — a client holding a connection, a
@@ -1103,27 +1101,36 @@ There is NO express here. \`express\`, \`cors\` and \`@types/express\` are not i
 no \`app.get(...)\`, no \`req\`/\`res\` of a web server, no \`next\`, and no middleware. Anything
 written for express fails to resolve.
 
-A handler is a plain async function that RETURNS its result, wrapped in one of three helpers
-from \`@owlmeans/server-app\`. Pick by what the handler reads:
+A handler is a plain async function that RETURNS its result, created from the protocol with a
+typed helper from \`@owlmeans/server-api\`. Pick by what the handler reads:
 
-    import { handleBody, handleParams, handleRequest } from '@owlmeans/server-app'
+    import { handlers } from '@owlmeans/server-api'
+    import { bind } from '@owlmeans/server-entrypoint'
+    import { protocols } from 'project-common/entrypoints'
+    const api = handlers<Context>()
 
-    // the request BODY — the payload type is the type argument
-    export const createTask = handleBody<TaskInput>(async (payload, ctx) => {
+    // the request BODY — the payload type comes from the protocol contract
+    const createTask = api.body(protocols.api.task.create, async (payload, ctx) => {
       const tasks = getTaskResource(ctx)
       return await tasks.create(payload)
     })
 
     // the route PARAMS — names match the ':' segments of the declared path
-    export const getTask = handleParams<{ taskId: string }>(async ({ taskId }, ctx) => {
+    const getTask = api.params(protocols.api.task.get, async ({ taskId }, ctx) => {
       return await tasks(ctx).load(taskId)
     })
 
     // anything else (query, headers, nothing at all) — the whole request
-    export const listTasks = handleRequest(async (req, ctx) => {
+    const listTasks = api.request(protocols.api.task.list, async (req, ctx) => {
       const query = req.query as { search?: string }
       return await tasks(ctx).list(query.search != null ? { search: query.search } : {})
     })
+
+    export const entrypoints = [
+      bind(protocols.api.task.create, createTask),
+      bind(protocols.api.task.get, getTask),
+      bind(protocols.api.task.list, listTasks),
+    ]
 
 - The SECOND argument is the OwlMeans context. Reach every resource through it — never
   import a database connection and never write raw SQL in a handler.
@@ -1133,9 +1140,9 @@ from \`@owlmeans/server-app\`. Pick by what the handler reads:
   \`ResilientError\` subclass is mapped to its status by the framework; catching it produces a
   200 carrying an error object instead.
 - Never read a token, never check a role, never look at an \`Authorization\` header. Access is
-  declared on the entrypoint (\`guard()\` / \`gate()\`) and enforced before the handler runs.
-- A handler is inert until an \`elevate(appEntrypoints, alias, handler)\` line in
-  \`sources/api/src/entrypoints.ts\` binds it to its alias. Without that line the endpoint
+  declared on the protocol (\`guards\` / \`gate\` options) and enforced before the handler runs.
+- A handler is inert until a \`bind(protocols.api.<name>, handler)\` line in
+  \`sources/api/src/entrypoints.ts\` binds it to its protocol. Without that line the endpoint
   answers 404 and nothing reports an error.
 - Handlers are ENTITY-SCOPED: \`sources/api/src/app/<entity>/<action>.ts\`, named exports only.
   The directory is what keeps two entities' \`list\` apart — the file name carries no marker.
@@ -1196,15 +1203,15 @@ says before rewriting anything.
   \`@reduxjs/toolkit\`, \`react-redux\`, \`@/state/store\` or \`@/lib/fetch\` means the file was
   written against the REMOVED stack. None of those packages are installed and none will be.
   Rewrite the file against entrypoints: \`useNavigate\` from \`@owlmeans/client\` for navigation,
-  \`ctx.entrypoint(alias).call(...)\` for a backend call, a
-  \`handleRequest\`/\`handleBody\`/\`handleParams\` function for an endpoint, and the state hooks
+  \`ctx.entrypoint(protocol).call(...)\` for a backend call, a typed
+  \`handlers<Context>()\` callback bound to its protocol for an endpoint, and the state hooks
   (\`useStoreModel\`/\`useStoreList\` over a state resource) for client state. Do NOT install the
   package and do NOT create the missing module.
 - A missing export from a \`*.ts\` module — a selector, an action creator, a thunk, a
   reducer — is the same removed stack in a different disguise. That module exports an ALIAS
   constant and read hooks only. Replace a selector with the matching hook, a dispatched action
   with \`resource.save(record)\` / \`model.update({ ... })\`, and a thunk with an
-  \`entrypoint(alias).call(...)\` in the VIEW MODEL followed by a \`save\`. Do not add the missing
+  \`entrypoint(protocol).call(...)\` in the VIEW MODEL followed by a \`save\`. Do not add the missing
   export to the state module.
 - A runtime \`Resource <alias> not found\` for a state alias means the state module is written but
   nothing registered it. Add the import and ONE
@@ -1222,21 +1229,20 @@ says before rewriting anything.
   that changes which records match, so the \`useValue(() => resource.list())\` that fed it a list
   of ids goes away entirely rather than being repaired.
 - A runtime \`TypeError: entrypoint.call is not a function\` (or \`<name>.call is not a function\`
-  on the result of \`ctx.entrypoint(...)\`) is a MISSING CLIENT ELEVATION and nothing else. The
-  alias resolves — the browser context carries every shared declaration — but only an elevated
-  one has \`call\`. Add the bare \`elevate(list, <the alias in that call>)\` above the
-  \`// owlmeans: add new backend elevations above this line\` sentinel in
+  on the result of \`ctx.entrypoint(...)\`) is a MISSING CLIENT BINDING and nothing else. The
+  protocol resolves — the browser context carries every shared declaration — but only a bound
+  one has \`call\`. Add \`bindAll(protocols.api)\` (or a specific \`bind(protocols.api.<name>)\`) above the
+  API binding sentinel in
   \`sources/web/src/entrypoints.ts\`. Do NOT rewrite the view model, do NOT replace the
-  call with \`fetch\`, and do NOT add a component to a backend alias. The build was clean
-  because the call site casts to \`ClientEntrypoint\`, so \`tsc\` will not confirm the fix —
-  the elevation line is the fix.
+  call with \`fetch\`, and do NOT add a component to a backend alias. The binding line is the fix;
+  the declaration itself cannot provide \`call\` until a client binding materializes it.
 - A screen that renders blank is the same class of fault on the other side: the screen alias has
-  no \`elevate(list, alias, handler(Screen))\` line. Adding a declaration without its elevation
+  no \`bindScreen(protocols.web.<name>, handler(Screen))\` line. Adding a protocol without its binding
   is the usual cause of both.
 - A header, menu or footer rendered TWICE is a screen importing its own layout. The AREA is the
   screen's parent entrypoint and the framework already wraps it — delete the import and the
   wrapper element from the screen, never the area from the entrypoint tree.
-- An error naming an AREA — \`app.web.area.<area>\`, its \`route(...)\`, its \`guard()\`/\`gate()\`,
+- An error naming an AREA — \`app.web.area.<area>\`, its \`route(...)\`, its \`guards\`/\`gate\` options,
   or one of the four layouts in \`sources/web/src/layout/area.tsx\` — means generated code
   EDITED something that ships with the project. RESTORE the shipped form: four areas under
   \`app.web.base\` at \`/\`, \`/frontoffice\`, \`/admin\` and \`/backoffice\`, each with its own guard
@@ -1245,14 +1251,14 @@ says before rewriting anything.
   access belongs in a different area.
 - A user who WAS granted a permission and still gets 403 is almost always an \`@\` in the stored
   permission NAME. The gate splits its parameter at the first \`@\`: \`'enquiry--view@enquiryId'\`
-  in \`gate(OIDC_GATE, [...])\` is CORRECT and means "look up \`enquiry--view\`, read the resource
+  in a protocol's \`gate: { alias: OIDC_GATE, params: [...] }\` is CORRECT and means "look up \`enquiry--view\`, read the resource
   id from the \`:enquiryId\` route param". The same string registered or granted as a permission
   NAME is a key nothing ever looks up, so every grant against it is a silent no-op. Fix the
   registration and the grant, never the gate line — and never delete the \`@\` from the gate to
   "make the names match". A gate whose \`@name\` is not a \`:\` segment of that entrypoint's own
   declared path is the other half of the same fault: it refuses every request.
 - A PERMISSION that no definition backs is a gate nobody can pass, and there are two ways generated
-  code gets one. A bracketed word — \`gate(OIDC_GATE, ['<permission>'])\` — is an instruction's
+  code gets one. A bracketed word — \`gate: { alias: OIDC_GATE, params: ['<permission>'] }\` — is an instruction's
   placeholder written out as if it were a name. A foreign name — \`article--modify\` in an
   application that has no articles — is an example copied from a comment or a skill. Both look
   perfectly valid to the compiler and to the boot check, so nothing reports them; the app simply
@@ -1380,12 +1386,12 @@ export const queues: QueueDeclaration[] = [
 
 ## 2. The alias and the entrypoint — \`sources/common/src\`
 The job's name IS its entrypoint alias. Declare \`app.job.<name>\` in \`consts.ts\` above the
-sentinel, and the entrypoint in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
+sentinel, and the protocol in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
 
 ## 3. The processor — \`sources/worker/src/jobs/<name>.ts\`
-A plain async function wrapped in \`handleRequest\` / \`handleBody<T>\` / \`handleParams<T>\`,
-exactly like an endpoint handler. It RETURNS its result; throwing a \`ResilientError\` subclass
-is how a refusal is reported, and the class survives the broker.
+A plain async function created with \`handlers<Context>()\` and bound to the job protocol, exactly
+like an endpoint handler. It RETURNS its result; throwing a \`ResilientError\` subclass is how a
+refusal is reported, and the class survives the broker.
 
 Two rules with no equivalent on the HTTP side:
 - **Call \`job.touch()\` inside every long loop.** The broker judges liveness by the lock, and
@@ -1394,8 +1400,8 @@ Two rules with no equivalent on the HTTP side:
 - **A processor must be safe to run twice.** Skip what a previous attempt recorded, or delete
   what it created, and say in a comment which of the two this one does.
 
-Elevate it in \`sources/worker/src/entrypoints.ts\` above the sentinel. Enqueue from an endpoint
-with \`context.jobs().create({ name: app.job.<name>, data })\`.
+Bind it in \`sources/worker/src/entrypoints.ts\` above the sentinel. Enqueue from an endpoint
+with the same typed call used for HTTP: \`context.entrypoint(appEntrypoints.job.<name>).call({ body: data })\`.
   `),
 
   skill(ViableSkill.TargetAgents, 'LLM agents inside the application', `

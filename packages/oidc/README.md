@@ -1,10 +1,10 @@
 # @owlmeans/oidc
 
-Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint declarations used by both server and browser OIDC packages.
+Shared OIDC protocol abstractions — guard/gate aliases, models, and immutable protocol declarations used by both server and browser OIDC packages.
 
 ## Overview
 
-- `OIDC_GATE` — gate alias to compose with `gate(...)` inside `guard(...)` declarations
+- `OIDC_GATE` — gate alias to put in a protocol's `gate` option
 - `OIDC_GUARD`, `WRAPPED_OIDC`, `OIDC_FLOW`, `OIDC_AUTHEN_MODULE`, `OIDC_WRAPPED_TOKEN` — shared aliases
 - `OidcGuard`, `WithSharedConfig`, `OidcProviderConfig` — shared types
 - Entrypoint declarations for the OIDC dispatcher (`/authenticate/oidc/init`, `/authenticate/oidc/process`)
@@ -12,22 +12,23 @@ Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint
 ## Installation
 
 ```bash
-bun add @owlmeans/oidc@^0.1.18-rc.12
+bun add @owlmeans/oidc@^0.1.18-rc.24
 ```
 
 ## Usage
 
-Compose `OIDC_GATE` into a guard on an entrypoint:
+Compose `OIDC_GATE` into a protocol declaration:
 
 ```typescript
-import { entrypoint, guard, gate } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { OIDC_GATE } from '@owlmeans/oidc'
 
-entrypoint(
+protocol(
   route(manager.back.account.base, '/account'),
-  guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
+  contract(typed<Account>()),
+  { guards: DEFAULT_GUARD, gate: { alias: OIDC_GATE, params: [`my-service-account-{entity}`] } },
 )
 ```
 
@@ -73,9 +74,11 @@ import { OIDC_GUARD } from '@owlmeans/oidc'
 - `GOOGLE_CLIENT_AUTH` identifies the browser Google auth plugin registered by `@owlmeans/web-oidc-rp/auth/plugins`.
 - `OIDC_GATE` is for OIDC-backed authorization. Apps that only use Google/OIDC for login and authorize against local identity records should define their own product gate alias.
 
-### `entrypoints`
+### `oidcProtocols`
 
-Array of dispatcher entrypoint declarations: `POST /authenticate/oidc/init` and `POST /authenticate/oidc/process`.
+Immutable dispatcher declaration tree: `POST /authenticate/oidc/init` and
+`POST /authenticate/oidc/process`. The relying-party packages bind these exact protocol objects
+locally; do not recreate them or consume an alias-addressed compatibility list.
 
 ## Related Packages
 
@@ -92,7 +95,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.14
+npx @owlmeans/agent-skills@^0.1.18-rc.20
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

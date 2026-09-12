@@ -1,7 +1,6 @@
 export type * from './types.js'
 export * from './consts.js'
 export * from './bootstrap.js'
-export * from './health.js'
 export * from './middleware.js'
 export * from './service.js'
 export * from './utils/config.js'

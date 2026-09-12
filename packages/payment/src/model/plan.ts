@@ -2,10 +2,11 @@ import type { JSONSchemaType } from 'ajv'
 import type { ProductPlan } from '../types.js'
 import { ResourceValueSchema, PermissionSetSchema, DateSchema } from '@owlmeans/auth'
 import {
-  PlanDurationSchema, ProductDescriptionSchema, ProductTitleSchema,
+  CheckoutPricingModeSchema, PlanDurationSchema, ProductDescriptionSchema, ProductTitleSchema,
   SubscriptionStatusSchema
 } from '../consts.js'
 import { LimitConfigSchema } from './utils.js'
+import { AmountCheckoutPolicySchema, QuantityCheckoutPolicySchema } from './pricing.js'
 
 export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
   type: 'object',
@@ -42,6 +43,9 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
       type: 'object', required: [], nullable: true,
       additionalProperties: LimitConfigSchema
     },
+    pricingMode: { ...CheckoutPricingModeSchema, nullable: true },
+    amountPolicy: { ...AmountCheckoutPolicySchema, nullable: true },
+    quantityPolicy: { ...QuantityCheckoutPolicySchema, nullable: true },
   },
   required: [
     'productSku', 'sku', 'status', 'duration',

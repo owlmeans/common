@@ -1,6 +1,6 @@
 import { materializeEntrypoint, protocols } from '@owlmeans/entrypoint'
 import type { EntrypointProtocolDeclaration, EntrypointTree } from '@owlmeans/entrypoint'
-import { entrypoint } from './entrypoint.js'
+import { bindMaterializedEntrypoint } from './entrypoint.js'
 import type {
   ClientEntrypointOptions, ClientProtocolEntrypoint, RefedEntrypointHandler,
 } from './types.js'
@@ -10,8 +10,9 @@ export const bind = <Protocol extends EntrypointProtocolDeclaration>(
   protocol: Protocol,
   options?: ClientEntrypointOptions,
 ): ClientProtocolEntrypoint<Protocol> => {
-  const bound = Object.assign(entrypoint(
+  const bound = Object.assign(bindMaterializedEntrypoint(
     materializeEntrypoint(protocol),
+    undefined,
     options,
   ), { protocol })
 
@@ -28,7 +29,7 @@ export const bindScreen = <Protocol extends EntrypointProtocolDeclaration>(
   handler: RefedEntrypointHandler,
   options?: ClientEntrypointOptions,
 ): ClientProtocolEntrypoint<Protocol> => {
-  const bound = Object.assign(entrypoint(
+  const bound = Object.assign(bindMaterializedEntrypoint(
     materializeEntrypoint(protocol),
     handler,
     options,

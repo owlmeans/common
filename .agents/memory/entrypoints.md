@@ -13,10 +13,25 @@ registry that holds them is [[context]].
 
 ## Facts
 
+- Public declarations are immutable `EntrypointProtocol` objects made with `protocol(route,
+  contract, opts)`. `contract` carries exact request/reply types and branded AJV schemas;
+  `protocols(tree)` flattens a nested exported tree without replacing object identity.
+- Materialized protocol replies use a status-keyed serializer: an ordinary contract reply is
+  `200`, and explicitly status-keyed replies retain that key. Fastify rejects a bare schema.
+- A protocol tree keeps alias literals private. Consumers pass the object itself:
+  `ctx.entrypoint(tree.action)`, clients register `bindAll(tree)`, and servers bind each protocol
+  with `bind(protocol, handler)`. `protocol.alias` is reserved for string-keyed adapters
+  such as registries and brokers.
+- Server implementations come from `handlers<Context>().body/params/request(protocol, callback)`.
+  Handler association is exact-object identity, so an equal alias on another declaration does not
+  bind. Request and response types are inferred from the protocol.
 - Canonical packages: `@owlmeans/entrypoint`, `@owlmeans/server-entrypoint`,
   `@owlmeans/client-entrypoint`. There are no `@owlmeans/*module` packages in the repo (published
   shim versions remain on npm; external consumers must migrate).
-- Context API: `ctx.entrypoint(alias)`, `ctx.entrypoints()`, `ctx.registerEntrypoint(ep)`,
+- Documentation and new scaffolds name exported declaration trees `*Protocols` and runtime-local
+  materialized arrays `*Bindings`. A package may retain an established `entrypoints` export only
+  for its own local bindings; never describe it as a shared declaration list.
+- Context API: `ctx.entrypoint(protocol)`, `ctx.entrypoints()`, `ctx.registerEntrypoint(ep)`,
   `ctx.registerEntrypoints(eps)`, `ctx.hasEntrypoint(alias)`, `BasicEntrypoint`. These are the only
   names — there is no `ctx.module*` alias.
 - Marker: the factory sets `_entrypoint: true` and nothing else; `isEntrypoint()` tests exactly
@@ -37,12 +52,15 @@ registry that holds them is [[context]].
 
 ## Invariants
 
-- `elevate(list, alias, …)` is idempotent: it replaces the element carrying that alias in place, so
-  re-elevating is legal and no force flag exists. The guards it brings are UNIONED with the
-  declared ones — elevating adds authorization, it never swaps it.
-- Client-side callability is an explicit opt-in. A backend entrypoint becomes callable from client
-  code only through the client `elevate` — imported as `celevate` where server and client
-  elevations sit in one file.
+- A protocol declaration is immutable. Bind it with `bind(protocol, handler?)` on the server,
+  `bind(protocol)`/`bindAll(tree)` for client calls, or `bindScreen(protocol, component)` for a
+  browser screen; binding never mutates or replaces a declaration.
+- Keep declarations as a named protocol tree and local bindings as a separate immutable list.
+  Do not flatten declarations into a serving list or transform a tree into a registry before
+  binding; decorators such as `withOidcGuard` operate on the tree, and each runtime then binds its
+  own local handlers or callers.
+- Client-side callability is an explicit opt-in. A backend protocol becomes callable from client
+  code only through a client binding, and the browser binds the exact imported protocol object.
 - An entrypoint that RENDERS a screen is addressed by URL and never over the wire: `call()` and
   `invoke()` on one throw, naming `url()`.
 - How a call travels is the route protocol's business, never the caller's. A service registered

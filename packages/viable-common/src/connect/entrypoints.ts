@@ -1,5 +1,5 @@
-import { body, entrypoint, filter, gate, guard, params, query } from '@owlmeans/entrypoint'
-import type { CommonEntrypoint, CommonEntrypointOptions } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
+import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 import { route, RouteMethod, socket } from '@owlmeans/route'
 import { ConverterProjectLlmBodySchema } from '../convert/schemas.js'
 import { connect } from './consts.js'
@@ -9,9 +9,18 @@ import {
   ConnectJobParamsSchema, ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectIdSchema,
   ConnectProjectLlmBodySchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema,
-  ConnectStoryBodySchema, ConnectStoryParamsSchema, ConnectStoryQuerySchema,
-  ConnectWaitQuerySchema, InquiryAnswerSchema
+  ConnectStoryBodySchema, ConnectStoryParamsSchema, ConnectStoryQuerySchema, ConnectWaitQuerySchema,
+  InquiryAnswerSchema,
 } from './schemas.js'
+import type {
+  ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
+  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectJob, ConnectJobParams, ConnectModifyBody,
+  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSessionOpen,
+  ConnectSessionParams, ConnectStoryBody, ConnectStoryQuery, ConnectWaitQuery, ConversionStatusView,
+  ConvertCheck,
+} from './types.js'
+import type { ConnectOpResult } from './ops.js'
+import type { ConverterProjectLlmBody } from '../convert/types.js'
 
 /**
  * What the platform injects when it mounts the connector routes.
@@ -33,8 +42,8 @@ export interface ConnectEntrypointOptions {
    * back by itself when a plan lapses.
    */
   localLlm?: { alias: string, params: string[] }
-  /** The parent of the socket route — the platform's own websocket base. */
-  updateBase: string
+  /** The platform-owned websocket-base protocol that carries session updates. */
+  updateBase: EntrypointProtocol<OpenRequest, OpenValue>
   /** Path prefix; defaults to `/connect`. */
   path?: string
 }
@@ -42,250 +51,258 @@ export interface ConnectEntrypointOptions {
 /**
  * Declare the connector's HTTP and socket surface.
  *
- * One list, spread into the platform's own entrypoints. Handlers are elevated onto these aliases
+ * One immutable tree, mounted directly by the platform's entrypoint tree. Handlers are bound to these protocols
  * server-side and onto client entrypoints in the SDK — the same declarations both times, which is
  * what makes a path or a schema impossible to get wrong on one side only.
  */
-export const connectEntrypoints = (opts: ConnectEntrypointOptions): CommonEntrypoint[] => {
+export const connectProtocols = (opts: ConnectEntrypointOptions) => {
   const prefix = opts.path ?? '/connect'
   const ownership = opts.gate != null
-    ? guard(opts.guard, gate(opts.gate.alias, opts.gate.params))
-    : guard(opts.guard)
-  const paid: CommonEntrypointOptions | undefined = opts.localLlm != null
-    ? gate(opts.localLlm.alias, opts.localLlm.params)
+    ? { guards: opts.guard, gate: opts.gate }
+    : { guards: opts.guard }
+  const paid = opts.localLlm != null
+    ? { gate: opts.localLlm }
     : undefined
 
-  return [
-    entrypoint(route(connect.base, prefix), ownership),
+  const base = openProtocol(route(connect.base, prefix), ownership)
 
-    entrypoint(route(connect.capabilities, '/capabilities', {
-      parent: connect.base, method: RouteMethod.GET
-    })),
+  return {
+    base,
+
+    capabilities: protocol(
+      route(connect.capabilities, '/capabilities', { parent: base, method: RouteMethod.GET }),
+      contract(typed()),
+    ),
 
     // --- session ---------------------------------------------------------------------------
-    entrypoint(
-      route(connect.session.open, '/session', { parent: connect.base, method: RouteMethod.POST }),
-      filter(body(ConnectSessionOpenSchema))
+    session: {
+    open: protocol(
+      route(connect.session.open, '/session', { parent: base, method: RouteMethod.POST }),
+      contract.request({ body: typed<ConnectSessionOpen>(ConnectSessionOpenSchema) }, typed())
     ),
-    entrypoint(
+    openDelegated: protocol(
       route(connect.session.openDelegated, '/session/delegated', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(body(ConnectSessionOpenSchema), paid)
+      contract.request({ body: typed<ConnectSessionOpen>(ConnectSessionOpenSchema) }, typed()), paid
     ),
-    entrypoint(
+    get: protocol(
       route(connect.session.get, '/session/:sessionId', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectSessionParamsSchema))
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
     ),
-    entrypoint(
+    heartbeat: protocol(
       route(connect.session.heartbeat, '/session/:sessionId/heartbeat', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectSessionParamsSchema))
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
     ),
-    entrypoint(
+    close: protocol(
       route(connect.session.close, '/session/:sessionId/close', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectSessionParamsSchema))
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
     ),
-    entrypoint(
-      route(connect.session.socket, '/connect/:sessionId', socket(opts.updateBase)),
-      filter(params(ConnectSessionParamsSchema))
+    socket: protocol(
+      route(connect.session.socket, '/connect/:sessionId', socket({ parent: opts.updateBase })),
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
     ),
+
+    },
 
     // --- operations ------------------------------------------------------------------------
-    entrypoint(
+    op: {
+    pull: protocol(
       route(connect.op.pull, '/session/:sessionId/ops', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectSessionParamsSchema, query(ConnectWaitQuerySchema)))
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema), query: typed<ConnectWaitQuery>(ConnectWaitQuerySchema) }, typed())
     ),
-    entrypoint(
+    submit: protocol(
       route(connect.op.submit, '/session/:sessionId/ops/:opId', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectOpParamsSchema, body(ConnectOpResultSchema)))
+      contract.request({ params: typed<{ sessionId: string, opId: string }>(ConnectOpParamsSchema), body: typed<ConnectOpResult>(ConnectOpResultSchema) }, typed())
     ),
+
+    },
 
     // --- project ---------------------------------------------------------------------------
-    entrypoint(
-      route(connect.project.create, '/project', { parent: connect.base, method: RouteMethod.POST }),
-      filter(body(ConnectCreateBodySchema))
+    project: {
+    create: protocol(
+      route(connect.project.create, '/project', { parent: base, method: RouteMethod.POST }),
+      contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed())
     ),
-    entrypoint(route(connect.project.list, '/project', {
-      parent: connect.base, method: RouteMethod.GET
-    })),
-    entrypoint(
+    list: protocol(
+      route(connect.project.list, '/project', { parent: base, method: RouteMethod.GET }),
+      contract(typed()),
+    ),
+    attach: protocol(
       route(connect.project.attach, '/project/attach', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(body(ConnectAttachBodySchema))
+      contract.request({ body: typed<ConnectAttachBody>(ConnectAttachBodySchema) }, typed())
     ),
-    entrypoint(
+    confirm: protocol(
       route(connect.project.confirm, '/project/:id/confirm', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectProjectIdSchema, body(ConnectConfirmBodySchema)))
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed())
     ),
-    entrypoint(
+    status: protocol(
       route(connect.project.status, '/project/:id/status', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectProjectIdSchema))
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
     ),
-    entrypoint(
+    reinit: protocol(
       route(connect.project.reinit, '/project/:id/reinit', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectProjectIdSchema))
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
     ),
-    entrypoint(
+    modify: protocol(
       route(connect.project.modify, '/project/:id/modify', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectProjectIdSchema, body(ConnectModifyBodySchema)))
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed())
     ),
-    entrypoint(
+    settings: protocol(
       route(connect.project.settings, '/project/:id/settings', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectProjectIdSchema))
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
     ),
-    entrypoint(
+    llm: protocol(
       route(connect.project.llm, '/project/:id/llm', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectProjectIdSchema, body(ConnectProjectLlmBodySchema)), paid)
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectProjectLlmBody>(ConnectProjectLlmBodySchema) }, typed()), paid
     ),
-    entrypoint(
+    converterLlm: protocol(
+      route(connect.project.converterLlm, '/project/:id/converter-llm', {
+        parent: base, method: RouteMethod.POST,
+      }),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<ConverterProjectLlmBody>(ConverterProjectLlmBodySchema),
+      }, typed()),
+    ),
+    job: protocol(
       route(connect.project.job, '/project/:id/job/:jobId', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectJobParamsSchema, query(ConnectWaitQuerySchema)))
+      contract.request({ params: typed<ConnectJobParams>(ConnectJobParamsSchema), query: typed<ConnectWaitQuery>(ConnectWaitQuerySchema) }, typed())
     ),
+
+    },
 
     // --- stories ---------------------------------------------------------------------------
-    entrypoint(
-      route(connect.story.list, '/story/:id', { parent: connect.base, method: RouteMethod.GET }),
-      filter(params(ConnectProjectIdSchema, query(ConnectStoryQuerySchema)))
+    story: {
+    list: protocol(
+      route(connect.story.list, '/story/:id', { parent: base, method: RouteMethod.GET }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), query: typed<ConnectStoryQuery>(ConnectStoryQuerySchema) }, typed())
     ),
-    entrypoint(
-      route(connect.story.create, '/story/:id', { parent: connect.base, method: RouteMethod.POST }),
-      filter(params(ConnectProjectIdSchema, body(ConnectStoryBodySchema)))
+    create: protocol(
+      route(connect.story.create, '/story/:id', { parent: base, method: RouteMethod.POST }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectStoryBody>(ConnectStoryBodySchema) }, typed())
     ),
-    entrypoint(
+    get: protocol(
       route(connect.story.get, '/story/:id/:storyId', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectStoryParamsSchema))
+      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
     ),
-    entrypoint(
+    update: protocol(
       route(connect.story.update, '/story/:id/:storyId', {
-        parent: connect.base, method: RouteMethod.PUT
+        parent: base, method: RouteMethod.PUT
       }),
-      filter(params(ConnectStoryParamsSchema, body(ConnectStoryBodySchema)))
+      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema), body: typed<ConnectStoryBody>(ConnectStoryBodySchema) }, typed())
     ),
-    entrypoint(
+    delete: protocol(
       route(connect.story.delete, '/story/:id/:storyId', {
-        parent: connect.base, method: RouteMethod.DELETE
+        parent: base, method: RouteMethod.DELETE
       }),
-      filter(params(ConnectStoryParamsSchema))
+      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
     ),
-    entrypoint(
+    develop: protocol(
       route(connect.story.develop, '/story/:id/:storyId/develop', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectStoryParamsSchema))
+      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
     ),
 
-    // --- generated files -------------------------------------------------------------------
-    entrypoint(
-      route(connect.files.list, '/project/:id/files', {
-        parent: connect.base, method: RouteMethod.GET
-      }),
-      filter(params(ConnectProjectIdSchema))
-    ),
+    },
 
-    entrypoint(
-      route(connect.project.converterLlm, '/project/:id/converter-llm', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      // No paid gate, unlike `project.llm`: delegated inference is the DEFAULT for a conversion,
-      // not an experimental capability. A conversion reads somebody else's whole repository, and
-      // handing those calls to the parent agent is what makes it affordable at all.
-      filter(params(ConnectProjectIdSchema, body(ConverterProjectLlmBodySchema)))
+    // --- generated files and conversion ----------------------------------------------------
+    files: {
+    list: protocol(
+      route(connect.files.list, '/project/:id/files', { parent: base, method: RouteMethod.GET }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<string[]>()),
     ),
+    },
 
-    // --- conversion ------------------------------------------------------------------------
-    entrypoint(
-      route(connect.convert.create, '/convert', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      filter(body(ConnectConvertCreateBodySchema))
+    convert: {
+    create: protocol(
+      route(connect.convert.create, '/convert', { parent: base, method: RouteMethod.POST }),
+      contract.request({ body: typed<ConnectConvertCreateBody>(ConnectConvertCreateBodySchema) }, typed<ConnectJob>()),
     ),
-    entrypoint(
-      route(connect.convert.check, '/convert/:id/check', {
-        parent: connect.base, method: RouteMethod.GET
-      }),
-      filter(params(ConnectProjectIdSchema))
+    check: protocol(
+      route(connect.convert.check, '/convert/:id/check', { parent: base, method: RouteMethod.GET }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConvertCheck>()),
     ),
-    entrypoint(
-      route(connect.convert.start, '/convert/:id/start', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      filter(params(ConnectProjectIdSchema))
+    start: protocol(
+      route(connect.convert.start, '/convert/:id/start', { parent: base, method: RouteMethod.POST }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
     ),
-    entrypoint(
-      route(connect.convert.proceed, '/convert/:id/proceed', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      filter(params(ConnectProjectIdSchema, body(ConnectConvertProceedBodySchema)))
+    proceed: protocol(
+      route(connect.convert.proceed, '/convert/:id/proceed', { parent: base, method: RouteMethod.POST }),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<ConnectConvertProceedBody>(ConnectConvertProceedBodySchema),
+      }, typed<ConnectJob>()),
     ),
-    entrypoint(
-      route(connect.convert.cancel, '/convert/:id/cancel', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      filter(params(ConnectProjectIdSchema))
+    cancel: protocol(
+      route(connect.convert.cancel, '/convert/:id/cancel', { parent: base, method: RouteMethod.POST }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
     ),
-    entrypoint(
-      route(connect.convert.status, '/convert/:id', {
-        parent: connect.base, method: RouteMethod.GET
-      }),
-      filter(params(ConnectProjectIdSchema))
+    status: protocol(
+      route(connect.convert.status, '/convert/:id', { parent: base, method: RouteMethod.GET }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
     ),
-    entrypoint(
-      route(connect.convert.purge, '/convert/:id/purge', {
-        parent: connect.base, method: RouteMethod.POST
-      }),
-      filter(params(ConnectProjectIdSchema))
+    purge: protocol(
+      route(connect.convert.purge, '/convert/:id/purge', { parent: base, method: RouteMethod.POST }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
     ),
+    },
 
-    // --- inquiries -------------------------------------------------------------------------
-    // The fallback answer path: a connector answers through its own op id while it holds the
-    // question, but a run that parked while nobody was attached has no op to answer, and the
-    // question is then reachable only by its own id.
-    entrypoint(
+    inquiry: {
+    answer: protocol(
       route(connect.inquiry.answer, '/project/:id/inquiry/:inquiryId', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST,
       }),
-      filter(params(ConnectInquiryParamsSchema, body(InquiryAnswerSchema)))
+      contract.request({
+        params: typed<{ id: string, inquiryId: string }>(ConnectInquiryParamsSchema),
+        body: typed<ConnectInquiryAnswerBody>(InquiryAnswerSchema),
+      }, typed()),
     ),
+    },
 
     // --- pipelines -------------------------------------------------------------------------
-    entrypoint(
+    pipeline: {
+    state: protocol(
       route(connect.pipeline.state, '/pipeline/:id/:runId', {
-        parent: connect.base, method: RouteMethod.GET
+        parent: base, method: RouteMethod.GET
       }),
-      filter(params(ConnectPipelineParamsSchema))
+      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema) }, typed())
     ),
-    entrypoint(
+    resume: protocol(
       route(connect.pipeline.resume, '/pipeline/:id/:runId/resume', {
-        parent: connect.base, method: RouteMethod.POST
+        parent: base, method: RouteMethod.POST
       }),
-      filter(params(ConnectPipelineParamsSchema, body(ConnectPipelineResumeBodySchema)))
+      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema), body: typed<ConnectPipelineResumeBody>(ConnectPipelineResumeBodySchema) }, typed())
     ),
-  ]
+    },
+  }
 }

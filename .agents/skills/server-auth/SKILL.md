@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.25"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -24,7 +24,7 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 |--------|-------------|
 | `appendAuthService(ctx, alias?)` | Register the guard on a server context and expose it as `context.auth()`. Registers a static `AUTH_CACHE` resource when the context has none |
 | `makeAuthService(alias?)` | The guard service itself: `match`, `handle`, `unpack(token)`, `authenticate(token)` |
-| `entrypoints` | `DISPATCHER` and `DISPATCHER_AUTHEN`, elevated — spread these into a service that accepts a manager-issued credential and exchanges it for a bearer |
+| `entrypoints` | `DISPATCHER` and `DISPATCHER_AUTHEN`, server-bound — spread these into a service that accepts a manager-issued credential and exchanges it for a bearer |
 | `DEFAULT_ALIAS` | `'auth'` — the guard's service alias, matching `DEFAULT_GUARD` |
 | `AUTH_CACHE` | `'auth-cache'` — the single-use challenge store |
 | `AUTH_SRV_KEY` | `'auth-service'` — the TRUSTED record whose key signs credential envelopes |
@@ -39,14 +39,14 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `makeContext(cfg, customize?)` | A server context preconfigured with the API server, API client, socket service and static `AUTH_CACHE` |
 | `main(ctx)` | Register the manager entrypoints, configure, init and listen |
 | `entrypoints` | `AUTHEN`, `AUTHEN_INIT`, `AUTHEN_AUTHEN`, `AUTHEN_RELY`, the api-config entrypoints and the reCAPTCHA siteverify entrypoint |
-| `authenticationInit`, `authenticate`, `rely` | The handlers those entrypoints elevate to: `init(request)` → challenge, `authenticate(credential)` → signed credential envelope, and the rely socket |
+| `authenticationInit`, `authenticate`, `rely` | Implementations bound to auth protocols: `init(request)` → challenge, `authenticate(credential)` → signed credential envelope, and the rely socket |
 | `plugins`, `registerPlugin(type, factory)` | The plugin registry (also on `./manager/plugins`) |
 | `appendSupervisorAuth(ctx, opts?)`, `setupInternalTokenCoguard(entrypoints, guard?)` | PK supervisor login — see the `supervisor-auth` skill |
 | `createRelyService(alias?)`, `DEFAULT_RELY`, `RELY_TUNNEL` | The rely guard service |
 | `AppConfig`, `AppContext`, `AuthModel`, `RelyService`, `RelyAllowanceRequest`, `RelyLinker`, `RelyCarrier` | Types |
 
 `./manager` also re-exports the handful of symbols a manager application needs from elsewhere
-(`config`, `service`, `TRUSTED`, `elevate`, `handleBody` / `handleRequest`, `backend`,
+(`config`, `service`, `TRUSTED`, `bind`, `handlers`, `backend`,
 `GUARD_ED25519`, `AUTHEN*` aliases, `TrustedRecord`), so a manager app can be written against this
 one import.
 

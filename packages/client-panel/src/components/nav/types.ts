@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react'
-import type { EntrypointTarget } from '@owlmeans/client'
 
 /**
  * One screen in the navigation — the second menu level.
@@ -8,7 +7,7 @@ import type { EntrypointTarget } from '@owlmeans/client'
  * resolves it, and a path that changes shape stays correct everywhere it is rendered.
  */
 export interface PanelNavItem {
-  alias: EntrypointTarget
+  alias: string
   /** Literal label. Absent, the label is resolved through `translate` and falls back to a humanized alias. */
   label?: string
   Icon?: ComponentType<{ className?: string }>
@@ -34,7 +33,7 @@ export interface PanelNavConfig {
 
 /** A footer link: exactly one of `alias` (an entrypoint) or `href` (anything else). */
 export interface PanelNavLink {
-  alias?: EntrypointTarget
+  alias?: string
   href?: string
   label?: string
   /** Open in a new tab. */

@@ -1,14 +1,14 @@
 import { createService } from '@owlmeans/context'
 import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService } from './types.js'
 import { OIDC_GUARD, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
-import type { AbstractRequest, AbstractResponse, CommonEntrypoint, GuardService } from '@owlmeans/entrypoint'
+import { decorateEntrypoint, isEntrypointProtocol } from '@owlmeans/entrypoint'
+import type { AbstractRequest, AbstractResponse, EntrypointTree, GuardService } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
 import { AUTH_HEADER, type Auth, AuthToken, AuthorizationError } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
-import { entrypoints as oidcEntrypoints } from './entrypoints.js'
 
 export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
   // const cache = (context: Context) => context.hasResource(opts?.cache ?? OIDC_GUARD_CACHE)
@@ -112,16 +112,29 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return context
 }
 
-export const setupOidcGuard = (entrypoints: CommonEntrypoint[], coguards?: string | string[]) => {
-  entrypoints.push(...oidcEntrypoints)
-  coguards = Array.isArray(coguards) ? coguards : [coguards ?? DEFAULT_GUARD]
+/**
+ * Decorate an immutable protocol tree so the OIDC guard runs before each selected auth guard.
+ *
+ * The tree's shape and protocol types are preserved; only declarations that explicitly carry a
+ * selected guard are cloned. Parent inheritance then carries OIDC to their children exactly as
+ * the route model does for every other guard.
+ */
+export const withOidcGuard = <Tree extends EntrypointTree>(
+  tree: Tree, coguards?: string | readonly string[],
+): Tree => {
+  const selected = new Set(Array.isArray(coguards) ? coguards : [coguards ?? DEFAULT_GUARD])
+  const decorate = (node: EntrypointTree): EntrypointTree => Object.fromEntries(
+    Object.entries(node).map(([key, value]) => {
+      if (!isEntrypointProtocol(value)) return [key, decorate(value)]
+      if (value.guards.includes(OIDC_GUARD) || !value.guards.some(guard => selected.has(guard))) {
+        return [key, value]
+      }
 
-  entrypoints.forEach(module => {
-    if (module.guards != null && !module.guards.includes(OIDC_GUARD)
-      && module.guards.some(guard => coguards.includes(guard))) {
-      module.guards.unshift(OIDC_GUARD)
-    }
-  })
+      return [key, decorateEntrypoint(value, { guards: [OIDC_GUARD, ...value.guards] })]
+    }),
+  )
+
+  return decorate(tree) as Tree
 }
 
 const wrapper = (context: Context): WrappedOIDCService =>

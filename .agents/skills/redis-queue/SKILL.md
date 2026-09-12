@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.5"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.11"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -80,7 +80,7 @@ a drop-in; break any of them and this stops being true.
 
 One BullMQ worker per queue named in `cfg.queue.listen`, dispatching by job name — to a processor
 registered with `process()`, or to an entrypoint this process both serves and listens to. Which
-entrypoints those are is read ONCE, when the worker starts: an alias elevated afterwards is not
+entrypoints those are is read ONCE, when the worker starts: a protocol bound afterwards is not
 part of what this process promised.
 
 A name neither answers fails as an `UnrecoverableError` carrying a marshalled `UnknownJobName`, so
@@ -142,6 +142,11 @@ when it gives up on one (`'failed'`); `wrapHandler` wraps every dispatch.
 `onJobDead` fires when the job is finished for good — attempts exhausted, an unrecoverable failure,
 or stalled past the limit. It is where the application COMPENSATES: the lock an admission step took
 is not released by the broker, and without this it is only freed when its TTL expires.
+
+For a per-entity single-flight projection, `onJobResult` is the release point: compare the completed
+job id and applied revision atomically, release only that claim, then enqueue one follow-up if the
+dirty revision advanced. `onJobDead` marks/releases the claim so the next read or write can recover.
+Keep enough completed jobs for any `waitForProtocol` caller; immediate removal races the waiter.
 
 ## Tests
 

@@ -1,5 +1,6 @@
 import type { AuthRole } from '@owlmeans/auth'
 import type { ResourceRecord } from '@owlmeans/resource'
+import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 
 /**
  * One long-lived access token, as stored.
@@ -76,4 +77,12 @@ export interface AuthTokenEntrypointOptions {
   path?: string
   /** The guard the base carries when it has no parent to inherit one from. */
   guard?: string
+}
+
+/** The immutable declarations for a token-management surface. */
+export interface AuthTokenEntrypoints {
+  base: EntrypointProtocol<OpenRequest, OpenValue>
+  list: EntrypointProtocol<OpenRequest, AccessTokenList>
+  create: EntrypointProtocol<{ body: CreateAccessToken }, IssuedAccessToken>
+  revoke: EntrypointProtocol<{ params: AccessTokenParams }, { id: string }>
 }

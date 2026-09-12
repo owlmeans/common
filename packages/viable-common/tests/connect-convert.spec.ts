@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
-import { RouteMethod } from '@owlmeans/route'
+import { RouteMethod, route } from '@owlmeans/route'
+import { aliasOf, openProtocol, protocols } from '@owlmeans/entrypoint'
 import { connect, ConnectInquiryKind, ConnectJobKind, ConnectOpKind } from '../src/connect/consts.js'
-import { connectEntrypoints } from '../src/connect/entrypoints.js'
+import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 import {
   ConnectCapabilitiesSchema, ConnectConvertCreateBodySchema, ConnectConvertProceedBodySchema,
@@ -15,15 +16,15 @@ import { ConversionDecision, OriginKind } from '../src/convert/consts.js'
 
 const compiler = () => addFormats(new Ajv({ strict: false }))
 
-const entrypoints = () => connectEntrypoints({
+const entrypoints = () => connectProtocols({
   guard: 'test-guard',
   gate: { alias: 'test-gate', params: ['id'] },
   localLlm: { alias: 'test-paid-llm', params: ['id'] },
-  updateBase: 'test:update:base',
+  updateBase: openProtocol(route('test:update:base', '/update')),
 })
 
 const entrypointOf = (alias: string) => {
-  const found = entrypoints().find(item => item.alias === alias)
+  const found = protocols(entrypoints()).find(item => item.alias === alias)
   expect(found, alias).toBeDefined()
 
   return found!
@@ -132,13 +133,13 @@ describe('viable-common - the conversion additions to the connector contract', (
   test('the conversion routes hang under the connector base and carry no paid gate', () => {
     // Delegated inference is the DEFAULT for a conversion, not an experimental capability — so
     // unlike `project.llm`, nothing here sits behind the local-LLM gate.
-    expect(entrypointOf(connect.project.llm).gate).toBe('test-paid-llm')
+    expect(entrypointOf(connect.project.llm).gate?.alias).toBe('test-paid-llm')
 
     const gated = [...Object.values(connect.convert), connect.inquiry.answer,
       connect.project.converterLlm]
     for (const alias of gated) {
       expect(entrypointOf(alias).gate, alias).toBeUndefined()
-      expect(routeOf(alias).parent, alias).toBe(connect.base)
+      expect(aliasOf(routeOf(alias).parent!), alias).toBe(connect.base)
     }
   })
 

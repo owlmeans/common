@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import type { FC } from 'react'
 import type { BlockProps } from './types.js'
 import { PanelContext, usePanelHelper } from '@owlmeans/client-panel'
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { Card, CardContent, CardFooter } from '../@/components/ui/card.js'
+import { cn } from '../@/lib/utils.js'
 import { scalingToStyles } from './helper.js'
 
 export const Block: FC<BlockProps> = ({ children, horizontal, vertical, Actions, i18n, className, style }) => {

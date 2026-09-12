@@ -1,12 +1,12 @@
 import { AppType } from '@owlmeans/context'
 import { makeClientContext } from '@owlmeans/client-context'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import { elevate } from '@owlmeans/client-entrypoint'
-import { entrypoint } from '@owlmeans/entrypoint'
+import { bind } from '@owlmeans/client-entrypoint'
+import { openProtocol, protocols } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import { authMiddleware, DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeTokenCarrierGuard } from '@owlmeans/auth-token'
-import { connect, connectEntrypoints, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
+import { connect, connectProtocols, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
 import { SDK_SERVICE } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
 
@@ -17,6 +17,7 @@ import { SdkAuthError, SdkMisconfigured } from '../errors.js'
  * exactly this reason, so that neither end has to import the other's constants.
  */
 const UPDATE_BASE = 'viable:manager-api:update:base'
+const updateBase = openProtocol(route(UPDATE_BASE, '/update'))
 
 export interface SdkContextOptions {
   apiUrl: string
@@ -84,23 +85,19 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
   }))
   context.registerMiddleware(authMiddleware)
 
-  const surface = connectEntrypoints({
+  const surface = connectProtocols({
     guard: DEFAULT_GUARD,
-    updateBase: UPDATE_BASE,
+    updateBase,
   })
 
   // The socket route hangs under the platform's own websocket base, so that base has to exist
   // here too — a parent a registry cannot resolve fails the whole context at init, not the one
-  // call that would have used it. Declared with the path the platform declares, never elevated:
-  // it is a namespace, and nothing calls it.
-  const parent = entrypoint(route(UPDATE_BASE, '/update'))
-  const entrypoints = [parent, ...surface]
+  // call that would have used it. It is a declaration-only namespace, so its client binding has
+  // no screen or request implementation.
+  const entrypoints = [bind(updateBase), ...protocols(surface).map(declaration => bind(declaration))]
 
-  // Client elevation is what makes an alias callable from this side — the same list the server
-  // mounts, so a path or a schema cannot be right on one end and wrong on the other.
-  for (const declared of surface) {
-    elevate(entrypoints, declared.route.route.alias)
-  }
+  // Every caller gets a context-local client binding from the immutable protocol it shares with
+  // the server. No alias lookup can drift from a path or contract declaration.
   context.registerEntrypoints(entrypoints)
 
   await context.configure().init()

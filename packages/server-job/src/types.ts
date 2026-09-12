@@ -3,6 +3,7 @@ import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { QueueAppend, QueueConfig } from '@owlmeans/queue'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 
 export interface Config extends ServerConfig {
   queue?: QueueConfig
@@ -18,6 +19,15 @@ export interface JobEntrypointAliases {
   get: string
   cancel: string
   watch: string
+}
+
+/** The immutable declarations for one job group, addressed by property rather than alias lookup. */
+export interface JobEntrypoints {
+  base: EntrypointProtocol<OpenRequest, OpenValue>
+  list: EntrypointProtocol<{ query: JobListQuery }, unknown>
+  get: EntrypointProtocol<{ params: { id: string } }, unknown>
+  cancel: EntrypointProtocol<{ params: { id: string } }, unknown>
+  watch: EntrypointProtocol<OpenRequest, void>
 }
 
 export interface JobEntrypointOptions {

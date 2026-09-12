@@ -1,23 +1,31 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthroizationType, AuthRole } from '@owlmeans/auth'
-import { AUTH_TOKEN_RESOURCE } from '@owlmeans/auth-token'
+import { AUTH_TOKEN_RESOURCE, makeAuthTokenEntrypoints } from '@owlmeans/auth-token'
 import type { AccessTokenRecord, IssuedAccessToken } from '@owlmeans/auth-token'
-import { createAccessToken, listAccessTokens, revokeAccessToken } from '../src/handlers/index.js'
+import {
+  createAccessToken as bindCreateAccessToken,
+  listAccessTokens as bindListAccessTokens,
+  revokeAccessToken as bindRevokeAccessToken,
+} from '../src/handlers/index.js'
 import { hashAccessToken } from '../src/hash.js'
 import { makeTestContext, seedProfile, seedToken, TEST_ENTITY, TEST_PREFIX, TEST_PROFILE, TEST_USER } from './context.js'
 
 /**
- * A handler is a `RefedEntrypointHandler`: it is given the entrypoint reference it was elevated
- * onto and answers with `(req, res)`. Calling it directly is what lets these tests be about the
- * RULES — who may mint, what a list shows, whose token may be revoked — rather than about routing.
+ * A protocol-bound implementation is run with the smallest binding context the transport needs.
+ * This keeps the tests about the authorization rules rather than a router's alias lookup.
  */
 const invoke = async (handler: any, context: any, req: any): Promise<any> => {
   const res: any = { resolve: (value: unknown) => { res.value = value }, reject: (e: Error) => { res.error = e } }
-  await handler({ ref: { ctx: context } })(req, res)
+  await handler.bind({ ref: { ctx: context } })(req, res)
   if (res.error != null) throw res.error
 
   return res.value
 }
+
+const protocols = makeAuthTokenEntrypoints()
+const listAccessTokens = bindListAccessTokens(protocols.list)
+const createAccessToken = bindCreateAccessToken(protocols.create)
+const revokeAccessToken = bindRevokeAccessToken(protocols.revoke)
 
 const session = (patch: Record<string, unknown> = {}): any => ({
   headers: {}, params: {}, query: {}, body: {},

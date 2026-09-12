@@ -4,8 +4,7 @@ import type { LinkProps } from './types.js'
 import { useValue } from '@owlmeans/client'
 import { useContext } from '@owlmeans/web-client'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { aliasOf } from '@owlmeans/entrypoint'
-import { cn } from '@/lib/utils'
+import { cn } from '../@/lib/utils.js'
 
 export const Link: FC<LinkProps> = ({ src, module, name, children, center, open, className, style }) => {
   const t = usePanelI18n()
@@ -16,10 +15,8 @@ export const Link: FC<LinkProps> = ({ src, module, name, children, center, open,
       return src
     }
     if (module != null) {
-      const entrypoint = typeof module === 'object' && '_entrypoint' in module
-        ? module
-        : context.entrypoint<ClientEntrypoint<string>>(module)
-      const url = await entrypoint.url()
+      module = typeof module === 'string' ? context.entrypoint<ClientEntrypoint<string>>(module) : module
+      const url = await module.url()
       return url
     }
     return null
@@ -29,7 +26,7 @@ export const Link: FC<LinkProps> = ({ src, module, name, children, center, open,
     ? t(name)
     : children != null || module == null
       ? undefined
-      : t(`modules.${aliasOf(module)}`)
+      : t(`modules.${typeof module === 'string' ? module : module.alias}`)
   const target = open ? '_blank' : undefined
   const rel = open ? 'noopener noreferrer' : undefined
 

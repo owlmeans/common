@@ -211,7 +211,7 @@ export const makeRedisQueueWorker = (
       )
 
       // Which entrypoints this process both SERVES and LISTENS to. Read once, here, because an
-      // entrypoint elevated after the worker is bound was not part of what this process promised.
+      // entrypoint bound after the worker starts was not part of what this process promised.
       const served = servedJobs(ctx)
 
       for (const name of listen) {

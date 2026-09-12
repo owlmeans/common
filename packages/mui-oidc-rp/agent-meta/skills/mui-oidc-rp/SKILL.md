@@ -1,6 +1,6 @@
 ---
 name: mui-oidc-rp
-description: "How to use @owlmeans/mui-oidc-rp — the LEGACY MUI browser OIDC relying party: appendOidcGuard, setupOidcGuard, the OidcAuthService round trip and the Dispatcher screen, plus the OIDC and Google client-auth plugins. Superseded by @owlmeans/web-oidc-rp (or @owlmeans/client-iam) for new work. Auto-invoked when maintaining an app that already imports mui-oidc-rp or migrating one off it."
+description: "How to use @owlmeans/mui-oidc-rp — the LEGACY MUI browser OIDC relying party: appendOidcGuard, oidcEntrypoints, the OidcAuthService round trip and the Dispatcher screen, plus the OIDC and Google client-auth plugins. Superseded by @owlmeans/web-oidc-rp (or @owlmeans/client-iam) for new work. Auto-invoked when maintaining an app that already imports mui-oidc-rp or migrating one off it."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,13 +8,13 @@ user-invocable: false
 # @owlmeans/mui-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/mui-oidc-rp": "^0.1.18-rc.26"` in `dependencies`
+**Install:** `"@owlmeans/mui-oidc-rp": "^0.1.18-rc.32"` in `dependencies`
 
 ## This is the legacy relying party
 
 **`@owlmeans/web-oidc-rp` is the current browser OIDC relying party**, and `@owlmeans/client-iam`
-wraps it in one call (`appendIam`, `setupIam`) that also installs the consent-before-sign-in
-precondition. Use those for new work. This package is the MUI-family predecessor, kept for the
+wraps it with `appendIam`, `withIamGuard` and `iamEntrypoints`, which also install the
+consent-before-sign-in precondition. Use those for new work. This package is the MUI-family predecessor, kept for the
 applications already built on `@owlmeans/mui-panel`.
 
 The two are wire-compatible: same guard aliases, same dispatcher entrypoints, same
@@ -40,7 +40,7 @@ constants (`OIDC_POPUP_NAME`, `OIDC_POPUP_TOKEN`, `OIDC_POPUP_FEATURES`, `OIDC_P
 | Export | Description |
 |--------|-------------|
 | `appendOidcGuard<C, T>(context, opts?)` | Registers `OidcAuthService` and the OIDC guard on a web context |
-| `setupOidcGuard(entrypoints, coguards?, extras?)` | Attaches the guard to the declarations and elevates the three dispatcher entrypoints |
+| `oidcEntrypoints(extras?)` | Browser-local bindings for shared OIDC protocols and the dispatcher screen |
 | `makeOidcAuthService(alias?)` | The browser auth service — `dispatch`, `authenticate`, `proceedToRedirectUrl` |
 | `Dispatcher` | The redirect-URI screen, wrapped in `DispatcherHOC` |
 | `OidcAuthService` / `OidcAuthRedirectExtras` / `OidcPostAuthPayload` / `OidcInteraction` | The service and payload shapes |
@@ -58,7 +58,7 @@ constants (`OIDC_POPUP_NAME`, `OIDC_POPUP_TOKEN`, `OIDC_POPUP_FEATURES`, `OIDC_P
 
 ```typescript
 import { makeContext as makeBasicContext } from '@owlmeans/mui-panel'
-import { appendOidcGuard, setupOidcGuard } from '@owlmeans/mui-oidc-rp'
+import { appendOidcGuard, oidcEntrypoints } from '@owlmeans/mui-oidc-rp'
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
   const context = makeBasicContext<C, T>(cfg) as T
@@ -66,13 +66,15 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   return context
 }
 
-setupOidcGuard(entrypoints, undefined, { payload: { simplified: 'true' } })
+export const clientBindings = [
+  ...bindAll(appProtocols.api),
+  ...oidcEntrypoints({ payload: { simplified: 'true' } }),
+]
 ```
 
-**Call `setupOidcGuard` exactly once per entrypoint list.** It mutates the list it is given rather
-than returning a new one, and it elevates `DISPATCHER_OIDC_INIT`, `DISPATCHER_OIDC` and
-`DISPATCHER`. A second call re-runs all of that over the same aliases, so the dispatcher screen an
-app carefully parametrised is silently replaced by the one from the later call.
+`oidcEntrypoints()` returns local bindings. Spread it once into an immutable browser entrypoint
+list; the shared OIDC declarations remain in the app's protocol tree and are never appended or
+mutated here.
 
 `coguards` composes the OIDC guard with another guard alias. `extras` parametrises the dispatcher
 component; its `payload` is merged into the flow payload the dispatcher carries onward.
@@ -135,7 +137,7 @@ the user onward through the flow rather than straight to the provider.
 ## Depends On
 
 - `@owlmeans/oidc` — the guard, the dispatcher entrypoint aliases, the query-parameter constants
-- `@owlmeans/web-client` — the context, plus `elevate` and `parametriseDispatcher`
+- `@owlmeans/web-client` — the browser context and dispatcher parametrisation
 - `@mui/material` (`^7`) and `react` — **peer** dependencies; the host application supplies both.
   This package does not depend on `@owlmeans/mui-panel`; it only renders comfortably beside it
 - `@owlmeans/client-auth` — `DispatcherHOC`, the plugin registry, `adoptToken`

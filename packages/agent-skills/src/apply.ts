@@ -42,39 +42,33 @@ const linkForClaude = (targetDir: string, names: string[]): number => {
 /**
  * Execute an install plan. Items with action 'conflict' or 'skip-uptodate'
  * are not written. Only 'install' and 'update' items are written.
- *
- * Every item whose skill exists at the target path is linked, whatever its action —
- * a conflict is a skill the project already has (its local edit is what made it a
- * conflict), so it needs the Claude Code bridge exactly as much as a fresh install.
- * Linking never touches the file itself.
  */
 export const applyInstall = (items: InstallItem[], targetDir?: string): ApplyResult => {
   const result: ApplyResult = { installed: 0, updated: 0, skipped: 0, conflicts: 0, linked: 0 }
-  const toLink: string[] = []
+  const written: string[] = []
 
   for (const item of items) {
     if (item.action === 'skip-uptodate') {
       result.skipped++
-      toLink.push(item.entry.name)
+      written.push(item.entry.name)
       continue
     }
     if (item.action === 'conflict') {
       result.conflicts++
-      toLink.push(item.entry.name)
       continue
     }
 
     const content = readFileSync(item.entry.sourcePath, 'utf8')
     mkdirSync(dirname(item.targetPath), { recursive: true })
     writeFileSync(item.targetPath, content, 'utf8')
-    toLink.push(item.entry.name)
+    written.push(item.entry.name)
 
     if (item.action === 'install') result.installed++
     else result.updated++
   }
 
-  if (targetDir != null && toLink.length > 0) {
-    result.linked = linkForClaude(targetDir, toLink)
+  if (targetDir != null && written.length > 0) {
+    result.linked = linkForClaude(targetDir, written)
   }
 
   return result

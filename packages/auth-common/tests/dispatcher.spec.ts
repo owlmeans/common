@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { entrypoints } from '@owlmeans/auth-common'
+import { authProtocols } from '@owlmeans/auth-common'
 import { DISPATCHER, DISPATCHER_AUTHEN } from '@owlmeans/auth'
 import { DISPATCHER_PATH } from '../src/consts.js'
 
@@ -9,30 +9,30 @@ import { DISPATCHER_PATH } from '../src/consts.js'
 // in @owlmeans/client's navigator.navigate() — when the URL is absolute it
 // does a browser redirect (globalThis.location.href) instead of React Router navigate().
 
-describe('@owlmeans/auth-common — DISPATCHER entrypoint declaration', () => {
-  const dispatcher = entrypoints.find(m => m.route.route.alias === DISPATCHER)
+describe('@owlmeans/auth-common — DISPATCHER protocol declaration', () => {
+  const dispatcher = authProtocols.dispatcher
 
-  test('DISPATCHER entrypoint is present in the entrypoints array', () => {
-    expect(dispatcher).toBeDefined()
+  test('DISPATCHER protocol is present in the authentication tree', () => {
+    expect(dispatcher.alias).toBe(DISPATCHER)
   })
 
   test('DISPATCHER route has an explicit service override (cross-service)', () => {
     // service: DISPATCHER is intentional — the dispatcher belongs to the auth service.
     // The navigator in @owlmeans/client handles the resulting absolute URL correctly.
-    expect(dispatcher?.route.route.service).toBe(DISPATCHER)
+    expect(dispatcher.route.route.service).toBe(DISPATCHER)
   })
 
   test('DISPATCHER route path is DISPATCHER_PATH (/dispatcher)', () => {
-    expect(dispatcher?.route.route.path).toBe(DISPATCHER_PATH)
+    expect(dispatcher.route.route.path).toBe(DISPATCHER_PATH)
   })
 
   test('DISPATCHER entrypoint is sticky (always registered in every app router)', () => {
-    expect(dispatcher?.sticky).toBe(true)
+    expect(dispatcher.sticky).toBe(true)
   })
 
   test('DISPATCHER_AUTHEN backend entrypoint is distinct', () => {
-    const dispatcherAuthen = entrypoints.find(m => m.route.route.alias === DISPATCHER_AUTHEN)
-    expect(dispatcherAuthen).toBeDefined()
-    expect(dispatcherAuthen?.sticky).toBeFalsy()
+    const dispatcherAuthen = authProtocols.dispatcherAuthenticate
+    expect(dispatcherAuthen.alias).toBe(DISPATCHER_AUTHEN)
+    expect(dispatcherAuthen.sticky).toBeFalsy()
   })
 })

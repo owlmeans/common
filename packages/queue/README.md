@@ -16,7 +16,7 @@ die with the process survives a restart.
 ## Installation
 
 ```bash
-bun add @owlmeans/queue@^0.1.18-rc.8
+bun add @owlmeans/queue@^0.1.18-rc.17
 ```
 
 ## Declaring queues
@@ -44,17 +44,35 @@ same binary run as a producer in one deployment and a worker in another.
 ## Declaring a queued entrypoint
 
 ```typescript
-import { job } from '@owlmeans/route'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { backend, job, route } from '@owlmeans/route'
 
-entrypoint(
-  route(agent.story.develop, '/:id/develop',
-    job({ parent: agent.story.base, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-  filter(params(StoryParamsSchema))
-)
+const aliases = { base: 'agent:story', develop: 'agent:story:develop' } as const
+const storyBase = protocol(route(aliases.base, '/stories', backend({ service: AGENT })), contract())
+export const agentProtocols = {
+  story: {
+    base: storyBase,
+    develop: protocol(
+      route(aliases.develop, '/:id/develop',
+        job({ parent: storyBase, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
+      contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
+    ),
+  },
+} as const
 ```
 
-It is served with `elevate(...)` and called with `call()` like any backend entrypoint. Add
-`reply: false` to return as soon as the job is accepted — the call resolves `Accepted` with
+It is served by binding the shared job protocol and called with `call()` like any backend entrypoint.
+When producer code needs broker options or a job handle, pass that same protocol object to the typed
+helpers — never its alias:
+
+```typescript
+import { enqueueProtocol, waitForProtocol } from '@owlmeans/queue'
+
+const queued = await enqueueProtocol(context, agentProtocols.story.develop, { params: { id } }, { id: `develop:${id}` })
+const result = await waitForProtocol(context, agentProtocols.story.develop, queued)
+```
+
+Add `reply: false` to return as soon as the job is accepted — the call resolves `Accepted` with
 `{ id, queue }`, which is what a long pipeline wants.
 
 ## Jobs are records
@@ -132,7 +150,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.14
+npx @owlmeans/agent-skills@^0.1.18-rc.20
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,21 +1,9 @@
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import { setupOidcGuard } from '@owlmeans/web-oidc-rp'
-
 /**
- * Wire this app's entrypoints for IAM sign-in.
- *
- * The companion to {@link appendIam}: that one prepares the context, this one prepares the
- * entrypoint list — it adds the authorization endpoints the browser calls and attaches the IAM
- * dispatcher screen, and it prepends the OIDC guard to every entrypoint that already asks for
- * authentication.
- *
- * Call it exactly ONCE per entrypoint list. It appends to the list it is given rather than
- * returning a new one, so a second call adds the same entrypoints twice and the elevation that
- * follows throws `Entrypoint with alias … is already elevated`.
+ * IAM sign-in is assembled from immutable declarations: decorate the app's protocol tree with
+ * {@link withIamGuard}, then append the browser-local {@link iamEntrypoints} bindings.
  */
-export const setupIam = (entrypoints: CommonEntrypoint[], coguards?: string | string[]): void => {
-  setupOidcGuard(entrypoints, coguards)
-}
+export { withOidcGuard as withIamGuard } from '@owlmeans/oidc'
+export { oidcEntrypoints as iamEntrypoints } from '@owlmeans/web-oidc-rp'
 
 /**
  * How a user signs in and out.

@@ -1,5 +1,4 @@
-import { elevate, entrypoints } from '@owlmeans/server-app'
-import { sharedEntrypoints } from '__APP_SLUG__-common'
+import { entrypoints } from '@owlmeans/server-app'
 
-// Handlers bind to a protocol; a bare shell starts without any implementations.
-export const appEntrypoints = [...entrypoints, ...elevate(sharedEntrypoints, [])]
+// The bare shell has no API declarations yet. Bind new protocols here as they are added.
+export const appBindings = [...entrypoints]

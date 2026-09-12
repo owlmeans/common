@@ -1,6 +1,6 @@
 ---
 name: wled
-description: How to use @owlmeans/wled — the shared white-label contract — company info, custom styles, brand media and DNS shapes, their AJV schemas, the wl type constants and the single WL_PROVIDE entrypoint both sides elevate. Auto-invoked when importing white-label types or schemas, or when adding a white-label provider.
+description: How to use @owlmeans/wled — the shared white-label contract — company info, custom styles, brand media and DNS shapes, their AJV schemas, the WL type constants and the single WL_PROVIDE protocol both sides bind. Auto-invoked when importing white-label types or schemas, or when adding a white-label provider.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/wled
 
 **Layer:** Core
-**Install:** `"@owlmeans/wled": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/wled": "^0.1.18-rc.19"` in `dependencies`
 
 The contract only. It owns no service and reaches no store: it declares the white-label record
 shapes, their schemas, and one entrypoint that the server side answers and the browser side calls.
@@ -18,8 +18,8 @@ Everything that produces a white-label record lives downstream.
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The single `WL_PROVIDE` declaration — a backend `GET /wl/provide/:entity`, filtered by `params(ProvideParamsSchema)` and guarded by nothing. Elevate it, never redeclare it |
-| `WL_PROVIDE` | That entrypoint's alias. Both `@owlmeans/server-wl` and `@owlmeans/web-wl` elevate this exact alias |
+| `wledEntrypoints.provide` | The `WL_PROVIDE` protocol — a backend `GET /wl/provide/:entity`, with typed params and no guard. Bind it; never redeclare it. |
+| `WL_PROVIDE` | The protocol alias. Both `@owlmeans/server-wl` and `@owlmeans/web-wl` bind this exact declaration. |
 | `WL_PROVIDE_PATH` | `'/wl/provide/:entity'` |
 | `WL_TYPE_COMPANY_INFO`, `WL_TYPE_STYLES`, `WL_TYPE_MEDIA`, `WL_TYPE_DNS` | The `type` a provider stamps on the record it returns — `'company-info'`, `'styles'`, `'media'`, `'dns'` |
 | `ProvidedWL<T>` | What one provider answers: `T & { type: string; exists: boolean \| null }` |
@@ -55,10 +55,10 @@ default, `null` unknown.
 
 ## Rules
 
-- **The declaration carries no guard.** Whatever elevates `WL_PROVIDE` serves it anonymously unless
+- **The declaration carries no guard.** Whatever binds `WL_PROVIDE` serves it anonymously unless
   it adds one, so every section a deployment registers is readable by anyone who can name an
   organization. Put nothing in a white-label record that is not meant to be public, or add a guard
-  where the entrypoint is elevated.
+  where the entrypoint is bound.
 - `entityId`, `slug` and the `entity` param are declared with `EntityValueSchema` from
   `@owlmeans/auth`, a plain `{ type: 'string', minLength: 3, maxLength: 256 }` — it bounds length and
   nothing else, so a record id and a slug both pass (`CompanyInfo.slug` relaxes `minLength` to 0 on
@@ -80,5 +80,5 @@ default, `null` unknown.
 - `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/auth`
 - `ajv` (peer)
 
-Server side elevates the declaration through `@owlmeans/server-wl`; browser side through
+Server side binds the declaration through `@owlmeans/server-wl`; browser side through
 `@owlmeans/web-wl`.

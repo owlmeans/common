@@ -1,20 +1,17 @@
 import '../../src/@/globals.css'
 
 import type { FC, PropsWithChildren } from 'react'
-import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { config } from '@owlmeans/client-context'
 import { AppType, service } from '@owlmeans/config'
 import { BASE, HOME } from '@owlmeans/context'
-import { entrypoint } from '@owlmeans/client-entrypoint'
+import { bindScreen } from '@owlmeans/client-entrypoint'
+import { openProtocol } from '@owlmeans/entrypoint'
 import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
-import type { PanelMenuEntry } from '../../src/index.js'
-import {
-  makeContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, PanelMenu, PanelMenuEntryKind, Toaster,
-} from '../../src/index.js'
+import { makeContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
@@ -32,7 +29,6 @@ const alias = {
   reportDetail: `${SERVICE}:web:report-detail`,
   prefs: `${SERVICE}:web:prefs`,
   login: `${SERVICE}:web:login`,
-  menu: `${SERVICE}:web:menu`,
 }
 
 const navConfig: PanelNavConfig = {
@@ -110,49 +106,6 @@ const PrefsScreen: FC = () => <div id="prefs">
   <button id="fire-sticky" onClick={() => toast.error('sticky failure', { duration: 600_000 })}>fail</button>
 </div>
 
-/**
- * The menu's exercise.
- *
- * A widget row carrying its own button is the case the primitive exists for: the click must
- * reach the button and the menu must stay open. A hidden entry framed by two separators pins
- * the normalisation — filtering it alone would leave a doubled rule. The `dash` item pins that
- * an alias row is a real link with a resolved href.
- */
-const MenuScreen: FC = () => {
-  const [count, setCount] = useState(0)
-
-  const entries: PanelMenuEntry[] = [
-    {
-      kind: PanelMenuEntryKind.Widget, key: 'counter', label: 'Counter', inline: true,
-      render: <button id="widget-button" onClick={() => setCount(value => value + 1)}>bump</button>,
-    },
-    { kind: PanelMenuEntryKind.Separator, key: 'sep-1' },
-    { kind: PanelMenuEntryKind.Item, key: 'secret', label: 'Secret', hidden: true },
-    { kind: PanelMenuEntryKind.Separator, key: 'sep-2' },
-    { kind: PanelMenuEntryKind.Label, key: 'section', label: 'Section' },
-    { kind: PanelMenuEntryKind.Item, key: 'dash', alias: alias.dash, label: 'Dashboard' },
-    { kind: PanelMenuEntryKind.Item, key: 'docs', href: 'https://owlmeans.com/docs', open: true, label: 'Docs' },
-    {
-      kind: PanelMenuEntryKind.Sub, key: 'lang', label: 'Language', hint: 'EN',
-      entries: [
-        { kind: PanelMenuEntryKind.Item, key: 'en', label: 'English', active: true },
-        { kind: PanelMenuEntryKind.Item, key: 'pl', label: 'Polski' },
-      ],
-    },
-    { kind: PanelMenuEntryKind.Separator, key: 'sep-3' },
-  ]
-
-  return <div id="menu-screen">
-    <span id="widget-count">{count}</span>
-    <PanelMenu
-      entries={entries}
-      triggerLabel="Menu"
-      testId="panel-menu"
-      indicator={<span id="menu-indicator" className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-destructive" />}
-    />
-  </div>
-}
-
 /** A grouping screen — it renders whichever child the router matched. */
 const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-group">{children}</div>
 
@@ -209,28 +162,32 @@ ensureLoginService(context as never).registerMethodSource({
   ],
 })
 
+const protocols = {
+  base: openProtocol(route(BASE, '/', frontend())),
+  home: openProtocol(route(HOME, '/', frontend({ default: true, parent: BASE }))),
+  dash: openProtocol(route(alias.dash, '/dash', frontend({ parent: BASE }))),
+  reports: openProtocol(route(alias.reports, '/reports', frontend({ parent: BASE }))),
+  reportsIndex: openProtocol(route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports }))),
+  reportDetail: openProtocol(route(alias.reportDetail, '/detail', frontend({ parent: alias.reports }))),
+  prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
+  login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
+}
+
 const entrypoints = [
   // The framework's own entrypoints come first — the api-config middleware the panel context
   // registers resolves one of them during init, and without them init throws before any route
   // is compiled.
   ...baseEntrypoints,
-  entrypoint(route(BASE, '/', frontend()), handler(Layout)),
-  entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(screen('home', 'home-screen'))),
-  entrypoint(route(alias.dash, '/dash', frontend({ parent: BASE })), handler(screen('dash', 'dash-screen'))),
+  bindScreen(protocols.base, handler(Layout)),
+  bindScreen(protocols.home, handler(screen('home', 'home-screen'))),
+  bindScreen(protocols.dash, handler(screen('dash', 'dash-screen'))),
   // A screen that has children needs a `default: true` child of its own — without one its own
   // path matches nothing and the page renders blank.
-  entrypoint(route(alias.reports, '/reports', frontend({ parent: BASE })), handler(ReportsGroup)),
-  entrypoint(
-    route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports })),
-    handler(ReportsIndex)
-  ),
-  entrypoint(
-    route(alias.reportDetail, '/detail', frontend({ parent: alias.reports })),
-    handler(screen('detail', 'detail-screen'))
-  ),
-  entrypoint(route(alias.prefs, '/prefs', frontend({ parent: BASE })), handler(PrefsScreen)),
-  entrypoint(route(alias.login, '/login', frontend({ parent: BASE })), handler(LoginHarness)),
-  entrypoint(route(alias.menu, '/menu', frontend({ parent: BASE })), handler(MenuScreen)),
+  bindScreen(protocols.reports, handler(ReportsGroup)),
+  bindScreen(protocols.reportsIndex, handler(ReportsIndex)),
+  bindScreen(protocols.reportDetail, handler(screen('detail', 'detail-screen'))),
+  bindScreen(protocols.prefs, handler(PrefsScreen)),
+  bindScreen(protocols.login, handler(LoginHarness)),
 ]
 
 context.registerEntrypoints(entrypoints)

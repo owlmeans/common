@@ -21,8 +21,8 @@ into a single system message:
 | # | Block | Contributed by | Changes | Breakpoint |
 |---|-------|----------------|---------|-----------|
 | 0 | `Role` | `rolePlugin` ← `PromptPolicy.role` | per role | — |
-| 1 | `Skills` | `skillsPlugin` ← registry + `inline`; `projectSkillsPlugin` index | per helper / per project | ✅ closes role+skills |
-| 2 | `Packages` | app plugins (`owlmeansPackagesPlugin`, `projectSkillsPlugin` bodies) | per request | ✅ its own |
+| 1 | `Skills` | `skillsPlugin` ← registry + `inline` | per helper | ✅ closes role+skills |
+| 2 | `Packages` | application plugins (`owlmeansPackagesPlugin`) | per request | ✅ its own |
 | 3 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
 
 A caller's own leading `SystemMessage` is detached by `makeLlmModel` and re-emitted as
@@ -143,50 +143,6 @@ The manifest deliberately carries no git ref — version-matching comes from shi
 copy inside the tarball, so for a package that is NOT installed the ref is a plugin option
 (`ref`, default `main`).
 
-## Project skills in a prompt (`@owlmeans/agent-skills/llm`)
-
-`projectSkillsPlugin(options)` (order 55) loads the skills the PROJECT itself has installed —
-the Agent Skills standard's `.agents/skills/<name>/SKILL.md` directories, read through the
-`LlmFileProvider` and never through `node:fs`.
-
-It splits a skill across two blocks because the halves have different cache lifetimes:
-
-- the **index** (`- <name> — <description>`, sorted by `compareAlias`, capped, descriptions
-  clipped) goes into `Skills`. It is a property of the project, identical on every call about
-  it, so it must be byte-stable — it sits behind the breakpoint every such call shares.
-- an activated **body** goes into `Packages`, which carries its own breakpoint and may change
-  per request.
-
-That is progressive disclosure expressed as a cache layout: the model always knows what exists
-and pays for a skill's text only when something says the call is about it.
-
-Activation, in precedence order and capped at `maxActivated` (3): names the call itself asked
-for → deterministic `rules` (`{ skills, when: { purposeType?, action?, mention?, paths? } }`)
-→ the host's `activate(signals)` → optionally ONE `ctx.utility()` pick (`relevanceModel: true`,
-off by default, memoised per project + signals hash so a retry re-sends identical bytes). Only
-the deterministic mechanisms may influence anything cached.
-
-Both body emitters claim `skill:<name>` first, and `owlmeansPackagesPlugin` (order 50) claims
-before this one **by design**: a request that names `@owlmeans/auth` is a more specific signal
-than a rule, so the package's copy wins the tie. A name the host registry already resolves is
-dropped from the index entirely — `skillsPlugin` renders it, and indexing it too would
-advertise one thing under two descriptions.
-
-```typescript
-ctx.prompts().use(projectSkillsPlugin({
-  files: () => fileProvider,
-  rules: [{ skills: ['deploy'], when: { paths: ['charts/**', '*.yaml'] } }],
-}))
-```
-
-Reads are cached per project (keyed by `LlmFileProvider.key`, `WeakMap` by instance without
-one); listings expire after `listTtlMs` (30s) because skills are edited by hand mid-run. After
-writing a skill into a project the agent is still working in, call
-`invalidateProjectSkills(key)`.
-
-`projectSkillsAgentPlugin` completes the picture inside a run: a `read_skill(name)` tool, for
-the turn that turns out to need a body composition could not have predicted.
-
 ## Provider facts these rules encode
 
 **Anthropic** ([prompt-caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md)) —
@@ -209,4 +165,4 @@ role); the `compatible` plugin deliberately does not, because aggregators runnin
 
 - [[llm]] — the runtime and the provider-plugin seam
 - [[llm-common]] — `SkillDefinition`, `PromptPolicy`, `PromptBlock`, `LlmFileProvider`
-- [[agent-skills]] — `@owlmeans/agent-skills/llm`, both prompt plugins and the parser
+- [[agent-skills]] — `@owlmeans/agent-skills/llm` package-skill resolver and parser

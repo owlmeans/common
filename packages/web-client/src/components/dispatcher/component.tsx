@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { AUTH_QUERY } from '@owlmeans/auth'
 import {
-  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction, LOGIN_FRESH_QUERY,
+  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction,
 } from '@owlmeans/client-auth/login'
 import { LoginSurrogateView, SurrogateStage } from '../../login/view.js'
 import { useContext } from '../../context.js'
@@ -42,14 +42,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       return
     }
 
-    // `fresh` says this window was opened to PRODUCE a session, so one it merely finds on this
-    // origin is not the answer — see LOGIN_FRESH_QUERY. Kept identical to the relying party's own
-    // dispatcher: the last time these two held their own copy of a decision they drifted.
-    const found = query.has(LOGIN_FRESH_QUERY)
-      ? Promise.resolve(null)
-      : context.auth().authenticated()
-
-    void found.then(async authzToken => {
+    void context.auth().authenticated().then(async authzToken => {
       if (authzToken == null || authzToken === '') {
         setChoose(true)
 
