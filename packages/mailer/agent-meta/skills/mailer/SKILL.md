@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/mailer`
 
-**Install:** `"@owlmeans/mailer": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/mailer": "^0.1.18-rc.12"` in `dependencies`
 
 Provider-agnostic email dispatch service. It defines the `MailerService` interface and ships one
 transport of its own — the console/dev one. Real delivery is a separate package:

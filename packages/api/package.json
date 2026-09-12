@@ -22,13 +22,13 @@
   },
   "dependencies": {
     "@owlmeans/auth-common": "^0.1.18-rc.17",
-    "@owlmeans/client-config": "^0.1.18-rc.15",
+    "@owlmeans/client-config": "^0.1.18-rc.16",
     "@owlmeans/client-route": "^0.1.18-rc.17",
-    "@owlmeans/config": "^0.1.18-rc.15",
-    "@owlmeans/context": "^0.1.18-rc.11",
-    "@owlmeans/error": "^0.1.18-rc.11",
+    "@owlmeans/config": "^0.1.18-rc.16",
+    "@owlmeans/context": "^0.1.18-rc.12",
+    "@owlmeans/error": "^0.1.18-rc.12",
     "@owlmeans/entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/route": "^0.1.18-rc.12",
+    "@owlmeans/route": "^0.1.18-rc.13",
     "axios": "^1.7.7",
     "qs": "^6.13.0"
   },

@@ -24,9 +24,9 @@
     "ajv": "*"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.12",
+    "@owlmeans/auth": "^0.1.18-rc.13",
     "@owlmeans/entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/route": "^0.1.18-rc.12"
+    "@owlmeans/route": "^0.1.18-rc.13"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

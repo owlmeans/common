@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-config
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-config": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/client-config": "^0.1.18-rc.16"` in `dependencies`
 
 The bottom of the client config stack: the few fields a client adds to `CommonConfig`, and the
 helper that fills the one field a client cannot work without. Nothing here knows about React or the

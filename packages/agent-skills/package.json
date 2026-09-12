@@ -34,16 +34,16 @@
   "devDependencies": {
     "@langchain/core": "^1.2.9",
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/llm": "^0.1.18-rc.16",
-    "@owlmeans/llm-common": "^0.1.18-rc.15",
+    "@owlmeans/llm": "^0.1.18-rc.17",
+    "@owlmeans/llm-common": "^0.1.18-rc.16",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@owlmeans/llm": "^0.1.18-rc.16",
-    "@owlmeans/llm-common": "^0.1.18-rc.15"
+    "@owlmeans/llm": "^0.1.18-rc.17",
+    "@owlmeans/llm-common": "^0.1.18-rc.16"
   },
   "peerDependenciesMeta": {
     "@owlmeans/llm": {

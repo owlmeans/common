@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@owlmeans/client-context": "^0.1.18-rc.17",
-    "@owlmeans/route": "^0.1.18-rc.12"
+    "@owlmeans/route": "^0.1.18-rc.13"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

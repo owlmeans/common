@@ -22,10 +22,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.18-rc.15",
-    "@owlmeans/context": "^0.1.18-rc.11",
+    "@owlmeans/config": "^0.1.18-rc.16",
+    "@owlmeans/context": "^0.1.18-rc.12",
     "@owlmeans/entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/route": "^0.1.18-rc.12"
+    "@owlmeans/route": "^0.1.18-rc.13"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
