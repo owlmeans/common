@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/oidc
 
 **Layer:** Core
-**Install:** `"@owlmeans/oidc": "^0.1.18-rc.24"` in `dependencies`
+**Install:** `"@owlmeans/oidc": "^0.1.18-rc.26"` in `dependencies`
 
 The shared half of the OIDC stack: no transport, no library. It owns the names, the shapes and the
 guard that the server relying party (`@owlmeans/server-oidc-rp`), the browser relying party

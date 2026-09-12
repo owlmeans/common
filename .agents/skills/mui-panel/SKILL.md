@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/mui-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/mui-panel": "^0.1.18-rc.30"` in `dependencies`
+**Install:** `"@owlmeans/mui-panel": "^0.1.18-rc.33"` in `dependencies`
 
 ## This is the legacy UI layer
 

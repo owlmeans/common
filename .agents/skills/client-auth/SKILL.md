@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.23"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.25"` in `dependencies`
 
 Five subpaths, five jobs:
 

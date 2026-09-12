@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/auth-token
 
 **Layer:** Auth shared
-**Install:** `"@owlmeans/auth-token": "^0.1.18-rc.3"` in `dependencies`
+**Install:** `"@owlmeans/auth-token": "^0.1.18-rc.5"` in `dependencies`
 
 The contract half of long-lived access tokens: the record shape, the route declarations, the
 format helpers, and one client-side guard that presents a token it was handed. The server half —

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.8"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.

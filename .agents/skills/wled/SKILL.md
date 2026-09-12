@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/wled
 
 **Layer:** Core
-**Install:** `"@owlmeans/wled": "^0.1.18-rc.14"` in `dependencies`
+**Install:** `"@owlmeans/wled": "^0.1.18-rc.16"` in `dependencies`
 
 The contract only. It owns no service and reaches no store: it declares the white-label record
 shapes, their schemas, and one entrypoint that the server side answers and the browser side calls.
