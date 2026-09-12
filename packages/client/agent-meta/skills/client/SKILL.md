@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.18-rc.21"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform

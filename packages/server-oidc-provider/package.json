@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-oidc-provider",
-  "version": "0.1.18-rc.22",
+  "version": "0.1.18-rc.23",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -37,10 +37,10 @@
     "@noble/hashes": "^1.5.0",
     "@owlmeans/config": "^0.1.18-rc.16",
     "@owlmeans/context": "^0.1.18-rc.12",
-    "@owlmeans/entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/oidc": "^0.1.18-rc.25",
+    "@owlmeans/entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/oidc": "^0.1.18-rc.26",
     "@owlmeans/route": "^0.1.18-rc.13",
-    "@owlmeans/server-api": "^0.1.18-rc.21",
+    "@owlmeans/server-api": "^0.1.18-rc.22",
     "@owlmeans/server-context": "^0.1.18-rc.16",
     "@scure/base": "^2.3.0",
     "jose": "6.2.5",

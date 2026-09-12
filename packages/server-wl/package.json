@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/server-wl",
   "type": "module",
-  "version": "0.1.18-rc.21",
+  "version": "0.1.18-rc.22",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.18-rc.12",
-    "@owlmeans/server-api": "^0.1.18-rc.21",
+    "@owlmeans/server-api": "^0.1.18-rc.22",
     "@owlmeans/server-context": "^0.1.18-rc.16",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/wled": "^0.1.18-rc.15"
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/wled": "^0.1.18-rc.16"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

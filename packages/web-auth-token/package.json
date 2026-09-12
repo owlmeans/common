@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-auth-token",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.5",
   "license": "MIT",
   "description": "The browser half of long-lived access tokens (API keys) — the token management panel, its headless hook and its translations.",
   "type": "module",
@@ -23,12 +23,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-token": "^0.1.18-rc.4",
-    "@owlmeans/client": "^0.1.18-rc.20",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.17",
-    "@owlmeans/client-i18n": "^0.1.18-rc.19",
+    "@owlmeans/auth-token": "^0.1.18-rc.5",
+    "@owlmeans/client": "^0.1.18-rc.21",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.18",
+    "@owlmeans/client-i18n": "^0.1.18-rc.20",
     "@owlmeans/context": "^0.1.18-rc.12",
-    "@owlmeans/entrypoint": "^0.1.18-rc.15",
+    "@owlmeans/entrypoint": "^0.1.18-rc.16",
     "@owlmeans/error": "^0.1.18-rc.12",
     "@owlmeans/i18n": "^0.1.18-rc.12"
   },

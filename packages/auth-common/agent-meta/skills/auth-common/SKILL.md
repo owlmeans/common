@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.17"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.18"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
 entrypoint declarations, the signature guard, and the contract for resolving the organization

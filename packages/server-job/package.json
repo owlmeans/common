@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-job",
-  "version": "0.1.18-rc.5",
+  "version": "0.1.18-rc.6",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -31,16 +31,16 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.13",
-    "@owlmeans/auth-common": "^0.1.18-rc.17",
+    "@owlmeans/auth-common": "^0.1.18-rc.18",
     "@owlmeans/context": "^0.1.18-rc.12",
-    "@owlmeans/entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/queue": "^0.1.18-rc.13",
+    "@owlmeans/entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/queue": "^0.1.18-rc.14",
     "@owlmeans/resource": "^0.1.18-rc.13",
     "@owlmeans/route": "^0.1.18-rc.13",
-    "@owlmeans/server-api": "^0.1.18-rc.21",
+    "@owlmeans/server-api": "^0.1.18-rc.22",
     "@owlmeans/server-context": "^0.1.18-rc.16",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/server-socket": "^0.1.18-rc.23",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/server-socket": "^0.1.18-rc.24",
     "@owlmeans/socket": "^0.1.18-rc.13"
   }
 }
