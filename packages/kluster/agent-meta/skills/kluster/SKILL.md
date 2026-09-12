@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/kluster
 
 **Layer:** Infra
-**Install:** `"@owlmeans/kluster": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/kluster": "^0.1.18-rc.17"` in `dependencies`
 
 Two things in one package: a service that talks to the Kubernetes API, and a config middleware that
 lets a config value *be* a cluster lookup instead of a hardcoded address.

@@ -29,14 +29,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.13",
+    "@owlmeans/auth": "^0.1.18-rc.14",
     "@owlmeans/auth-common": "^0.1.18-rc.18",
-    "@owlmeans/basic-ids": "^0.1.18-rc.13",
+    "@owlmeans/basic-ids": "^0.1.18-rc.14",
     "@owlmeans/basic-keys": "^0.1.18-rc.17",
     "@owlmeans/client": "^0.1.18-rc.21",
     "@owlmeans/client-auth": "^0.1.18-rc.25",
-    "@owlmeans/config": "^0.1.18-rc.16",
-    "@owlmeans/context": "^0.1.18-rc.12",
+    "@owlmeans/config": "^0.1.18-rc.17",
+    "@owlmeans/context": "^0.1.18-rc.13",
     "@owlmeans/web-client": "^0.1.18-rc.29"
   },
   "peerDependencies": {

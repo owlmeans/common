@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-delegate
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/llm-delegate": "^0.1.18-rc.4"` in `dependencies` (peer `@langchain/core`)
+**Install:** `"@owlmeans/llm-delegate": "^0.1.18-rc.5"` in `dependencies` (peer `@langchain/core`)
 **Contracts:** `@owlmeans/llm-common` (`./delegate`) — `DelegatedTask`, `DelegatedResult`,
 `DelegateTransport`, `DelegatedMode`/`Role`/`ResultKind`; the provider value is
 `ModelProvider.Delegated`

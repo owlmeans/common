@@ -21,14 +21,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.13",
+    "@owlmeans/auth": "^0.1.18-rc.14",
     "@owlmeans/auth-common": "^0.1.18-rc.18",
     "@owlmeans/basic-envelope": "^0.1.18-rc.17",
     "@owlmeans/basic-keys": "^0.1.18-rc.17",
-    "@owlmeans/context": "^0.1.18-rc.12",
+    "@owlmeans/context": "^0.1.18-rc.13",
     "@owlmeans/entrypoint": "^0.1.18-rc.16",
-    "@owlmeans/resource": "^0.1.18-rc.13",
-    "@owlmeans/test": "^0.1.18-rc.12"
+    "@owlmeans/resource": "^0.1.18-rc.14",
+    "@owlmeans/test": "^0.1.18-rc.13"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

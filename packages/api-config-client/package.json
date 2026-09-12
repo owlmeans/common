@@ -24,7 +24,7 @@
     "@owlmeans/api-config": "^0.1.18-rc.17",
     "@owlmeans/client-context": "^0.1.18-rc.18",
     "@owlmeans/client-entrypoint": "^0.1.18-rc.18",
-    "@owlmeans/context": "^0.1.18-rc.12"
+    "@owlmeans/context": "^0.1.18-rc.13"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

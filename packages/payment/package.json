@@ -33,15 +33,15 @@
   },
   "dependencies": {
     "@owlmeans/api-config": "^0.1.18-rc.17",
-    "@owlmeans/auth": "^0.1.18-rc.13",
+    "@owlmeans/auth": "^0.1.18-rc.14",
     "@owlmeans/basic-envelope": "^0.1.18-rc.17",
-    "@owlmeans/config": "^0.1.18-rc.16",
-    "@owlmeans/context": "^0.1.18-rc.12",
-    "@owlmeans/error": "^0.1.18-rc.12",
-    "@owlmeans/i18n": "^0.1.18-rc.12",
+    "@owlmeans/config": "^0.1.18-rc.17",
+    "@owlmeans/context": "^0.1.18-rc.13",
+    "@owlmeans/error": "^0.1.18-rc.13",
+    "@owlmeans/i18n": "^0.1.18-rc.13",
     "@owlmeans/entrypoint": "^0.1.18-rc.16",
-    "@owlmeans/resource": "^0.1.18-rc.13",
-    "@owlmeans/route": "^0.1.18-rc.13"
+    "@owlmeans/resource": "^0.1.18-rc.14",
+    "@owlmeans/route": "^0.1.18-rc.14"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
