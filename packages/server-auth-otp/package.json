@@ -22,17 +22,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.14",
-    "@owlmeans/auth-otp": "^0.1.18-rc.13",
-    "@owlmeans/basic-ids": "^0.1.18-rc.14",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/mailer": "^0.1.18-rc.13",
+    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/auth-otp": "^0.1.18-rc.14",
+    "@owlmeans/basic-ids": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/mailer": "^0.1.18-rc.14",
     "@owlmeans/oidc": "^0.1.18-rc.27",
-    "@owlmeans/redis-resource": "^0.1.18-rc.17",
-    "@owlmeans/resource": "^0.1.18-rc.14",
+    "@owlmeans/redis-resource": "^0.1.18-rc.18",
+    "@owlmeans/resource": "^0.1.18-rc.15",
     "@owlmeans/server-auth": "^0.1.18-rc.25",
     "@owlmeans/server-auth-identity": "^0.1.18-rc.19",
-    "@owlmeans/server-context": "^0.1.18-rc.17"
+    "@owlmeans/server-context": "^0.1.18-rc.18"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/image-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/image-resource": "^0.1.18-rc.17"` in `dependencies` (peer `ajv`)
+**Install:** `"@owlmeans/image-resource": "^0.1.18-rc.18"` in `dependencies` (peer `ajv`)
 
 Types and schemas only — no resource is registered here. An image *is* a stored file
 ([[storage-common]]); this package gives that file image-shaped names so a signature says what it

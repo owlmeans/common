@@ -22,11 +22,11 @@
     "./harness": "./harness/index.html"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.14",
+    "@owlmeans/auth": "^0.1.18-rc.15",
     "@owlmeans/basic-envelope": "^0.1.18-rc.18",
-    "@owlmeans/basic-ids": "^0.1.18-rc.14",
+    "@owlmeans/basic-ids": "^0.1.18-rc.15",
     "@owlmeans/basic-keys": "^0.1.18-rc.18",
-    "@owlmeans/test": "^0.1.18-rc.13",
+    "@owlmeans/test": "^0.1.18-rc.14",
     "@owlmeans/test-auth": "^0.1.18-rc.19",
     "playwright": "^1.61.1"
   },

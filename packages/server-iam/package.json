@@ -22,12 +22,12 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.14",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/auth": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/entrypoint": "^0.1.18-rc.17",
     "@owlmeans/iam": "^0.1.18-rc.22",
     "@owlmeans/oidc": "^0.1.18-rc.27",
-    "@owlmeans/server-context": "^0.1.18-rc.17",
+    "@owlmeans/server-context": "^0.1.18-rc.18",
     "@owlmeans/server-oidc-rp": "^0.1.18-rc.25"
   },
   "devDependencies": {

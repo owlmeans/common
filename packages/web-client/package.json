@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.14",
+    "@owlmeans/auth": "^0.1.18-rc.15",
     "@owlmeans/auth-common": "^0.1.18-rc.19",
     "@owlmeans/client": "^0.1.18-rc.22",
     "@owlmeans/client-auth": "^0.1.18-rc.26",
@@ -30,11 +30,11 @@
     "@owlmeans/client-entrypoint": "^0.1.18-rc.19",
     "@owlmeans/client-resource": "^0.1.18-rc.19",
     "@owlmeans/client-route": "^0.1.18-rc.19",
-    "@owlmeans/config": "^0.1.18-rc.17",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/error": "^0.1.18-rc.13",
-    "@owlmeans/i18n": "^0.1.18-rc.13",
-    "@owlmeans/route": "^0.1.18-rc.14",
+    "@owlmeans/config": "^0.1.18-rc.18",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/error": "^0.1.18-rc.14",
+    "@owlmeans/i18n": "^0.1.18-rc.14",
+    "@owlmeans/route": "^0.1.18-rc.15",
     "@owlmeans/web-db": "^0.1.18-rc.20",
     "@owlmeans/web-router": "^0.1.18-rc.20",
     "react-dropzone": "^14.3.5"

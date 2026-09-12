@@ -24,8 +24,8 @@
   "dependencies": {
     "@owlmeans/client-auth": "^0.1.18-rc.26",
     "@owlmeans/consent": "^0.1.18-rc.4",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/entrypoint": "^0.1.18-rc.17",
     "@owlmeans/iam": "^0.1.18-rc.22",
     "@owlmeans/oidc": "^0.1.18-rc.27",
     "@owlmeans/web-client": "^0.1.18-rc.30",

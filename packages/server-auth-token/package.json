@@ -24,16 +24,16 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/auth": "^0.1.18-rc.14",
+    "@owlmeans/auth": "^0.1.18-rc.15",
     "@owlmeans/auth-common": "^0.1.18-rc.19",
-    "@owlmeans/auth-token": "^0.1.18-rc.5",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/entrypoint": "^0.1.18-rc.16",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.17",
-    "@owlmeans/resource": "^0.1.18-rc.14",
+    "@owlmeans/auth-token": "^0.1.18-rc.6",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/entrypoint": "^0.1.18-rc.17",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.18",
+    "@owlmeans/resource": "^0.1.18-rc.15",
     "@owlmeans/server-api": "^0.1.18-rc.23",
     "@owlmeans/server-auth-identity": "^0.1.18-rc.19",
-    "@owlmeans/server-context": "^0.1.18-rc.17",
+    "@owlmeans/server-context": "^0.1.18-rc.18",
     "@scure/base": "^1.1.9"
   },
   "devDependencies": {

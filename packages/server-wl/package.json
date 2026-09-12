@@ -21,11 +21,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.13",
+    "@owlmeans/context": "^0.1.18-rc.14",
     "@owlmeans/server-api": "^0.1.18-rc.23",
-    "@owlmeans/server-context": "^0.1.18-rc.17",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.16",
-    "@owlmeans/wled": "^0.1.18-rc.16"
+    "@owlmeans/server-context": "^0.1.18-rc.18",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.17",
+    "@owlmeans/wled": "^0.1.18-rc.17"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

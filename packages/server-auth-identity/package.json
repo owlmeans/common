@@ -22,14 +22,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.14",
+    "@owlmeans/auth": "^0.1.18-rc.15",
     "@owlmeans/auth-common": "^0.1.18-rc.19",
-    "@owlmeans/basic-ids": "^0.1.18-rc.14",
-    "@owlmeans/context": "^0.1.18-rc.13",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.17",
+    "@owlmeans/basic-ids": "^0.1.18-rc.15",
+    "@owlmeans/context": "^0.1.18-rc.14",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.18",
     "@owlmeans/oidc": "^0.1.18-rc.27",
-    "@owlmeans/resource": "^0.1.18-rc.14",
-    "@owlmeans/server-context": "^0.1.18-rc.17"
+    "@owlmeans/resource": "^0.1.18-rc.15",
+    "@owlmeans/server-context": "^0.1.18-rc.18"
   },
   "peerDependencies": {
     "mongodb": "*"

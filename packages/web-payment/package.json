@@ -25,8 +25,8 @@
   "dependencies": {
     "@owlmeans/client-i18n": "^0.1.18-rc.21",
     "@owlmeans/client-payment": "^0.1.18-rc.26",
-    "@owlmeans/entrypoint": "^0.1.18-rc.16",
-    "@owlmeans/i18n": "^0.1.18-rc.13",
+    "@owlmeans/entrypoint": "^0.1.18-rc.17",
+    "@owlmeans/i18n": "^0.1.18-rc.14",
     "@owlmeans/payment": "^0.1.18-rc.19"
   },
   "peerDependencies": {
