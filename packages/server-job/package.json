@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-job",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.5",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -40,7 +40,7 @@
     "@owlmeans/server-api": "^0.1.18-rc.21",
     "@owlmeans/server-context": "^0.1.18-rc.16",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.15",
-    "@owlmeans/server-socket": "^0.1.18-rc.22",
+    "@owlmeans/server-socket": "^0.1.18-rc.23",
     "@owlmeans/socket": "^0.1.18-rc.13"
   }
 }

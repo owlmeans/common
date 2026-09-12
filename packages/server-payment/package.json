@@ -35,7 +35,7 @@
     "@owlmeans/resource": "^0.1.18-rc.13",
     "@owlmeans/route": "^0.1.18-rc.13",
     "@owlmeans/server-api": "^0.1.18-rc.21",
-    "@owlmeans/server-app": "^0.1.18-rc.22",
+    "@owlmeans/server-app": "^0.1.18-rc.23",
     "@owlmeans/server-context": "^0.1.18-rc.16",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.15",
     "async-mutex": "^0.5.0",
