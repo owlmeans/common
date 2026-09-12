@@ -108,7 +108,7 @@ for framework materialization, never a public compatibility export.
 import { paymentApi } from '@owlmeans/payment'
 import { bindAll } from '@owlmeans/client-entrypoint'
 
-export const appEntrypoints = [...bindAll(paymentApi.service)]
+export const clientBindings = [...bindAll(paymentApi.service)]
 
 const result = await ctx.entrypoint(paymentApi.service.checkout.session.external.create).call({
   body: { productSku, entitySlug, service, amountMinor, successUrl }

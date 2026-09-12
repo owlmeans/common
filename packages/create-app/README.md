@@ -23,7 +23,7 @@ my-app/
 ├── .agents/skills/<name>/SKILL.md  # deployed agent skills
 ├── .agents/memory/MEMORY.md        # shared agent memory index
 ├── sources/
-│   ├── common/   # shared entrypoints (routes), schemas and types
+│   ├── common/   # shared protocol declarations (routes), schemas and types
 │   ├── api/      # @owlmeans/server-app backend; session data in an in-memory static resource
 │   └── web/      # @owlmeans/web-panel + shadcn UI: navigation, layout and screens
 ```
@@ -65,7 +65,7 @@ is present even with `--no-install`.
 `--bare` keeps the three workspaces, the config/context/entrypoint wiring, the layout, the nav
 skeleton and one Home screen, and drops every piece of example code — the `SessionItem` types and
 schemas, the api's `app/session/**` handlers and its static resource, the About and Session screens.
-`sources/common/src/entrypoints.ts` exports an immutable `appEntrypoints` tree with an empty `api`
+`sources/common/src/entrypoints.ts` exports an immutable `appProtocols` tree with an empty `api`
 branch and the web routes. The API and web bind those branches locally, so the first feature adds a
 declaration to the tree, then a handler and a screen binding.
 

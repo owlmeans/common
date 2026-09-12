@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.23`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.25`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -15,22 +15,22 @@ contract:
 ```ts
 const api = handlers<AppContext>()
 
-const create = api.body(projectEntrypoints.create, async (body, context, request) =>
+const create = api.body(projectProtocols.create, async (body, context, request) =>
   context.projects.create(body, request.auth)
 )
 
-const get = api.params(projectEntrypoints.get, async ({ id }, context) =>
+const get = api.params(projectProtocols.get, async ({ id }, context) =>
   context.projects.get(id)
 )
 
-const search = api.request(projectEntrypoints.search, async (request, context) =>
+const search = api.request(projectProtocols.search, async (request, context) =>
   context.projects.search(request.query)
 )
 
-export const entrypoints = [
-  bind(projectEntrypoints.create, create),
-  bind(projectEntrypoints.get, get),
-  bind(projectEntrypoints.search, search),
+export const serverBindings = [
+  bind(projectProtocols.create, create),
+  bind(projectProtocols.get, get),
+  bind(projectProtocols.search, search),
 ]
 ```
 

@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.3`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.5`
 
 Public MIT package in the common monorepo. It embeds Stripe into an application backend; the
 consumer owns products, credit conversion and entitlement side effects. It persists customers,
@@ -24,7 +24,7 @@ declarePaymentPlan(cfg, { productSku: 'credits', sku: 'credits-unit',
   pricingMode: CheckoutPricingMode.Amount, amountPolicy })
 
 appendPaymentGatewayService(context)
-export const appEntrypoints = [...paymentGateEntrypoints]
+export const serverBindings = [...paymentGateEntrypoints]
 observer(context).onTopUp(async completion => { /* append an idempotent ledger event */ })
 ```
 

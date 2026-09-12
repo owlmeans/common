@@ -12,7 +12,7 @@ Server-side WebSocket connection handler and service for OwlMeans backends.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-socket@^0.1.18-rc.17
+bun add @owlmeans/server-socket@^0.1.18-rc.27
 ```
 
 ## Usage
@@ -23,9 +23,9 @@ Handle a WebSocket connection on an entrypoint route:
 import { connection } from '@owlmeans/server-socket'
 import { bind } from '@owlmeans/server-entrypoint'
 import type { Connection } from '@owlmeans/socket'
-import { appEntrypoints as protocols } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 
-const watch = connection(protocols.api.fileWatch, async (conn, context, req) => {
+const watch = connection(appProtocols.api.fileWatch, async (conn, context, req) => {
   const ctx = context as Context
   const projectId = req.params.id as string
 
@@ -40,7 +40,7 @@ const watch = connection(protocols.api.fileWatch, async (conn, context, req) => 
   })
 })
 
-export const entrypoints = [bind(protocols.api.fileWatch, watch)]
+export const serverBindings = [bind(appProtocols.api.fileWatch, watch)]
 ```
 
 ## API

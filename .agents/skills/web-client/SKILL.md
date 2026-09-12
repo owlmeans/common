@@ -5,27 +5,27 @@ description: Bind OwlMeans shared entrypoint protocols in a browser application.
 
 # Browser protocol entrypoints
 
-**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.30`
+**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.32`
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.
 
 ```ts
 import { bindAll, bindScreen, entrypoints as frameworkEntrypoints, handler } from '@owlmeans/web-panel'
-import { projectEntrypoints, webEntrypoints } from 'project-common'
+import { projectProtocols, webProtocols } from 'project-common'
 import { ProjectScreen } from './screens/project.js'
 
-export const appEntrypoints = [
+export const clientBindings = [
   ...frameworkEntrypoints,
-  ...bindAll(projectEntrypoints),
-  bindScreen(webEntrypoints.project, handler(ProjectScreen)),
+  ...bindAll(projectProtocols),
+  bindScreen(webProtocols.project, handler(ProjectScreen)),
 ]
 ```
 
 Call a protocol directly. Its request and response types come from its shared contract.
 
 ```ts
-const project = await context.entrypoint(projectEntrypoints.get).call({
+const project = await context.entrypoint(projectProtocols.get).call({
   params: { id: projectId },
 })
 ```

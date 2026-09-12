@@ -1,10 +1,10 @@
 # @owlmeans/server-wl
 
-Server-side whitelabeling — provides entity-specific branding and configuration via backend entrypoints.
+Server-side whitelabeling — provides entity-specific branding and configuration via a bound backend protocol.
 
 ## Overview
 
-- Exports `entrypoints` array: pre-built server entrypoints that serve WL (whitelabel) configuration to clients
+- Exports `entrypoints`: local server bindings that serve the shared WL protocol to clients
 - Provides `provide` action — the handler for the WL configuration endpoint
 - Integrates with `@owlmeans/wled` for whitelabel data definitions
 - Apps add WL DNS service from `@owlmeans/server-wl-dns` for domain-based entity resolution
@@ -23,7 +23,7 @@ Register WL entrypoints in a backend service:
 import { entrypoints as wlEntrypoints } from '@owlmeans/server-wl'
 import { main, entrypoints } from '@owlmeans/server-app'
 
-await main(context, [...entrypoints, ...wlEntrypoints, ...appEntrypoints])
+await main(context, [...entrypoints, ...wlEntrypoints, ...serverBindings])
 ```
 
 With DNS-based entity resolution (from viable):
@@ -33,15 +33,15 @@ import { appendWlDnsService } from '@owlmeans/server-wl-dns'
 import { wlDnsEntrypoints } from '@owlmeans/server-wl-dns'
 
 appendWlDnsService(context)
-await main(context, [...entrypoints, ...wlDnsEntrypoints, ...appEntrypoints])
+await main(context, [...entrypoints, ...wlDnsEntrypoints, ...serverBindings])
 ```
 
 ## API
 
 ### `entrypoints`
 
-Array of bound server entrypoints providing the WL configuration API endpoint. The declarations
-come from `@owlmeans/wled`; this package supplies their server-side bindings.
+Local bound server entrypoints providing the WL configuration API endpoint. The shared immutable
+declaration is `wledEntrypoints.provide` from `@owlmeans/wled`; this package supplies its handler.
 
 ### `WlConfig` / `WlRecord` (types)
 

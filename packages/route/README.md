@@ -5,8 +5,8 @@ Route model factory and type definitions for OwlMeans entrypoints.
 ## Overview
 
 - `route()` creates a `RouteModel` used as the first argument to `protocol()` or `openProtocol()`
-- `frontend()` / `backend()` / `socket()` helpers set the route's `AppType` and parent
-- `RouteMethod` enum covers HTTP verbs; `RouteProtocols` covers `http`/`ws`
+- `frontend()` / `backend()` / `socket()` / `job()` helpers set the route's `AppType`, parent, and transport
+- `RouteMethod` enum covers HTTP verbs; `RouteProtocols` covers `http`/`ws`/`queue`
 - This package is a dependency of `@owlmeans/entrypoint` — you rarely use it directly unless defining entrypoint-level routes
 
 A `RouteDeclaration` is plain, immutable data: its `path` is the segment the route contributes under
@@ -17,7 +17,7 @@ context that asks, so the same declaration serves a server and a browser alike.
 ## Installation
 
 ```bash
-bun add @owlmeans/route@^0.1.18-rc.8
+bun add @owlmeans/route@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -25,24 +25,33 @@ bun add @owlmeans/route@^0.1.18-rc.8
 Define routes for protocols:
 
 ```typescript
-import { route, frontend, backend, socket, RouteMethod } from '@owlmeans/route'
+import { route, frontend, backend, job, socket, RouteMethod } from '@owlmeans/route'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
+
+const aliases = { stories: 'stories', create: 'stories:create', events: 'stories:events', generate: 'stories:generate' } as const
+const stories = openProtocol(route(aliases.stories, '/stories', backend()))
 
 // Backend REST route
 const createProtocol = protocol(
-  route('story-create', '/stories', backend('api', RouteMethod.POST)),
+  route(aliases.create, '/', backend({ parent: stories, method: RouteMethod.POST })),
   contract(typed<CreateStory>()),
 )
 
 // Frontend client route nested under parent
 const storyProtocol = openProtocol(
-  route('story-view', '/stories/:id', frontend('app'))
+  route('story-view', '/stories/:id', frontend({ parent: stories }))
 )
 
 // WebSocket route
 const wsProtocol = protocol(
-  route('story-ws', '/stories/stream', socket('api')),
+  route(aliases.events, '/events', socket({ parent: stories })),
   contract(typed<StoryEvent>()),
+)
+
+// Queue transport: the declaration names the service, queue, and response timeout.
+const generateProtocol = protocol(
+  route(aliases.generate, '/generate', job({ parent: stories, service: 'agent', queue: 'generation', timeout: 30_000 })),
+  contract.request({ body: typed<GenerateStory>() }, typed<Story>()),
 )
 ```
 
@@ -60,9 +69,15 @@ Returns options marking the route as frontend (`AppType.Frontend`), optionally w
 
 Returns options marking the route as backend (`AppType.Backend`), optionally with a parent alias and `RouteMethod`.
 
-### `socket(parent?): Partial<RouteOptions>`
+### `socket(options?): Partial<RouteOptions>`
 
 Returns options for a WebSocket route with `RouteProtocols.SOCKET`.
+
+### `job(options?): Partial<RouteOptions>`
+
+Returns backend options for a queue-carried route with `RouteProtocols.QUEUE`. Queue declarations
+must name `service`, `queue`, and `timeout`; `reply: false` resolves as soon as the broker accepts
+the job. The process that consumes that queue is configured separately with `listenQueues()`.
 
 ### `RouteMethod`
 
@@ -73,7 +88,7 @@ enum RouteMethod { GET, POST, PATCH, PUT, DELETE }
 ### `RouteProtocols`
 
 ```typescript
-enum RouteProtocols { WEB = 'http', SOCKET = 'ws' }
+enum RouteProtocols { WEB = 'http', SOCKET = 'ws', QUEUE = 'queue' }
 ```
 
 The protocol also selects the transport that carries a call to an entrypoint on this route.

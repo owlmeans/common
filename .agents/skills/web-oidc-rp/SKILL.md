@@ -45,9 +45,9 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 ```typescript
 import { oidcEntrypoints } from '@owlmeans/web-oidc-rp'
 
-export const appEntrypoints = [
-  ...bindAll(protocols.api),
-  ...bindScreen(protocols.web.home, handler(Home)),
+export const clientBindings = [
+  ...bindAll(appProtocols.api),
+  ...bindScreen(appProtocols.web.home, handler(Home)),
   ...oidcEntrypoints({ payload: { simplified: true } }),
 ]
 ```
@@ -132,8 +132,8 @@ concatenation, and never a hand-built query string:
 
 ```typescript
 // Use the shared protocol declarations already registered by the application.
-const home = await context.entrypoint(appEntrypoints.web.home).url(undefined, { absolute: true })
-const typed = await context.entrypoint(appEntrypoints.web.detail)
+const home = await context.entrypoint(appProtocols.web.home).url(undefined, { absolute: true })
+const typed = await context.entrypoint(appProtocols.web.detail)
   .url({ params }, { absolute: true })
 ```
 

@@ -16,7 +16,7 @@ Client-side entrypoint system: binds shared protocol declarations into API-calli
 ## Installation
 
 ```bash
-bun add @owlmeans/client-entrypoint@^0.1.18-rc.12
+bun add @owlmeans/client-entrypoint@^0.1.18-rc.21
 ```
 
 ## Usage
@@ -25,21 +25,23 @@ Bind shared protocols for browser API calls and screens:
 
 ```typescript
 import { bindAll, bindScreen, stab } from '@owlmeans/client-entrypoint'
-import { appEntrypoints as protocols } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 import { handler } from '@owlmeans/client'
 import { ProjectListScreen } from './screens/project-list.js'
 
-const appEntrypoints = [
-  ...bindAll(protocols.api),
-  bindScreen(protocols.web.projectList, handler(ProjectListScreen)),
-  bindScreen(protocols.web.project, stab),
+const clientBindings = [
+  ...bindAll(appProtocols.api),
+  bindScreen(appProtocols.web.projectList, handler(ProjectListScreen)),
+  bindScreen(appProtocols.web.project, stab),
 ]
+
+context.registerEntrypoints(clientBindings)
 ```
 
 Call an entrypoint from a service:
 
 ```typescript
-const agentEntrypoint = ctx.entrypoint(agent.project.create)
+const agentEntrypoint = ctx.entrypoint(appProtocols.api.project.create)
 const result = await agentEntrypoint.call({
   body: { prompt: payload.prompt, entity: req.auth?.entitySlug }
 })
@@ -50,7 +52,7 @@ Take the outcome when it decides what happens next, and build a link with `url()
 ```typescript
 const { value, outcome } = await agentEntrypoint.invoke({ body: payload })
 
-const href = await ctx.entrypoint(protocols.web.projectList)
+const href = await ctx.entrypoint(appProtocols.web.projectList)
   .url({ params: { id: value.id } }, { absolute: true })
 ```
 
@@ -89,7 +91,8 @@ so `call()` and `invoke()` throw and point the caller at `url()`.
 
 ### `provideRequest<T>(alias, path): AbstractRequest<T>`
 
-Creates a minimal request object for programmatic `call()` invocations.
+Creates a minimal request object for a dynamic-boundary `call()` invocation. Normal application
+code imports a protocol and calls `context.entrypoint(protocol)` directly.
 
 ### `pickPerSchema<T>(schema, obj): Partial<T>`
 

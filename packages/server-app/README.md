@@ -12,7 +12,7 @@ The main entry point for OwlMeans backend services — aggregates server package
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app@^0.1.18-rc.17
+bun add @owlmeans/server-app@^0.1.18-rc.27
 ```
 
 ## Usage
@@ -30,7 +30,7 @@ const appConfig = config(
 )
 
 const context = makeContext(appConfig)
-await main(context, [...entrypoints, ...appEntrypoints])
+await main(context, [...entrypoints, ...serverBindings])
 ```
 
 Bind a shared protocol with a handler:
@@ -38,12 +38,12 @@ Bind a shared protocol with a handler:
 ```typescript
 import { bind } from '@owlmeans/server-entrypoint'
 import { handlers } from '@owlmeans/server-api'
-import { appEntrypoints as protocols } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 import type { Context } from 'my-app-backend'
 
 const api = handlers<Context>()
-const appEntrypoints = [
-  bind(protocols.api.projectCreate, api.request(protocols.api.projectCreate, async (req, ctx) =>
+const serverBindings = [
+  bind(appProtocols.api.project.create, api.request(appProtocols.api.project.create, async (req, ctx) =>
     (ctx as Context).project().create(req.body))),
 ]
 ```
@@ -80,7 +80,7 @@ Registers entrypoints, calls `configure().init()`, then starts the Fastify serve
 
 Default entrypoint array providing auth and API config routes. Spread into `main()`:
 ```typescript
-await main(context, [...entrypoints, ...myEntrypoints])
+await main(context, [...entrypoints, ...serverBindings])
 ```
 
 ## Related Packages

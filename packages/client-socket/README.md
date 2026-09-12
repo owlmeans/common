@@ -5,14 +5,14 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 ## Overview
 
 - `ws(entrypoint, request?)` — creates a `Connection` from the entrypoint's URL and opens a WebSocket
-- `useWs(entrypoint, request?)` — React hook wrapping `ws()` with lifecycle management; it takes an
-  alias or an entrypoint
+- `useWs(entrypoint, request?)` — React hook wrapping `ws()` with lifecycle management; pass a
+  protocol-bound entrypoint directly
 - The returned `Connection` implements `@owlmeans/socket`'s `Connection` interface
 
 ## Installation
 
 ```bash
-bun add @owlmeans/client-socket@^0.1.18-rc.13
+bun add @owlmeans/client-socket@^0.1.18-rc.22
 ```
 
 ## Usage
@@ -23,11 +23,11 @@ Connect to a WebSocket entrypoint and observe events:
 import { useWs } from '@owlmeans/client-socket'
 import { MessageType } from '@owlmeans/socket'
 import { useContext } from '@owlmeans/web-client'
-import { appEntrypoints } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 
 function ThinkingPanel({ storyId }: { storyId: string }) {
   const context = useContext()
-  const conn = useWs(context.entrypoint(appEntrypoints.api.storyThinking), { params: { id: storyId } })
+  const conn = useWs(context.entrypoint(appProtocols.api.storyThinking), { params: { id: storyId } })
 
   useEffect(() => {
     if (!conn) return
@@ -43,9 +43,9 @@ Direct connection (non-hook):
 
 ```typescript
 import { ws } from '@owlmeans/client-socket'
-import { appEntrypoints } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 
-const wsEntrypoint = context.entrypoint(appEntrypoints.api.storyThinking)
+const wsEntrypoint = context.entrypoint(appProtocols.api.storyThinking)
 const connection = await ws(wsEntrypoint, { params: { id: storyId } })
 ```
 
@@ -57,7 +57,9 @@ Builds the entrypoint's URL, opens a WebSocket, and returns a `Connection` once 
 
 ### `useWs(entrypoint, request?): Connection | null`
 
-React hook version of `ws()`. Returns `null` while connecting. Manages connection lifecycle (opens on mount, closes on unmount).
+React hook version of `ws()`. Returns `null` while connecting. Manages connection lifecycle (opens
+on mount, closes on unmount). Alias input is reserved for a dynamic external boundary; application
+code calls `context.entrypoint(protocol)` first.
 
 ## Related Packages
 

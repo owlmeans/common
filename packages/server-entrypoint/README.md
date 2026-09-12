@@ -11,7 +11,7 @@ Server-side entrypoint system: binds shared protocol declarations to request han
 ## Installation
 
 ```bash
-bun add @owlmeans/server-entrypoint@^0.1.18-rc.10
+bun add @owlmeans/server-entrypoint@^0.1.18-rc.19
 ```
 
 ## Usage
@@ -21,14 +21,15 @@ Typical pattern — declare protocols in `common`, bind them in `api`:
 ```typescript
 import { bind } from '@owlmeans/server-entrypoint'
 import { handlers } from '@owlmeans/server-api'
-import { appEntrypoints as protocols } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 import type { Context } from 'my-app-backend'
 
 const api = handlers<Context>()
-const appEntrypoints = [
-  bind(protocols.api.projectCreate, api.request(protocols.api.projectCreate, async (req, ctx) =>
+const serverBindings = [
+  bind(appProtocols.api.project.base),
+  bind(appProtocols.api.project.create, api.request(appProtocols.api.project.create, async (req, ctx) =>
     ctx.project().create(req.body))),
-  bind(protocols.api.projectGet, api.params(protocols.api.projectGet, async (req, ctx) =>
+  bind(appProtocols.api.project.get, api.params(appProtocols.api.project.get, async (req, ctx) =>
     ctx.project().get(req.params.id))),
 ]
 ```
@@ -41,7 +42,8 @@ Materializes one immutable protocol declaration and attaches its protocol-bound 
 
 ### `bindAll(protocols, handlers?): ServerProtocolEntrypoint[]`
 
-Materializes a flat declaration collection and pairs implementations by protocol reference.
+Materializes a flat declaration collection and pairs implementations by protocol reference. Keep
+the shared tree intact elsewhere; call `protocols(tree)` only at this registration boundary.
 
 ### `ServerEntrypoint<R>`
 

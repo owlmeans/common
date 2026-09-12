@@ -66,8 +66,8 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   return context
 }
 
-export const appEntrypoints = [
-  ...bindAll(protocols.api),
+export const clientBindings = [
+  ...bindAll(appProtocols.api),
   ...oidcEntrypoints({ payload: { simplified: 'true' } }),
 ]
 ```

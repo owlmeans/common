@@ -23,10 +23,10 @@ Throw a typed auth error when a request lacks an entity:
 import { handlers } from '@owlmeans/server-api'
 import { AuthUnknown } from '@owlmeans/auth'
 import type { Context } from 'my-app-backend'
-import { projectEntrypoints } from 'my-app-common/entrypoints'
+import { projectProtocols } from 'my-app-common/protocols'
 
 const api = handlers<Context>()
-export const create = api.request(projectEntrypoints.create, async (request, context) => {
+export const create = api.request(projectProtocols.create, async (request, context) => {
   if (request.auth?.entityId == null) {
     throw new AuthUnknown('entity')
   }

@@ -14,7 +14,7 @@ BullMQ-over-Redis driver for the queue contracts declared in [`@owlmeans/queue`]
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-queue@^0.1.18-rc.2
+bun add @owlmeans/redis-queue@^0.1.18-rc.11
 ```
 
 ## Usage
@@ -87,13 +87,22 @@ registers the transport, so `ep.call(...)` enqueues, the worker runs the same ha
 guards and filter, and the answer comes back to the caller.
 
 ```typescript
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { enqueueProtocol, waitForProtocol } from '@owlmeans/queue'
 import { job, route } from '@owlmeans/route'
 
-route('generate-app', 'generate', job({ queue: 'generation', timeout: 300_000 }))
+const generateProtocol = protocol(
+  route('generate-app', 'generate', job({ service: 'agent', queue: 'generation', timeout: 300_000 })),
+  contract.request({ body: typed<GenerateApp>() }, typed<GeneratedApp>()),
+)
+
+const queued = await enqueueProtocol(context, generateProtocol, { body: { specId } })
+const result = await waitForProtocol(context, generateProtocol, queued)
 ```
 
 `reply: false` on the route resolves as soon as the job is accepted, with the job's identity as the
-value. A handler's `ResilientError` crosses the hop as its own class, not as a string.
+value. A handler's `ResilientError` crosses the hop as its own class, not as a string. The alias is
+only the queue driver's broker key; application code passes `generateProtocol` directly.
 
 ## Keys and connections
 

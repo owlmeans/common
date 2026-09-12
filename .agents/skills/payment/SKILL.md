@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.21"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), the subscription
 record, the entitlement grammar, and the entrypoint declarations both sides of a checkout share. It
@@ -107,7 +107,7 @@ for framework materialization, never a public compatibility export.
 import { paymentApi } from '@owlmeans/payment'
 import { bindAll } from '@owlmeans/client-entrypoint'
 
-export const appEntrypoints = [...bindAll(paymentApi.service)]
+export const clientBindings = [...bindAll(paymentApi.service)]
 
 const result = await ctx.entrypoint(paymentApi.service.checkout.session.external.create).call({
   body: { productSku, entitySlug, service, amountMinor, successUrl }

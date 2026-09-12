@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/entrypoint
 
-**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.17`
+**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.19`
 
 **Layer:** Core
 
@@ -21,27 +21,34 @@ client behaviour is added only by the corresponding binding package.
 import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod } from '@owlmeans/route'
 
-export const projectEntrypoints = {
-  base: protocol(route('project', '/projects', backend()), contract(typed<void>())),
+const aliases = { base: 'project', create: 'project:create', get: 'project:get' } as const
+const projectBase = protocol(route(aliases.base, '/projects', backend()), contract(typed<void>()))
+
+export const projectProtocols = {
+  base: projectBase,
   create: protocol(
-    route('project:create', '/', backend('project', RouteMethod.POST)),
+    route(aliases.create, '/', backend({ parent: projectBase, method: RouteMethod.POST })),
     contract.request({ body: typed<CreateProject>(CreateProjectSchema) }, typed<Project>()),
     { guards: DEFAULT_GUARD }
   ),
   get: protocol(
-    route('project:get', '/:id', backend('project')),
+    route(aliases.get, '/:id', backend({ parent: projectBase })),
     contract.request({ params: typed<{ id: string }>() }, typed<Project>())
   ),
 }
 ```
 
-- Export an object whose property names describe the contract. Its protocol values are the only
-  cross-layer references. Flatten it with `protocols(projectEntrypoints)` only at registration.
+- Export a `*Protocols` object whose property names describe the contract. Its protocol values are
+  the only cross-layer references. Flatten it with `protocols(projectProtocols)` only at registration.
 - Use `protocol(route, contract, options?)` for every typed boundary.
 - `openProtocol(route, options?)` is an intentional untyped escape hatch; do not use it merely to
   avoid declaring an input or output type.
 - Use `decorateEntrypoint(protocol, options)` only when deriving an immutable decoration; never
   mutate guards, gates, schemas, or a declaration collection.
+
+Keep aliases private to this module. A child should use its parent protocol object
+(`backend({ parent: projectBase })`); route creation stores its alias. Normal application code
+imports protocol objects, while raw aliases are limited to dynamic registry or broker adapters.
 
 ## Contract sources
 

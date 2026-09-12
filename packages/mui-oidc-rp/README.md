@@ -38,7 +38,7 @@ import { withOidcGuard } from '@owlmeans/oidc'
 import { oidcEntrypoints } from '@owlmeans/mui-oidc-rp'
 
 const configuredProtocols = withOidcGuard(protocols)
-const appEntrypoints = [
+const clientBindings = [
   // Bind application screens and clients against configuredProtocols here.
   ...oidcEntrypoints({ payload: { simplified: true } }),
 ]

@@ -5,13 +5,13 @@ Client-side middleware that fetches server config from `GET /assets/config.json`
 ## Overview
 
 - `apiConfigMiddleware` — context middleware that calls the config endpoint on startup
-- Binds `@owlmeans/api-config` protocols into the client entrypoint system
+- Binds the `@owlmeans/api-config` `advertise` protocol into the client entrypoint system
 - Merges the server `ApiConfig` into the client's `CommonConfig` at initialization time
 
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config-client@^0.1.18-rc.12
+bun add @owlmeans/api-config-client@^0.1.18-rc.21
 ```
 
 ## Usage
@@ -24,13 +24,16 @@ import { apiConfigMiddleware } from '@owlmeans/api-config-client'
 context.registerMiddleware(apiConfigMiddleware)
 ```
 
-On initialization, the middleware calls the `API_CONFIG` entrypoint and merges the response into the context config.
+On initialization, the middleware calls the bound `advertise` protocol and merges the response into
+the context config. If this package's local `entrypoints` bindings are not registered, initialization
+fails rather than silently falling back to alias-based calls.
 
 ## API
 
 ### `apiConfigMiddleware: Middleware`
 
-A context initialization middleware. Calls the `API_CONFIG` entrypoint, receives `ApiConfig`, and applies it to the context via `mergeConfig`.
+A context initialization middleware. Calls the `advertise` protocol, receives `ApiConfig`, and
+applies it to the context via `mergeConfig`.
 
 ## Related Packages
 

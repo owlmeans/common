@@ -22,8 +22,8 @@ Answers the declaration shared by `@owlmeans/api-config`; the browser side that 
 ## Usage
 
 ```typescript
-import { entrypoints as apiConfigEntrypoints } from '@owlmeans/api-config-server'
-export const appEntrypoints = [...apiConfigEntrypoints, ...myEntrypoints]
+import { entrypoints as apiConfigBindings } from '@owlmeans/api-config-server'
+export const serverBindings = [...apiConfigBindings, ...myServerBindings]
 ```
 
 An app built on `@owlmeans/server-app` already has it: the `entrypoints` that package exports

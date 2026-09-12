@@ -1,13 +1,13 @@
 import { entrypoints } from '@owlmeans/server-app'
 import { bind } from '@owlmeans/server-entrypoint'
-import { appEntrypoints as protocols } from '__APP_SLUG__-common'
+import { appProtocols } from '__APP_SLUG__-common'
 import * as handlers from './app/session/index.js'
 
 /** Local server bindings for the shared session protocol tree. */
-export const appEntrypoints = [
+export const appBindings = [
   ...entrypoints,
-  bind(protocols.api.session.base),
-  bind(protocols.api.session.list, handlers.list),
-  bind(protocols.api.session.add, handlers.add),
-  bind(protocols.api.session.remove, handlers.remove),
+  bind(appProtocols.api.session.base),
+  bind(appProtocols.api.session.list, handlers.list),
+  bind(appProtocols.api.session.add, handlers.add),
+  bind(appProtocols.api.session.remove, handlers.remove),
 ]

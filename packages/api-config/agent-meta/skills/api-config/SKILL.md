@@ -18,8 +18,8 @@ answer into the client config. Nothing here runs — it is the shared declaratio
 
 | Export | Description |
 |--------|-------------|
-| `entrypoints` | The single declaration — alias `API_CONFIG`, route `/assets/config.json`, `sticky: true` so a router attaches it unconditionally |
-| `apiConfigEntrypoints.config` | The shared `api-config:advertise` protocol both sides bind |
+| `advertise` | The single immutable declaration — route `/assets/config.json`, `sticky: true` so a router attaches it unconditionally |
+| `API_CONFIG` | Internal adapter alias for `advertise`; do not use it for ordinary application lookup |
 | `apiConfigPlugin(plugin)` | Registers one package's public config selection as its module loads |
 | `every(selection, where?)` | Applies a selection to every list item or object-map value, optionally filtering items |
 | `ApiConfigPlugin` | `{ allow, deny? }` — nested allowlist with an optional nested redaction selector |
@@ -29,11 +29,13 @@ answer into the client config. Nothing here runs — it is the shared declaratio
 ## Usage
 
 The declaration is bound on both sides, so neither imports the other's package — they only share
-this one. Add it to the entrypoint list the way any other entrypoint set is added:
+this one. A server or browser package binds `advertise`; it does not import a flattened shared list:
 
 ```typescript
-import { entrypoints as apiConfigEntrypoints } from '@owlmeans/api-config'
-export const appEntrypoints = [...apiConfigEntrypoints, ...myEntrypoints]
+import { advertise } from '@owlmeans/api-config'
+import { bind } from '@owlmeans/server-entrypoint'
+
+export const serverBindings = [bind(advertise, handler)]
 ```
 
 Most apps never do this directly: a backend built on `@owlmeans/server-app` already carries the

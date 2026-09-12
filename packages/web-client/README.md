@@ -15,7 +15,7 @@ React web application bootstrap — context factory, entrypoint/routing utilitie
 ## Installation
 
 ```bash
-bun add @owlmeans/web-client@^0.1.18-rc.23
+bun add @owlmeans/web-client@^0.1.18-rc.32
 ```
 
 ## Usage
@@ -26,28 +26,30 @@ Bootstrap the app:
 import { makeContext, renderApp } from '@owlmeans/web-client'
 
 const context = makeContext(config)
-context.registerEntrypoints(appEntrypoints)
+context.registerEntrypoints(clientBindings)
 context.serviceRoute(MANAGER, true)
 renderApp<Config, Context>(context)
 ```
 
-Define entrypoints:
+Bind protocols:
 
 ```typescript
 import { bindScreen, bindAll } from '@owlmeans/client-entrypoint'
 import { handler } from '@owlmeans/client'
-import { appEntrypoints as protocols } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 
-appEntrypoints.push(bindScreen(protocols.web.base, handler(PublicLayout)))
-appEntrypoints.push(bindScreen(protocols.web.home, handler(HomeScreen)))
-appEntrypoints.push(...bindAll(protocols.api))
+const clientBindings = [
+  bindScreen(appProtocols.web.base, handler(PublicLayout)),
+  bindScreen(appProtocols.web.home, handler(HomeScreen)),
+  ...bindAll(appProtocols.api),
+]
 ```
 
 A screen entrypoint carries a renderer, so it is addressed by `url()` and never called over the
 wire. Call an API entrypoint from a component:
 
 ```typescript
-const result = await context.entrypoint(appEntrypoints.api.project)
+const result = await context.entrypoint(appProtocols.api.project.get)
   .call({ params: { id }, body: data })
 ```
 

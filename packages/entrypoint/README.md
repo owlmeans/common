@@ -17,7 +17,7 @@ entrypoint is registered in — `path()` walks the parent chain, `mount()` adds 
 ## Installation
 
 ```bash
-bun add @owlmeans/entrypoint@^0.1.18-rc.10
+bun add @owlmeans/entrypoint@^0.1.18-rc.19
 ```
 
 ## Usage
@@ -25,14 +25,20 @@ bun add @owlmeans/entrypoint@^0.1.18-rc.10
 Define a protocol with a typed request and guard:
 
 ```typescript
-import { contract, protocol, typed } from '@owlmeans/entrypoint'
-import { route } from '@owlmeans/route'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod } from '@owlmeans/route'
 
-const createStoryProtocol = protocol(
-  route('story-create', '/stories', { method: 'POST', parent: 'api' }),
-  contract.request({ body: typed<CreateStory>(CreateStorySchema) }, typed<Story>()),
-  { guards: ['authenticated'] },
-)
+const aliases = { stories: 'stories', create: 'stories:create' } as const
+const stories = openProtocol(route(aliases.stories, '/stories', backend()))
+
+export const storyProtocols = {
+  base: stories,
+  create: protocol(
+    route(aliases.create, '/', backend({ parent: stories, method: RouteMethod.POST })),
+    contract.request({ body: typed<CreateStory>(CreateStorySchema) }, typed<Story>()),
+    { guards: ['authenticated'] },
+  ),
+} as const
 ```
 
 Bind the protocol to a typed server handler:
@@ -43,9 +49,12 @@ import { bind } from '@owlmeans/server-entrypoint'
 import type { Context } from 'my-app-backend'
 
 const api = handlers<Context>()
-const create = api.params(createStoryProtocol, async ({ id }, context) =>
-  context.project().get(id))
-export const entrypoints = [bind(createStoryProtocol, create)]
+const create = api.body(storyProtocols.create, async (body, context) =>
+  context.story().create(body))
+export const serverBindings = [
+  bind(storyProtocols.base),
+  bind(storyProtocols.create, create),
+]
 ```
 
 ## API
@@ -67,9 +76,10 @@ behaviour is added by `bind()`/`bindAll()`/`bindScreen()` in the side-specific p
 
 ### Parentship
 
-A child names its parent in the route declaration (`route('story-create', '/stories', { parent: 'api' })`).
-`path()` prefixes the parent's segments, and inherited guards/gates are collected when a runtime
-binds the protocol.
+A child references its parent protocol in the route declaration
+(`route(alias, '/', backend({ parent: storyProtocols.base }))`). `path()` prefixes the parent's
+segments, and inherited guards/gates are collected when a runtime binds the protocol. Keep aliases
+private to the declaration module; an alias string is an adapter address, not a cross-layer API.
 
 ### `provideResponse<T>(): AbstractResponse<T>`
 

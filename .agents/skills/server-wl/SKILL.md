@@ -28,7 +28,7 @@ object.
 ```typescript
 import { entrypoints as wlEntrypoints } from '@owlmeans/server-wl'
 
-export const appEntrypoints = [...ownEntrypoints, ...wlEntrypoints]
+export const serverBindings = [...ownBindings, ...wlEntrypoints]
 ```
 
 ```typescript

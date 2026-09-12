@@ -25,7 +25,7 @@ Consumes the declaration shared by `@owlmeans/api-config` and answered by
 Both halves are needed: the middleware does the work, the entrypoint is what it calls.
 
 ```typescript
-import { apiConfigMiddleware, entrypoints as apiConfigEntrypoints } from '@owlmeans/api-config-client'
+import { apiConfigMiddleware, entrypoints as apiConfigBindings } from '@owlmeans/api-config-client'
 
 export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C): T => {
   const context = makeClientContext(cfg) as T
@@ -33,7 +33,7 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
   return context
 }
 
-export const appEntrypoints = [...apiConfigEntrypoints, ...myEntrypoints]
+export const clientBindings = [...apiConfigBindings, ...myClientBindings]
 ```
 
 A panel app on `@owlmeans/web-panel` or `@owlmeans/mui-panel` already registers both — do it again
@@ -48,7 +48,7 @@ captured while initializing: that one still holds what the bundle shipped.
 
 - **Both halves, or the boot dies.** The middleware resolves `API_CONFIG` against the context
   before it tests anything else, so a context that registers `apiConfigMiddleware` without also
-  spreading `entrypoints` fails `init()` with `SyntaxError: Entrypoint api-config:advertise not
+  registering local `entrypoints` bindings fails `init()` with `SyntaxError: Entrypoint api-config:advertise not
   found`. That failure is outside the swallowing below — it is a hard boot error, not a missing
   value discovered later.
 - **It is a no-op unless `cfg.primaryHost` is set.** A build without it keeps whatever the bundle

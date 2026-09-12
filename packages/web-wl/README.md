@@ -1,11 +1,11 @@
 # @owlmeans/web-wl
 
-Web whitelabel — service factory, entrypoint declarations, and React components for managing whitelabel content in browser apps.
+Web whitelabel — service factory, local protocol bindings, and React components for managing whitelabel content in browser apps.
 
 ## Overview
 
 - `makeWlService(alias?)` — web-side whitelabel service factory
-- `entrypoints` — web-side whitelabel entrypoint declarations
+- `entrypoints` — web-side bindings for the shared whitelabel protocol
 - Components for displaying whitelabel content
 - `DEFAULT_ALIAS` — `'wl-web-serivce'`
 
@@ -17,13 +17,13 @@ bun add @owlmeans/web-wl@^0.1.18-rc.14
 
 ## Usage
 
-Register the service and entrypoint declarations:
+Register the service and local bindings:
 
 ```typescript
 import { makeWlService, entrypoints as wlEntrypoints } from '@owlmeans/web-wl'
 
 context.registerService(makeWlService())
-const entrypoints = [...baseEntrypoints, ...wlEntrypoints, ...appEntrypoints]
+const clientBindings = [...baseEntrypoints, ...wlEntrypoints, ...appBindings]
 ```
 
 Downstream variants (e.g., `@owlmeans/web-wl-manager`) extend this with manager-store helpers like `setupWlManagerStore<C, T>(context)`.
@@ -36,7 +36,7 @@ Creates the web whitelabel service. `alias` defaults to `DEFAULT_ALIAS` (`'wl-we
 
 ### `entrypoints`
 
-Array of web-side entrypoint declarations for whitelabel content.
+Local browser bindings for `wledEntrypoints.provide`; they do not redeclare the shared protocol.
 
 ### Components
 

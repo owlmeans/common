@@ -6,28 +6,28 @@ Server-side entrypoint that serves safe configuration values at `GET /assets/con
 
 - Registers the `API_CONFIG` handler that returns non-sensitive config fields to clients
 - Used alongside `@owlmeans/api-config-client` to push runtime config from server to browser
-- Include `entrypoints` in your server entrypoint registration
+- Include this package's local bindings in your server entrypoint registration
 
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config-server@^0.1.18-rc.16
+bun add @owlmeans/api-config-server@^0.1.18-rc.25
 ```
 
 ## Usage
 
 ```typescript
-import { entrypoints as apiConfigEntrypoints } from '@owlmeans/api-config-server'
+import { entrypoints as apiConfigBindings } from '@owlmeans/api-config-server'
 
-// In your server context setup
-context.registerEntrypoints([...appEntrypoints, ...apiConfigEntrypoints])
+// In your server context setup: this is a local binding list, not a shared declaration tree.
+context.registerEntrypoints([...serverBindings, ...apiConfigBindings])
 ```
 
 ## API
 
 ### `entrypoints`
 
-Array of server-side route handlers for the config advertisement endpoint (`GET /assets/config.json`).
+Local server bindings for the shared `advertise` protocol (`GET /assets/config.json`).
 
 ## Related Packages
 

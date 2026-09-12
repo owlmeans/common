@@ -26,13 +26,13 @@ A complete form with submit and cancel actions:
 ```typescript
 import { ClientForm, InputCtrl, ActionCtrl, useFormRef } from '@owlmeans/client-panel'
 import type { FormOnSubmit } from '@owlmeans/client-panel'
-import { appEntrypoints } from 'my-app-common'
+import { appProtocols } from 'my-app-common'
 
 function CreateProjectForm() {
   const formRef = useFormRef()
 
   const onSubmit: FormOnSubmit<CreateProject> = async (data) => {
-    await ctx.entrypoint(appEntrypoints.api.projectCreate).call({ body: data })
+    await ctx.entrypoint(appProtocols.api.project.create).call({ body: data })
   }
 
   return (

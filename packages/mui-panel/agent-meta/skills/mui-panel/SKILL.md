@@ -93,7 +93,7 @@ Compose the entrypoints over the base set, then render with the app's theme:
 ```typescript
 import { entrypoints as baseEntrypoints, render } from '@owlmeans/mui-panel'
 
-export const entrypoints = [...baseEntrypoints, ...appEntrypoints]
+export const clientBindings = [...baseEntrypoints, ...appBindings]
 
 render(context, theme)
 ```

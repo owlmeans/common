@@ -13,7 +13,7 @@ runtime. The declaration is never modified by a server or browser.
 
 ```ts
 // common/src/entrypoints.ts
-export const sessionEntrypoints = {
+export const sessionProtocols = {
   list: protocol(
     route(session.list, '/session', backend()),
     contract.request({ query: typed<SessionQuery>(SessionQuerySchema) }, typed<Session[]>())
@@ -24,20 +24,20 @@ export const sessionEntrypoints = {
 ```ts
 // api/src/entrypoints.ts
 const api = handlers<Context>()
-export const appEntrypoints = [
+export const serverBindings = [
   ...frameworkEntrypoints,
-  bind(sessionEntrypoints.list, api.request(sessionEntrypoints.list, listSessions)),
+  bind(sessionProtocols.list, api.request(sessionProtocols.list, listSessions)),
 ]
 ```
 
 ```ts
 // web/src/entrypoints.ts
-export const appEntrypoints = [
+export const clientBindings = [
   ...frameworkEntrypoints,
-  ...bindAll(sessionEntrypoints),
+  ...bindAll(sessionProtocols),
 ]
 
-const sessions = await context.entrypoint(sessionEntrypoints.list).call({ query: { sid } })
+const sessions = await context.entrypoint(sessionProtocols.list).call({ query: { sid } })
 ```
 
 Use `schema<T>(...)` or `typed<T>(...)` at the contract boundary. Bind all route parents with their

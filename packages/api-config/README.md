@@ -1,10 +1,10 @@
 # @owlmeans/api-config
 
-Shared entrypoint for advertising safe config values from server to client via a REST endpoint.
+Shared protocol for advertising safe config values from server to client via a REST endpoint.
 
 ## Overview
 
-- Exposes a `GET /assets/config.json` entrypoint that returns package-allowlisted config fields
+- Exposes the `advertise` protocol for `GET /assets/config.json`, returning package-allowlisted config fields
 - `ApiConfig` — the advertised config type (subset of `CommonConfig`)
 - `API_CONFIG` — entrypoint alias for the config endpoint
 - `apiConfigPlugin` / `every` — import-time allowlist helpers for package-owned client config
@@ -12,16 +12,20 @@ Shared entrypoint for advertising safe config values from server to client via a
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config@^0.1.18-rc.11
+bun add @owlmeans/api-config@^0.1.18-rc.20
 ```
 
 ## Usage
 
-Use with server and client counterparts — this package provides the shared types and entrypoint alias:
+Use with server and client counterparts — this package provides the shared protocol, types, and
+private adapter alias:
 
 ```typescript
-import { API_CONFIG } from '@owlmeans/api-config'
+import { advertise } from '@owlmeans/api-config'
 import type { ApiConfig } from '@owlmeans/api-config'
+
+// Bind this exact declaration in the server and browser packages.
+context.entrypoint(advertise)
 ```
 
 ## API
@@ -33,7 +37,13 @@ server values — including databases, queues and secrets — are never returned
 
 ### `API_CONFIG`
 
-Entrypoint alias `'api-config:advertise'` used to register/call the config endpoint.
+Internal adapter alias `'api-config:advertise'`. Application code imports `advertise` instead of
+looking the protocol up by this string.
+
+### `advertise`
+
+The immutable, sticky protocol for `GET /assets/config.json`. It is the only shared declaration;
+`@owlmeans/api-config-server` and `@owlmeans/api-config-client` each export local bindings for it.
 
 ### `apiConfigPlugin`
 
@@ -50,10 +60,6 @@ apiConfigPlugin({
 
 The `deny` selector removes nested values after the allowlist selection. Prefer a precise nested
 allowlist to `true`; `true` is appropriate only for data that is public at every depth.
-
-### `entrypoints`
-
-Array of route definitions for the config advertisement endpoint.
 
 ## Related Packages
 

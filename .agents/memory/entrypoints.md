@@ -28,6 +28,9 @@ registry that holds them is [[context]].
 - Canonical packages: `@owlmeans/entrypoint`, `@owlmeans/server-entrypoint`,
   `@owlmeans/client-entrypoint`. There are no `@owlmeans/*module` packages in the repo (published
   shim versions remain on npm; external consumers must migrate).
+- Documentation and new scaffolds name exported declaration trees `*Protocols` and runtime-local
+  materialized arrays `*Bindings`. A package may retain an established `entrypoints` export only
+  for its own local bindings; never describe it as a shared declaration list.
 - Context API: `ctx.entrypoint(protocol)`, `ctx.entrypoints()`, `ctx.registerEntrypoint(ep)`,
   `ctx.registerEntrypoints(eps)`, `ctx.hasEntrypoint(alias)`, `BasicEntrypoint`. These are the only
   names — there is no `ctx.module*` alias.

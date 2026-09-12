@@ -132,7 +132,7 @@ Throw from a handler when the request is missing the identity it needs:
 import { AuthUnknown, entitySlugOf } from '@owlmeans/auth'
 import { handlers } from '@owlmeans/server-app'
 
-export const list = handlers<Context>().request(authEntrypoints.list, async (req, context) => {
+export const list = handlers<Context>().request(projectProtocols.list, async (req, context) => {
   const slug = entitySlugOf(req.auth)
   if (slug == null) throw new AuthUnknown('entity')
 

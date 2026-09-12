@@ -39,7 +39,7 @@ the package its API and its browser both import, and neither side ever writes a 
 import { declareJobEntrypoints } from '@owlmeans/server-job'
 
 export const REPORTS = 'reports'
-export const protocols = {
+export const appProtocols = {
   jobs: declareJobEntrypoints(REPORTS, { path: '/reports/jobs', parent: app.api.base }),
 }
 ```
@@ -64,10 +64,10 @@ import { serveJobEntrypoints } from '@owlmeans/server-job'
 import { appendRedisQueue } from '@owlmeans/redis-queue'
 
 appendRedisQueue(context)
-export const appEntrypoints = [
-  ...serveJobEntrypoints(protocols.jobs, { queue: REPORT_QUEUE }),
+export const serverBindings = [
+  ...serveJobEntrypoints(appProtocols.jobs, { queue: REPORT_QUEUE }),
 ]
-context.registerEntrypoints(appEntrypoints)
+context.registerEntrypoints(serverBindings)
 ```
 
 Pass the declared protocol group, never a flattened or materialized entrypoint list. `serveJobEntrypoints()`
@@ -98,7 +98,7 @@ The escape hatch is a predicate, never a permission name — which permission, g
 "operator" is the application's decision:
 
 ```typescript
-serveJobEntrypoints(protocols.jobs, {
+serveJobEntrypoints(appProtocols.jobs, {
   queue: REPORT_QUEUE,
   admin: req => req.auth?.scopes?.includes('ops') === true,
 })

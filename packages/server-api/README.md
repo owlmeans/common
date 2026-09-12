@@ -12,7 +12,7 @@ Fastify-based HTTP/WebSocket server with typed handler factories for the OwlMean
 ## Installation
 
 ```bash
-bun add @owlmeans/server-api@^0.1.18-rc.16
+bun add @owlmeans/server-api@^0.1.18-rc.25
 ```
 
 ## Usage
@@ -22,30 +22,30 @@ Handlers are derived from the shared protocol and attached with `bind()`:
 ```typescript
 import { handlers } from '@owlmeans/server-api'
 import { bind } from '@owlmeans/server-entrypoint'
-import { projectEntrypoints } from 'project-common/entrypoints'
+import { projectProtocols } from 'project-common/protocols'
 
 const api = handlers<Context>()
 
 // Body handler: receives parsed + validated body as first arg
-const create = api.body(projectEntrypoints.create, async (payload, context, req) => {
+const create = api.body(projectProtocols.create, async (payload, context, req) => {
   const ctx = context as Context
   return await ctx.project().create({ ...payload, entityId: req.entity!.id })
 })
 
 // Params handler: receives validated URL params as first arg
-const get = api.params(projectEntrypoints.get, async (params, context, req) => {
+const get = api.params(projectProtocols.get, async (params, context, req) => {
   return await (context as Context).project().get(params.id)
 })
 
 // Request handler: receives the full AbstractRequest
-const health = api.request(projectEntrypoints.health, async (req, context) => {
+const health = api.request(projectProtocols.health, async (req, context) => {
   return { status: 'ok' }
 })
 
-export const entrypoints = [
-  bind(projectEntrypoints.create, create),
-  bind(projectEntrypoints.get, get),
-  bind(projectEntrypoints.health, health),
+export const serverBindings = [
+  bind(projectProtocols.create, create),
+  bind(projectProtocols.get, get),
+  bind(projectProtocols.health, health),
 ]
 ```
 

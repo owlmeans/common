@@ -1,6 +1,6 @@
 # @owlmeans/oidc
 
-Shared OIDC protocol abstractions — guard/gate aliases, models, and entrypoint declarations used by both server and browser OIDC packages.
+Shared OIDC protocol abstractions — guard/gate aliases, models, and immutable protocol declarations used by both server and browser OIDC packages.
 
 ## Overview
 
@@ -74,9 +74,11 @@ import { OIDC_GUARD } from '@owlmeans/oidc'
 - `GOOGLE_CLIENT_AUTH` identifies the browser Google auth plugin registered by `@owlmeans/web-oidc-rp/auth/plugins`.
 - `OIDC_GATE` is for OIDC-backed authorization. Apps that only use Google/OIDC for login and authorize against local identity records should define their own product gate alias.
 
-### `entrypoints`
+### `oidcProtocols`
 
-Array of dispatcher entrypoint declarations: `POST /authenticate/oidc/init` and `POST /authenticate/oidc/process`.
+Immutable dispatcher declaration tree: `POST /authenticate/oidc/init` and
+`POST /authenticate/oidc/process`. The relying-party packages bind these exact protocol objects
+locally; do not recreate them or consume an alias-addressed compatibility list.
 
 ## Related Packages
 

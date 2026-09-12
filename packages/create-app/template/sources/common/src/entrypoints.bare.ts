@@ -5,7 +5,7 @@ import { frontend, route } from '@owlmeans/route'
 const webBase = openProtocol(route(BASE, '/', frontend()))
 
 /** The shared immutable protocol tree. Add API declarations below `api` as the shell grows. */
-export const appEntrypoints = {
+export const appProtocols = {
   api: {},
   web: {
     base: webBase,

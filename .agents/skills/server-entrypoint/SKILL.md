@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-entrypoint
 
-**Install:** `bun add @owlmeans/server-entrypoint@^0.1.18-rc.17`
+**Install:** `bun add @owlmeans/server-entrypoint@^0.1.18-rc.19`
 
 Bind the imported protocol object to the implementation that serves it:
 
@@ -16,15 +16,15 @@ import { handlers } from '@owlmeans/server-api'
 
 const api = handlers<AppContext>()
 
-export const entrypoints = [
-  bind(projectEntrypoints.create, api.body(projectEntrypoints.create, async (body, context) =>
+export const serverBindings = [
+  bind(projectProtocols.create, api.body(projectProtocols.create, async (body, context) =>
     context.projects.create(body)
   )),
 ]
 ```
 
 `bind(protocol, handler?, options?)` returns a `ServerProtocolEntrypoint<Protocol>`.
-`bindAll(declarations, handlers?)` is for a flat protocol collection. A handler carries its
+`bindAll(declarations, handlers?)` is for a flat protocol collection at a registration boundary. A handler carries its
 `protocol`, and a collection is matched by object identity; an alias is never used to find or
 replace it. HTTP code should use `handlers<Context>()`; sockets use `connection(protocol, callback)`.
 

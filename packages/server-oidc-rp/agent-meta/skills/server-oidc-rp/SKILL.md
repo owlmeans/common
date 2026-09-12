@@ -57,7 +57,7 @@ import { oidcEntrypoints, makeAuthServiceEntrypoints } from '@owlmeans/server-oi
 import { bindAll } from '@owlmeans/server-entrypoint'
 
 export const configuredProtocols = withOidcGuard(protocols)
-export const appEntrypoints = [
+export const serverBindings = [
   ...bindAll(configuredProtocols.api),
   ...oidcEntrypoints,
   ...bindAll(makeAuthServiceEntrypoints('my-auth-api')),

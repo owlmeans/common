@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/route
 
 **Layer:** Core
-**Install:** `"@owlmeans/route": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/route": "^0.1.18-rc.17"` in `dependencies`
 
 ## Key Exports
 
@@ -17,7 +17,7 @@ user-invocable: false
 | `frontend(options?, default?)` | Mark a route as a React page (web only) |
 | `backend(options?, method?)` | Mark a route as a backend endpoint |
 | `socket(options?, secondary?)` | A backend route answering over `RouteProtocols.SOCKET` |
-| `job(options?, secondary?)` | A backend route carried by the queue (`RouteProtocols.QUEUE`); its declaration adds `queue`, `reply` and `timeout` |
+| `job(options?, secondary?)` | A backend route carried by the queue (`RouteProtocols.QUEUE`); its declaration names `service`, `queue`, `reply` and `timeout` |
 | `service(alias, options?)` | Point a route at a named service |
 | `RouteMethod` | enum of GET, POST, PUT, PATCH, DELETE |
 | `RouteProtocols` | enum of WEB (`http`), SOCKET (`ws`), QUEUE (`queue`) |
@@ -50,7 +50,8 @@ not by this package; a route only names the protocol.
 `job()` is `backend()` with `RouteProtocols.QUEUE`. Three declaration fields matter only for that
 protocol: `queue` (which queue carries it), `reply` and `timeout`. `reply: false` resolves once the
 broker has taken the job — the value is the job's identity and the outcome is `Accepted`, not the
-job's result; the default is to wait for the result.
+job's result; the default is to wait for the result. Use the parent protocol object in a route
+option (`job({ parent: storyProtocols.base, service, queue, timeout })`), never an exported alias string.
 
 ## Subpath Exports
 

@@ -5,7 +5,7 @@ description: Build OwlMeans server applications from immutable entrypoint protoc
 
 # Server application entrypoints
 
-**Install:** `bun add @owlmeans/server-app@^0.1.18-rc.25`
+**Install:** `bun add @owlmeans/server-app@^0.1.18-rc.27`
 
 Declare routes and request/response contracts in a shared package with `protocol()` or
 `openProtocol()`. A server package supplies local implementations with `bind()` and `handlers()`;
@@ -13,15 +13,15 @@ it never changes a shared declaration by alias.
 
 ```ts
 import { bind, entrypoints, handlers } from '@owlmeans/server-app'
-import { projectEntrypoints } from 'project-common'
+import { projectProtocols } from 'project-common'
 import { createProject } from './app/project.js'
 
 const api = handlers<Context>()
 
-export const appEntrypoints = [
+export const serverBindings = [
   ...entrypoints,
-  bind(projectEntrypoints.base),
-  bind(projectEntrypoints.create, api.body(projectEntrypoints.create, createProject)),
+  bind(projectProtocols.base),
+  bind(projectProtocols.create, api.body(projectProtocols.create, createProject)),
 ]
 ```
 

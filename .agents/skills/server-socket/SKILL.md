@@ -5,7 +5,7 @@ description: Bind OwlMeans socket protocol declarations to Fastify WebSocket han
 
 # Socket protocol handlers
 
-**Install:** `bun add @owlmeans/server-socket@^0.1.18-rc.25`
+**Install:** `bun add @owlmeans/server-socket@^0.1.18-rc.27`
 
 Declare a socket route and its contract in the shared protocol package. Bind it on the server with
 `connection()` and `bind()`.
@@ -14,8 +14,8 @@ Declare a socket route and its contract in the shared protocol package. Bind it 
 import { bind } from '@owlmeans/server-entrypoint'
 import { connection } from '@owlmeans/server-socket'
 
-export const appEntrypoints = [
-  bind(streamEntrypoints.watch, connection(streamEntrypoints.watch,
+export const serverBindings = [
+  bind(streamProtocols.watch, connection(streamProtocols.watch,
     async (connection, context, request) => {
       await connection.send({ type: 'ready' })
     }

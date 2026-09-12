@@ -34,7 +34,8 @@ observer(context).onTopUp(async completion => {
 })
 ```
 
-Mount `paymentGateEntrypoints` in the server entrypoint list. `gateway(context).createLink(...)`
+Mount the local `paymentGateEntrypoints` bindings in the server entrypoint list; the shared
+`paymentGate` protocol tree stays immutable. `gateway(context).createLink(...)`
 accepts the stable organization `entityId` only after the application has resolved it at its
 authenticated boundary; public protocol bodies use `entitySlug`.
 

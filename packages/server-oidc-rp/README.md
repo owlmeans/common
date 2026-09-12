@@ -39,7 +39,7 @@ import { withOidcGuard } from '@owlmeans/oidc'
 import { oidcEntrypoints } from '@owlmeans/server-oidc-rp'
 
 const configuredProtocols = withOidcGuard(protocols)
-const appEntrypoints = [
+const serverBindings = [
   // Bind application protocols against configuredProtocols here.
   ...oidcEntrypoints,
 ]

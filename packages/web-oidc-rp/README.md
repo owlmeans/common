@@ -13,7 +13,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Installation
 
 ```bash
-bun add @owlmeans/web-oidc-rp@^0.1.18-rc.25
+bun add @owlmeans/web-oidc-rp@^0.1.18-rc.32
 ```
 
 The package owns its private shadcn progress primitive and imports it through relative specifiers;
@@ -46,7 +46,7 @@ import { withOidcGuard } from '@owlmeans/oidc'
 import { oidcEntrypoints } from '@owlmeans/web-oidc-rp'
 
 const configuredProtocols = withOidcGuard(protocols)
-const appEntrypoints = [
+const clientBindings = [
   // Bind application screens and clients against configuredProtocols here.
   ...oidcEntrypoints({ payload: { simplified: true } }),
 ]

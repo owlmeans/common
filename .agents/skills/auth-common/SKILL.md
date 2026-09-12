@@ -1,16 +1,16 @@
 ---
 name: auth-common
-description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth entrypoint list, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, entityKeyOf, attachEntity). Auto-invoked when importing guard constants, the shared auth entrypoints, or entity-resolution helpers.
+description: How to use @owlmeans/auth-common — the auth vocabulary both sides of the wire share, covering guard aliases (DEFAULT_GUARD, GUARD_ED25519), the shared auth protocol trees, the Ed25519 signature guard, the TRUSTED-record trust() helper, and the organization-entity resolver contract (ENTITY_RESOLVER, entityKeyOf, attachEntity). Auto-invoked when importing guard constants, shared auth protocols, or entity-resolution helpers.
 user-invocable: false
 ---
 
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.21"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
-entrypoint declarations, the signature guard, and the contract for resolving the organization
+protocol declarations, the signature guard, and the contract for resolving the organization
 entity a token names.
 
 ## Key Exports
@@ -34,8 +34,8 @@ entity a token names.
 
 | Export | Description |
 |--------|-------------|
-| `authEntrypoints` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
-| `managerEntrypoints` | The auth-manager web API entrypoints (profile → entity slug, auth delegation) |
+| `authProtocols` | The shared auth protocol tree — `AUTHEN*`, `CAUTHEN*`, `DISPATCHER`, `DISPATCHER_SURROGATE`, `DISPATCHER_AUTHEN`. Server and client packages bind the entries they serve |
+| `managerProtocols` | The auth-manager web API protocol tree (profile → entity slug, auth delegation) |
 | `makeBasicEd25519Guard(resource, opts?)` | The `GUARD_ED25519` guard service: signs outgoing requests as a client, verifies time/nonce/signature as a server |
 | `authMiddleware` | Loading-stage context middleware that attaches the guard's token to every guarded backend entrypoint's `invoke`/`call` |
 | `SurrogateQuery`, `SurrogateQuerySchema` | The surrogate window's `intent` / `next` / `method` query |
@@ -137,6 +137,6 @@ depends on the value.
 
 - `@owlmeans/auth` — types, errors, entrypoint aliases
 - `@owlmeans/entrypoint` — `entrypoint` / `guard` / `gate`, `GuardService`, `ResolvedEntity`
-- `@owlmeans/route` — route builders for the shared entrypoint list
+- `@owlmeans/route` — route builders for the shared protocol trees
 - `@owlmeans/basic-keys` — key pairs behind `trust()` and the Ed25519 guard
 - `@owlmeans/basic-ids`, `@owlmeans/context`, `@owlmeans/resource`, `@owlmeans/client-entrypoint`

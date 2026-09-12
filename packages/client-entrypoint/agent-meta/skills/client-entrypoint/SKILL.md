@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/client-entrypoint
 
-**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.19`
+**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.21`
 
 Bind a declaration from `@owlmeans/entrypoint`; never construct or replace a contextual
 entrypoint by alias.
@@ -15,13 +15,13 @@ entrypoint by alias.
 ```ts
 import { bind, bindAll, bindScreen } from '@owlmeans/client-entrypoint'
 
-context.registerEntrypoints(bindAll(projectEntrypoints))
-context.registerEntrypoint(bind(projectEntrypoints.health))
-context.registerEntrypoint(bindScreen(projectEntrypoints.home, handler(Home)))
+context.registerEntrypoints(bindAll(projectProtocols))
+context.registerEntrypoint(bind(projectProtocols.health))
+context.registerEntrypoint(bindScreen(projectProtocols.home, handler(Home)))
 
-const value = await context.entrypoint(projectEntrypoints.create).call({ body })
-const { value, outcome } = await context.entrypoint(projectEntrypoints.create).invoke({ body })
-const href = await context.entrypoint(projectEntrypoints.edit).url({ params: { id } })
+const value = await context.entrypoint(projectProtocols.create).call({ body })
+const { value, outcome } = await context.entrypoint(projectProtocols.create).invoke({ body })
+const href = await context.entrypoint(projectProtocols.edit).url({ params: { id } })
 ```
 
 `bindAll(tree)` flattens a nested named declaration tree while preserving the union of its protocol
