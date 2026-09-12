@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-sdk",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.7",
   "license": "MIT",
   "description": "Drive the OwlMeans Viable platform from outside it — the connector session, the local slot executor, the tool catalogue and the model-task protocol an external coding agent answers.",
   "type": "module",
@@ -62,14 +62,14 @@
     "harness"
   ],
   "dependencies": {
-    "@owlmeans/api": "^0.1.18-rc.18",
+    "@owlmeans/api": "^0.1.18-rc.19",
     "@owlmeans/auth": "^0.1.18-rc.14",
-    "@owlmeans/auth-common": "^0.1.18-rc.18",
+    "@owlmeans/auth-common": "^0.1.18-rc.19",
     "@owlmeans/auth-token": "^0.1.18-rc.5",
     "@owlmeans/basic-ids": "^0.1.18-rc.14",
     "@owlmeans/client-config": "^0.1.18-rc.17",
-    "@owlmeans/client-context": "^0.1.18-rc.18",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.18",
+    "@owlmeans/client-context": "^0.1.18-rc.19",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.19",
     "@owlmeans/config": "^0.1.18-rc.17",
     "@owlmeans/context": "^0.1.18-rc.13",
     "@owlmeans/entrypoint": "^0.1.18-rc.16",

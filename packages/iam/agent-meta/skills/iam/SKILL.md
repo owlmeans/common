@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/iam`
 
-**Install:** `"@owlmeans/iam": "^0.1.18-rc.21"` in `dependencies`
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.22"` in `dependencies`
 
 Provider-agnostic IAM abstraction: the `IamService` interface, the permission and grant shapes, the
 gate-param grammar, and `hasPermission`. It contains no implementation and talks to no provider —

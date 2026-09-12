@@ -6,7 +6,7 @@ description: Category-B unit tests for OwlMeans Common — auth/authz packages w
 
 # Auth Unit Tests — Category B
 
-**Install:** `"@owlmeans/test-auth": "^0.1.18-rc.18"` in `devDependencies`
+**Install:** `"@owlmeans/test-auth": "^0.1.18-rc.19"` in `devDependencies`
 
 Category B applies to the auth/authz packages: `auth`, `auth-common`, `auth-otp`, `basic-envelope`, `basic-keys`, `client-auth`, `client-did`, `client-iam`, `client-payment`, `did`, `mui-oidc-rp`, `oidc`, `server-auth`, `server-auth-otp`, `server-oidc-provider`, `server-oidc-rp`, `web-auth`, `web-oidc-provider`, `web-oidc-rp`, `wled`. These tests run under `bun test` (no Playwright even when there are React bits) and are the **only** place mocks are allowed — and only for authentication/authorization, via `@owlmeans/test-auth`.
 

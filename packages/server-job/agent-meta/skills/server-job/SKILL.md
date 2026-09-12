@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-job
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-job": "^0.1.18-rc.6"` in `dependencies`
+**Install:** `"@owlmeans/server-job": "^0.1.18-rc.7"` in `dependencies`
 
 The READ side of a queue. `@owlmeans/queue` and its driver enqueue and process; this package turns
 what they leave behind into four entrypoints an application binds, so that "a long job reports
