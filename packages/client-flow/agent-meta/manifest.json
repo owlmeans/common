@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/client-flow",
-  "version": "0.1.18-rc.20",
-  "generatedAt": "2026-09-12T08:39:52.712Z",
+  "version": "0.1.18-rc.21",
+  "generatedAt": "2026-09-12T12:31:48.620Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

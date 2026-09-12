@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-keys",
-  "version": "0.1.18-rc.15",
+  "version": "0.1.18-rc.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-auth": "^0.1.18-rc.16",
+    "@owlmeans/test-auth": "^0.1.18-rc.17",
     "@types/bun": "^1.4.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

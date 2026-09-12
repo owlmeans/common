@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-app",
-  "version": "0.1.18-rc.21",
+  "version": "0.1.18-rc.22",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,20 +21,20 @@
     }
   },
   "dependencies": {
-    "@owlmeans/api": "^0.1.18-rc.16",
+    "@owlmeans/api": "^0.1.18-rc.17",
     "@owlmeans/client-config": "^0.1.18-rc.15",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.16",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.17",
     "@owlmeans/config": "^0.1.18-rc.15",
     "@owlmeans/context": "^0.1.18-rc.11",
     "@owlmeans/kluster": "^0.1.18-rc.15",
-    "@owlmeans/entrypoint": "^0.1.18-rc.14",
+    "@owlmeans/entrypoint": "^0.1.18-rc.15",
     "@owlmeans/route": "^0.1.18-rc.12",
-    "@owlmeans/server-api": "^0.1.18-rc.20",
-    "@owlmeans/server-auth": "^0.1.18-rc.21",
+    "@owlmeans/server-api": "^0.1.18-rc.21",
+    "@owlmeans/server-auth": "^0.1.18-rc.22",
     "@owlmeans/server-context": "^0.1.18-rc.15",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.14",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.15",
     "@owlmeans/server-route": "^0.1.18-rc.12",
-    "@owlmeans/server-socket": "^0.1.18-rc.21",
+    "@owlmeans/server-socket": "^0.1.18-rc.22",
     "@owlmeans/static-resource": "^0.1.18-rc.12"
   },
   "devDependencies": {

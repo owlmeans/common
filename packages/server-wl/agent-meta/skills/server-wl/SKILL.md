@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-wl
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-wl": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/server-wl": "^0.1.18-rc.21"` in `dependencies`
 
 Answers the one `WL_PROVIDE` entrypoint `@owlmeans/wled` declares. It stores nothing itself: it fans
 the request out to the provider services the configuration names and returns their answers in one

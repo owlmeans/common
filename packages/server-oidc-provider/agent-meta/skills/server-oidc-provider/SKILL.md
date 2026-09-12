@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.21"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.22"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.11.1` (exact), `jose@6.2.5` (exact), `@types/oidc-provider@9.5.0`
 
 Use this only when your service **is** the identity provider. For consuming someone else's issuer,
