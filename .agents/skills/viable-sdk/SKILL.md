@@ -39,8 +39,8 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 ## One credential, and the routes the server declares
 
 `makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and binds the SAME
-`connectEntrypoints(...)` list the server mounts, so a path or a schema cannot be right on one end
-and wrong on the other. There is deliberately **no second credential path**: a connector that could
+immutable `connectProtocols(...)` tree the server mounts, so a path or a schema cannot be right on
+one end and wrong on the other. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
 revoking a token. A token without `CONNECT_TOKEN_PREFIX` is refused locally, because a 401 says
 nothing about which of several plausible mistakes was made and the answer is always the same one.

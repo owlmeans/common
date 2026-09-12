@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.6"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.12"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/entrypoint`, `@owlmeans/route`,
@@ -25,7 +25,7 @@ refusal two spellings, and one ceiling two values.
 |---|---|
 | `.` (barrel) | `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`); `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; `ViableSkill` / `ViablePersona` / `VIABLE_SKILLS`; the BA, dev, UX, design and scaffold shapes and their schemas; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` sets, `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectJobKind`/`Status`/`Block`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session/job/status views, the `Connect*` error family, `connectEntrypoints(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectJobKind`/`Status`/`Block`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session/job/status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`Shape`/`State`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`Reason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
 
@@ -73,17 +73,18 @@ a refused session. Apply the same reasoning to anything else a newer connector m
 platform, and nowhere else — a closed set is worth more than a tolerant one everywhere both ends
 deploy together.
 
-## One declaration, elevated on both ends
+## One immutable protocol tree, bound in each runtime
 
-`connectEntrypoints(opts)` is the connector's whole HTTP and socket surface — paths, methods,
-schemas, parents — and the platform spreads it into its own entrypoints while the SDK elevates the
-same list into client entrypoints. That is what makes a path or a schema impossible to get wrong on
-one side only. Only what belongs to the DEPLOYMENT is injected: the guard alias, the ownership
-gate, the paid local-LLM gate (on the two routes that can turn that mode on) and the platform's own
-socket base.
+`connectProtocols(opts)` is the connector's whole immutable HTTP and socket tree — aliases, paths,
+methods, contracts and protocol parents. The manager and SDK bind their own local materializations
+from those declarations, so a path or schema cannot differ across a server and client. Only what
+belongs to the DEPLOYMENT is injected: the guard alias, ownership gate, paid local-LLM gate and the
+platform's update-base protocol.
 
-Adding a route means adding it here first, then elevating it on both sides. A route declared on one
-side alone is a 404 nobody can explain from the failing end.
+Adding a route means adding it here first, then binding that named protocol in every runtime that
+serves or calls it. A route declared on one side alone is a 404 nobody can explain from the failing
+end. Keep raw aliases private to declaration modules; consumers receive protocol objects, and a
+dynamic adapter reads `.alias` only at its string-addressed boundary.
 
 ## Closed sets that mean something
 
