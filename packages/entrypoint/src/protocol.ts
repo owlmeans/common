@@ -123,8 +123,8 @@ export interface EntrypointGate {
 }
 
 type SourceValue<Source> =
-  Source extends Typed<infer Value> ? Value
-    : Source extends EntrypointSchema<infer Value> ? Value
+  Source extends Typed<infer Value> ? Value extends OpenValue ? Value : OpenValue
+    : Source extends EntrypointSchema<infer Value> ? Value extends OpenValue ? Value : OpenValue
       : Source extends JSONSchemaType<infer Value>
         ? Value extends OpenValue ? Value : OpenValue
         : OpenValue
@@ -154,13 +154,15 @@ const responseSchemasOf = (source: AnyShapeSource | undefined): RuntimeResponseS
  * `contract.request` for independently-shaped request sections.
  */
 export function contract(): EntrypointContract<{}, undefined>
-export function contract<Response>(response: ShapeSource<Response>): EntrypointContract<{}, Response>
-export function contract<Body extends OpenValue, Response>(
-  body: ShapeSource<Body>, response: ShapeSource<Response>
-): EntrypointContract<{ body: Body }, Response>
+export function contract<ResponseSource extends AnyShapeSource>(
+  response: ResponseSource
+): EntrypointContract<{}, SourceValue<ResponseSource>>
+export function contract<BodySource extends AnyShapeSource, ResponseSource extends AnyShapeSource>(
+  body: BodySource, response: ResponseSource
+): EntrypointContract<{ body: SourceValue<BodySource> }, SourceValue<ResponseSource>>
 export function contract(
   first?: AnyShapeSource, second?: AnyShapeSource
-): EntrypointContract<RequestShape, OpenValue> {
+): EntrypointContract<any, any> {
   const body = second == null ? undefined : first
   const response = second ?? first
 
@@ -172,10 +174,14 @@ export function contract(
 }
 
 export namespace contract {
-  export function request<Sources extends RequestSources, Response>(
+  /**
+   * Keep the exact `typed<T>()` source through inference.  Constraining only the response
+   * value as `ShapeSource<Response>` widens an otherwise precise declaration to `OpenValue`.
+   */
+  export function request<Sources extends RequestSources, ResponseSource extends AnyShapeSource>(
     request: Sources,
-    response: ShapeSource<Response>
-  ): EntrypointContract<RequestFromSources<Sources>, Response> {
+    response: ResponseSource
+  ): EntrypointContract<RequestFromSources<Sources>, SourceValue<ResponseSource>> {
     return {
       kind: 'entrypoint-contract',
       requestSchemas: {

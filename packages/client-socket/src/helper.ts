@@ -4,6 +4,7 @@ import { provideRequest } from '@owlmeans/client-entrypoint'
 import type { Connection } from '@owlmeans/socket'
 import { makeConnection } from './utils/connection.js'
 import { assertContext } from '@owlmeans/context'
+import type { EntrypointReference } from '@owlmeans/context'
 import type { Config, Context } from './types.js'
 import { useContext, useValue } from '@owlmeans/client'
 import { AUTH_QUERY } from '@owlmeans/auth'
@@ -35,10 +36,17 @@ export const ws = async (module: ClientEntrypoint<string>, request?: AbstractReq
   })
 }
 
-export const useWs = (module: string | ClientEntrypoint<any>, request?: Partial<AbstractRequest<any>>): Connection | null => {
+/**
+ * Open a socket through a declared entrypoint protocol.
+ *
+ * String aliases remain an adapter input for dynamically addressed integrations, while
+ * application callers pass their immutable protocol declaration and receive its bound client
+ * entrypoint here at the transport boundary.
+ */
+export const useWs = (module: EntrypointReference | string, request?: Partial<AbstractRequest<any>>): Connection | null => {
   const ctx = useContext()
   const mod = useMemo(
-    () => typeof module === 'string' ? ctx.entrypoint<ClientEntrypoint>(module) : module,
+    () => ctx.entrypoint<ClientEntrypoint>(module),
     [module]
   )
   const connection = useValue<Connection>(async () => {

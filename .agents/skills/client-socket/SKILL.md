@@ -19,7 +19,7 @@ so everything a screen does with the socket is the vocabulary of that package �
 | Export | Description |
 |--------|-------------|
 | `ws(entrypoint, request?)` | Open a `Connection` to a socket entrypoint. Resolves once the socket is open, and only then |
-| `useWs(entrypoint \| alias, request?)` | React hook — `Connection \| null` until it opens; re-opens on change and closes on unmount |
+| `useWs(protocol \| alias, request?)` | React hook — `Connection \| null` until it opens; re-opens on change and closes on unmount |
 | `Config` / `Context` | The client config and context types this package expects |
 
 ## How the address is built
@@ -66,10 +66,11 @@ useEffect(() => {
 }, [connection])
 ```
 
-Both hooks take an alias or the entrypoint itself, and re-open when the alias, the `AUTH_QUERY`
-value or the params change — the params are compared by content, so a fresh object literal each
-render does not re-open. Both close the connection when the component unmounts, and both answer
-`null` until the socket is open, so every effect that touches one guards on that.
+Pass the immutable socket protocol declaration in application code. A string alias is reserved
+for an adapter whose remote declaration is unavailable to import. Both hooks re-open when the
+protocol, `AUTH_QUERY` value, or params change — the params are compared by content, so a fresh
+object literal each render does not re-open. Both close the connection when the component unmounts,
+and both answer `null` until the socket is open, so every effect that touches one guards on that.
 
 ## Disconnects
 
