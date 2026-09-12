@@ -1,4 +1,4 @@
-import { contract, protocol, protocols, schema, typed } from '@owlmeans/entrypoint'
+import { contract, protocol, schema, typed } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod } from '@owlmeans/route'
 import { GUARD_ED25519 } from '@owlmeans/server-app'
 import type { JSONSchemaType } from 'ajv'
@@ -43,5 +43,3 @@ export const paymentGate = {
     { guards: GUARD_ED25519 },
   ),
 } as const
-
-export const paymentGateProtocols = protocols(paymentGate)

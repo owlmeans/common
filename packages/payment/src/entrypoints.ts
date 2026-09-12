@@ -1,4 +1,4 @@
-import { contract, protocol, protocols, typed } from '@owlmeans/entrypoint'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { route, backend, RouteMethod } from '@owlmeans/route'
 import { SubscriptionPropagateBodySchema } from './model/subscription.js'
 import { CreateCheckoutBodySchema, CreateCheckoutResponseSchema } from './model/checkout.js'
@@ -6,7 +6,6 @@ import { CreateCheckoutBodySchema, CreateCheckoutResponseSchema } from './model/
 const aliases = {
   subscription: {
     base: 'payment-api:subscription',
-    typo: 'payment-api:subscription:propogate',
     propagate: 'payment-api:subscription:propagate',
   },
   service: {
@@ -34,11 +33,6 @@ const externalBase = protocol(
 export const paymentApi = {
   subscription: {
     base: subscriptionBase,
-    /** @deprecated Use propagate instead. */
-    propogate: protocol(
-      route(aliases.subscription.typo, '/propogate', backend({ parent: subscriptionBase, method: RouteMethod.POST })),
-      contract.request({ body: SubscriptionPropagateBodySchema }, typed<undefined>()),
-    ),
     propagate: protocol(
       route(aliases.subscription.propagate, '/propagate', backend({ parent: subscriptionBase, method: RouteMethod.POST })),
       contract.request({ body: SubscriptionPropagateBodySchema }, typed<undefined>()),
@@ -61,6 +55,3 @@ export const paymentApi = {
     },
   },
 } as const
-
-export const entrypoints = protocols(paymentApi.subscription)
-export const serviceEntrypoints = protocols(paymentApi.service)

@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
+import { protocols } from '@owlmeans/entrypoint'
 import type { RequestOf, ResponseOf } from '@owlmeans/entrypoint'
-import { paymentApi, serviceEntrypoints } from '../src/index.js'
+import * as payment from '../src/index.js'
+import { paymentApi } from '../src/index.js'
 
 const checkout = paymentApi.service.checkout.session.external.create
 
@@ -19,8 +21,10 @@ describe('payment checkout protocol', () => {
 
   test('exposes protocol declarations, never flattened string aliases', () => {
     expect(Object.isFrozen(checkout)).toBe(true)
-    expect(serviceEntrypoints).toContain(checkout)
-    expect(serviceEntrypoints.every(entry => entry.kind === 'entrypoint-protocol')).toBe(true)
+    expect(protocols(paymentApi.service)).toContain(checkout)
+    expect(protocols(paymentApi.service).every(entry => entry.kind === 'entrypoint-protocol')).toBe(true)
+    expect(payment).not.toHaveProperty('serviceEntrypoints')
+    expect(payment).not.toHaveProperty('entrypoints')
   })
 
   test('rejects an internal entity id and fractional minor units on the wire', () => {
@@ -42,5 +46,6 @@ describe('payment checkout protocol', () => {
 
     expect(validate(body)).toBe(true)
     expect(validate({ ...body, entitySlug: undefined, entityId: 'internal' })).toBe(false)
+    expect(paymentApi.subscription).not.toHaveProperty('propogate')
   })
 })

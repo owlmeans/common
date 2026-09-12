@@ -21,7 +21,7 @@ user-invocable: false
 | `makeAccessTokenResource(dbAlias?)` | The Mongo resource, with its three indexes |
 | `prefixOf(context, opts?)` | The deployment's prefix: guard options → config → default |
 | `hashAccessToken(token)` · `mintAccessToken(prefix)` | The stored form; one minted `{ token, hash, display }` |
-| `setupAuthTokenCoguard(entrypoints, guard?)` | Append the guard to every entrypoint that already has one |
+| `withAuthTokenCoguard(protocolTree, guard?)` | Return the same-shaped immutable tree with the guard appended to every already-guarded protocol |
 | `listAccessTokens` · `createAccessToken` · `revokeAccessToken` | The three handlers |
 | `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`) · `AuthTokenConfig` · `AccessTokenResource` | Types |
 
@@ -99,7 +99,7 @@ tokens that are not theirs.
 ## The coguard admits a token everywhere, and the deny list lives in the GUARD
 
 ```typescript
-setupAuthTokenCoguard(managerEntrypoints as Array<{ guards?: string[] }>)
+const guardedManagerProtocols = withAuthTokenCoguard(managerProtocols)
 ```
 
 An API client drives the same surface a browser does — projects, stories, files — so admitting the
@@ -108,8 +108,8 @@ never substitutes: the primary guard stays first and still claims its own creden
 matches only a value carrying the prefix. It skips entrypoints that have no guard, and it is
 idempotent.
 
-**Run it after the final binding**, because it reads the guard list each entrypoint actually ended
-up with.
+Decorate the declaration tree before bindings are created. The helper preserves the input tree's
+shape, leaves unguarded protocols unchanged, and is idempotent.
 
 Routes that must stay behind an interactive session — opening a checkout, starting an OAuth flow,
 minting another token — are named in `AuthTokenGuardOptions.denyAliases` rather than skipped here.

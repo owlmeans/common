@@ -21,7 +21,6 @@ talks to no paygate — a server-side integration implements against these, and
 | `makePaymentService(alias?)` · `appendPaymentService(ctx, alias?)` | The catalogue reader, registered under `DEFAULT_ALIAS` / `PAYMENT_SERVICE` (`'payment'`). |
 | `PaymentService` | `product(sku)` · `products()` · `plans(productSku, duration)` · `plan(planSku)` · `allPlans(productSku)` · `localize(lng, entity)` · `shallowAuthentication(token)`. |
 | `paymentApi` | Immutable protocol tree — `paymentApi.subscription.propagate`, `paymentApi.service.checkout.session.external.create`. |
-| `entrypoints` · `serviceEntrypoints` | Flattened protocol declarations for registration; values retain their protocol identity. |
 | `CheckoutPricingMode` | `Amount` for a caller-selected net monetary value; `Quantity` for reusable unit prices. |
 | `AmountCheckoutPolicy` / `QuantityCheckoutPolicy` (+ schemas) | Configured bounds/default/presets and adjustment, or quantity bounds/default. |
 | `assertAmountCheckoutPolicy` / `assertQuantityCheckoutPolicy` / `assertCheckoutAmount` | Startup and request-boundary validation. |
@@ -100,11 +99,12 @@ const granted = entitlementList(capabilities)
 
 ## Checkout
 
-Register `bindAll(paymentApi.service)` on a client and bind `serviceEntrypoints` on a server. Call
-the protocol object; its body and response are inferred without a consumer generic.
+Bind `paymentApi.service` directly in both client and server layers. Call the protocol object; its
+body and response are inferred without a consumer generic. `protocols(paymentApi.service)` is only
+for framework materialization, never a public compatibility export.
 
 ```typescript
-import { paymentApi, serviceEntrypoints } from '@owlmeans/payment'
+import { paymentApi } from '@owlmeans/payment'
 import { bindAll } from '@owlmeans/client-entrypoint'
 
 export const appEntrypoints = [...bindAll(paymentApi.service)]
@@ -136,17 +136,12 @@ to `amountMinor`, not the adjusted checkout subtotal or Stripe tax-inclusive tot
 Quantity checkout remains supported. It uses its reusable unit price and quantity policy; do not
 infer a pricing mode from the presence of `amountMinor`.
 
-## Two spellings, both registered
+## One propagation protocol
 
-`entrypoints` declares `/propogate` and `/propagate` as two routes over the same
-`SubscriptionPropagateBodySchema`, and `paymentApi.subscription` carries an alias for each.
-The protocol body carries the organization as `entitySlug`; `entityId` belongs only to stored
-`PlanSubscription` records and in-process services.
-`propogate` is marked `@deprecated`, as are the type alias `SubscriptionPropogateBody` and the
-duplicate `SubscriptionPropogateBodySchema`: write every new declaration and every new call against
-`propagate` / `SubscriptionPropagateBody` / `SubscriptionPropagateBodySchema`. The misspelled route
-stays registered as long as anything might call it — dropping it is a breaking change on a wire
-nobody controls both ends of.
+`paymentApi.subscription.propagate` is the one subscription propagation route. Its body carries the
+organization as `entitySlug`; `entityId` belongs only to stored `PlanSubscription` records and
+in-process services. Do not add misspelled aliases or flattened declaration lists as compatibility
+surfaces: a consumer imports and binds the named protocol from the immutable tree.
 
 ## `shallowAuthentication` identifies, it does not authorize
 

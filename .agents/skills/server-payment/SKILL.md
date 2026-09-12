@@ -65,7 +65,8 @@ must be safe to repeat.
 ## Protocols and security
 
 `paymentGate` is an immutable protocol tree. `paymentGateEntrypoints` binds its base, webhook, and
-resync declarations directly with `bind(protocol, handler)`; the webhook is public because Stripe
+resync declarations directly with `bind(protocol, handler)`; do not publish a flattened
+`paymentGateProtocols` compatibility list. The webhook is public because Stripe
 signature verification requires the untouched raw body, while resync carries the ED25519 guard.
 Never put an application auth guard on the Stripe webhook.
 
