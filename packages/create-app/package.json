@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/create-app",
-  "version": "0.1.18-rc.19",
+  "version": "0.1.18-rc.20",
   "license": "MIT",
   "description": "Scaffold a fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource, or --bare for the demo-free shell. Also usable programmatically via scaffold(). Deploys agent skills via @owlmeans/agent-skills by default.",
   "type": "module",
@@ -30,7 +30,7 @@
     "template"
   ],
   "dependencies": {
-    "@owlmeans/agent-skills": "^0.1.18-rc.15"
+    "@owlmeans/agent-skills": "^0.1.18-rc.16"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
