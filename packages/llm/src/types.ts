@@ -163,6 +163,19 @@ export interface LlmSpectator {
   log: (arg: SpectatorArgument) => Promise<SpectatorEntryLogged>
   /** Optional sink for full diagnostics of a call that returned nothing usable. */
   captureNull?: (capture: NullCapture) => Promise<void>
+  /**
+   * Optional observer for a call that failed permanently after its retry policy finished.
+   *
+   * Observers are diagnostics only: the model preserves the original failure even when one
+   * cannot receive it. This is deliberately terminal rather than per-attempt so consumers do
+   * not turn one exhausted budget into a notification storm.
+   */
+  error?: (event: LlmSpectatorError) => Promise<void>
+}
+
+export interface LlmSpectatorError {
+  action: string
+  error: unknown
 }
 
 /** Resolves a model of the same role at a different temperature. */

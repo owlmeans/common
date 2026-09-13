@@ -185,6 +185,24 @@ export const makeLlmModel = ({
   }
 
   /**
+   * Give a spectator one best-effort terminal-error observation without allowing that
+   * observation to replace the work's real failure. Keeping this outside `withRetry` means
+   * transient attempts stay private to the retry ladder.
+   */
+  const observeFailure = async <T>(action: string, work: () => Promise<T>): Promise<T> => {
+    try {
+      return await work()
+    } catch (error) {
+      try {
+        await spectator.error?.({ action, error })
+      } catch (observerError) {
+        console.warn('[MODEL-ERROR] spectator observation failed', observerError)
+      }
+      throw error
+    }
+  }
+
+  /**
    * Record the diagnostics of a call that produced nothing usable and build the
    * retryable error describing it. The caller throws it, so control flow stays visible.
    */
@@ -316,9 +334,10 @@ export const makeLlmModel = ({
         escalation, fatal,
       }: LlmAskOptions
     ) => {
-      const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
-      const seed = ladderSeed(escalation)
-      return withRetry({ retries, outputErrors, fatal }, async i => {
+      return await observeFailure(action, async () => {
+        const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
+        const seed = ladderSeed(escalation)
+        return await withRetry({ retries, outputErrors, fatal }, async i => {
         const refined = refineModel(seed + i)
         console.log('Use model to ask: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
@@ -378,6 +397,7 @@ export const makeLlmModel = ({
 
         notifyRef(ref, message)
         return output
+        })
       })
     },
 
@@ -388,9 +408,10 @@ export const makeLlmModel = ({
         escalation, fatal,
       }: LlmTalkOptions
     ) => {
-      const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
-      const seed = ladderSeed(escalation)
-      return withRetry({ retries, outputErrors, fatal }, async i => {
+      return await observeFailure(action, async () => {
+        const msgs = await prepare(input, action, useCache, cacheMax, false, skills)
+        const seed = ladderSeed(escalation)
+        return await withRetry({ retries, outputErrors, fatal }, async i => {
         const refined = refineModel(seed + i)
         console.log('Use model to talk: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
@@ -417,6 +438,7 @@ export const makeLlmModel = ({
 
         notifyRef(ref, message)
         return message
+        })
       })
     },
 
@@ -428,12 +450,13 @@ export const makeLlmModel = ({
         skills, escalation, fatal,
       }: LlmInvokeOptions<T>
     ) => {
-      const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
-      const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
-      const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+      return await observeFailure(action, async () => {
+        const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
+        const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
+        const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      const seed = ladderSeed(escalation)
-      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const seed = ladderSeed(escalation)
+        return await withRetry({ retries, outputErrors, fatal }, async i => {
         const refined = refineModel(seed + i, temperature)
         console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
@@ -469,6 +492,7 @@ export const makeLlmModel = ({
 
         notifyRef(ref, message)
         return result as T
+        })
       })
     },
 
@@ -480,12 +504,13 @@ export const makeLlmModel = ({
         escalation, fatal,
       }: LlmRequestOptions
     ) => {
-      const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
-      const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
-      const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+      return await observeFailure(action, async () => {
+        const msgs = await prepare(input, action, useCache, cacheMax, true, skills)
+        const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
+        const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
 
-      const seed = ladderSeed(escalation)
-      return withRetry({ retries, outputErrors, fatal }, async i => {
+        const seed = ladderSeed(escalation)
+        return await withRetry({ retries, outputErrors, fatal }, async i => {
         const refined = refineModel(seed + i)
         console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)
         const startedAt = Date.now()
@@ -525,6 +550,7 @@ export const makeLlmModel = ({
 
         notifyRef(ref, message)
         return message
+        })
       })
     },
   }

@@ -289,6 +289,14 @@ short-circuit · blank-content sanitization (whitespace-only text blocks are dro
 — a blank block, e.g. an empty file read pasted into a prompt, is otherwise a fatal Anthropic 400;
 blank tool results are stubbed to keep their `tool_use` pairing). Details: package `README.md`.
 
+## Terminal failure observation
+
+`LlmSpectator.error?({ action, error })` is a best-effort terminal observation hook. `makeLlmModel`
+calls it once only after the entire retry ladder for `ask`, `talk`, `invoke`, or `request` has failed;
+it never sees transient attempts and a failing observer never replaces the original error. Use it for
+side-channel effects that must follow a confirmed stop (for example, a tenant notification), not for
+retry control or persistence that the call itself depends on.
+
 ## Tests
 
 `bun test ./tests` in the package; offline specs always run. In `tests/model.spec.ts` the anthropic live

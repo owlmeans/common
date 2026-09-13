@@ -82,6 +82,49 @@ export class ConnectOpUnknown extends ConnectError {
   }
 }
 
+/**
+ * The organization cannot pay for the action a connector just asked for.
+ *
+ * Only `type` and `message` survive a marshal/unmarshal round trip, so the fields a caller needs
+ * to phrase a kind refusal — which action, how short, and where to top up — travel packed into the
+ * message and are parsed back out in `finalizeUnmarshal()`. The URL is `encodeURIComponent`-ed
+ * because it is the one field that could itself contain a colon.
+ */
+export class ConnectOutOfCredits extends ConnectError {
+  public static override typeName = `OutOfCredits${ConnectError.typeName}`
+
+  public gate = ''
+  public requiredUsd = 0
+  public balanceUsd = 0
+  public topUpUrl = ''
+
+  /** Build the packed message a caller passes to the constructor. */
+  static encode(gate: string, requiredUsd: number, balanceUsd: number, topUpUrl: string): string {
+    return `${gate}:${requiredUsd}:${balanceUsd}:${encodeURIComponent(topUpUrl)}`
+  }
+
+  constructor(message: string = 'error') {
+    super(`out-of-credits:${message}`)
+    this.type = ConnectOutOfCredits.typeName
+    this.applyFields()
+  }
+
+  private applyFields(): void {
+    const marker = 'out-of-credits:'
+    const at = this.message.indexOf(marker)
+    if (at < 0) return
+    const [gate, requiredUsd, balanceUsd, encodedUrl] = this.message.slice(at + marker.length).split(':')
+    this.gate = gate ?? ''
+    this.requiredUsd = Number(requiredUsd ?? 0) || 0
+    this.balanceUsd = Number(balanceUsd ?? 0) || 0
+    this.topUpUrl = encodedUrl != null && encodedUrl !== '' ? decodeURIComponent(encodedUrl) : ''
+  }
+
+  override finalizeUnmarshal(): void {
+    this.applyFields()
+  }
+}
+
 ResilientError.registerErrorClass(ConnectError)
 ResilientError.registerErrorClass(ConnectSessionNotFound)
 ResilientError.registerErrorClass(ConnectSessionGone)
@@ -89,3 +132,4 @@ ResilientError.registerErrorClass(ConnectOpTimeout)
 ResilientError.registerErrorClass(ConnectOpRefused)
 ResilientError.registerErrorClass(LocalSlotUnsupported)
 ResilientError.registerErrorClass(ConnectOpUnknown)
+ResilientError.registerErrorClass(ConnectOutOfCredits)
