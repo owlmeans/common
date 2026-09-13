@@ -2,9 +2,16 @@
   "schemaVersion": 2,
   "package": "@owlmeans/viable-common",
   "version": "0.0.12",
-  "generatedAt": "2026-09-13T08:55:40.734Z",
+  "generatedAt": "2026-09-13T18:39:15.129Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "agent-presentation",
+      "category": "package-specific",
+      "file": "skills/agent-presentation/SKILL.md",
+      "canonicalPath": ".agents/skills/agent-presentation/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "viable-common",

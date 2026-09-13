@@ -2,6 +2,7 @@
 name: agent-presentation
 description: Shared, runtime-free taxonomy for presenting OwlMeans Viable agent output. Use when classifying LLM thinking/history messages, adding semantic structured-output cards, or changing their server-to-browser event contract.
 ---
+<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # Agent output presentation
 

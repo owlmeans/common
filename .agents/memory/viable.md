@@ -42,8 +42,22 @@ product repo, which consumes all three. Related: [[llm]], [[agent]], [[versionin
 - Local installs use `bun install --force --backend=copyfile`: agent-writable dependencies must not
   share cache inodes, and a stale host cache must not outrank the locked package body.
 
+## Facts (viable-common: agent-output presentation)
+
+- `agent/presentation.ts` is the runtime-free, shared taxonomy for agent thinking/history output:
+  category, language or semantic subtype, and specialist role are classified from source
+  attribution plus content; `isAgentMessageHidden` suppresses internal source-extractor range
+  selections.
+
+## Invariants (viable-common: agent-output presentation)
+
+- Thinking-event `presentation` is an optional hint for rolling compatibility; server finalization
+  and browser streaming must both use `classifyAgentMessage`, and known tool-call arguments are
+  never presented as a raw JSON dump.
+
 ## Pointers
 
 - Skills `viable-common` (contracts + the schema conventions), `viable-sdk` (tools, sessions,
-  envelopes, refusals, the local executor), `viable-mcp` (the stdio process), `inquiry`.
+  envelopes, refusals, the local executor), `viable-mcp` (the stdio process), `inquiry`,
+  `agent-presentation` (procedure lives in `.agents/skills/agent-presentation/`).
 - Product-side counterparts live in the `viable` repo: skills `connect`, `viable-converter`.

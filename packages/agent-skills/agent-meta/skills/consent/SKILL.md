@@ -17,7 +17,7 @@ optional:
 | `@owlmeans/consent` | Core, **zero runtime dependencies** | categories, storage, the observable store, the Consent Mode surface, the built-in copy |
 | `@owlmeans/web-consent` | Web (React) | the dialog, the re-open button, `CookiePolicy`, `useConsent` |
 | `@owlmeans/web-gtm` | Web | the tag-manager loader and its head snippet |
-| `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language |
+| `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language, plus a menu-row widget and a ref-counted presence service so a host's own collapsed menu can take over the floating button's job |
 
 ## Why it is not in `web-panel`
 

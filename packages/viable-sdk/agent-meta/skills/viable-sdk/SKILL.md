@@ -114,6 +114,18 @@ went wrong somewhere. `renderJob` ends every job with a single `next:` line — 
 parent from inventing a polling strategy of its own, or from concluding that a blocked run has
 failed.
 
+## An out-of-credits refusal is phrased, and pushed through `notify`
+
+`registerCatalogue`'s catch special-cases `ConnectOutOfCredits` (`@owlmeans/viable-common`
+`connect/errors.ts`): rather than the raw `viable-connect:out-of-credits:...` marker, the tool
+result reads as a sentence — what it needed, what the account has, and a link to top up — because
+only `type` and `message` survive the platform's internal HTTP hop, so those three fields travel
+packed into the message and are read back out with `finalizeUnmarshal()`. The same refusal is also
+handed to the optional `ToolDeps.notify?(level, text)`, which a host wires to its own out-of-band
+channel — the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless
+`/mcp` host has no channel and omits it, so `notify` is always best-effort and optional. Every other
+error still returns as its own `.message`, unphrased, and never calls `notify`.
+
 ## The session loop: serial, and free to redeliver
 
 `openSession` pulls operations, answers them **one at a time**, and puts model tasks aside. Serial
@@ -335,7 +347,8 @@ reader looking for a database that was never configured.
 ## Tests
 
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
-the executor's files/git/layout rules, and the marker + managed-`.env` block.
+the `registerCatalogue` out-of-credits phrasing and `notify` wiring (`mcp-catalogue.spec.ts`), the
+executor's files/git/layout rules, and the marker + managed-`.env` block.
 
 ## Depends On
 

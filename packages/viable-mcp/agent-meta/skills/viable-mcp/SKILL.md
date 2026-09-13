@@ -44,6 +44,17 @@ API that cannot be reached: what a connector does before its first successful ca
 tools, answer the offline ones, contain a failure, write nothing but JSON-RPC to stdout — is the
 whole of a user's first impression.
 
+## `sendLoggingMessage` is a silent no-op without the `logging` capability
+
+`server.ts` declares `capabilities: { logging: {} }` on the `McpServer` constructor, before
+`registerCatalogue` runs — the MCP SDK's `Server.sendLoggingMessage` checks the declared
+capabilities and does **nothing** (no error, no throw) when a server never advertised `logging`, so
+a refusal notice built there would simply vanish with nothing anywhere saying so. This is what
+backs `ToolDeps.notify`: an out-of-credits refusal (`viable-sdk`'s `registerCatalogue`) is pushed to
+`server.sendLoggingMessage({ level: 'warning', logger: 'viable', data: text })`, i.e. an MCP
+`notifications/message`, independent of the tool result text. The platform's own stateless `/mcp`
+host has no channel to push through and passes no `notify` at all — treat it as always best-effort.
+
 ## The token comes from the environment only
 
 `VIABLE_API_TOKEN` is never read from an argument. A command line is readable by every process on
