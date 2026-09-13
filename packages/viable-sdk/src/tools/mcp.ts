@@ -1,7 +1,20 @@
+import { ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
 import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
 import type { ToolDeps } from './types.js'
+
+/**
+ * Turn a refusal the model can act on into words a model can act on.
+ *
+ * The amounts and the link travel packed into the error's message (only `type` and `message`
+ * survive the trip from the platform), so this is the one place they are read back out and put in
+ * front of the model — never the raw `out-of-credits:...` marker.
+ */
+const phraseOutOfCredits = (e: ConnectOutOfCredits): string =>
+  `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
+  + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
+  + `${e.topUpUrl} — then retry.`
 
 /** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
 export interface McpServerLike {
@@ -57,10 +70,15 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
             ...(result.isError === true ? { isError: true } : {}),
           }
         } catch (e) {
+          const isOutOfCredits = e instanceof ConnectOutOfCredits
+          const text = isOutOfCredits ? phraseOutOfCredits(e) : (e as Error).message
           deps.log(`${tool.name} failed: ${(e as Error).message}`)
+          if (isOutOfCredits) {
+            deps.notify?.('warning', text)
+          }
 
           return {
-            content: [{ type: 'text' as const, text: (e as Error).message }],
+            content: [{ type: 'text' as const, text }],
             isError: true,
           }
         }

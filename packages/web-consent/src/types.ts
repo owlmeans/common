@@ -42,6 +42,16 @@ export interface CookiePolicyProps {
   className?: string
 }
 
+export interface ConsentMenuWidgetProps {
+  locale?: string
+  /** `(key, defaultValue) => string`. Defaults to the built-in seven-language bundle. */
+  translate?: (key: string, defaultValue: string) => string
+  label?: string
+  className?: string
+  /** Defaults to `openConsent('reopen')` — the same call the floating button itself makes. */
+  onSelect?: () => void
+}
+
 export interface UseConsentModel {
   record: ConsentRecord | null
   open: boolean

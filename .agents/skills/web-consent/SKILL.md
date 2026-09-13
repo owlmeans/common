@@ -34,6 +34,7 @@ components — see below.
 | Export | Description |
 |--------|-------------|
 | `CookieConsent` | The preferences dialog **and** the persistent re-open button |
+| `ConsentMenuWidget` | A plain row a HOST'S OWN menu renders to reopen the dialog, in place of (or beside) `CookieConsent`'s own floating button — see below |
 | `CookiePolicy` | The cookie-policy page, generated from the configuration in force |
 | `ConsentToggle` | One category row — locked and labelled when the category is required |
 | `useConsent(opts?)` | This document's consent state and the actions over it (`UseConsentModel`) — **it also initialises the store on mount**, see below |
@@ -76,6 +77,24 @@ precondition in `@owlmeans/client-iam` raises — it says so and relabels the pr
 & continue*. That is what makes the interruption legible instead of looking like the page asking
 twice. Word that path as an acknowledgement, never as "you must consent to essential cookies": a
 required category is disclosure, not a question.
+
+## A menu row for a host that already has one
+
+`ConsentMenuWidget` renders one row — icon, translated label, `onClick` reopening the dialog
+(`openConsent('reopen')` by default, or a caller's own `onSelect`) — for a host whose own
+navigation already carries a settings menu and would rather offer cookie preferences there than as
+a second floating button. It calls `openConsent` directly, never `useConsent()`, for the same
+init-on-mount reason as everywhere else in this document.
+
+**It carries no presence signalling of its own.** A host that wants `CookieConsent`'s floating
+button to hide while this row is reachable needs to know that itself, from something that stays
+mounted for as long as the row is reachable — never from the row's own mount. A row placed inside a
+host menu's lazily-rendered content (Radix's `DropdownMenuContent`, and most headless menu
+primitives, only mount their children while the menu is actually OPEN) reports "present" for a
+fraction of the time the menu itself is on screen, and the floating button reappears the instant
+the menu closes. `@owlmeans/web-panel/consent`'s `useConsentMenuPresence()` is the fix for a
+context-aware host: call it from the menu's own always-mounted shell component, not from inside the
+row. A context-free host (an Astro island with its own menu) owns that judgement itself.
 
 ## Reading the decision
 

@@ -33,6 +33,14 @@ export interface ToolDeps {
   attached: () => string | null
   attach: (projectId: string) => void
   log: (line: string) => void
+  /**
+   * Push a message to the host's own channel, independent of the tool result text.
+   *
+   * Only the stdio host can act on this (an MCP `notifications/message`, gated on the server
+   * declaring the `logging` capability) — the platform's stateless `/mcp` host has no channel to
+   * push through and simply omits it. Every caller must treat it as best-effort.
+   */
+  notify?: (level: 'warning' | 'error', text: string) => void
 }
 
 export interface ToolResult {

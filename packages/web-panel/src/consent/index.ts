@@ -1,4 +1,11 @@
 export * from './component.js'
+export * from './menu-widget.js'
+export * from './presence.js'
+export { createConsentWidgetService, appendConsentWidgetService, CONSENT_WIDGET_STATE } from './service.js'
+export { CONSENT_WIDGET_SERVICE } from './consts.js'
+export type {
+  ConsentWidgetPresenceRecord, ConsentWidgetService, ConsentWidgetServiceAppend
+} from './types.js'
 export {
   useConsent, useConsentCategory, consentStore, openConsent, isConsented,
   readConsent, writeConsent, clearConsent, DEFAULT_CONSENT_CATEGORIES,
@@ -6,6 +13,6 @@ export {
   consentBootstrapScript,
 } from '@owlmeans/web-consent'
 export type {
-  ConsentCategory, ConsentOptions, ConsentRecord, ConsentSignal, ConsentState,
-  CookieConsentProps, CookiePolicyProps,
+  ConsentCategory, ConsentMenuWidgetProps, ConsentOptions, ConsentRecord, ConsentSignal,
+  ConsentState, CookieConsentProps, CookiePolicyProps,
 } from '@owlmeans/web-consent'

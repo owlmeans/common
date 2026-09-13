@@ -76,6 +76,13 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
 
   const session = async (): Promise<SessionRuntime> => await holder.get(attached)
 
+  // `logging` must be declared here — `sendLoggingMessage` is a silent no-op on a server that
+  // never advertised the capability, so a refusal notice would vanish with no error anywhere.
+  const server = new McpServer(
+    { name: '@owlmeans/viable-mcp', version: VERSION },
+    { instructions: serverInstructions({ host }), capabilities: { logging: {} } }
+  )
+
   const deps: ToolDeps = {
     api,
     host,
@@ -86,12 +93,12 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
     attached: () => attached,
     attach: projectId => { attached = projectId },
     log,
+    notify: (level, text) => {
+      void server.sendLoggingMessage({ level, logger: 'viable', data: text }).catch(
+        e => log(`could not send a logging notification: ${(e as Error).message}`)
+      )
+    },
   }
-
-  const server = new McpServer(
-    { name: '@owlmeans/viable-mcp', version: VERSION },
-    { instructions: serverInstructions({ host }) }
-  )
 
   const names = registerCatalogue(server as never, deps)
   log(`${names.length} tools: ${names.join(', ')}`)

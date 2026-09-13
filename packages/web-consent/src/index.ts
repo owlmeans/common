@@ -1,6 +1,7 @@
 export type * from './types.js'
 export * from './hooks.js'
 export * from './consent/component.js'
+export * from './consent/widget.js'
 export * from './consent/toggle.js'
 export * from './policy/component.js'
 
