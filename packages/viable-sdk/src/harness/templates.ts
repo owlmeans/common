@@ -118,7 +118,7 @@ tool_timeout_sec = 90
 # The isolated performer for a model task. Low effort on purpose: the task carries its own
 # instructions, and reasoning about them is the platform's job, not the subagent's.
 [agents.viable-worker]
-description = "Runs one Viable model task exactly as given"
+description = "Returns only the final answer for one Viable task; the parent supplies its full system prompt, conversation, and output shape"
 `,
         },
       ]

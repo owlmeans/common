@@ -24,7 +24,11 @@ const HOW_TO_RUN: Record<ConnectHarness, string> = {
     'Spawn a subagent with the "viable-worker" role, which install_harness writes to config.toml\n'
     + 'as `[agents.viable-worker]` with a low model_reasoning_effort. If it is not installed or\n'
     + 'your session has no subagents, answer the task INLINE in a single reply: reason minimally,\n'
-    + 'produce only the answer in the required shape, and nothing else.',
+    + 'produce only the answer in the required shape, and nothing else. Give the worker the SYSTEM\n'
+    + 'PROMPT first, then the CONVERSATION in order, then the shape rule below. Do not pass this\n'
+    + 'outer HOW TO RUN or submit_task_result instruction to the worker: only the parent submits its\n'
+    + 'final answer. A text task returns the requested text or source, never a JSON tool-call array;\n'
+    + 'that array is only valid in tools mode. Take the worker\'s final message verbatim.',
   [ConnectHarness.Copilot]:
     'Delegate to the "viable-worker" custom agent, which install_harness writes to\n'
     + '.github/agents/viable-worker.agent.md. If it is not installed or delegation is\n'

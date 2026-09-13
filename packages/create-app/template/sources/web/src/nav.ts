@@ -15,8 +15,8 @@ export const navConfig: PanelNavConfig = {
     { name: 'home', label: 'Home', items: [{ alias: HOME, label: 'Overview' }] },
     {
       name: 'demo', label: 'Demo', items: [
-        { alias: web.session, label: 'Session' },
-        { alias: web.about, label: 'About' },
+        { alias: web.session.alias, label: 'Session' },
+        { alias: web.about.alias, label: 'About' },
       ]
     },
   ],

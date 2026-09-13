@@ -30,7 +30,11 @@ describe('viable-sdk — what the parent agent is told', () => {
 
   test('asks each harness for isolation in its own vocabulary', () => {
     expect(renderTaskEnvelope(task(), { harness: ConnectHarness.ClaudeCode })).toContain('viable-worker')
-    expect(renderTaskEnvelope(task(), { harness: ConnectHarness.Codex })).toContain('INLINE')
+    const codex = renderTaskEnvelope(task(), { harness: ConnectHarness.Codex })
+    expect(codex).toContain('INLINE')
+    expect(codex).toContain('SYSTEM\nPROMPT first')
+    expect(codex).toContain('Do not pass this\nouter HOW TO RUN')
+    expect(codex).toContain('never a JSON tool-call array')
     expect(renderTaskEnvelope(task(), { harness: ConnectHarness.OpenCode })).toContain('@viable-worker')
     // A harness nobody wrote a block for still gets the request, stated rather than mechanised.
     expect(renderTaskEnvelope(task(), { harness: ConnectHarness.Other })).toContain('fresh, isolated context')

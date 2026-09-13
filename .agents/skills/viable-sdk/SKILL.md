@@ -186,6 +186,12 @@ works. A retry says which attempt it is and why the previous answer was refused.
 only in the isolation mechanism, never in what is asked; `Other` gets the request stated rather than
 mechanised.
 
+For Codex, the parent gives a fresh `viable-worker` only the task's system prompt, then its
+conversation, then the requested result shape: the outer handoff instruction and
+`submit_task_result` call are parent-only. It passes that final response through unchanged, but must
+preserve the mode: a `text` task returns the requested source or text and never a JSON tool-call
+array; that array belongs only to `tools` mode.
+
 **`parseTaskResult` refuses a malformed answer locally**, and returns a `problem` rather than
 throwing. The refusal is worth more than the parse: an answer that reaches the platform malformed
 costs a whole retry — another task, another subagent, another wait — while one caught here is a
