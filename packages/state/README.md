@@ -1,18 +1,11 @@
 # @owlmeans/state
 
-The framework's client store: an in-memory `Resource` with live subscriptions.
-
-## Overview
-
-- `appendStateResource(context, alias, config?)` registers a store ON the context, so a screen, a
-  service and a guard all reach the same records through the same container
-- Reads and writes are the ordinary `Resource<T>` vocabulary — `get`, `load`, `list`, `count`,
-  `create`, `update`, `save`, `delete`, `take`, `purge` — with the same criteria language the
-  server resources speak
-- `watch` follows one record and `query` follows a live set; both hand their listener a value
-  synchronously, which is what lets React render from them without a loading frame
-- A subscription READS the store. Watching an id the store knows nothing about creates nothing;
-  the model it answers with is `empty`
+The framework's client store: an in-memory `Resource` with live subscriptions, registered on the
+client context. Use it for records a screen binds to: the projects list, the current user, a wizard
+draft, optimistic updates, a socket feed being rendered. It is a store, not a security boundary,
+and it does not survive a reload. Data that must outlive the tab goes in
+[`@owlmeans/client-resource`](../client-resource) (IndexedDB through `web-db`). The truth stays on
+the server, behind entrypoints and a database resource.
 
 ## Installation
 
@@ -20,112 +13,200 @@ The framework's client store: an in-memory `Resource` with live subscriptions.
 bun add @owlmeans/state@^0.1.18-rc.9
 ```
 
+## Concepts
+
+- **State resource**: a `StateResource<T>` registered with `appendStateResource(context, alias,
+  config?)`. It uses the full `Resource<T>` vocabulary (`get`, `load`, `list`, `count`, `create`,
+  `update`, `save`, `delete`, `take`, `purge`) plus `replace` and `clear`. Every client context
+  already carries a default one (`state`).
+- **Typed alias**: `stateAlias<T>('tasks')` is a plain string at runtime that carries the record
+  type, so `context.getStateResource(TASKS)` is typed without repeating `<Task>`.
+- **Model**: a `StateModel<T>` wraps one record. `empty` means "nothing loaded yet", `record` is a
+  read-only snapshot (the configured default while empty), and `update(patch)` merges and writes.
+- **Live subscriptions**: `watch(id, listener)` follows one record, and `query(where, listener,
+  opts?)` follows a live set. Both are synchronous and call the listener with the current value
+  before they return, which lets React render without a loading frame.
+- **Single store**: `{ single: true }` holds exactly one record that needs no id, for things like
+  the current account or the active wizard.
+
 ## Usage
 
-Register a store per record type, and name it once with the type attached:
+### Register stores in the context factory
 
-```typescript
+```ts
 import { appendStateResource, stateAlias } from '@owlmeans/state'
 
-export const TASKS = stateAlias<Task>('tasks')
+export const PROJECTS = stateAlias<Project>('project-state')
+export const STORIES = stateAlias<Story>('story-state')
 
 export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T => {
-  const context = makeClientContext<C, T>(cfg)
-  appendStateResource<C, T, Task>(context, TASKS)
+  const context = makeBasicContext<C, T>(cfg)
+  appendStateResource<C, T, Project>(context, PROJECTS)
+  appendStateResource<C, T, Story>(context, STORIES)
+
+  context.projectStore = () => context.getStateResource(PROJECTS)
 
   return context
 }
-
-const tasks = context.getStateResource(TASKS)   // StateResource<Task>
 ```
 
-Every client context already carries one default `state` resource, so a store is only registered
-when records of different kinds must not share an id space.
+`appendStateResource` is idempotent: appending an alias that already exists keeps the resource and
+what it has collected. The `projectStore` accessor is an app-level convenience declared on the
+app's own `Context` type.
 
-Read it from React with the hooks in [`@owlmeans/client`](../client):
+### Fetch, then write what the server answered
 
-```typescript
+```ts
+const store = context.getStateResource(PROJECTS)
+
+const { items } = await context.entrypoint(appProtocols.project.list).call({ query: { size: 50 } })
+await store.replace(items)                              // write these, drop every other record
+
+const project = await context.entrypoint(appProtocols.project.get).call({ params: { id } })
+await store.save(project)                               // create or replace one
+```
+
+### Read it from React
+
+The hooks live in [`@owlmeans/client`](../client):
+
+```tsx
 import { useStoreList, useStoreModel } from '@owlmeans/client'
 
-const task = useStoreModel<Task>(id, 'tasks')                       // one record, live
-const open = useStoreList<Task>({ query: { status: 'open' }, resource: 'tasks' })
+export const useProjectState = (id?: string) => useStoreModel<Project>(id, PROJECTS)
+
+export const ProjectCard: FC<{ id: string }> = ({ id }) => {
+  const project = useProjectState(id)
+  const stories = useStoreList<Story>({
+    query: { projectId: id, status: ['planned', 'active'] },
+    sort: [{ field: 'createdAt', order: 'desc' }],
+    resource: STORIES
+  })
+
+  if (project.empty) {
+    return <Spinner />
+  }
+
+  return <Card title={project.record.title} count={stories.length}
+    onRename={title => project.update({ title })} />
+}
 ```
 
-Write through the resource, or through the model a subscription handed you:
+### A single-record store with a default
 
-```typescript
-const tasks = context.getStateResource(TASKS)
+```ts
+export const DRAFT = stateAlias<InvoiceDraft>('invoice-draft')
 
-await tasks.save(record)                 // create or replace
-await tasks.replace(fromTheServer)       // write these, drop everything else
-await tasks.purge({ status: 'done' })
-await tasks.clear()
+appendStateResource<C, T, InvoiceDraft>(context, DRAFT, {
+  single: true,
+  default: () => ({ customerId: '', lines: [], currency: 'EUR' })
+})
 
-model.update({ status: 'done' })         // merge and write in one step
+const draft = useStoreModel<InvoiceDraft>(undefined, DRAFT)   // no id: the sole record
+await draft.update({ customerId })                            // persists default + patch
+await draft.clear()                                           // back to empty after submit
+```
+
+### Fold a live feed into the store outside React
+
+```ts
+const store = context.getStateResource(STORIES)
+
+const stopQuery = store.query({ status: 'active' }, models => {
+  badge.set(models.length)                              // called now, then on every change to the set
+})
+
+socket.on('story', async (event: StoryEvent) => {
+  if (event.type === 'removed') {
+    await store.delete(event.id)
+  } else {
+    await store.save(event.story)
+  }
+})
 ```
 
 ## API
 
+### `appendStateResource<C, T, R>(context, alias?, config?): T & StateResourceAppend`
+
+Registers a state resource on the context (unless the alias is already registered) and installs
+`getStateResource`. Without an alias it registers the default `state` store.
+
 ### `createStateResource<T>(alias?, config?): StateResource<T>`
 
-The bare factory, when the resource is registered by hand. `appendStateResource` is the usual way.
+The bare factory, for registering the resource by hand. `appendStateResource` is the usual way.
 
 ### `StateConfig<T>`
 
 | Field | Meaning |
 |-------|---------|
 | `id` | The field records are keyed by. Defaults to `id` |
-| `single` | The resource holds exactly ONE record, which needs no id — the current user, the active session, a wizard being filled in |
-| `default` | What `StateModel.record` shows while the model is empty |
+| `single` | The resource holds exactly ONE record, which needs no id: the current user, the active session, a wizard being filled in |
+| `default` | `() => T`, what `StateModel.record` shows while the model is empty |
 
 ### `StateResource<T>` (extends `Resource<T>`, `PubSubResource<StateEvent<T>>`)
 
-- `replace(records)` — write every record given and drop every record the list does not name, which
-  is the shape of "the server just told us what exists"
-- `clear()` — drop everything
-- `watch(id, listener): () => void` — follow one record. `undefined` addresses the one record of a
-  `single` resource and throws `StateConfigError.NonSingle` on any other
-- `query(where, listener, opts?): () => void` — follow a live set, re-evaluated on every write that
-  changes the answer. `undefined` matches everything
-- `publish(event, channel?)` / `subscribe(handler, opts?)` — the change stream. Every write
+- `config`, the `StateConfig` it was created with
+- `replace(records)`, which writes every record given and drops every record the list does not
+  name. This is the shape of "the server just told us what exists", and subscribers wake once
+- `clear()`, which drops everything
+- `watch(id, listener): () => void`, which follows one record. An absent id on a listed store
+  reports an empty model; on a `single` store it addresses the sole record
+- `query(where, listener, opts?): () => void`, which follows a live set, re-evaluated on every
+  write that changes the answer. `undefined` matches everything; `opts.sort` orders it
+- `publish(event, channel?)` / `subscribe(handler, opts?)`, the change stream. Every write
   announces itself as a `StateEvent` on the default channel
 
 Reads are unpaged: `list()` returns the whole store, and `list(where, { page })` without a `size`
-is refused rather than silently answering with everything. Writes take no `ttl` — nothing here
-expires.
+is refused rather than silently answering with everything. Writes take no `ttl`, since nothing here
+expires. The criteria language is the one from [`@owlmeans/resource`](../resource), including
+dotted keys into nested fields.
 
 ### `StateModel<T>`
 
-- `id` / `empty` / `record` — `empty` is what "nothing loaded yet" looks like; `record` is the
+- `id` / `empty` / `record`: `empty` is what "nothing loaded yet" looks like; `record` is the
   configured `default` while it is true
-- `update(patch)` — merge and write in one step
-- `commit()` — write what `record` currently holds, including a default not yet stored
-- `clear()` — delete the record
+- `update(patch)`, which merges and writes in one step
+- `commit()`, which writes what `record` currently holds, including a default not yet stored
+- `clear()`, which deletes the record
 
-`record` is a snapshot: assigning into it changes nothing anyone else can see. `update` is how a
-change reaches the store and every other subscriber.
+### Exports
 
-### `stateAlias<T>(alias)`
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `appendStateResource` | function | Register a state resource on the context and install `getStateResource` |
+| `createStateResource` | function | The bare factory |
+| `stateAlias<T>(alias)` | function | An alias typed with its record |
+| `createStateModel(binding)` | function | Wrap a record, or its absence, as a model for a store of your own |
+| `StateResource<T>` | type | The resource interface |
+| `StateModel<T>`, `StateModelBinding<T>` | type | The model and what `createStateModel` binds to |
+| `StateConfig<T>`, `StateEvent<T>`, `StateAlias<T>` | type | Keying config, change event `{ type: 'set' \| 'remove', records }`, typed alias |
+| `StateResourceAppend`, `GetStateResource` | type | The `getStateResource` mixin |
+| `StateConfigError` | class | `NoId`: a write with no key value on a many-record store (`NonSingle` is declared beside it) |
 
-An alias that remembers the record type it addresses, so `getStateResource(TASKS)` is typed without
-repeating `<Task>` at every call site. It is the plain string at runtime.
+## Common pitfalls
 
-### `StateConfigError`
+- **Assigning into `model.record`.** It does not reach subscribers and nothing re-renders. Write
+  with `model.update({ ... })`.
+- **Saving a server list record by record.** Records deleted elsewhere stay behind and subscribers
+  wake once per record. Use `replace(records)`.
+- **Treating an empty model as an error.** An unknown or not-yet-known id yields `empty: true` and
+  writes nothing, so render a loading state.
+- **Calling `getStateResource()` with no alias for a store you appended.** Without an alias it
+  answers the default store. Always pass the alias.
+- **Writing with no id on a many-record store.** It throws `StateConfigError` (`NoId`), because
+  nothing here mints ids.
+- **Passing `{ ttl }`**, or expecting data to survive a reload. Use `client-resource` for that.
+- **Trusting the store on the server side.** The server re-validates everything that arrives.
+- **Importing the React hooks from `@owlmeans/web-client`.** They are only exported by
+  `@owlmeans/client`.
 
-`NonSingle` — a record was addressed without an id on a resource that holds many.
-`NoId` — a write carried no value for the id field, and nothing here mints one.
+## Related packages
 
-## Criteria
-
-The criteria language, the operators and the in-memory engine (`matchCriteria`, `filterRecords`,
-`sortRecords`, `firstMatch`, `applyQuery`) all live in
-[`@owlmeans/resource`](../resource) — one filter object means the same thing whether it is
-evaluated here or by a relational store.
-
-## Related Packages
-
-- [`@owlmeans/resource`](../resource) — the `Resource<T>` contract and the criteria engine
-- [`@owlmeans/client`](../client) — `useStoreModel` / `useStoreList` React hooks
+- [`@owlmeans/resource`](../resource): the `Resource<T>` contract and the criteria engine
+- [`@owlmeans/client`](../client): `useStoreModel` / `useStoreList` React hooks
+- [`@owlmeans/client-resource`](../client-resource): the client store that survives a reload
+- [`@owlmeans/client-job`](../client-job): a worked example, a socket feed folded into a state resource
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

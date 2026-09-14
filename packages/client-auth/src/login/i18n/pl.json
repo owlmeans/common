@@ -30,7 +30,7 @@
     },
     "error": {
       "failed": "Logowanie nie zostało ukończone. Spróbuj ponownie.",
-      "blocked": "Okno logowania zostało zablokowane. Zezwól na wyskakujące okienka dla tej witryny i spróbuj ponownie."
+      "blocked": "Okno logowania zostało zablokowane. Kliknij ikonę zablokowanego okienka w pasku adresu przeglądarki, aby je otworzyć."
     },
     "orphaned": "Zalogowano. Możesz zamknąć to okno i kontynuować w aplikacji."
   }

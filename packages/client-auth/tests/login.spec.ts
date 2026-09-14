@@ -95,6 +95,21 @@ describe('login plugin host', () => {
     expect(await service.begin({ url: '/dispatcher' })).toBe(LoginOutcome.Handled)
   })
 
+  test('a registered notifier hears the settled outcome of begin and logout', async () => {
+    const [, service] = bootstrap()
+    service.registerPlugin(stubPlugin({
+      alias: 'blocking', match: () => true,
+      begin: async () => LoginOutcome.Blocked,
+      logout: async () => LoginOutcome.Blocked,
+    }))
+    const seen: LoginOutcome[] = []
+    service.registerNotifier(outcome => { seen.push(outcome) })
+
+    expect(await service.begin({ url: '/dispatcher' })).toBe(LoginOutcome.Blocked)
+    expect(await service.logout({ url: '/dispatcher' })).toBe(LoginOutcome.Blocked)
+    expect(seen).toEqual([LoginOutcome.Blocked, LoginOutcome.Blocked])
+  })
+
   test('a plugin with no logout still ends the session it was asked to end', async () => {
     const [context, service] = bootstrap()
     context.configure()
@@ -290,6 +305,9 @@ describe('a finished sign-in attempt', () => {
     expect(loginAttemptError(LoginOutcome.Passed)).toBe('login.error.failed')
     expect(loginAttemptError(LoginOutcome.Failed)).toBe('login.error.failed')
     expect(loginAttemptError(LoginOutcome.Gesture)).toBe('login.error.blocked')
+    // A `window.open` the browser actually refused reads the same as "needs a fresh gesture" —
+    // both are cured by clicking the browser's own blocked-popup affordance, not by a retry loop.
+    expect(loginAttemptError(LoginOutcome.Blocked)).toBe('login.error.blocked')
   })
 
   test('says nothing when the attempt actually went somewhere', () => {
@@ -307,6 +325,7 @@ describe('resume outcomes', () => {
     expect(resumeAction(LoginOutcome.Orphaned)).toBe(ResumeAction.Render)
     expect(resumeAction(LoginOutcome.Failed)).toBe(ResumeAction.Render)
     expect(resumeAction(LoginOutcome.Gesture)).toBe(ResumeAction.Render)
+    expect(resumeAction(LoginOutcome.Blocked)).toBe(ResumeAction.Render)
     // The ordinary tab: keep the session and carry on. This is the one that must never change.
     expect(resumeAction(LoginOutcome.Passed)).toBe(ResumeAction.Navigate)
   })

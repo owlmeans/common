@@ -26,6 +26,8 @@ that make it concrete. Both halves of an application therefore speak the same fr
 | `MessageType` | `Call` `Result` `Error` `Request` `Response` `Event` `Message` `Auth` `System` |
 | `isMessage` / `isEventMessage` / `isCallMessage` / `isAuthMessage` | Type guards — `isMessage(msg, true)` excludes system frames, `isEventMessage(msg, true)` keeps only them |
 | `ConnectionListener` / `CallHendler` / `RequestHandler` / `CallResolver` | The callback shapes |
+| `SocketSystemEvent` | The `event` values a `MessageType.System` frame carries — see below |
+| `SOCKET_HEARTBEAT_TIMEOUT_CODE` | `4000` — the close code `client-socket`'s carrier uses when it force-closes a socket that has gone silent |
 | `SocketError` and subclasses | `SocketInitializationError`, `SocketConnectionError`, `SocketUnauthorized`, `SocketUnsupported`, `SocketTimeout`, `SocketMessageError`, `SocketMessageMalformed` — all registered with `ResilientError` |
 | `CALL_TIMEOUT` | 60 000 ms, the fallback when neither the message nor `connection.defaultCallTimeout` says |
 
@@ -77,8 +79,24 @@ connection.listen(async message => {
 ```
 
 Both carriers emit exactly that frame — `MessageType.System`, `event: 'close'`, payload
-`{ code }` — when the socket closes. Nothing else reports a disconnect, so any subscription a
-handler opened is released there.
+`{ code }` — when the socket closes for good. Nothing else reports a TERMINAL disconnect, so any
+subscription a handler opened is released there.
+
+**`SocketSystemEvent`** is the full vocabulary a `MessageType.System` frame's `event` can carry —
+`client-socket`'s reconnecting carrier is what emits the other four:
+
+| Event | Meaning |
+|---|---|
+| `close` | The connection is gone for good — see above |
+| `disconnected` | The socket dropped and a retry IS scheduled (client-socket only) — `{ code }` |
+| `reconnecting` | Before each retry attempt (client-socket only) — `{ attempt, delay }` |
+| `reconnected` | A retry succeeded, same `Connection` model (client-socket only) — `{ attempts }` |
+| `lost` | The retry budget elapsed with no success, immediately followed by `close` (client-socket only) |
+
+`close` is the only one of the five a plain carrier with no retry logic (like `server-socket`, or
+`client-socket` itself with `reconnect: false`) will ever emit — a listener written against `close`
+alone, before reconnect support existed, still sees exactly the frame it always did once a
+reconnecting carrier's retries give up.
 
 ## What the model expects of a carrier
 

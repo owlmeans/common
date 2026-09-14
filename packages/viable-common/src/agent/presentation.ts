@@ -186,6 +186,17 @@ const structuredKindOf = (value: unknown): AgentStructuredKind | undefined => {
     return undefined
   }
 
+  // Checked ahead of the single-array shapes below: a scaffold plan carries its own `stories`
+  // array (so the StoryPlan check would otherwise swallow it), and a runtime decision straight
+  // from the MODEL never carries `actor`/`worker` — those are added only once the decision is
+  // persisted onto a StoryDesign — so requiring them here missed every live model call.
+  if ('identity' in object && 'guestHome' in object && 'areas' in object && 'stories' in object) {
+    return AgentStructuredKind.ScaffoldPlan
+  }
+  if (Array.isArray(object.jobs) && Array.isArray(object.agents) && 'kv' in object) {
+    return AgentStructuredKind.RuntimeDecision
+  }
+
   if (Array.isArray(object.files)) return AgentStructuredKind.ArtifactSelection
   if (Array.isArray(object.entities)) return AgentStructuredKind.EntitySelection
   if (Array.isArray(object.stories)) return AgentStructuredKind.StoryPlan
@@ -194,12 +205,6 @@ const structuredKindOf = (value: unknown): AgentStructuredKind | undefined => {
   if (Array.isArray(object.transitions)) return AgentStructuredKind.TransitionPlan
   if (Array.isArray(object.entries)) return AgentStructuredKind.EntrypointSelection
   if (Array.isArray(object.candidates)) return AgentStructuredKind.CandidateRanking
-  if ('identity' in object && 'guestHome' in object && 'areas' in object && 'stories' in object) {
-    return AgentStructuredKind.ScaffoldPlan
-  }
-  if ('actor' in object && 'worker' in object && 'jobs' in object && 'agents' in object && 'kv' in object) {
-    return AgentStructuredKind.RuntimeDecision
-  }
   if (Object.values(object).some(value => {
     const entry = asRecord(value)
     return entry != null && Array.isArray(entry.permissions) && 'level' in entry
@@ -273,6 +278,22 @@ const markdownKindOf = (text: string): AgentMarkdownKind | undefined => {
  * Classifies known model output by source AND shape. The `value` comes from a caller's JSON
  * parser; this runtime-free package intentionally never repairs or parses streamed JSON itself.
  */
+/**
+ * Actions run by an unconstrained tool-calling loop (the coding agent, the repair/architect/
+ * lookup sub-agents, source extraction) rather than a single pinned-schema call. Their tool calls
+ * are file/shell operations, not model-schema output, so they always render as ToolCalls even
+ * when a call's arguments happen to shape-match a schema kind — `read_sources({ files })` looks
+ * exactly like an ArtifactSelection.
+ */
+const agentLoopActions = new Set([
+  'coding-agent-ask', 'arbitrary-modification', 'fix-agent', 'architect', 'declaration-lookup',
+  'source-extract',
+])
+
+const isGenericStructure = (kind: AgentStructuredKind | undefined): boolean =>
+  kind == null || kind === AgentStructuredKind.GenericRecord || kind === AgentStructuredKind.GenericList ||
+  kind === AgentStructuredKind.GenericValue
+
 export const classifyAgentMessage = (input: AgentMessageClassificationInput): AgentMessagePresentation => {
   const role = agentMessageRoleOf(input)
   const action = actionOf(input)
@@ -280,9 +301,14 @@ export const classifyAgentMessage = (input: AgentMessageClassificationInput): Ag
   const structure = structuredKindOf(input.value)
 
   if (input.outputType === 'tool_calls') {
+    // A single pinned-schema call resolves to its own card; everything else — several calls in
+    // one turn, an unconstrained agent-loop action, or a shape too generic to be informative —
+    // is a tool call, not a schema result.
+    const isMultiCall = Array.isArray(input.value) && input.value.length > 1
+    const isToolCalls = isMultiCall || agentLoopActions.has(action) || isGenericStructure(structure)
     return {
       category: AgentMessageCategory.Structured,
-      structure: structure ?? AgentStructuredKind.ToolCalls,
+      structure: isToolCalls ? AgentStructuredKind.ToolCalls : structure!,
       role,
     }
   }

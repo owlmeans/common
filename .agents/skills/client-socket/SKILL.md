@@ -1,26 +1,31 @@
 ---
 name: client-socket
-description: How to use @owlmeans/client-socket — opening a WebSocket Connection to a socket entrypoint from browsers and native clients, the useWs hook, the heartbeat and the system close frame. Auto-invoked when importing client socket primitives or wiring a browser subscription.
+description: How to use @owlmeans/client-socket — opening a self-restoring WebSocket Connection to a socket entrypoint from browsers and native clients, the reconnect policy and its options, the socket-status aggregator, the useWs hook and the system frames a carrier emits. Auto-invoked when importing client socket primitives or wiring a browser subscription.
 user-invocable: false
 ---
 
 # @owlmeans/client-socket
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-socket": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/client-socket": "^0.1.18-rc.22"` in `dependencies`
 
 The browser carrier for `@owlmeans/socket`. It supplies the four members the connection model
 leaves abstract — `send`, `close`, `prepare`, `authenticate` — and hands back a plain `Connection`,
 so everything a screen does with the socket is the vocabulary of that package — `observe`,
-`notify`, `call`, `listen`.
+`notify`, `call`, `listen`. It also restores a dropped WebSocket on its own, on the SAME
+`Connection` model, so nothing a caller registered with `observe`/`listen` needs to be
+re-registered after a network blip.
 
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `ws(entrypoint, request?)` | Open a `Connection` to a socket entrypoint. Resolves once the socket is open, and only then |
-| `useWs(protocol \| alias, request?)` | React hook — `Connection \| null` until it opens; re-opens on change and closes on unmount |
-| `Config` / `Context` | The client config and context types this package expects |
+| `ws(entrypoint, request?, options?)` | Open a `Connection` to a socket entrypoint. Resolves once the FIRST attempt opens; rejects with `SocketConnectionError('lost')` if the retry budget elapses first |
+| `useWs(protocol \| alias, request?, options?)` | React hook — `Connection \| null` until it opens (or gives up); re-opens on `alias`/`AUTH_QUERY`/`params` change and closes on unmount |
+| `connect(address, ctx, options?)` | The same machinery with no entrypoint behind it — an `address` callback returning the URL, for an adapter or a test |
+| `appendSocketStatus(ctx, alias?)` / `useSocketStatus()` | The status aggregator — see below |
+| `Config` / `Context` | The client config (`socket?: SocketClientSettings`) and context types this package expects |
+| `ReconnectPolicy` / `SocketClientSettings` / `ConnectOptions` / `WsOptions` | The reconnect policy shape and where it can be set — config, or per-call `options` |
 
 ## How the address is built
 
@@ -28,16 +33,19 @@ A socket entrypoint is **addressed, not called**: `entrypointUrl` from
 `@owlmeans/client-entrypoint/utils` turns the declaration plus the asking context into the `wss://`
 URL — `:params` filled in, query appended, protocol and TLS taken from the entrypoint's address —
 and the connection is opened on that. Nothing is hand-concatenated, so the same declaration the
-server binds is the one the client dials.
+server binds is the one the client dials. It is re-resolved on EVERY attempt, first one included,
+so a `beforeConnect` hook that mutates the request's query (a refreshed token, most often) reaches
+every reconnect too, not just the first handshake.
 
 Authentication rides on the query, because a WebSocket handshake carries no Authorization header a
 browser can set: the token goes under `AUTH_QUERY`, and the server derives the connection's subject
 from it.
 
 **Take the authenticated hook, not this one.** `@owlmeans/client-auth` exports its own `useWs` that
-wraps this one and fills `AUTH_QUERY` from `ctx.auth().token` when the request does not already
-carry it. Import `useWs` from there for anything a guard protects, and from here only for an
-entrypoint that is open to everyone.
+wraps this one, fills `AUTH_QUERY` from `ctx.auth().token`, and refreshes it via `beforeConnect` on
+every reconnect — unless the request already carried its own token, in which case that caller's
+value is left alone across reconnects too. Import `useWs` from there for anything a guard
+protects, and from here only for an entrypoint that is open to everyone.
 
 The in-band auth sequence is a different thing from the query token, and only half of it is here.
 `connection.auth(stage, payload)` sends the frame and resolves on the server's reply — that is the
@@ -45,10 +53,17 @@ client-initiated exchange, and it works. This carrier's own `authenticate` is a 
 empty tuple, so an `Auth` frame the SERVER opens finds no stage to answer with and is dropped
 without a reply: a browser can start an exchange, never answer one.
 
+**A reconnect is a brand-new server-side connection.** If a server sets up subscriptions only
+after an in-band `authenticate` frame (as this platform's own handlers do — see the `socket`
+memory in `viable`), the carrier does NOT replay that frame by itself; it only reopens the pipe.
+A caller that authenticates in-band must listen for `SocketSystemEvent.Reconnected` and resend it
+— `viable`'s `sources/manager-web/src/lib/ws.ts` `useAuthWs` is the worked example.
+
 ## Usage
 
 ```typescript
-// A guarded entrypoint: this useWs fills AUTH_QUERY from the current session.
+// A guarded entrypoint: this useWs fills AUTH_QUERY from the current session and keeps it fresh
+// across reconnects.
 import { useWs } from '@owlmeans/client-auth'
 
 // An open one: this useWs sends whatever query it is given, and nothing more.
@@ -72,49 +87,86 @@ protocol, `AUTH_QUERY` value, or params change — the params are compared by co
 object literal each render does not re-open. Both close the connection when the component unmounts,
 and both answer `null` until the socket is open, so every effect that touches one guards on that.
 
-## Disconnects
+## Disconnects and reconnects
 
-The carrier sends a JSON `{ type: 'ping' }` every 30 seconds while the socket is open and clears
-the heartbeat when it closes. A closing socket is reported to the connection's own `listen`
-listeners as a system frame — `MessageType.System`, `event: 'close'`, payload `{ code }` — and
-that is the only notice a handler gets, so a subscription opened on the connection is released
-there:
+The carrier keeps the same `Connection` MODEL for the life of the hook/call and swaps only the
+underlying `WebSocket` underneath it — every `observe`/`listen` a caller registered survives a
+reconnect, because it was registered on the model, not on the socket.
+
+**The retry policy** (`ReconnectPolicy`, defaults in `DEFAULT_RECONNECT_POLICY`):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `minDelay` | 200ms | First retry delay |
+| `maxDelay` | 3000ms | Delay ceiling — backoff never grows past this |
+| `factor` | 2 | Geometric growth per failed attempt |
+| `jitter` | 0.1 | ±10% randomization on each computed delay |
+| `budget` | 600000ms (10 min) | Total retry time before the carrier gives up |
+| `stableAfter` | 10000ms | How long a reopened socket must stay up before the attempt count and the outage clock reset |
+| `heartbeat` | 30000ms | Ping interval — runs even with `reconnect: false` |
+| `pongTimeout` | 10000ms | No frame of ANY kind since the last ping past this long ⇒ the carrier force-closes the socket itself (code 4000, `SOCKET_HEARTBEAT_TIMEOUT_CODE`) — the only way a silently half-open TCP connection is noticed before the OS would, minutes later |
+
+Set it on `ctx.cfg.socket.reconnect` (app-wide) or per call via `options.reconnect` (which wins).
+`reconnect: false` disables retries — a drop is reported once and stays dropped, the
+pre-reconnect-support behaviour — while the heartbeat/liveness check above still runs. Use it for
+a stateful one-shot handshake a reconnect could never resume correctly (the wallet-tunnel rely
+session in `client-auth` sets it for exactly this reason).
+
+**System frames** (`SocketSystemEvent`, from `@owlmeans/socket`) reach every `connection.listen`
+subscriber:
+
+| Event | When |
+|---|---|
+| `disconnected` | The socket dropped and a retry IS scheduled — `{ code }` |
+| `reconnecting` | Before each retry attempt — `{ attempt, delay }` |
+| `reconnected` | A retry succeeded — `{ attempts }` |
+| `lost` | The retry budget elapsed with no success — no payload |
+| `close` | The connection is gone for GOOD: a client-initiated close, a terminal server code (1000/1008), `reconnect: false` and the one attempt failed, or right after `lost` |
 
 ```typescript
 connection.listen(async message => {
-  const msg = message as EventMessage<{ code: number }>
-  if (typeof message === 'object' && msg.type === MessageType.System && msg.event === 'close') {
-    await release()
-  }
+  const msg = message as EventMessage<unknown>
+  if (typeof message !== 'object' || msg.type !== 'system') return
+  if (msg.event === SocketSystemEvent.Reconnected) await resubscribe()
+  if (msg.event === SocketSystemEvent.Close) await release()
 })
 ```
 
-**Nothing here reconnects.** The carrier has no retry: it reports a close and stops there, and
-`useWs` opens a new socket only when the alias, the `AUTH_QUERY` value or the params change. A
-connection that drops stays dropped until something above it changes one of those or remounts the
-component, so a screen that must survive a drop re-opens the socket itself and re-reads its data
-from the server.
+**The status aggregator.** `appendSocketStatus(ctx)` registers a shared service every
+`ws()`/`useWs()` connection reports its state into; `useSocketStatus()` reads the WORST state
+across all of them (`'online' | 'reconnecting' | 'lost'`). A connection that ends in `'lost'` is
+NOT released from the aggregate — there is no `Connection` for the caller to close, since `ws()`
+rejected — so the aggregate latches at `'lost'` until the page reloads. That is deliberate: it is
+what `@owlmeans/web-panel`'s `SocketReloadDialog` reads to put up a global, blocking "reload the
+page" prompt once every socket in the app has given up (`cfg.socket.reloadDialog`). Calling
+`appendSocketStatus` unconditionally is cheap and safe for a host package — nothing reports into
+it unless something calls `ws()`/`useWs()`, so an app that never does behaves exactly as before.
+
+`useSocketStatus()` tolerates being called before the context's own `configure()`/`init()` has
+run (it defaults to `'online'` and re-attaches once `ctx.waitForInitialized()` resolves) — a
+component mounted as a sibling of the router, as `SocketReloadDialog` is, renders on React's
+first commit, before the router's effect has had a chance to initialize the context.
 
 Outbound frames are stamped with `dt` and dropped rather than queued while the socket is not
-`OPEN`, so a `notify` issued while the socket is down is lost rather than delivered late.
-
-A handshake that never opens has no error path: `ws()` resolves only from the socket's open event,
-so a refused upgrade, a rejected token or a dead network leaves its promise pending forever —
-`useWs` stays `null` with nothing reported, and an awaited `ws()` call hangs. Treat a `null` that
-never turns into a connection as a failed handshake, and give a screen that depends on one a
-timeout of its own.
+`OPEN`, so a `notify` issued while the socket is down is lost rather than delivered late. Nothing
+here replays events the SERVER sent while the socket was down either — a caller that cannot
+tolerate a gap re-syncs its own state on `reconnected` (viable's file-watch editor re-lists files;
+its thinking/slot socket relies on a separate periodic API push for the same reason).
 
 ## Depends On
 
-- `@owlmeans/socket` — `createBasicConnection`, `MessageType`, the `Connection` contract
+- `@owlmeans/socket` — `createBasicConnection`, `MessageType`, `SocketSystemEvent`,
+  `SOCKET_HEARTBEAT_TIMEOUT_CODE`, `SocketConnectionError`, the `Connection` contract
 - `@owlmeans/client-entrypoint` — `entrypointUrl`, `provideRequest`
 - `@owlmeans/client` — `useContext`, `useValue`; `@owlmeans/client-context` — the config type
-- `@owlmeans/auth` — `AUTH_QUERY`
+- `@owlmeans/auth` — `AUTH_QUERY`, `AuthenticationStage`
+- `@owlmeans/basic-ids` — `createIdOfLength`, for the per-connection status-tracking id
 - `react` (peer)
 
 ## Related
 
-- `socket` — the message model every verb here belongs to
+- `socket` — the message model every verb here belongs to, and the `SocketSystemEvent` vocabulary
 - `server-socket` — the far side: guard enforcement, and what it stamps on a frame
-- `client-auth` — the `useWs` that carries the token; `client-job` — `useJobFeed`, a worked
-  subscription built on it
+- `client-auth` — the `useWs` that carries the token and refreshes it across reconnects;
+  `client-job` — `useJobFeed`, a worked subscription built on it
+- `web-panel` — `SocketReloadDialog`, the global blocking prompt built on `useSocketStatus()`

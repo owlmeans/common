@@ -17,6 +17,7 @@ user-invocable: false
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
+| `SocketReloadDialog` / `useSocketStatus` | The global "reload the page" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically, and the hook it reads — see below |
 | `PanelMenu` | The dropdown menu, described as data — items, arbitrary widget rows, labels, separators and one level of submenu. `PanelMenuEntry` / `PanelMenuEntryKind` / `PanelMenuProps` come with it |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
@@ -261,6 +262,28 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
 - `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
   raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
 
+### Reload prompt — `SocketReloadDialog`
+
+`makeContext` calls `appendSocketStatus` from `@owlmeans/client-socket` unconditionally, and
+`PanelApp` mounts `SocketReloadDialog` as a sibling of the Router — exactly where
+`PanelCookieConsent` lives, and for the same reason: a dialog mounted inside a route is torn down
+on every navigation. Neither does anything unless an app opts in:
+
+```typescript
+cfg.socket = { reloadDialog: true }
+```
+
+Once every `ws()`/`useWs()` connection in the app has exhausted its own retry budget
+(`useSocketStatus() === 'lost'`), a global, blocking `AlertDialog` covers the screen — no Escape,
+no outside click, one action ("Reload page") that calls `window.location.reload()`. There is
+nothing else the budget-exhausted state can resolve into: the aggregate is not released on that
+path (see the `client-socket` skill), so the only way out is the reload. Strings are lib-tier
+(`useI18nLib('socket', 'reload')`), 7 languages, under `src/components/socket/i18n/`.
+
+Leave `cfg.socket.reloadDialog` unset (or `false`) for an app that would rather show its own
+inline "reconnecting…" state — `useSocketStatus()` is exported for that, independent of the
+dialog.
+
 ### Links — `Link`
 
 `Link` renders an `<a>` whose `href` is the entrypoint's own answer: it asks
@@ -425,10 +448,12 @@ in a linked workspace, so it is the reliable scan target in both modes.
 ## Depends On
 
 - `@owlmeans/web-client`, `@owlmeans/client-panel`, `@owlmeans/client-i18n`, `@owlmeans/web-router`
+- `@owlmeans/client-socket` — `appendSocketStatus`, `useSocketStatus`, behind `SocketReloadDialog`
 - `@owlmeans/queue` — `JobRecord` / `JobState`, read by the `./jobs` subpath
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
-  (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.
+  (`alert-dialog`, `label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no
+  react-router.
 - `ajv-formats` is imported at module scope by the form model but is declared in no dependency
   section of the manifest, which lists `ajv` alone. An install that does not otherwise pull it in
   fails at import time, so declare `ajv-formats` next to `ajv` in the consuming application.

@@ -30,7 +30,7 @@
     },
     "error": {
       "failed": "El inicio de sesión no se completó. Inténtalo de nuevo.",
-      "blocked": "Se bloqueó la ventana de inicio de sesión. Permite las ventanas emergentes para este sitio e inténtalo de nuevo."
+      "blocked": "Se bloqueó la ventana de inicio de sesión. Haz clic en el icono de ventana emergente bloqueada en la barra de direcciones del navegador para abrirla."
     },
     "orphaned": "Sesión iniciada. Puedes cerrar esta ventana y continuar en la aplicación."
   }

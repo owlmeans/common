@@ -1,13 +1,13 @@
 # @owlmeans/entrypoint
 
-Entrypoint protocol system — the typed route contract shared between server and client in OwlMeans apps.
-
-## Overview
-
-- A **protocol** is one immutable URL unit: an alias + route + typed contract + access options
-- On the server and client, corresponding bindings add handlers, screens or calls to that protocol
-- All AJV validation schemas live at protocol level, keeping data contracts consistent fullstack
-- Most commonly used with `@owlmeans/server-entrypoint` and `@owlmeans/client-entrypoint`
+Entrypoint protocol system — the typed route contract shared between server and client in OwlMeans
+apps. An application uses it in its shared (`common`) package to declare every addressable unit —
+an HTTP API route, a socket, a queued job or a screen — once, as an immutable protocol with typed
+request sections, a response type, AJV schemas and access rules. Runtime behaviour is not added
+here: the server attaches handlers with `@owlmeans/server-entrypoint` / `@owlmeans/server-api`, the
+client binds calls and screens with `@owlmeans/client-entrypoint`, and route shapes themselves come
+from `@owlmeans/route`. Code that only calls or handles an already declared protocol imports it from
+the shared package rather than declaring anything here.
 
 The route declaration an entrypoint carries is immutable: its `path` always stays the segment this
 entrypoint contributes under its parent. Addresses are computed on demand against the context the
@@ -20,100 +20,291 @@ entrypoint is registered in — `path()` walks the parent chain, `mount()` adds 
 bun add @owlmeans/entrypoint@^0.1.18-rc.19
 ```
 
+## Concepts
+
+- **Protocol** — one immutable URL unit: an alias + route + typed contract + access options, made by
+  `protocol(route, contract, options?)`. The frozen object is the only cross-layer reference;
+  runtime code passes it (`context.entrypoint(protocols.x)`), never its alias string.
+- **Contract** — the compile-time request/response pair plus the runtime AJV schemas, made by
+  `contract(...)` or `contract.request({ body, params, query, headers }, response)` from `typed<T>()`
+  and `schema<T>()` sources. All validation lives at protocol level, keeping data contracts
+  consistent fullstack.
+- **Protocol tree** — an exported `*Protocols` object whose property names describe the contract.
+  Aliases stay private to the declaring module; the tree is flattened with `protocols(tree)` only at
+  registration.
+- **Access options** — `guards`, `gate` and `sticky` in `EntrypointOptions`. Guards and gates are
+  inherited through the route parent when a runtime binds the protocol.
+- **Binding / materialization** — a side-specific package turns a declaration into a context-bound
+  `CommonEntrypoint` (`materializeEntrypoint`) and adds a handler, a call or a screen. The declaration
+  itself is never mutated.
+- **Transport** — the route's protocol (`http`, `ws`, `queue`) picks the carrier through a service
+  registered under `transportAlias(protocol)`; callers write `call()` and never branch on it.
+
 ## Usage
 
-Define a protocol with a typed request and guard:
+### 1. Declare a typed protocol tree
 
-```typescript
-import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
+```ts
+import { contract, protocol, schema, typed } from '@owlmeans/entrypoint'
 import { backend, route, RouteMethod } from '@owlmeans/route'
+import { DEFAULT_GUARD } from '@owlmeans/auth-common'
+import type { JSONSchemaType } from 'ajv'
 
-const aliases = { stories: 'stories', create: 'stories:create' } as const
-const stories = openProtocol(route(aliases.stories, '/stories', backend()))
+export interface Story { id: string, title: string }
+export interface CreateStory { title: string }
+
+export const CreateStorySchema = schema<CreateStory>({
+  type: 'object',
+  properties: { title: { type: 'string', minLength: 1 } },
+  required: ['title'],
+  additionalProperties: false,
+} as JSONSchemaType<CreateStory>)
+
+// Private wire names — never exported.
+const aliases = {
+  base: 'my-app:story:base',
+  create: 'my-app:story:create',
+  get: 'my-app:story:get',
+} as const
+
+const base = protocol(route(aliases.base, '/stories', backend()), contract(), {
+  guards: DEFAULT_GUARD,
+})
 
 export const storyProtocols = {
-  base: stories,
+  base,
   create: protocol(
-    route(aliases.create, '/', backend({ parent: stories, method: RouteMethod.POST })),
-    contract.request({ body: typed<CreateStory>(CreateStorySchema) }, typed<Story>()),
-    { guards: ['authenticated'] },
+    route(aliases.create, '/', backend({ parent: base, method: RouteMethod.POST })),
+    contract(CreateStorySchema, typed<Story>()),
+  ),
+  get: protocol(
+    route(aliases.get, '/:id', backend({ parent: base })),
+    contract.request({ params: typed<{ id: string }>() }, typed<Story>()),
   ),
 } as const
 ```
 
-Bind the protocol to a typed server handler:
+`contract(body, response)` is a body-only contract; `contract.request(...)` types each request
+section independently. The children inherit `DEFAULT_GUARD` from `base`.
 
-```typescript
+### 2. Bind handlers on the server
+
+```ts
 import { handlers } from '@owlmeans/server-api'
 import { bind } from '@owlmeans/server-entrypoint'
+import { requireEntityKey } from '@owlmeans/auth-common'
+import { storyProtocols } from 'my-app-common'
 import type { Context } from 'my-app-backend'
 
 const api = handlers<Context>()
-const create = api.body(storyProtocols.create, async (body, context) =>
-  context.story().create(body))
+
+const create = api.body(storyProtocols.create, async (body, context, request) =>
+  context.story().create(requireEntityKey(request), body))
+
+const get = api.params(storyProtocols.get, async ({ id }, context) =>
+  context.story().get(id))
+
 export const serverBindings = [
   bind(storyProtocols.base),
   bind(storyProtocols.create, create),
+  bind(storyProtocols.get, get),
 ]
 ```
 
+`body`, `params` and `id` are inferred from the protocol; no generic is named. The organization
+record id comes from the request (`requireEntityKey`), never from the payload.
+
+### 3. Call the protocol from a client or another service
+
+```ts
+import { bindAll } from '@owlmeans/client-entrypoint'
+import { EntrypointOutcome } from '@owlmeans/entrypoint'
+import { storyProtocols } from 'my-app-common'
+
+export const clientBindings = bindAll(storyProtocols)
+
+// Later, with a context the bindings were registered in:
+const story = await context.entrypoint(storyProtocols.create).call({ body: { title: 'Invoices' } })
+
+const { value, outcome } = await context.entrypoint(storyProtocols.get)
+  .invoke({ params: { id: story.id }, timeout: 5_000 })
+if (outcome !== EntrypointOutcome.Ok) {
+  throw new Error(`Story ${story.id} was not loaded`)
+}
+
+const link = await context.entrypoint(storyProtocols.get).url({ params: { id: value.id } })
+```
+
+`call()` resolves the value, `invoke()` also returns the `EntrypointOutcome`, `url()` builds the
+address. `CallOptions` (`auth`, `host`, `base`, `unsecure`, `timeout`, `signal`) ride alongside the
+request sections and are never part of the payload contract.
+
+### 4. Gates, socket and queue carriers, derived types
+
+```ts
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
+import type { HandlerRequest, RequestOf, ResponseOf } from '@owlmeans/entrypoint'
+import { backend, job, route, RouteMethod, socket } from '@owlmeans/route'
+import { DEFAULT_GUARD, GUARD_ED25519 } from '@owlmeans/auth-common'
+import { PROJECT_GATE, WORKER, WORK_QUEUE } from './consts.js'
+
+const aliases = {
+  base: 'my-app:project:base', update: 'my-app:project:update',
+  watch: 'my-app:project:watch', build: 'my-app:project:build',
+} as const
+
+const base = protocol(route(aliases.base, '/projects', backend()), contract(), {
+  guards: DEFAULT_GUARD,
+  gate: { alias: PROJECT_GATE, params: 'my-app-project-{entity}' },
+})
+const updates = openProtocol(route(aliases.update, '/update'))
+
+export const projectProtocols = {
+  base,
+  updates,
+  // Carried over a WebSocket: the handler receives a connection, not a single reply.
+  watch: protocol(
+    route(aliases.watch, '/project/:id', socket({ parent: updates })),
+    contract.request({ params: typed<{ id: string }>() }, typed<void>()),
+  ),
+  // Carried as a queued job for a worker service; callers still write `call()`.
+  build: protocol(
+    route(aliases.build, '/:id/build', job({
+      parent: base, method: RouteMethod.POST, service: WORKER, queue: WORK_QUEUE,
+    })),
+    contract.request({ params: typed<{ id: string }>() }, typed<{ jobId: string }>()),
+    { guards: GUARD_ED25519 },
+  ),
+} as const
+
+type BuildRequest = RequestOf<typeof projectProtocols.build> // { params: { id: string } }
+type BuildReply = ResponseOf<typeof projectProtocols.build>  // { jobId: string }
+type WatchRequest = HandlerRequest<RequestOf<typeof projectProtocols.watch>>
+```
+
+### 5. Decorate a whole tree without flattening it
+
+```ts
+import { decorateEntrypoint, gatesOf, mapProtocols } from '@owlmeans/entrypoint'
+import { AUDIT_GUARD } from './consts.js'
+import { projectProtocols } from './protocols.js'
+
+// Add a guard to every declaration while keeping the tree paths consumers bind by.
+export const auditedProtocols = mapProtocols(projectProtocols, declaration =>
+  decorateEntrypoint(declaration, { guards: [...declaration.guards, AUDIT_GUARD] }))
+
+// Resolve inherited gates without materializing anything (e.g. to hide a menu item).
+const gates = gatesOf(auditedProtocols.build, auditedProtocols)
+```
+
+`decorateEntrypoint` returns a new frozen protocol with the same request/response pair; the input
+tree and its protocols are left untouched.
+
 ## API
 
-### `protocol(route, contract, options?): EntrypointProtocol`
+### Protocol declaration (`.`)
 
-Creates an immutable typed protocol declaration.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `protocol(route, contract, options?)` | function | Create an immutable, typed `EntrypointProtocol` |
+| `openProtocol(route, options?)` | function | Create an intentionally untyped protocol (`OpenRequest` / `OpenValue`) for escape hatches |
+| `contract(...)` | function | Body-only contract: `contract()`, `contract(response)`, `contract(body, response)` |
+| `contract.request(sections, response)` | function | Contract with independently typed `body`, `params`, `query`, `headers` |
+| `typed<T>(schema?)` | function | Type-only source, optionally paired with an AJV schema |
+| `schema<T>(jsonSchema)` | function | Brand a reusable AJV schema with its model type (`EntrypointSchema<T>`) |
+| `protocols(tree)` | function | Flatten an `EntrypointTree` to a declaration array for registration |
+| `mapProtocols(tree, mapper)` | function | Rebuild a frozen tree, transforming each declaration in place of its path |
+| `decorateEntrypoint(protocol, options)` | function | Clone a protocol with replaced `guards` / `gate` / `sticky` |
+| `gatesOf(protocol, tree)` | function | Gates a protocol inherits through its route parents, without materializing |
+| `isEntrypointProtocol(value)` | function | Type guard for a protocol declaration |
+| `entrypointRef<Request, Response>(alias)` | function | Typed reference for a dynamic remote address whose declaration cannot be imported |
+| `aliasOf(reference)` | function | Alias of a reference or string, for registry/broker adapters |
+| `materializeEntrypoint(protocol)` | function | Make a context-bindable `CommonEntrypoint` from a declaration (used by binding packages) |
+| `provideResponse<T>(original?)` | function | Create an `AbstractResponse<T>` for invoking a handler or guard outside a transport |
+| `transportAlias(protocol = 'http')` | function | Service alias `transport:<protocol>` a transport registers under |
+| `EntrypointOutcome` | enum | `Ok`, `Accepted`, `Created`, `Finished` — returned by `invoke()` and `resolve()` |
 
-### `openProtocol(route, options?): EntrypointProtocol`
+### Contract and protocol types
 
-Creates an intentionally untyped protocol, used only for framework escape hatches.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `EntrypointProtocol<Request, Response>` | interface | Typed immutable declaration; also a context reference to its registered entrypoint |
+| `EntrypointProtocolDeclaration` | interface | Runtime fields common to every protocol (`alias`, `route`, `contract`, `sticky`, `guards`, `gate`) |
+| `EntrypointContract<Request, Response>` | interface | Runtime schemas plus the compile-time pair |
+| `EntrypointOptions` | interface | `sticky`, `guards`, `gate: { alias, params }` |
+| `EntrypointGate` | interface | A resolved `{ alias, params }` gate |
+| `EntrypointTree` | interface | Nested object of protocols |
+| `RequestShape`, `OpenRequest`, `OpenValue` | types | Request section shape; the untyped request and value |
+| `Typed<T>`, `EntrypointSchema<T>`, `ShapeSource<T>` | types | Contract sources |
+| `RequestSources`, `RuntimeRequestSchemas`, `RuntimeResponseSchemas` | interfaces | Contract internals |
+| `RequestOf`, `ResponseOf`, `BodyOf`, `ParamsOf`, `QueryOf`, `HeadersOf`, `CallRequestOf` | types | Derive contract types from a protocol |
+| `HandlerRequest<Request>` | type | Typed request at a handler boundary, including transport metadata |
+| `EntrypointRequestMeta` | interface | `alias`, `auth`, `entity`, `path`, `canceled`, `cancel` |
+| `RegisteredEntrypoint<Request, Response>` | interface | Context-bound entrypoint with `call`, `invoke`, `url`, `validate` |
+| `CallOptions`, `CallArguments`, `UrlArguments` | types | Addressing/transport controls and argument tuples of `call` / `url` |
+| `EntrypointResult<Response>` | interface | `{ value, outcome }` returned by `invoke()` |
+| `MaterializedEntrypoint<Protocol>` | type | `CommonEntrypoint` carrying its `protocol` |
 
-### `contract(...)`, `contract.request(...)`, `typed<T>(schema?)`
+### Runtime types
 
-Describe typed body, params, query, headers and response sections.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `CommonEntrypoint` | interface | Bound entrypoint: `alias`, `route`, `sticky`, `guards`, `gate`, `gateParams`, `filter`, `handle`, and context-computed `segment()`, `path()`, `mount()`, `service()`, `address()`, `isLocal()`, `parent()`, `getGuards()`, `getGates()` |
+| `CommonEntrypointOptions` | interface | Partial `CommonEntrypoint` options |
+| `AbstractRequest<T>` | interface | Request with `alias`, `auth`, `entity`, `params`, `body`, `query`, `headers`, `path`, `timeout`, `signal` |
+| `AbstractResponse<T>` | interface | Response with `value`, `outcome`, `error`, `resolve(value, outcome?)`, `reject(error)` |
+| `ResolvedEntity` | interface | Organization as handlers see it: `id` (stable key), `slug`, `iamKey` |
+| `EntrypointHandler`, `EntrypointMatch`, `EntrypointAssert` | interfaces | Handler, guard-match and gate-assert signatures |
+| `GuardService` | interface | Guard service: `match`, `handle`, and client-side `authenticated`, `token` |
+| `GateService` | interface | Lazy gate service with `assert(req, res, params)` |
+| `Filter` | interface | AJV schemas by section (`query`, `params`, `body`, `response`, `headers`) |
+| `EntrypointTransport` | interface | `{ protocol, handle }` — the service that carries a call for one route protocol |
 
-Access is declared directly in `EntrypointOptions` as `guards`, `gate` and `sticky`; runtime
-behaviour is added by `bind()`/`bindAll()`/`bindScreen()` in the side-specific package.
+### `@owlmeans/entrypoint/utils`
 
-### Parentship
-
-A child references its parent protocol in the route declaration
-(`route(alias, '/', backend({ parent: storyProtocols.base }))`). `path()` prefixes the parent's
-segments, and inherited guards/gates are collected when a runtime binds the protocol. Keep aliases
-private to the declaration module; an alias string is an adapter address, not a cross-layer API.
-
-### `provideResponse<T>(): AbstractResponse<T>`
-
-Creates a response object for use in unbound handlers.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `isEntrypoint(obj)` | function | Type guard for a materialized `CommonEntrypoint` |
+| `CreateEntrypointSignature<M>` | interface | `(route, opts?) => M` factory signature |
 
 ### Transport
 
-A route's protocol picks the carrier. Register a service under `transportAlias(protocol)` —
-`transport:<protocol>` — implementing `EntrypointTransport { protocol, handle }`, and every call to
-an entrypoint on that protocol goes through it. A consumer writes `ep.call(...)` and never learns
-whether that became an HTTP request, a socket message or a queued job. Without a registered
-transport the call goes over HTTP.
+Register a service under `transportAlias(protocol)` implementing `EntrypointTransport` and every
+call to an entrypoint on that route protocol goes through it — `@owlmeans/queue` does this for
+`RouteProtocols.QUEUE`. Without a registered transport the call goes over HTTP.
 
-### `EntrypointOutcome`
+## Common pitfalls
 
-```typescript
-enum EntrypointOutcome { Ok, Accepted, Created, Finished }
-```
+- Do not export or import alias strings as an API. Keep them private to the declaration module and
+  pass protocol objects; raw aliases belong only in dynamic registry or broker adapters.
+- Do not use `openProtocol` just to skip declaring input or output types — it is for intentionally
+  untyped boundaries.
+- Use `typed<Model>(schema)` or `schema<Model>(...)` rather than a bare `JSONSchemaType<Model>`; a bare
+  AJV generic can widen a section to `OpenValue`.
+- Never mutate guards, gates, schemas or a declaration collection, and never replace an item in an
+  entrypoint array. Derive with `decorateEntrypoint` / `mapProtocols` and bind that exact object.
+- Reference a parent by its protocol object (`backend({ parent: base })`), not by its alias.
+- Do not construct contextual compatibility entrypoints or look a protocol up by alias with a generic;
+  use `entrypointRef` only when the declaration truly cannot be imported.
+- Callers use `call` / `invoke` / `url` and do not branch on the carrier — the route protocol and its
+  transport decide.
+- Inherited gates are deduplicated by gate service: a child declaring a gate under the same service
+  replaces its ancestor's gate for that service rather than adding to it.
+- `request.entity` is set only where authentication ran `attachEntity`; handlers key records by
+  `entity.id` (via `requireEntityKey` / `requireEntity` from `@owlmeans/auth-common`), never by the
+  token's `entitySlug`.
 
-### Types
+## Related packages
 
-- `AbstractRequest<T>` — request with `params`, `body`, `query`, `headers`, `auth`
-- `AbstractResponse<T>` — response with `resolve(value, outcome?)` and `reject(error)`
-- `CommonEntrypoint` — entrypoint with `alias`, `route`, `handle`, and the context-computed
-  `segment()`, `path()`, `mount()`, `service()`, `address()`, `isLocal()`, `parent()`,
-  `getGuards()`, `getGates()`
-- `EntrypointTransport` — `{ protocol, handle }`, the service that carries a call for one protocol
-
-## Related Packages
-
-- [`@owlmeans/route`](../route) — `route()` factory used in `protocol(route(...), ... )`
-- [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `bind()`/`bindAll()` to attach handlers
-- [`@owlmeans/client-entrypoint`](../client-entrypoint) — client-side entrypoint with API call support
-- [`@owlmeans/server-app`](../server-app) — re-exports everything from this package
+- [`@owlmeans/route`](../route) — `route()`, `backend()`, `socket()`, `job()`, `frontend()` used in `protocol(route(...), ...)`
+- [`@owlmeans/context`](../context) — `BasicEntrypoint`, `EntrypointReference` and `context.entrypoint(...)`
+- [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `bind()` / `bindAll()` to attach handlers
+- [`@owlmeans/server-api`](../server-api) — `handlers<Context>()` with protocol-inferred `body` / `params` / `request`
+- [`@owlmeans/server-socket`](../server-socket) — `connection(protocol, handler)` for socket protocols
+- [`@owlmeans/client-entrypoint`](../client-entrypoint) — client `bind()`, `bindAll()`, `bindScreen()` with typed calls
+- [`@owlmeans/queue`](../queue) — the QUEUE transport for `job()` routes
+- [`@owlmeans/auth-common`](../auth-common) — guard aliases and entity helpers used in access options and handlers
+- [`@owlmeans/server-app`](../server-app) — re-exports `contract`, `protocol`, `typed`, `EntrypointOutcome` and the request/response types
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

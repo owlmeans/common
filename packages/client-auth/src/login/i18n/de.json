@@ -30,7 +30,7 @@
     },
     "error": {
       "failed": "Die Anmeldung wurde nicht abgeschlossen. Bitte versuchen Sie es erneut.",
-      "blocked": "Das Anmeldefenster wurde blockiert. Erlauben Sie Pop-ups für diese Website und versuchen Sie es erneut."
+      "blocked": "Das Anmeldefenster wurde blockiert. Klicken Sie auf das Symbol für blockierte Pop-ups in der Adressleiste Ihres Browsers, um es zu öffnen."
     },
     "orphaned": "Angemeldet. Sie können dieses Fenster schließen und in der Anwendung fortfahren."
   }

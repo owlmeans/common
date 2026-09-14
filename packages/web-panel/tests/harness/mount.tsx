@@ -11,7 +11,9 @@ import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
-import { makeContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster } from '../../src/index.js'
+import {
+  makeContext, useContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster
+} from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
@@ -29,7 +31,13 @@ const alias = {
   reportDetail: `${SERVICE}:web:report-detail`,
   prefs: `${SERVICE}:web:prefs`,
   login: `${SERVICE}:web:login`,
+  socket: `${SERVICE}:web:socket`,
 }
+
+/** A harness id for the ONE tracked connection this screen simulates — a real `ws()`/`useWs()`
+ *  connection would generate its own, but the status service only cares that it is stable across
+ *  the two buttons below. */
+const HARNESS_SOCKET_ID = 'harness-socket'
 
 const navConfig: PanelNavConfig = {
   sections: [
@@ -110,6 +118,26 @@ const PrefsScreen: FC = () => <div id="prefs">
 const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-group">{children}</div>
 
 /**
+ * Drives the SAME status service `SocketReloadDialog` reads, exactly the way a real dropped
+ * `ws()`/`useWs()` connection would — through `report()`/`release()`, never a prop the dialog
+ * itself exposes, since it has none: the whole point is that any socket, anywhere in the app,
+ * can put the dialog up.
+ */
+const SocketStatusScreen: FC = () => {
+  const context = useContext()
+
+  return <div id="socket-status">
+    socket-status-screen
+    <button id="report-lost" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost')}>
+      lose connection
+    </button>
+    <button id="release-lost" onClick={() => context.socketStatus().release(HARNESS_SOCKET_ID)}>
+      restore connection
+    </button>
+  </div>
+}
+
+/**
  * The section's landing screen. Its button navigates to a screen the MENU DOES NOT LIST,
  * which is the only way to exercise the parent-chain walk: an in-app navigation puts the
  * unlisted alias into the router state, and the active section has to be found from it.
@@ -139,6 +167,11 @@ base.security = {
     },
   },
 }
+// Every other screen in this harness stays unaffected: nothing ever reports into the status
+// service unless `#report-lost` is clicked, so the flag being on by default costs nothing. A
+// test that needs the OFF case loads `?reloadDialog=0` — one harness process, both branches.
+const reloadDialogEnabled = new URLSearchParams(window.location.search).get('reloadDialog') !== '0'
+;(base as { socket?: { reloadDialog?: boolean } }).socket = { reloadDialog: reloadDialogEnabled }
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the
 // context is un-initialized, so a pre-readied context renders a blank page.
@@ -171,6 +204,7 @@ const protocols = {
   reportDetail: openProtocol(route(alias.reportDetail, '/detail', frontend({ parent: alias.reports }))),
   prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
   login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
+  socket: openProtocol(route(alias.socket, '/socket', frontend({ parent: BASE }))),
 }
 
 const entrypoints = [
@@ -188,6 +222,7 @@ const entrypoints = [
   bindScreen(protocols.reportDetail, handler(screen('detail', 'detail-screen'))),
   bindScreen(protocols.prefs, handler(PrefsScreen)),
   bindScreen(protocols.login, handler(LoginHarness)),
+  bindScreen(protocols.socket, handler(SocketStatusScreen)),
 ]
 
 context.registerEntrypoints(entrypoints)

@@ -12,6 +12,7 @@ import { LoginOutcome } from './types.js'
 export const loginAttemptError = (outcome: LoginOutcome | null): string | null => {
   switch (outcome) {
     case LoginOutcome.Gesture:
+    case LoginOutcome.Blocked:
       // The window never opened. That is the popup blocker, and it has its own copy.
       return 'login.error.blocked'
     case LoginOutcome.Failed:
@@ -49,6 +50,7 @@ export const resumeAction = (outcome: LoginOutcome): ResumeAction => {
     case LoginOutcome.Orphaned:
     case LoginOutcome.Failed:
     case LoginOutcome.Gesture:
+    case LoginOutcome.Blocked:
       return ResumeAction.Render
     default:
       return ResumeAction.Navigate

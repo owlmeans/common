@@ -24,7 +24,10 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
     const Renderer: TunnelAuthenticationRenderer | undefined = renderer
       ?? tunnelConsumerUIPlugin.Renderer
 
-    const connection = useWs(AUTHEN_RELY)
+    // A wallet-tunnel handshake is one-shot and stateful in the browser tab that started it — a
+    // reconnect would dial a brand-new rely session the wallet was never asked to approve, so a
+    // drop here is a real failure (`SocketTimeout` below), never something to retry underneath.
+    const connection = useWs(AUTHEN_RELY, undefined, { reconnect: false })
 
     if (Renderer == null) {
       throw new SyntaxError('Renderer is not defined for WalletConsumer plugin')

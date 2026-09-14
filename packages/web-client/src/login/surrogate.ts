@@ -1,10 +1,38 @@
 import {
   adoptToken, clearSurrogate, markSurrogate, revokeToken, surrogatePath, LoginIntent, LoginOutcome,
-  LOGIN_LOGOUT_MESSAGE, LOGIN_SURROGATE_FEATURES, LOGIN_SURROGATE_NAME, LOGIN_TOKEN_MESSAGE,
+  LOGIN_LOGOUT_MESSAGE, LOGIN_SURROGATE_HEIGHT, LOGIN_SURROGATE_NAME, LOGIN_SURROGATE_WIDTH,
+  LOGIN_TOKEN_MESSAGE,
 } from '@owlmeans/client-auth/login'
 import type { LoginContext, LoginEnv, LoginPlugin } from '@owlmeans/client-auth/login'
 import { SURROGATE_LOGIN, SURROGATE_LOGIN_PRIORITY } from './consts.js'
 import { awaitSurrogate } from './pump.js'
+
+/**
+ * `window.open` features that size and CENTER the surrogate on the screen the browser window
+ * currently occupies.
+ *
+ * Computed fresh per call, never a constant: centering depends on where the browser window sits
+ * NOW, which can change between one login attempt and the next. `screenLeft`/`screenTop` and
+ * `outerWidth`/`outerHeight` describe the browser's own chrome rather than this document's
+ * viewport — and, unlike `innerWidth` or anything reached through `window.top`, they stay readable
+ * from a cross-origin iframe. That matters here specifically: a generated app's preview runs
+ * framed on a different origin than the manager that embeds it, so `env.embedded` is exactly the
+ * case where `window.top.innerWidth` would throw, and reading this document's own `innerWidth`
+ * instead would center the popup on the IFRAME's rectangle rather than on the actual window a
+ * person sees. Falling back to `window.screen` covers a window that reports no outer geometry at
+ * all (a headless test runner).
+ */
+export const centeredPopupFeatures = (width: number, height: number): string => {
+  const screenLeft = window.screenLeft ?? window.screenX ?? 0
+  const screenTop = window.screenTop ?? window.screenY ?? 0
+  const outerWidth = window.outerWidth || window.screen.width
+  const outerHeight = window.outerHeight || window.screen.height
+
+  const left = Math.round(screenLeft + Math.max(0, (outerWidth - width) / 2))
+  const top = Math.round(screenTop + Math.max(0, (outerHeight - height) / 2))
+
+  return `popup=yes,width=${width},height=${height},left=${left},top=${top}`
+}
 
 /**
  * Login for a document that cannot complete the flow where it is.
@@ -79,10 +107,12 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
         intent: LoginIntent.Login, next: request.url,
       })
       const surrogate = window.open(
-        path ?? request.url, LOGIN_SURROGATE_NAME, LOGIN_SURROGATE_FEATURES
+        path ?? request.url, LOGIN_SURROGATE_NAME,
+        centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT)
       )
       if (surrogate == null) {
-        return Promise.resolve(LoginOutcome.Failed)
+        // Distinct from `Failed` below: nothing ever opened, so there is nothing left to wait on.
+        return Promise.resolve(LoginOutcome.Blocked)
       }
 
       return awaitSurrogate(surrogate, LOGIN_TOKEN_MESSAGE, async data => {
@@ -132,7 +162,8 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
       const path = surrogatePath(ctx as LoginContext, { intent: LoginIntent.Logout })
       // Opened first and synchronously, for the same reason `begin` does.
       const surrogate = path != null
-        ? window.open(path, LOGIN_SURROGATE_NAME, LOGIN_SURROGATE_FEATURES)
+        ? window.open(path, LOGIN_SURROGATE_NAME,
+          centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT))
         : null
 
       // The local session goes next, and UNCONDITIONALLY. A blocked window, a severed opener or a
@@ -140,10 +171,15 @@ export const makeSurrogateLoginPlugin = (): LoginPlugin => {
       // half happened is bad, and one that did not happen at all is worse.
       const local = revokeToken(ctx as LoginContext)
       if (surrogate == null) {
+        // `path == null` is an app whose entrypoint list predates the surrogate route — nothing a
+        // retry would do differently. A `window.open` the browser refused is the one case worth
+        // telling the user about, so only that one reports `Blocked`.
+        const outcome = path != null ? LoginOutcome.Blocked : LoginOutcome.Failed
+
         return local.then(async () => {
           await request.navigate?.()
 
-          return LoginOutcome.Failed
+          return outcome
         })
       }
 

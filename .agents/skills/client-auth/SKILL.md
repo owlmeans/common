@@ -43,7 +43,7 @@ conflate them.
 | `DEFAULT_ENTITY` | `'owlmeans'` |
 | `DispatcherHOC` | The return-leg HOC. It wraps a `DispatcherRenderer`, hands it `provideToken(token, query)` and `navigate()`, adopts the supplied token through the auth service, and strips `AUTH_QUERY` before navigating on. Reading the return-leg query is the renderer's job — `@owlmeans/web-client` reads `AUTH_QUERY`, `@owlmeans/web-oidc-rp` also reads `OIDC_ERROR_QUERY` and forwards the remaining params |
 | `DispatcherProps`, `TDispatcherHOC`, `DispatcherRenderer`, `DispatcherRendererProps` | Dispatcher types |
-| `useWs(entrypoint, request?)` | A socket hook that attaches the current token as the `AUTH_QUERY` param |
+| `useWs(entrypoint, request?, options?)` | A socket hook that attaches the current token as the `AUTH_QUERY` param and refreshes it on every reconnect attempt (via `WsOptions.beforeConnect`), unless the request already carried its own token — in which case that stays untouched across reconnects too. `options` passes straight through to `@owlmeans/client-socket`'s `useWs`, so `{ reconnect: false }` still opts a stateful one-shot handshake out of retries (see `manager/plugins/tunnel-consumer.tsx`) |
 | `useSelfAuth(force?)` | Whether this context is authenticated; navigates to `DISPATCHER` when it is not and `force` |
 | `AuthServiceAppend`, `ClientAuthRecord`, `ClientAuthResource` | Types |
 

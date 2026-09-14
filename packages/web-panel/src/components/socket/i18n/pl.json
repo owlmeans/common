@@ -1,0 +1,7 @@
+{
+  "reload": {
+    "title": "Utracono połączenie",
+    "description": "Nie udało się przywrócić połączenia mimo kilku prób. Odśwież stronę, aby kontynuować.",
+    "action": "Odśwież stronę"
+  }
+}

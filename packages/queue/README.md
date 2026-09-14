@@ -1,17 +1,17 @@
 # @owlmeans/queue
 
-Job queues as resources, and the route protocol that lets a queued call look like any other call.
+Job queues as resources, plus the route protocol that makes a queued call look like any other call.
+Use it when work must outlive the request. Three cases qualify: the user would otherwise wait more
+than about five seconds, accepted work must survive a process restart, or the work is retried
+against a third party (payment capture, provider sync, bulk mail, report generation, model
+pipelines). A request that finishes in under about two seconds and makes no external call should
+not queue: do it inline. Check for a smaller fix first, such as an index, a batch write or a cached
+aggregate. The framework has no scheduler, so recurring work is triggered by a platform cron that
+calls an entrypoint or enqueues a job.
 
-## Overview
-
-This package is contracts only — it carries no broker code. A driver implements them
-(`@owlmeans/redis-queue` does, over BullMQ); depend on this package from a shared contract
-package, and on the driver only where the application wires itself up.
-
-The point of it: a route that names `RouteProtocols.QUEUE` is taken by the queue transport, so the
-caller writes `ep.call(...)` exactly as it would for HTTP. Moving a service-to-service call onto
-the broker is a change to one declaration rather than to every call site, and a call that used to
-die with the process survives a restart.
+This package is contracts only and carries no broker code. A driver implements them
+(`@owlmeans/redis-queue` does, over BullMQ). Depend on this package from a shared contract package,
+and on the driver only where the application wires itself up.
 
 ## Installation
 
@@ -19,128 +19,231 @@ die with the process survives a restart.
 bun add @owlmeans/queue@^0.1.18-rc.17
 ```
 
-## Declaring queues
+## Concepts
 
-Queues and the job names they accept belong in the shared backend package, so producer and
-consumer read the same list:
+- **Queue declaration**: `declareQueue(cfg, name, jobs, opts?)` in the shared backend config. It
+  names a queue, the job names it accepts, and its worker and default job options. It is an
+  address, not a deployment.
+- **Listen**: `listenQueues(cfg, ...names)` in one process's own config says which queues *that
+  process* consumes. A process that listens to nothing is a producer only.
+- **Queued protocol**: an immutable entrypoint protocol whose route uses `job()` instead of
+  `backend()` (`RouteProtocols.QUEUE`). Callers use `ctx.entrypoint(protocol).call(...)` unchanged,
+  and the QUEUE transport carries the call through the broker.
+- **Job record**: `ctx.jobs(queue)` returns a `QueueResource`, the ordinary `Resource<JobRecord>`
+  contract plus `wait`, `flow`, `counts` and `close`. `create` enqueues, `list` inspects and `take`
+  cancels.
+- **Processor**: a function registered with `QueueWorkerService.process(queue, name, fn)` that gets
+  a `JobContext`. It must be safe to run twice and must `touch()` in long loops.
+- **Single-flight id**: a `JobOptions.id` derived from what the job is about (`develop:<storyId>`).
+  A duplicate enqueue then returns the existing job instead of a second one.
 
-```typescript
-import { declareQueue, listenQueues } from '@owlmeans/queue'
+## Usage
 
-declareQueue(cfg, AGENT_WORK, ['agent:story:develop', 'agent:story:code'], {
-  worker: { concurrency: 3, lockDuration: 60_000 }
+### Declare queues in the shared backend config
+
+```ts
+import { declareQueue } from '@owlmeans/queue'
+
+// Split lanes by how long work takes, not by topic: a one-second read queued behind
+// a thirty-minute job is a UI that looks broken.
+declareQueue(cfg, APP_OPS, [appProtocols.files.get.alias, appProtocols.report.build.alias], {
+  worker: { concurrency: 16, lockDuration: 30_000 }
+})
+
+declareQueue(cfg, APP_BILLING, [appProtocols.invoice.capture.alias], {
+  worker: { concurrency: 4, lockDuration: 30_000 },
+  defaults: { attempts: 3, backoff: { type: 'exponential', delay: 250 } }
 })
 ```
 
-Which queues a given process consumes is a separate, process-local statement:
+The worker process names what it consumes, in its own config:
 
-```typescript
-listenQueues(cfg, AGENT_WORK, AGENT_OPS)   // absent ⇒ this process only produces
+```ts
+import { listenQueues } from '@owlmeans/queue'
+
+listenQueues(cfg, APP_OPS, APP_BILLING)   // the api process omits this and only produces
 ```
 
-A declaration is an address; `listen` is a deployment fact. Keeping them apart is what lets the
-same binary run as a producer in one deployment and a worker in another.
+Both processes build their context through the same backend factory, which wires the driver once:
 
-## Declaring a queued entrypoint
+```ts
+import { appendRedisQueue } from '@owlmeans/redis-queue'
 
-```typescript
+appendRedis<C, T>(context)
+appendRedisQueue(context, { hooks: billingQueueHooks(context) })
+```
+
+### Declare a queued entrypoint
+
+```ts
 import { contract, protocol, typed } from '@owlmeans/entrypoint'
 import { backend, job, route } from '@owlmeans/route'
 
-const aliases = { base: 'agent:story', develop: 'agent:story:develop' } as const
-const storyBase = protocol(route(aliases.base, '/stories', backend({ service: AGENT })), contract())
-export const agentProtocols = {
-  story: {
-    base: storyBase,
-    develop: protocol(
-      route(aliases.develop, '/:id/develop',
-        job({ parent: storyBase, service: AGENT, queue: AGENT_WORK, timeout: 30_000 })),
-      contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
+const aliases = { base: 'app:report', build: 'app:report:build' } as const
+const reportBase = protocol(route(aliases.base, '/reports', backend({ service: APP_WORKER })), contract())
+
+export const appProtocols = {
+  report: {
+    base: reportBase,
+    build: protocol(
+      route(aliases.build, '/:id/build',
+        job({ parent: reportBase, service: APP_WORKER, queue: APP_OPS, timeout: 30_000 })),
+      contract.request({ params: typed<ReportParams>(ReportParamsSchema) }, typed<ReportResult>()),
     ),
   },
 } as const
 ```
 
-It is served by binding the shared job protocol and called with `call()` like any backend entrypoint.
-When producer code needs broker options or a job handle, pass that same protocol object to the typed
-helpers — never its alias:
+The worker process serves it like any backend entrypoint; the HTTP server skips QUEUE routes. A
+producer calls it with no knowledge of the broker:
 
-```typescript
+```ts
+const result = await context.entrypoint(appProtocols.report.build).call({ params: { id } })
+```
+
+Add `reply: false` to the `job()` options to resolve `Accepted` with `{ id, queue }` as soon as the
+broker has taken the job.
+
+### Enqueue with broker options and wait
+
+When a producer needs a job id, a delay or retries, pass the same protocol object to the typed
+helpers. Never pass its alias.
+
+```ts
 import { enqueueProtocol, waitForProtocol } from '@owlmeans/queue'
 
-const queued = await enqueueProtocol(context, agentProtocols.story.develop, { params: { id } }, { id: `develop:${id}` })
-const result = await waitForProtocol(context, agentProtocols.story.develop, queued)
+const queued = await enqueueProtocol(context, appProtocols.invoice.capture, {
+  body: { invoiceId },
+}, {
+  id: `capture:${invoiceId}:${attemptSequence}`,   // derived from what the job is about
+  delay: 250, attempts: 3, backoff: { type: 'exponential', delay: 250 },
+})
+
+const receipt = await waitForProtocol(context, appProtocols.invoice.capture, queued, { timeout: 120_000 })
 ```
 
-Add `reply: false` to return as soon as the job is accepted — the call resolves `Accepted` with
-`{ id, queue }`, which is what a long pipeline wants.
+`queueJobOf(req)` gives a protocol handler `{ id, name, queue, attempt, touch }` when it must compare
+the broker job with a claim it persisted.
 
-## Jobs are records
+### Processors, hooks and job graphs
 
-```typescript
-const jobs = ctx.jobs<DevelopInput, DevelopResult>(AGENT_WORK)
+```ts
+import { DEFAULT_ALIAS } from '@owlmeans/queue'
+import type { QueueWorkerService } from '@owlmeans/queue'
 
-const queued = await jobs.create({ queue: AGENT_WORK, name: 'agent:story:code', data: input })
-const result = await jobs.wait(queued.id, { timeout: 120_000 })
+const worker = context.service<QueueWorkerService>(DEFAULT_ALIAS)
 
-const failed = await jobs.list({ state: JobState.Failed })
-await jobs.take(queued.id)          // cancel and return
-```
-
-`QueueResource<D, R>` is a `Resource<JobRecord<D, R>>` composed with `PubSubResource<JobEvent<R>>`,
-so criteria, sorting and paging behave as they do for every other backend. Only what the base
-contract cannot express is added: `wait`, `flow` and `counts`.
-
-Deriving `JobOptions.id` from what the job is about (`develop:<storyId>`) makes a duplicate
-enqueue a no-op, which is what makes an admission step safe to retry.
-
-## Processors
-
-```typescript
-worker.process(AGENT_WORK, 'agent:story:code', async job => {
-  for (const screen of screens) {
-    await job.touch()
-    await develop(screen)
+worker.process(APP_OPS, 'app:import:rows', async job => {
+  for (const chunk of chunks(job.data.fileId)) {
+    await job.touch()                     // renew the lock on every iteration
+    await importChunk(chunk)              // idempotent: skips rows already imported
   }
   return { ok: true }
 })
-```
 
-`touch()` is not optional in a long loop. The broker judges liveness by the lock, so going quiet
-for longer than `lockDuration` is indistinguishable from a dead worker and the job is re-run
-elsewhere while this one is still going.
+worker.hooks({
+  onJobDead: async (record, reason) => {  // retries exhausted: compensate
+    await imports.patch({ id: record.data.importId, status: 'failed', error: reason })
+  }
+})
 
-A child job reports a domain failure by RETURNING `{ ok: false, error }`. Throwing means
-"infrastructure broke, retry me". Parents read `children()` and decide — children never fail
-their parent directly.
-
-Retries default to a single attempt: this work mostly talks to a model, and a blind retry
-re-spends the tokens that just failed.
-
-## Job graphs
-
-```typescript
-await jobs.flow({
-  name: 'story:finalize', data: ref, children: [
-    { name: 'story:gate', data: ref, children: [{ name: 'story:code', data: ref }] }
+// children complete before the parent; siblings run in parallel
+await context.jobs(APP_OPS).flow({
+  name: 'app:import:finalize', data: ref, children: [
+    { name: 'app:import:validate', data: ref, children: [{ name: 'app:import:rows', data: ref }] }
   ]
 })
 ```
 
-Nesting is sequence, siblings are parallel, and a parent reading `children()` is the join.
+### Jobs are records
 
-## Errors
+```ts
+import { JobState } from '@owlmeans/queue'
 
-A refusal the caller must recognise travels in the reply and is rebuilt on the producing side as
-its own class, so `instanceof` keeps working across the broker. `QueueTimeout` means the WAIT
-ended, not the job — read the job back to learn what became of it.
+const jobs = context.jobs<ImportInput, ImportResult>(APP_OPS)
 
-## Related Packages
+const failed = await jobs.list({ state: JobState.Failed }, { size: 20 })
+const counts = await jobs.counts()
+await jobs.take(jobId)                    // cancel and return
+```
 
-- [`@owlmeans/redis-queue`](../redis-queue) — the BullMQ driver, and where queue integration tests live
-- [`@owlmeans/route`](../route) — `RouteProtocols.QUEUE` and the `job()` builder
-- [`@owlmeans/entrypoint`](../entrypoint) — declarations and the transport seam
-- [`@owlmeans/resource`](../resource) — the `Resource` contract jobs are read through
+## Processor rules
+
+- **`touch()` in every long loop.** The broker judges liveness by the lock. Silence longer than
+  `lockDuration` looks like a dead worker, so the job is re-run elsewhere while this one is still
+  going.
+- **Children report, parents decide.** A child returns `{ ok: false, error }` for a domain failure.
+  Throwing means "infrastructure broke, retry me". Parents read `children()` / `failedChildren()`.
+- **Retries default to one attempt** (`DEFAULT_ATTEMPTS`), because a blind retry of model work
+  re-spends the tokens that just failed. Raise `attempts` per queue for cheap idempotent work.
+- **`job.signal` is not an interrupt.** An orderly stop closes workers first and waits for jobs in
+  flight to return.
+
+## Guards and errors
+
+`handleJob` rebuilds the request from the envelope and runs the entrypoint's guards the way the
+HTTP boundary does, attaching the entity. A guarded queued entrypoint therefore needs the
+producer's credentials in the envelope `headers`. `cfg.queue.envelopeTtl` (seconds) bounds how long
+after `enqueuedAt` an envelope is still accepted; past it, the job answers `EnvelopeExpired`.
+
+A refusal the caller must recognise is carried in the reply and rebuilt on the producing side as its
+own class, so `instanceof` keeps working across the broker. `QueueTimeout` means the WAIT ended,
+not the job, so read the job back to learn what became of it.
+
+## API
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `declareQueue(cfg, name, jobs, opts?)` | function | Declare a queue and the job names it accepts; re-declaring replaces |
+| `listenQueues(cfg, ...names)` | function | Name the queues this process consumes |
+| `queueOf(cfg, name)`, `queueOfJob(cfg, job)`, `isListening(cfg, name)` | function | Read declarations back; `queueOf` throws `UnknownQueue` |
+| `enqueueProtocol(ctx, protocol, request, options?)` | function | Enqueue a QUEUE protocol with `JobOptions`, typed by the protocol |
+| `waitForProtocol(ctx, protocol, job, { timeout }?)` | function | Wait for that job and unwrap the typed reply |
+| `queueJobOf(request)` | function | `QueueJobMeta` of the broker job behind a handler's request, or `null` |
+| `appendQueueTransport(ctx, alias?)`, `makeQueueTransport(alias?)` | function | Register the QUEUE transport so `call()` routes through the broker |
+| `queueWorkerMiddleware(alias?)` | function | Start the worker at the Ready stage, only in a process that listens |
+| `handleJob(ctx, job)`, `entrypointProcessor(ctx)`, `servedJobs(ctx)` | function | The bridge a driver dispatches entrypoint jobs through |
+| `requestOf(envelope)`, `assertFresh(envelope, ttl?)` | function | Rebuild a request from an envelope; enforce `envelopeTtl` |
+| `QueueConfig`, `QueueDeclaration`, `QueueWorkerOptions`, `JobOptions` | type | Configuration shapes |
+| `QueueResource<D, R>` | type | A queue as a resource, plus `queue`, `wait`, `flow`, `counts`, `close` |
+| `JobRecord<D, R>`, `JobEvent<R>`, `FlowSpec<D>` | type | A job as a record, a lifecycle event, a graph node |
+| `QueueWorkerService` | type | `process`, `start`, `stop`, `listening`, `hooks` |
+| `JobContext<D>`, `JobProcessor<D, R>` | type | What a processor receives; the processor signature |
+| `QueueHooks` | type | `wrapHandler`, `onJobResult`, `onJobStalled`, `onJobDead` |
+| `QueueJobMeta`, `JobEnvelope`, `JobReply<T>` | type | Broker identity for a handler, the call envelope, the reply shape |
+| `QueueAppend`, `QueueDriver` | type | The `ctx.jobs(queue?)` mixin a driver installs; what a driver supplies |
+| `Config`, `Context`, `QueueTransportRequest`, `QueueTransportResponse` | type | Context, config and transport types |
+| `JobState`, `JobEventType` | enum | Job lifecycle states and event types |
+| `isSettled(state?)` | function | Whether a state is final |
+| `DEFAULT_ALIAS`, `DEFAULT_JOB_TIMEOUT`, `DEFAULT_ATTEMPTS` | const | `'queue'`, `60_000` ms, `1` |
+| `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired` | class | Error family |
+
+## Common pitfalls
+
+- **Queueing work the request could finish.** It adds a second process to deploy and a place to fail.
+- **Passing alias strings to `enqueueProtocol`/`waitForProtocol`.** They take the protocol object and
+  reject strings and non-QUEUE declarations.
+- **Enqueueing a job name the queue did not declare.** It throws `UnknownJobName` rather than
+  parking a job nothing can process.
+- **Registering a processor in a process that does not `listen`.** It throws `QueueNotListening`.
+- **Putting `listen` in the shared declaration.** Every deployment of that binary would then
+  consume everything.
+- **Random job ids on an admission step.** Derive the id from the subject, or a retried request
+  enqueues twice.
+- **Long loops without `touch()`**, or processors that are not safe to run twice.
+- **Throwing from a child for a domain failure.** Return `{ ok: false, error }` instead.
+- **Equal child ids across queues in one flow.** `children()` is keyed by bare id and collapses them.
+- **A self-re-enqueueing job as a cron.** Use a platform `CronJob`. `delay` defers a single job once.
+- **Calling `ctx.jobs()` with no name once a second queue exists.** It throws `UnknownQueue`.
+
+## Related packages
+
+- [`@owlmeans/redis-queue`](../redis-queue): the BullMQ driver, and where queue integration tests live
+- [`@owlmeans/route`](../route): `RouteProtocols.QUEUE` and the `job()` builder
+- [`@owlmeans/entrypoint`](../entrypoint): protocol declarations and the transport seam
+- [`@owlmeans/resource`](../resource): the `Resource` contract jobs are read through
+- [`@owlmeans/server-job`](../server-job) / [`@owlmeans/client-job`](../client-job): listing,
+  cancelling and following jobs from an application's UI
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

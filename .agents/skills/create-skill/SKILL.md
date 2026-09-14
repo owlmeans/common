@@ -107,6 +107,26 @@ policy itself; the agent running the skill is what honours it.
 4. Reference it from `AGENTS.md` if it should be discoverable every session.
 5. Test by typing `/skill-name`.
 
+## Package README next to the skill
+
+A package skill is for agents; `packages/<pkg>/README.md` is the npm-facing page for people, and it
+is built from the same sources — the skill, `src/index.ts` and real downstream usage. An
+application-facing package (one the root `README.md` lists under "Application packages") keeps this
+shape:
+
+1. Title, then one paragraph on when an app uses the package and what to use instead.
+2. `## Installation` — the pin line is tooling-managed (`versions`); never hand-edit it.
+3. `## Concepts` — the package's own terms, 3–6 bullets.
+4. `## Usage` — 3–5 progressively richer examples that import only symbols the package really
+   exports, written protocol-first and with `entitySlug`/`entityId` naming.
+5. `## API` — the full public export list, subpath exports included.
+6. `## Common pitfalls` — the skill's rules as short bullets.
+7. `## Related packages`, then the generated `owlmeans:agent-guidance` block, left byte-identical.
+
+A supporting package may keep a shorter README, but it still states purpose, install and one
+working example. Promoting a package to "Application packages" in the root README means bringing
+its README to the full shape in the same change.
+
 ## Skill vs memory file
 
 - **Skill**: reusable procedure or reference that benefits from being a slash command, or that an

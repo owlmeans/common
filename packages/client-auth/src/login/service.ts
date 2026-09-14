@@ -7,8 +7,8 @@ import { adoptToken, revokeToken } from './adopt.js'
 import { resolveLoginMethods } from './methods.js'
 import { LoginOutcome } from './types.js'
 import type {
-  LoginContext, LoginMethodSource, LoginPlugin, LoginPrecondition, LoginScreenComponent,
-  LoginService, LoginServiceAppend
+  LoginContext, LoginMethodSource, LoginNotifier, LoginPlugin, LoginPrecondition,
+  LoginScreenComponent, LoginService, LoginServiceAppend
 } from './types.js'
 
 /**
@@ -34,6 +34,7 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
   const preconditions: LoginPrecondition[] = []
   const methodSources: LoginMethodSource[] = []
   let screen: LoginScreenComponent | null = null
+  let notifier: LoginNotifier | null = null
 
   const ctx = (): LoginContext => service.ctx as LoginContext
 
@@ -74,6 +75,8 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
 
     screen: () => screen,
 
+    registerNotifier: value => { notifier = value },
+
     plugin: env => {
       const environment = env ?? defaultLoginEnv()
       const plugin = plugins.find(
@@ -102,7 +105,14 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
         }
       }
 
-      return service.plugin(env).begin(ctx(), request, env)
+      // Notified here, in the facade, rather than by each caller: `useLogin` fires the flow and
+      // forgets the result, and this is the one place every caller — the header hook and the
+      // sign-in screen's method buttons alike — passes through on the way to a settled outcome.
+      return service.plugin(env).begin(ctx(), request, env).then(outcome => {
+        notifier?.(outcome, env)
+
+        return outcome
+      })
     },
 
     authorize: async url => {
@@ -136,7 +146,11 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
         })
       }
 
-      return plugin.logout(ctx(), request, env)
+      return plugin.logout(ctx(), request, env).then(outcome => {
+        notifier?.(outcome, env)
+
+        return outcome
+      })
     },
 
     logoutComplete: async () => {

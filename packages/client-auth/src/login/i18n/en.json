@@ -30,7 +30,7 @@
     },
     "error": {
       "failed": "Sign-in did not complete. Please try again.",
-      "blocked": "The sign-in window was blocked. Allow pop-ups for this site and try again."
+      "blocked": "The sign-in window was blocked. Click the blocked pop-up icon in your browser's address bar to open it."
     },
     "orphaned": "Signed in. You can close this window and continue in the application."
   }

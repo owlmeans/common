@@ -41,8 +41,16 @@ export enum LoginOutcome {
   Gesture = 'gesture',
   /** Authenticated, but with no channel back to the window that started it. */
   Orphaned = 'orphaned',
-  /** The attempt ended with no token (blocked window, user closed it, provider refused). */
+  /** The attempt ended with no token (the user closed the window, or the provider refused it). */
   Failed = 'failed',
+  /**
+   * A window this flow needed could not be opened at all — `window.open` returned `null`, which is
+   * the browser's own popup blocker, not a flow failure. Distinct from {@link Failed}: a caller
+   * with nowhere inline to render (a header "Log in"/"Log out" control, not the sign-in screen)
+   * needs to know specifically that a fresh click reopening the SAME control will not help, and
+   * that the browser is already showing its own blocked-popup affordance somewhere.
+   */
+  Blocked = 'blocked',
 }
 
 /** Why a surrogate window was opened. */
@@ -218,6 +226,17 @@ export interface LoginScreenProps {
 
 export type LoginScreenComponent = ComponentType<LoginScreenProps>
 
+/**
+ * A way to surface a `begin`/`logout` outcome that has no inline screen to render it on.
+ *
+ * A header "Log in"/"Log out" control (`useLogin`/`useLogout`) fires the facade and forgets the
+ * result — it renders nothing of its own, unlike the sign-in screen, which already shows
+ * `loginAttemptError` inline. Registering one is how a UI package (`web-panel`, `mui-panel`) gives
+ * that control a way to speak — e.g. a toast when {@link LoginOutcome.Blocked} fires. Unregistered,
+ * it is silence, which is what a non-DOM host and a screen-mounted flow both already have.
+ */
+export type LoginNotifier = (outcome: LoginOutcome, env: LoginEnv) => void
+
 export interface LoginService extends LazyService {
   registerPlugin: (plugin: LoginPlugin) => void
   /** Select the active plugin for the given (or default) environment. */
@@ -237,6 +256,8 @@ export interface LoginService extends LazyService {
    */
   registerScreen: (screen: LoginScreenComponent) => void
   screen: () => LoginScreenComponent | null
+  /** See {@link LoginNotifier}. Replaces any previously registered notifier. */
+  registerNotifier: (notifier: LoginNotifier) => void
   // Facade — every method re-selects the plugin and delegates.
   // NOTE: these stay plain writable instance properties, never getters, so that alternative
   // implementations (e.g. a native login service) can monkey-patch them directly.

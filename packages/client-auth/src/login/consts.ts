@@ -25,7 +25,20 @@ export const LOGIN_LOGOUT_MESSAGE = 'owlmeans:oidc:popup-logout'
 
 export const LOGIN_SURROGATE_MARKER = '_owlmeans-oidc-popup'
 
-export const LOGIN_SURROGATE_FEATURES = 'popup=yes,width=520,height=760'
+export const LOGIN_SURROGATE_WIDTH = 520
+
+export const LOGIN_SURROGATE_HEIGHT = 760
+
+/**
+ * @deprecated Never centered the window — it carried no `left`/`top`, so the surrogate always
+ * opened wherever the browser's own default popup placement put it. Superseded by
+ * `@owlmeans/web-client`'s `centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT)`,
+ * computed fresh per call since centering depends on where the browser window currently sits.
+ * Kept, unchanged, for the same reason as the rest of this block: an already-generated app may
+ * carry a copy of code that still imports it.
+ */
+export const LOGIN_SURROGATE_FEATURES =
+  `popup=yes,width=${LOGIN_SURROGATE_WIDTH},height=${LOGIN_SURROGATE_HEIGHT}`
 
 /** How often a surrogate window is checked for having been closed by the user. */
 export const LOGIN_WATCH_INTERVAL = 500
