@@ -28,7 +28,7 @@
     "@owlmeans/iam": "^0.1.18-rc.24",
     "@owlmeans/oidc": "^0.1.18-rc.29",
     "@owlmeans/server-context": "^0.1.18-rc.20",
-    "@owlmeans/server-oidc-rp": "^0.1.18-rc.27"
+    "@owlmeans/server-oidc-rp": "^0.1.18-rc.28"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
