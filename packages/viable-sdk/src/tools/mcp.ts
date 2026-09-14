@@ -1,6 +1,7 @@
 import { ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
+import { refusalMessage, refusalPhrase } from './refusal.js'
 import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
 import type { ToolDeps } from './types.js'
 
@@ -71,8 +72,8 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
           }
         } catch (e) {
           const isOutOfCredits = e instanceof ConnectOutOfCredits
-          const text = isOutOfCredits ? phraseOutOfCredits(e) : (e as Error).message
-          deps.log(`${tool.name} failed: ${(e as Error).message}`)
+          const text = isOutOfCredits ? phraseOutOfCredits(e) : refusalPhrase(e)
+          deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
           if (isOutOfCredits) {
             deps.notify?.('warning', text)
           }
@@ -108,22 +109,39 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     `Mode: target=${host.target}, llm=${host.llm}.`,
     '',
     'Workflow: describe_capabilities → create_project → wait_for → confirm_project → wait_for →'
-    + ' list_stories → develop_story → wait_for.',
+    + ' list_stories → develop_story → wait_for. An application that already exists is brought'
+    + ' onto the same rails instead: convert_project → wait_for → check_convertible →'
+    + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
+    + ' after the first stage rather than before it.',
+    '',
+    'Call describe_platform for what this platform can build and which of it this session can'
+    + ' drive.',
     '',
     'Long operations return a JOB and do not block. Poll with wait_for; call it again while the'
     + ' job is still running.',
   ]
 
-  if (performsModelTasks(host)) {
+  if (sessionCapable(host)) {
     lines.push(
       '',
-      'MODEL TASKS: this session runs the platform\'s model calls on YOUR side. Whenever a job'
-      + ' reports "blocked on: model-task", call next_task, run the returned task in a CLEAN'
-      + ' subagent at LOW reasoning effort — never in this conversation — and pass its answer to'
-      + ' submit_task_result verbatim. Repeat until next_task says there is nothing. Do not'
+      'MODEL TASKS: '
+      + (performsModelTasks(host)
+        ? 'this session runs the platform\'s model calls on YOUR side.'
+        : 'the platform performs its own model calls for stories and free flight, but a'
+          + ' CONVERSION\'s are yours by default.')
+      + ' Whenever a job reports "blocked on: model-task", call next_task, run the returned task in'
+      + ' a CLEAN subagent at LOW reasoning effort — never in this conversation — and pass its answer'
+      + ' to submit_task_result verbatim. Repeat until next_task says there is nothing. Do not'
       + ' summarise, improve or reinterpret an answer.'
     )
-  } else if (delegatedLlm(host) && !sessionCapable(host)) {
+    lines.push(
+      '',
+      'QUESTIONS: when a job reports "blocked on: question", call next_question, put the question'
+      + ' to the person you are working for, and send their answer back with answer_question. Do not'
+      + ' answer it yourself; if they are unavailable, submit declined: true so the platform records'
+      + ' an assumption.'
+    )
+  } else if (delegatedLlm(host)) {
     // The account asks for the delegated mode and this host cannot serve it: it answers one
     // request and forgets, so there is nothing here to hold a task until an answer comes back.
     // Said plainly, because the alternative is a parent waiting for a next_task tool that is not
@@ -132,8 +150,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       '',
       'Your account asks for the delegated model mode, which this URL-configured server cannot'
       + ' run: it holds no session between calls. The platform performs the model calls of a run'
-      + ' started here, unless the stdio connector (`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1`) is attached to'
-      + ' the project.'
+      + ' started here, unless the package-based stdio connector is attached to the project.'
     )
   }
 

@@ -3,13 +3,15 @@ import type { RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
 import type { EntrypointReference } from '@owlmeans/context'
 import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
+import type { ConverterProjectLlmBody } from '../convert/index.js'
 import type {
   ConnectAttachBody, ConnectCapabilitiesView, ConnectConfirmBody, ConnectCreateBody, ConnectJob,
-  ConnectJobParams, ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams,
-  ConnectPipelineResumeBody, ConnectPipelineState, ConnectProjectLlmBody, ConnectProjectSettings,
-  ConnectProjectStatus, ConnectProjectSummary, ConnectSessionOpen, ConnectSessionParams,
-  ConnectSessionView, ConnectStoryBody, ConnectStoryDeletion, ConnectStoryItem, ConnectStoryList,
-  ConnectStoryMutation, ConnectStoryQuery, ConnectWaitQuery,
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectJobParams,
+  ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams, ConnectPipelineResumeBody,
+  ConnectPipelineState, ConnectProjectLlmBody, ConnectProjectSettings, ConnectProjectStatus,
+  ConnectProjectSummary, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView,
+  ConnectStoryBody, ConnectStoryDeletion, ConnectStoryItem, ConnectStoryList, ConnectStoryMutation,
+  ConnectStoryQuery, ConnectWaitQuery, ConversionStatusView, ConvertCheck,
 } from './types.js'
 
 type ConnectReference<Request extends RequestShape, Response> =
@@ -40,6 +42,9 @@ export interface ConnectReferences {
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectJob>
     settings: ConnectReference<{ params: { id: string } }, ConnectProjectSettings>
     llm: ConnectReference<{ params: { id: string }, body: ConnectProjectLlmBody }, ConnectProjectSettings>
+    converterLlm: ConnectReference<{
+      params: { id: string }, body: ConverterProjectLlmBody
+    }, ConnectProjectSettings>
     job: ConnectReference<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>
   }
   story: {
@@ -51,6 +56,25 @@ export interface ConnectReferences {
     }, ConnectStoryMutation>
     delete: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>
     develop: ConnectReference<{ params: { id: string, storyId: string } }, ConnectJob>
+  }
+  files: {
+    list: ConnectReference<{ params: { id: string } }, string[]>
+  }
+  convert: {
+    create: ConnectReference<{ body: ConnectConvertCreateBody }, ConnectJob>
+    check: ConnectReference<{ params: { id: string } }, ConvertCheck>
+    start: ConnectReference<{ params: { id: string } }, ConnectJob>
+    proceed: ConnectReference<{
+      params: { id: string }, body: ConnectConvertProceedBody
+    }, ConnectJob>
+    cancel: ConnectReference<{ params: { id: string } }, ConnectJob>
+    status: ConnectReference<{ params: { id: string } }, ConversionStatusView>
+    purge: ConnectReference<{ params: { id: string } }, ConnectJob>
+  }
+  inquiry: {
+    answer: ConnectReference<{
+      params: { id: string, inquiryId: string }, body: ConnectInquiryAnswerBody
+    }, unknown>
   }
   pipeline: {
     state: ConnectReference<{ params: ConnectPipelineParams }, ConnectPipelineState>
@@ -92,7 +116,28 @@ export const connectRef: ConnectReferences = {
     llm: entrypointRef<{
       params: { id: string }, body: ConnectProjectLlmBody
     }, ConnectProjectSettings>(connect.project.llm),
+    converterLlm: entrypointRef<{
+      params: { id: string }, body: ConverterProjectLlmBody
+    }, ConnectProjectSettings>(connect.project.converterLlm),
     job: entrypointRef<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>(connect.project.job),
+  },
+  convert: {
+    create: entrypointRef<{ body: ConnectConvertCreateBody }, ConnectJob>(connect.convert.create),
+    check: entrypointRef<{ params: { id: string } }, ConvertCheck>(connect.convert.check),
+    start: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.start),
+    proceed: entrypointRef<{
+      params: { id: string }, body: ConnectConvertProceedBody
+    }, ConnectJob>(connect.convert.proceed),
+    cancel: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.cancel),
+    status: entrypointRef<{
+      params: { id: string }
+    }, ConversionStatusView>(connect.convert.status),
+    purge: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.purge),
+  },
+  inquiry: {
+    answer: entrypointRef<{
+      params: { id: string, inquiryId: string }, body: ConnectInquiryAnswerBody
+    }, unknown>(connect.inquiry.answer),
   },
   story: {
     list: entrypointRef<{ params: { id: string }, query: ConnectStoryQuery }, ConnectStoryList>(connect.story.list),
@@ -103,6 +148,9 @@ export const connectRef: ConnectReferences = {
     }, ConnectStoryMutation>(connect.story.update),
     delete: entrypointRef<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>(connect.story.delete),
     develop: entrypointRef<{ params: { id: string, storyId: string } }, ConnectJob>(connect.story.develop),
+  },
+  files: {
+    list: entrypointRef<{ params: { id: string } }, string[]>(connect.files.list),
   },
   pipeline: {
     state: entrypointRef<{ params: ConnectPipelineParams }, ConnectPipelineState>(connect.pipeline.state),

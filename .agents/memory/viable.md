@@ -1,0 +1,63 @@
+---
+node: viable
+scope: "packages/viable-common/**, packages/viable-sdk/**, packages/viable-mcp/**"
+updated: 2026-09
+---
+
+# Viable connector family (contracts + SDK + MCP server)
+
+Three packages that let something outside the OwlMeans Viable platform drive it:
+`viable-common` (runtime-free contracts), `viable-sdk` (the connector SDK, Node/Bun tooling), and
+`viable-mcp` (the `npx` stdio MCP server around the SDK). The platform itself lives in the `viable`
+product repo, which consumes all three. Related: [[llm]], [[agent]], [[versioning]].
+
+## Facts
+
+- `viable-common` is the single contract store for four runtimes that must agree — the manager
+  API, the agent, the publisher inside a slot, and the SDK on a developer's machine. A vocabulary
+  copied instead of imported is how one tree gets two totals and one ceiling two values.
+- The platform's REFUSAL classes (conversion, moderation, reserved name, target integrity) are
+  declared in the product repo, not here, so the SDK cannot `instanceof` them: they arrive as a
+  marshalled `type|||marker|||stack` and are matched by marker.
+- During prerelease, `viable-mcp` is distributed under `next` but install commands carry its
+  compatible caret range, currently `^0.1.18-rc.3`. Version-skew tolerance against the separately
+  deployed platform is a design constraint for this family and for nothing else in the repo.
+- The `viable-sdk` local executor is the publisher's dispatcher re-implemented for a laptop —
+  same commands, same "error text or null" answers — so the platform's remote helpers cannot tell
+  which side answered.
+
+## Invariants
+
+- Nothing may key a decision on `ConnectCapabilities.tiers`: the MCP server always sends `{}`
+  (a tier's entry is the parent agent's own model name, which this side cannot know).
+- One ceiling per value across the stack — `CONNECT_INQUIRY_MAX_TEXT` equals
+  `DEFAULT_INQUIRY_ANSWER_CHARS`, and the `INQUIRY_STATE_TEXT_CHARS` pair equals likewise. Broke
+  when violated: an answer accepted on the wire and silently halved further in.
+- A tool a host cannot serve is HIDDEN by `visibleTools`, never offered and refused; anything that
+  can take minutes returns a job rather than holding the 45-second tool deadline.
+- A transient job long-poll failure falls back once to `wait=0`; a second long poll can overrun the
+  tool ceiling. Story mutations attach the session before touching local file-backed state.
+- `delete_story` returns only after two observations prove the asynchronous scaffold cleanup left
+  the project unlocked; otherwise the next project tool can lose an invisible `AgentLocked` race.
+- Local installs use `bun install --force --backend=copyfile`: agent-writable dependencies must not
+  share cache inodes, and a stale host cache must not outrank the locked package body.
+
+## Facts (viable-common: agent-output presentation)
+
+- `agent/presentation.ts` is the runtime-free, shared taxonomy for agent thinking/history output:
+  category, language or semantic subtype, and specialist role are classified from source
+  attribution plus content; `isAgentMessageHidden` suppresses internal source-extractor range
+  selections.
+
+## Invariants (viable-common: agent-output presentation)
+
+- Thinking-event `presentation` is an optional hint for rolling compatibility; server finalization
+  and browser streaming must both use `classifyAgentMessage`, and known tool-call arguments are
+  never presented as a raw JSON dump.
+
+## Pointers
+
+- Skills `viable-common` (contracts + the schema conventions), `viable-sdk` (tools, sessions,
+  envelopes, refusals, the local executor), `viable-mcp` (the stdio process), `inquiry`,
+  `agent-presentation` (procedure lives in `.agents/skills/agent-presentation/`).
+- Product-side counterparts live in the `viable` repo: skills `connect`, `viable-converter`.

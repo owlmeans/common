@@ -127,6 +127,28 @@ export const makeLocalSlotExecutor = (
 
               return {}
 
+            case SlotFileCommand.StatTree:
+              return await fileHelper.statTree(args?.dir, args?.limit)
+
+            case SlotFileCommand.ReadHead:
+              // `{ result }`, exactly like ReadFile: the platform's remote helper reads one field
+              // for "the text of a file", and a second shape for the same thing would be a second
+              // parser to keep in step.
+              return { result: await fileHelper.readHead(args?.path, args?.bytes) }
+
+            case SlotFileCommand.Relocate: {
+              const result = await fileHelper.relocate(args?.dir, args?.keep)
+              forgetIntegrity()
+
+              return result
+            }
+
+            case SlotFileCommand.RemoveTree:
+              await fileHelper.removeTree(args?.dir)
+              forgetIntegrity()
+
+              return {}
+
             case SlotFileCommand.FindFilesWithEnvVars:
               return await fileHelper.findFilesWithEnvVars(args?.frontend)
 

@@ -1,13 +1,16 @@
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
 import type { BaseCheckpointSaver } from '@langchain/langgraph'
 import {
-  AgentRunStateError, DEFAULT_MAX_STATE_CHARS, PipelineNotIdempotentError, PipelineRunStatus,
-  PipelineSpecError, PipelineStateTooLargeError, PipelineVersionError,
+  AgentRunStateError, DEFAULT_MAX_STATE_CHARS, INQUIRY_ANSWERS_KEY, PipelineNotIdempotentError,
+  PipelineNotResumableError, PipelineRunStatus, PipelineSpecError, PipelineStateTooLargeError,
+  PipelineVersionError,
   orderPipelineSteps, pipelineDescendants, pipelineStep, validatePipelineSpec,
 } from '@owlmeans/agent-common'
 import type {
-  PipelineProgress, PipelineRun, PipelineSpec, PipelineState, PipelineStepSpec,
+  PipelineProgress, PipelineRun, PipelineRunInquiry, PipelineSpec, PipelineState, PipelineStepSpec,
 } from '@owlmeans/agent-common'
+import { DEFAULT_INQUIRY_ANSWER_CHARS, capAnswer, stateAnswerOf } from '@owlmeans/llm-common'
+import type { InquiryAnswer } from '@owlmeans/llm-common'
 import type {
   PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineResult, PipelineRunContext,
   PipelineStep, PipelineStepMapping,
@@ -20,7 +23,7 @@ import type {
  * how a cooperative budget stops the graph without inventing a failure.
  */
 class PipelineStopSignal extends Error {
-  constructor(public readonly reason: 'budget' | 'signal') {
+  constructor(public readonly reason: 'budget' | 'signal' | 'inquiry') {
     super(`pipeline-stop:${reason}`)
     this.name = 'PipelineStopSignal'
   }
@@ -31,6 +34,22 @@ const isStop = (e: unknown): e is PipelineStopSignal => e instanceof PipelineSto
 const asError = (e: unknown): Error => e instanceof Error ? e : new Error(String(e))
 
 const nowIso = (): string => new Date().toISOString()
+
+/**
+ * How many questions ONE composing step may relay for its child before it gives up.
+ *
+ * A composed pipeline that keeps asking is a pipeline that will never finish, and the parent is the
+ * only place with a count to bound it: each round is a fresh child invocation, so nothing else in
+ * the stack can see that it is the same step asking again.
+ */
+const MAX_INQUIRY_ROUNDS = 8
+
+/** The answers a state carries, as a map. Total: a state that has never been asked has none. */
+const answersIn = (state: unknown, key: string): Record<string, InquiryAnswer> => {
+  const held = (state as Record<string, unknown> | null | undefined)?.[key]
+
+  return typeof held === 'object' && held != null ? held as Record<string, InquiryAnswer> : {}
+}
 
 /**
  * The graph builder, seen loosely.
@@ -99,10 +118,37 @@ export const makePipeline = <S extends PipelineState, C>(
   const total = order.length
   const runs = options.runs
   const maxStateChars = options.maxStateChars ?? DEFAULT_MAX_STATE_CHARS
+  const answersKey = options.inquiry?.answersKey ?? INQUIRY_ANSWERS_KEY
+  const maxAnswerChars = options.inquiry?.maxAnswerChars ?? DEFAULT_INQUIRY_ANSWER_CHARS
   const trace = options.trace ?? (() => undefined)
   const terminals = spec.steps
     .filter(declared => !spec.steps.some(other => (other.after ?? []).includes(declared.step)))
     .map(declared => declared.step)
+
+  /** The copy of an answer this pipeline's STATE is allowed to hold. */
+  const forState = (answer: InquiryAnswer): InquiryAnswer =>
+    stateAnswerOf(capAnswer(answer, maxAnswerChars))
+
+  /**
+   * Fold every source of answers into the live state, later sources winning per id.
+   *
+   * Writes nothing when there is nothing to write, so a pipeline that never asks a question keeps
+   * a state byte-identical to the one it had before this existed.
+   *
+   * Every folded answer is cut to what a state may hold, exactly as `ctx.ask` cuts a live one. A
+   * resume is the PRIMARY way an answer reaches a parked run — that is what `Waiting` exists for —
+   * so a ceiling enforced on the live path alone is a ceiling enforced where the least text
+   * arrives, and the keys-only state it protects fills up through the other door.
+   */
+  const mergeAnswers = (live: S, ...sources: Record<string, InquiryAnswer>[]): void => {
+    const merged = Object.assign({}, ...sources) as Record<string, InquiryAnswer>
+    const ids = Object.keys(merged)
+    if (ids.length > 0) {
+      (live as Record<string, unknown>)[answersKey] = Object.fromEntries(
+        ids.map(id => [id, forState(merged[id])]),
+      ) as Record<string, InquiryAnswer>
+    }
+  }
 
   /** One execution of the graph over a row that is already decided. */
   const execute = async (
@@ -133,8 +179,14 @@ export const makePipeline = <S extends PipelineState, C>(
       failedAt: string | null
       error: Error | null
       fatal: unknown
-      stopped: 'budget' | 'signal' | null
-    } = { failedAt: null, error: null, fatal: null, stopped: null }
+      stopped: 'budget' | 'signal' | 'inquiry' | null
+      inquiry: PipelineRunInquiry | null
+    } = { failedAt: null, error: null, fatal: null, stopped: null, inquiry: null }
+
+    // A row entering the graph again is a row that is no longer waiting: whatever it asked has
+    // either been answered into the state or is about to be asked afresh. Left standing, the
+    // question would be offered by every reader of the row for the rest of the run's life.
+    row.inquiry = undefined
 
     const report = (progress: PipelineProgress): void => {
       try {
@@ -212,26 +264,85 @@ export const makePipeline = <S extends PipelineState, C>(
       )
     }
 
-    const contextFor = (step: string): PipelineRunContext<S, C> => ({
-      runId: row.runId,
-      step,
-      spec,
-      deps: args.deps,
-      scope: row.scope,
-      entityId: row.entityId,
-      completed: row.completed,
-      signal: controller.signal,
-      mark: async patch => {
-        Object.assign(live, patch)
-        await commit()
-      },
-      report: note => {
-        row.note = note
-        report({ pipeline: spec.alias, runId: row.runId, step, index: order.indexOf(step) + 1, total, note })
-      },
-      expired: () => (deadline != null && Date.now() >= deadline) || controller.signal.aborted,
-      remainingMs: () => deadline != null ? Math.max(0, deadline - Date.now()) : undefined,
-    })
+    const contextFor = (step: string): PipelineRunContext<S, C> => {
+      const ctx: PipelineRunContext<S, C> = {
+        runId: row.runId,
+        step,
+        spec,
+        deps: args.deps,
+        scope: row.scope,
+        entityId: row.entityId,
+        completed: row.completed,
+        signal: controller.signal,
+        mark: async patch => {
+          Object.assign(live, patch)
+          await commit()
+        },
+        report: note => {
+          row.note = note
+          report({ pipeline: spec.alias, runId: row.runId, step, index: order.indexOf(step) + 1, total, note })
+        },
+        expired: () => (deadline != null && Date.now() >= deadline) || controller.signal.aborted,
+        remainingMs: () => deadline != null ? Math.max(0, deadline - Date.now()) : undefined,
+
+        ask: async inquiry => {
+          const answers = answersIn(live, answersKey)
+          const known = answers[inquiry.id]
+          if (known != null) {
+            // A resume, or a second step asking the same thing. Never a second question.
+            return known
+          }
+
+          const answer = options.inquiry?.ask != null
+            ? await options.inquiry.ask(inquiry, ctx)
+            : null
+
+          if (answer != null) {
+            const capped = capAnswer({ ...answer, inquiryId: inquiry.id }, maxAnswerChars)
+            // The state keeps the DECISION and a short excerpt of any prose; the step is handed the
+            // whole answer. A state is scalars and keys, and two long answers would spend a
+            // pipeline's whole state budget on text nothing replays from.
+            //
+            // The map is re-read HERE rather than reused from before the await: answers are the one
+            // accumulating state key, and steps with no edge between them run in the same superstep.
+            // Two of them asking would each write back the copy they read before their channel
+            // answered, and the second write would drop the first answer — leaving a question the
+            // person has already answered to be asked again on the next entry.
+            await ctx.mark({
+              [answersKey]: {
+                ...answersIn(live, answersKey), [inquiry.id]: stateAnswerOf(capped),
+              },
+            } as Partial<S>)
+
+            return capped
+          }
+
+          if (runs == null) {
+            // Nothing would be there to resume, so parking would strand the run rather than pause
+            // it. The step fails at once and says why.
+            throw new PipelineNotResumableError(`${spec.alias}:${row.runId}:no-run-store`)
+          }
+
+          // Decided BEFORE the write: a state that has outgrown its cap fails `commit`, and an
+          // outcome recorded afterwards would let that failure read as the step's, ending the run
+          // `Failed` with a row that says nothing about the question.
+          outcome.stopped = 'inquiry'
+          outcome.inquiry = { step, askedAt: nowIso(), inquiry }
+          row.inquiry = outcome.inquiry
+          try {
+            await commit()
+          } catch (e) {
+            // The terminal write freezes the state instead of re-serializing it, so the run still
+            // parks with its question on the row.
+            console.warn(`Pipeline ${spec.alias}:${step} could not save the state it parked on:`, e)
+          }
+
+          throw new PipelineStopSignal('inquiry')
+        },
+      }
+
+      return ctx
+    }
 
     const nodeFor = (declared: PipelineStepSpec) =>
       async (): Promise<Record<string, unknown>> => {
@@ -380,9 +491,12 @@ export const makePipeline = <S extends PipelineState, C>(
       }
     } catch (e) {
       if (isStop(e) || outcome.stopped != null) {
+        const waiting = outcome.stopped === 'inquiry'
         await commit({
-          status: PipelineRunStatus.Aborted,
-          note: `stopped: ${outcome.stopped ?? 'budget'}`,
+          status: waiting ? PipelineRunStatus.Waiting : PipelineRunStatus.Aborted,
+          note: waiting
+            ? `waiting: ${outcome.inquiry?.inquiry.id ?? '?'}`
+            : `stopped: ${outcome.stopped ?? 'budget'}`,
           freezeState: true,
         })
       } else if (outcome.fatal != null) {
@@ -416,6 +530,7 @@ export const makePipeline = <S extends PipelineState, C>(
       ...(row.failedAt != null && row.failedAt !== '' ? { failedAt: row.failedAt } : {}),
       ...(outcome.error != null ? { error: outcome.error } : {}),
       ...(row.note != null ? { note: row.note } : {}),
+      ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
     }
   }
 
@@ -469,6 +584,10 @@ export const makePipeline = <S extends PipelineState, C>(
 
       const restored = resuming ? JSON.parse(existing.state === '' ? '{}' : existing.state) : {}
       const live = { ...restored, ...seed } as S
+      // The seed overwrites the restored state key by key, which is right for every key but this
+      // one: answers are cumulative, and a seed carrying the caller's map — or carrying nothing —
+      // would drop what the run has already been told and ask the same question again.
+      mergeAnswers(live, answersIn(restored, answersKey), answersIn(seed, answersKey))
       const seeded = new Set(resuming ? existing.completed : [])
 
       trace(
@@ -514,10 +633,16 @@ export const makePipeline = <S extends PipelineState, C>(
         failedAt: undefined,
         error: undefined,
       }
-      const live = {
-        ...JSON.parse(existing.state === '' ? '{}' : existing.state),
-        ...(args.patch ?? {}),
-      } as S
+      const restored = JSON.parse(existing.state === '' ? '{}' : existing.state)
+      const live = { ...restored, ...(args.patch ?? {}) } as S
+      // Answers merge, and the ones this resume carries land last: a resume is how an answer
+      // reaches a parked run, and it must never cost the run the answers it already had.
+      mergeAnswers(
+        live,
+        answersIn(restored, answersKey),
+        answersIn(args.patch, answersKey),
+        args.answers ?? {},
+      )
 
       trace(
         `[pipe:${spec.alias}:${runId}] resume`
@@ -533,31 +658,64 @@ export const makePipeline = <S extends PipelineState, C>(
     asStep: <PS extends PipelineState>(step: string, mapping: PipelineStepMapping<S, PS>) => ({
       step,
       run: async (parent: Readonly<PS>, ctx: PipelineRunContext<PS, C>) => {
-        // The child keeps a run row of its own, addressed under the parent's, so a parent resumed
-        // at this step resumes the CHILD at the child's own failed step instead of re-running all
-        // of it.
-        const result = await model.invoke(mapping.input(parent), {
-          runId: `${ctx.runId}/${step}`,
-          deps: ctx.deps,
-          scope: ctx.scope,
-          ...(ctx.entityId != null ? { entityId: ctx.entityId } : {}),
-          ...(() => {
-            const remaining = ctx.remainingMs()
-            return remaining != null ? { budgetMs: remaining } : {}
-          })(),
-          signal: ctx.signal,
-        })
+        // What the parent has already been told. Both pipelines default to the same state key, so
+        // an answer the parent holds spares the child the round trip of asking for it again.
+        const answers: Record<string, InquiryAnswer> = { ...answersIn(parent, answersKey) }
 
-        if (result.status === PipelineRunStatus.Failed) {
-          if (mapping.tolerate?.(result) === true) {
-            ctx.report(`${step}: ${result.failedAt ?? 'failed'} — ${result.error?.message ?? ''}`)
-
-            return mapping.output(result.state, parent)
+        for (let round = 0; round < MAX_INQUIRY_ROUNDS; ++round) {
+          const seed: Record<string, unknown> = { ...mapping.input(parent) }
+          if (Object.keys(answers).length > 0) {
+            seed[answersKey] = answers
           }
-          throw result.error ?? new Error(`${spec.alias} failed at ${result.failedAt ?? '?'}`)
+
+          // The child keeps a run row of its own, addressed under the parent's, so a parent resumed
+          // at this step resumes the CHILD at the child's own failed step instead of re-running all
+          // of it.
+          const result = await model.invoke(seed as Partial<S>, {
+            runId: `${ctx.runId}/${step}`,
+            deps: ctx.deps,
+            scope: ctx.scope,
+            ...(ctx.entityId != null ? { entityId: ctx.entityId } : {}),
+            ...(() => {
+              const remaining = ctx.remainingMs()
+              return remaining != null ? { budgetMs: remaining } : {}
+            })(),
+            signal: ctx.signal,
+          })
+
+          if (result.status === PipelineRunStatus.Waiting) {
+            if (result.inquiry == null) {
+              // A parked run always names what it parked on; without it there is nothing to relay
+              // and nothing a resume of the parent could deliver.
+              throw new PipelineNotResumableError(
+                `${spec.alias}:${ctx.runId}/${step}:waiting-without-inquiry`,
+              )
+            }
+            // Either the parent can answer — from its own state or through a live channel — and the
+            // child is re-entered with the answer, or the parent parks on the SAME question, which
+            // leaves here as the runner's stop signal rather than as a failure.
+            answers[result.inquiry.inquiry.id] = await ctx.ask(result.inquiry.inquiry)
+            continue
+          }
+
+          if (result.status === PipelineRunStatus.Failed) {
+            if (mapping.tolerate?.(result) === true) {
+              ctx.report(`${step}: ${result.failedAt ?? 'failed'} — ${result.error?.message ?? ''}`)
+
+              return mapping.output(result.state, parent)
+            }
+            throw result.error ?? new Error(`${spec.alias} failed at ${result.failedAt ?? '?'}`)
+          }
+
+          return mapping.output(result.state, parent)
         }
 
-        return mapping.output(result.state, parent)
+        // A child that keeps asking is a child that will never finish, and the parent is the only
+        // place holding a count: every round is a fresh invocation, so nothing below can see that
+        // it is the same step asking again.
+        throw new PipelineNotResumableError(
+          `${spec.alias}:${ctx.runId}/${step}:questions-exceeded:${MAX_INQUIRY_ROUNDS}`,
+        )
       },
     }),
   }

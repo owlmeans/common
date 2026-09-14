@@ -58,12 +58,6 @@ describe('@owlmeans/api-config plugins', () => {
         api: { service: 'api', type: AppType.Backend, host: 'api.example.test', port: 443, base: 'api' },
       },
       plugins: [{ id: 'web', type: AppType.Frontend, value: 'safe' }],
-      oidc: {
-        clientCookie: { interaction: { name: 'oidc', ttl: 60 } },
-        providers: [{ clientId: 'public', service: 'iam' }],
-      },
-      flowConfig: { defaultFlow: 'signin', services: { auth: 'web' } },
-      i18n: { defaultLng: 'en', supportedLngs: ['en', 'pl'] },
       [CONFIG_RECORD]: [{ id: 'plan:starter', recordType: 'plan', price: 10 }],
     })
   })

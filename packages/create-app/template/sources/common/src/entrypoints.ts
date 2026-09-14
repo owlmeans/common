@@ -54,7 +54,7 @@ export const web = {
 }
 
 /** The shared immutable protocol tree. Runtime packages bind their own local handlers and screens. */
-export const appProtocols = {
-  api: { session },
-  web,
-}
+export const appProtocols = Object.freeze({
+  api: Object.freeze({ session }),
+  web: Object.freeze(web),
+})

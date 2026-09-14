@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
+import { InquiryKind } from '@owlmeans/llm-common'
 import {
+  INQUIRY_ANSWERS_KEY, PipelineRunStatus,
   orderPipelineSteps, pipelineDescendants, pipelineStep, validatePipelineSpec,
 } from '../src/index.js'
-import type { PipelineSpec } from '../src/index.js'
+import type { PipelineRun, PipelineSpec } from '../src/index.js'
 
 /**
  * The spec is the one thing in this family that is checked without a model, a slot or a network, so
@@ -123,5 +125,43 @@ describe('agent-common — descendants', () => {
   test('pipelineStep answers null rather than throwing', () => {
     expect(pipelineStep(graph, 'ghost')).toBeNull()
     expect(pipelineStep(graph, 'a')?.step).toBe('a')
+  })
+})
+
+describe('agent-common — a run that is waiting for an answer', () => {
+  const waiting = (): PipelineRun => ({
+    runId: 'r', pipeline: 'test', version: 1, scope: 'p1',
+    status: PipelineRunStatus.Waiting,
+    completed: ['a'], pending: ['b'], state: `{"${INQUIRY_ANSWERS_KEY}":{}}`, stateChars: 15,
+    warnings: [], attempts: 0,
+    inquiry: {
+      step: 'b',
+      askedAt: '2026-01-01T00:00:00.000Z',
+      inquiry: {
+        id: 'q1', kind: InquiryKind.Choice, question: 'Which product is this?',
+        options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }],
+      },
+    },
+    startedAt: '2026-01-01T00:00:00.000Z',
+    heartbeatAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  })
+
+  test('`Waiting` is its own status, distinct from the two that mean the run stopped badly', () => {
+    // A reconciler branches on this string. Aborted means nobody asked anything and a resume may
+    // simply carry on; Waiting means a resume without an answer would park on the same question.
+    expect(PipelineRunStatus.Waiting).toBe('waiting')
+    expect(PipelineRunStatus.Waiting).not.toBe(PipelineRunStatus.Aborted)
+    expect(PipelineRunStatus.Waiting).not.toBe(PipelineRunStatus.Failed)
+  })
+
+  test('a row carrying its inquiry survives the wire unchanged', () => {
+    // These records cross process boundaries and storage backends; the question's id is the ONLY
+    // thing that routes an answer back, so it has to arrive spelled exactly as it was written.
+    const restored = JSON.parse(JSON.stringify(waiting())) as PipelineRun
+
+    expect(restored).toEqual(waiting())
+    expect(restored.inquiry?.inquiry.id).toBe('q1')
+    expect(restored.inquiry?.step).toBe('b')
   })
 })

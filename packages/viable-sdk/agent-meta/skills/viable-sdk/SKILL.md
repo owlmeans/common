@@ -40,8 +40,8 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 ## One credential, and the routes the server declares
 
 `makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and binds the SAME
-`connectEntrypoints(...)` list the server mounts, so a path or a schema cannot be right on one end
-and wrong on the other. There is deliberately **no second credential path**: a connector that could
+immutable `connectProtocols(...)` tree the server mounts, so a path or a schema cannot be right on
+one end and wrong on the other. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
 revoking a token. A token without `CONNECT_TOKEN_PREFIX` is refused locally, because a 401 says
 nothing about which of several plausible mistakes was made and the answer is always the same one.
@@ -113,6 +113,18 @@ model can read and act on, because an exception crossing the transport tells it 
 went wrong somewhere. `renderJob` ends every job with a single `next:` line — that is what keeps a
 parent from inventing a polling strategy of its own, or from concluding that a blocked run has
 failed.
+
+## An out-of-credits refusal is phrased, and pushed through `notify`
+
+`registerCatalogue`'s catch special-cases `ConnectOutOfCredits` (`@owlmeans/viable-common`
+`connect/errors.ts`): rather than the raw `viable-connect:out-of-credits:...` marker, the tool
+result reads as a sentence — what it needed, what the account has, and a link to top up — because
+only `type` and `message` survive the platform's internal HTTP hop, so those three fields travel
+packed into the message and are read back out with `finalizeUnmarshal()`. The same refusal is also
+handed to the optional `ToolDeps.notify?(level, text)`, which a host wires to its own out-of-band
+channel — the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless
+`/mcp` host has no channel and omits it, so `notify` is always best-effort and optional. Every other
+error still returns as its own `.message`, unphrased, and never calls `notify`.
 
 ## The session loop: serial, and free to redeliver
 
@@ -186,6 +198,12 @@ only thing that routes an answer back: a parent that paraphrases the rest but co
 works. A retry says which attempt it is and why the previous answer was refused. Harnesses differ
 only in the isolation mechanism, never in what is asked; `Other` gets the request stated rather than
 mechanised.
+
+For Codex, the parent gives a fresh `viable-worker` only the task's system prompt, then its
+conversation, then the requested result shape: the outer handoff instruction and
+`submit_task_result` call are parent-only. It passes that final response through unchanged, but must
+preserve the mode: a `text` task returns the requested source or text and never a JSON tool-call
+array; that array belongs only to `tools` mode.
 
 **`parseTaskResult` refuses a malformed answer locally**, and returns a `problem` rather than
 throwing. The refusal is worth more than the parse: an answer that reaches the platform malformed
@@ -329,7 +347,8 @@ reader looking for a database that was never configured.
 ## Tests
 
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
-the executor's files/git/layout rules, and the marker + managed-`.env` block.
+the `registerCatalogue` out-of-credits phrasing and `notify` wiring (`mcp-catalogue.spec.ts`), the
+executor's files/git/layout rules, and the marker + managed-`.env` block.
 
 ## Depends On
 

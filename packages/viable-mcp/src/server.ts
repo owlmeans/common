@@ -1,11 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { ConnectExecutor, ConnectTarget } from '@owlmeans/viable-common'
+import { ConnectTarget } from '@owlmeans/viable-common'
 import {
   discoverProject, makeRemoteConnectorApi, makeSdkContext, openSession, registerCatalogue,
   serverInstructions, ToolHostKind
 } from '@owlmeans/viable-sdk'
 import type { ConnectorApi, SessionRuntime, ToolDeps, ToolHost } from '@owlmeans/viable-sdk'
 import { makeLocalSlotExecutor } from '@owlmeans/viable-sdk/executor'
+import { sessionCapabilities } from './capabilities.js'
 import type { McpConfig } from './config.js'
 import { makeSessionHolder } from './session-holder.js'
 
@@ -62,15 +63,7 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
       llm: cfg.llm,
       harness: cfg.harness,
       clientVersion: VERSION,
-      capabilities: {
-        harness: cfg.harness,
-        tiers: {},
-        subagents: true,
-        effortControl: true,
-        executors: local
-          ? [ConnectExecutor.Files, ConnectExecutor.Shell, ConnectExecutor.Git]
-          : [],
-      },
+      capabilities: sessionCapabilities(cfg),
     },
   }))
 

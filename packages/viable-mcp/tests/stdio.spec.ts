@@ -71,16 +71,17 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
   test('it starts and announces itself without reaching the platform', async () => {
     const offered = await names(server)
 
-    // The default mode: the project on this machine, the model calls paid for by the platform.
+    // The default mode: the project on this machine, and the platform paying for the model calls
+    // of everything but a conversion — whose calls this session collects with the same two tools.
     for (const tool of [
       'describe_capabilities', 'create_project', 'confirm_project', 'wait_for', 'list_stories',
-      'develop_story', 'run_local', 'local_status', 'install_harness',
+      'develop_story', 'run_local', 'local_status', 'install_harness', 'next_task',
+      'submit_task_result',
     ]) {
       expect(offered).toContain(tool)
     }
-    // Hidden rather than offered-and-refused: the cloud file tools and the delegated loop.
+    // Hidden rather than offered-and-refused: this project's files are here, not in a slot.
     expect(offered).not.toContain('list_files')
-    expect(offered).not.toContain('next_task')
   }, 30_000)
 
   test('the instructions state the mode and the job rule', async () => {

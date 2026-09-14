@@ -41,6 +41,14 @@ export enum SlotCommandType {
 
 export enum SlotGitCommand {
   Ensure = 'ensure',
+  /**
+   * Bring a remote repository's tree onto a volume that already exists.
+   *
+   * NOT `git clone`: a slot's directory is never empty — provisioning leaves its own metadata
+   * there — and `git clone` refuses a non-empty destination. The executor therefore initializes,
+   * adds the remote, fetches at a bounded depth and checks the branch out over the tree.
+   */
+  Clone = 'clone',
   Status = 'status',
   Commit = 'commit',
   Log = 'log',
@@ -66,6 +74,34 @@ export enum SlotFileCommand {
   DeleteFile = 'deleteFile',
   FindFilesWithEnvVars = 'findFilesWithEnvVars',
   GetRootPath = 'getRootPath',
+  /**
+   * List a tree with a size and a binary flag per entry, bounded by a caller-given limit.
+   *
+   * The reason it exists rather than being composed out of {@link SlotFileCommand.GetSourceList}
+   * plus a read per file: a foreign repository can hold a hundred thousand files, and one round
+   * trip each — over a signed HTTP call to a pod, or over a connector on somebody's laptop — is
+   * not a slower version of the same thing, it is a walk that never finishes.
+   */
+  StatTree = 'statTree',
+  /**
+   * Read the first N bytes of one file.
+   *
+   * A census classifies a file from its head; reading whole files to do it would hold a 1 MB
+   * export in memory to look at its first line. The answer is text, so a binary head comes back
+   * as whatever decoding produced — which is exactly the signal the entropy classification wants.
+   */
+  ReadHead = 'readHead',
+  /**
+   * Move everything in the project root into a subdirectory, keeping a named few in place.
+   *
+   * One command rather than a listing plus a move per file, because it must be ATOMIC from the
+   * caller's point of view: a relocation interrupted half way leaves a tree that is neither the
+   * origin nor a target, and nothing downstream can tell which files already moved. Binary-safe —
+   * it moves paths and never reads contents.
+   */
+  Relocate = 'relocate',
+  /** Delete a directory and everything under it. The purge of a relocated origin. */
+  RemoveTree = 'removeTree',
 }
 
 export enum SlotShellCommand {
@@ -229,6 +265,37 @@ export const COMMAND_DEADLINES: Record<string, number> = {
 export const DEFAULT_COMMAND_DEADLINE = 60_000
 
 /**
+ * EXECUTOR-side ceilings for the git commands whose real duration is not a git command's.
+ *
+ * Everything git does inside a slot is local and takes seconds — except a clone, which is a
+ * network fetch of somebody else's repository and is measured in minutes. Bounding it by the
+ * generic git deadline made a conversion's very first step fail on any repository large enough
+ * to be worth converting.
+ */
+export const GIT_COMMAND_DEADLINES: Partial<Record<SlotGitCommand, number>> = {
+  [SlotGitCommand.Clone]: 600_000,
+}
+
+/** What every other git command gets. The value the type-level branch used to hard-code. */
+export const DEFAULT_GIT_COMMAND_DEADLINE = 60_000
+
+/**
+ * EXECUTOR-side ceilings for the file commands that walk or move a whole tree.
+ *
+ * The other file commands are one path each and finish in milliseconds; these three are bounded
+ * by how big the tree is, which for an origin project is set by whoever wrote it.
+ */
+export const FILE_COMMAND_DEADLINES: Partial<Record<SlotFileCommand, number>> = {
+  [SlotFileCommand.StatTree]: 120_000,
+  [SlotFileCommand.Relocate]: 300_000,
+  [SlotFileCommand.RemoveTree]: 120_000,
+  [SlotFileCommand.ReadHead]: 30_000,
+}
+
+/** What every other file command gets. The value the type-level branch used to hard-code. */
+export const DEFAULT_FILE_COMMAND_DEADLINE = 30_000
+
+/**
  * CALLER-side ceilings per command type: how long the asker waits for an answer.
  *
  * Deliberately separate from {@link COMMAND_DEADLINES} and deliberately larger — the caller's
@@ -267,6 +334,33 @@ export const SHELL_COMMAND_TIMEOUTS: Record<string, number> = {
 }
 
 /**
+ * Per-COMMAND caller ceilings for git and for files.
+ *
+ * Each is its executor deadline plus the same 40 s margin: the caller's bound must outlast the
+ * executor's, or a command that failed cleanly inside its own deadline reaches the caller as a
+ * timeout and the real reason — the one the executor took the trouble to produce — is lost.
+ */
+export const GIT_COMMAND_TIMEOUTS: Partial<Record<SlotGitCommand, number>> = {
+  [SlotGitCommand.Clone]: 640_000,
+}
+
+export const FILE_COMMAND_TIMEOUTS: Partial<Record<SlotFileCommand, number>> = {
+  [SlotFileCommand.StatTree]: 160_000,
+  [SlotFileCommand.Relocate]: 340_000,
+  [SlotFileCommand.RemoveTree]: 160_000,
+  [SlotFileCommand.ReadHead]: 70_000,
+}
+
+/** The per-command caller bound for one command, or nothing where its type's default is right. */
+const perCommandTimeout = (type: SlotCommandType, command: string): number | undefined => {
+  switch (type) {
+    case SlotCommandType.Shell: return SHELL_COMMAND_TIMEOUTS[command]
+    case SlotCommandType.Git: return GIT_COMMAND_TIMEOUTS[command as SlotGitCommand]
+    default: return FILE_COMMAND_TIMEOUTS[command as SlotFileCommand]
+  }
+}
+
+/**
  * Resolve the caller-side bound for one command.
  *
  * One function rather than three lookups at each call site: an asker that forgets the per-command
@@ -276,12 +370,24 @@ export const SHELL_COMMAND_TIMEOUTS: Record<string, number> = {
 export const commandTimeout = (
   type: SlotCommandType, command: string, override?: number
 ): number => override
-  ?? (type === SlotCommandType.Shell ? SHELL_COMMAND_TIMEOUTS[command] : undefined)
+  ?? perCommandTimeout(type, command)
   ?? COMMAND_TIMEOUTS[type]
   ?? DEFAULT_COMMAND_TIMEOUT
 
-/** Resolve the executor-side deadline for one command. */
-export const commandDeadline = (type: SlotCommandType, command: string): number =>
-  type === SlotCommandType.Shell
-    ? COMMAND_DEADLINES[command] ?? DEFAULT_COMMAND_DEADLINE
-    : type === SlotCommandType.Git ? 60_000 : 30_000
+/**
+ * Resolve the executor-side deadline for one command.
+ *
+ * Per-command first, per-type second. It was per-type only, which is how a clone inherited the
+ * bound of a `git status` — the same shape as the shell table above, and added for the same
+ * reason.
+ */
+export const commandDeadline = (type: SlotCommandType, command: string): number => {
+  switch (type) {
+    case SlotCommandType.Shell:
+      return COMMAND_DEADLINES[command] ?? DEFAULT_COMMAND_DEADLINE
+    case SlotCommandType.Git:
+      return GIT_COMMAND_DEADLINES[command as SlotGitCommand] ?? DEFAULT_GIT_COMMAND_DEADLINE
+    default:
+      return FILE_COMMAND_DEADLINES[command as SlotFileCommand] ?? DEFAULT_FILE_COMMAND_DEADLINE
+  }
+}

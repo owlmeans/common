@@ -1,15 +1,29 @@
 import type { JSONSchemaType } from 'ajv'
+import { ConversionDecision, OriginKind } from '../convert/consts.js'
 import {
-  ConnectExecutor, ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus,
+  CONNECT_INQUIRY_MAX_TEXT, ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus,
   ConnectTarget, ConnectTransport, ModelTaskResultKind, ModelTier
 } from './consts.js'
-import type { ConnectOpResult } from './ops.js'
+import type { ConnectOpResult, InquiryAnswerPayload } from './ops.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectJobParams, ConnectLlmBody,
-  ConnectModifyBody, ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectLlmBody,
-  ConnectSession, ConnectSessionOpen, ConnectSessionParams, ConnectStoryBody, ConnectStoryQuery,
-  ConnectWaitQuery
+  ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
+  ConnectCreateBody, ConnectJobParams, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
+  ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSession, ConnectSessionOpen,
+  ConnectSessionParams, ConnectStoryBody, ConnectStoryQuery, ConnectWaitQuery
 } from './types.js'
+
+/**
+ * A nullable ENUM carries `null` as one of its values.
+ *
+ * `nullable` and `enum` are separate Ajv keywords, checked independently: `nullable: true` widens
+ * the TYPE check to admit `null` and the `enum` check then refuses the very same value, so the
+ * field can only ever be OMITTED — never sent empty. That is not the same thing here. A connector
+ * is somebody else's process putting JSON on the wire and it serialises an unset optional as
+ * `null` as readily as it drops the key, and in `ConnectProjectLlmBody.llmMode` the `null` MEANS
+ * something ("inherit the profile's setting") and has no other spelling. So every `enum` beside a
+ * `nullable: true` is written `[...Object.values(X), null]`. `tests/convert.spec.ts` walks every
+ * schema this package exports and fails on the pair written apart.
+ */
 
 const idValue = { type: 'string', minLength: 1, maxLength: 128 } as const
 const textValue = { type: 'string', minLength: 1, maxLength: 65536 } as const
@@ -26,7 +40,11 @@ export const ConnectCapabilitiesSchema = {
     },
     subagents: { type: 'boolean' },
     effortControl: { type: 'boolean' },
-    executors: { type: 'array', items: { type: 'string', enum: Object.values(ConnectExecutor) } },
+    // Deliberately NOT `enum: Object.values(ConnectExecutor)`. The SDK and the platform ship
+    // separately, so a connector built against a newer package advertises an executor kind this
+    // platform has never heard of — and an enum turns that into a refused session rather than an
+    // unused capability. Forward tolerance: an unknown value is simply not matched by anything.
+    executors: { type: 'array', items: { type: 'string', maxLength: 32 } },
     services: {
       type: 'object',
       nullable: true,
@@ -81,7 +99,7 @@ export const ConnectSessionSchema = {
     clientVersion: { type: 'string', maxLength: 64 },
     capabilities: ConnectCapabilitiesSchema,
     status: { type: 'string', enum: Object.values(ConnectSessionStatus) },
-    transport: { type: 'string', enum: Object.values(ConnectTransport), nullable: true },
+    transport: { type: 'string', enum: [...Object.values(ConnectTransport), null], nullable: true },
     openedAt: { type: 'object', format: 'date-time', required: [] },
     lastSeenAt: { type: 'object', format: 'date-time', required: [] },
     closedAt: { type: 'object', format: 'date-time', required: [], nullable: true },
@@ -113,7 +131,7 @@ export const ConnectOpResultSchema = {
       properties: {
         type: { type: 'string', maxLength: 256 },
         message: { type: 'string', maxLength: 8192 },
-        kind: { type: 'string', enum: Object.values(ConnectOpErrorKind), nullable: true },
+        kind: { type: 'string', enum: [...Object.values(ConnectOpErrorKind), null], nullable: true },
       },
       required: ['type', 'message'],
       additionalProperties: false,
@@ -176,7 +194,7 @@ export const ConnectCreateBodySchema = {
   type: 'object',
   properties: {
     prompt: { type: 'string', minLength: 1, maxLength: 16384 },
-    target: { type: 'string', enum: Object.values(ConnectTarget), nullable: true },
+    target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
   },
   required: ['prompt'],
   additionalProperties: false,
@@ -189,7 +207,7 @@ export const ConnectConfirmBodySchema = {
     description: { type: 'string', maxLength: 16384, nullable: true },
     specification: { type: 'string', maxLength: 262144, nullable: true },
     vision: { type: 'string', maxLength: 16384, nullable: true },
-    target: { type: 'string', enum: Object.values(ConnectTarget), nullable: true },
+    target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
   },
   required: [],
   additionalProperties: false,
@@ -232,10 +250,81 @@ export const ConnectPipelineResumeBodySchema = {
   properties: {
     from: { type: 'string', maxLength: 128, nullable: true },
     force: { type: 'boolean', nullable: true },
+    // Keyed by inquiry id, so the key space is open by construction and cannot be enumerated.
+    // The values are validated where they are read, against InquiryAnswerSchema.
+    answers: { type: 'object', additionalProperties: true, required: [], nullable: true },
   },
   required: [],
   additionalProperties: false,
-} as JSONSchemaType<ConnectPipelineResumeBody>
+} as unknown as JSONSchemaType<ConnectPipelineResumeBody>
+
+/**
+ * One answer to one question.
+ *
+ * `value` is a union — one choice or several — expressed as `oneOf`, never as a `nullable` with no
+ * `type`: Ajv refuses that, and this schema is compiled at route registration, so the refusal
+ * takes the whole API down at boot rather than failing the one call that carried the value.
+ */
+export const InquiryAnswerSchema = {
+  type: 'object',
+  properties: {
+    inquiryId: idValue,
+    value: {
+      oneOf: [
+        { type: 'string', maxLength: CONNECT_INQUIRY_MAX_TEXT },
+        {
+          type: 'array',
+          items: { type: 'string', maxLength: CONNECT_INQUIRY_MAX_TEXT },
+          maxItems: 32,
+        },
+      ],
+    },
+    text: { type: 'string', maxLength: CONNECT_INQUIRY_MAX_TEXT, nullable: true },
+    declined: { type: 'boolean', nullable: true },
+  },
+  required: ['inquiryId'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<InquiryAnswerPayload>
+
+/** The two ids an answer is addressed by: the project it belongs to and the question it answers. */
+export const ConnectInquiryParamsSchema = {
+  type: 'object',
+  properties: { id: idValue, inquiryId: idValue },
+  required: ['id', 'inquiryId'],
+  additionalProperties: false,
+} as JSONSchemaType<{ id: string, inquiryId: string }>
+
+export const ConnectConvertCreateBodySchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 128, nullable: true },
+    about: { type: 'string', maxLength: 16384, nullable: true },
+    target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
+    origin: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        kind: { type: 'string', enum: Object.values(OriginKind) },
+        repoUrl: { type: 'string', maxLength: 2048, nullable: true },
+        branch: { type: 'string', maxLength: 256, nullable: true },
+      },
+      required: ['kind'],
+      additionalProperties: false,
+    },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectConvertCreateBody>
+
+export const ConnectConvertProceedBodySchema = {
+  type: 'object',
+  properties: {
+    decision: { type: 'string', enum: Object.values(ConversionDecision) },
+    note: { type: 'string', maxLength: 4096, nullable: true },
+  },
+  required: ['decision'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectConvertProceedBody>
 
 export const ConnectLlmBodySchema = {
   type: 'object',
@@ -246,7 +335,7 @@ export const ConnectLlmBodySchema = {
 
 export const ConnectProjectLlmBodySchema = {
   type: 'object',
-  properties: { llmMode: { type: 'string', enum: Object.values(ConnectLlm), nullable: true } },
+  properties: { llmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true } },
   required: ['llmMode'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectProjectLlmBody>

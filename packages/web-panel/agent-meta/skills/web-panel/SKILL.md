@@ -41,7 +41,9 @@ user-invocable: false
 
 - `./auth` — auth panel components for web
 - `./auth/entrypoints` — auth panel entrypoint declarations
-- `./consent` — the cookie consent dialog and policy, bound to this app's i18n
+- `./consent` — the cookie consent dialog and policy, bound to this app's i18n, plus a menu-row
+  widget and a presence service so a host's own collapsed menu can take over the floating button's
+  job
 - `./jobs` — `JobProgress`, `JobStatus`, `useJobToasts` over `@owlmeans/queue` records
 
 ## Usage
@@ -221,6 +223,14 @@ Rules the component owns, each of which was a real failure:
 - **`hidden` takes the separators it orphans with it.** A caller composes the menu from optional
   blocks; filtering the entries alone leaves a leading rule, a doubled rule, or one under the last
   item. Normalisation is the whole reason the entries are data.
+- **A `Widget` entry's own mount is not the menu's mount.** Radix's `DropdownMenuContent` (which
+  this and every entries-as-data reimplementation of it builds on) only mounts its children while
+  the menu is actually OPEN — so a widget whose side effect must persist for as long as the
+  TRIGGER is on screen (not merely while a visitor happens to have it open) cannot run that effect
+  from inside the entry. Run it from the caller's own always-mounted component instead — see
+  `useConsentMenuPresence` under `./consent` below for the worked example: a naive version that
+  announced presence from inside its own menu row hid the cookie-consent floating button only
+  while the dropdown happened to be open, and showed it again the instant it closed.
 - **`translate` is a prop**, defaulting to `defaultNavTranslate` — same reason as the nav shell.
 - `indicator` is a slot on the trigger's corner (a notification dot, a count), not a `tone` enum:
   what deserves attention is the application's judgement.
@@ -351,6 +361,41 @@ every key the app has not overridden. See the `consent` skill.
 A re-export does not move Tailwind class strings, so a consumer adds a second `@source` for
 `@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
 under *Consumer setup* below. Without it the dialog renders half-styled.
+
+**A service wrapping a state resource is what lets a host's own menu take over the floating
+button's job.** `appendConsentWidgetService(context, alias?)` registers a ref-counted presence
+service (`@owlmeans/state`'s `appendStateResource` behind `@owlmeans/context`'s `createService`) —
+call it once, from the app's own `context.ts`, the same as any other `append*` mixin:
+
+```ts
+import { appendConsentWidgetService } from '@owlmeans/web-panel/consent'
+
+appendConsentWidgetService<C, T>(context)
+```
+
+Then, from the menu's own **always-mounted** shell component (never from inside a lazily-rendered
+row — see the `PanelMenu` rule above):
+
+```tsx
+import { PanelConsentMenuWidget, useConsentMenuPresence } from '@owlmeans/web-panel/consent'
+
+const MyMenu: FC = () => {
+  useConsentMenuPresence()   // declares the row reachable for as long as THIS component is mounted
+  const entries = [
+    { kind: PanelMenuEntryKind.Widget, key: 'cookie', render: <PanelConsentMenuWidget /> },
+    // ...
+  ]
+  return <PanelMenu entries={entries} ... />
+}
+```
+
+`PanelCookieConsent` reads the same service (`useConsentWidgetPresent()`, internally) and computes
+`noReopenButton` from it whenever the caller has not passed one explicitly — an app that both
+mounts `PanelCookieConsent` at its root and calls `useConsentMenuPresence()` from its collapsed
+menu gets the floating button exactly while the menu is not, with no further wiring. Ref-counted
+rather than a boolean latch, because more than one menu shell can be mounted for one commit during
+a layout transition (a stale header still showing its own collapsed menu while a new screen's own
+menu has already mounted) and because React 18 StrictMode double-invokes mount/cleanup in dev.
 
 ## Consumer setup — package boundary and Tailwind
 

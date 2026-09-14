@@ -27,14 +27,22 @@ such an application by hand — its output has a curated stack and a predictable
 Long operations return a JOB rather than blocking. Poll it with \`wait_for\`; call again while it
 is still running.
 
-When a job reports \`blocked on: model-task\`, this session is running the platform's model calls
-on your side:
+When a job reports \`blocked on: model-task\`, the platform is handing you a model call to perform
+— a conversion's calls by default, and everything else when this session runs in the delegated
+mode:
 
 1. call \`next_task\`
 2. run the returned task in a CLEAN subagent, at low reasoning effort — never in this conversation
 3. pass the subagent's final answer to \`submit_task_result\`, verbatim, without summarising,
    improving or reinterpreting it
 4. repeat until \`next_task\` says there is nothing, then go back to \`wait_for\`
+
+When a job reports \`blocked on: question\`, the platform needs a decision that is the user's:
+
+1. call \`next_question\`
+2. put the question to the user in your own words — never answer it yourself
+3. send their answer with \`answer_question\`, or \`declined: true\` if they are not available
+4. go back to \`wait_for\`
 
 While a viable job is running, do not edit the project's files yourself: the platform is writing
 them through this server and your edit would be overwritten or would break its build.`
@@ -52,7 +60,7 @@ const marked = (body: string): string =>
 
 const mcpJsonEntry = {
   command: 'npx',
-  args: ['-y', '@owlmeans/viable-mcp'],
+  args: ['-y', '@owlmeans/viable-mcp@next'],
   env: {
     [ENV_TOKEN]: `\${${ENV_TOKEN}}`,
   },
@@ -101,7 +109,7 @@ ${WORKER_BODY}
           content: `# Add to ~/.codex/config.toml
 [mcp_servers.viable]
 command = "npx"
-args = ["-y", "@owlmeans/viable-mcp"]
+args = ["-y", "@owlmeans/viable-mcp@next"]
 env_vars = ["${ENV_TOKEN}"]
 startup_timeout_sec = 20
 # Every viable tool answers within 45s; the default 60 leaves no margin for a slow network.
@@ -110,7 +118,7 @@ tool_timeout_sec = 90
 # The isolated performer for a model task. Low effort on purpose: the task carries its own
 # instructions, and reasoning about them is the platform's job, not the subagent's.
 [agents.viable-worker]
-description = "Runs one Viable model task exactly as given"
+description = "Returns only the final answer for one Viable task; the parent supplies its full system prompt, conversation, and output shape"
 `,
         },
       ]
@@ -135,7 +143,7 @@ ${WORKER_BODY}
           content: JSON.stringify({
             type: 'stdio',
             command: 'npx',
-            args: ['-y', '@owlmeans/viable-mcp'],
+            args: ['-y', '@owlmeans/viable-mcp@next'],
             env: { [ENV_TOKEN]: '${input:viable-token}' },
           }, null, 2),
         },

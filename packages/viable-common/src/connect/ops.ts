@@ -1,6 +1,7 @@
 import type { SlotCommandPayload } from '../slot/index.js'
 import type {
-  ConnectOpErrorKind, ConnectOpKind, ModelTaskMode, ModelTaskResultKind, ModelTaskRole, ModelTier
+  ConnectInquiryKind, ConnectOpErrorKind, ConnectOpKind, ModelTaskMode, ModelTaskResultKind,
+  ModelTaskRole, ModelTier
 } from './consts.js'
 import type { ConnectServices } from './types.js'
 
@@ -17,7 +18,7 @@ export interface ConnectOp {
   projectId: string
   sessionId: string
   kind: ConnectOpKind
-  payload: SlotCommandPayload | ModelTask | ConfigurePayload
+  payload: SlotCommandPayload | ModelTask | ConfigurePayload | InquiryPayload
   createdAt: string
   /** When the asker stops waiting. A connector past this may skip the work and say so. */
   deadlineAt: string
@@ -157,4 +158,51 @@ export interface ModelTaskResult {
 export interface ModelTaskUsage {
   inputTokens?: number
   outputTokens?: number
+}
+
+/** One option a {@link ConnectInquiryKind.Choice} question offers. */
+export interface ConnectInquiryOption {
+  value: string
+  label: string
+  description?: string
+}
+
+/**
+ * One question put to the person the connector is working for.
+ *
+ * It carries where it came from — the job, the run and the step — because an answer is recorded
+ * against the run that asked and re-read when that run resumes. `expiresAt` is what makes an
+ * unanswered question fail its step instead of parking a project lock forever.
+ */
+export interface InquiryPayload {
+  id: string
+  projectId: string
+  jobId?: string
+  runId?: string
+  /** The pipeline step that asked, so a resumed run can match the answer to the place it belongs. */
+  step?: string
+  kind: ConnectInquiryKind
+  question: string
+  /** What the asker already knows, so the person is not asked to go and find it out. */
+  context?: string
+  options?: ConnectInquiryOption[]
+  multiple?: boolean
+  /** Whether a choice question also accepts text the options do not cover. */
+  allowText?: boolean
+  /** What the asker will assume if nobody answers. Recorded as an assumption when it is used. */
+  default?: string | string[]
+  expiresAt: string
+}
+
+/**
+ * The answer to one question.
+ *
+ * `declined` is a real answer and not an absence: it says a person saw the question and chose not
+ * to decide, which the asker records as an assumption rather than waiting out the timeout.
+ */
+export interface InquiryAnswerPayload {
+  inquiryId: string
+  value?: string | string[]
+  text?: string
+  declined?: boolean
 }

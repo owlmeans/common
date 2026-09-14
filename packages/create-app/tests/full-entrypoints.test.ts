@@ -24,7 +24,7 @@ describe('create-app — full entrypoint scaffolding', () => {
     const api = read('sources/api/src/entrypoints.ts')
 
     expect(common).toContain('export const session = {')
-    expect(common).toContain('export const appProtocols = {')
+    expect(common).toContain('export const appProtocols = Object.freeze({')
     expect(common).not.toContain('appEntrypoints')
     expect(common).not.toContain('sessionEntrypoints = protocols(')
     expect(api).toContain("import { bind } from '@owlmeans/server-entrypoint'")

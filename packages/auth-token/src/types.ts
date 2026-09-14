@@ -1,6 +1,7 @@
 import type { AuthRole } from '@owlmeans/auth'
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
+import type { RouteParent } from '@owlmeans/route'
 
 /**
  * One long-lived access token, as stored.
@@ -71,8 +72,8 @@ export interface TokenCarrierOptions {
 }
 
 export interface AuthTokenEntrypointOptions {
-  /** The entrypoint the token routes hang under. */
-  parent?: string
+  /** The entrypoint the token routes hang under. A parent protocol is preferred; strings remain adapter input. */
+  parent?: RouteParent
   /** Path of the token base, relative to the parent. Defaults to `/tokens`. */
   path?: string
   /** The guard the base carries when it has no parent to inherit one from. */

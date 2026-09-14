@@ -92,6 +92,22 @@ export class PipelineStateTooLargeError extends AgentCommonError {
   }
 }
 
+/**
+ * A run was asked to wait for an answer it has no way of being given.
+ *
+ * Thrown when a step asks a question, nobody is there to answer it, and the pipeline has no run
+ * store: parking would leave nothing behind to resume, so the step fails at once rather than
+ * stopping a run that could never be started again.
+ */
+export class PipelineNotResumableError extends AgentCommonError {
+  public static override typeName: string = `PipelineNotResumable${AgentCommonError.typeName}`
+
+  constructor(message: string = 'error') {
+    super(`pipeline-not-resumable:${message}`)
+    this.type = PipelineNotResumableError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(AgentCommonError)
 ResilientError.registerErrorClass(AgentRunStateError)
 ResilientError.registerErrorClass(PipelineSpecError)
@@ -99,3 +115,4 @@ ResilientError.registerErrorClass(PipelineVersionError)
 ResilientError.registerErrorClass(PipelineUnknownStepError)
 ResilientError.registerErrorClass(PipelineNotIdempotentError)
 ResilientError.registerErrorClass(PipelineStateTooLargeError)
+ResilientError.registerErrorClass(PipelineNotResumableError)

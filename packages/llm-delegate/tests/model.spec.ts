@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { HumanMessage, SystemMessage, ToolMessage, AIMessage } from '@langchain/core/messages'
-import { DelegatedMode, DelegatedResultKind, DelegatedRole } from '@owlmeans/llm-common'
+import {
+  DelegatedMode, DelegatedResultKind, DelegatedRole, ModelProvider
+} from '@owlmeans/llm-common'
 import type { DelegatedResult, DelegatedTask } from '@owlmeans/llm-common'
 import { DelegatedChatModel } from '../src/model.js'
+import { delegatedPlugin } from '../src/plugin.js'
+import { DELEGATED_SECRET } from '../src/consts.js'
 import { DelegateUnavailable } from '../src/errors.js'
 import { registerDelegateTransport, releaseDelegateTransport, transportFor } from '../src/transport.js'
 
@@ -143,6 +147,33 @@ describe('@owlmeans/llm-delegate — what comes back', () => {
     expect(result.content).toBe('')
     expect(result.response_metadata.finish_reason).toBe('error')
     expect(result.response_metadata.delegated_error).toBe('the subagent refused')
+  })
+})
+
+describe('@owlmeans/llm-delegate — which model a log line names', () => {
+  // The runtime prints `getName()` and `lc_kwargs.model` for every call it makes, and its
+  // null-result report reads the same key as the model that ran. A delegated model that declared
+  // neither was logged as "DelegatedChatModel undefined" — a call performed by somebody outside
+  // this process, with nothing anywhere saying which one.
+  test('a model built with no name at all still says what it is', () => {
+    const chat = model()
+
+    expect(chat.modelName).toBe('delegated:strong')
+    expect(chat.lc_kwargs.model).toBe('delegated:strong')
+  })
+
+  test('the plugin names it from the config, and a retry keeps the name', () => {
+    const built = delegatedPlugin.build({
+      alias: 'coder',
+      config: { alias: 'coder', provider: ModelProvider.Delegated, delegate: KEY, model: 'delegated:cheap' },
+      secret: DELEGATED_SECRET,
+      callbacks: [],
+    }) as DelegatedChatModel
+
+    expect(built.lc_kwargs.model).toBe('delegated:cheap')
+    expect(built.role).toBe('coder')
+    // A refined instance is what the NEXT attempt logs, so the name has to survive the rebuild.
+    expect(built.withAttempt(1).lc_kwargs.model).toBe('delegated:cheap')
   })
 })
 
