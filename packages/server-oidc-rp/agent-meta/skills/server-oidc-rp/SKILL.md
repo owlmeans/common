@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.27"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.28"` in `dependencies`
 
 ## Key Exports
 
@@ -163,6 +163,29 @@ when that second path actually used it to resolve the client. The exchange step 
 every field it is given; a stored `entityId` that was never validated against the registered provider
 — a caller-side default or placeholder, say — makes the exchange fail with a bare `AuthenFailed()`
 even though the same default provider is trivially available again at exchange time.
+
+## Building the redirect URI: the init handler has no `url()`
+
+`init.ts` runs on the SERVER, but `DISPATCHER` (`@owlmeans/auth`) is a FRONTEND route
+(`frontend({ service: DISPATCHER })` in `@owlmeans/auth-common`'s entrypoints) — the browser page
+the identity provider redirects back to. `.url()` is attached to an entrypoint reference only by
+`@owlmeans/client-entrypoint`, for a browser context that can resolve its own address; a server
+context's `context.entrypoint(DISPATCHER)` is a `CommonEntrypoint` and has no such method. Typing
+the call as `ClientEntrypoint<string>` (which does declare `.url()`) type-checks and builds clean
+but throws at request time: `context.entrypoint(DISPATCHER).url is not a function`. This shipped
+unnoticed for a long time because it is unreachable until a caller's own OIDC login FLOW actually
+reaches the step that calls `authenticate()` — a consumer whose flow config never reaches that step
+never exercises this line, so the fault surfaces only in a fully wired application, and only on the
+very first sign-in attempt.
+
+The fix — and the pattern for anywhere else in this package (or a consumer) that needs an absolute
+URL for a route it does not own — is the one `@owlmeans/server-oidc-provider`'s interaction `url`
+callback already uses: type the reference as `CommonEntrypoint`, then compose the address from
+`.path()` and `.address()` through `makeSecurityHelper(ctx).makeUrl(entry.address(), entry.path())`
+(`@owlmeans/config`). A route with path params (this one has none) needs its own substitution
+first, the way the interaction URL substitutes `:uid` before qualifying it. Typing the reference as
+`CommonEntrypoint` rather than `ClientEntrypoint` is itself the regression guard: calling `.url()`
+on it is now a compile error, not a runtime one.
 
 ## Public type contract (isolation principle)
 
