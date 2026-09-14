@@ -92,11 +92,12 @@ browsing context the round trip can complete at all.
 | `FallbackLoginScreen`, `LoginScreenProps`, `LoginScreenComponent` | The plain sign-in screen a relying party renders when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | Where a surrogate login window opens; `null` on an older entrypoint list |
 | `resumeAction(outcome)`, `ResumeAction`, `loginAttemptError(outcome)` | The one reading of a `resume` outcome, and the one reading of a finished attempt |
+| `registerNotifier(notifier)` (on `LoginService`), `LoginNotifier` | Surfaces a `begin`/`logout` outcome that has no inline screen to render it on — e.g. a toast on `LoginOutcome.Blocked` for a header "Log in"/"Log out" control. `web-panel`'s `appendLoginScreen` registers a default; unregistered, it is silence |
 | `enterOidcAuthorization(model)` | Move a flow to the step that can authorize — idempotent, call it before every `authenticate` |
 | `adoptToken(ctx, token)`, `revokeToken(ctx)` | The single adoption and de-adoption paths |
 | `useLogin(target?)`, `useLogout(target?)` | Wiring for a sign-in / sign-out control; `target` is the entrypoint alias the flow lands on when it is over |
 | `isEmbedded`, `isSurrogate`, `markSurrogate`, `clearSurrogate`, `defaultLoginEnv` | Environment probes the host builds `LoginEnv` from |
-| `LOGIN_SERVICE`, `LOGIN_SURROGATE_NAME`, `LOGIN_TOKEN_MESSAGE`, `LOGIN_LOGOUT_MESSAGE`, `LOGIN_SURROGATE_MARKER`, `LOGIN_SURROGATE_FEATURES`, `LOGIN_WATCH_INTERVAL`, `LOGIN_INTENT_QUERY`, `LOGIN_NEXT_QUERY`, `LOGIN_METHOD_QUERY`, `LOGIN_TERMS_STORAGE`, `DEFAULT_LOGIN_PRIORITY`, `DEFAULT_METHOD_ORDER` | Aliases and the fixed cross-document wire values |
+| `LOGIN_SERVICE`, `LOGIN_SURROGATE_NAME`, `LOGIN_TOKEN_MESSAGE`, `LOGIN_LOGOUT_MESSAGE`, `LOGIN_SURROGATE_MARKER`, `LOGIN_SURROGATE_WIDTH`, `LOGIN_SURROGATE_HEIGHT`, `LOGIN_WATCH_INTERVAL`, `LOGIN_INTENT_QUERY`, `LOGIN_NEXT_QUERY`, `LOGIN_METHOD_QUERY`, `LOGIN_TERMS_STORAGE`, `DEFAULT_LOGIN_PRIORITY`, `DEFAULT_METHOD_ORDER` | Aliases and the fixed cross-document wire values. `LOGIN_SURROGATE_FEATURES` also still exports (deprecated, never centered) — `@owlmeans/web-client`'s `centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT)` is what the surrogate plugin actually opens the window with |
 
 ```typescript
 import { useLogin, useLogout } from '@owlmeans/client-auth/login'

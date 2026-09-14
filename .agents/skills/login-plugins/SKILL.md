@@ -68,7 +68,10 @@ interface LoginPlugin {
 `LoginOutcome` is what the caller acts on: `Handled` (done, do nothing), `Passed` (carry on with
 your own continuation), `Redirected` (the browser is leaving — do not render or navigate),
 `Gesture` (render a sign-in control; this cannot proceed without a fresh user gesture), `Orphaned`
-(authenticated, but with no channel back to the window that started it), `Failed`.
+(authenticated, but with no channel back to the window that started it), `Failed` (no token — the
+user closed the window, or the provider refused), `Blocked` (`window.open` returned `null`: the
+browser's own popup blocker refused the window, distinct from `Failed` because the remedy is
+different — see "Surfacing a blocked popup" below).
 
 Seven stages; `begin`, `authorize` and `complete` are required and the other four — `enter`,
 `resume`, `logout`, `logoutComplete` — are optional, **and an absent one is the ordinary-tab
@@ -200,6 +203,27 @@ replace it with a throw.
 - **A logout revokes locally even when the popup fails.** Blocked window, severed opener, user
   closing it early — none of them may leave the calling document signed in. A half-done logout is
   bad; one that did not happen at all is worse.
+- **The surrogate window is centered on the browser's own chrome, not this document's viewport.**
+  `web-client`'s `centeredPopupFeatures(width, height)` (exported from `@owlmeans/web-client`,
+  used by the surrogate plugin's two `window.open` calls) reads `screenLeft`/`screenTop` and
+  `outerWidth`/`outerHeight` — properties of the browser window itself, which stay readable from a
+  cross-origin iframe — rather than `innerWidth`/`innerHeight` or anything through `window.top`,
+  either of which would center on the IFRAME's rectangle or throw across the origin boundary.
+  Computed fresh per call, never a constant, because the browser window can move between attempts.
+
+## Surfacing a blocked popup
+
+A header "Log in"/"Log out" control (`useLogin`/`useLogout`) has no screen to render an inline
+error on — unlike the sign-in screen, which already shows `loginAttemptError(outcome)` next to its
+buttons. So `LoginService.registerNotifier(notifier)` gives it a way to speak anyway: the facade
+(`begin`/`logout`) calls the registered `LoginNotifier` with the settled outcome after every
+resolution, and a UI package reacts to whichever ones it cares about. `web-panel`'s
+`appendLoginScreen` registers one that toasts (via `sonner`) on `LoginOutcome.Blocked` specifically
+— not on `Gesture`/`Failed`/etc., since a toast that fires on every outcome trains a user to ignore
+it. Unregistered, a notifier is silence, matching a non-DOM host and matching what the sign-in
+screen already has through its own inline rendering. This is also why repeatedly clicking a "Log
+in"/"Log out" header button while framed — the second click landing on an already-open surrogate —
+now reads as `Blocked` rather than a silently swallowed no-op.
 
 ## RP-initiated provider logout is deliberately out of scope
 
