@@ -16,7 +16,7 @@ than a read by id walks the namespace. Records the product queries belong in
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-resource@^0.1.18-rc.11
+bun add @owlmeans/redis-resource@^0.1.18-rc.21
 ```
 
 `ioredis` and `ajv` are peer dependencies. The connection service comes from
@@ -228,7 +228,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.20
+npx @owlmeans/agent-skills@^0.1.18-rc.21
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

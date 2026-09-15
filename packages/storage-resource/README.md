@@ -14,7 +14,7 @@ S3-compatible object storage resource for OwlMeans server applications.
 ## Installation
 
 ```bash
-bun add @owlmeans/storage-resource@^0.1.18-rc.11
+bun add @owlmeans/storage-resource@^0.1.18-rc.21
 ```
 
 ## Usage
@@ -102,7 +102,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.20
+npx @owlmeans/agent-skills@^0.1.18-rc.21
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -225,7 +225,13 @@ troubleshooting section for the shadow-copy failure that a half-updated tree pro
 `bump-deps.ts --consumers-of common` sweeps the right set in one command: `internal`,
 `viable-agent` and `viable`, plus the two template trees that belong to no workspace (the
 viable-agent template and this repo's `create-app` template). `--check` on the same command exits
-11 listing any pin that still disagrees, and is the proof the sweep is complete.
+11 listing any pin that still disagrees, and is the proof the sweep is complete. The sweep rewrites
+`overrides`/`resolutions` entries too, not only the four dependency blocks — refreshed to the
+current version while keeping each entry's OWN operator (exact stays exact, `^`/`~` stay as
+written), since an override forces one resolved version onto the whole tree and its author already
+chose that operator on purpose. A template root override left exact and unswept is exactly the
+failure mode this closes: it goes unsatisfiable the moment a sibling dependency range moves past
+it, which built cleanly here and only failed inside a freshly staged target.
 
 ### `Published N/N` is not "installable yet"
 

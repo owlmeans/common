@@ -66,7 +66,7 @@ in a design, a slot or a connector schema:
   provider or a collection validator.
 
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.1` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.10` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
