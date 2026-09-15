@@ -37,6 +37,24 @@ export const serverBindings = [
 any protocol and receives all its typed sections plus request metadata. A successful callback
 return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejects it.
 
+## Wrap exactly once
+
+A handler is wrapped by `handlers<Context>()` exactly once — either shape above (create the bound
+handler and bind it directly) is correct on its own. Never combine them: a handler module that
+already exports a bound handler must be bound directly, not wrapped again where it is bound.
+
+```ts
+// WRONG — bound once in the handler module, wrapped a second time here
+export const create = api.body(projectProtocols.create, async (body, context) => ...)
+bind(projectProtocols.create, api.body(projectProtocols.create, create))
+```
+
+`tsc` rejects the double wrap (`TS2345 "Argument of type 'BoundEntrypointHandler<…>' is not
+assignable"`). At runtime, `body`/`params`/`request` return an already-bound handler for the SAME
+protocol unchanged, with a one-time warning; anything else that is not a plain function fails only
+that one route with `HandlerMisconfiguredError`, instead of the opaque
+`TypeError: handler is not a function`.
+
 `uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
 than reaching through `request.original` in application code.
 

@@ -108,7 +108,8 @@ them, and each has a sentinel comment marking where a new line goes:
 
 - \`sources/common/src/consts.ts\` — the \`app\` alias tree.
 - \`sources/common/src/entrypoints.ts\` — the shared immutable protocol tree (\`appEntrypoints\`).
-- \`sources/api/src/entrypoints.ts\` — server bindings (\`bind\` + \`handlers<Context>()\`).
+- \`sources/api/src/entrypoints.ts\` — server bindings: \`bind\` + one \`handlers<Context>()\` wrap
+  per handler.
 - \`sources/web/src/entrypoints.ts\` — client bindings (\`bindAll\` + \`bindScreen\`).
 - \`sources/worker/src/entrypoints.ts\` — job bindings (\`bind\`).
 - \`sources/web/src/nav.ts\` — the navigation registry: one line per screen, which
@@ -702,7 +703,7 @@ It declares the alias and the hooks that READ it, and nothing else:
     import { useStoreList, useStoreModel } from '@owlmeans/client'
     import { useContext } from '@owlmeans/web-client'
     import type { Criteria } from '@owlmeans/resource'
-    import type { Task } from 'project-common/models/task/task.type.js'
+    import type { Task } from 'project-common/models/task/task'
 
     export const TASK_STATE = 'task-state'
 
@@ -982,7 +983,7 @@ Write this instead, and let the route handler import the function directly:
     export const getSummary = async (ctx: BasicContext<BasicConfig>, guestId: string) => { ... }
 
     // RIGHT — sources/api/src/app/dashboard/activity.ts
-    import { getSummary } from 'project-backend/models/dashboard/activity.js'
+    import { getSummary } from 'project-backend/models/dashboard/activity'
     const summary = await getSummary(ctx, guestId)
 
 Do not create a service just to hold functions.
@@ -1101,36 +1102,42 @@ There is NO express here. \`express\`, \`cors\` and \`@types/express\` are not i
 no \`app.get(...)\`, no \`req\`/\`res\` of a web server, no \`next\`, and no middleware. Anything
 written for express fails to resolve.
 
-A handler is a plain async function that RETURNS its result, created from the protocol with a
-typed helper from \`@owlmeans/server-api\`. Pick by what the handler reads:
+A handler is a PLAIN exported async function that RETURNS its result — named exports only, one
+file per entity: \`sources/api/src/app/<entity>/<action>.ts\`. It NEVER imports \`handlers\` and
+NEVER calls \`handlers<Context>()\`; that belongs only in the file that BINDS it:
+
+    // sources/api/src/app/task/create.ts — the handler module
+    export const handleTaskCreate = async (payload: TaskCreatePayload, ctx: Context) => {
+      const tasks = getTaskResource(ctx)
+      return await tasks.create(payload)
+    }
+
+sources/api/src/entrypoints.ts wraps that export EXACTLY ONCE, choosing the helper by what the
+protocol carries — the request BODY → \`api.body\`, route PARAMS (the ':' segments of the declared
+path) → \`api.params\`, anything else (query, headers, nothing at all) → \`api.request\`:
 
     import { handlers } from '@owlmeans/server-api'
     import { bind } from '@owlmeans/server-entrypoint'
     import { protocols } from 'project-common/entrypoints'
+    import { handleTaskCreate } from '@/app/task/create.js'
     const api = handlers<Context>()
 
-    // the request BODY — the payload type comes from the protocol contract
-    const createTask = api.body(protocols.api.task.create, async (payload, ctx) => {
+    export const entrypoints = [
+      bind(protocols.api.task.create, api.body(protocols.api.task.create, handleTaskCreate)),
+    ]
+
+WRONG — the handler module ALSO calls \`handlers()\` and wraps itself, so the export bound above is
+wrapped a SECOND time. \`tsc\` catches it: \`TS2345 "Argument of type 'BoundEntrypointHandler<…>' is
+not assignable"\`. Left unfixed, the build stays clean anyway if nothing runs \`tsc\` on this
+package, and every request to the route then fails with \`TypeError: handler is not a function\`
+(\`execute is not a function\` for \`.request\`) — an endpoint that "completed" and answers nothing:
+
+    // WRONG — sources/api/src/app/task/create.ts
+    const api = handlers<Context>()
+    export const handleTaskCreate = api.body(protocols.api.task.create, async (payload, ctx) => {
       const tasks = getTaskResource(ctx)
       return await tasks.create(payload)
     })
-
-    // the route PARAMS — names match the ':' segments of the declared path
-    const getTask = api.params(protocols.api.task.get, async ({ taskId }, ctx) => {
-      return await tasks(ctx).load(taskId)
-    })
-
-    // anything else (query, headers, nothing at all) — the whole request
-    const listTasks = api.request(protocols.api.task.list, async (req, ctx) => {
-      const query = req.query as { search?: string }
-      return await tasks(ctx).list(query.search != null ? { search: query.search } : {})
-    })
-
-    export const entrypoints = [
-      bind(protocols.api.task.create, createTask),
-      bind(protocols.api.task.get, getTask),
-      bind(protocols.api.task.list, listTasks),
-    ]
 
 - The SECOND argument is the OwlMeans context. Reach every resource through it — never
   import a database connection and never write raw SQL in a handler.
@@ -1141,9 +1148,9 @@ typed helper from \`@owlmeans/server-api\`. Pick by what the handler reads:
   200 carrying an error object instead.
 - Never read a token, never check a role, never look at an \`Authorization\` header. Access is
   declared on the protocol (\`guards\` / \`gate\` options) and enforced before the handler runs.
-- A handler is inert until a \`bind(protocols.api.<name>, handler)\` line in
-  \`sources/api/src/entrypoints.ts\` binds it to its protocol. Without that line the endpoint
-  answers 404 and nothing reports an error.
+- A handler is inert until the \`bind(protocols.api.<name>, api.body/params/request(protocols.api.<name>, handler))\`
+  line in \`sources/api/src/entrypoints.ts\` binds it to its protocol. Without that line the
+  endpoint answers 404 and nothing reports an error.
 - Handlers are ENTITY-SCOPED: \`sources/api/src/app/<entity>/<action>.ts\`, named exports only.
   The directory is what keeps two entities' \`list\` apart — the file name carries no marker.
 `),
@@ -1169,6 +1176,21 @@ says before rewriting anything.
   its \`.js\` suffix — \`'../../resources/task/task.js'\`. Adding, removing or changing the
   extension on the alias fixes nothing and the same error comes back under the other spelling;
   two attempts that differ only in the suffix mean you are in this case.
+- **"Cannot find module 'project-common/…' or 'project-backend/…'" is almost always the
+  extension, not the path.** These two are PACKAGES, resolved through their published
+  \`exports\` map, and a deep import into either carries NO suffix — no \`.js\`, no \`.ts\`, no
+  \`.type\`. \`project-backend/models/enquiry/enquiry.js\` resolves to a file
+  (\`build/models/enquiry/enquiry.js.js\`) that can never exist; drop the extension entirely.
+  This is unrelated to the \`sources/backend/\` bullet above it: that one is the SAME package
+  importing itself and keeps \`.js\`; this one is a DIFFERENT package importing it by name.
+- **\`TS2345\` naming \`BoundEntrypointHandler\` at a \`bind(...)\` line in
+  \`sources/api/src/entrypoints.ts\` or \`sources/worker/src/entrypoints.ts\` is a handler wrapped
+  TWICE** — the handler module already exported a bound handler, and this line wraps it again
+  with \`.body\`/\`.params\`/\`.request\`. Bind the already-bound export DIRECTLY
+  (\`bind(protocol, handler)\`, no wrapper) — never cast around the type error, and never touch the
+  handler module. Left as a type error, this is also the runtime fingerprint of the same defect:
+  a story reported \`completed\` whose every request to that route fails with
+  \`TypeError: handler is not a function\` (\`execute is not a function\` for \`.request\`).
 - "Cannot find module" for \`postgres\`, \`@/lib/db.js\` or \`@/db/schema/...\` inside a
   \`resources/**\` file means the file was written against the REMOVED Drizzle-DDL layout.
   Rewrite it as an OwlMeans resource: an AJV schema on \`resource.schema\`, built with
@@ -1203,8 +1225,8 @@ says before rewriting anything.
   \`@reduxjs/toolkit\`, \`react-redux\`, \`@/state/store\` or \`@/lib/fetch\` means the file was
   written against the REMOVED stack. None of those packages are installed and none will be.
   Rewrite the file against entrypoints: \`useNavigate\` from \`@owlmeans/client\` for navigation,
-  \`ctx.entrypoint(protocol).call(...)\` for a backend call, a typed
-  \`handlers<Context>()\` callback bound to its protocol for an endpoint, and the state hooks
+  \`ctx.entrypoint(protocol).call(...)\` for a backend call, a plain exported handler wrapped ONCE
+  where it is bound for an endpoint (see "Writing an endpoint handler"), and the state hooks
   (\`useStoreModel\`/\`useStoreList\` over a state resource) for client state. Do NOT install the
   package and do NOT create the missing module.
 - A missing export from a \`*.ts\` module — a selector, an action creator, a thunk, a
@@ -1389,9 +1411,29 @@ The job's name IS its entrypoint alias. Declare \`app.job.<name>\` in \`consts.t
 sentinel, and the protocol in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
 
 ## 3. The processor — \`sources/worker/src/jobs/<name>.ts\`
-A plain async function created with \`handlers<Context>()\` and bound to the job protocol, exactly
-like an endpoint handler. It RETURNS its result; throwing a \`ResilientError\` subclass is how a
-refusal is reported, and the class survives the broker.
+A PLAIN exported async function — named exports only, exactly like an endpoint handler. It never
+imports \`handlers\` and never calls \`handlers<Context>()\`; that belongs only in
+\`sources/worker/src/entrypoints.ts\`, which wraps it EXACTLY ONCE when binding it:
+
+    // sources/worker/src/jobs/report-build.ts — the processor module
+    export const handleReportBuildJob = async (req: ReportBuildRequest, ctx: Context) => { ... }
+
+    // sources/worker/src/entrypoints.ts — the ONLY wrap
+    import * as jobs from '@/jobs/index.js'
+    const worker = handlers<Context>()
+    bind(protocols.job.reportBuild, worker.request(protocols.job.reportBuild, jobs.handleReportBuildJob))
+
+WRONG — the processor module ALSO calls \`handlers()\` and wraps itself, so the export bound above
+is wrapped a SECOND time. \`tsc\` catches it (\`TS2345 "BoundEntrypointHandler<…> is not
+assignable"\`); left unfixed, every enqueued job then fails with \`TypeError: handler is not a
+function\`:
+
+    // WRONG — sources/worker/src/jobs/report-build.ts
+    const worker = handlers<Context>()
+    export const handleReportBuildJob = worker.request(protocols.job.reportBuild, async (req, ctx) => { ... })
+
+It RETURNS its result; throwing a \`ResilientError\` subclass is how a refusal is reported, and the
+class survives the broker.
 
 Two rules with no equivalent on the HTTP side:
 - **Call \`job.touch()\` inside every long loop.** The broker judges liveness by the lock, and
@@ -1400,8 +1442,8 @@ Two rules with no equivalent on the HTTP side:
 - **A processor must be safe to run twice.** Skip what a previous attempt recorded, or delete
   what it created, and say in a comment which of the two this one does.
 
-Bind it in \`sources/worker/src/entrypoints.ts\` above the sentinel. Enqueue from an endpoint
-with the same typed call used for HTTP: \`context.entrypoint(appEntrypoints.job.<name>).call({ body: data })\`.
+Enqueue from an endpoint with the same typed call used for HTTP:
+\`context.entrypoint(appEntrypoints.job.<name>).call({ body: data })\`.
   `),
 
   skill(ViableSkill.TargetAgents, 'LLM agents inside the application', `

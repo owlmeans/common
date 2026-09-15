@@ -28,5 +28,11 @@ export const serverBindings = [
 `protocol`, and a collection is matched by object identity; an alias is never used to find or
 replace it. HTTP code should use `handlers<Context>()`; sockets use `connection(protocol, callback)`.
 
+The second argument is either a protocol-bound handler (from `handlers<Context>()` above, or a
+library factory that returns one) or omitted entirely for a parent route. A plain callback passed
+directly to `bind()` is NOT the same thing: it is treated as a ref handler and invoked once, at
+bind time, with the entrypoint ref as its only argument — not per-request. Wrap it with
+`handlers<Context>()` first.
+
 Do not create a mutable contextual declaration, use a compatibility entrypoint type, or attach a
 handler with an alias. The declaration is shared data; the binding is its server-local runtime.

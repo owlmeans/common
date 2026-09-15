@@ -183,6 +183,13 @@ code does not need it.
   multipart boundary.
 - Prefer `handlers<Context>()` over the unbound `handle*` wrappers, and never hand-write a
   `RefedEntrypointHandler` for an HTTP route.
+- A handler is wrapped by `handlers<Context>()` **exactly once**: wrap a plain function where it is
+  bound (`bind(p, api.body(p, create))`), or bind the already-bound export directly
+  (`const create = api.body(p, ...)` then `bind(p, create)`) — never both. `tsc` rejects a double
+  wrap (`TS2345 "BoundEntrypointHandler<…> is not assignable"`); at runtime a handler already bound
+  to the SAME protocol is returned unchanged with a one-time console warning, and anything else that
+  is not a plain function fails that one route with `HandlerMisconfiguredError` instead of the
+  opaque `TypeError: handler is not a function`.
 - A guard only authenticates. Gates authorize, and the handler keeps its organization check keyed on
   `requireEntityKey(request)` — never an id read from the token.
 - `request.entity` is absent when no entity resolver is registered; `requireEntityKey` falls back to

@@ -121,7 +121,11 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
     for (const cwd of libraryPaths(root)) {
       const error = await runTargetScript('build', cwd)
       if (error != null) {
-        return error
+        // The publisher's own `buildLibraries` leaves this marker on a library build failure;
+        // matching it here is what lets `anchorDiagnostics` tell a library failure apart from a
+        // subsequent `validate()` on the caller's own subproject, whether the fixer ran against a
+        // slot or a local connector target — both report a bare `src/...` path otherwise.
+        return `${error}\nexit 1: bun run build (${p.basename(cwd)})`
       }
     }
 
@@ -191,11 +195,21 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
         return libraries
       }
 
+      // The same missing-cwd trap `runTargetScript` already refuses for a build — a role a
+      // recorded topology never mapped, or an empty/v1 tree — but `validate` spawns directly and
+      // had no such guard, so it answered `ENOENT … '/bin/sh'` about a package that was simply
+      // never there.
+      const cwd = fileHelper.getRootPath(subprojectOverride ?? subproject)
+      if (!await fs.pathExists(cwd)) {
+        return `validate cannot run: ${cwd} does not exist — the target project was never initialized in this directory`
+      }
+
       // The diagnostics are on stdout; `tsc`'s stderr is about the compiler, not about the code.
-      return await runCommand('bunx tsc --noEmit', {
-        cwd: fileHelper.getRootPath(subprojectOverride ?? subproject),
-        stdoutOnly: true,
-      })
+      // A crash or a killed process can leave `stdout` empty on failure — falsy, but not `null` —
+      // and a fixer reading that as a diagnostic with nothing to repair loops on it forever.
+      const result = await runCommand('bunx tsc --noEmit', { cwd, stdoutOnly: true })
+
+      return result === '' ? `validate: tsc produced no output for ${cwd}` : result
     },
 
     /** The buildability check for the UI: the browser bundle really built, or the reason it did not. */
