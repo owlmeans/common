@@ -68,7 +68,22 @@ registry that holds them is [[context]].
   `EntrypointTransport { protocol, handle }` takes the call; HTTP carries it when no such service
   is registered. Consumers write `ep.call(...)` either way and learn nothing about the carrier.
 
+- `Object.freeze` on an exported protocol tree is a manual template/application convention, not
+  something `protocol()`/`contract()`/`openProtocol()` enforce themselves. An application's
+  `entrypoints.ts` is expected to export `appProtocols` (and each of its top-level members) wrapped
+  in `Object.freeze(...)` — one freeze per member plus the outer tree — but the library does not
+  freeze on your behalf, so a hand-rolled tree that skips it still compiles and runs; it is a
+  convention to copy from a known-good template (viable-agent's scaffold, `create-app`'s own
+  template), not something the type system catches.
+
 ## Gotchas
+
+- A package's OWN `parent`-accepting option can lag the library's `RouteParent` (`string |
+  EntrypointReference`, `@owlmeans/route`) even after the rest of the codebase has moved to passing
+  a protocol object. `@owlmeans/auth-token`'s `AuthTokenEntrypointOptions.parent` was still typed
+  bare `string`, forcing every caller to pass `someProtocol.alias` instead of `someProtocol` — the
+  fix is widening that option's own type to `RouteParent`, not adding `.alias` at more call sites.
+  Check a helper's own option types before assuming a `.alias` extraction is required.
 
 - `package.json` top-level `"module"` field and the `exports` `"module"` condition are bundler
   fields — a find/replace on "module" must never touch them.
