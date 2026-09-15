@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/llm-delegate",
-  "version": "0.1.18-rc.9",
-  "generatedAt": "2026-09-15T12:21:31.949Z",
+  "version": "0.1.18-rc.13",
+  "generatedAt": "2026-09-15T13:19:14.373Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

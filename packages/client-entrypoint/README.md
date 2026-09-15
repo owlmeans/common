@@ -10,7 +10,7 @@ re-exports of `@owlmeans/web-client` or `@owlmeans/web-panel`. Protocols are dec
 ## Installation
 
 ```bash
-bun add @owlmeans/client-entrypoint@^0.1.18-rc.21
+bun add @owlmeans/client-entrypoint@^0.1.18-rc.24
 ```
 
 ## Concepts
@@ -204,7 +204,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.21
+npx @owlmeans/agent-skills@^0.1.18-rc.27
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

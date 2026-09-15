@@ -12,7 +12,7 @@ Server-side route model factory and request matcher for the Fastify integration 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-route@^0.1.18-rc.18
+bun add @owlmeans/server-route@^0.1.18-rc.19
 ```
 
 ## Usage
@@ -68,7 +68,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.21
+npx @owlmeans/agent-skills@^0.1.18-rc.27
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

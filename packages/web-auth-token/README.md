@@ -14,7 +14,7 @@ and its translations. The contracts it is written against live in `@owlmeans/aut
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth-token@^0.1.18-rc.9
+bun add @owlmeans/web-auth-token@^0.1.18-rc.11
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -73,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.21
+npx @owlmeans/agent-skills@^0.1.18-rc.27
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -6,7 +6,7 @@ description: Bind OwlMeans socket protocol declarations to Fastify WebSocket han
 
 # Socket protocol handlers
 
-**Install:** `bun add @owlmeans/server-socket@^0.1.18-rc.27`
+**Install:** `bun add @owlmeans/server-socket@^0.1.18-rc.30`
 
 Declare a socket route and its contract in the shared protocol package. Bind it on the server with
 `connection()` and `bind()`.

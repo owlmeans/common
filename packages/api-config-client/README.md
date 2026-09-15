@@ -11,7 +11,7 @@ Client-side middleware that fetches server config from `GET /assets/config.json`
 ## Installation
 
 ```bash
-bun add @owlmeans/api-config-client@^0.1.18-rc.21
+bun add @owlmeans/api-config-client@^0.1.18-rc.24
 ```
 
 ## Usage
@@ -48,7 +48,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.21
+npx @owlmeans/agent-skills@^0.1.18-rc.27
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

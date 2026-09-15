@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.20` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.23` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -248,7 +248,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.20
+npx @owlmeans/agent-skills@^0.1.18-rc.23
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated

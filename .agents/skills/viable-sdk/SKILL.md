@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.10"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.12"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`) — every name on the
 wire is declared there, so the SDK and the platform cannot spell one differently.

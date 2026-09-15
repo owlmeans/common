@@ -37,7 +37,7 @@ Comprehensive error handling for authentication scenarios:
 This manager is part of the `@owlmeans/client-auth` package:
 
 ```bash
-npm install @owlmeans/client-auth@^0.1.18-rc.30
+npm install @owlmeans/client-auth@^0.1.18-rc.31
 ```
 
 ## API Reference
