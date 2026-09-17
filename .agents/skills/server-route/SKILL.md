@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-route
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-route": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/server-route": "^0.1.18-rc.25"` in `dependencies`
 
 ## Key Exports
 

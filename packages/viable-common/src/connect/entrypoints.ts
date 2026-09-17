@@ -9,15 +9,13 @@ import {
   ConnectJobParamsSchema, ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectIdSchema,
   ConnectProjectLlmBodySchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema,
-  ConnectStoryBodySchema, ConnectStoryParamsSchema, ConnectStoryQuerySchema, ConnectWaitQuerySchema,
-  InquiryAnswerSchema,
+  ConnectWaitQuerySchema, InquiryAnswerSchema,
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
   ConnectCreateBody, ConnectInquiryAnswerBody, ConnectJob, ConnectJobParams, ConnectModifyBody,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSessionOpen,
-  ConnectSessionParams, ConnectStoryBody, ConnectStoryQuery, ConnectWaitQuery, ConversionStatusView,
-  ConvertCheck,
+  ConnectSessionParams, ConnectWaitQuery, ConversionStatusView, ConvertCheck,
 } from './types.js'
 import type { ConnectOpResult } from './ops.js'
 import type { ConverterProjectLlmBody } from '../convert/types.js'
@@ -194,43 +192,6 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         parent: base, method: RouteMethod.GET
       }),
       contract.request({ params: typed<ConnectJobParams>(ConnectJobParamsSchema), query: typed<ConnectWaitQuery>(ConnectWaitQuerySchema) }, typed())
-    ),
-
-    },
-
-    // --- stories ---------------------------------------------------------------------------
-    story: {
-    list: protocol(
-      route(connect.story.list, '/story/:id', { parent: base, method: RouteMethod.GET }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), query: typed<ConnectStoryQuery>(ConnectStoryQuerySchema) }, typed())
-    ),
-    create: protocol(
-      route(connect.story.create, '/story/:id', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectStoryBody>(ConnectStoryBodySchema) }, typed())
-    ),
-    get: protocol(
-      route(connect.story.get, '/story/:id/:storyId', {
-        parent: base, method: RouteMethod.GET
-      }),
-      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
-    ),
-    update: protocol(
-      route(connect.story.update, '/story/:id/:storyId', {
-        parent: base, method: RouteMethod.PUT
-      }),
-      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema), body: typed<ConnectStoryBody>(ConnectStoryBodySchema) }, typed())
-    ),
-    delete: protocol(
-      route(connect.story.delete, '/story/:id/:storyId', {
-        parent: base, method: RouteMethod.DELETE
-      }),
-      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
-    ),
-    develop: protocol(
-      route(connect.story.develop, '/story/:id/:storyId/develop', {
-        parent: base, method: RouteMethod.POST
-      }),
-      contract.request({ params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema) }, typed())
     ),
 
     },

@@ -142,10 +142,15 @@ When you do queue ([[queue]], driver [[redis-queue]]):
   successors: children complete before the parent runs and it reads their results through
   `children()`. Give the children of a cross-queue flow distinct ids.
 
-**There is no scheduler in the framework.** `JobOptions.delay` defers one job once; anything
-recurring — a nightly digest, an hourly reconciliation — is triggered from outside the process by
-a platform cron (a Kubernetes `CronJob` in a [[kluster]] deployment) that calls a normal entrypoint
-or enqueues a job. Do not simulate cron with a self-re-enqueueing job.
+**Recurring work is a schedule.** `JobOptions.delay` defers one job once; anything recurring — a
+nightly digest, an hourly reconciliation — is `declareSchedule(cfg, { id, queue, name, every |
+pattern })` in the shared package plus a processor registered for that job name
+([[scheduled-jobs]]). Every worker that listens to the queue keeps the broker's schedulers in line
+with the declarations, so adding, changing and deleting a schedule is a code change. A scheduled
+run is a processor job, never a guarded entrypoint call. Reach for a platform cron (a Kubernetes
+`CronJob` in a [[kluster]] deployment) calling an entrypoint only when no worker may be running:
+the broker produces a schedule's next run only while a process consumes its queue. Never simulate
+cron with a self-re-enqueueing job.
 
 ## Model-driven work
 
@@ -188,7 +193,7 @@ the matching `@owlmeans/*-resource` package, `state` and `config` the packages o
 | Settings / feature flags per organization entity | postgres | Few rows, read constantly, always by `entityId` — cache in Redis only after measuring, and only if a stale read is harmless. |
 | Search over the product's own records | postgres | Start with indexed columns and `jsonb` containment; move to a search engine when a measured query, not a guess, says so. |
 | Expensive aggregate on a dashboard | postgres, then redis | Compute it in SQL first. Cache in Redis with a TTL only once the measured query is genuinely slow — a miss must stay invisible. |
-| Analytics rollups | postgres + queue | The rollup is a scheduled batch write into its own table; the trigger is a platform cron, the work is a job because it survives restarts. |
+| Analytics rollups | postgres + queue schedule | The rollup is a batch write into its own table; a declared schedule produces the run and a processor does it, surviving restarts. |
 | Leaderboard | postgres, redis if hot | A ranked query with an index is enough for most products; move the live top-N into a Redis counter set when it is read far more often than written. |
 | Invoice numbering | postgres | A gapless sequence is a transaction and a unique constraint, not a Redis counter — a lost increment is an accounting problem. |
 | Records the process was started with (plugins, seeded routes) | config | Already in `cfg`; reading them as a resource gives criteria and sorting without a second store, and every write is refused by design. |
@@ -237,10 +242,11 @@ the matching `@owlmeans/*-resource` package, `state` and `config` the packages o
 | Bulk email | queue | Thousands of provider calls, each retried independently; one bad address must not fail the batch. |
 | Transactional email (one recipient, one event) | inline | A single provider call inside the request; queue it only if the send is on a user's critical path and the provider is slow. |
 | Payment capture | queue with idempotent job ids | Retried against a third party, must survive a restart, must never double-charge — derive the job id from the payment. |
-| Third-party sync / reconciliation | queue, triggered by platform cron | Recurring, long, retried; the framework has no scheduler, so a `CronJob` enqueues it. |
+| Third-party sync / reconciliation | queue schedule | Recurring, long, retried; a pattern schedule on a low-concurrency queue, and the processor re-reads the third party as the truth so a re-run is harmless. |
 | Webhook fan-out | queue, one job per subscriber | Per-endpoint retries and backoff; a slow subscriber must not delay the others. |
-| Scheduled digest | queue, triggered by platform cron | Same shape as any recurring batch — cron enqueues, the worker sends. |
-| Scheduled reminders | postgres row + cron sweep, or `JobOptions.delay` | Use `delay` for a one-shot minutes-away nudge; anything cancellable or far in the future is a row a periodic sweep picks up. |
+| Scheduled digest | queue schedule | Same shape as any recurring batch — the schedule produces the run, the worker sends. |
+| Scheduled reminders | postgres row + scheduled sweep, or `JobOptions.delay` | Use `delay` for a one-shot minutes-away nudge; anything cancellable or far in the future is a row a scheduled sweep picks up. |
+| Recurring job where no worker process runs | platform `CronJob` calling an entrypoint | A schedule needs a consumer; a deployment with none triggers from outside and goes through the entrypoint's guards. |
 | Inbound webhook handling | inline ack, queue the work | Answer 2xx immediately, then process — a third party's retry policy is not a design input for your handler. |
 | Cache warmup after a deploy | queue, or nothing | Usually not worth it: let the first requests populate the cache unless a measured cold-start hurts. |
 
@@ -258,7 +264,8 @@ the matching `@owlmeans/*-resource` package, `state` and `config` the packages o
 
 - [[resource]] — the contract every option implements, and the criteria language they share
 - [[postgres-resource]], [[mongo-resource]], [[redis-resource]], [[static-resource]],
-  [[state]], [[client-resource]], [[web-db]], [[config]], [[storage-resource]] — the backends
+  [[state]], [[client-resource]], [[web-db]], [[owlmeans-config]], [[storage-resource]] — the backends
 - [[queue]], [[redis-queue]] — job queues and the worker process
+- [[scheduled-jobs]] — recurring work on a queue schedule
 - [[llm]], [[agent]] — model-driven work
 - [[reuse-code]] — find the `@owlmeans/*` package before designing anything new

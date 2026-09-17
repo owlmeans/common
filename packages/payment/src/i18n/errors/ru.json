@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Не удалось выполнить платёж",
+  "PaymentErrorPaygate": "Платёжный провайдер не смог выполнить запрос",
+  "PaymentErrorPaygateUnknown": "Этот платёжный провайдер не поддерживается",
+  "PaymentErrorPaygateMapping": "Не удалось сопоставить данные платёжного провайдера",
+  "PaymentErrorPaygateWebhookSetup": "Уведомления о платежах не настроены",
+  "PaymentErrorPaygatePortalUnavailable": "Управление оплатой для этого аккаунта пока недоступно",
+  "PaymentErrorProduct": "Этот продукт недоступен",
+  "PaymentErrorProductUnknown": "Этот продукт не существует",
+  "PaymentErrorProductPlan": "Этот тариф не существует",
+  "PaymentErrorProductPlanRequired": "Для этого аккаунта нет доступного тарифа",
+  "PaymentErrorProductPlanRankConflict": "Тарифы настроены несогласованно",
+  "PaymentErrorProductLimitUnknown": "Этот лимит не входит в тариф",
+  "PaymentErrorProductLimitMisdeclared": "Лимиты тарифа настроены неверно",
+  "PaymentErrorIdentification": "Не удалось определить плательщика — войдите и попробуйте снова",
+  "PaymentErrorSubscription": "Не удалось обновить подписку",
+  "PaymentErrorSubscriptionUnknown": "Эта подписка не существует",
+  "EntitlementRefusal": "Ваш тариф этого не позволяет",
+  "EntitlementRefusalCapabilityRequired": "Эта функция не входит в ваш тариф",
+  "EntitlementRefusalLimitExhausted": "Достигнут лимит вашего тарифа"
+}

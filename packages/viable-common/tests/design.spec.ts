@@ -4,7 +4,7 @@ import { ProjectArea } from '../src/areas/consts.js'
 import { SpecCategory } from '../src/ba/consts.js'
 import {
   DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, designHash, designStaleness,
-  emptyStoryDesign, screenMapOf, userStoryOf,
+  emptyStoryDesign, screenMapOf, userStoryOfDesign,
 } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
@@ -45,7 +45,7 @@ describe('viable-common - the design aggregate', () => {
   test('derives the UserStory the coders take, carrying the story code', () => {
     // The scaffold stamps every placeholder it draws with the code, so a run keyed by anything
     // else cannot recognise its own reservation.
-    const story = userStoryOf(withScreens())
+    const story = userStoryOfDesign(withScreens())
 
     expect(story.code).toBe('US-ABC12')
     expect(story.area).toBe(ProjectArea.User)
@@ -60,7 +60,7 @@ describe('viable-common - the design aggregate', () => {
     const broken = withScreens()
     broken.screens[0].components = ['BookingList', 'Ghost']
 
-    expect(userStoryOf(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
+    expect(userStoryOfDesign(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
   })
 
   test('screenMapOf is the shape every UX and UI prompt takes', () => {

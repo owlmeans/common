@@ -11,6 +11,8 @@ export class ConnectError extends ResilientError {
 /** No session with that id, or it belongs to another profile. */
 export class ConnectSessionNotFound extends ConnectError {
   public static override typeName = `SessionNotFound${ConnectError.typeName}`
+  /** The addressed session is absent or another profile's: answered 404. */
+  public static httpStatus = 404
 
   constructor(message: string = 'error') {
     super(`session-not-found:${message}`)
@@ -29,6 +31,8 @@ export class ConnectSessionNotFound extends ConnectError {
  */
 export class ConnectSessionGone extends ConnectError {
   public static override typeName = `SessionGone${ConnectError.typeName}`
+  /** The project has no connector attached: answered 409. */
+  public static httpStatus = 409
 
   constructor(message: string = 'error') {
     super(`session-gone:${message}`)
@@ -49,6 +53,8 @@ export class ConnectOpTimeout extends ConnectError {
 /** The connector executed the operation and refused it — a path outside the project, say. */
 export class ConnectOpRefused extends ConnectError {
   public static override typeName = `OpRefused${ConnectError.typeName}`
+  /** The connector refused the operation it was handed: answered 422. */
+  public static httpStatus = 422
 
   constructor(message: string = 'error') {
     super(`op-refused:${message}`)
@@ -65,6 +71,8 @@ export class ConnectOpRefused extends ConnectError {
  */
 export class LocalSlotUnsupported extends ConnectError {
   public static override typeName = `LocalUnsupported${ConnectError.typeName}`
+  /** The project's local target cannot serve the operation: answered 409. */
+  public static httpStatus = 409
 
   constructor(message: string = 'error') {
     super(`local-unsupported:${message}`)
@@ -75,6 +83,8 @@ export class LocalSlotUnsupported extends ConnectError {
 /** The op id is unknown, already answered, or belongs to another session. */
 export class ConnectOpUnknown extends ConnectError {
   public static override typeName = `OpUnknown${ConnectError.typeName}`
+  /** The addressed operation is absent, answered or another session's: answered 404. */
+  public static httpStatus = 404
 
   constructor(message: string = 'error') {
     super(`op-unknown:${message}`)
@@ -92,6 +102,8 @@ export class ConnectOpUnknown extends ConnectError {
  */
 export class ConnectOutOfCredits extends ConnectError {
   public static override typeName = `OutOfCredits${ConnectError.typeName}`
+  /** The organization's balance, not a fault: answered 402. */
+  public static httpStatus = 402
 
   public gate = ''
   public requiredUsd = 0

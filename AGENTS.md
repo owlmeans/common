@@ -90,14 +90,14 @@ When working on a package, identify its layer: **Core → Server/Client → Web*
 - **Configuration & tooling**: `dep-config` (shared TypeScript configs), `agent-skills` (the skills installer CLI), `create-app` (the scaffolder)
 - **Core**: `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*`
 - **Auth shared / API plumbing**: `auth-common`, `api`, `api-config`, `api-config-client`, `api-config-server`
-- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-payment`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
-- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-resource`, `client-route`, `client-socket`, `client-wl`; `client-iam` carries the prefix but depends on `web-client`, so it is browser-only
+- **Server**: `server-api`, `server-app`, `server-auth`, `server-auth-identity`, `server-auth-otp`, `server-config`, `server-context`, `server-entrypoint`, `server-iam`, `server-job`, `server-payment`, `server-planning`, `server-route`, `server-socket`, `server-oidc-*`, `server-wl`
+- **Client** (platform-agnostic): `client`, `client-auth`, `client-config`, `client-context`, `client-did`, `client-flow`, `client-i18n`, `client-entrypoint`, `client-job`, `client-panel`, `client-payment`, `client-planning`, `client-resource`, `client-route`, `client-socket`, `client-wl`; `client-iam` carries the prefix but depends on `web-client`, so it is browser-only
 - **Web** (React): `web-client`, `web-router`, `web-router-react-router`, `web-panel`, `web-auth`, `web-db`, `web-flow`, `web-oidc-*`, `web-payment`, `web-wl`, `web-consent`, `web-gtm` — the current browser family: shadcn UI + Tailwind v4 over `client-panel`, using the `@` app-provides contract (see `shadcn-web` skill). `astro` carries the same consent and tag-manager strings into a static Astro site. `mui-panel` and `mui-oidc-rp` are the LEGACY MUI v7 family — maintain the apps already on them, start nothing new there
 - **Native** (React Native): moved to the `native` monorepo — `native-client`, `native-router`, `native-panel`, `native-db`
 - **Infrastructure**: `kluster` (Kubernetes), `mongo`, `mongo-resource`, `postgres`, `postgres-resource`, `redis`, `redis-resource`, `redis-queue`, `storage-common`, `storage-resource`, `image-resource`, `static-resource`
 - **AI/LLM**: `llm-common` (serializable inference + execution contracts), `llm` (model, provider plugins, model factory, execution service), `agent-common` (run + pipeline contracts), `agent` (the ReAct runtime and the resumable pipeline runner), `viable-common` (the OwlMeans Viable platform's runtime-free contracts: analysis/design/metadata shapes, the target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary)
 - **Mail**: `mailer` (contract + console/dev transport), `mailer-smtp`, `server-mailer-mailgun`
-- **Other cross-cutting domain**: `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, and `queue` (job/queue contracts + QUEUE transport; driver `redis-queue`, transports `server-job` / `client-job`)
+- **Other cross-cutting domain**: `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, `queue` (job/queue contracts + QUEUE transport; driver `redis-queue`, transports `server-job` / `client-job`), and `planning` (workcards, status flows, the transition fold and the planning protocol tree)
 - **Template and test helpers** (not framework packages, out of scope for `tree.md`): `_tpl` (the new-package skeleton), `test`, `test-auth`, `test-integration`, `test-ui`
 
 Which of these a feature should use — a database, Redis, a bucket, client state, a queued worker or a model — is the `resource-choice` skill; read it at design time, before registering a resource or declaring a job.
@@ -197,11 +197,15 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
   router at context provisioning (default OwlMeans host vs opt-in react-router), and authoring a new
   plugin. Read before wiring routing in an app.
 - **Jobs and queues**: `queue` (contracts and the QUEUE transport), `redis-queue` (the driver),
-  `server-job` and `client-job` (the two transports). `resource-choice` decides whether a feature
-  wants one at all.
-- **Payments**: `payment` (catalogue, entitlement and amount/quantity contracts), `server-payment`
-  (public Stripe gateway), `client-payment` (browser service), and `web-payment` (protocol-bound
-  hooks plus the shadcn/Tailwind amount dialog).
+  `server-job` and `client-job` (the two transports), and `scheduled-jobs` (recurring work declared
+  with `declareSchedule` and reconciled into BullMQ job schedulers by the process that listens to the
+  queue). `resource-choice` decides whether a feature wants one at all.
+- **Payments**: `payment` (plans, limits, promos, the entitlement view, refusals and amount/quantity
+  checkout contracts), `server-payment` (the public Stripe gateway: subscription store, usage ledger,
+  capability and limit gates, Stripe self-management and lifecycle observers), `client-payment`
+  (browser service), and `web-payment` (protocol-bound hooks, plan pieces and the shadcn/Tailwind
+  amount dialog). `entitlements` is the model across the three — capabilities versus counted
+  limits, the three limit kinds, admission-first consumption and the two gate services.
 - **Prompt composition and caching**: `llm-prompt-caching` — how a system prompt is assembled from a
   role plus skills, block order, breakpoint budget and the determinism invariants that make the
   provider cache hit. Read before changing anything a request sends ahead of its first per-call byte.
@@ -216,7 +220,7 @@ natively by Copilot and Codex, and by Claude Code through the generated symlinks
 - **Working inside a linked monorepo**: `nested-agent-context` — mandatory before planning work in
   another linked OwlMeans repo; enumerate that repo's own `AGENTS.md`, rules, skills and memory
   first. Its root guidance is authoritative; embedded `agent-meta/` copies are ignored.
-- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `context`, `config`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. Patterns mirror real-world consumption from the `viable` monorepo, the product repo linked alongside this one.
+- **Using @owlmeans/* packages from a downstream app**: every package has its own skill at `.agents/skills/<package-name>/SKILL.md` (e.g. `server-app`, `entrypoint`, `route`, `web-client`, `web-panel`, `client-auth`, `mongo`, `postgres`, `redis`, `kluster`, etc.) — loaded when working with that package's imports. A package whose name is a Claude Code built-in slash command keeps its skill under `owlmeans-<package-name>` instead (`owlmeans-context`, `owlmeans-config`), because a skill named `context` would shadow `/context`. Patterns mirror real-world consumption from the `viable` monorepo, the product repo linked alongside this one.
 
 <!-- OWLMEANS:LINKED-SKILLS -->
 ### Skills linked from upstream repos

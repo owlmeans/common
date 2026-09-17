@@ -41,7 +41,28 @@ remain protocol declarations end-to-end.
 - **Cluster is refused** (`UnsupportedArgumentError('redis-queue:cluster')`): BullMQ needs a
   hash-tagged prefix to keep a queue's keys in one slot, and the prefix here is shared with the
   record namespace. Failing at connect beats failing per-command with CROSSSLOT.
+- **`enqueueProtocol` builds an UNSIGNED envelope.** The auth middleware that adds the guard's
+  header wraps only `entrypoint.invoke`/`call`, so a hand-enqueued job for an entrypoint whose
+  served side carries a guard (Ed25519 service-to-service) fails at the bridge as
+  `auth:authorization:queue:<alias>` — no retry, nothing in a detached producer's log. A guarded
+  route is reached through `call()` where it is bound as a CLIENT; in the process that SERVES it the
+  binding has no `call`, so a producer there asks the guards' `authenticated(req)` for the header
+  itself and passes it in the envelope's `headers` (viable's `enqueueSigned`), and waits for the
+  reply the way the transport does when it needs the outcome (viable's `invokeSigned`). A server
+  binding has `handle` only — `invoke` and `call` are undefined in the serving process.
 - **Valkey works** — RESP only, no modules, no TTLs, nothing depending on eviction.
+- **Schedules are BullMQ job schedulers** (bullmq ≥ 5.78: `upsertJobScheduler` /
+  `getJobSchedulers` / `removeJobScheduler`), id `owlmeans:<schedule id>`, reconciled by
+  `syncSchedules` inside the worker's `start()` for listened queues only. Rules: `scheduled-jobs`.
+- **The Ready-stage middleware is fired, not awaited, by `context.init()`** (`void applyMiddlewares`)
+  — worker start and schedule reconciliation complete after `init()` resolves; specs poll.
+- **`ctx.service(alias)` throws for an un-initialized non-lazy service**, so a processor cannot be
+  registered on the worker before `init()`; register at the Loading stage or after init.
+- **An unchanged upsert is not a no-op in BullMQ**: it replaces the pending run, re-fires
+  `immediately`, and a pattern upsert collides (`-10`) with a run of the same slot in progress —
+  hence the compare-before-upsert.
+- **The next scheduled run is produced when the previous one starts processing**
+  (`moveToActive`), so no consumer ⇒ no further runs.
 
 ## Rules a processor lives by
 

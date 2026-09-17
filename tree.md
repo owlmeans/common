@@ -14,7 +14,7 @@ This is the canonical, machine-friendly map of every published `@owlmeans/*` pac
 
 1. [Configuration & tooling](#1-configuration--tooling) — shared TypeScript configs, scaffolder and skills installer
 2. [Core foundations](#2-core-foundations) — environment-agnostic primitives
-3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, mailer, flow, iam, payment, oidc, wled
+3. [Cross-cutting domain](#3-cross-cutting-domain) — llm, agent, queue, consent, mailer, flow, iam, payment, oidc, wled, planning
 4. [Auth shared](#4-auth-shared) — `auth-common`
 5. [API & API config](#5-api--api-config) — HTTP client and runtime config plumbing
 6. [Storage & infrastructure](#6-storage--infrastructure) — Mongo, Postgres, Redis, S3, Kubernetes, queue and mail drivers
@@ -65,7 +65,6 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 
 - [`llm-common`](packages/llm-common) → *(no `@owlmeans/*` deps)*
 - [`llm`](packages/llm) → `basic-ids`, `context`, `error`, `llm-common`
-- [`llm-delegate`](packages/llm-delegate) → `basic-ids`, `error`, `llm`, `llm-common`
 - [`agent-common`](packages/agent-common) → `error`, `flow`, `llm-common`, `resource`
 - [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`queue`](packages/queue) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `resource`, `route`
@@ -76,12 +75,13 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`auth-otp`](packages/auth-otp) → `context`, `error`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
+- [`planning`](packages/planning) → `auth`, `basic-ids`, `context`, `entrypoint`, `error`, `i18n`, `queue`, `resource`, `route`
 - [`oidc`](packages/oidc) → `auth`, `auth-common`, `basic-envelope`, `config`, `context`, `entrypoint`, `resource`, `route`
 - [`viable-common`](packages/viable-common) → `agent-common`, `entrypoint`, `error`, `llm-common`, `route`
 
 > **Note.** `agent-common` carries both the agent run-lifecycle records and the runtime-free PIPELINE declaration (`PipelineSpec`/`PipelineRun`); `agent` holds two runtimes over LangGraph — the ReAct loop on the functional API and `makePipeline`, a resumable `StateGraph`. Its storage is PORTS only; the durable Mongo half is `@owlmeans/agent-checkpoint` in the `internal` monorepo.
 >
-> **Note.** `llm-delegate` is the `ModelProvider.Delegated` runtime — a `BaseChatModel` whose calls are performed outside the process by a transport the application seats, so who answers a model call can be a property of the session rather than of the code. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
+> **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
 > **Note.** `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
@@ -141,8 +141,9 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
 - [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
 - [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
+- [`server-planning`](packages/server-planning) → `auth`, `auth-common`, `basic-ids`, `context`, `entrypoint`, `error`, `planning`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`
-- [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
+- [`server-payment`](packages/server-payment) → `auth`, `config`, `context`, `entrypoint`, `iam`, `mongo-resource`, `payment`, `resource`, `route`, `server-api`, `server-app`, `server-context`, `server-entrypoint`
 
 > **Note.** Several server packages depend on `client-config` / `client-entrypoint` for the shared entrypoint/config types that the server uses to mirror the client surface — see [Cross-layer notes](#cross-layer-notes).
 
@@ -165,6 +166,7 @@ React-based, but no DOM or React Native specifics. Web and Native packages consu
 - [`client-panel`](packages/client-panel) → `auth`, `client`, `client-auth`, `client-entrypoint`, `client-i18n`, `client-route`, `config`, `entrypoint`, `error`, `i18n`, `router`
 - [`client-auth`](packages/client-auth) → `auth`, `auth-common`, `basic-envelope`, `basic-keys`, `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `client-socket`, `config`, `context`, `did`, `entrypoint`, `error`, `flow`, `i18n`, `resource`, `socket`, `web-flow`
 - [`client-job`](packages/client-job) → `client`, `client-auth`, `client-context`, `client-entrypoint`, `context`, `queue`, `resource`, `socket`, `state`
+- [`client-planning`](packages/client-planning) → `auth`, `client-context`, `client-entrypoint`, `context`, `entrypoint`, `error`, `planning`, `resource`, `route`, `socket`, `state`
 - [`client-iam`](packages/client-iam) → `client-auth`, `consent`, `context`, `entrypoint`, `iam`, `oidc`, `web-client`, `web-oidc-rp`
 
 > **Note.** Two entries here reach into the web layer, both through plain `dependencies` rather than optional peers. `client-auth` depends on `web-flow` unconditionally, which is why it builds at L10 above `web-flow` at L9. `client-iam` depends on `web-client` and `web-oidc-rp`, so despite the `client-` prefix it is browser-only. See [Cross-layer notes](#cross-layer-notes).
@@ -185,7 +187,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-oidc-provider`](packages/web-oidc-provider) → `auth`, `client-flow`, `oidc`, `resource`, `web-client`
 - [`web-oidc-rp`](packages/web-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
 - [`web-wl`](packages/web-wl) → `client`, `client-entrypoint`, `context`, `wled`
-- [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `queue`, `route`, `web-client`, `web-consent`, `web-db`, `web-flow`, `web-router`
+- [`web-panel`](packages/web-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `client-socket`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `route`, `state`, `web-client`, `web-consent`, `web-db`, `web-flow`, `web-router`
 - [`web-payment`](packages/web-payment) → `client-i18n`, `client-payment`, `entrypoint`, `i18n`, `payment`
 - [`mui-panel`](packages/mui-panel) → `api-config-client`, `auth`, `auth-common`, `basic-envelope`, `client`, `client-auth`, `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-i18n`, `client-panel`, `client-route`, `config`, `context`, `entrypoint`, `error`, `flow`, `i18n`, `route`, `web-client`, `web-db`, `web-flow`, `web-router`
 - [`mui-oidc-rp`](packages/mui-oidc-rp) → `auth`, `basic-envelope`, `client`, `client-auth`, `client-flow`, `client-i18n`, `context`, `entrypoint`, `flow`, `oidc`, `resource`, `web-client`, `web-flow`
@@ -227,7 +229,7 @@ Lower levels are compiled before higher ones. `bun run build` orchestrates this 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
 - **L1**: `error`, `route`, `router`, `web-consent`, `web-gtm`
 - **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-router`, `web-router-react-router`
-- **L3**: `basic-keys`, `config`, `entrypoint`, `llm-delegate`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
+- **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`
 - **L5**: `agent-common`, `payment`, `server-context`, `{api | auth-common | client-context | client-entrypoint | client-route}`
 - **L6**: `agent`, `api-config-client`, `client-resource`, `kluster`, `mailer-smtp`, `mongo-resource`, `oidc`, `postgres-resource`, `queue`, `redis-resource`, `server-api`, `storage-resource`, `viable-common`
@@ -379,7 +381,6 @@ web-panel
 ├── client-panel  (L11) ← client-auth  client-i18n  router
 ├── client-i18n  (L8) ← i18n
 ├── web-consent  (L1) ← consent
-├── queue  (L6) ← auth-common  entrypoint  resource
 └── api-config-client  (L6) ← api-config ← config
 ```
 

@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.23` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.28` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -230,7 +230,7 @@ application packages above, or add one when they need that specific feature.
 |---|---|
 | Configuration and tooling | [`agent-skills`](packages/agent-skills), [`create-app`](packages/create-app), [`dep-config`](packages/dep-config), [`viable-mcp`](packages/viable-mcp), [`viable-sdk`](packages/viable-sdk) |
 | Core foundations | [`basic-envelope`](packages/basic-envelope), [`basic-ids`](packages/basic-ids), [`basic-keys`](packages/basic-keys), [`did`](packages/did), [`i18n`](packages/i18n), [`router`](packages/router), [`socket`](packages/socket) |
-| Cross-cutting domain | [`agent`](packages/agent), [`agent-common`](packages/agent-common), [`auth-otp`](packages/auth-otp), [`consent`](packages/consent), [`flow`](packages/flow), [`iam`](packages/iam), [`llm`](packages/llm), [`llm-common`](packages/llm-common), [`llm-delegate`](packages/llm-delegate), [`mailer`](packages/mailer), [`oidc`](packages/oidc), [`payment`](packages/payment), [`viable-common`](packages/viable-common), [`wled`](packages/wled) |
+| Cross-cutting domain | [`agent`](packages/agent), [`agent-common`](packages/agent-common), [`auth-otp`](packages/auth-otp), [`consent`](packages/consent), [`flow`](packages/flow), [`iam`](packages/iam), [`llm`](packages/llm), [`llm-common`](packages/llm-common), [`mailer`](packages/mailer), [`oidc`](packages/oidc), [`payment`](packages/payment), [`viable-common`](packages/viable-common), [`wled`](packages/wled) |
 | Auth shared | [`auth-common`](packages/auth-common), [`auth-token`](packages/auth-token) |
 | API and runtime config | [`api`](packages/api), [`api-config`](packages/api-config), [`api-config-client`](packages/api-config-client), [`api-config-server`](packages/api-config-server) |
 | Storage and infrastructure | [`image-resource`](packages/image-resource), [`kluster`](packages/kluster), [`mailer-smtp`](packages/mailer-smtp), [`mongo`](packages/mongo), [`postgres`](packages/postgres), [`redis`](packages/redis), [`redis-queue`](packages/redis-queue), [`server-mailer-mailgun`](packages/server-mailer-mailgun), [`static-resource`](packages/static-resource), [`storage-common`](packages/storage-common), [`storage-resource`](packages/storage-resource) |
@@ -248,7 +248,7 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.23
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated

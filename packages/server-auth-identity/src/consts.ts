@@ -8,6 +8,8 @@ export const AUTH_IDENTITY_PROFILE = 'auth-identity:profile'
 export const AUTH_IDENTITY_CREDENTIALS = 'auth-identity:credentials'
 export const AUTH_IDENTITY_LINKING = 'auth-identity:linking'
 export const AUTH_IDENTITY_ORG_ENTITY = 'auth-identity:org-entity'
+// Service alias of the identity-events seam (`identityEvents(ctx)`).
+export const AUTH_IDENTITY_EVENTS = 'auth-identity:events'
 
 // Colon-free Mongo collection base names. The final collection name is
 // `${resourcePrefix}${collection}` — e.g. with the project prefix 'viam-' this yields

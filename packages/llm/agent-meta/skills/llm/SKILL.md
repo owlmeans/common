@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.28"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.29"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -316,4 +316,4 @@ whose `402 requires more credits` reads as a failure of the code under test. `pl
 
 - [[llm-common]] — the serializable contracts · [[llm-prompt-caching]] — prompt composition, block
   order and the cache invariants
-- [[context]] — service registration · [[error]] — the `ResilientError` family
+- [[owlmeans-context]] — service registration · [[error]] — the `ResilientError` family

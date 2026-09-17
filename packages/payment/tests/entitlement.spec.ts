@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import {
-  CAPABILITY_FEATURE_SCOPE, entitlementList, formatEntitlementParam, hasEntitlement,
-  parseEntitlementParam,
+  CAPABILITY_FEATURE_SCOPE, CAPABILITY_LIMIT_SCOPE, ENTITLEMENT_GATE, LIMIT_GATE, entitlementList,
+  formatEntitlementParam, hasEntitlement, parseEntitlementParam,
 } from '../src/entitlement.js'
 import type { PermissionSet } from '@owlmeans/auth'
 
@@ -72,6 +72,21 @@ describe('the predicate', () => {
     expect(hasEntitlement(pro, '')).toBe(false)
     expect(hasEntitlement(pro, 'feature:')).toBe(false)
     expect(hasEntitlement(pro, 'renewable:credits>=abc')).toBe(true)
+  })
+})
+
+describe('limits are not capabilities', () => {
+  test('a limit parameter never passes the capability predicate', () => {
+    // Even a set that (wrongly) carries the reserved scope cannot answer a limit requirement.
+    const misdeclared = [...pro, { scope: CAPABILITY_LIMIT_SCOPE, permissions: { seats: 5 } }]
+    expect(hasEntitlement(pro, 'limit:seats')).toBe(false)
+    expect(hasEntitlement(misdeclared, 'limit:seats')).toBe(false)
+    expect(hasEntitlement(misdeclared, 'limit:seats>=1')).toBe(false)
+  })
+
+  test('the two gates are distinct aliases', () => {
+    expect(ENTITLEMENT_GATE).toBe('entitlement-gate')
+    expect(LIMIT_GATE).toBe('limit-gate')
   })
 })
 

@@ -13,7 +13,9 @@ import type { Config, Context, RedisQueueWorkerService } from './types.js'
 import {
   DEFAULT_LOCK_DURATION, DEFAULT_MAX_STALLED_COUNT, DEFAULT_STALLED_INTERVAL, STALLED_FAILURE
 } from './consts.js'
-import { byJobId, jobRecordOf, progressOf, queueConnection } from './utils/index.js'
+import {
+  byJobId, jobRecordOf, progressOf, queueConnection, scheduleIdOf, syncSchedules
+} from './utils/index.js'
 
 /**
  * The consuming half.
@@ -63,6 +65,8 @@ export const makeRedisQueueWorker = (
     attempt: job.attemptsStarted,
     data: job.data,
     signal,
+    // bullmq stamps every run a scheduler produces with the scheduler's id.
+    scheduled: scheduleIdOf(job.repeatJobKey),
 
     touch: async () => {
       await job.updateProgress(job.progress)
@@ -213,6 +217,7 @@ export const makeRedisQueueWorker = (
       // Which entrypoints this process both SERVES and LISTENS to. Read once, here, because an
       // entrypoint bound after the worker starts was not part of what this process promised.
       const served = servedJobs(ctx)
+      const bound: string[] = []
 
       for (const name of listen) {
         if (workers.has(name)) {
@@ -238,7 +243,20 @@ export const makeRedisQueueWorker = (
         void worker.run().catch(
           error => console.error(`${location}: ${name} stopped consuming`, error)
         )
+        bound.push(name)
       }
+
+      // Schedules are reconciled only once every worker is already consuming, and only for the
+      // queues this process consumes — a producer creates none. `syncSchedules` catches and logs
+      // every step itself, so neither a refused declaration nor a broker failure can stop a worker.
+      await Promise.all(bound.map(async name => {
+        const bullQueue = queues.get(name)
+        if (bullQueue != null) {
+          await syncSchedules(bullQueue, ctx.cfg, name).catch(
+            error => console.error(`${location}: ${name} schedules not reconciled`, error)
+          )
+        }
+      }))
 
       if (terminate == null) {
         // A rollout is the ordinary way a worker ends, and an unclosed worker leaves its jobs to

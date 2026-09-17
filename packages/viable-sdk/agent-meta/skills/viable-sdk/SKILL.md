@@ -8,10 +8,12 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.20"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
-**Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`) — every name on the
-wire is declared there, so the SDK and the platform cannot spell one differently.
+**Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
+vocabulary — story type, story flow, `jobIdOf`) and `@owlmeans/planning` (the planning protocol tree
+and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
+differently.
 
 Everything a coding agent needs in order to drive the platform: authenticate with one access token,
 attach a session to a project, execute the platform's slot commands against a directory on this
@@ -22,32 +24,41 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector protocols bound |
-| `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP |
+| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector protocols and the planning tree bound and the planning client registered |
+| `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade |
 | `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
 | `renderTaskEnvelope(task, { harness })` · `parseTaskResult(task, raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `installHarness(dir, harness, opts?)` · `describeHarness(harness)` · `WORKING_RULE` | Set a coding agent up; preview it first |
 | `catalogue` · `visibleTools(host)` · `toolByName` · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
 | `renderJob(job)` · `isSettled(job)` | A job as a few lines a model can act on |
+| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` | The story tools' reading of planning cards |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks` | The host description and the availability predicates |
 | `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's job, on somebody's laptop |
 | `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
 | `readMarker`/`writeMarker`/`discoverProject`/`isViableTree` · `readEnv`/`writeEnv`/`envStatus`/`replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
-| `ENV_TOKEN`, `ENV_API_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `TOOL_DEADLINE_MS` (45 s) · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
+| `ENV_TOKEN`, `ENV_API_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
 
 ## One credential, and the routes the server declares
 
 `makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and binds the SAME
 immutable `connectProtocols(...)` tree the server mounts, so a path or a schema cannot be right on
-one end and wrong on the other. There is deliberately **no second credential path**: a connector that could
+one end and wrong on the other. The planning tree is bound the same way:
+`makePlanningProtocols({ base: { alias: 'viable:manager-api:planning', path: '/planning' }, guards:
+DEFAULT_GUARD, socketBase: <the /update base> })` — manager-api's mount minus its ownership gate, which
+is the server's to apply — followed by `appendPlanningClient(context, { protocols, bind: false, poll:
+COMMIT_POLL_SEC, timeout: TOOL_DEADLINE_MS, schemas: false })`. The base alias and path are literals
+beside the `/update` base for the same reason that one is: they belong to manager-api, and every
+planning alias and path derives from them. No socket opener is passed, so a commit is awaited by long
+poll only, and the schema bundle is not fetched at startup — nothing a tool does reads a flow, and a
+server nobody has asked anything yet makes no call. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
 revoking a token. A token without `CONNECT_TOKEN_PREFIX` is refused locally, because a 401 says
 nothing about which of several plausible mistakes was made and the answer is always the same one.
 
 **The context must also declare the platform's `/update` base itself.** The connector's socket route
-hangs under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
+and the planning commit feed hang under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
 context at init** rather than the one call that would have used it — a server that exited at startup
 with `Entrypoint viable:manager-api:update:base not found`. It is declared with the path the
 platform declares and never binds: it is a namespace, and nothing calls it.
@@ -113,6 +124,53 @@ model can read and act on, because an exception crossing the transport tells it 
 went wrong somewhere. `renderJob` ends every job with a single `next:` line — that is what keeps a
 parent from inventing a polling strategy of its own, or from concluding that a blocked run has
 failed.
+
+## The story tools speak planning
+
+A user story is a planning CARD of `VIABLE_STORY_TYPE` under its project card, and every change to one
+is a transition executed through `ConnectorApi.planning` — a `PlanningFacade`: the client facade
+`appendPlanningClient` registers over HTTP, and `ensurePlanningService(ctx).for(scope)` in the
+platform's in-process host. The scope a call answers for is the CREDENTIAL's; a tool sends none.
+
+| Tool | Facade call |
+|---|---|
+| `list_stories` | `cards.list({ ...storyQuery(project, { status, area }), page, size, sort: STORY_ORDER })` → `renderStories` |
+| `search_stories` | the same with `{ q }` |
+| `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
+| `update_story` | `resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
+| `delete_story` | `resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
+| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, a `CommitTimeout` tolerated → `project.job(project, jobIdOf(StoryDevelop, project, card.id))` |
+| `story_status` | `resolveStory` → the card's code, status and `fields.warning` |
+
+Rules the table rests on:
+
+- **A tool NAME is a parent agent's vocabulary and is never renamed**, and neither is an argument:
+  `storyId` stays `storyId` although the platform keys on card ids. New facts are added (`designSystem`
+  on `confirm_project`, the project status line and the design-system section of `project_status`),
+  never substituted.
+- **`storyId` accepts a code or an id**, because `list_stories` prints the CODE — the handle every
+  generated file names a story by. `resolveStory` asks for both at once, the id wins, a code is also
+  tried uppercased, and neither answers for a story of another project (`ProjectStoryNotFound`).
+- **Development is the story's `start`, not a call of its own.** The platform begins the run once that
+  move COMMITS, and refuses it there too (the flow, one story in progress, the balance). The wait is
+  `COMMIT_WAIT_MS`, well inside the tool deadline; a late commit is not a failure — the transition is
+  durable — so `develop_story` answers from the job row rather than outliving the host's ceiling. The
+  job id is composed with viable-common's `jobIdOf`, the one spelling the platform answers under.
+- **A story a person writes goes as written, with no area.** Re-formatting the narrative and deciding
+  the area are the platform's, done in its planning middleware for the `connect` channel; a connector
+  that guessed an area would be a second answer. `update_story` carries only `title` and the head it
+  read, so a change made in between is refused (`WorkcardConflict`) rather than overwritten.
+- **The delete commit is no proof the slot is done.** It says the card is gone and nothing about the
+  placeholder screens still being retired under the project lock, so `delete_story` keeps its two
+  unlocked observations.
+- **Stories are read in `order`, then `createdAt`**: `order` is the analysis's flow ordinal (a
+  connective story sits at a fraction between two steps). `renderStories` keeps the line shape a parent
+  already reads — `code · status[ · primary][ · area]` over the narrative — under a header counting the
+  page by intrinsic state.
+- **A planning refusal is phrased like any other**: `planning:illegal-transition:`,
+  `workcard-conflict:`, `workcard-not-found:`, `fields-invalid:`, `commit-timeout:`, `commit-failed:`
+  and the story markers (`viable-project:story:not-found:` / `:missconfigured:`) each have a sentence in
+  `REFUSALS`.
 
 ## An out-of-credits refusal is phrased, and pushed through `notify`
 
@@ -232,6 +290,13 @@ had configured.
 harness's own syntax, so the result is safe to commit. `WORKING_RULE` is written once and rendered
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
+**The server command is written once, too.** Every harness configuration starts the connector from
+`MCP_COMMAND` in `src/harness/templates.ts` — viable-mcp through `npx -y`, pinned with a caret at the
+viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
+command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
+never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
+`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version.
+
 ## The executor is the publisher's job, on somebody's laptop
 
 `makeLocalSlotExecutor(dir)` answers the platform's slot commands against a directory here. The
@@ -347,12 +412,18 @@ reader looking for a database that was never configured.
 ## Tests
 
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
-the `registerCatalogue` out-of-credits phrasing and `notify` wiring (`mcp-catalogue.spec.ts`), the
-executor's files/git/layout rules, and the marker + managed-`.env` block.
+the `registerCatalogue` out-of-credits and planning-refusal phrasing and `notify` wiring
+(`mcp-catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
+block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
+types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`;
+`planning-wiring.spec.ts` pins the planning aliases and paths a context binds, and `remote.spec.ts`
+drives the remote facade through a captured transport to pin its deadlines.
 
 ## Depends On
 
 - `@owlmeans/viable-common` — the whole wire contract · `@owlmeans/auth-token` — the carrier guard
+- `@owlmeans/planning` — the protocol tree, the facade contract and its refusals ·
+  `@owlmeans/client-planning` — the remote facade and the long-poll commit wait
 - `@owlmeans/api`, `@owlmeans/client-context`, `@owlmeans/client-entrypoint`, `@owlmeans/client-config`,
   `@owlmeans/auth-common`, `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/socket`,
   `@owlmeans/config`, `@owlmeans/context`, `@owlmeans/error`, `@owlmeans/basic-ids`
@@ -362,4 +433,6 @@ executor's files/git/layout rules, and the marker + managed-`.env` block.
 
 - [[viable-mcp]] — the npx stdio server built on this
 - [[auth-token]] — the credential and its carrier guard
-- [[llm-delegate]] — the other end of a model task, inside the platform
+- [[client-planning]] · [[planning]] — the facade the story tools write through
+- `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the other end of a model
+  task, inside the platform

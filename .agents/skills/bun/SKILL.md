@@ -95,6 +95,36 @@ sets the linker and no timeout.
   bun -e "import('./node_modules/mongodb/lib/index.js').then(()=>console.log('OK')).catch(e=>console.log(e.code))"
   ```
 
+## No `@owlmeans/*` entry inside a package's own `node_modules`
+
+A workspace package never holds `@owlmeans/*` in its own `node_modules` — neither a real directory
+(a published tarball: see the shadowing section below) nor a symlink to a sibling package. The
+symlink form is what an install with Bun's **isolated** linker leaves behind: any repo that lists
+this monorepo's packages as workspace entries and runs `bun install` without `linker = "hoisted"`
+in its `bunfig.toml` writes one link per workspace dependency into
+`packages/<pkg>/node_modules/@owlmeans/` here. A later hoisted install neither records nor prunes
+them. Under `bun --preserve-symlinks` — how the viable dev pods run — a dependency resolved from
+`node_modules/@owlmeans/api/node_modules/@owlmeans/error` is a different module from
+`node_modules/@owlmeans/error`, so `instanceof`, class-keyed registries and error types split in two.
+
+Every consumer repo that links this one keeps `linker = "hoisted"` in its root `bunfig.toml`. The
+check is part of the pin audit in the library-manager harness, so every release pre-flight runs it
+and fails on a "nested @owlmeans copy" row:
+
+```bash
+# in the library-manager workspace — exit 12 lists every nested entry
+bun run scripts/bump-deps.ts --pins-only
+```
+
+The same question, from this repo, must print nothing:
+
+```bash
+find packages/*/node_modules/@owlmeans -mindepth 1 -maxdepth 1 2>/dev/null
+```
+
+Fix: delete each listed entry (`rm` on the link itself, never a trailing slash), remove the
+now-dangling `node_modules/.bin` links that pointed through it, then `bun install`.
+
 ## Troubleshooting: nested `node_modules` copies that shadow the root
 
 **The single most common cause of inexplicable build and test failures in this repo.** Bun puts a

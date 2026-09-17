@@ -12,7 +12,7 @@ framework packages already ship: authentication and authorization failures from
 ## Installation
 
 ```bash
-bun add @owlmeans/error@^0.1.18-rc.18
+bun add @owlmeans/error@^0.1.18-rc.27
 ```
 
 ## Concepts
@@ -201,7 +201,8 @@ Panel components resolve an error through `errors.<type>` — a form- or screen-
 | `ResilientError` | class | Base class of every framework error; `constructor(type, message, stack?)` |
 | `ResilientError.typeName` | static property | Type identifier; override in each subclass (`'ResilientError'` on the base) |
 | `ResilientError.separator` | static property | Marshalling separator, initialised from `SEPARATOR` |
-| `ResilientError.converters` | static property | The registry of `Converter` entries |
+| `ResilientError.converters` | static property | The registry of `Converter` entries — one array on `globalThis`, shared by every copy of the package in the process |
+| `ResilientError[Symbol.hasInstance]` | static method | `instanceof` that also matches an instance of the same class lineage built by another copy of the package |
 | `ResilientError.registerErrorClass(Class, errorClass?)` | static method | Registers a subclass so it survives a round trip; returns its `Converter` |
 | `ResilientError.ensure(err, throwOnUnknown?)` | static method | Turns an `Error` or string into a `ResilientError`, unmarshalling registered classes |
 | `ResilientError.marshal(err)` | static method | Flattens an error into a plain `Error` whose message is `type`, `message` and stack joined by `SEPARATOR` |
@@ -216,8 +217,10 @@ Panel components resolve an error through `errors.<type>` — a form- or screen-
 |--------|------|---------|
 | `enuserError<T>(err, throwOnUnknown?)` | function | `ResilientError.ensure`, typed to the subclass you expect |
 | `marshalError(err)` | function | `ensure` then `marshal`, for a boundary that only carries an `Error` or a string |
+| `isResilientError(value)` | function | Structural check (shared brand + `type` + `marshal`) that holds across duplicate module copies |
 | `SEPARATOR` | constant | Three pipe characters — joins the marshalled fields |
 | `RESILENT_ERROR` | constant | `'ResilientError'` — the base type name |
+| `RESILIENT_BRAND`, `CONVERTER_REGISTRY`, `CATCH_ALL_CONVERTER` | constant | `Symbol.for` keys every copy of the package shares |
 
 ### Types
 
@@ -269,7 +272,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

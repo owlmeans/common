@@ -85,12 +85,21 @@ const LoginHarness: FC = () => <LoginScreen
   translate={(_key, defaultValue) => defaultValue}
 />
 
+// `?header=broken` simulates the layout-restyle bug this harness pins: a `headerClassName`
+// carrying an invalid Tailwind v4 arbitrary-value background (v3 syntax, silently dropped) and a
+// bare `bg-transparent`, either of which used to leave the sticky header with no background paint
+// of its own at all. One harness process serves both branches, exactly like `reloadDialog` above.
+const brokenHeader = new URLSearchParams(window.location.search).get('header') === 'broken'
+// `?footer=none` omits the `footer` prop entirely — the shape every area layout had before the
+// shell grew a footer-links convention. `NavLayout` must still render the credit line then.
+const noFooterProp = new URLSearchParams(window.location.search).get('footer') === 'none'
+
 const Layout: FC<PropsWithChildren> = ({ children }) => <>
   <NavLayout
     nav={navConfig}
     title="Harness"
     actions={<button id="action-slot">action</button>}
-    footer={footerLinks}
+    {...(noFooterProp ? {} : { footer: footerLinks })}
     // A DARK APPLICATION SHELL, which is what a themed app does to the root: a contrasting
     // surface pair, both halves correct. The header paints its own opaque background, so it is
     // a different surface, and everything in it must stay legible against `--background`
@@ -101,6 +110,7 @@ const Layout: FC<PropsWithChildren> = ({ children }) => <>
     // page. It names the width and nothing else, so the centring and the side padding must
     // survive it — substituting this for the default is a page running flush to the window edge.
     containerClassName="max-w-[1280px]"
+    {...(brokenHeader ? { headerClassName: 'bg-[--nope] bg-transparent' } : {})}
   >{children}</NavLayout>
   {/* Mounted ONCE, in the layout — exactly where an application mounts it. */}
   <Toaster />

@@ -86,15 +86,24 @@ export interface ConnectSessionView {
  * A derived view of "what the platform is doing for this project right now".
  *
  * Never stored. It is composed per request from the project lock, the slot record, the story
- * record, the latest pipeline run row and the operations queued for the project — the same facts
+ * card, the latest pipeline run row and the operations queued for the project — the same facts
  * the manager UI reads, arranged for a caller that has one question ("may I stop waiting?") and
  * one follow-up ("what do I call next?").
+ *
+ * Its `id` is composed and parsed only through `jobIdOf` / `parseJobId`.
  */
 export interface ConnectJob {
   id: string
   kind: ConnectJobKind
   status: ConnectJobStatus
+  /** The project CARD id. */
   projectId: string
+  /**
+   * The story CARD id — never the story's code.
+   *
+   * The name is kept because a parent agent reads it: a wire field name is that agent's
+   * vocabulary and is never renamed, only re-documented.
+   */
   storyId?: string
   runId?: string
   /** The pipeline step in flight, when a run row says. */
@@ -137,43 +146,27 @@ export interface ConnectWaitQuery {
   wait?: number
 }
 
-/** Paging and filtering for the story list a connector reads. */
-export interface ConnectStoryQuery {
-  page?: number
-  size?: number
-  status?: string
-  area?: string
-  /** Free-text match against the story narrative and its code. */
-  q?: string
-}
-
-export interface ConnectStoryList {
-  items: ConnectStoryItem[]
-  page: number
-  size: number
-  total: number
-}
-
-export interface ConnectStoryItem {
-  id: string
-  code?: string
-  story: string
-  area?: string
-  status: string
-  primary: boolean
-  warning?: string
-  createdAt: string
-}
-
 /** What a connector needs to know about a project in one call. */
 export interface ConnectProjectStatus {
+  /**
+   * The project card, flattened into the names a parent agent already reads.
+   *
+   * `name` is the card's `title` and `alias` its `code`; the three brief parts are the bodies of
+   * the project's `specification`, `vision` and `design-system` specifications. `status` and
+   * `intrinsic` are the card's own — a key of the project flow and the intrinsic state it maps to —
+   * typed as plain strings because this view crosses a version skew and a newer platform may
+   * answer with a status an older connector has never heard of.
+   */
   project: {
     id: string
     name: string
     alias: string
     description?: string
+    status: string
+    intrinsic: string
     specification?: string
     vision?: string
+    designSystem?: string
   }
   slot?: {
     id: string
@@ -297,21 +290,24 @@ export interface ConnectCreateBody {
   target?: ConnectTarget
 }
 
-/** Confirm a drafted project, optionally editing what the analysis produced. */
+/**
+ * Confirm a drafted project, optionally editing what the analysis produced.
+ *
+ * The keys are a parent agent's vocabulary and stay as they are: `name` becomes the card's
+ * `title`, and each brief part present is written into the project's specification of that
+ * category before the confirm transition runs.
+ */
 export interface ConnectConfirmBody {
   name?: string
   description?: string
   specification?: string
   vision?: string
+  designSystem?: string
   target?: ConnectTarget
 }
 
 export interface ConnectModifyBody {
   prompt: string
-}
-
-export interface ConnectStoryBody {
-  story: string
 }
 
 export interface ConnectPipelineParams {
@@ -417,23 +413,6 @@ export interface ConnectProjectSummary {
   id: string
   name: string
   alias: string
-}
-
-/** A story item returned after creating, editing or fetching one story. */
-export interface ConnectStoryMutation {
-  id: string
-  code?: string
-  story: string
-  area?: string
-  status: string
-  primary: boolean
-  warning?: string
-  createdAt: string
-}
-
-/** The success answer for deleting a story. */
-export interface ConnectStoryDeletion {
-  deleted: boolean
 }
 
 /** The persistent state of one pipeline run, read by a connector without platform internals. */

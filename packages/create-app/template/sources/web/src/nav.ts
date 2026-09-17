@@ -22,7 +22,9 @@ export const navConfig: PanelNavConfig = {
   ],
 }
 
+// The platform/owner credit — "Powered by OwlMeans" and the copyright the platform delivers — is
+// rendered by the shell itself (`NavLayout`'s `Footer`) and is never a footer link: an app link
+// list is places IN the app, and the credit is not one of those.
 export const footerLinks: PanelNavLink[] = [
   { alias: HOME, label: '__APP_NAME__' },
-  { href: 'https://owlmeans.com', label: 'OwlMeans', open: true },
 ]

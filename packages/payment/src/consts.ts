@@ -43,13 +43,53 @@ export enum SubscriptionStatus {
   Trial = 'trial',
   Canceled = 'canceled',
   Expired = 'expired',
+  /** Revoked until resumed: unpaid, paused, or collection paused. */
   Suspended = 'suspended',
   Blocked = 'blocked',
   Ended = 'ended',
-  Free = 'free',
   Active = 'active',
-  Consumable = 'consumable'
+  /** Payment failed and is being retried: still entitled, flagged. */
+  PastDue = 'past-due',
 }
+
+/** The statuses that grant a plan's capabilities and limits. */
+export const ENTITLING_STATUSES: readonly SubscriptionStatus[] = Object.freeze([
+  SubscriptionStatus.Active, SubscriptionStatus.Trial, SubscriptionStatus.PastDue,
+])
+
+/** The statuses a subscription never leaves on its own. */
+export const TERMINAL_STATUSES: readonly SubscriptionStatus[] = Object.freeze([
+  SubscriptionStatus.Canceled, SubscriptionStatus.Expired, SubscriptionStatus.Ended,
+  SubscriptionStatus.Blocked,
+])
+
+/** How a limit's counter renews. */
+export enum LimitKind {
+  /** Renews on a calendar UTC window (`LimitWindow`). */
+  Window = 'window',
+  /** Never renews: the counter belongs to the entity and survives plan changes. */
+  Lifetime = 'lifetime',
+  /** A held count (`+1` on acquire, `-1` on release), reconciled against reality. */
+  Occupancy = 'occupancy',
+}
+
+/** The calendar UTC window of a `LimitKind.Window` limit. */
+export enum LimitWindow {
+  Day = 'day',
+  Month = 'month',
+}
+
+/** Which paygate portal flow a portal link opens. */
+export enum PortalFlow {
+  Manage = 'manage',
+  Cancel = 'cancel',
+  Update = 'update',
+  Change = 'change',
+  PaymentMethod = 'payment-method',
+}
+
+/** The paygate alias of subscriptions the application grants itself (a free plan, a comp). */
+export const INTERNAL_PAYGATE = 'internal'
 
 export const ProductTypeSchema: JSONSchemaType<ProductType> = {
   type: 'string',
@@ -79,6 +119,21 @@ export const PlanDurationSchema: JSONSchemaType<PlanDuration> = {
 export const SubscriptionStatusSchema: JSONSchemaType<SubscriptionStatus> = {
   type: 'string',
   enum: Object.values(SubscriptionStatus)
+}
+
+export const LimitKindSchema: JSONSchemaType<LimitKind> = {
+  type: 'string',
+  enum: Object.values(LimitKind)
+}
+
+export const LimitWindowSchema: JSONSchemaType<LimitWindow> = {
+  type: 'string',
+  enum: Object.values(LimitWindow)
+}
+
+export const PortalFlowSchema: JSONSchemaType<PortalFlow> = {
+  type: 'string',
+  enum: Object.values(PortalFlow)
 }
 
 export const ProductTitleSchema: JSONSchemaType<string> = {

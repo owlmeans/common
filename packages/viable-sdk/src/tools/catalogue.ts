@@ -1,12 +1,16 @@
 import { z } from 'zod'
+import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import {
-  ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus, ConvertibilityVerdict,
-  decisionFor, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD
+  ConnectHarness, ConnectJobKind, ConnectTarget, ConversionDecision, ConversionStatus,
+  ConvertibilityVerdict, decisionFor, jobIdOf, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD,
+  STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition
 } from '@owlmeans/viable-common'
 import type {
-  ConnectJob, ConnectStoryItem, ConversionStatusView, ConvertCheck, InquiryPayload
+  ConnectJob, ConversionStatusView, ConvertCheck, InquiryPayload
 } from '@owlmeans/viable-common'
-import { JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS } from '../consts.js'
+import {
+  COMMIT_WAIT_MS, JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
+} from '../consts.js'
 import { describeHarness, installHarness } from '../harness/index.js'
 import { envStatus } from '../project/env.js'
 import { missingServices, readSetupReport, renderSetupGuide, setUserEnv } from '../project/setup.js'
@@ -16,6 +20,7 @@ import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
 import { renderJob } from './jobs.js'
 import { PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
 import { refusalMessage, refusalPhrase } from './refusal.js'
+import { renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import {
   anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
@@ -118,6 +123,9 @@ const ensureSession = async (deps: ToolDeps, projectId: string): Promise<void> =
  * MCP tool at that boundary lets the parent's very next project operation lose a race it cannot
  * observe. Wait for two stable unlocked observations so a just-dispatched cleanup also has time
  * to acquire the lock before this tool declares the mutation settled.
+ *
+ * The delete's COMMIT is no substitute: it says the card is gone, and nothing about the
+ * placeholder screens the slot is still retiring under the project lock.
  */
 const waitForStoryCleanup = async (deps: ToolDeps, projectId: string): Promise<void> => {
   const deadline = Date.now() + 5 * 60_000
@@ -183,12 +191,11 @@ const questionResult = (inquiry: InquiryPayload, deps: ToolDeps, note?: string) 
 
 /** A cost estimate, always with the sentence that says what it is not. */
 const renderEstimate = (estimate: {
-  usd: number, credits: number, delegated: boolean, stage: string
+  usd: number, delegated: boolean, stage: string
 }): string[] => [
   estimate.delegated
     ? `estimated cost of ${estimate.stage}: nothing — you perform this conversion's model calls`
-    : `estimated cost of ${estimate.stage}: $${estimate.usd.toFixed(2)}`
-      + ` (${estimate.credits} credits)`,
+    : `estimated cost of ${estimate.stage}: $${estimate.usd.toFixed(2)}`,
   '  An estimate, not a price: it is computed from the size of the code before any of it is read.',
 ]
 
@@ -299,8 +306,7 @@ const renderConversion = (view: ConversionStatusView): string => {
   if (estimate != null) lines.push(...renderEstimate(estimate))
   if (view.storyEstimate != null) {
     lines.push(
-      `implementing the stories: $${view.storyEstimate.minUsd}–$${view.storyEstimate.maxUsd}`
-      + ` (${view.storyEstimate.minCredits}–${view.storyEstimate.maxCredits} credits)`,
+      `implementing the stories: $${view.storyEstimate.minUsd}–$${view.storyEstimate.maxUsd}`,
       `  A band, not a price: a story costs what it turns out to need, usually`
       + ` $${STORY_BAND_MIN_USD}–$${STORY_BAND_MAX_USD} each.`
     )
@@ -566,6 +572,7 @@ export const catalogue: ToolDefinition[] = [
       description: z.string().optional(),
       specification: z.string().optional(),
       vision: z.string().optional(),
+      designSystem: z.string().optional(),
     },
     availability: anyHost,
     run: async (args, deps) => {
@@ -580,6 +587,7 @@ export const catalogue: ToolDefinition[] = [
         ...(typeof args.description === 'string' ? { description: args.description } : {}),
         ...(typeof args.specification === 'string' ? { specification: args.specification } : {}),
         ...(typeof args.vision === 'string' ? { vision: args.vision } : {}),
+        ...(typeof args.designSystem === 'string' ? { designSystem: args.designSystem } : {}),
       })
       return jobResult(job)
     },
@@ -595,6 +603,12 @@ export const catalogue: ToolDefinition[] = [
       const status = await deps.api.project.status(projectOf(args, deps))
       const lines = [
         `${status.project.name} (${status.project.alias}) · ${status.project.id}`,
+        // The project card's own status, from the project flow. Absent only from a platform that
+        // predates it, which says nothing rather than something false.
+        ...(status.project.status != null
+          ? [`project: ${status.project.status}`
+            + `${status.project.intrinsic != null ? ` (${status.project.intrinsic})` : ''}`]
+          : []),
         status.slot != null
           ? `slot: ${status.slot.kind} · ${status.slot.status}`
             + `${status.slot.initialized === true ? ' · initialized' : ' · not initialized'}`
@@ -614,6 +628,7 @@ export const catalogue: ToolDefinition[] = [
         ['description', status.project.description],
         ['specification', status.project.specification],
         ['vision', status.project.vision],
+        ['design system', status.project.designSystem],
       ] as const) {
         if (value != null && value.trim() !== '') {
           lines.push('', `--- ${label} ---`, value.slice(0, DRAFT_CAP))
@@ -705,14 +720,18 @@ export const catalogue: ToolDefinition[] = [
     },
     availability: anyHost,
     run: async (args, deps) => {
-      const list = await deps.api.story.list(projectOf(args, deps), {
-        ...(typeof args.page === 'number' ? { page: args.page } : {}),
-        ...(typeof args.size === 'number' ? { size: args.size } : {}),
-        ...(typeof args.status === 'string' ? { status: args.status } : {}),
-        ...(typeof args.area === 'string' ? { area: args.area } : {}),
+      const page = typeof args.page === 'number' ? args.page : 0
+      const list = await deps.api.planning.cards.list({
+        ...storyQuery(projectOf(args, deps), {
+          ...(typeof args.status === 'string' ? { status: args.status } : {}),
+          ...(typeof args.area === 'string' ? { area: args.area } : {}),
+        }),
+        page,
+        size: typeof args.size === 'number' ? args.size : STORY_PAGE_SIZE,
+        sort: STORY_ORDER,
       })
 
-      return ok(renderStories(list.items, list.page, list.total), list as unknown as Record<string, unknown>)
+      return ok(renderStories(list.items, list.page ?? page, list.total), list)
     },
   },
 
@@ -725,9 +744,14 @@ export const catalogue: ToolDefinition[] = [
     input: { q: z.string().min(1), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const list = await deps.api.story.list(projectOf(args, deps), { q: args.q as string })
+      const list = await deps.api.planning.cards.list({
+        ...storyQuery(projectOf(args, deps), { q: args.q as string }),
+        page: 0,
+        size: STORY_PAGE_SIZE,
+        sort: STORY_ORDER,
+      })
 
-      return ok(renderStories(list.items, list.page, list.total), list as unknown as Record<string, unknown>)
+      return ok(renderStories(list.items, list.page ?? 0, list.total), list)
     },
   },
 
@@ -745,9 +769,26 @@ export const catalogue: ToolDefinition[] = [
       // project therefore needs its connector back after an MCP restart even though this tool does
       // not itself return a long-running job.
       await ensureSession(deps, project)
-      const created = await deps.api.story.create(project, args.story as string)
+      // The narrative goes as written and with no area: rewriting it and deciding the area is the
+      // platform's, done on the way in for a person's story — a connector that guessed an area
+      // would be a second answer the platform then has to overrule.
+      const receipt = await deps.api.planning.execute({
+        action: TransitionAction.Create,
+        card: {
+          kind: WorkcardKind.Card,
+          type: VIABLE_STORY_TYPE,
+          parent: project,
+          title: args.story as string,
+          fields: { primary: false },
+        },
+        cause: 'connector:create-story',
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
+      const card = receipt.card
 
-      return ok('Story created.', created)
+      return ok(
+        card?.code != null ? `Story ${card.code} created.` : 'Story created.',
+        card ?? receipt.transition
+      )
     },
   },
 
@@ -760,11 +801,19 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const updated = await deps.api.story.update(
-        project, args.storyId as string, args.story as string
-      )
+      const card = await resolveStory(deps, project, args.storyId as string)
+      // Only the narrative: the status moves through the story flow and nowhere else, and the area
+      // follows the narrative on the platform's side. Guarded by the head the story was read at, so
+      // a change somebody else made in between is refused rather than overwritten.
+      const receipt = await deps.api.planning.execute({
+        card: card.id!,
+        action: TransitionAction.Update,
+        changes: { title: args.story as string },
+        expectSeq: card.head ?? card.seq,
+        cause: 'connector:update-story',
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
 
-      return ok('Story updated.', updated)
+      return ok('Story updated.', receipt.card ?? card)
     },
   },
 
@@ -779,7 +828,12 @@ export const catalogue: ToolDefinition[] = [
       // Removing a story also retires its file-backed scaffold, so it has the same local-session
       // requirement as formatting and development.
       await ensureSession(deps, project)
-      await deps.api.story.remove(project, args.storyId as string)
+      const card = await resolveStory(deps, project, args.storyId as string)
+      await deps.api.planning.execute({
+        card: card.id!,
+        action: TransitionAction.Delete,
+        cause: 'connector:delete-story',
+      }, { wait: true, timeout: COMMIT_WAIT_MS })
       await waitForStoryCleanup(deps, project)
 
       return ok('Story deleted.')
@@ -797,8 +851,28 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const job = await deps.api.story.develop(project, args.storyId as string)
-      return jobResult(job)
+      const card = await resolveStory(deps, project, args.storyId as string)
+      // Development is not a call of its own: it is the story's `start`, and the platform begins the
+      // run once that move has COMMITTED — which is also where it is refused (the wrong status,
+      // another story in progress, the balance).
+      try {
+        await deps.api.planning.execute({
+          card: card.id!,
+          action: TransitionAction.Transit,
+          transition: ViableStoryTransition.Start,
+          cause: 'connector:develop-story',
+        }, { wait: true, timeout: COMMIT_WAIT_MS })
+      } catch (e) {
+        if (!(e instanceof CommitTimeout)) throw e
+        // The move is durable and only its commit is late, so the job row is still the answer —
+        // waiting out the host's ceiling here would report a slow platform as a broken server.
+        deps.log(`develop_story: the start of ${card.code ?? card.id} has not committed yet;`
+          + ' answering from the job')
+      }
+
+      return jobResult(await deps.api.project.job(
+        project, jobIdOf(ConnectJobKind.StoryDevelop, project, card.id!)
+      ))
     },
   },
 
@@ -809,12 +883,14 @@ export const catalogue: ToolDefinition[] = [
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const story = await deps.api.story.get(projectOf(args, deps), args.storyId as string)
+      const card = await resolveStory(deps, projectOf(args, deps), args.storyId as string)
+      // A warning is cleared by writing it empty, so an empty one is no warning at all.
+      const warning = card.fields?.warning
 
       return ok(
-        `${story.code ?? story.id} · ${story.status}`
-        + (story.warning != null ? `\nwarning: ${String(story.warning)}` : ''),
-        story
+        `${card.code ?? card.id} · ${card.status}`
+        + (warning != null && warning !== '' ? `\nwarning: ${String(warning)}` : ''),
+        card
       )
     },
   },
@@ -1412,17 +1488,6 @@ export const catalogue: ToolDefinition[] = [
     },
   },
 ]
-
-const renderStories = (items: readonly ConnectStoryItem[], page: number, total: number): string =>
-  items.length < 1
-    ? 'No stories.'
-    : `${items.length} of ${total} (page ${page}):\n`
-      + items.map(item =>
-        `  ${String(item.code ?? item.id)} · ${String(item.status)}`
-        + `${item.primary === true ? ' · primary' : ''}`
-        + `${item.area != null ? ` · ${String(item.area)}` : ''}\n      ${String(item.story).slice(0, 160)}`
-      ).join('\n')
-
 
 /** The tools a given host actually offers. */
 export const visibleTools = (host: ToolHost): ToolDefinition[] =>

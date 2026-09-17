@@ -2,12 +2,16 @@ import { AppType } from '@owlmeans/context'
 import { makeClientContext } from '@owlmeans/client-context'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { bind } from '@owlmeans/client-entrypoint'
+import { appendPlanningClient } from '@owlmeans/client-planning'
 import { openProtocol, protocols } from '@owlmeans/entrypoint'
+import type { EntrypointTree } from '@owlmeans/entrypoint'
+import { makePlanningProtocols } from '@owlmeans/planning'
+import type { PlanningProtocols } from '@owlmeans/planning'
 import { route } from '@owlmeans/route'
 import { authMiddleware, DEFAULT_GUARD } from '@owlmeans/auth-common'
 import { makeTokenCarrierGuard } from '@owlmeans/auth-token'
 import { connect, connectProtocols, CONNECT_TOKEN_PREFIX } from '@owlmeans/viable-common'
-import { SDK_SERVICE } from '../consts.js'
+import { COMMIT_POLL_SEC, SDK_SERVICE, TOOL_DEADLINE_MS } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
 
 /**
@@ -18,6 +22,27 @@ import { SdkAuthError, SdkMisconfigured } from '../errors.js'
  */
 const UPDATE_BASE = 'viable:manager-api:update:base'
 const updateBase = openProtocol(route(UPDATE_BASE, '/update'))
+
+/**
+ * The base alias and path manager-api mounts the planning protocol tree under.
+ *
+ * Literals for the same reason as {@link UPDATE_BASE}: they belong to manager-api, and
+ * `makePlanningProtocols` takes them as parameters so neither end imports the other's constants.
+ * Every planning alias and path derives from these, so the two ends agree on a route only while
+ * both build the tree from the same base, path and socket base.
+ */
+const PLANNING_BASE_ALIAS = 'viable:manager-api:planning'
+const PLANNING_BASE_PATH = '/planning'
+
+/**
+ * The planning tree exactly as manager-api mounts it, minus the ownership gate — a gate is the
+ * server's to apply, and a client binding carries none.
+ */
+const sdkPlanningProtocols = (): PlanningProtocols => makePlanningProtocols({
+  base: { alias: PLANNING_BASE_ALIAS, path: PLANNING_BASE_PATH },
+  guards: DEFAULT_GUARD,
+  socketBase: updateBase,
+})
 
 export interface SdkContextOptions {
   apiUrl: string
@@ -89,16 +114,38 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     guard: DEFAULT_GUARD,
     updateBase,
   })
+  // The story tools speak planning: the same tree the platform mounts, reached with the same token.
+  // Its commit socket hangs under the platform's `/update` base as well, which is one more reason
+  // that base is declared here.
+  const planning = sdkPlanningProtocols()
 
-  // The socket route hangs under the platform's own websocket base, so that base has to exist
+  // The socket routes hang under the platform's own websocket base, so that base has to exist
   // here too — a parent a registry cannot resolve fails the whole context at init, not the one
   // call that would have used it. It is a declaration-only namespace, so its client binding has
   // no screen or request implementation.
-  const entrypoints = [bind(updateBase), ...protocols(surface).map(declaration => bind(declaration))]
+  const entrypoints = [
+    bind(updateBase),
+    ...protocols(surface).map(declaration => bind(declaration)),
+    ...protocols(planning as unknown as EntrypointTree).map(declaration => bind(declaration)),
+  ]
 
   // Every caller gets a context-local client binding from the immutable protocol it shares with
   // the server. No alias lookup can drift from a path or contract declaration.
   context.registerEntrypoints(entrypoints)
+
+  appendPlanningClient(context, {
+    protocols: planning,
+    // Bound above, beside the connector routes, so one registration holds the whole surface.
+    bind: false,
+    // No socket opener: a commit is awaited by long poll only, which is the only transport the SDK
+    // speaks and the one that survives every proxy.
+    poll: COMMIT_POLL_SEC,
+    timeout: TOOL_DEADLINE_MS,
+    // Nothing a tool does reads a flow or a type, and the bundle would otherwise be fetched in the
+    // background the moment the context is ready — a network call from a server nobody has asked
+    // anything yet. `model()` still loads it on first use.
+    schemas: false,
+  })
 
   await context.configure().init()
 

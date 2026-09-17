@@ -2,6 +2,9 @@ import type { FC } from 'react'
 import { cn } from '../../@/lib/utils.js'
 import type { LoginCreditModel } from '@owlmeans/client-panel/auth'
 
+/** Where "Powered by OwlMeans" leads, on the sign-in screen and in every shell footer alike. */
+export const OWLMEANS_URL = 'https://owlmeans.com'
+
 export interface LoginCreditProps {
   model: LoginCreditModel
   translate: (key: string, defaultValue: string) => string
@@ -25,9 +28,13 @@ export const LoginCredit: FC<LoginCreditProps> = ({ model, translate, className 
     data-login-credit
     className={cn('text-center text-xs text-muted-foreground', className)}
   >
-    {model.poweredBy && <span data-login-powered>
+    {model.poweredBy && <a
+      data-login-powered
+      href={OWLMEANS_URL} target="_blank" rel="noopener noreferrer"
+      className="underline-offset-4 hover:text-foreground hover:underline"
+    >
       {translate('login.credit.powered', 'Powered by OwlMeans')}
-    </span>}
+    </a>}
     {model.poweredBy && model.line != null && <span aria-hidden="true"> · </span>}
     {model.line != null && <span>{model.line}</span>}
   </p>

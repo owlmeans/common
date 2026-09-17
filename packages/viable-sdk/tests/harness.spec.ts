@@ -32,6 +32,20 @@ describe('viable-sdk — setting a coding agent up', () => {
     expect(await read(dir, 'CLAUDE.md')).toContain('next_task')
   })
 
+  test('every harness starts the same caret-pinned viable-mcp, never a tag', async () => {
+    const manifest = await fs.readJson(path.resolve(import.meta.dir, '../../viable-mcp/package.json'))
+    const spec = `@owlmeans/viable-mcp@^${manifest.version as string}`
+    const configs = Object.values(ConnectHarness).flatMap(harness => describeHarness(harness))
+      .filter(file => file.content.includes('@owlmeans/viable-mcp'))
+
+    // Claude Code (.mcp.json), Codex (TOML snippet), Copilot (.vscode/mcp.json), OpenCode.
+    expect(configs.length).toBe(4)
+    for (const file of configs) {
+      const specs = file.content.match(/@owlmeans\/viable-mcp@[^\s"'\]]+/g) ?? []
+      expect({ file: file.path, specs }).toEqual({ file: file.path, specs: [spec] })
+    }
+  })
+
   test('every harness is told the same protocol', async () => {
     for (const harness of Object.values(ConnectHarness)) {
       const files = describeHarness(harness)

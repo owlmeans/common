@@ -9,7 +9,7 @@ import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
   ConnectCreateBody, ConnectJobParams, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
   ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSession, ConnectSessionOpen,
-  ConnectSessionParams, ConnectStoryBody, ConnectStoryQuery, ConnectWaitQuery
+  ConnectSessionParams, ConnectWaitQuery
 } from './types.js'
 
 /**
@@ -26,7 +26,6 @@ import type {
  */
 
 const idValue = { type: 'string', minLength: 1, maxLength: 128 } as const
-const textValue = { type: 'string', minLength: 1, maxLength: 65536 } as const
 
 export const ConnectCapabilitiesSchema = {
   type: 'object',
@@ -156,13 +155,6 @@ export const ConnectProjectIdSchema = {
   additionalProperties: false,
 } as JSONSchemaType<{ id: string }>
 
-export const ConnectStoryParamsSchema = {
-  type: 'object',
-  properties: { id: idValue, storyId: idValue },
-  required: ['id', 'storyId'],
-  additionalProperties: false,
-} as JSONSchemaType<{ id: string, storyId: string }>
-
 export const ConnectOpParamsSchema = {
   type: 'object',
   properties: { sessionId: idValue, opId: idValue },
@@ -176,19 +168,6 @@ export const ConnectJobParamsSchema = {
   required: ['id', 'jobId'],
   additionalProperties: false,
 } as JSONSchemaType<ConnectJobParams>
-
-export const ConnectStoryQuerySchema = {
-  type: 'object',
-  properties: {
-    page: { type: 'integer', minimum: 0, nullable: true },
-    size: { type: 'integer', minimum: 1, maximum: 100, nullable: true },
-    status: { type: 'string', maxLength: 32, nullable: true },
-    area: { type: 'string', maxLength: 32, nullable: true },
-    q: { type: 'string', maxLength: 256, nullable: true },
-  },
-  required: [],
-  additionalProperties: false,
-} as JSONSchemaType<ConnectStoryQuery>
 
 export const ConnectCreateBodySchema = {
   type: 'object',
@@ -207,6 +186,7 @@ export const ConnectConfirmBodySchema = {
     description: { type: 'string', maxLength: 16384, nullable: true },
     specification: { type: 'string', maxLength: 262144, nullable: true },
     vision: { type: 'string', maxLength: 16384, nullable: true },
+    designSystem: { type: 'string', maxLength: 262144, nullable: true },
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
   },
   required: [],
@@ -219,13 +199,6 @@ export const ConnectModifyBodySchema = {
   required: ['prompt'],
   additionalProperties: false,
 } as JSONSchemaType<ConnectModifyBody>
-
-export const ConnectStoryBodySchema = {
-  type: 'object',
-  properties: { story: textValue },
-  required: ['story'],
-  additionalProperties: false,
-} as JSONSchemaType<ConnectStoryBody>
 
 export const ConnectAttachBodySchema = {
   type: 'object',

@@ -26,6 +26,12 @@ updated: 2026-08
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
 - `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
   silently re-resolves floating ranges.
+- **A lockfile's `workspaces` entries keep the ranges they were first written with.** Bun 1.4 never
+  rewrites a workspace entry's declared range when only the manifest's range moves — `bun install`,
+  `--lockfile-only` and `--frozen-lockfile` all answer "no changes" — so after a release sweep the
+  lock still says `^0.0.19` beside a manifest at `^0.0.22` (hundreds of such lines per repo).
+  Resolution is unaffected (workspace links); the text is simply stale. Aligning it is a text edit
+  of those range strings, validated by `bun install --frozen-lockfile --dry-run`.
 - `bson` carries **no override** — it resolves freely (7.3.x) inside `mongodb`'s `^7.2.0` range,
   in common, internal, viable and viable-agent alike. It could not before: `bson >= 7.3.0` calls
   `v8.startupSnapshot.isBuildingSnapshot()` in a static initializer, unimplemented in every Bun

@@ -10,7 +10,7 @@ whose grants decide access (use `@owlmeans/server-oidc-rp`'s guard and gate, or
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-identity@^0.1.18-rc.24
+bun add @owlmeans/server-auth-identity@^0.1.18-rc.29
 ```
 
 ## Concepts
@@ -28,6 +28,8 @@ bun add @owlmeans/server-auth-identity@^0.1.18-rc.24
   profile details and returns an `AuthPayload`.
 - **Entity resolver** — the `EntityResolverService` registered under `ENTITY_RESOLVER`. Registering
   it tells the server boundary that this deployment has organizations.
+- **Identity events** — `identityEvents(ctx)` returns the `IdentityEventsService`; its
+  `onEntityCreated` listeners run once per newly registered organization entity.
 
 ## Usage
 
@@ -145,6 +147,23 @@ payload ??= await linking.linkProfile(details, { username: 'person@example.org' 
 // payload: { type, role, userId, profileId, entitySlug, scopes }
 ```
 
+### Provision when an organization is created
+
+```ts
+import { identityEvents } from '@owlmeans/server-auth-identity'
+
+// in makeContext, after appendAuthIdentityResources
+identityEvents(context)?.onEntityCreated(async (event, ctx) => {
+  await ctx.service<PlanService>(PLAN_SERVICE).grantStarterPlan(event.entityId)
+})
+```
+
+The event carries `entityId`, `entitySlug`, `iamKey`, `accountId`, `profileId`, `username`, the
+login `type` and `service`, and `createdAt`. It fires only when `linkProfile` registers a new
+identity (including `force: true`) — never when a second sign-in method links to an identity that
+exists. Listeners run in order and are awaited; one that throws is logged and never fails the
+sign-in, so anything a listener provisions needs its own backfill.
+
 ### Rename an organization and mint a durable name
 
 ```ts
@@ -168,13 +187,15 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `appendAuthIdentityResources(context, dbAlias?)` | function | Register the four resources, the linking service and the entity resolver |
+| `appendAuthIdentityResources(context, dbAlias?)` | function | Register the four resources, the linking service, the entity resolver and (unless one is registered) the identity-events service |
 | `makeOrgEntityResource(dbAlias?)` | function | Mongo resource for `OrgEntity` |
 | `makeIdentityAccountResource(dbAlias?)` | function | Mongo resource for `IdentityAccount` |
 | `makeIdentityProfileResource(dbAlias?)` | function | Mongo resource for `IdentityProfile` |
 | `makeIdentityCredentialsResource(dbAlias?)` | function | Mongo resource for `IdentityCredentials` |
 | `makeIdentityLinkingService()` | function | The `IdentityLinkingService` implementation |
 | `makeEntityResolverService(alias = ENTITY_RESOLVER)` | function | The `EntityResolverService` implementation, cached 30 s per resolved name |
+| `makeIdentityEventsService(alias = AUTH_IDENTITY_EVENTS)` | function | The `IdentityEventsService` implementation (lazy) |
+| `identityEvents(ctx, alias?)` | function | The registered events service, or `null` |
 
 ### Constants
 
@@ -182,6 +203,7 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 |---|---|---|
 | `AUTH_IDENTITY_ORG_ENTITY`, `AUTH_IDENTITY_ACCOUNT`, `AUTH_IDENTITY_PROFILE`, `AUTH_IDENTITY_CREDENTIALS` | const | Resource aliases (`'auth-identity:…'`), lookup keys only |
 | `AUTH_IDENTITY_LINKING` | const | `'auth-identity:linking'` — linking service alias |
+| `AUTH_IDENTITY_EVENTS` | const | `'auth-identity:events'` — identity-events service alias |
 | `AUTH_IDENTITY_DB_ALIAS` | const | `'auth-identity'` — suggested db config alias |
 | `AUTH_IDENTITY_ORG_ENTITY_COLLECTION`, `AUTH_IDENTITY_ACCOUNT_COLLECTION`, `AUTH_IDENTITY_PROFILE_COLLECTION`, `AUTH_IDENTITY_CREDENTIALS_COLLECTION` | const | Colon-free Mongo collection base names |
 | `MAX_ENTITY_SLUG_ATTEMPTS` | const | `8` — word slugs tried before minting gives up |
@@ -197,6 +219,8 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 | `IdentityCredentials` | type | `AuthCredentials` + `profileId` |
 | `IdentityLinkingService` | type | `getLinkedProfile`, `linkProfile`, `linkCredentials`, `unlinkCredentials`, `getOwnerProfiles`, `getOwnerCredentials` |
 | `AccountMeta` | type | `{ username, force? }` |
+| `IdentityEventsService` | type | `onEntityCreated(callback)`, `propagateEntityCreated(event)` |
+| `EntityCreatedEvent`, `EntityCreatedCallback` | type | The entity-created payload; `(event, ctx) => Promise<void>` |
 | `OrgEntityResource`, `IdentityAccountResource`, `IdentityProfileResource`, `IdentityCredentialsResource` | type | Typed `MongoResource` aliases |
 | `IdentityConfig`, `IdentityContext` | type | Server config and context shapes |
 | `GoogleUserInfo` | type | Google userinfo claims |
@@ -224,6 +248,8 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
   is needed.
 - `linkProfile(details, { username, force: true })` always registers a new identity — use it only
   when a separate identity is intended.
+- Provisioning in an `onEntityCreated` listener is best-effort: a throwing listener is logged and the
+  sign-in succeeds, so reconcile what it provisions periodically.
 - The resolver caches for 30 seconds, so a rename reaches other replicas within that window; the old
   slug keeps resolving meanwhile.
 - `rename` rejects a malformed slug and any slug an entity has ever answered to; `mintSlug` throws
@@ -247,7 +273,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

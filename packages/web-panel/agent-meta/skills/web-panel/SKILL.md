@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.46"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.50"` in `dependencies`
 
 ## Key Exports
 
@@ -112,6 +112,7 @@ header. Both render the same items; only one is visible at a time.
 | `TopNav` | `config: PanelNavConfig`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
 | `Footer` | `links?: PanelNavLink[]`, `translate?`, `containerClassName?` (the shell's rhythm, so the footer row lines up with the header and content), `children?`, `className?`, `style?` |
+| `ShellCredit` / `useShellCredit` | `className?`; the platform/owner credit line `Footer` always renders — see below |
 
 **The style slots are REGIONS, and each region is its own SURFACE.** `className` is the root —
 the full-height page *behind* the header, side menu and footer. `headerClassName` is the sticky
@@ -128,6 +129,33 @@ foreground of a surface it is not on. It type-checks, it builds, it renders, and
 invisible. Pinned by `tests/nav.spec.ts` → "the header is its own surface", which measures
 rendered lightness rather than class names; the harness root carries a dark shell permanently so
 every navigation test runs against that case.
+
+**The header is opaque even when `headerClassName` fails to be.** Behind the header's own visible
+content sits a `[data-nav-backdrop]` layer that always paints `bg-background`, at negative
+z-index inside the header's own `isolate` stacking context — so it never covers a caller's actual
+header content, only whatever the header's own background would have been. It exists because
+`headerClassName` is free text a design or restyle pass writes, and three shapes of it leave
+tailwind-merge with no background utility at all on the header: a bare `bg-transparent`, an alpha
+surface (`bg-<x>/50`), or Tailwind v3's dead syntax for referencing a CSS variable
+(`bg-[--my-var]` — square brackets; v4's real shorthand is `bg-(--my-var)`, parentheses). Any of
+those used to leave the sticky header fully see-through, with page content visibly scrolling
+through the menu. A caller that genuinely wants a coloured bar still gets it: `headerClassName`'s
+own background renders on top of the backdrop. Pinned by `nav.spec.ts` → "a broken headerClassName
+still leaves the backdrop layer opaque".
+
+**`Footer` always renders the platform/owner credit line, and there is no prop that hides it.**
+Below the links (or on its own, when a layout passes no `footer` at all — `NavLayout` renders
+`<Footer>` unconditionally now), `ShellCredit` shows "Powered by OwlMeans" and the owner's own
+copyright notice, resolved from `security.auth.login.credit` via `resolveCredit`
+(`@owlmeans/client-auth/login`) — the SAME resolver and the SAME config the sign-in screen's
+`LoginCredit` reads, so an owner who pays to drop the platform credit (`poweredBy: false`) drops
+it everywhere, not only on a screen a signed-in visitor may never see again. Order is the opposite
+of the sign-in screen's: the owner's own notice leads, the platform credit follows — a footer is
+read as "whose page is this, and who built it". The links row and the credit are both centred
+(`justify-center`), not left-aligned. `useShellCredit()` is exported separately so a caller that
+needs to know whether there is anything to show (without rendering it) can ask, exactly how
+`Footer` itself decides whether to render `null`. Pinned by `nav.spec.ts` → "the shell footer
+credit".
 
 **Every style slot is MERGED over its default — none of them substitutes.** `className`,
 `headerClassName`, `contentClassName` and `containerClassName` all go through `cn`, so a caller

@@ -1,13 +1,13 @@
 ---
 name: server-auth-identity
-description: How to use @owlmeans/server-auth-identity — the Mongo-backed local identity store behind provider logins. Registers the organization-entity registry plus account, profile and credentials resources, the IdentityLinkingService that maps an external provider account onto one local identity, and the EntityResolverService that turns the slug on a token into a stable entity id. Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService or the entity resolver.
+description: How to use @owlmeans/server-auth-identity — the Mongo-backed local identity store behind provider logins. Registers the organization-entity registry plus account, profile and credentials resources, the IdentityLinkingService that maps an external provider account onto one local identity, the EntityResolverService that turns the slug on a token into a stable entity id, and the identity-events seam that announces a newly created organization entity. Auto-invoked when importing appendAuthIdentityResources, an identity resource alias, IdentityLinkingService, the entity resolver or identityEvents.
 user-invocable: false
 ---
 
 # @owlmeans/server-auth-identity
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.24"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-identity": "^0.1.18-rc.29"` in `dependencies`
 
 The local identity store a deployment owns when it does not delegate identity to an external IAM.
 It answers two questions: *who is this person here* (account / profile / credentials) and *which
@@ -17,18 +17,21 @@ organization entity is this* (the org-entity registry and its resolver).
 
 | Export | Description |
 |--------|-------------|
-| `appendAuthIdentityResources(context, dbAlias?)` | Register the four resources, the linking service and the entity resolver in one call |
+| `appendAuthIdentityResources(context, dbAlias?)` | Register the four resources, the linking service, the entity resolver and — unless one is already registered — the identity-events service |
 | `makeOrgEntityResource(dbAlias?)` | Mongo resource for `OrgEntity` — the organization-entity registry |
 | `makeIdentityAccountResource(dbAlias?)` | Mongo resource for `IdentityAccount` (one per person) |
 | `makeIdentityProfileResource(dbAlias?)` | Mongo resource for `IdentityProfile` (one person inside one organization entity, with a role) |
 | `makeIdentityCredentialsResource(dbAlias?)` | Mongo resource for `IdentityCredentials` (one provider link per profile) |
 | `makeIdentityLinkingService()` | The `IdentityLinkingService` implementation |
 | `makeEntityResolverService(alias?)` | The `EntityResolverService` implementation, cached for 30 s per resolved value |
+| `makeIdentityEventsService(alias?)` | The lazy `IdentityEventsService` implementation |
+| `identityEvents(ctx, alias?)` | The registered events service, or `null` |
 | `AUTH_IDENTITY_ORG_ENTITY` | Resource alias `'auth-identity:org-entity'` |
 | `AUTH_IDENTITY_ACCOUNT` | Resource alias `'auth-identity:account'` |
 | `AUTH_IDENTITY_PROFILE` | Resource alias `'auth-identity:profile'` |
 | `AUTH_IDENTITY_CREDENTIALS` | Resource alias `'auth-identity:credentials'` |
 | `AUTH_IDENTITY_LINKING` | Service alias `'auth-identity:linking'` |
+| `AUTH_IDENTITY_EVENTS` | Service alias `'auth-identity:events'` |
 | `AUTH_IDENTITY_DB_ALIAS` | `'auth-identity'` — the suggested db-config alias whose `resourcePrefix` scopes the prefix to identity collections only |
 | `AUTH_IDENTITY_ORG_ENTITY_COLLECTION`, `AUTH_IDENTITY_ACCOUNT_COLLECTION`, `AUTH_IDENTITY_PROFILE_COLLECTION`, `AUTH_IDENTITY_CREDENTIALS_COLLECTION` | Colon-free Mongo collection base names (`org-entity`, `account`, `profile`, `credentials`) |
 | `MAX_ENTITY_SLUG_ATTEMPTS` | How many word slugs to try before giving up minting a free one |
@@ -48,6 +51,9 @@ collection names are the colon-free `*_COLLECTION` values, optionally prefixed b
 | `IdentityCredentials` | `AuthCredentials` + `profileId` |
 | `IdentityLinkingService` | `getLinkedProfile`, `linkProfile`, `linkCredentials`, `getOwnerProfiles`, `getOwnerCredentials` |
 | `AccountMeta` | `{ username, force? }` — the second argument to `linkProfile` |
+| `IdentityEventsService` | `onEntityCreated(callback)`, `propagateEntityCreated(event)` |
+| `EntityCreatedEvent` | `entityId`, `entitySlug`, `iamKey`, `accountId`, `profileId`, `username`, `type`, `service`, `createdAt` |
+| `EntityCreatedCallback` | `(event, ctx) => Promise<void>` |
 | `OrgEntityResource`, `IdentityAccountResource`, `IdentityProfileResource`, `IdentityCredentialsResource` | Typed `MongoResource` aliases |
 | `IdentityConfig`, `IdentityContext` | Server config/context shapes |
 | `GoogleUserInfo` | The Google userinfo claim set |
@@ -152,6 +158,32 @@ profile carrying one is a platform login and a profile carrying none is somebody
 
 `linkProfile(details, { username, force: true })` skips the lookup and registers a fresh identity
 regardless. Use it only where a genuinely separate identity is intended.
+
+## Identity events
+
+`linkProfile` is the only place an organization entity is minted, so it is where one is announced:
+
+```typescript
+import { identityEvents } from '@owlmeans/server-auth-identity'
+
+// while wiring the context, after appendAuthIdentityResources — the service is lazy
+identityEvents(context)?.onEntityCreated(async (event, ctx) => {
+  await provisionStarterPlan(ctx, event.entityId)
+})
+```
+
+- **It fires at the end of the REGISTRATION branch only** — after the entity, account, profile and
+  credential rows exist, and on `force: true` too. A second sign-in method that links to a known
+  identity creates no entity and fires nothing. Provisioning keyed on "reached `linkProfile`"
+  would double-fund that person; key it on this event.
+- **Listeners run in registration order and are awaited**, so the sign-in completes after them.
+  Keep them short: one row, one enqueue.
+- **A throwing listener is logged and never fails the sign-in**, and the next listener still runs.
+  The person is registered either way, so whatever a listener provisions needs a periodic
+  reconciliation to backfill the misses.
+- **`identityEvents(ctx)` answers `null` where the service is not registered** — write `?.` and a
+  deployment without the seam pays nothing.
+- Key what a listener writes on `event.entityId`, never on `entitySlug`: the slug can be renamed.
 
 ## Key derivation conventions
 

@@ -119,6 +119,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     '',
     'Long operations return a JOB and do not block. Poll with wait_for; call it again while the'
     + ' job is still running.',
+    '',
+    'A story\'s status moves through the platform\'s story flow; develop_story is what starts that'
+    + ' move, and update_story never changes it.',
   ]
 
   if (sessionCapable(host)) {

@@ -43,6 +43,8 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       expect(await page.locator('#login-logo').count()).toBe(1)
       const credit = await page.locator('[data-login-credit]').textContent()
       expect(credit).toContain('Powered by OwlMeans')
+      expect(await page.locator('[data-login-credit] a[data-login-powered]').getAttribute('href'))
+        .toBe('https://owlmeans.com')
       expect(credit).toContain('Harness')
       // A copyright NOTICE, not a name: the mark and the year are what make it one.
       expect(credit).toContain(`© ${new Date().getFullYear()} Acme`)

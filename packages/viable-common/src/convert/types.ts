@@ -409,9 +409,9 @@ export interface RoleEstimate {
  * What one stage is expected to cost, as the platform stores it on the conversion record.
  *
  * Priced on the agent, where the model presets and the run mode are: a DELEGATED conversion runs
- * its model calls on the parent agent and costs the platform nothing, so `usd` and `credits` are
- * zero and `delegated` says why. `basis` is kept so a user can see what the number was projected
- * from rather than being handed a figure with no provenance.
+ * its model calls on the parent agent and costs the platform nothing, so `usd` is zero and
+ * `delegated` says why. `basis` is kept so a user can see what the number was projected from
+ * rather than being handed a figure with no provenance.
  */
 export interface ConversionEstimate {
   stage: ConversionStage
@@ -420,7 +420,8 @@ export interface ConversionEstimate {
   inputTokens: number
   outputTokens: number
   usd: number
-  credits: number
+  /** @deprecated Credits are USD at the reference rate now — read `usd`. Kept for records stored before the change. */
+  credits?: number
   delegated: boolean
   basis: {
     files: number
@@ -441,8 +442,10 @@ export interface ConversionEstimate {
 export interface StoryEstimateBand {
   minUsd: number
   maxUsd: number
-  minCredits: number
-  maxCredits: number
+  /** @deprecated Credits are USD at the reference rate now — read `minUsd`. Kept for records stored before the change. */
+  minCredits?: number
+  /** @deprecated Credits are USD at the reference rate now — read `maxUsd`. Kept for records stored before the change. */
+  maxCredits?: number
   perStory: { code: string, complexity: number, minUsd: number, maxUsd: number }[]
 }
 

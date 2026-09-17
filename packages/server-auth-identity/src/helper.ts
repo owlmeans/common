@@ -2,6 +2,8 @@ import type { BasicContext } from '@owlmeans/context'
 import { makeIdentityAccountResource, makeIdentityProfileResource, makeIdentityCredentialsResource, makeOrgEntityResource } from './resource.js'
 import { makeIdentityLinkingService } from './service.js'
 import { makeEntityResolverService } from './resolver.js'
+import { makeIdentityEventsService } from './events.js'
+import { AUTH_IDENTITY_EVENTS } from './consts.js'
 
 export const appendAuthIdentityResources = (
   context: BasicContext<any>,
@@ -16,4 +18,8 @@ export const appendAuthIdentityResources = (
   // organizations: without it `request.entity` stays undefined and every consumer falls back to
   // treating the token's slug as the only entity value there is.
   context.registerService(makeEntityResolverService())
+  // Behind `hasService`, so an application that registered its own events service first keeps it.
+  if (!context.hasService(AUTH_IDENTITY_EVENTS)) {
+    context.registerService(makeIdentityEventsService())
+  }
 }

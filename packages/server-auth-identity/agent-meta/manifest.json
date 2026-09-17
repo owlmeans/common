@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-auth-identity",
-  "version": "0.1.18-rc.28",
-  "generatedAt": "2026-09-15T13:19:14.330Z",
+  "version": "0.1.18-rc.29",
+  "generatedAt": "2026-09-16T17:32:31.932Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

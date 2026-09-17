@@ -14,7 +14,7 @@ provisioning, and an opt-in least-privilege bootstrap path.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres@^0.1.18-rc.24 @owlmeans/postgres-resource@^0.1.18-rc.23
+bun add @owlmeans/postgres@^0.1.18-rc.27 @owlmeans/postgres-resource@^0.1.18-rc.27
 ```
 
 ## Usage
@@ -129,7 +129,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

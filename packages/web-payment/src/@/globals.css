@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@theme {
+  /* The indeterminate mode of the private `progress` primitive (a `value`-less bar). */
+  --animate-progress-indeterminate: progress-indeterminate 1.5s linear infinite;
+
+  @keyframes progress-indeterminate {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+}

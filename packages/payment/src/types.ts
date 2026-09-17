@@ -1,7 +1,8 @@
 import type { InitializedService } from '@owlmeans/context'
 
 import type {
-  CheckoutPricingMode, PaymentEntityType, PlanDuration, PlanStatus, ProductType, SubscriptionStatus
+  CheckoutPricingMode, LimitKind, LimitWindow, PaymentEntityType, PlanDuration, PlanStatus, PortalFlow,
+  ProductType, SubscriptionStatus
 } from './consts.js'
 import type { PermissionSet } from '@owlmeans/auth'
 
@@ -30,13 +31,46 @@ export interface Localization {
   keywords?: { [key: string]: string }
 }
 
+/**
+ * A time-boxed grant on a capability set or a limit.
+ *
+ * In force while `now < until`; with `grandfather`, also for a subscription created before `until`.
+ */
+export interface PromoDeclaration {
+  until: Date
+  grandfather?: boolean
+}
+
+/** A capability set a plan grants, optionally only while a promo is in force. */
+export interface PlanCapability extends PermissionSet {
+  promo?: PromoDeclaration
+}
+
+/** A counted allowance a plan grants under one key. */
+export interface LimitDeclaration {
+  kind: LimitKind
+  /** The ceiling. `0` means "not included". */
+  limit: number
+  /** Required for `LimitKind.Window`; ignored otherwise. */
+  window?: LimitWindow
+  /** A display unit, never interpreted. */
+  unit?: string
+  promo?: PromoDeclaration
+}
+
 export interface ProductPlan {
   productSku: string
   sku: string
   status: PlanStatus
-  payagateAliases?: {
-    [paygate: string]: string | null
-  }
+  /**
+   * Position among the plans of one product: a higher rank is an upgrade. Treated as `0` when
+   * absent.
+   */
+  rank?: number
+  /** A plan every entity holds without paying: `price: 0`, no paygate. */
+  free?: boolean
+  /** The paygates this plan is sold through. Empty for a free plan. */
+  gateways?: string[]
   duration: PlanDuration
   trial?: number
   gatedTrial?: boolean
@@ -57,9 +91,9 @@ export interface ProductPlan {
    * This way we can plan event when users loose access in case they don't upgrade.
    */
   deprecatedAt?: Date
-  supsendedAt?: Date
-  capabilities?: PermissionSet[]
-  limits?: { [key: string]: LimitConfig }
+  suspendedAt?: Date
+  capabilities?: PlanCapability[]
+  limits?: { [key: string]: LimitDeclaration }
   pricingMode?: CheckoutPricingMode
   amountPolicy?: AmountCheckoutPolicy
   quantityPolicy?: QuantityCheckoutPolicy
@@ -81,37 +115,10 @@ export interface QuantityCheckoutPolicy {
   default: number
 }
 
-export interface PlanSubscription {
-  sku: string
-  entityId: string
-  paymentMethod?: string
-  externalId?: string
-  createdAt: Date
-  lastPaymentAt?: Date
-  trialUntil?: Date
-  startsdAt: Date
-  expirationAt?: Date
-  endsAt?: Date
-  archiveAt?: Date
-  suspendedAt?: Date
-  canceledAt?: Date
-  blockedAt?: Date
-  suspendedUntil?: Date
-  status: SubscriptionStatus
-  /**
-   * Custom capabilities for the particular subscription.
-   */
-  capabilities?: PermissionSet[]
-  /**
-   * Custom limits for the particular subscription.
-   */
-  limits?: { [key: string]: LimitConfig }
-  consumptions?: { [key: string]: CapabilityUsage }
-}
-
 export interface CreateCheckoutBody {
   productSku: string
-  sku?: string
+  /** The plan to subscribe to, for a subscription checkout. */
+  planSku?: string
   /** Renameable organization value carried across a protocol boundary. */
   entitySlug: string
   service: string
@@ -126,30 +133,92 @@ export interface CreateCheckoutResponse {
   url: string
 }
 
-export interface SubscriptionPropagateBody extends Omit<PlanSubscription, 'entityId' | 'externalId'> {
-  /** Renameable organization value carried across the propagation protocol. */
-  entitySlug: string
-  service: string
-  externalId: string
-}
-
 /**
- * @deprecated Use SubscriptionPropagateBody instead
+ * What an entity may do and how much of each limit is left, at one instant.
+ *
+ * The one read both the server gate and the browser consume. Built by `entitlementViewOf`.
  */
-export type SubscriptionPropogateBody = SubscriptionPropagateBody
-
-export interface LimitConfig {
-  interval: PlanDuration
-  limit: number
-  measurment?: string
+export interface EntitlementView {
+  plan: EntitlementPlanView
+  capabilities: CapabilityView[]
+  limits: LimitView[]
+  at: Date
 }
 
-export interface CapabilityUsage extends LimitConfig {
-  startedAt: Date
-  refreshedAt?: Date
-  refreshAt?: Date
-  lastConsumedAt?: Date
-  consumption: number
+/** The effective plan and the subscription behind it. */
+export interface EntitlementPlanView {
+  sku: string
+  productSku: string
+  title: string
+  rank: number
+  free: boolean
+  status: SubscriptionStatus
+  paygate: string
+  subscriptionId?: string
+  /** When the subscription was created — what a grandfathered promo is measured against. */
+  subscribedAt?: Date
+  periodStart?: Date
+  periodEnd?: Date
+  cancelAtPeriodEnd?: boolean
+  trialEnd?: Date
+  pausedAt?: Date
+  pastDue?: boolean
+  /** The plan the entity falls back to when this one ends. */
+  fallbackSku?: string
+}
+
+export interface CapabilityView {
+  /** `[scope:]permission`, exactly as the capability gate takes it. */
+  param: string
+  scope: string
+  permission: string
+  value: boolean | number
+  /** False when the set's promo is no longer in force. */
+  granted: boolean
+  promo?: PromoView
+}
+
+export interface LimitView {
+  key: string
+  /** `limit:<key>`, exactly as the limit gate takes it. */
+  param: string
+  kind: LimitKind
+  window?: LimitWindow
+  /** The ceiling in force now: `0` when a promo has lapsed. */
+  limit: number
+  used: number
+  /** `max(0, limit - used)`. */
+  remaining: number
+  windowStart?: Date
+  /** Exclusive: the first instant of the next window. */
+  resetsAt?: Date
+  unit?: string
+  promo?: PromoView
+}
+
+export interface PromoView {
+  until: Date
+  /** The subscription predates `until` and the promo grandfathers it. */
+  grandfathered: boolean
+  active: boolean
+}
+
+export interface PortalLinkBody {
+  flow: PortalFlow
+  /** The target plan of a `PortalFlow.Change`. */
+  planSku?: string
+  returnUrl?: string
+}
+
+export interface PortalLinkResponse {
+  url: string
+}
+
+/** One counter reading: how much of `key` is used in `window` (a `windowKeyOf` value). */
+export interface LimitUsage {
+  key: string
+  window: string
+  used: number
 }
 
 type PaymentEntity = Product | ProductPlan | PermissionSet

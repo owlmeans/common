@@ -84,6 +84,13 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
     expect(offered).not.toContain('list_files')
   }, 30_000)
 
+  test('it reports the version its own manifest declares', async () => {
+    // Read by the BUILT server from `build/../package.json` — the path the packaged tarball has.
+    const manifest = JSON.parse(fs.readFileSync(p.resolve(p.dirname(BIN), '../package.json'), 'utf8'))
+
+    expect(server.client.getServerVersion()).toEqual({ name: '@owlmeans/viable-mcp', version: manifest.version })
+  })
+
   test('the instructions state the mode and the job rule', async () => {
     const instructions = server.client.getInstructions() ?? ''
 

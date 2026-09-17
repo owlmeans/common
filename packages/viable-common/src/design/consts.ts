@@ -8,9 +8,6 @@
  */
 export const STORY_DESIGN_VERSION = 1
 
-/** The code a scaffold plan is filed under, since it belongs to a project rather than a story. */
-export const SCAFFOLD_CODE = 'scaffold'
-
 /** How far a design may drift from the project it was written against before it is stale. */
 export enum DesignStaleness {
   /** Usable as it stands. */

@@ -168,15 +168,20 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
     hero: {
       type: 'object',
       properties: {
-        eyebrow: { type: 'string', description: 'A 2-4 word positioning phrase above the headline' },
         headline: {
           type: 'string',
           description: 'The product\'s promise in one line, under 9 words. Never the product name alone'
         },
         sub: { type: 'string', description: 'One or two sentences: what it does and who it is for' },
         cta: { type: 'string', description: 'The call-to-action label, 2-3 words' },
+        eyebrow: {
+          type: 'string', nullable: true,
+          description: 'OPTIONAL, normally omitted. A small badge above the headline - set it only when'
+            + ' the specification explicitly asks for a label there. A landing page carries no badge by'
+            + ' default: the headline is what positions the product'
+        },
       },
-      required: ['eyebrow', 'headline', 'sub', 'cta'],
+      required: ['headline', 'sub', 'cta'],
       additionalProperties: false,
     },
     problem: {

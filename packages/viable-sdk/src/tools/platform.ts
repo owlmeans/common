@@ -195,7 +195,9 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'stories',
       title: 'User stories',
-      what: 'List, search, add, reword and delete stories, and ask for one to be implemented.',
+      what: 'User stories are planning CARDS: each has a code, a status in the story flow'
+        + ' (planned → in-progress → completed | failed), an area and a place in the flow order.'
+        + ' List, search, add, reword and delete them, and ask for one to be implemented.',
       tools: [
         'list_stories', 'search_stories', 'create_story', 'update_story', 'delete_story',
         'develop_story', 'story_status',

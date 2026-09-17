@@ -1,8 +1,8 @@
+import type { PlanningFacade } from '@owlmeans/planning'
 import type {
   ConnectCapabilities, ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectHarness,
   ConnectJob, ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission,
-  ConnectPipelineState, ConnectProjectStatus, ConnectSessionView, ConnectStoryDeletion,
-  ConnectStoryItem, ConnectStoryList, ConnectStoryMutation, ConnectTarget, ConversionDecision,
+  ConnectPipelineState, ConnectProjectStatus, ConnectSessionView, ConnectTarget, ConversionDecision,
   ConversionStatusView, ConvertCheck, InquiryAnswerPayload, InquiryPayload, ModelTask,
   ModelTaskResult, SlotCommandPayload,
 } from '@owlmeans/viable-common'
@@ -49,14 +49,15 @@ export interface ConnectorApi {
     job: (projectId: string, jobId: string, waitSec?: number) => Promise<ConnectJob>
   }
 
-  story: {
-    list: (projectId: string, query?: StoryQuery) => Promise<ConnectStoryList>
-    get: (projectId: string, storyId: string) => Promise<ConnectStoryItem>
-    create: (projectId: string, story: string) => Promise<ConnectStoryMutation>
-    update: (projectId: string, storyId: string, story: string) => Promise<ConnectStoryMutation>
-    remove: (projectId: string, storyId: string) => Promise<ConnectStoryDeletion>
-    develop: (projectId: string, storyId: string) => Promise<ConnectJob>
-  }
+  /**
+   * The platform's planning surface: projects, user stories and the documents behind them as
+   * cards, and every change to one as a transition.
+   *
+   * The story tools read and write through it. The scope it answers for is the CREDENTIAL's —
+   * the platform takes the organization, the profile and the channel from the token (over HTTP)
+   * or from the caller it authenticated (in process), never from anything a tool sends.
+   */
+  planning: PlanningFacade
 
   files: {
     list: (projectId: string) => Promise<string[]>
@@ -114,15 +115,8 @@ export interface ProjectEdits {
   description?: string
   specification?: string
   vision?: string
+  designSystem?: string
   target?: ConnectTarget
-}
-
-export interface StoryQuery {
-  page?: number
-  size?: number
-  status?: string
-  area?: string
-  q?: string
 }
 
 /** What a connector executes locally. Absent for a cloud target — the platform's pod does it. */

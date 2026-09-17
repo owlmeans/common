@@ -492,9 +492,10 @@ export const ConversionEstimateSchema = {
     inputTokens: { type: 'number' },
     outputTokens: { type: 'number' },
     usd: { type: 'number' },
-    credits: { type: 'number' },
-    // A delegated conversion runs its model calls on the parent agent, so `usd`/`credits` are 0
-    // and this is what says the zero is a mode rather than a missing price.
+    // Deprecated: kept nullable so a record stored before the change still validates.
+    credits: { type: 'number', nullable: true },
+    // A delegated conversion runs its model calls on the parent agent, so `usd` is 0 and this is
+    // what says the zero is a mode rather than a missing price.
     delegated: { type: 'boolean' },
     basis: {
       type: 'object',
@@ -511,7 +512,7 @@ export const ConversionEstimateSchema = {
     computedAt: isoDate,
   },
   required: [
-    'stage', 'version', 'roles', 'inputTokens', 'outputTokens', 'usd', 'credits', 'delegated',
+    'stage', 'version', 'roles', 'inputTokens', 'outputTokens', 'usd', 'delegated',
     'basis', 'computedAt'
   ],
   additionalProperties: false,
@@ -522,8 +523,9 @@ export const StoryEstimateBandSchema = {
   properties: {
     minUsd: { type: 'number' },
     maxUsd: { type: 'number' },
-    minCredits: { type: 'number' },
-    maxCredits: { type: 'number' },
+    // Deprecated: kept nullable so a record stored before the change still validates.
+    minCredits: { type: 'number', nullable: true },
+    maxCredits: { type: 'number', nullable: true },
     perStory: {
       type: 'array',
       items: {
@@ -539,7 +541,7 @@ export const StoryEstimateBandSchema = {
       },
     },
   },
-  required: ['minUsd', 'maxUsd', 'minCredits', 'maxCredits', 'perStory'],
+  required: ['minUsd', 'maxUsd', 'perStory'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<StoryEstimateBand>
 

@@ -9,6 +9,7 @@ import { makeLocalSlotExecutor } from '@owlmeans/viable-sdk/executor'
 import { sessionCapabilities } from './capabilities.js'
 import type { McpConfig } from './config.js'
 import { makeSessionHolder } from './session-holder.js'
+import { VERSION } from './version.js'
 
 export interface BuiltServer {
   server: McpServer
@@ -102,4 +103,4 @@ export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> 
   }
 }
 
-export const VERSION = '0.1.18-rc.1'
+export { VERSION } from './version.js'

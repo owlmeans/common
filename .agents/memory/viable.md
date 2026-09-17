@@ -20,8 +20,9 @@ product repo, which consumes all three. Related: [[llm]], [[agent]], [[versionin
   declared in the product repo, not here, so the SDK cannot `instanceof` them: they arrive as a
   marshalled `type|||marker|||stack` and are matched by marker.
 - During prerelease, `viable-mcp` is distributed under `next` but install commands carry its
-  compatible caret range, currently `^0.1.18-rc.3`. Version-skew tolerance against the separately
-  deployed platform is a design constraint for this family and for nothing else in the repo.
+  compatible caret range (the skill's harness-written Install line). Version-skew tolerance against
+  the separately deployed platform is a design constraint for this family and for nothing else in the
+  repo.
 - The `viable-sdk` local executor is the publisher's dispatcher re-implemented for a laptop —
   same commands, same "error text or null" answers — so the platform's remote helpers cannot tell
   which side answered.

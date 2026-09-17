@@ -33,26 +33,33 @@ cd ../library-manager
 # 1. What would ship, and under which dist-tag? (safe, read-only)
 bun run scripts/publish.ts --project common --dry-run
 
-# 2. Give each affected package a version that is not taken, and realign
-#    every dependent range in-repo (^ and ~ are preserved)
+# 2. Converge locally BEFORE publishing — repeat until the plan shows no "needs rc", the
+#    consumer check reports every pin matching, and the pin audit has nothing failing.
+#    Consumers link this repo as workspaces, so the sweep may point at versions npm does not
+#    serve yet — hence --no-install. Docs are fixed before the agent-meta sync copies them, and
+#    before the publish: a fix afterwards rewrites shipped content (a package's own README
+#    install line) and forces another bump-and-publish round.
 bun run scripts/publish.ts --project common --bump rc
-
-# 3. Rebuild against the new versions, sync embedded guidance and BOTH
-#    template seeds, commit
 ( cd projects/common && bun install && bun run build )
+bun run scripts/bump-deps.ts --consumers-of common --no-install
+bun run scripts/bump-deps.ts --pins-only --fix
 bun run scripts/sync-agent-meta.ts --project common
 bun run scripts/sync-agent-meta.ts --project viable-agent --seed-only
-( cd projects/common && git add -A && git commit -m "chore: rc bump" )
+( cd projects/common && bun run build )
+bun run scripts/publish.ts --project common --dry-run
+bun run scripts/bump-deps.ts --consumers-of common --check --skip-lock-check   # nothing installed yet
 
-# 4. Publish — ONLY after the operator agreed to it
+# 3. Commit the bump, the consumer sweep and the agent-meta sync together.
+
+# 4. Publish — ONLY after the operator agreed to it. A refused package (403/409) aborts the
+#    run and every later batch: bump it through step 2 and publish again.
 bun run scripts/publish.ts --project common
 
-# 5. Sweep every consumer, then prove none was missed
-bun run scripts/bump-deps.ts --consumers-of common
+# 5. Once npm serves the new versions, install every consumer, align the ranges each bun.lock
+#    records, and verify.
+for r in common internal viable-agent viable native static; do ( cd projects/"$r" && bun install ); done
+bun run scripts/align-lock.ts --project common,internal,viable-agent,viable,native,static
 bun run scripts/bump-deps.ts --consumers-of common --check
-
-# 6. Realign the documented pins and install commands the audit flagged
-bun run scripts/bump-deps.ts --pins-only --fix
 ```
 
 Two template trees are seeded from **this** repo's canonical `.agents/skills/`, and each is
@@ -63,7 +70,20 @@ generated application.
 
 Each step writes into a separate git repo — commit the bump plus the agent-meta sync together in
 this repo, viable-agent's refreshed seed in viable-agent, and the swept manifests plus lockfiles in
-each consumer.
+each consumer that tracks its `bun.lock` (`viable`, `native`).
+
+**An install never realigns a lockfile's recorded ranges.** `bun install` keeps the dependency
+ranges `bun.lock` records for a workspace — and, for a workspace linked by path, not reliably even
+its recorded `version` — so every range the sweep moved stays at its old value there and the next
+install churns the file. Step 5's `align-lock.ts` rewrites each recorded range to its manifest's
+value where the resolution already recorded satisfies the new range, and each recorded workspace
+version or name where the lock resolves that package by path to that workspace (a path resolution
+consults no version) — never touching a resolution — and then validates every repo with
+`bun install --frozen-lockfile --dry-run`. That validation cannot see a stale range, so
+the proof is `bump-deps --check`, which compares every consumer lockfile with its manifests last
+(exit 13). A row the tool marks `bun install` is a resolution change: install that repo, then align
+again. The pre-publish check in step 2 passes `--skip-lock-check`, since consumers are swept
+`--no-install` there and no lockfile can agree yet.
 
 | Option | Effect |
 |---|---|
@@ -168,29 +188,33 @@ different ways, so there are five codes, and each names what clears it:
 | 3 | dirty repo | any run that writes (skipped under `--dry-run`) | commit, or `--force` |
 | 8 | a canonical skill cites a monorepo path | a publish run — not `--dry-run`, not `--bump rc`, not `--skip-agent-meta-check` | reword that skill (below); regenerating will not clear it |
 | 7 | agent-meta drift — an embedded copy or a template seed is stale or missing | the same runs as 8, judged after it | `sync-agent-meta.ts --project common` |
-| 12 | an `@owlmeans/*` range resolves nothing, or nothing satisfiable | *every* invocation, `--dry-run` and `--bump rc` included, unless `--skip-pin-check` | fix the range; `bump-deps.ts --pins-only --fix` rewrites the documented ones |
+| 12 | an `@owlmeans/*` range resolves nothing, or nothing satisfiable; or a nested `@owlmeans/*` copy sits in a package's own `node_modules` | *every* invocation, `--dry-run` and `--bump rc` included, unless `--skip-pin-check` | fix the range (`bump-deps.ts --pins-only --fix` rewrites the documented ones); delete a nested copy and reinstall |
 | 10 | an affected package's version is already published | a `--changed` (default) publish run without `--bump rc`; under `--all` a taken version is dropped from the ship set instead, so nothing blocks (a `--dry-run` previews the bumped version and exits 0) | re-run with `--bump rc` |
 
 The other non-zero exits are outcomes, not gates: **2** a CLI parse error, **5** a failed
 `npm publish` — the run stops there, since later packages may depend on it — and **6** nothing
 publishable left after the filter.
 
-Two codes belong to the sibling tools and never come out of a publish run. **9** is
+Three codes belong to the sibling tools and never come out of a publish run. **9** is
 `sync-agent-meta.ts` refusing a canonical skill that routes to no package: classify it in the
-harness's `agent-meta-routing.ts` — `DEV_ONLY` for monorepo governance, or `MULTI_PACKAGE_LEADS`
-naming the package that carries it. **11** is `bump-deps.ts --check` finding a pin that does not
-match its source version: re-run the sweep without `--check`. `publish.ts` reads only the drift and
-violation halves of the agent-meta check, so an unroutable skill is caught by the sync, never by a
-release.
+harness's `agent-meta-routing.ts` — `DEV_ONLY` for monorepo governance (`REPO_DEV_ONLY[<repo>]`
+when another repo distributes a skill of the same name), or `MULTI_PACKAGE_LEADS` naming the
+package that carries it. **11** is `bump-deps.ts --check` finding a pin that does not match its
+source version: re-run the sweep without `--check`. **13** is `bump-deps.ts --check` (or
+`align-lock.ts --check`) finding a `bun.lock` that records a range its manifest no longer declares:
+run `align-lock.ts` over the repos it names, installing first any repo whose rows say
+`bun install`. `publish.ts` reads only the drift and violation halves of the agent-meta check, so
+an unroutable skill is caught by the sync, never by a release.
 
 7 and 8 are independent: strictness decides the verdict, never the generated bytes, so `--check`
 and a plain sync always agree on what is stale.
 
 The **range pre-flight (12)** runs on *every* invocation — `--dry-run` and `--bump rc` included.
-It fails on five verdicts: a range that resolves through a dist-tag or an unbounded branch
+It fails on six verdicts: a range that resolves through a dist-tag or an unbounded branch
 (`latest`, `next`, `*`, `""`), a `workspace:`/`file:`/`link:` range inside a template tree, a range
-this harness cannot parse, a range no published or local version satisfies, and a registry query
-that failed. A tag-resolved range is the sharpest of them: publishing over one ships a release the
+this harness cannot parse, a range no published or local version satisfies, a registry query
+that failed, and an `@owlmeans/*` entry inside a workspace package's own `node_modules` — a second
+module identity (see the `bun` skill). A tag-resolved range is the sharpest of them: publishing over one ships a release the
 consumer never receives, in a tree that builds and tests green against the previous API. A package
 with nothing published yet only **warns** — it never trips the gate, so a first release needs no
 flag. `--skip-pin-check` is a deliberate exception, and the case the gate itself names is an

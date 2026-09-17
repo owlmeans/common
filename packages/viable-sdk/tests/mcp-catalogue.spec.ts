@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget } from '@owlmeans/viable-common'
+import { ResilientError } from '@owlmeans/error'
+import {
+  ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
+} from '@owlmeans/viable-common'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import type { McpServerLike } from '../src/tools/mcp.js'
 import { ToolHostKind } from '../src/tools/types.js'
 import type { ToolDeps, ToolHost } from '../src/tools/types.js'
+import { makePlanningSuite } from './context.js'
 
 const host: ToolHost = {
   kind: ToolHostKind.Stdio,
@@ -95,5 +99,60 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
     expect(result.isError).toBe(true)
     expect(result.content[0]!.text).toBe('platform unreachable')
     expect(notified).toHaveLength(0)
+  })
+})
+
+describe('viable-sdk — a planning refusal, at the MCP boundary', () => {
+  /** A connector over a real planning service, on a URL host that opens no session. */
+  const depsOver = (planning: ToolDeps['api']['planning'], logged: string[]): ToolDeps => ({
+    host: { ...host, kind: ToolHostKind.Http },
+    api: { planning, project: { job: async () => { throw new Error('no job may be read') } } },
+    session: async () => ({} as never),
+    currentSession: () => null,
+    attached: () => null,
+    attach: () => undefined,
+    log: (line: string) => { logged.push(line) },
+  }) as unknown as ToolDeps
+
+  const developed = async (planning: ToolDeps['api']['planning'], projectId: string, storyId: string, logged: string[]) => {
+    const { server, run } = fakeServer()
+    registerCatalogue(server, depsOver(planning, logged))
+
+    return await run('develop_story', { projectId, storyId }) as {
+      content: Array<{ text: string }>
+      isError?: boolean
+    }
+  }
+
+  test('a move the story flow does not allow is a sentence, thrown in process or marshalled over HTTP', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const running = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      moves: [ViableStoryTransition.Start],
+    })
+
+    // In process — the platform's own `/mcp` host — the refusal arrives as its class.
+    const logged: string[] = []
+    const direct = await developed(suite.planning, project.id!, running.code!, logged)
+    expect(direct.isError).toBe(true)
+    expect(direct.content[0]!.text).toContain('not open from the status the story is in')
+    expect(direct.content[0]!.text).not.toContain('planning:illegal-transition')
+    expect(logged[0]).toContain('planning:illegal-transition')
+
+    // Over HTTP it arrives as the marshalled text the API client rebuilds an error from.
+    const marshalled: ToolDeps['api']['planning'] = {
+      ...suite.planning,
+      execute: async (exec, opts) => {
+        try {
+          return await suite.planning.execute(exec, opts)
+        } catch (e) {
+          throw ResilientError.ensure(ResilientError.marshal(e as ResilientError).message, true)
+        }
+      },
+    }
+    const remote = await developed(marshalled, project.id!, running.code!, [])
+    expect(remote.isError).toBe(true)
+    expect(remote.content[0]!.text).toContain('not open from the status the story is in')
+    expect(remote.content[0]!.text).not.toContain(ResilientError.separator)
   })
 })

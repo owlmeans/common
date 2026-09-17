@@ -11,6 +11,7 @@ import type { OrgEntity, OrgEntityResource } from './types.js'
 import type { EntityResolverService } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
 import { AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_PROFILE, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_LINKING, AUTH_IDENTITY_ORG_ENTITY, LOGIN_SERVICE_PREFIX, EXTERNAL_KEY_DELIMITER } from './consts.js'
+import { identityEvents } from './events.js'
 
 type Context = ServerContext<ServerConfig>
 
@@ -198,6 +199,21 @@ export const makeIdentityLinkingService = (): IdentityLinkingService => {
         userId: externalKey(details),
         profileId,
         credential: svc,
+      })
+
+      // Only this branch creates an organization — the linking branch above adds a credential to
+      // one that exists — so this is the one place an entity is announced, once it is complete.
+      // Listeners are awaited and never throw (the service logs them).
+      await identityEvents(ctx)?.propagateEntityCreated({
+        entityId,
+        entitySlug: entity.slug,
+        iamKey: entity.iamKey,
+        accountId,
+        profileId: profile.profileId,
+        username: meta.username,
+        type: details.type,
+        service: details.service,
+        createdAt: entity.createdAt,
       })
 
       return {

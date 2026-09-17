@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { ResilientError } from '@owlmeans/error'
-import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind } from '@owlmeans/viable-common'
+import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
+import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
+import {
+  ConnectHarness, ConnectJobKind, ConnectLlm, ConnectTarget, jobIdOf, OriginKind, ProjectArea,
+  ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition,
+} from '@owlmeans/viable-common'
+import type { ViableStoryCard } from '@owlmeans/viable-common'
 import { catalogue, visibleTools } from '../src/tools/catalogue.js'
 import { renderJob } from '../src/tools/jobs.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
@@ -8,6 +14,8 @@ import type { McpServerLike } from '../src/tools/mcp.js'
 import { REFUSALS, refusalMessage, refusalPhrase, UNPHRASED_REFUSAL } from '../src/tools/refusal.js'
 import { ToolHostKind } from '../src/tools/types.js'
 import type { ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
+import { FORMATTED_AREA, makePlanningSuite } from './context.js'
+import type { PlanningSuite } from './context.js'
 
 const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   kind: ToolHostKind.Stdio,
@@ -166,7 +174,7 @@ describe('viable-sdk — what a parent agent is offered', () => {
   })
 })
 
-describe('a tool that starts work attaches its project before opening a session', () => {
+describe('the story tools speak planning', () => {
   const toolNamed = (name: string) => {
     const tool = catalogue.find(entry => entry.name === name)
     if (tool == null) throw new Error(`no tool ${name}`)
@@ -174,43 +182,46 @@ describe('a tool that starts work attaches its project before opening a session'
     return tool
   }
 
-  const job = { id: 'j1', projectId: 'p-named', kind: 'story-develop', status: 'running' }
-
-  const depsFor = (attachedAt: string | null): {
-    deps: ToolHostDeps
-    order: string[]
-    attached: () => string | null
-  } => {
+  /**
+   * A connector whose `planning` is a real planning service, and whose project calls are recorded.
+   *
+   * `order` is the whole sequence of what the tool did — the session it opened, every transition it
+   * executed, every job and lock read — because the order IS the contract: a session filed after the
+   * first write is a session the platform delivers nothing to.
+   */
+  const connectorFor = (suite: PlanningSuite, attachedAt: string | null, opts: {
+    locked?: (check: number) => boolean
+    execute?: PlanningFacade['execute']
+  } = {}) => {
     const order: string[] = []
     let attached = attachedAt
+    let checks = 0
+    const job = (projectId: string, jobId: string) => ({
+      id: jobId, projectId, kind: ConnectJobKind.StoryDevelop, status: 'running',
+    })
+    const planning: PlanningFacade = {
+      ...suite.planning,
+      execute: async (exec, executeOpts) => {
+        order.push(`execute:${exec.action}${exec.transition != null ? `:${exec.transition}` : ''}`)
+
+        return await (opts.execute ?? suite.planning.execute)(exec, executeOpts)
+      },
+    }
     const deps = {
       host: host(),
       api: {
+        planning,
         project: {
           status: async (projectId: string) => {
             order.push(`status:${projectId}`)
+            checks++
 
-            return { agent: { locked: false } }
+            return { agent: { locked: opts.locked?.(checks) ?? false } }
           },
-        },
-        story: {
-          create: async (projectId: string) => {
-            order.push(`create:${projectId}`)
+          job: async (projectId: string, jobId: string) => {
+            order.push(`job:${projectId}:${jobId}`)
 
-            return { id: 's1' }
-          },
-          update: async (projectId: string) => {
-            order.push(`update:${projectId}`)
-
-            return { id: 's1' }
-          },
-          remove: async (projectId: string) => {
-            order.push(`remove:${projectId}`)
-          },
-          develop: async (projectId: string) => {
-            order.push(`develop:${projectId}`)
-
-            return job
+            return job(projectId, jobId)
           },
         },
       },
@@ -226,61 +237,204 @@ describe('a tool that starts work attaches its project before opening a session'
       log: () => undefined,
     }
 
-    return { deps: deps as unknown as ToolHostDeps, order, attached: () => attached }
+    return {
+      deps: deps as unknown as ToolHostDeps, order, attached: () => attached, checks: () => checks,
+    }
   }
 
-  test('a named project is attached, so the session is filed against it', async () => {
-    // Opening first would file the session against the previously attached project, and the
-    // platform would deliver this project's operations to nobody — a run that blocks until its
-    // deadline with nothing reporting an error.
-    const { deps, order, attached } = depsFor('p-previous')
+  test('develop_story attaches the named project, starts the story, then reads the job by card id', async () => {
+    // Opening before attaching would file the session against the previously attached project, and
+    // the platform would deliver this story's operations to nobody.
+    const suite = await makePlanningSuite()
+    const previous = await suite.project('Previous', 'previous')
+    const named = await suite.project('Named', 'named')
+    const story = await suite.story(named.id!, 'As a clerk, I record a sale.')
+    const { deps, order, attached } = connectorFor(suite, previous.id!)
 
-    await toolNamed('develop_story').run({ projectId: 'p-named', storyId: 's1' }, deps as never)
+    const result = await toolNamed('develop_story').run({ projectId: named.id, storyId: story.code }, deps)
 
-    expect(attached()).toBe('p-named')
-    expect(order).toEqual(['session:p-named', 'develop:p-named'])
+    const jobId = jobIdOf(ConnectJobKind.StoryDevelop, named.id!, story.id!)
+    expect(attached()).toBe(named.id!)
+    expect(order).toEqual([`session:${named.id}`, 'execute:transit:start', `job:${named.id}:${jobId}`])
+    expect(result.text).toContain(jobId)
+    // The move committed before the job was read: that commit is what starts the run.
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.InProgress)
   })
 
-  test('with nothing named it uses what is attached, and still opens first', async () => {
-    const { deps, order } = depsFor('p-current')
+  test('develop_story answers from the job when the commit is late, and refuses what the flow refuses', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
 
-    await toolNamed('develop_story').run({ storyId: 's1' }, deps as never)
+    // Late: the transition is durable, so the job row is the answer rather than a broken tool.
+    const late = connectorFor(suite, project.id!, {
+      execute: async () => { throw new CommitTimeout('transition-1') },
+    })
+    const answered = await toolNamed('develop_story').run({ storyId: story.code }, late.deps)
+    expect(answered.isError).not.toBe(true)
+    expect(late.order.at(-1)).toBe(`job:${project.id}:${jobIdOf(ConnectJobKind.StoryDevelop, project.id!, story.id!)}`)
 
-    expect(order).toEqual(['session:p-current', 'develop:p-current'])
+    // Refused: a story already in progress cannot be started again, and no job is read for it.
+    const running = await suite.story(project.id!, 'As a clerk, I void a sale.', {
+      moves: [ViableStoryTransition.Start],
+    })
+    const refused = connectorFor(suite, project.id!)
+    await expect(toolNamed('develop_story').run({ storyId: running.code }, refused.deps))
+      .rejects.toBeInstanceOf(IllegalTransition)
+    expect(refused.order.some(entry => entry.startsWith('job:'))).toBe(false)
   })
 
-  test.each([
-    ['create_story', { story: 'As a user, I want a note.' }, 'create'],
-    ['update_story', { storyId: 's1', story: 'As a user, I want a revised note.' }, 'update'],
-    ['delete_story', { storyId: 's1' }, 'remove'],
-  ] as const)('%s restores the session before its slot-backed mutation', async (name, args, call) => {
-    const { deps, order } = depsFor('p-current')
+  test('create_story sends the narrative as written, with no area — the platform decides it', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const { deps, order } = connectorFor(suite, project.id!)
 
-    await toolNamed(name).run(args, deps as never)
+    const result = await toolNamed('create_story').run({ story: 'let clerks refund a sale' }, deps)
 
-    expect(order.slice(0, 2)).toEqual(['session:p-current', `${call}:p-current`])
-    if (name === 'delete_story') {
-      expect(order.filter(entry => entry === 'status:p-current').length).toBeGreaterThanOrEqual(2)
-    } else {
-      expect(order).toEqual(['session:p-current', `${call}:p-current`])
-    }
+    expect(order).toEqual([`session:${project.id}`, 'execute:create'])
+    const sent = suite.received.at(-1)!.card as WorkcardDraft
+    expect(sent).toMatchObject({ type: VIABLE_STORY_TYPE, parent: project.id, title: 'let clerks refund a sale' })
+    expect(sent.fields).toEqual({ primary: false })
+
+    const card = result.structured as ViableStoryCard
+    expect(card.code).toMatch(/^US-/)
+    expect(card.fields.area).toBe(FORMATTED_AREA)
+    expect(result.text).toContain(card.code!)
   })
 
-  test('delete_story waits through its asynchronous cleanup lock', async () => {
-    const { deps, order } = depsFor('p-current')
-    let checks = 0
-    deps.api.project.status = async (projectId: string) => {
-      order.push(`status:${projectId}`)
-      checks++
+  test('update_story carries only the narrative, guarded by the head it read', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const { deps, order } = connectorFor(suite, project.id!)
 
-      return { agent: { locked: checks < 3 } } as never
-    }
+    await toolNamed('update_story').run({ storyId: story.id, story: 'As a clerk, I record a cash sale.' }, deps)
 
-    const result = await toolNamed('delete_story').run({ storyId: 's1' }, deps as never)
+    expect(order).toEqual([`session:${project.id}`, 'execute:update'])
+    const sent = suite.received.at(-1)!
+    expect(sent.changes).toEqual({ title: 'As a clerk, I record a cash sale.' })
+    expect(sent.expectSeq).toBe(story.head ?? story.seq)
+    const updated = await suite.planning.cards.get(story.id!)
+    expect(updated.title).toBe('As a clerk, I record a cash sale.')
+    expect(updated.status).toBe(ViableStoryStatus.Planned)
+  })
+
+  test('delete_story deletes the card, then waits through the cleanup still holding the lock', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const connector = connectorFor(suite, project.id!, { locked: check => check < 3 })
+
+    const result = await toolNamed('delete_story').run({ storyId: story.code }, connector.deps)
 
     expect(result.isError).not.toBe(true)
-    expect(checks).toBeGreaterThanOrEqual(4)
-    expect(order.slice(0, 2)).toEqual(['session:p-current', 'remove:p-current'])
+    expect(connector.order.slice(0, 2)).toEqual([`session:${project.id}`, 'execute:delete'])
+    expect(connector.checks()).toBeGreaterThanOrEqual(4)
+    expect(await suite.planning.cards.load(story.id!)).toBeNull()
+  })
+
+  test('list_stories reads the flow order, filters by the area field, and counts the page', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    await suite.story(project.id!, 'Third step', { order: 3 })
+    await suite.story(project.id!, 'First step', { order: 1, fields: { primary: true } })
+    await suite.story(project.id!, 'Admin reviews it', {
+      order: 1.5, fields: { area: ProjectArea.Admin }, moves: [ViableStoryTransition.Start],
+    })
+    const { deps } = connectorFor(suite, project.id!)
+
+    const all = await toolNamed('list_stories').run({}, deps)
+    const lines = all.text.split('\n')
+    expect(lines[0]).toBe('3 of 3 (page 0) — 2 planned, 1 in progress:')
+    expect(lines.filter(line => line.startsWith('      '))).toEqual([
+      '      First step', '      Admin reviews it', '      Third step',
+    ])
+    expect(lines[1]).toMatch(/^ {2}US-\w+ · planned · primary · user$/)
+    expect(lines[3]).toMatch(/^ {2}US-\w+ · in-progress · admin$/)
+
+    const admin = await toolNamed('list_stories').run({ area: ProjectArea.Admin }, deps)
+    expect(admin.text).toContain('1 of 1')
+    expect(admin.text).toContain('Admin reviews it')
+
+    const found = await toolNamed('search_stories').run({ q: 'Third' }, deps)
+    expect(found.text).toContain('1 of 1')
+    expect(found.text).toContain('Third step')
+  })
+
+  test('story_status resolves a code or an id, and never a story of another project', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const other = await suite.project('Other', 'other')
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      fields: { warning: 'the boot gate refused it' }, moves: [ViableStoryTransition.Start, ViableStoryTransition.Fail],
+    })
+    const foreign = await suite.story(other.id!, 'As a clerk, I close a till.')
+    const { deps } = connectorFor(suite, project.id!)
+
+    for (const storyId of [story.code, story.id, story.code!.toLowerCase()]) {
+      const result = await toolNamed('story_status').run({ storyId }, deps)
+      expect(result.text).toBe(`${story.code} · failed\nwarning: the boot gate refused it`)
+    }
+
+    await expect(toolNamed('story_status').run({ storyId: foreign.id }, deps))
+      .rejects.toBeInstanceOf(ProjectStoryNotFound)
+  })
+})
+
+describe('a project reads as its card and its brief', () => {
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  test('project_status names the project flow status and carries the design system', async () => {
+    const result = await toolNamed('project_status').run({ projectId: 'p1' }, {
+      host: host(),
+      api: {
+        project: {
+          status: async () => ({
+            project: {
+              id: 'p1', name: 'Ledger', alias: 'ledger', status: 'confirmed', intrinsic: 'in-progress',
+              designSystem: 'Muted greens, one accent.',
+            },
+            agent: { locked: false },
+          }),
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(result.text).toContain('project: confirmed (in-progress)')
+    expect(result.text).toContain('--- design system ---\nMuted greens, one accent.')
+  })
+
+  test('confirm_project forwards a design-system edit with the others', async () => {
+    const confirmed: unknown[] = []
+    await toolNamed('confirm_project').run({ projectId: 'p1', name: 'Ledger', designSystem: 'Dark.' }, {
+      host: host({ kind: ToolHostKind.Http, hasExecutor: false }),
+      api: {
+        project: {
+          confirm: async (projectId: string, edits: unknown) => {
+            confirmed.push([projectId, edits])
+
+            return { id: 'j1', projectId, kind: 'project-init', status: 'running' }
+          },
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(confirmed).toEqual([['p1', { name: 'Ledger', designSystem: 'Dark.' }]])
   })
 })
 
@@ -873,7 +1027,7 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     const project = await toolNamed('project_status').run({}, answered({
       project: {
         status: async () => ({
-          project: { id: 'p1', name: 'X', alias: 'x' },
+          project: { id: 'p1', name: 'X', alias: 'x', status: 'confirmed', intrinsic: 'in-progress' },
           slot: {
             kind: 'local', status: 'error',
             lastError: 'viable-agent-common:content-refused:abuse-tooling',

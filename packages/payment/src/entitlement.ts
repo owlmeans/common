@@ -10,6 +10,15 @@ import type { PermissionSet } from '@owlmeans/auth'
 export const ENTITLEMENT_GATE = 'entitlement-gate'
 
 /**
+ * The gate alias a plan limit is asserted under (`limit:<key>[>=n]`).
+ *
+ * A separate alias from `ENTITLEMENT_GATE` because the framework collects an entrypoint's gates
+ * per gate SERVICE: a capability requirement and a limit requirement under one alias would hide
+ * each other.
+ */
+export const LIMIT_GATE = 'limit-gate'
+
+/**
  * The capability scope that carries FEATURE flags.
  *
  * Kept apart from `renewable`, which carries numeric quotas that are consumed or counted. Merging
@@ -17,6 +26,15 @@ export const ENTITLEMENT_GATE = 'entitlement-gate'
  * number, and the first purchase that spent the quota would take the feature with it.
  */
 export const CAPABILITY_FEATURE_SCOPE = 'feature'
+
+/**
+ * The scope RESERVED for limit parameters (`limit:<key>[>=n]`).
+ *
+ * Never a declarable capability scope: a plan's limits live in `ProductPlan.limits`, and a
+ * capability predicate refuses any parameter under this scope, so a limit requirement can never be
+ * satisfied by a capability grant.
+ */
+export const CAPABILITY_LIMIT_SCOPE = 'limit'
 
 export interface EntitlementParam {
   /** Capability scope. Absent means any scope. */
@@ -72,8 +90,12 @@ export const hasEntitlement = (
   if (capabilities == null || capabilities.length < 1) {
     return false
   }
+  if (typeof param !== 'string') {
+    return false
+  }
   const { scope, permission, atLeast } = parseEntitlementParam(param)
-  if (permission === '') {
+  // A limit is never a capability: its room is counted, not granted.
+  if (permission === '' || scope === CAPABILITY_LIMIT_SCOPE) {
     return false
   }
 

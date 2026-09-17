@@ -12,7 +12,7 @@ Kubernetes integration service — service discovery and pod/service IP resoluti
 ## Installation
 
 ```bash
-bun add @owlmeans/kluster@^0.1.18-rc.23
+bun add @owlmeans/kluster@^0.1.18-rc.28
 ```
 
 ## Usage
@@ -74,7 +74,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

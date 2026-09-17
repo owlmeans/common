@@ -30,6 +30,10 @@ updated: 2026-09
 - A consumer that funds or provisions inside its `linkProfile` branch must re-check: reaching
   that branch no longer means a new identity was created (viable's supervisor resolver now guards
   its dev grant on a zero balance).
+- **Entity creation is observable**: `identityEvents(ctx)?.onEntityCreated(cb)`
+  (`AUTH_IDENTITY_EVENTS`, lazy, registered by `appendAuthIdentityResources`) fires at the end of
+  `linkProfile`'s registration branch only (also on `force`), never on the link branch; listeners
+  are awaited in order and a throw is logged, never fails the sign-in.
 
 ## Facts
 

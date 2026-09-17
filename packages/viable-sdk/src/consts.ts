@@ -29,6 +29,22 @@ export const TOOL_DEADLINE_MS = 45_000
  */
 export const JOB_POLL_MAX_SEC = 30
 
+/**
+ * How long a story tool waits for its planning transition to COMMIT, in milliseconds.
+ *
+ * Well under {@link TOOL_DEADLINE_MS}: the same call has already resolved the story and posted the
+ * transition, and on the platform a person's narrative is re-formatted by a model before it is
+ * appended. A commit that is late is not a failure — the transition is durable and nothing is
+ * undone — so `develop_story` answers from the job row instead of waiting out the host's ceiling.
+ */
+export const COMMIT_WAIT_MS = 20_000
+
+/** How long one long poll of a commit may hold, in seconds — what the platform holds at most for a connector. */
+export const COMMIT_POLL_SEC = 20
+
+/** How many stories one page of `list_stories` carries when the caller names no size. */
+export const STORY_PAGE_SIZE = 25
+
 /** How long `next_task` waits before answering "nothing yet". Under every host's ceiling. */
 export const NEXT_TASK_WAIT_MS = 30_000
 

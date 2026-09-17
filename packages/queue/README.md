@@ -6,8 +6,8 @@ than about five seconds, accepted work must survive a process restart, or the wo
 against a third party (payment capture, provider sync, bulk mail, report generation, model
 pipelines). A request that finishes in under about two seconds and makes no external call should
 not queue: do it inline. Check for a smaller fix first, such as an index, a batch write or a cached
-aggregate. The framework has no scheduler, so recurring work is triggered by a platform cron that
-calls an entrypoint or enqueues a job.
+aggregate. Recurring work is a declared schedule: the broker produces a job on an interval or a
+cron pattern and a registered processor runs it.
 
 This package is contracts only and carries no broker code. A driver implements them
 (`@owlmeans/redis-queue` does, over BullMQ). Depend on this package from a shared contract package,
@@ -16,7 +16,7 @@ and on the driver only where the application wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/queue@^0.1.18-rc.19
+bun add @owlmeans/queue@^0.1.18-rc.23
 ```
 
 ## Concepts
@@ -36,6 +36,9 @@ bun add @owlmeans/queue@^0.1.18-rc.19
   a `JobContext`. It must be safe to run twice and must `touch()` in long loops.
 - **Single-flight id**: a `JobOptions.id` derived from what the job is about (`develop:<storyId>`).
   A duplicate enqueue then returns the existing job instead of a second one.
+- **Schedule**: `declareSchedule(cfg, { id, queue, name, every | pattern, … })` in the shared config.
+  Every process that listens to the queue reconciles the broker with the declared schedules when its
+  worker starts; each run is an ordinary job, and `JobContext.scheduled` names the schedule.
 
 ## Usage
 
@@ -155,6 +158,41 @@ await context.jobs(APP_OPS).flow({
 })
 ```
 
+### Recurring jobs
+
+```ts
+import { declareQueue, declareSchedule } from '@owlmeans/queue'
+
+// Shared config: the queue first, then its schedules.
+declareQueue(cfg, APP_MAINTENANCE, ['app:maintenance:reconcile', 'app:maintenance:purge'], {
+  worker: { concurrency: 1, lockDuration: 60_000 }
+})
+declareSchedule(cfg, {
+  id: 'app-nightly-reconcile', queue: APP_MAINTENANCE, name: 'app:maintenance:reconcile',
+  pattern: '17 3 * * *', tz: 'UTC', data: {},
+})
+declareSchedule(cfg, {
+  id: 'app-purge', queue: APP_MAINTENANCE, name: 'app:maintenance:purge', every: 15 * 60_000,
+})
+```
+
+The process that `listenQueues(cfg, APP_MAINTENANCE)` registers the processors; nothing else is
+wired. A scheduled run carries no caller and no credentials, so it goes to a processor, never to a
+guarded entrypoint:
+
+```ts
+worker.process(APP_MAINTENANCE, 'app:maintenance:reconcile', async job => {
+  for await (const page of organizations()) {
+    await job.touch()
+    await reconcile(page)              // safe to run twice: a restart re-runs the whole sweep
+  }
+  return { scheduled: job.scheduled }  // 'app-nightly-reconcile'
+})
+```
+
+Renaming a schedule id removes the old scheduler and creates a new one; deleting a declaration
+removes its scheduler at the next worker start.
+
 ### Jobs are records
 
 ```ts
@@ -197,6 +235,9 @@ not the job, so read the job back to learn what became of it.
 | `declareQueue(cfg, name, jobs, opts?)` | function | Declare a queue and the job names it accepts; re-declaring replaces |
 | `listenQueues(cfg, ...names)` | function | Name the queues this process consumes |
 | `queueOf(cfg, name)`, `queueOfJob(cfg, job)`, `isListening(cfg, name)` | function | Read declarations back; `queueOf` throws `UnknownQueue` |
+| `declareSchedule(cfg, schedule)` | function | Declare a recurring job after checking it; re-declaring an id replaces |
+| `schedulesOf(cfg, queue?)` | function | The declared schedules, of one queue when named |
+| `assertSchedule(cfg, schedule)`, `assertSchedules(cfg)` | function | Check one schedule, or every declared one plus duplicate ids |
 | `enqueueProtocol(ctx, protocol, request, options?)` | function | Enqueue a QUEUE protocol with `JobOptions`, typed by the protocol |
 | `waitForProtocol(ctx, protocol, job, { timeout }?)` | function | Wait for that job and unwrap the typed reply |
 | `queueJobOf(request)` | function | `QueueJobMeta` of the broker job behind a handler's request, or `null` |
@@ -204,11 +245,11 @@ not the job, so read the job back to learn what became of it.
 | `queueWorkerMiddleware(alias?)` | function | Start the worker at the Ready stage, only in a process that listens |
 | `handleJob(ctx, job)`, `entrypointProcessor(ctx)`, `servedJobs(ctx)` | function | The bridge a driver dispatches entrypoint jobs through |
 | `requestOf(envelope)`, `assertFresh(envelope, ttl?)` | function | Rebuild a request from an envelope; enforce `envelopeTtl` |
-| `QueueConfig`, `QueueDeclaration`, `QueueWorkerOptions`, `JobOptions` | type | Configuration shapes |
+| `QueueConfig`, `QueueDeclaration`, `QueueWorkerOptions`, `JobOptions`, `ScheduleDeclaration` | type | Configuration shapes |
 | `QueueResource<D, R>` | type | A queue as a resource, plus `queue`, `wait`, `flow`, `counts`, `close` |
 | `JobRecord<D, R>`, `JobEvent<R>`, `FlowSpec<D>` | type | A job as a record, a lifecycle event, a graph node |
 | `QueueWorkerService` | type | `process`, `start`, `stop`, `listening`, `hooks` |
-| `JobContext<D>`, `JobProcessor<D, R>` | type | What a processor receives; the processor signature |
+| `JobContext<D>`, `JobProcessor<D, R>` | type | What a processor receives (`scheduled` names the schedule of a scheduled run); the processor signature |
 | `QueueHooks` | type | `wrapHandler`, `onJobResult`, `onJobStalled`, `onJobDead` |
 | `QueueJobMeta`, `JobEnvelope`, `JobReply<T>` | type | Broker identity for a handler, the call envelope, the reply shape |
 | `QueueAppend`, `QueueDriver` | type | The `ctx.jobs(queue?)` mixin a driver installs; what a driver supplies |
@@ -216,7 +257,7 @@ not the job, so read the job back to learn what became of it.
 | `JobState`, `JobEventType` | enum | Job lifecycle states and event types |
 | `isSettled(state?)` | function | Whether a state is final |
 | `DEFAULT_ALIAS`, `DEFAULT_JOB_TIMEOUT`, `DEFAULT_ATTEMPTS` | const | `'queue'`, `60_000` ms, `1` |
-| `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired` | class | Error family |
+| `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired`, `ScheduleMisdeclared` | class | Error family |
 
 ## Common pitfalls
 
@@ -233,7 +274,13 @@ not the job, so read the job back to learn what became of it.
 - **Long loops without `touch()`**, or processors that are not safe to run twice.
 - **Throwing from a child for a domain failure.** Return `{ ok: false, error }` instead.
 - **Equal child ids across queues in one flow.** `children()` is keyed by bare id and collapses them.
-- **A self-re-enqueueing job as a cron.** Use a platform `CronJob`. `delay` defers a single job once.
+- **A self-re-enqueueing job as a cron.** Declare a schedule. `delay` defers a single job once.
+- **A schedule on a queue nothing consumes.** Only a listening worker creates the scheduler, and the
+  broker produces each next run when the previous one starts.
+- **Loading different schedule lists in two processes that listen to one queue.** Each start removes
+  the schedules its own list does not name.
+- **Declaring a schedule before its queue.** `declareSchedule` checks the queue and the job name and
+  throws `UnknownQueue` / `UnknownJobName`.
 - **Calling `ctx.jobs()` with no name once a second queue exists.** It throws `UnknownQueue`.
 
 ## Related packages
@@ -253,7 +300,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

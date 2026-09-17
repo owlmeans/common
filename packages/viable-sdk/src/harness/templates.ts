@@ -58,9 +58,19 @@ Do not use tools. Do not read or write files. Do not plan. The task is self-cont
 const marked = (body: string): string =>
   `<!-- viable:begin -->\n${body}\n<!-- viable:end -->`
 
+/**
+ * The one command every harness starts the MCP server with — written ONCE, on one line with its
+ * `npx`, so the release pin audit reads it as an install command and moves the caret with every
+ * viable-mcp release. A tag (`@next`) is refused by that audit, and a copy per harness was how three
+ * of four configs kept a tag while the fourth carried the pin.
+ */
+const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.19'] as const
+const MCP_EXECUTABLE = MCP_COMMAND[0]
+const MCP_ARGS: string[] = MCP_COMMAND.slice(1)
+
 const mcpJsonEntry = {
-  command: 'npx',
-  args: ['-y', '@owlmeans/viable-mcp@next'],
+  command: MCP_EXECUTABLE,
+  args: MCP_ARGS,
   env: {
     [ENV_TOKEN]: `\${${ENV_TOKEN}}`,
   },
@@ -108,8 +118,8 @@ ${WORKER_BODY}
           path: '.viable/codex.config.snippet.toml',
           content: `# Add to ~/.codex/config.toml
 [mcp_servers.viable]
-command = "npx"
-args = ["-y", "@owlmeans/viable-mcp@next"]
+command = ${JSON.stringify(MCP_EXECUTABLE)}
+args = ${JSON.stringify(MCP_ARGS)}
 env_vars = ["${ENV_TOKEN}"]
 startup_timeout_sec = 20
 # Every viable tool answers within 45s; the default 60 leaves no margin for a slow network.
@@ -142,8 +152,8 @@ ${WORKER_BODY}
           jsonKey: ['servers', 'viable'],
           content: JSON.stringify({
             type: 'stdio',
-            command: 'npx',
-            args: ['-y', '@owlmeans/viable-mcp@next'],
+            command: MCP_EXECUTABLE,
+            args: MCP_ARGS,
             env: { [ENV_TOKEN]: '${input:viable-token}' },
           }, null, 2),
         },
@@ -167,7 +177,7 @@ ${WORKER_BODY}
           jsonKey: ['mcp', 'viable'],
           content: JSON.stringify({
             type: 'local',
-            command: ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.11'],
+            command: [...MCP_COMMAND],
             environment: { [ENV_TOKEN]: `{env:${ENV_TOKEN}}` },
             enabled: true,
           }, null, 2),

@@ -181,6 +181,37 @@ describe('@owlmeans/web-consent — the dialog', () => {
     }
   }, TIMEOUT)
 
+  test('the re-open button is a bare, compact corner icon', async () => {
+    // The harness carries no Tailwind build (the package ships classes for a CONSUMING app's own
+    // `@source` scan, as `web-panel`'s consuming `index.css` does), so this is asserted on the
+    // class list itself rather than on computed style — exactly what every card/border/shadow/
+    // size utility below would resolve to once a consumer's stylesheet compiles them.
+    const { page, close } = await seeded(
+      { essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION }
+    )
+    try {
+      const button = page.locator('[data-consent-reopen]')
+      await button.waitFor()
+      const cls = await button.getAttribute('class') ?? ''
+
+      // In the very corner, not 20px off it (`bottom-5 left-5` was the old, card-sized offset).
+      expect(cls).toContain('bottom-1')
+      expect(cls).toContain('left-1')
+      // Bare icon: no filled surface, no border, no shadow, no hover-scale card affordance.
+      expect(cls).toContain('bg-transparent')
+      expect(cls).not.toMatch(/\bshadow-lg\b/)
+      expect(cls).not.toMatch(/\brounded-full\b/)
+      expect(cls).not.toMatch(/\bborder-border\b/)
+      expect(cls).not.toMatch(/\bhover:scale-110\b/)
+      // The pictogram itself keeps its original size.
+      const iconCls = await page.locator('[data-consent-reopen] svg').getAttribute('class') ?? ''
+      expect(iconCls).toMatch(/\bh-5\b/)
+      expect(iconCls).toMatch(/\bw-5\b/)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
   test('the re-open button brings the dialog back with a reason', async () => {
     const { page, close } = await seeded({ essential: true, analytics: false, marketing: false, v: CONSENT_SCHEMA_VERSION })
     try {

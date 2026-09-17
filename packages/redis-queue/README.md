@@ -14,7 +14,7 @@ BullMQ-over-Redis driver for the queue contracts declared in [`@owlmeans/queue`]
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-queue@^0.1.18-rc.13
+bun add @owlmeans/redis-queue@^0.1.18-rc.17
 ```
 
 ## Usage
@@ -208,6 +208,38 @@ appendRedisQueue(context, {
 
 A hook that throws is reported, never allowed to fail the job it reports on.
 
+## Schedules
+
+Declared with `declareSchedule` from `@owlmeans/queue`, beside the queues. Each declared schedule is
+a BullMQ **job scheduler** with the id `owlmeans:<schedule id>` (`SCHEDULE_PREFIX`), and every run
+it produces is an ordinary job of the declared name, handed to the registered processor with
+`job.scheduled` set to the schedule id.
+
+`start()` reconciles them through `syncSchedules(bull, cfg, queue)` for every queue it binds, once
+all of its workers are already consuming:
+
+- a declared schedule the broker does not hold exactly as declared is upserted
+  (`upsertJobScheduler`); one it holds unchanged is left alone, so a restart neither replaces the
+  pending run nor re-runs an `immediately` pattern;
+- a scheduler under `owlmeans:` that no declaration names is removed, and so is one whose
+  `endDate` has passed; schedulers outside the prefix are never touched;
+- a declaration `assertSchedule` refuses (an undeclared job name, say) is logged and skipped.
+
+Every step is caught and logged on its own. Scheduling never stops a worker from consuming, and a
+producer — a process that listens to nothing — creates no scheduler at all. BullMQ produces a
+scheduler's next run when the previous one starts processing, so a schedule runs only while some
+process consumes its queue.
+
+```typescript
+declareQueue(cfg, 'maintenance', ['reconcile'], { worker: { concurrency: 1 } })
+declareSchedule(cfg, {
+  id: 'nightly-reconcile', queue: 'maintenance', name: 'reconcile', pattern: '17 3 * * *', tz: 'UTC',
+})
+
+// in the worker deployment only
+listenQueues(cfg, 'maintenance')
+```
+
 ## Testing
 
 `tests/` drives a real broker behind `redisGate` from `@owlmeans/test-integration` — set `REDIS_URL`
@@ -230,9 +262,18 @@ service alias) and `hooks`.
 
 `QueueWorkerService` plus `hooks(hooks)`.
 
+### `syncSchedules<C>(bull: Queue, cfg: C, queue: string): Promise<ScheduleSync>`
+
+Reconcile one BullMQ queue's schedulers with the declared schedules; never throws.
+`ScheduleSync` lists schedule ids as `upserted`, `unchanged`, `removed` and `failed`.
+`scheduleKey(id)` / `scheduleIdOf(key)` convert between a schedule id and a scheduler id (the latter
+answers `undefined` for a scheduler this driver does not own); `repeatOptionsOf(schedule)` and
+`templateOf(schedule, cfg?)` build the two halves `upsertJobScheduler` takes (`ScheduleTemplate`).
+
 ### Constants
 
 - `QUEUE_KEY_SUFFIX` — `'queue'`
+- `SCHEDULE_PREFIX` — `'owlmeans:'`, the scheduler ids this driver owns
 - `DEFAULT_LOCK_DURATION` / `DEFAULT_STALLED_INTERVAL` / `DEFAULT_MAX_STALLED_COUNT`
 - `LISTED_STATES` — the BullMQ states a listing enumerates
 
@@ -256,7 +297,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -17,6 +17,14 @@ export const harnessUrl = async (): Promise<string> => {
       alias: { '@': resolve(here, '../src/@') },
       dedupe: ['react', 'react-dom'],
     },
+    // Pre-bundle every runtime dependency the mounted pieces reach. One discovered mid-navigation
+    // makes Vite re-optimize under a new hash, and the page briefly runs two copies of React.
+    optimizeDeps: {
+      include: [
+        'react', 'react-dom/client', '@radix-ui/react-dialog', '@radix-ui/react-label',
+        '@radix-ui/react-progress', '@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge',
+      ],
+    },
     server: { port: 0 },
     logLevel: 'warn',
   })

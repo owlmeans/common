@@ -25,3 +25,15 @@ export interface RedisQueueOptions {
   service?: string
   hooks?: QueueHooks
 }
+
+/** What reconciling one queue's schedulers did, by schedule id. */
+export interface ScheduleSync {
+  /** Created, or changed since the broker last saw them. */
+  upserted: string[]
+  /** Already held by the broker exactly as declared — nothing was written. */
+  unchanged: string[]
+  /** Ours, but no longer declared (or past their `endDate`). */
+  removed: string[]
+  /** Refused by `assertSchedule`, or failed at the broker. Each one is logged. */
+  failed: string[]
+}

@@ -1,6 +1,6 @@
 ---
 name: queue
-description: How to use @owlmeans/queue — protocol-object enqueue/wait, job queues as resources, QUEUE declarations, producer/consumer split, single-flight job ids, lifecycle hooks, and processor rules. Auto-invoked when importing queue types or declaring a job protocol.
+description: How to use @owlmeans/queue — protocol-object enqueue/wait, job queues as resources, QUEUE declarations, producer/consumer split, single-flight job ids, recurring schedules, lifecycle hooks, and processor rules. Auto-invoked when importing queue types, declaring a job protocol, or declaring a schedule.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.22"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.23"` in `dependencies`
 
 Contracts only. It carries no broker code — a driver package (`@owlmeans/redis-queue`) implements
 them. Depend on this one from a shared contract package; depend on the driver only where the
@@ -142,6 +142,43 @@ run twice — skip work already recorded, delete the rows a previous attempt cre
 regenerating over a baseline. Decide this per job and say so in a comment; there is no way to make
 it automatic.
 
+## Recurring jobs
+
+A recurring sweep is a SCHEDULE on a queue, run by a registered processor:
+
+```typescript
+declareQueue(cfg, APP_MAINTENANCE, ['app:maintenance:reconcile'], {
+  worker: { concurrency: 1, lockDuration: 60_000 }
+})
+declareSchedule(cfg, {
+  id: 'app-nightly-reconcile', queue: APP_MAINTENANCE, name: 'app:maintenance:reconcile',
+  pattern: '17 3 * * *', tz: 'UTC', data: {},
+})
+```
+
+- **Declare it in the shared package, after its queue.** `declareSchedule` runs `assertSchedule`
+  first: the queue must be declared (`UnknownQueue`) and must accept the job name
+  (`UnknownJobName`), exactly one of `every` (a positive integer of milliseconds) and `pattern`
+  (cron), `tz` and `immediately` only with a pattern, never `immediately` with `startDate`, and
+  `opts.id` / `opts.delay` refused — the broker names and places every run
+  (`ScheduleMisdeclared`, message `<id>:<reason>`). Re-declaring an id replaces it.
+- **The id is the identity.** Changing any other field updates the schedule in place; renaming the
+  id is one schedule removed and another created.
+- **Every process that listens to the queue reconciles it at worker start** — the driver creates
+  and updates what is declared and removes the schedules it owns that are not. Two listeners of one
+  queue must therefore load the same schedule list, which is why it lives in the shared package.
+  A producer creates nothing.
+- **A scheduled run is a processor job, never a guarded entrypoint.** Nobody's credentials travel
+  with it. `job.scheduled` carries the schedule id; it is absent on a job enqueued any other way.
+- **It needs a consumer.** The broker produces the next run when the previous one starts
+  processing, so a schedule on a queue nothing consumes stops producing.
+- **The processor obeys every rule above** — `touch()` through the sweep, and safe to run twice,
+  because a restart mid-sweep re-runs it from the start.
+
+`schedulesOf(cfg, queue?)` reads the declarations back; `assertSchedules(cfg)` checks all of them,
+including one written into `cfg.queue.schedules` directly, and refuses a duplicate id.
+Which recurring work belongs on a schedule at all is `scheduled-jobs`.
+
 ## A queued call is still a guarded call
 
 `handleJob` rebuilds the request from the envelope and runs the entrypoint as the HTTP boundary
@@ -183,20 +220,21 @@ listens to, grouped by queue, which is what a driver binds.
 | `enqueueProtocol` / `waitForProtocol` | Typed protocol-object enqueue and result wait; validates protocol kind and queue configuration. |
 | `queueJobOf(request)` / `QueueJobMeta` | Explicit broker identity boundary for a protocol handler, including `touch()` for long work. |
 | `declareQueue` / `listenQueues` | Configuration — what exists, and what this process consumes |
+| `declareSchedule` / `schedulesOf` / `assertSchedule` / `assertSchedules` | Recurring jobs — declare, read back, check |
 | `queueOf` / `queueOfJob` / `isListening` | Reading it back; `queueOf` throws `UnknownQueue` |
-| `QueueConfig` / `QueueDeclaration` / `QueueWorkerOptions` / `JobOptions` | The configuration shapes |
+| `QueueConfig` / `QueueDeclaration` / `QueueWorkerOptions` / `JobOptions` / `ScheduleDeclaration` | The configuration shapes |
 | `QueueResource<D, R>` | A queue addressed as a resource, plus `wait` / `flow` / `counts` / `close` |
 | `JobRecord<D, R>` / `JobState` / `isSettled` / `JobEvent` / `JobEventType` | The record shape and lifecycle |
 | `FlowSpec<D>` | A graph node — `name`, optional `queue`, `data`, `opts`, `children` |
 | `QueueWorkerService` | `process(queue, name, fn)`, `start`, `stop`, `listening`, `hooks` |
-| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt`, `data`, `signal`, `touch`, `progress`, `children`, `failedChildren` |
+| `JobContext<D>` | What a processor gets: `id`, `name`, `queue`, `attempt`, `data`, `signal`, `scheduled?`, `touch`, `progress`, `children`, `failedChildren` |
 | `QueueHooks` | `wrapHandler`, `onJobResult`, `onJobStalled`, `onJobDead` — the compensation seam |
 | `QueueAppend` | The `ctx.jobs(queue?)` mixin a driver installs; `QueueDriver` is what a driver supplies |
 | `appendQueueTransport` / `makeQueueTransport` | Binds the QUEUE protocol so `call()` routes through the broker |
 | `queueWorkerMiddleware` | Starts the worker at Ready stage |
 | `handleJob` / `servedJobs` / `entrypointProcessor` | The bridge a driver dispatches through |
 | `requestOf` / `assertFresh` / `JobEnvelope` / `JobReply` | The envelope, and rebuilding a request from it |
-| Errors | `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired` |
+| Errors | `QueueError`, `QueueTimeout`, `UnknownJob`, `UnknownJobName`, `UnknownQueue`, `QueueNotListening`, `JobNotServed`, `EnvelopeExpired`, `ScheduleMisdeclared` |
 | Constants | `DEFAULT_ALIAS` (`queue`), `DEFAULT_JOB_TIMEOUT` (60 000 ms), `DEFAULT_ATTEMPTS` (1) |
 
 ## Depends On
@@ -210,7 +248,8 @@ listens to, grouped by queue, which is what a driver binds.
 
 ## Related
 
-- `redis-queue` — the BullMQ driver; integration tests for queue behaviour live there
+- `redis-queue` — the BullMQ driver; how schedules are reconciled; integration tests live there
+- `scheduled-jobs` — when recurring work is a schedule, and how to write the sweep it runs
 - `server-job` / `client-job` — exposing a queue's jobs to an application's UI (list, cancel,
   progress over a socket), without touching the contracts here
 - `entrypoint` — protocol declarations, bindings, and the transport lookup

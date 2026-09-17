@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-auth",
-  "version": "0.1.18-rc.40",
+  "version": "0.1.18-rc.41",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,15 +29,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.26",
-    "@owlmeans/auth-common": "^0.1.18-rc.28",
-    "@owlmeans/basic-ids": "^0.1.18-rc.24",
-    "@owlmeans/basic-keys": "^0.1.18-rc.28",
-    "@owlmeans/client": "^0.1.18-rc.31",
-    "@owlmeans/client-auth": "^0.1.18-rc.36",
-    "@owlmeans/config": "^0.1.18-rc.28",
-    "@owlmeans/context": "^0.1.18-rc.23",
-    "@owlmeans/web-client": "^0.1.18-rc.40"
+    "@owlmeans/auth": "^0.1.18-rc.27",
+    "@owlmeans/auth-common": "^0.1.18-rc.29",
+    "@owlmeans/basic-ids": "^0.1.18-rc.26",
+    "@owlmeans/basic-keys": "^0.1.18-rc.30",
+    "@owlmeans/client": "^0.1.18-rc.32",
+    "@owlmeans/client-auth": "^0.1.18-rc.37",
+    "@owlmeans/config": "^0.1.18-rc.29",
+    "@owlmeans/context": "^0.1.18-rc.25",
+    "@owlmeans/web-client": "^0.1.18-rc.41"
   },
   "peerDependencies": {
     "react": "*"

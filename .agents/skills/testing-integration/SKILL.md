@@ -5,7 +5,7 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
-**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.18"` in `devDependencies`
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.22"` in `devDependencies`
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
@@ -24,7 +24,7 @@ service hands it is category C even when it names no driver of its own.
 
 | Helper | Purpose |
 |---|---|
-| `postgresGate()`, `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()`, `smtpGate()` | Read env, return `IntegrationGate<E>` = `{ skip, reason?, env }`. |
+| `postgresGate()`, `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()`, `smtpGate()` | Read env (and, for the three datastores, probe the address — below), return `IntegrationGate<E>` = `{ skip, reason?, env }`. |
 | `IntegrationGate<E>` | `{ skip: boolean, reason?: string, env: Partial<E> }`. `env` holds only the variables that were actually populated. `skip` is a plain `boolean`, not a discriminant, so `env` stays `Partial<E>` on the open branch too — a suite reads a required variable through a cast: `gate.env.MONGO_URL as string`. |
 | `PostgresEnv`, `MongoEnv`, `RedisEnv`, `S3Env`, `KubeEnv`, `SmtpEnv` | The variable set each gate reads, so `tests/context.ts` types its exported gate. |
 | `randomNamespace(prefix, len?)` | Schema / DB / key / object-prefix namespacing for parallel-safe runs. Default 6 hex chars. |
@@ -43,6 +43,28 @@ Each gate fails closed on its **required** variables and treats the rest as opti
 
 `SMTP_TEST_TO` is required rather than optional because an open SMTP gate sends **real mail** — the
 suite must never guess a recipient.
+
+### A datastore gate also asks whether the server answers
+
+`mongoGate()`, `redisGate()` and `postgresGate()` open only when their connection string is set
+**and** one of the hosts in it accepts a TCP connect (default ports 27017 / 6379 / 5432). A local
+`.env` keeps the port-forward address long after the forward is gone, and a gate that trusted the
+variable alone left `beforeAll` to spend its whole budget on `ECONNREFUSED` and fail the suite. An
+unreachable address therefore closes the gate like an empty variable does, and says so loudly — one
+`console.warn` per address, naming the variable and `host:port` (never the URL, which carries the
+credential), and the same text as `gate.reason`:
+
+```text
+@owlmeans/test-integration: skipping — MONGO_URL is set, but nothing answers at 127.0.0.1:27017 (ECONNREFUSED) — start the service (or its port-forward) to run these specs
+```
+
+The probe is synchronous (a child process running a bounded connect, 1.5 s per address), because
+Bun decides `test` vs `test.skip` synchronously and every consumer reads its gate at module scope —
+so no `tests/context.ts` changes to get it. It is TCP only: no driver and no login, so a wrong
+password still opens the gate and fails in the suite, where it belongs. It answers "reachable" when
+it cannot tell — an SRV (`mongodb+srv://`) or unix-socket address, a string it cannot parse, a probe
+that cannot spawn — which is exactly the behaviour a gate had before it probed. `s3Gate()`,
+`kubeGate()` and `smtpGate()` do not probe: they name remote services, not a local forward.
 
 An optional variable is only in `env` when it was actually populated, which is why a suite reads a
 defaulted one — `POSTGRES_TEST_DB_PREFIX ?? 'omt'` — straight from `process.env` instead: calling
@@ -68,13 +90,17 @@ asserts on the request it builds and the API's reply.
 
 One `.env.example` at the workspace root documents every variable, grouped by service, with
 comments; the `.env` beside it supplies real values for local runs and `loadEnv` (from
-`@owlmeans/test`) picks it up. CI sets the same variables from secrets. **Empty value = skip** —
-never a failure.
+`@owlmeans/test`) picks it up. CI sets the same variables from secrets. **Empty value = skip, and
+so is a datastore address nothing answers at** — never a failure. A developer's `.env` may keep the
+port-forward address permanently: with the forward up the suites run, without it they skip.
 
-When a required variable is empty:
+When a required variable is empty, or a datastore gate's server does not answer:
 1. The corresponding gate reports `skip: true`.
 2. The per-package `tests/context.ts` does **not** register the dependent service in the real context.
 3. Specs that touch that service self-skip with the reason printed.
+
+A CI job that provisions the service beside its secrets must therefore check the service is up
+before the tests, or read the run's skip count: an outage there skips rather than fails.
 
 **Never print a credential.** Pipe it straight from its source into the env var the gate
 reads — the value must never reach a log, a report, or a committed file:
@@ -287,7 +313,8 @@ expect(pgErrorToResourceError(circular)).toBe(circular)   // not: expect(() => �
   service holds no leftovers matching the prefix.
 - **Cover SKILL.md cases first.**
 - **Max 3-4 tests per method/function.**
-- **CI runs C only when secrets are set.** Locally, an empty `.env` produces a clean skip.
+- **CI runs C only when secrets are set.** Locally, an empty `.env` — or a set one whose forward is
+  down — produces a clean, printed skip.
 
 ## When the env is partially populated
 

@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.43
+bun add @owlmeans/web-panel@^0.1.18-rc.50
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -226,7 +226,8 @@ alias. Default keys are `nav.<section>` and `modules.<alias>`.
 | `NavLayout` | `nav`, `translate?`, `title?`, `home?` (brand target; defaults to the first section's first item), `actions?`, `footer?` (`PanelNavLink[]` renders the standard footer, a node replaces it), `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
 | `TopNav` | `config`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
-| `Footer` | `links?`, `translate?`, `containerClassName?`, `children?`, `className?`, `style?` |
+| `Footer` | `links?`, `translate?`, `containerClassName?`, `children?`, `className?`, `style?` — always renders the platform/owner credit line too, via `ShellCredit` |
+| `ShellCredit`, `useShellCredit` | `className?` — "Powered by OwlMeans" plus the owner's copyright, resolved the same way the sign-in screen's credit is |
 
 ### 4. Forms, panels and status
 
@@ -330,8 +331,9 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `NavLayout`, `TopNav`, `SideNav`, `Footer` | component | Navigation shell and its pieces |
-| `NavLayoutProps`, `TopNavProps`, `SideNavProps`, `FooterProps` | type | Their props |
+| `NavLayout`, `TopNav`, `SideNav`, `Footer`, `ShellCredit` | component | Navigation shell and its pieces, including the footer's platform/owner credit |
+| `NavLayoutProps`, `TopNavProps`, `SideNavProps`, `FooterProps`, `ShellCreditProps` | type | Their props |
+| `useShellCredit` | hook | Resolves the credit `ShellCredit` renders, without rendering it |
 | `Layout`, `LayoutProps` | component, type | Plain content wrapper |
 | `Form`, `WebFormProps` | component, type | Web form; `FormProps` plus `className` / `style` |
 | `TextInput`, `TextInputProps` | component, type | `react-hook-form` controlled input |
@@ -461,7 +463,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

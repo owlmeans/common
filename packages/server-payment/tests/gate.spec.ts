@@ -1,97 +1,87 @@
 import { describe, expect, test } from 'bun:test'
-import { AppType, makeBasicContext } from '@owlmeans/context'
-import type { BasicConfig } from '@owlmeans/context'
 import type { AbstractRequest, AbstractResponse, GateService } from '@owlmeans/entrypoint'
-import type { Auth } from '@owlmeans/auth'
+import type { Auth, PermissionSet } from '@owlmeans/auth'
 import { AuthForbidden, AuthRole } from '@owlmeans/auth'
-import { CAPABILITY_FEATURE_SCOPE, ENTITLEMENT_GATE } from '@owlmeans/payment'
-import { SubscriptionStatus } from '@owlmeans/payment'
-import { filterRecords } from '@owlmeans/resource'
-import type { Criteria, ResourceRecord } from '@owlmeans/resource'
-import { RES_PAYMENT_SUBSCRIPTION } from '../src/consts.js'
-import { makeEntitlementGate } from '../src/gate.js'
-
-const record = (status: SubscriptionStatus, capabilities?: unknown[]) => ({
-  entityId: 'entity-1',
-  productSku: 'pro',
-  status,
-  capabilities: capabilities ?? [
-    { scope: 'renewable', permissions: { production: 1 } },
-    { scope: CAPABILITY_FEATURE_SCOPE, permissions: { 'branding--whitelabel': true } },
-  ],
-})
-
-/** The gate must fail closed, including when its subscription store is unreadable. */
-const makeGate = async (answer: () => unknown): Promise<GateService> => {
-  const ctx = makeBasicContext<BasicConfig>({
-    ready: false,
-    service: 'server-payment-tests',
-    type: AppType.Backend,
-  })
-  const resource = {
-    alias: RES_PAYMENT_SUBSCRIPTION,
-    list: async (where?: Criteria<ResourceRecord>) => {
-      const items = filterRecords(answer() as ResourceRecord[], where)
-      return { items, total: items.length }
-    },
-    registerContext: () => resource,
-    init: async () => undefined,
-    ready: async () => true,
-  }
-  ctx.registerResource(resource as never)
-  ctx.registerService(makeEntitlementGate())
-  ctx.configure()
-  await ctx.init()
-
-  return ctx.service<GateService>(ENTITLEMENT_GATE)
-}
+import { CapabilityRequired, ENTITLEMENT_GATE, SubscriptionStatus } from '@owlmeans/payment'
+import { entitlementsOf, makeCapabilityGate } from '../src/gate.js'
+import { gateway } from '../src/utils.js'
+import { CAP_BASIC, CAP_PREVIEW, CAP_WHITELABEL, makeFakeContext, past, PRO } from './fake-stripe.js'
+import type { FakeContext } from './fake-stripe.js'
 
 const request = (auth: Partial<Auth> | null = {}): AbstractRequest => ({
   alias: 'test', headers: {}, params: {}, query: {}, body: {}, path: '/',
   ...(auth != null ? {
     auth: {
       type: 'ed25519-basic-token', token: 't', userId: 'u', role: AuthRole.User,
-      scopes: [], entitySlug: 'entity-1', isUser: true, createdAt: new Date(), ...auth,
+      scopes: ['*'], entitySlug: 'entity-1', isUser: true, createdAt: new Date(), ...auth,
     } satisfies Auth,
   } : {}),
 }) as unknown as AbstractRequest
 
 const res = {} as AbstractResponse<unknown>
 
-describe('@owlmeans/server-payment — the entitlement gate', () => {
-  test('passes capabilities from active and trial subscriptions', async () => {
-    for (const status of [SubscriptionStatus.Active, SubscriptionStatus.Trial]) {
-      const gate = await makeGate(() => [record(status)])
-      await gate.assert(request(), res, ['feature:branding--whitelabel'])
+const withPro = async (status: SubscriptionStatus = SubscriptionStatus.Active): Promise<FakeContext> => {
+  const fake = await makeFakeContext()
+  await gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', PRO, { force: true })
+  fake.stores['payment-subscription'].rows[0].status = status
+  return fake
+}
+
+const gateOf = (fake: FakeContext, alias: string = ENTITLEMENT_GATE): GateService => fake.ctx.service<GateService>(alias)
+
+describe('@owlmeans/server-payment — the capability gate', () => {
+  test('passes a capability of an active, trial or past-due plan; parameters are any-of', async () => {
+    for (const status of [SubscriptionStatus.Active, SubscriptionStatus.Trial, SubscriptionStatus.PastDue]) {
+      const fake = await withPro(status)
+      await gateOf(fake).assert(request(), res, [CAP_WHITELABEL])
+      await gateOf(fake).assert(request(), res, ['feature:nothing--here', CAP_WHITELABEL])
     }
   })
 
-  test('refuses cancelled, missing, and unrelated capabilities', async () => {
-    const canceled = await makeGate(() => [record(SubscriptionStatus.Canceled)])
-    await expect(canceled.assert(request(), res, ['feature:branding--whitelabel']))
-      .rejects.toBeInstanceOf(AuthForbidden)
-    const unrelated = await makeGate(() => [record(SubscriptionStatus.Active)])
-    await expect(unrelated.assert(request(), res, ['feature:domain--custom']))
-      .rejects.toBeInstanceOf(AuthForbidden)
+  test('refuses a canceled plan, an unrelated capability and a lapsed promo with CapabilityRequired (a 403)', async () => {
+    const canceled = await withPro(SubscriptionStatus.Canceled)
+    const refusal = await gateOf(canceled).assert(request(), res, [CAP_WHITELABEL]).catch(error => error)
+    expect(refusal).toBeInstanceOf(CapabilityRequired)
+    expect(refusal).toBeInstanceOf(AuthForbidden)
+    expect(refusal.params).toEqual([CAP_WHITELABEL])
+    await gateOf(canceled).assert(request(), res, [CAP_BASIC])
+
+    const unrelated = await withPro()
+    await expect(gateOf(unrelated).assert(request(), res, ['feature:domain--custom'])).rejects.toBeInstanceOf(CapabilityRequired)
+
+    const lapsed = await makeFakeContext({ catalogue: { previewUntil: past(1) } })
+    await expect(gateOf(lapsed).assert(request(), res, [CAP_PREVIEW])).rejects.toBeInstanceOf(CapabilityRequired)
+    expect((await entitlementsOf(lapsed.ctx, 'entity-1')).some(set => set.permissions.preview != null)).toBe(false)
   })
 
-  test('treats gate parameters as any-of', async () => {
-    const gate = await makeGate(() => [record(SubscriptionStatus.Active)])
-    await gate.assert(request(), res, ['feature:nothing--here', 'feature:branding--whitelabel'])
+  test('refuses a missing authentication or organization before reading storage, and an unreadable store', async () => {
+    const fake = await withPro()
+    fake.stores['payment-subscription'].failing.add('list')
+    const noAuth = await gateOf(fake).assert(request(null), res, [CAP_WHITELABEL]).catch(error => error)
+    expect(noAuth).toBeInstanceOf(AuthForbidden)
+    expect(noAuth).not.toBeInstanceOf(CapabilityRequired)
+    const noEntity = await gateOf(fake).assert(request({ entitySlug: undefined }), res, [CAP_WHITELABEL]).catch(error => error)
+    expect(noEntity).not.toBeInstanceOf(CapabilityRequired)
+    expect(noEntity).toBeInstanceOf(AuthForbidden)
+
+    await expect(gateOf(fake).assert(request(), res, [CAP_WHITELABEL])).rejects.toBeInstanceOf(CapabilityRequired)
   })
 
-  test('refuses missing authentication or organization before reading storage', async () => {
-    const unread = await makeGate(() => { throw new Error('must not be reached') })
-    await expect(unread.assert(request(null), res, ['feature:branding--whitelabel']))
-      .rejects.toBeInstanceOf(AuthForbidden)
-    const noEntity = await makeGate(() => [])
-    await expect(noEntity.assert(request({ entitySlug: undefined }), res, ['feature:branding--whitelabel']))
-      .rejects.toBeInstanceOf(AuthForbidden)
-  })
+  test('the plan is the authority: a token false denies, a token grant alone never allows, requirePermission is opt-in', async () => {
+    const deny: PermissionSet[] = [{ scope: 'feature', permissions: { whitelabel: false } }]
+    const grant: PermissionSet[] = [{ scope: 'feature', permissions: { whitelabel: true } }]
 
-  test('refuses when the subscription store is unreadable', async () => {
-    const gate = await makeGate(() => { throw new Error('mongo is down') })
-    await expect(gate.assert(request(), res, ['feature:branding--whitelabel']))
-      .rejects.toBeInstanceOf(AuthForbidden)
+    const fake = await withPro()
+    await expect(gateOf(fake).assert(request({ permissions: deny }), res, [CAP_WHITELABEL]))
+      .rejects.toBeInstanceOf(CapabilityRequired)
+
+    const free = await makeFakeContext()
+    await expect(gateOf(free).assert(request({ permissions: grant }), res, [CAP_WHITELABEL]))
+      .rejects.toBeInstanceOf(CapabilityRequired)
+
+    fake.ctx.registerService(makeCapabilityGate('strict-gate', { requirePermission: true }))
+    await expect(gateOf(fake, 'strict-gate').assert(request(), res, [CAP_WHITELABEL]))
+      .rejects.toBeInstanceOf(CapabilityRequired)
+    await gateOf(fake, 'strict-gate').assert(request({ permissions: grant }), res, [CAP_WHITELABEL])
   })
 })

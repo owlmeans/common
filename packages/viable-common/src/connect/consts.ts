@@ -382,6 +382,11 @@ export const RES_CONNECT_SESSION = 'connect-session'
  * the manager API all address the same aliases, and a client that had to be handed its own copy of
  * the tree would be a second place for a name to drift. The platform spreads the declarations
  * these produce into its own entrypoint list and binds handlers onto them.
+ *
+ * There is no story group. A user story is a planning CARD, read and written through the planning
+ * protocol tree the platform mounts beside this one (`makePlanningProtocols` in
+ * `@owlmeans/planning`) — one surface for the browser and a connector alike, so a story rule the
+ * platform enforces cannot be enforced on one of them only.
  */
 export const connect = Object.freeze({
   base: 'viable:manager-api:connect:base',
@@ -423,14 +428,6 @@ export const connect = Object.freeze({
   }),
   inquiry: Object.freeze({
     answer: 'viable:manager-api:connect:inquiry:answer',
-  }),
-  story: Object.freeze({
-    list: 'viable:manager-api:connect:story:list',
-    get: 'viable:manager-api:connect:story:get',
-    create: 'viable:manager-api:connect:story:create',
-    update: 'viable:manager-api:connect:story:update',
-    delete: 'viable:manager-api:connect:story:delete',
-    develop: 'viable:manager-api:connect:story:develop',
   }),
   files: Object.freeze({
     list: 'viable:manager-api:connect:files:list',

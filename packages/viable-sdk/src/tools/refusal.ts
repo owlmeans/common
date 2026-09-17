@@ -200,6 +200,53 @@ export const REFUSALS: RefusalPhrase[] = [
       + ' build a story from. reinitialize_project restores it.',
   },
 
+  // ── A story refused by the platform's planning ───────────────────────────────────────────────
+  // Stories are planning cards, and every change to one is a transition the platform validates:
+  // the flow decides which move is open from a status, the head decides whether the story changed
+  // under the caller, and a transition is durable before it has committed.
+  {
+    marker: 'viable-project:story:not-found:',
+    phrase: ref => `This project has no story${ref !== '' ? ` ${ref}` : ''}. list_stories shows the`
+      + ' codes it has; a story of another project is named together with that projectId.',
+  },
+  {
+    marker: 'viable-project:story:missconfigured:',
+    phrase: reason => `The story is not in a state that change applies to${aside(reason)}. A completed`
+      + ' story has generated code behind it and is neither reworded nor deleted; story_status says'
+      + ' where it stands.',
+  },
+  {
+    marker: 'planning:illegal-transition:',
+    phrase: move => `That move is not open from the status the story is in${aside(move)}. A story in`
+      + ' progress is already being developed — poll its job with wait_for; a completed one is reset'
+      + ' in the web application before it is developed again. story_status says where it stands.',
+  },
+  {
+    marker: 'planning:workcard-conflict:',
+    phrase: () => 'The story changed between reading it and this change, so nothing was written. Read'
+      + ' it again with story_status and repeat the change if it still applies.',
+  },
+  {
+    marker: 'planning:workcard-not-found:',
+    phrase: () => 'The platform has no such story or project for this account. list_projects and'
+      + ' list_stories show what exists.',
+  },
+  {
+    marker: 'planning:fields-invalid:',
+    phrase: detail => `The platform refused the story as malformed${aside(detail)}. Say it again as one`
+      + ' plain narrative sentence.',
+  },
+  {
+    marker: 'planning:commit-timeout:',
+    phrase: () => 'The platform accepted the change and has not applied it yet. It is neither lost nor'
+      + ' undone: read story_status or list_stories in a moment rather than repeating the call.',
+  },
+  {
+    marker: 'planning:commit-failed:',
+    phrase: cause => `The platform accepted the change and then could not apply it${aside(cause)}.`
+      + ' Read story_status for where the story stands before retrying.',
+  },
+
   // ── A balance, rather than a fault ───────────────────────────────────────────────────────────
   {
     marker: 'out-of-tokens:conversion-budget',

@@ -93,6 +93,7 @@ model factory service and the generic execution service. Related: [[versioning]]
 
 - `packages/llm/README.md` — the resilience table (what the package already handles) and the
   plugin-authoring example; skills `llm` / `llm-common`.
-- Skills: `llm`, `llm-common`, `llm-delegate` (the `ModelProvider.Delegated` runtime) and
-  `inquiry` (the transport registry and `ExecutionService.ask`).
+- Skills: `llm`, `llm-common` and `inquiry` (the transport registry and `ExecutionService.ask`).
+  The `ModelProvider.Delegated` runtime is `@owlmeans/llm-delegate` in the `internal` monorepo —
+  contracts here, runtime there; consumers reach it through `@owlmeans/viable`.
 - Consumer side: `viable-agent` skills `/llm-model` and `/execution`.

@@ -4,7 +4,8 @@ Env-gated harness for integration tests of packages that talk to external servic
 
 Helpers exported here:
 
-- `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()` — read the env keys documented in `.env.example` and return `{ skip, reason?, env }`. A `tests/context.ts` uses these to decide whether to register the corresponding service in the real test context.
+- `mongoGate()`, `redisGate()`, `postgresGate()`, `s3Gate()`, `kubeGate()`, `smtpGate()` — read the env keys documented in `.env.example` and return `{ skip, reason?, env }`. A `tests/context.ts` uses these to decide whether to register the corresponding service in the real test context.
+- The three datastore gates (`mongoGate`, `redisGate`, `postgresGate`) also require a host in the connection string to accept a TCP connect. A set variable pointing at nothing — a port-forward that is not running — closes the gate with a printed reason naming the variable and `host:port`, instead of failing the suite on a refused connection. The probe is synchronous, so gates keep being read at module scope.
 - `randomNamespace(prefix)` — short random suffix to keep DB names, key prefixes, and S3 prefixes unique per test run so suites can safely run in parallel.
 - `registerCleanup(fn)` + `runCleanups()` — opt-in `afterAll` cleanup queue.
 
@@ -18,7 +19,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

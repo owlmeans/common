@@ -168,24 +168,25 @@ export interface StoryDesign {
   provenance: StoryDesignProvenance
 }
 
-/** What a caller hands the store; the revision is the store's to allocate. */
-export interface StoryDesignInput {
-  projectId: string
-  storyId?: string
-  code: string
-  kind: string
-  payload: unknown
+/** Who wrote a design revision and why — recorded on the transition, never in the design. */
+export interface StoryDesignPutOptions {
   runId?: string
+  cause?: string
 }
 
 /**
  * How the implementation stage reaches the design, without knowing where it lives.
  *
  * A port rather than a resource for the usual reason: two questions is the whole of what an
- * implementation step needs, and a port that small is satisfiable by a record store, a file, or a
- * test double.
+ * implementation step needs, and a port that small is satisfiable by a planning facade, a file,
+ * or a test. Both methods are addressed by a CARD id — the story card for a story design, the
+ * project card for a scaffold plan — and the port decides which specification slot of that card
+ * holds the payload. The code a design carries is the target's vocabulary; it never addresses a
+ * record.
  */
 export interface StoryDesignPort {
-  current: (projectId: string, code: string) => Promise<{ revision: number, design: StoryDesign } | null>
-  put: (input: StoryDesignInput) => Promise<number>
+  /** The card's current design and its revision; `null` when none was written or its version differs. */
+  current: (cardId: string) => Promise<{ revision: number, design: StoryDesign } | null>
+  /** Write a design as the card's next revision and answer the revision number it received. */
+  put: (cardId: string, design: StoryDesign, opts?: StoryDesignPutOptions) => Promise<number>
 }

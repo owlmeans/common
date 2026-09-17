@@ -1,0 +1,21 @@
+{
+  "PaymentError": "The payment could not be completed",
+  "PaymentErrorPaygate": "The payment provider could not complete the request",
+  "PaymentErrorPaygateUnknown": "This payment provider is not supported",
+  "PaymentErrorPaygateMapping": "The payment provider's data could not be matched",
+  "PaymentErrorPaygateWebhookSetup": "Payment notifications are not configured",
+  "PaymentErrorPaygatePortalUnavailable": "Billing management is not available for this account yet",
+  "PaymentErrorProduct": "This product is not available",
+  "PaymentErrorProductUnknown": "This product does not exist",
+  "PaymentErrorProductPlan": "This plan does not exist",
+  "PaymentErrorProductPlanRequired": "No plan is available for this account",
+  "PaymentErrorProductPlanRankConflict": "The plans are configured inconsistently",
+  "PaymentErrorProductLimitUnknown": "This limit is not part of the plan",
+  "PaymentErrorProductLimitMisdeclared": "The plan's limits are configured incorrectly",
+  "PaymentErrorIdentification": "We could not identify who is paying — sign in and try again",
+  "PaymentErrorSubscription": "The subscription could not be updated",
+  "PaymentErrorSubscriptionUnknown": "This subscription does not exist",
+  "EntitlementRefusal": "Your plan does not allow this",
+  "EntitlementRefusalCapabilityRequired": "This feature is not included in your plan",
+  "EntitlementRefusalLimitExhausted": "You have reached your plan's limit for this"
+}

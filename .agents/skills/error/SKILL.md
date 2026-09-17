@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/error
 
 **Layer:** Core
-**Install:** `"@owlmeans/error": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/error": "^0.1.18-rc.27"` in `dependencies`
 
 ## Key Exports
 
@@ -19,7 +19,9 @@ user-invocable: false
 | `ResilientError.marshal(err)` / `err.marshal()` | Flatten into a plain `Error` a transport can carry |
 | `enuserError(err)` | `ensure`, typed to the subclass you expect |
 | `marshalError(err)` | `ensure` then `marshal`, for a boundary that only sends `Error` |
+| `isResilientError(value)` | Structural check that holds across duplicate module copies |
 | `SEPARATOR` (`'\|\|\|'`), `RESILENT_ERROR` | The marshalling separator and the base type name |
+| `RESILIENT_BRAND`, `CONVERTER_REGISTRY`, `CATCH_ALL_CONVERTER` | The `Symbol.for` keys every copy shares |
 | `Converter` | `{ match, convert, isMarshaled, unmarshal }` — one registry entry |
 | `ResilientErrorConstructor` | The constructor shape `registerErrorClass` accepts |
 | `ValueOrError<T>` | `T \| ResilientError`, for a result that carries either |
@@ -60,6 +62,25 @@ throw new RateLimitError('per-minute')
 A subclass of a subclass calls `super` with the message alone and then re-stamps `this.type` — the
 parent supplies its own prefix, so the final message reads `api:rate-limit:per-minute`.
 
+**A refusal of the caller's condition declares its HTTP status** as `public static httpStatus = <4xx>`;
+a fault — a broken peer, a timeout, a missing configuration, a bug — declares nothing and answers 500.
+One principle picks the number:
+
+| Status | The caller's condition |
+|---|---|
+| 400 | the request is malformed |
+| 402 | the balance or plan does not pay for it |
+| 404 | the addressed target does not exist, or is another organization's |
+| 409 | the target's current state conflicts with the request |
+| 422 | the request is understood, and its content or body is refused |
+
+Declare it on the leaf class, never on a family base: a static is inherited, so a base's status
+would reach every fault that extends it. A class thrown for several causes takes the status of the
+cause a caller can reach, and one whose causes are told apart only by message declares nothing.
+Nothing here reads it — `@owlmeans/server-api` does, structurally, and answers 500 for any class
+without an integer 4xx declaration (see the `server-api` skill). A permission refusal extends
+`AuthForbidden` (403) instead of declaring.
+
 `registerErrorClass` takes a second, native-class argument, and `ensure` takes a second
 `throwOnUnknown` argument. **Neither has any effect** — a catch-all converter is pushed onto the
 registry when this package loads and it is the first entry `ensure` tests for conversion, so no
@@ -83,7 +104,7 @@ What `ensure` actually does, in order:
 
 | Input | Result |
 |-------|--------|
-| A `ResilientError` | returned untouched |
+| A `ResilientError` from any copy of this package | returned untouched |
 | A `SyntaxError` | rethrown — never converted |
 | An `Error` marshaled from a **registered** class | unmarshaled into that class, `type` and `message` restored |
 | Anything else | a bare `ResilientError` whose **`type` is the original `message`** and whose **`message` is the original stack** |
@@ -97,6 +118,25 @@ original around when you need its message.
 process is wired wrong (an unknown alias, a missing service, a route cycle), and it must crash
 rather than reach a user as a handled failure. Do not throw one for a runtime condition a caller is
 expected to handle.
+
+## Duplicate module copies behave as one
+
+A process can load this package more than once — `bun --preserve-symlinks` over linked workspaces
+keys a module by its unresolved path, so a package that keeps its own
+`node_modules/@owlmeans/error` link loads a second copy. Every copy acts as one:
+
+- **One registry.** `ResilientError.converters` is the array kept on `globalThis` under
+  `Symbol.for('@owlmeans/error:converters')`; every copy registers into it and unmarshals from it,
+  in registration order, so the **last registration of a type name wins** across copies. One
+  catch-all converter exists per process.
+- **One brand.** Every instance inherits `Symbol.for('@owlmeans/error:resilient')` from its copy's
+  prototype. `isResilientError(value)` is brand + string `type` + `marshal` function; `ensure`
+  returns such a value untouched and `marshal` keeps its `type`. A lookalike without the brand is
+  not a resilient error.
+- **`instanceof` across copies.** `ResilientError[Symbol.hasInstance]` answers natively first, then
+  structurally: the instance's lineage of OWN `typeName`s must end with the checked class's lineage.
+  A class from another copy matches itself and its ancestors, never a sibling or a parent. A class
+  that does not declare its own `typeName` matches natively only — declare one on every subclass.
 
 ## Crossing a service boundary
 

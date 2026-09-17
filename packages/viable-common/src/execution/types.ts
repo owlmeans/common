@@ -6,6 +6,7 @@ import type { PurposeMetadata } from '../agent/types.js'
 import type { AgentProject, Entity, UserStory } from '../ba/types.js'
 import type { UXTransition } from '../ux/types.js'
 import type { SeniorityMode } from '../consts.js'
+import type { ViableProjectCard, ViableStoryCard } from '../planning/types.js'
 
 /**
  * Model-selection contracts are owned by `@owlmeans/llm-common` — the JSON-safe config
@@ -26,7 +27,15 @@ export interface ExecutionState extends LlmExecutionState {
   slot?: string
   projectId?: string
   entityId?: string
+  /** The brief the run reads — assembled from {@link ExecutionState.projectCard} and its specifications. */
   project?: AgentProject
+  /**
+   * The project card the run acts on, as plain data.
+   *
+   * Carried beside the brief rather than in place of it: a generator reads the brief, while
+   * whatever writes back — a status transition, a specification — needs the card's id and head.
+   */
+  projectCard?: ViableProjectCard
   entities?: Entity[]
   /**
    * Which blueprint this run is building against, as an id plus an override patch.
@@ -51,5 +60,7 @@ export interface TaskExecutionState
   extends ExecutionState, Omit<LlmTaskExecutionState, keyof LlmExecutionState> {
   mode?: SeniorityMode
   story?: UserStory
+  /** The story card the task develops, as plain data — the aggregate above is derived from it. */
+  card?: ViableStoryCard
   transitions?: UXTransition[]
 }

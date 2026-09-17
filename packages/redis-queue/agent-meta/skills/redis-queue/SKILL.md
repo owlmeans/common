@@ -1,6 +1,6 @@
 ---
 name: redis-queue
-description: How to use @owlmeans/redis-queue — the BullMQ-over-Redis driver for @owlmeans/queue, appendRedisQueue wiring, its key prefixing and connection rules, worker defaults and dispatch, what a broker cannot do that the Resource contract implies, shutdown, hooks, and where queue integration tests live. Auto-invoked when wiring queues into a server app or writing queue specs.
+description: How to use @owlmeans/redis-queue — the BullMQ-over-Redis driver for @owlmeans/queue, appendRedisQueue wiring, its key prefixing and connection rules, worker defaults and dispatch, schedule reconciliation over BullMQ job schedulers, what a broker cannot do that the Resource contract implies, shutdown, hooks, and where queue integration tests live. Auto-invoked when wiring queues into a server app, debugging a schedule, or writing queue specs.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.17"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -43,8 +43,10 @@ Declaring queues and choosing which to consume is the `queue` package's job — 
 | `makeRedisQueueWorker(alias?, dbAlias?, serviceAlias?)` | The consuming service |
 | `queueResourceAlias(queue)` | `queue:<name>` — the resource alias one queue is registered under |
 | `queuePrefix(prefix)` / `queueConnection(redis, dbAlias?)` | The key namespace, and everything a queue needs from the redis service |
+| `syncSchedules(bull, cfg, queue)` / `ScheduleSync` | Reconcile one queue's job schedulers with its declarations; never throws |
+| `scheduleKey(id)` / `scheduleIdOf(key)` / `repeatOptionsOf(s)` / `templateOf(s, cfg?)` | Scheduler id ⇄ schedule id, and the two halves `upsertJobScheduler` takes |
 | `RedisQueueOptions` / `RedisQueueResource` / `RedisQueueWorkerService` | The option shape and the driver's named contract aliases |
-| Constants | `QUEUE_KEY_SUFFIX`, `DEFAULT_LOCK_DURATION` (60 000 ms), `DEFAULT_STALLED_INTERVAL` (30 000 ms), `DEFAULT_MAX_STALLED_COUNT` (2), `LISTED_STATES`, `PUBLISHED_EVENT`, `PUBLISHED_EVENT_MAX`, `WAIT_TIMEOUT_MARKER`, `STALLED_FAILURE` |
+| Constants | `QUEUE_KEY_SUFFIX`, `DEFAULT_LOCK_DURATION` (60 000 ms), `DEFAULT_STALLED_INTERVAL` (30 000 ms), `DEFAULT_MAX_STALLED_COUNT` (2), `LISTED_STATES`, `PUBLISHED_EVENT`, `PUBLISHED_EVENT_MAX`, `WAIT_TIMEOUT_MARKER`, `STALLED_FAILURE`, `SCHEDULE_PREFIX` (`owlmeans:`) |
 
 ## Connections
 
@@ -94,6 +96,30 @@ fails for half a minute is ordinary), `maxStalledCount` 2 rather than 1 (a worke
 mid-job leaves its jobs stalled once through no fault of the job), `stalledInterval` 30 s.
 `concurrency` is written only when declared, and `autorun` is off — `start()` binds, so nothing is
 consumed while processors are still registering.
+
+## Schedules
+
+Each declared schedule (`declareSchedule`, see `queue`) is one BullMQ **job scheduler** with the id
+`owlmeans:<schedule id>`. Rules the driver follows, and why:
+
+- **Reconciled in `start()`, per queue it binds, after every worker is consuming.** `syncSchedules`
+  lists the queue's schedulers once, upserts each declared schedule the broker does not hold exactly
+  as declared, and removes each `owlmeans:` scheduler no declaration names. The Ready-stage
+  middleware is not awaited by `context.init()`, so the reconciliation finishes shortly after
+  `init()` resolves — a spec polls the broker for it rather than asserting straight after boot.
+- **Unchanged means untouched.** An upsert replaces the scheduler's pending run, re-runs a pattern
+  declared `immediately`, and collides with a run in progress, so a declaration already held as
+  declared (name, timing, data, options) is skipped. A restart therefore costs one listing.
+- **The prefix is ownership.** Only `owlmeans:` schedulers are ever removed; a scheduler created
+  outside it survives every start. Never create one under the prefix by hand.
+- **Nothing here stops consumption.** A refused declaration (`assertSchedule`), a failed listing or
+  a failed upsert is caught and logged step by step; the rest still applies. When the listing
+  fails nothing is removed. A declaration past its `endDate` counts as absent and is removed.
+- **Listened queues only.** A producer never creates, updates or removes a scheduler.
+- **`job.scheduled`** is `scheduleIdOf(job.repeatJobKey)` — BullMQ stamps every run with the
+  scheduler id, and a job enqueued any other way has none of ours.
+- **Processors register before the worker takes jobs.** A scheduled run whose name has no processor
+  yet fails once as `UnknownJobName`; register processors while wiring, or at the Loading stage.
 
 ## Where a broker is narrower than `Resource`
 
@@ -157,6 +183,10 @@ each suite namespaces its own prefix and `obliterate()`s its queues on teardown,
 keys behind. Check that with `--scan --pattern '<prefix>*'` after a run. Bun runs a package's spec
 files in one process, so cleanup belongs to each suite's own `afterAll`, never to a shared global.
 
+A schedule spec boots one context, reboots a second over the same prefix to act as a restart, and
+polls the broker for the reconciled state; `obliterate()` removes a queue's schedulers with its
+keys.
+
 `touch()` cannot be observed through stalling: BullMQ renews the lock on its own at `lockRenewTime`
 (half `lockDuration`), and this driver exposes no way to turn that off. Assert it against the lock
 key's `PTTL` instead — take it inside the processor, wait, take it again, `touch()`, take it a
@@ -171,8 +201,19 @@ third time.
 - `@owlmeans/server-context` — the config and context this driver binds to
 - `bullmq` — the broker
 
+## External docs
+
+- https://docs.bullmq.io/guide/job-schedulers — `queue.upsertJobScheduler(id, { every | pattern,
+  tz, startDate, endDate, limit, immediately }, { name, data, opts })` is idempotent per id and
+  replaces the scheduler's pending run; `getJobSchedulers()` lists them, `removeJobScheduler(id)`
+  drops one. The next job is produced when the previous one STARTS processing, so a worker must be
+  listening. `every` and `pattern` are mutually exclusive; `immediately` with `startDate` is
+  refused; an `every` scheduler without `startDate` runs at once. Every produced job carries
+  `repeatJobKey` = the scheduler id.
+
 ## Related
 
-- `queue` — declaring queues, writing processors, the rules a processor must follow
+- `queue` — declaring queues and schedules, writing processors, the rules a processor must follow
+- `scheduled-jobs` — when recurring work is a schedule and how its sweep is written
 - `redis` — connection configuration, key prefixes, database index
 - `testing-integration` — how gated specs are written and run

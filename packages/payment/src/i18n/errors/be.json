@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Не ўдалося выканаць плацёж",
+  "PaymentErrorPaygate": "Плацежны правайдар не змог выканаць запыт",
+  "PaymentErrorPaygateUnknown": "Гэты плацежны правайдар не падтрымліваецца",
+  "PaymentErrorPaygateMapping": "Не ўдалося супаставіць даныя плацежнага правайдара",
+  "PaymentErrorPaygateWebhookSetup": "Апавяшчэнні пра плацяжы не наладжаны",
+  "PaymentErrorPaygatePortalUnavailable": "Кіраванне аплатай для гэтага акаўнта пакуль недаступнае",
+  "PaymentErrorProduct": "Гэты прадукт недаступны",
+  "PaymentErrorProductUnknown": "Гэты прадукт не існуе",
+  "PaymentErrorProductPlan": "Гэты тарыф не існуе",
+  "PaymentErrorProductPlanRequired": "Для гэтага акаўнта няма даступнага тарыфу",
+  "PaymentErrorProductPlanRankConflict": "Тарыфы наладжаны неўзгоднена",
+  "PaymentErrorProductLimitUnknown": "Гэты ліміт не ўваходзіць у тарыф",
+  "PaymentErrorProductLimitMisdeclared": "Ліміты тарыфу наладжаны няправільна",
+  "PaymentErrorIdentification": "Не ўдалося вызначыць плацельшчыка — увайдзіце і паспрабуйце зноў",
+  "PaymentErrorSubscription": "Не ўдалося абнавіць падпіску",
+  "PaymentErrorSubscriptionUnknown": "Гэтая падпіска не існуе",
+  "EntitlementRefusal": "Ваш тарыф гэтага не дазваляе",
+  "EntitlementRefusalCapabilityRequired": "Гэтая функцыя не ўваходзіць у ваш тарыф",
+  "EntitlementRefusalLimitExhausted": "Дасягнуты ліміт вашага тарыфу"
+}

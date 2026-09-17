@@ -21,8 +21,17 @@ agent types to load the skill. Lowercase, hyphens, ≤ 64 chars.
 
 A local skill **shadows** an upstream one of the same name — `link-skills.sh` links a dependency's
 skill only when no local skill claims the name. So a local skill named after an `@owlmeans` package
-(`context`, `resource`, `web-client`, …) hides that package's own guidance for the whole repo. Name
+(`resource`, `web-client`, `auth`, …) hides that package's own guidance for the whole repo. Name
 a skill after the concern it covers, never after a package this project consumes.
+
+A skill also shadows a **Claude Code built-in slash command** of the same name: with a skill called
+`context`, typing `/context` loads the skill instead of the context-usage view — in every repo that
+links or installs it, and nothing reports it. Never name a skill after a built-in command, one of its
+aliases (`/settings` is `/config`, `/cost` is `/usage`) or a bundled skill (`/loop`, `/simplify`);
+type `/` in a Claude Code session to see the taken names. A skill about a package whose name is taken
+carries the `owlmeans-` prefix — `owlmeans-context` for `@owlmeans/context`, `owlmeans-config` for
+`@owlmeans/config`. The OwlMeans release harness refuses a colliding canonical skill name
+(`sync-agent-meta` exit 14).
 
 ## File structure
 

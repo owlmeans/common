@@ -27,7 +27,7 @@
 #
 #     == libraries/common ==
 #     [agents-md]      libraries/common/AGENTS.md
-#     [skill]          libraries/common/.agents/skills/context/SKILL.md
+#     [skill]          libraries/common/.agents/skills/owlmeans-context/SKILL.md
 #                      -- How to use @owlmeans/context ...
 #     [rule]           libraries/common/.agents/rules/git.md
 #     [doc]            libraries/common/.agents/project-structure.md

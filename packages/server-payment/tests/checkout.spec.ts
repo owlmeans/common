@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { CheckoutPricingMode, PlanDuration, PlanStatus, ProductType } from '@owlmeans/payment'
-import { PAYMENT_OBSERVER, RES_PAYMENT_SUBSCRIPTION } from '../src/consts.js'
+import { CheckoutPricingMode, PlanDuration, PlanStatus, ProductError, ProductType } from '@owlmeans/payment'
 import { createEventHandler } from '../src/plugins/events.js'
-import { amountCheckoutLineItem, quantityCheckoutLineItem } from '../src/plugins/stripe.js'
-import type { PaymentPlan, PaymentProduct, PaymentSubscriptionRecord, TopUpCompletion } from '../src/types.js'
+import { amountCheckoutLineItem, createCheckoutLink, quantityCheckoutLineItem } from '../src/plugins/stripe.js'
+import type { PaymentPlan, PaymentProduct } from '../src/types.js'
+import { CREDITS_PRODUCT, FREE, makeFakeContext, PLANS_PRODUCT, TEAM } from './fake-stripe.js'
+import type { FakeContext } from './fake-stripe.js'
 
 const product: PaymentProduct = {
   type: ProductType.Consumable, sku: 'credits', title: 'Credits', services: ['app'],
@@ -20,41 +21,20 @@ const plan: PaymentPlan = {
 
 const paid = (overrides: Record<string, unknown> = {}) => ({
   id: 'cs_amount', mode: 'payment', payment_status: 'paid', customer: 'cus_1',
-  currency: 'usd', amount_subtotal: 1021,
+  currency: 'usd', amount_subtotal: 1021, payment_intent: 'pi_1', invoice: 'in_1',
   metadata: {
     pricingMode: 'amount', amountMinor: '1000', chargeAmountMinor: '1021', currency: 'usd',
-    entityId: 'entity-1', service: 'app', productSku: 'credits', planSku: 'credits-unit',
+    entityId: 'entity-1', service: 'app', productSku: CREDITS_PRODUCT, planSku: 'app-credit-unit',
   },
   ...overrides,
 })
 
-const harness = () => {
-  const records: PaymentSubscriptionRecord[] = []
-  const completions: TopUpCompletion[] = []
-  const subscriptions = {
-    byExternalId: async (id: string) => records.find(record => record.externalId === id) ?? null,
-    create: async (record: PaymentSubscriptionRecord) => {
-      const created = { ...record, id: String(records.length + 1) }
-      records.push(created)
-      return created
-    },
-    save: async (record: PaymentSubscriptionRecord) => {
-      const index = records.findIndex(item => item.id === record.id)
-      records[index] = { ...record }
-      return records[index]
-    },
-  }
-  const observer = { propagateTopUp: async (completion: TopUpCompletion) => { completions.push(completion) } }
-  const context = {
-    resource: (alias: string) => alias === RES_PAYMENT_SUBSCRIPTION ? subscriptions : undefined,
-    service: (alias: string) => alias === PAYMENT_OBSERVER ? observer : undefined,
-  }
-  const stripe = { checkout: { sessions: { listLineItems: async () => ({ data: [{ quantity: 7 }] }) } } }
-  return { records, completions, context, stripe }
-}
+const process = async (fake: FakeContext, type: string, object: unknown) =>
+  await createEventHandler(fake.ctx, fake.stripe).process({ type, data: { object } } as never)
+const fulfillment = (fake: FakeContext) => fake.stores['payment-fulfillment'].rows
 
-describe('Stripe amount checkout', () => {
-  test('uses one inline, tax-exclusive item and no reusable Price', () => {
+describe('Stripe checkout', () => {
+  test('amount checkout uses one inline, tax-exclusive item and no reusable Price', () => {
     const result = amountCheckoutLineItem(product, plan, 1_000)
     expect(result.chargeMinor).toBe(1_021)
     expect(result.lineItem).toEqual({
@@ -64,7 +44,7 @@ describe('Stripe amount checkout', () => {
     expect(result.lineItem.adjustable_quantity).toBeUndefined()
   })
 
-  test('keeps reusable Price and adjustable quantity for quantity checkout', () => {
+  test('quantity checkout keeps a reusable Price and an adjustable quantity', () => {
     expect(quantityCheckoutLineItem({ id: 'price_1' } as never, {
       minimum: 5, maximum: 500, default: 10,
     })).toEqual({
@@ -73,63 +53,65 @@ describe('Stripe amount checkout', () => {
     })
   })
 
-  test('fulfills a paid amount without crediting the adjustment', async () => {
-    const h = harness()
-    await createEventHandler(h.context as never, h.stripe as never).process({
-      type: 'checkout.session.completed', data: { object: paid() },
-    } as never)
-    expect(h.completions).toEqual([expect.objectContaining({ mode: 'amount', amountMinor: 1_000, chargeAmountMinor: 1_021 })])
-    expect(h.records[0]?.fulfilledAt).toBeInstanceOf(Date)
+  test('a subscription checkout takes the asked plan; a free plan is never checked out', async () => {
+    const fake = await makeFakeContext({
+      stripe: { prices: [{ id: 'price_team', product: PLANS_PRODUCT, lookup_key: TEAM, active: true, recurring: { interval: 'month' } }] },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: TEAM, entityId: 'entity-1', service: 'app', successUrl: 'https://app.example.com/ok',
+    })
+    expect(fake.state.checkoutSessions[0]).toEqual(expect.objectContaining({
+      mode: 'subscription', line_items: [{ price: 'price_team', quantity: 1 }],
+    }))
+    expect(fake.state.checkoutSessions[0].subscription_data.metadata).toEqual(expect.objectContaining({ entityId: 'entity-1', planSku: TEAM }))
+
+    await expect(createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: FREE, entityId: 'entity-1', service: 'app',
+    })).rejects.toBeInstanceOf(ProductError)
+  })
+})
+
+describe('Stripe checkout fulfillment', () => {
+  test('fulfills a paid amount once, without crediting the adjustment, and records the payment intent', async () => {
+    const fake = await makeFakeContext()
+    await process(fake, 'checkout.session.completed', paid())
+    await process(fake, 'checkout.session.completed', paid())
+    expect(fake.observed.topUp).toEqual([expect.objectContaining({
+      mode: 'amount', amountMinor: 1_000, chargeAmountMinor: 1_021, externalId: 'cs_amount', entityId: 'entity-1',
+    })])
+    expect(fulfillment(fake)[0]).toEqual(expect.objectContaining({
+      externalId: 'cs_amount', paymentIntentId: 'pi_1', invoiceId: 'in_1', mode: 'amount',
+    }))
+    expect(fulfillment(fake)[0].fulfilledAt).toBeInstanceOf(Date)
+    expect(fake.stores['payment-subscription'].rows).toHaveLength(0)
   })
 
-  test('does not fulfill an unpaid completion; asynchronous success does', async () => {
-    const h = harness()
-    const handler = createEventHandler(h.context as never, h.stripe as never)
-    await handler.process({
-      type: 'checkout.session.completed', data: { object: paid({ payment_status: 'unpaid' }) },
-    } as never)
-    expect(h.completions).toHaveLength(0)
-    await handler.process({ type: 'checkout.session.async_payment_succeeded', data: { object: paid() } } as never)
-    expect(h.completions).toHaveLength(1)
+  test('grants nothing for an unpaid completion; the asynchronous success does', async () => {
+    const fake = await makeFakeContext()
+    await process(fake, 'checkout.session.completed', paid({ payment_status: 'unpaid' }))
+    expect(fake.observed.topUp).toHaveLength(0)
+    await process(fake, 'checkout.session.async_payment_succeeded', paid())
+    expect(fake.observed.topUp).toHaveLength(1)
   })
 
-  test('rejects currency/subtotal metadata mismatches and is idempotent on retries', async () => {
-    const h = harness()
-    const handler = createEventHandler(h.context as never, h.stripe as never)
-    await expect(handler.process({
-      type: 'checkout.session.completed', data: { object: paid({ amount_subtotal: 1020 }) },
-    } as never)).rejects.toThrow()
-    await handler.process({ type: 'checkout.session.completed', data: { object: paid() } } as never)
-    await handler.process({ type: 'checkout.session.completed', data: { object: paid() } } as never)
-    expect(h.completions).toHaveLength(1)
+  test('rejects a currency or subtotal mismatch; retries after a failed observer', async () => {
+    const fake = await makeFakeContext()
+    await expect(process(fake, 'checkout.session.completed', paid({ amount_subtotal: 1020 }))).rejects.toThrow()
+
+    fake.observed.failTopUp = 1
+    await expect(process(fake, 'checkout.session.completed', paid())).rejects.toThrow('ledger unavailable')
+    expect(fulfillment(fake)[0]?.fulfilledAt).toBeUndefined()
+    await process(fake, 'checkout.session.completed', paid())
+    expect(fake.observed.topUp).toHaveLength(1)
+    expect(fulfillment(fake)[0].fulfilledAt).toBeInstanceOf(Date)
   })
 
-  test('retries fulfillment when the application observer fails', async () => {
-    const h = harness()
-    let attempts = 0
-    ;(h.context.service(PAYMENT_OBSERVER) as never as { propagateTopUp: () => Promise<void> })
-      .propagateTopUp = async () => {
-        attempts++
-        if (attempts === 1) throw new Error('ledger unavailable')
-        h.completions.push({ mode: 'amount' } as never)
-      }
-    const handler = createEventHandler(h.context as never, h.stripe as never)
-    const event = { type: 'checkout.session.completed', data: { object: paid() } } as never
-    await expect(handler.process(event)).rejects.toThrow('ledger unavailable')
-    expect(h.records[0]?.fulfilledAt).toBeUndefined()
-    await handler.process(event)
-    expect(attempts).toBe(2)
-    expect(h.records[0]?.fulfilledAt).toBeInstanceOf(Date)
-  })
-
-  test('legacy sessions without pricing metadata still fulfill by quantity', async () => {
-    const h = harness()
-    const legacy = paid({ id: 'cs_legacy', metadata: {
-      entityId: 'entity-1', service: 'app', productSku: 'credits', planSku: 'credits-unit',
-    } })
-    await createEventHandler(h.context as never, h.stripe as never).process({
-      type: 'checkout.session.completed', data: { object: legacy },
-    } as never)
-    expect(h.completions[0]).toEqual(expect.objectContaining({ mode: 'quantity', units: 7 }))
+  test('a legacy session without pricing metadata fulfills by quantity', async () => {
+    const fake = await makeFakeContext()
+    await process(fake, 'checkout.session.completed', paid({
+      id: 'cs_legacy', metadata: { entityId: 'entity-1', service: 'app', productSku: CREDITS_PRODUCT, planSku: 'app-credit-unit' },
+    }))
+    expect(fake.observed.topUp[0]).toEqual(expect.objectContaining({ mode: 'quantity', units: 7 }))
+    expect(fulfillment(fake)[0]).toEqual(expect.objectContaining({ mode: 'quantity', units: 7 }))
   })
 })

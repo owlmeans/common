@@ -60,8 +60,17 @@ export const NavLayout: FC<NavLayoutProps> = ({
       * and it is not redundant with the root: pairing has to be restated by every element that
       * repaints its own background. `headerClassName` lands after it, so an app that wants a
       * dark bar overrides BOTH halves through tailwind-merge.
+      *
+      * The `data-nav-backdrop` layer underneath is what keeps that promise even when
+      * `headerClassName` does NOT: a restyle that hands it an invalid Tailwind v4 arbitrary-value
+      * class (`bg-[--x]`, dropped silently), a bare `bg-transparent`, or a translucent surface
+      * (`bg-x/50`) used to leave the sticky bar with no background paint at all, and page content
+      * scrolled visibly through the menu. `-z-10` keeps it behind everything `header` renders and
+      * `pointer-events-none` keeps it out of the way of clicks; it paints `bg-background` no
+      * matter what `headerClassName` does or fails to do, and a caller who genuinely wants a dark
+      * bar still gets it because `headerClassName`'s own background paints OVER this one.
       */}
-    <header className={cn('sticky top-0 z-40 border-b bg-background text-foreground', headerClassName)}>
+    <header className={cn('sticky top-0 z-40 isolate border-b bg-background text-foreground', headerClassName)}>
       <div className={cn('flex h-14 items-center gap-6', container)}>
         {title != null ? <a
           onClick={brandAlias != null ? navigator.press(brandAlias) : undefined}
@@ -71,6 +80,15 @@ export const NavLayout: FC<NavLayoutProps> = ({
         <div className="ml-auto flex items-center gap-2">{actions}</div>
       </div>
       <SideNav config={nav} translate={translate} variant="bar" ariaLabel="Screens" className="md:hidden" />
+      {/*
+        * Last in source order, not first — `header`'s own FIRST `div` child is what the layout
+        * test locates to measure the shared rhythm (`header > div`, `.first()`), and this element
+        * is not part of that rhythm. Negative z-index inside `header`'s own `isolate` stacking
+        * context paints a layer behind every normal-flow child regardless of where it sits in the
+        * DOM, so moving it here changes nothing about what is visible — only which `div` a
+        * position-based query finds first.
+        */}
+      <div aria-hidden="true" data-nav-backdrop className="absolute inset-0 -z-10 bg-background pointer-events-none" />
     </header>
     <div className="flex flex-1">
       <SideNav config={nav} translate={translate} variant="side" ariaLabel="Screens" className="hidden md:block" />
@@ -78,8 +96,16 @@ export const NavLayout: FC<NavLayoutProps> = ({
         <div className={cn(container)}>{children}</div>
       </main>
     </div>
+    {/*
+      * The footer is rendered unconditionally, `footer` prop or not: `Footer` itself renders the
+      * platform/owner credit line even when there are no links and no children, and only that
+      * component gets to decide there is nothing to show. Gating this on `footer` used to make
+      * the credit disappear from every layout that never passed one.
+      */}
     {Array.isArray(footer)
       ? <Footer links={footer} translate={translate} containerClassName={container} />
-      : footer != null ? <Footer containerClassName={container}>{footer}</Footer> : null}
+      : footer != null
+        ? <Footer containerClassName={container}>{footer}</Footer>
+        : <Footer containerClassName={container} />}
   </div>
 }

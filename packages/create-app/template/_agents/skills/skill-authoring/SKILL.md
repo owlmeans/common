@@ -63,6 +63,14 @@ that package's own guidance completely, and the installer reports the file as a 
 run. Give a skill about your own use of `@owlmeans/payment` a name of its own — `billing`, or your
 product's name with a suffix — never `payment`.
 
+**Never name a skill after a Claude Code built-in slash command.** Claude Code resolves `/<name>` to
+a skill before the built-in command of the same name, so a skill called `context`, `config`,
+`memory` or `review` makes that command unreachable wherever the skill is installed or linked, and
+nothing reports it. The same holds for a command's aliases (`/settings` is `/config`, `/cost` is
+`/usage`) and for the skills Claude Code bundles (`/loop`, `/simplify`); type `/` in a Claude Code
+session to see every taken name. OwlMeans package skills follow this too: the guidance for
+`@owlmeans/context` and `@owlmeans/config` ships as `owlmeans-context` and `owlmeans-config`.
+
 The `description` is the most important field: every agent uses it to decide when to load the
 skill, so state both the topic and the trigger ("Use when …"). Keep it under 1024 characters —
 Copilot rejects longer ones. It is YAML, so a value containing `: ` (colon-space) has to be quoted

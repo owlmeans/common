@@ -54,5 +54,5 @@ subject of [[entrypoints]]; root `tree.md` maps the package layers that stack th
 
 ## Pointers
 
-- Skills: `context`, `server-context`, `client-context`. Layer: `tree.md` §2 (core foundations) —
+- Skills: `owlmeans-context`, `server-context`, `client-context`. Layer: `tree.md` §2 (core foundations) —
   `context` has no `@owlmeans/*` deps and everything else builds on it.

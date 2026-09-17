@@ -30,9 +30,8 @@ export enum ConnectingStoryKind {
  * Which half of the analysis a story came from.
  *
  * `flow` stories implement the numbered steps of the main flow — each adds value to one record.
- * `connective` stories are what a person needs to get from one step to the next. Neither is
- * persisted: the init pipeline is the only thing that has ever needed to tell them apart, and it
- * knows at creation time.
+ * `connective` stories are what a person needs to get from one step to the next. Persisted on the
+ * story card as `fields.kind`, so the distinction survives the pipeline that drew it.
  */
 export enum StoryKind {
   Flow = 'flow',

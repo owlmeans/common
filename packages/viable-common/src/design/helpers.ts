@@ -4,15 +4,19 @@ import { DesignStaleness, STORY_DESIGN_VERSION } from './consts.js'
 import type { StoryDesign } from './types.js'
 
 /**
- * The in-memory aggregate the coders take, derived from the design.
+ * The in-memory aggregate the coders take, derived from the design ALONE.
  *
  * Derived rather than stored, and derived HERE rather than at the platform: the aggregate is what
  * every generation helper reads, and a second place that assembles it is a second place that can
  * assemble it differently. The `code` in particular is load-bearing - the scaffold stamps every
  * placeholder it draws with it, so a run keyed by anything else cannot recognise its own
  * reservation.
+ *
+ * For a context with no card behind it. Where a story card exists, `userStoryOf(card, design)` is
+ * the reader: the card wins on the narrative, code, area and actor, which a person may have
+ * changed since the design was written.
  */
-export const userStoryOf = (design: StoryDesign): UserStory => {
+export const userStoryOfDesign = (design: StoryDesign): UserStory => {
   const componentOf = (name: string): StoryComponent | null => {
     const component = design.components.find(entry => entry.name === name)
     if (component == null) {

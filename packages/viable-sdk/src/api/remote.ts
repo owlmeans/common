@@ -1,13 +1,13 @@
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
+import { planningOf } from '@owlmeans/client-planning'
 import { connectRef } from '@owlmeans/viable-common'
 import type {
   ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectJob, ConnectOp, ConnectOpResult,
   ConnectOpSubmission, ConnectPipelineState, ConnectProjectStatus, ConnectSessionView,
-  ConnectStoryDeletion, ConnectStoryItem, ConnectStoryMutation, ConnectTarget,
-  ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
+  ConnectTarget, ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
 } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import type { ConnectorApi, OpenSessionArgs, ProjectEdits, StoryQuery } from '../types.js'
+import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
 
 type Ctx = ClientContext<ClientConfig>
 
@@ -61,6 +61,11 @@ export const recoverLongPoll = async <T>(
  * tool that outlives its host's ceiling is reported to the user as a broken server, and the true
  * answer — the platform was slow — never reaches them. Anything that legitimately takes longer is
  * a job, and a job returns at once.
+ *
+ * `planning` is the facade `makeSdkContext` registered with `appendPlanningClient`: its reads and
+ * its execute POST carry the same tool deadline, and a commit is awaited by long polls whose HTTP
+ * deadline outlasts their own hold by ten seconds. Its scope is empty on purpose — the platform
+ * reads the organization and the profile from the token.
  */
 export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
   return {
@@ -133,26 +138,7 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
       },
     },
 
-    story: {
-      list: async (id: string, query?: StoryQuery) =>
-        await context.entrypoint(connectRef.story.list).call({
-          params: { id }, query: query ?? {}, timeout: TOOL_DEADLINE_MS,
-        }),
-      get: async (id: string, storyId: string): Promise<ConnectStoryItem> => await context
-        .entrypoint(connectRef.story.get).call({ params: { id, storyId }, timeout: TOOL_DEADLINE_MS }),
-      create: async (id: string, story: string): Promise<ConnectStoryMutation> => await context
-        .entrypoint(connectRef.story.create).call({ params: { id }, body: { story }, timeout: TOOL_DEADLINE_MS }),
-      update: async (id: string, storyId: string, story: string) =>
-        await context.entrypoint(connectRef.story.update).call({
-          params: { id, storyId }, body: { story }, timeout: TOOL_DEADLINE_MS,
-        }),
-      remove: async (id: string, storyId: string): Promise<ConnectStoryDeletion> => await context
-        .entrypoint(connectRef.story.delete).call({ params: { id, storyId }, timeout: TOOL_DEADLINE_MS }),
-      develop: async (id: string, storyId: string) =>
-        await context.entrypoint(connectRef.story.develop).call({
-          params: { id, storyId }, timeout: TOOL_DEADLINE_MS,
-        }),
-    },
+    planning: planningOf(context, {}),
 
     files: {
       list: async (id: string) => await context.entrypoint(connectRef.files.list).call({

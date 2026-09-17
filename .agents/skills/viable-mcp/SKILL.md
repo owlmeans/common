@@ -7,10 +7,12 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.11`; bin name `viable-mcp`
+**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.19`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
-configuration, the stdout guard, and the server object. Operator-facing setup is the viable repo's
-`mcp.md`.
+configuration, the stdout guard, and the server object. The planning client the story tools write
+through is wired inside `makeSdkContext` as well — the planning tree, `appendPlanningClient` with no
+socket and no startup schema fetch — so the server builds nothing of its own for it and starts without
+a network call. Operator-facing setup is the viable repo's `mcp.md`.
 
 ## Key Exports
 
@@ -20,7 +22,7 @@ configuration, the stdout guard, and the server object. Operator-facing setup is
 | `readConfig(argv, env)` · `parseArgs(argv)` · `HELP` | What this server was started with |
 | `DEFAULT_API_URL` · `DEFAULT_TARGET` (`local`) · `DEFAULT_LLM` (`cloud`) | The defaults a user who set nothing gets |
 | `protocolStdout` | The one stream that reaches the real stdout |
-| `VERSION` | Reported to the host and sent as `clientVersion` |
+| `VERSION` | Reported to the host and sent as `clientVersion`; READ from the package's own `package.json` (`src/version.ts`), never a literal, which lagged a whole line of releases |
 
 ## stdout IS the protocol
 

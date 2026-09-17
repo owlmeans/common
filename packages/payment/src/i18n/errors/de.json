@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Die Zahlung konnte nicht abgeschlossen werden",
+  "PaymentErrorPaygate": "Der Zahlungsanbieter konnte die Anfrage nicht ausführen",
+  "PaymentErrorPaygateUnknown": "Dieser Zahlungsanbieter wird nicht unterstützt",
+  "PaymentErrorPaygateMapping": "Die Daten des Zahlungsanbieters konnten nicht zugeordnet werden",
+  "PaymentErrorPaygateWebhookSetup": "Zahlungsbenachrichtigungen sind nicht eingerichtet",
+  "PaymentErrorPaygatePortalUnavailable": "Die Abrechnungsverwaltung ist für dieses Konto noch nicht verfügbar",
+  "PaymentErrorProduct": "Dieses Produkt ist nicht verfügbar",
+  "PaymentErrorProductUnknown": "Dieses Produkt existiert nicht",
+  "PaymentErrorProductPlan": "Dieser Tarif existiert nicht",
+  "PaymentErrorProductPlanRequired": "Für dieses Konto ist kein Tarif verfügbar",
+  "PaymentErrorProductPlanRankConflict": "Die Tarife sind widersprüchlich konfiguriert",
+  "PaymentErrorProductLimitUnknown": "Dieses Limit ist nicht Teil des Tarifs",
+  "PaymentErrorProductLimitMisdeclared": "Die Limits des Tarifs sind falsch konfiguriert",
+  "PaymentErrorIdentification": "Der Zahler konnte nicht ermittelt werden – melden Sie sich an und versuchen Sie es erneut",
+  "PaymentErrorSubscription": "Das Abonnement konnte nicht aktualisiert werden",
+  "PaymentErrorSubscriptionUnknown": "Dieses Abonnement existiert nicht",
+  "EntitlementRefusal": "Ihr Tarif erlaubt das nicht",
+  "EntitlementRefusalCapabilityRequired": "Diese Funktion ist in Ihrem Tarif nicht enthalten",
+  "EntitlementRefusalLimitExhausted": "Sie haben das Limit Ihres Tarifs erreicht"
+}

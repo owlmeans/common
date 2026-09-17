@@ -91,7 +91,16 @@ export interface ProductIdentity {
 
 /** The guest area's landing page — the product's public face. */
 export interface GuestHomePlan {
-  hero: { eyebrow: string, headline: string, sub: string, cta: string }
+  hero: {
+    headline: string
+    sub: string
+    cta: string
+    /**
+     * A badge above the headline — OPTIONAL and normally absent. A landing page carries no badge
+     * unless its specification asks for one; the headline is what positions the product.
+     */
+    eyebrow?: string
+  }
   problem: { title: string, text: string }
   solution: { title: string, text: string }
   features: { title: string, text: string }[]

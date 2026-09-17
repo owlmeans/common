@@ -10,7 +10,7 @@ only when composing a context without that package. WebSocket routes belong to
 ## Installation
 
 ```bash
-bun add @owlmeans/server-api@^0.1.18-rc.27
+bun add @owlmeans/server-api@^0.1.18-rc.33
 ```
 
 ## Concepts
@@ -27,7 +27,12 @@ bun add @owlmeans/server-api@^0.1.18-rc.27
 - **Validation** — the contract's schemas are compiled with AJV (`removeAdditional`, `useDefaults`,
   `coerceTypes`), so a handler receives cleaned, coerced input.
 - **Error mapping** — `AuthForbidden` / `AccessError` answer 403, `AuthorizationError` /
-  `AuthFailedError` answer 401, anything else 500, with the marshalled `ResilientError` as the body.
+  `AuthFailedError` answer 401, a class declaring `static httpStatus` as an integer 4xx answers that
+  status, and anything else 500 — always with the marshalled `ResilientError` as the body. A refusal
+  of the caller's condition declares its status; a fault declares nothing and stays 500. The status
+  is taken from the error as thrown first, and from the ensured (rebuilt) error only when that
+  answers 500. An auth family is matched by class or by exact registered type name (the instance's
+  `type` or a `typeName` on its constructor chain), so duplicate module copies answer the same.
 
 ## Usage
 
@@ -80,6 +85,22 @@ export const rename = api.body(projectProtocols.rename, async ({ name }, context
 
   return context.project().update({ ...project, name })
 })
+```
+
+A refusal that is not about permission declares its own 4xx on the class. The declaring package
+never imports this one — the static property is read structurally and inherited by subclasses:
+
+```ts
+import { ResilientError } from '@owlmeans/error'
+
+export class ProjectBusy extends ResilientError {
+  public static override typeName = 'ProjectBusy'
+  public static httpStatus = 409 // honoured only as an integer 400–499; anything else answers 500
+
+  constructor(message: string = 'error') {
+    super(ProjectBusy.typeName, `project-busy:${message}`)
+  }
+}
 ```
 
 ### File upload
@@ -171,7 +192,10 @@ code does not need it.
 | `canServeModule(context, module)` | function | Whether an entrypoint belongs on this HTTP server |
 | `provideRequest(alias, req, provision?)` | function | Build an `AbstractRequest` from a Fastify request |
 | `executeResponse(response, reply, throwOnError?)` | function | Send an `AbstractResponse` onto a reply |
-| `handleError(error, reply)` | function | Map an error onto 401 / 403 / 500 |
+| `handleError(error, reply)` | function | Answer an error with `errorStatus` and the marshalled body |
+| `errorStatus(error)` | function | 403 / 401 for auth errors (by class or type name), else the class's declared 4xx, else 500 |
+| `declaredErrorStatus(error)` | function | The integer 4xx a class declares through `static httpStatus`, or `null` |
+| `HttpStatusDeclaration` | type | `{ httpStatus?: unknown }` — the structural shape a declaring class has |
 | `fixFormatDates(schema)` | function | Rewrite `date-time` object schemas as strings |
 | `populateContext(req, context)`, `extractContext(req, ctx?, location?)` | function | Carry the request-scoped context on the raw request |
 
@@ -216,7 +240,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.27
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

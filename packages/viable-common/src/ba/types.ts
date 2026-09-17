@@ -35,11 +35,14 @@ export interface ConnectingStoryList {
  * One entry of the single ordered story list init persists — the flow interleaved with the
  * stories that connect it.
  *
- * `kind` survives only as far as the consumer that creates the records; nothing downstream of the
- * story list has ever had a use for it.
+ * `kind` is persisted on the story card (`fields.kind`). `after` is present on a connective entry
+ * only and becomes the card's `follows` relationship: the 1-based position, counted among the
+ * `flow` entries of the same list, of the flow story it follows — already clamped, so it always
+ * names a flow story that list contains.
  */
 export interface MergedStoryDraft extends StoryDraft {
   kind: StoryKind
+  after?: number
 }
 
 export interface UserStory {
@@ -97,8 +100,20 @@ export interface Attribute {
   description: string
 }
 
+/**
+ * The project BRIEF a generator reads — assembled from the project card and its specifications
+ * (`projectBriefOf`), never stored in this shape.
+ */
 export interface AgentProject {
   name: string
+  /**
+   * The project card's `code` — the slug the platform minted and every generated address is
+   * composed from.
+   *
+   * Optional because a brief is also assembled before a project has one. A reader that needs a
+   * slug prefers this over re-deriving one from `name`: a rename changes the name, never the code.
+   */
+  alias?: string
   description: string
   specification: string
   designSystem: string

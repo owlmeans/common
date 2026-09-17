@@ -195,5 +195,6 @@ if an answer comes back (bounded); only when the parent's own `ask` parks does t
 ## Related
 
 - [[llm-common]] — where the contracts live · [[llm]] — the registry and `ExecutionService`
-- [[llm-delegate]] — the same registry/fatal shape for model calls performed elsewhere
+- `@owlmeans/llm-delegate` (`internal` monorepo, skill `llm-delegate`) — the same registry/fatal
+  shape for model calls performed elsewhere
 - [[agent]] — the pipeline runner and the `ask_user` plugin · [[agent-common]] — the run contracts

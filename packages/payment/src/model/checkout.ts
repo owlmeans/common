@@ -7,7 +7,7 @@ export const CreateCheckoutBodySchema = schema<CreateCheckoutBody>({
   type: 'object',
   properties: {
     productSku: ResourceValueSchema,
-    sku: { ...ResourceValueSchema, nullable: true },
+    planSku: { ...ResourceValueSchema, nullable: true },
     entitySlug: EntityValueSchema,
     service: { ...ResourceValueSchema, minLength: 2 },
     amountMinor: { type: 'number', minimum: 0, multipleOf: 1, nullable: true },

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.22"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 Consent Mode signalling — is `@owlmeans/consent`, and this package re-exports a **named selection**
@@ -68,6 +68,12 @@ import { CookieConsent } from '@owlmeans/web-consent'
   work — the component must not know how its host does routing.
 - `noReopenButton` hides the floating button for an app that offers a footer link instead; that link
   calls `openConsent('reopen')`.
+- **The re-open button is a bare icon in the very corner (`bottom-1 left-1`), not a card.** No
+  filled background, no border, no shadow, no hover-scale — `bg-transparent`, dimmed
+  (`opacity-70`) at rest and picked out on hover/focus — because it sits on every page of a site
+  for as long as a visitor stays and must read as a small fixture rather than compete with the
+  page's own controls. The pictogram itself stays at its original 20px (`h-5 w-5`); only the
+  chrome around it shrank. `[data-consent-reopen]` is still what any test or CSS override keys on.
 - `silent` skips every `dataLayer` and global write. It is for tests and for an app that runs no
   tags at all.
 - The draft is **re-seeded from storage every time the dialog opens**, not from the last render — a

@@ -28,7 +28,8 @@ const canonical = (story: string): string => story.trim().replace(/\s+/g, ' ').t
  *
  * This is the only place the anchor is interpreted. Both halves of the feature — the prompt that
  * produces it and the pipeline that persists the result — read it through here, or the two drift
- * and nothing fails loudly enough to notice.
+ * and nothing fails loudly enough to notice. The CLAMPED anchor is carried out on each connective
+ * entry as `after`, which is what the story card's `follows` relationship is written from.
  *
  * Four properties are deliberate:
  *
@@ -87,7 +88,7 @@ export const mergeConnectingStories = (
   return flow.flatMap(({ story, area }, index) => [
     { story, area, kind: StoryKind.Flow },
     ...buckets[index]!.map(draft => (
-      { story: draft.story.trim(), area: draft.area, kind: StoryKind.Connective }
+      { story: draft.story.trim(), area: draft.area, kind: StoryKind.Connective, after: index + 1 }
     )),
   ])
 }

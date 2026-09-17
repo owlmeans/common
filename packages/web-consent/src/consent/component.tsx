@@ -132,11 +132,18 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
       </div>
     </div>}
 
+    {/*
+      * A bare icon, not a card: it sits in the very corner of the page for as long as a visitor
+      * stays, on every page of the site, so it must read as a small fixture rather than as a
+      * floating action button competing with the page's own controls. No border, no filled
+      * background, no shadow and no hover-scale — only the pictogram, dimmed at rest and picked
+      * out on hover/focus, at the exact size (`h-5 w-5`) it always was.
+      */}
     {props.noReopenButton !== true && consent.record != null && !consent.open && <button
       type="button" onClick={() => consent.openDialog('reopen')}
       aria-label={t('openPreferences', 'Cookie preferences')}
       data-consent-reopen
-      className="fixed bottom-5 left-5 z-[999997] flex h-12 w-12 items-center justify-center rounded-full border border-border bg-popover text-primary shadow-lg transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="fixed bottom-1 left-1 z-[999997] inline-flex items-center justify-center rounded border-0 bg-transparent p-1.5 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Cookie className="h-5 w-5" aria-hidden="true" />
     </button>}

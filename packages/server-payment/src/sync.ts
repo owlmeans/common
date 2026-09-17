@@ -9,6 +9,28 @@ import type { PaymentPlan, PaymentProduct } from './types.js'
 export const planLookupKey = (product: PaymentProduct, plan: PaymentPlan): string =>
   product.type === ProductType.Consumable ? `${product.sku}-consumable` : plan.sku
 
+/** Whether a plan is sold through a paygate: never a free plan; otherwise its own gateways, else the product's. */
+export const isSoldThrough = (product: PaymentProduct, plan: PaymentPlan, paygate: string): boolean =>
+  plan.free !== true && (plan.gateways ?? product.gateways ?? []).includes(paygate)
+
+/** Every product sold through Stripe with the plans it sells there. */
+export const stripePlansOf = async (ctx: ApiContext): Promise<Array<{ product: PaymentProduct, plans: PaymentPlan[] }>> => {
+  const products = await payment(ctx).products() as PaymentProduct[]
+  const result: Array<{ product: PaymentProduct, plans: PaymentPlan[] }> = []
+  for (const product of products) {
+    if (!(product.gateways ?? []).includes(STRIPE_PAYGATE_ALIAS)) {
+      continue
+    }
+    const plans = (await payment(ctx).allPlans(product.sku) as PaymentPlan[])
+      .filter(plan => isSoldThrough(product, plan, STRIPE_PAYGATE_ALIAS))
+    if (plans.length > 0) {
+      result.push({ product, plans })
+    }
+  }
+
+  return result
+}
+
 const fingerprintOf = (product: PaymentProduct, plans: PaymentPlan[]): string => createHash('sha256')
   .update(JSON.stringify({
     sku: product.sku, type: product.type, name: product.title,
@@ -73,25 +95,28 @@ const ensureStripePrice = async (stripe: Stripe, product: PaymentProduct, plan: 
   })
 }
 
-export const initialize = async (ctx: ApiContext): Promise<void> => {
-  const all = await payment(ctx).products() as PaymentProduct[]
-  const products = all.filter(product => (product.gateways ?? []).includes(STRIPE_PAYGATE_ALIAS))
-  if (products.length === 0) return
-  const stripe = await stripeClient(ctx)
+/**
+ * Synchronize every product sold through Stripe, and its Stripe-sold plans, to Stripe products and
+ * prices. A product whose declaration fingerprint is unchanged makes no paygate call. Free plans
+ * and plans sold through no Stripe gateway are never synchronized.
+ */
+export const syncStripeProducts = async (ctx: ApiContext, stripe: Stripe): Promise<void> => {
   const fpRes = fingerprints(ctx)
-  for (const product of products) {
-    const plans = await payment(ctx).allPlans(product.sku) as PaymentPlan[]
+  for (const { product, plans } of await stripePlansOf(ctx)) {
     const hash = fingerprintOf(product, plans)
     const stored = await fpRes.bySku(product.sku)
     if (stored != null && stored.hash === hash) continue
     const stripeProduct = await ensureStripeProduct(stripe, product)
     for (const plan of plans) await ensureStripePrice(stripe, product, plan)
     if (stored != null) {
-      Object.assign(stored, { hash, productId: stripeProduct.id, updatedAt: new Date() })
-      await fpRes.save(stored)
+      await fpRes.update({ ...stored, hash, productId: stripeProduct.id, updatedAt: new Date() })
     } else {
       await fpRes.create({ sku: product.sku, hash, productId: stripeProduct.id, updatedAt: new Date() })
     }
     console.info(`[payment] synced product '${product.sku}' to Stripe (${plans.length} plan(s))`)
   }
 }
+
+/** `syncStripeProducts` with this context's own Stripe client. */
+export const syncPaymentProducts = async (ctx: ApiContext): Promise<void> =>
+  await syncStripeProducts(ctx, await stripeClient(ctx))

@@ -10,8 +10,7 @@ import type {
   ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams, ConnectPipelineResumeBody,
   ConnectPipelineState, ConnectProjectLlmBody, ConnectProjectSettings, ConnectProjectStatus,
   ConnectProjectSummary, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView,
-  ConnectStoryBody, ConnectStoryDeletion, ConnectStoryItem, ConnectStoryList, ConnectStoryMutation,
-  ConnectStoryQuery, ConnectWaitQuery, ConversionStatusView, ConvertCheck,
+  ConnectWaitQuery, ConversionStatusView, ConvertCheck,
 } from './types.js'
 
 type ConnectReference<Request extends RequestShape, Response> =
@@ -46,16 +45,6 @@ export interface ConnectReferences {
       params: { id: string }, body: ConverterProjectLlmBody
     }, ConnectProjectSettings>
     job: ConnectReference<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>
-  }
-  story: {
-    list: ConnectReference<{ params: { id: string }, query: ConnectStoryQuery }, ConnectStoryList>
-    get: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryItem>
-    create: ConnectReference<{ params: { id: string }, body: ConnectStoryBody }, ConnectStoryMutation>
-    update: ConnectReference<{
-      params: { id: string, storyId: string }, body: ConnectStoryBody
-    }, ConnectStoryMutation>
-    delete: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>
-    develop: ConnectReference<{ params: { id: string, storyId: string } }, ConnectJob>
   }
   files: {
     list: ConnectReference<{ params: { id: string } }, string[]>
@@ -138,16 +127,6 @@ export const connectRef: ConnectReferences = {
     answer: entrypointRef<{
       params: { id: string, inquiryId: string }, body: ConnectInquiryAnswerBody
     }, unknown>(connect.inquiry.answer),
-  },
-  story: {
-    list: entrypointRef<{ params: { id: string }, query: ConnectStoryQuery }, ConnectStoryList>(connect.story.list),
-    get: entrypointRef<{ params: { id: string, storyId: string } }, ConnectStoryItem>(connect.story.get),
-    create: entrypointRef<{ params: { id: string }, body: ConnectStoryBody }, ConnectStoryMutation>(connect.story.create),
-    update: entrypointRef<{
-      params: { id: string, storyId: string }, body: ConnectStoryBody
-    }, ConnectStoryMutation>(connect.story.update),
-    delete: entrypointRef<{ params: { id: string, storyId: string } }, ConnectStoryDeletion>(connect.story.delete),
-    develop: entrypointRef<{ params: { id: string, storyId: string } }, ConnectJob>(connect.story.develop),
   },
   files: {
     list: entrypointRef<{ params: { id: string } }, string[]>(connect.files.list),
