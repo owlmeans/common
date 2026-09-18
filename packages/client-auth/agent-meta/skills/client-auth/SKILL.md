@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.37"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.38"` in `dependencies`
 
 Five subpaths, five jobs:
 
@@ -146,6 +146,10 @@ a web application only calls these when it builds its context by hand.
   `persist()` / `restore()` / `hasPersistentState()` / `cleanUpState()`. They keep the type, stage
   and allowance in the `FLOW_STATE` resource under an id this package owns and does not export —
   restore before submitting the credential, and clean up after.
+- After a sign-in, `DispatcherHOC.navigate` resumes a landing suspended in `@owlmeans/client-flow`
+  (`resumeSuspendedFlow`, one-shot, an entrypoint alias plus its query) before it falls back to `HOME`;
+  it is read BEFORE `alias` is defaulted to `HOME`. Login plugins that navigate on their own do the same
+  — see `login-plugins`.
 - The browser ends up holding an ordinary OwlMeans bearer token whichever provider issued the
   login. Product authorization stays server-side, in entrypoint gates and handler checks — never in
   client-only state.

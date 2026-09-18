@@ -1073,6 +1073,23 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
       .toContain('package.json missing')
   })
 
+  test('an unsigned connector is told what to do, with the link and the code in the sentence', () => {
+    const phrase = refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
+
+    expect(phrase).toContain('https://api.example.com/oauth/device')
+    expect(phrase).toContain('ABCD-EFGH')
+    expect(phrase).toContain('call this tool again')
+    expect(phrase).not.toContain('oauth:')
+    // Before a device sign-in is pending there is no code yet, and the sentence must still read.
+    expect(refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
+      .not.toContain('enter the code')
+  })
+
+  test('a refused token is explained, and an environment token is never silently replaced', () => {
+    expect(refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
+    expect(refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
+  })
+
   test('a stored cause is phrased as readily as a thrown one', () => {
     // `slot.lastError` and `job.error` are strings with no class left on them, and the platform
     // writes them from the same refusal — so one function has to serve both.

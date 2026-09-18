@@ -46,4 +46,24 @@ describe('@owlmeans/auth-token — the client carrier guard', () => {
     expect(await guard.authenticated()).toBeNull()
     expect(await guard.match({} as any, {} as any)).toBe(false)
   })
+
+  test('answers update() rather than throwing — the call `@owlmeans/api` makes on a 401', async () => {
+    const guard = makeTokenCarrierGuard('carrier', { token: 'owl_secret' }) as GuardService & {
+      update: (token: string | undefined) => Promise<void>
+    }
+    await contextWith(guard)
+
+    await expect(guard.update(undefined)).resolves.toBeUndefined()
+  })
+
+  test('update() calls onRejected, so a credential holder can act on a dead token', async () => {
+    let called = false
+    const guard = makeTokenCarrierGuard('carrier', {
+      token: 'owl_secret', onRejected: () => { called = true },
+    }) as GuardService & { update: (token: string | undefined) => Promise<void> }
+    await contextWith(guard)
+
+    await guard.update(undefined)
+    expect(called).toBe(true)
+  })
 })

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-common",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "license": "MIT",
   "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary.",
   "type": "module",

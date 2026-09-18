@@ -30,7 +30,7 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 A prefix is not proof of a layer. `client-iam` depends on `web-client` and `web-oidc-rp`, so it is browser-only; check `tree.md` before assuming a `client-*` package is safe for React Native. `client-auth` depends on `web-flow`, so it too pulls the web layer in.
 
-`tree.md` covers the 96 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
+`tree.md` covers the 108 framework packages. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are not framework packages and are out of scope for it.
 
 ## Families that span layers
 

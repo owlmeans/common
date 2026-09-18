@@ -1,0 +1,38 @@
+{
+  "name": "@owlmeans/cli-auth",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "OAuth device-authorization sign-in for a command-line tool: a dotenv-style ~/.owlmeans credentials file (overridable, environment always wins), a cross-process sign-in lock so several invocations converge on one browser round trip, a browser opener, and a small credential holder a CLI wraps its API calls with.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/error": "^0.1.18-rc.27",
+    "@owlmeans/oauth": "^0.1.18-rc.1"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

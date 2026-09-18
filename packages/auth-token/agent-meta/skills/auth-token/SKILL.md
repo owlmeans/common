@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth-token
 
 **Layer:** Auth shared
-**Install:** `"@owlmeans/auth-token": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/auth-token": "^0.1.18-rc.17"` in `dependencies`
 
 The contract half of long-lived access tokens: the record shape, the route declarations, the
 format helpers, and one client-side guard that presents a token it was handed. The server half —
@@ -20,7 +20,7 @@ UI is `@owlmeans/web-auth-token`.
 | Export | Description |
 |--------|-------------|
 | `makeAuthTokenEntrypoints(opts?)` | The three routes (`list` GET, `create` POST, `revoke` DELETE `/:id`) under a `/tokens` base. `opts`: `parent`, `path`, `guard` |
-| `makeTokenCarrierGuard(alias, opts)` | A client `GuardService` that presents one token. `opts.token` is a value or a thunk; `opts.scheme` is `'auth-token'` (default) or `'bearer'` |
+| `makeTokenCarrierGuard(alias, opts)` | A client `GuardService` that presents one token. `opts.token` is a value or a thunk; `opts.scheme` is `'auth-token'` (default) or `'bearer'`; `opts.onRejected` hears a 401 |
 | `parseAuthorizationHeader(header)` | `{ scheme, value }` with the scheme lower-cased, or `null` |
 | `isAccessToken(value, prefix)` · `displayOf(token, prefix)` | Whether a value is one of this deployment's tokens; the half of it that may be shown again |
 | `CreateAccessTokenSchema` · `AccessTokenParamsSchema` | The ajv body/params filters |
@@ -38,6 +38,12 @@ A token is `<prefix><base58(24 random bytes)>`. The prefix is per deployment (`v
 the guard answers `match` only for a value that starts with it — so an access token and an Ed25519
 session bearer arrive under the same `Authorization` header without either guard shadowing the
 other, and two deployments never mistake each other's credentials for their own.
+
+**`AccessTokenRecord.audience?: string[]`** names the resources a token was issued FOR when it came
+through an OAuth grant (`@owlmeans/server-oauth`, RFC 8707 applied at OUR guard — the token is an
+opaque secret, not a JWT). Absent on every hand-minted token, which is admitted everywhere its scopes
+reach; a non-empty audience is admitted only by a guard whose `resources` intersect it (see
+[[server-auth-token]]).
 
 The plaintext exists exactly once, in the create response. What is stored is its hash; what a list
 shows forever after is `display` — the prefix plus 8 characters, enough to tell two of your own
@@ -66,7 +72,14 @@ context.registerMiddleware(authMiddleware)
 
 There is no session, no refresh and no storage: the token is a long-lived credential the caller was
 handed. `opts.token` may be a thunk because a long-running process reads it from an environment
-variable and must not cache it past a reconfiguration.
+variable or a credentials file and must not cache it past a reconfiguration — or past a sign-in that
+has not happened yet.
+
+**The carrier answers `update()`.** On a 401 for a request that presented this guard's bearer,
+`@owlmeans/api` calls `service('<alias>').update(undefined)` to clear a browser session; a carrier
+with no `update` made that a bare `TypeError` instead of the auth failure already being reported. The
+carrier's `update` is a no-op that calls `opts.onRejected` — the hook a credential holder uses to
+forget a dead token and sign in again (or to report it, when an operator supplied it by hand).
 
 ## The management surface is deliberately not a CRUD
 
@@ -92,7 +105,8 @@ sending a zero.
 
 ## Related
 
-- [[server-auth-token]] — the store, the verifying guard, the handlers and the coguard
+- [[server-auth-token]] — the store, the verifying guard (audience admission), issuance, the handlers and the coguard
+- [[oauth]] — the OAuth vocabulary that mints audience-scoped tokens
 - [[web-auth-token]] — the management panel and its hook
 - [[auth-protocol]] — where long-lived tokens sit among the other authentication paths
 - [[auth-common]] — `authMiddleware`, `DEFAULT_GUARD`, `extractAuthToken`

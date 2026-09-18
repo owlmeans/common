@@ -8,6 +8,7 @@ import {
   revokeAccessToken as bindRevokeAccessToken,
 } from '../src/handlers/index.js'
 import { hashAccessToken } from '../src/hash.js'
+import { issueAccessToken } from '../src/handlers/index.js'
 import { makeTestContext, seedProfile, seedToken, TEST_ENTITY, TEST_PREFIX, TEST_PROFILE, TEST_USER } from './context.js'
 
 /**
@@ -101,6 +102,30 @@ describe('@owlmeans/server-auth-token — minting', () => {
       body: { name: 'greedy', scopes: ['project:read', 'project:write'] },
     }
     await expect(invoke(createAccessToken, context, req)).rejects.toThrow()
+  })
+})
+
+describe('@owlmeans/server-auth-token — issueAccessToken (the OAuth server\'s entry point)', () => {
+  test('stores the audience it was given, and omits the field when there is none', async () => {
+    const context = await makeTestContext()
+    const subject = { entityId: TEST_ENTITY, profileId: TEST_PROFILE, userId: TEST_USER, role: AuthRole.User, scopes: ['*'] }
+
+    const withAudience = await issueAccessToken(context, subject, { name: 'mcp', audience: ['https://api.example.com/mcp'] })
+    expect(withAudience.record.audience).toEqual(['https://api.example.com/mcp'])
+
+    const withoutAudience = await issueAccessToken(context, subject, { name: 'hand-minted' })
+    expect(withoutAudience.record.audience).toBeUndefined()
+  })
+
+  test('still narrows scopes and clamps the TTL the same way the HTTP handler does', async () => {
+    const context = await makeTestContext()
+    const subject = { entityId: TEST_ENTITY, profileId: TEST_PROFILE, userId: TEST_USER, role: AuthRole.User, scopes: ['projects:read'] }
+
+    await expect(issueAccessToken(context, subject, { name: 'x', scopes: ['projects:write'] })).rejects.toThrow()
+
+    const issued = await issueAccessToken(context, subject, { name: 'x', expiresIn: 60 * 60 * 24 * 400 })
+    const ttlMs = new Date(issued.record.expiresAt!).getTime() - Date.now()
+    expect(ttlMs).toBeLessThanOrEqual(366 * 24 * 60 * 60 * 1000)
   })
 })
 

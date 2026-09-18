@@ -64,15 +64,22 @@ const marked = (body: string): string =>
  * viable-mcp release. A tag (`@next`) is refused by that audit, and a copy per harness was how three
  * of four configs kept a tag while the fourth carried the pin.
  */
-const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.19'] as const
+const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.20'] as const
 const MCP_EXECUTABLE = MCP_COMMAND[0]
 const MCP_ARGS: string[] = MCP_COMMAND.slice(1)
 
+/**
+ * The token is OPTIONAL in every configuration below: a person who signed in once
+ * (`viable-mcp login`, or the first tool call's browser sign-in) has it in `~/.owlmeans`, and the
+ * server reads it from there. So a reference to the variable must not break a machine that never
+ * set one — Claude Code fails to load a config whose `\${VAR}` is unset, hence the empty default
+ * (which the server treats as unset: a file value is never shadowed by an empty environment one).
+ */
 const mcpJsonEntry = {
   command: MCP_EXECUTABLE,
   args: MCP_ARGS,
   env: {
-    [ENV_TOKEN]: `\${${ENV_TOKEN}}`,
+    [ENV_TOKEN]: `\${${ENV_TOKEN}:-}`,
   },
 }
 
@@ -120,7 +127,9 @@ ${WORKER_BODY}
 [mcp_servers.viable]
 command = ${JSON.stringify(MCP_EXECUTABLE)}
 args = ${JSON.stringify(MCP_ARGS)}
-env_vars = ["${ENV_TOKEN}"]
+# The token is optional — a browser sign-in stores it in ~/.owlmeans, which needs HOME (or
+# OWLMEANS_CREDENTIALS) to be found from inside Codex's filtered environment.
+env_vars = ["${ENV_TOKEN}", "OWLMEANS_CREDENTIALS", "HOME"]
 startup_timeout_sec = 20
 # Every viable tool answers within 45s; the default 60 leaves no margin for a slow network.
 tool_timeout_sec = 90
@@ -154,7 +163,8 @@ ${WORKER_BODY}
             type: 'stdio',
             command: MCP_EXECUTABLE,
             args: MCP_ARGS,
-            env: { [ENV_TOKEN]: '${input:viable-token}' },
+            // No token prompt: signing in with a browser is the default, and a token in the
+            // environment or `~/.owlmeans` is picked up without one.
           }, null, 2),
         },
       ]

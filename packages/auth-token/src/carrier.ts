@@ -36,5 +36,13 @@ export const makeTokenCarrierGuard = (alias: string, opts: TokenCarrierOptions):
     },
   }, service => async () => { service.initialized = true })
 
+  // `@owlmeans/api` calls `context.service<AuthService>(alias).update(undefined)` on a 401 for a
+  // request that presented this guard's bearer — an ordinary browser session clears itself there,
+  // and a carrier with no `update` at all made that call throw a bare `TypeError` instead of the
+  // auth failure it was already reporting. There is no session to clear here, so this is a no-op
+  // unless the caller asked to hear about it through `onRejected`.
+  ;(service as GuardService & { update: (token: string | undefined) => Promise<void> }).update =
+    async () => { await opts.onRejected?.() }
+
   return service
 }

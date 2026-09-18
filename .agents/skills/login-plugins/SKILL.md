@@ -143,6 +143,15 @@ replace it with a throw.
 
 ## Invariants — each one is a real failure when broken
 
+- **A completed sign-in lands on a suspended flow before it lands on `HOME`.** A screen that sends a
+  signed-out person to the dispatcher (an OAuth consent screen, say) parks where it was headed with
+  `suspendFlow` (`@owlmeans/client-flow`); whichever path finishes the sign-in then asks
+  `resumeSuspendedFlow` first — `DispatcherHOC`'s HOME branch (before `alias` is overwritten with
+  `HOME`, or the two cases cannot be told apart), the supervisor plugin (`web-auth`) and the Google
+  plugin (`web-oidc-rp`) — and navigates to the returned entrypoint alias and query, else to `HOME`.
+  The landing is one-shot and expiring, and a destination is always an alias, never a URL. A new
+  plugin that completes a sign-in with its own navigation must do the same, or a person who was
+  mid-consent is dropped on the home screen.
 - **An explicit login PRODUCES a session; it never recycles one.** The surrogate window is
   first-party on the application's own origin, so it sees whatever the person's own tabs left
   there — and a token being present says nothing about the record behind it still existing.
@@ -263,4 +272,4 @@ the same gesture. It lives on `begin` rather than on `useLogin`, a screen, or a 
 ## Related
 
 `login-methods` (which methods are offered, and the screen) · `router-plugins` (the same
-host/cascade pattern) · `client-auth` · `web-client` · `web-oidc-rp`
+host/cascade pattern) · `client-auth` · `web-client` · `web-oidc-rp` · `client-flow` (the suspended landing)
