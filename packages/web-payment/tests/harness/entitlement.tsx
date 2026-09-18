@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import type { RegisteredEntrypoint } from '@owlmeans/entrypoint'
 import {
-  LimitKind, LimitWindow, SubscriptionStatus, capabilityViewsOf, entitlementViewOf, limitViewsOf,
-  type EntitlementPlanView, type EntitlementView, type PlanCapability, type LimitDeclaration, type ProductPlan,
+  LimitKind, LimitWindow, SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType,
+  capabilityViewsOf, entitlementViewOf, limitViewsOf,
+  type EntitlementPlanView, type EntitlementView, type PlanCapability, type LimitDeclaration,
+  type PriceEstimate, type ProductPlan,
 } from '@owlmeans/payment'
 import {
-  CapabilityList, LimitMeter, PlanCard, useCapability, useEntitlementView, useLimit,
+  CapabilityList, CountrySelect, LimitMeter, PlanCard, PriceEstimateAmount, useCapability,
+  useEntitlementView, useLimit, usePriceEstimate,
 } from '../../src/index.js'
 
 const AT = new Date('2026-09-16T12:00:00Z')
@@ -117,4 +120,40 @@ const HookView = () => {
   </main>
 }
 
-export const EntitlementCase = ({ name }: { name: string }) => name === 'hook' ? <HookView /> : <Pieces />
+const PLAN_SUBTOTAL: Record<string, number> = { 'pro-monthly': 2_000, 'team-monthly': 5_000 }
+
+/** A fake `account.priceEstimate` that actually varies with the body it's called with. */
+const fakeEstimateEntry = () => ({
+  call: async ({ body }: { body?: { planSku?: string, country?: string } }) => {
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const subtotalMinor = PLAN_SUBTOTAL[body?.planSku ?? ''] ?? 1_000
+    const country = body?.country
+    const tax: PriceEstimate['tax'] = country == null
+      ? { status: TaxEstimateStatus.LocationRequired, subtotalMinor, taxMinor: 0, totalMinor: subtotalMinor, scalable: false, rates: [] }
+      : country === 'PL'
+        ? {
+          status: TaxEstimateStatus.Taxed, subtotalMinor, taxMinor: Math.round(subtotalMinor * 0.23),
+          totalMinor: subtotalMinor + Math.round(subtotalMinor * 0.23), scalable: true,
+          rates: [{ type: TaxType.Vat, percentage: '23', ratePpm: 230_000, country: 'PL' }],
+        }
+        : { status: TaxEstimateStatus.None, subtotalMinor, taxMinor: 0, totalMinor: subtotalMinor, scalable: true, rates: [] }
+    return { country, source: 'request', currency: 'usd', behavior: TaxBehavior.Exclusive, tax } satisfies PriceEstimate
+  },
+}) as unknown as RegisteredEntrypoint<{ body?: { planSku?: string, country?: string } }, PriceEstimate>
+
+/** One `CountrySelect` driving two independent, controlled `usePriceEstimate` calls. */
+const SharedEstimateCase = () => {
+  const [entry] = useState(fakeEstimateEntry)
+  const [country, setCountry] = useState('')
+  const pro = usePriceEstimate(entry, { enabled: true, country, onCountryChange: setCountry }, { body: { planSku: 'pro-monthly' } })
+  const team = usePriceEstimate(entry, { enabled: true, country, onCountryChange: setCountry }, { body: { planSku: 'team-monthly' } })
+
+  return <main className="grid gap-4 p-6">
+    <CountrySelect value={country} onChange={setCountry} />
+    <div data-case="pro"><PriceEstimateAmount control={pro} subtotalMinor={2_000} currency="usd" /></div>
+    <div data-case="team"><PriceEstimateAmount control={team} subtotalMinor={5_000} currency="usd" /></div>
+  </main>
+}
+
+export const EntitlementCase = ({ name }: { name: string }) =>
+  name === 'hook' ? <HookView /> : name === 'shared-estimate' ? <SharedEstimateCase /> : <Pieces />

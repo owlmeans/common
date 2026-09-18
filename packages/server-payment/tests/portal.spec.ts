@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { PortalFlow, PortalUnavailable, ProductType, PlanDuration, SubscriptionStatus } from '@owlmeans/payment'
-import { declarePaymentPlan, declarePaymentProduct } from '../src/config.js'
+import { PortalFlow, PortalUnavailable, ProductType, PlanDuration, SubscriptionStatus, TaxBehavior } from '@owlmeans/payment'
+import { declarePaymentPlan, declarePaymentPricing, declarePaymentProduct } from '../src/config.js'
 import { createPortalLink, ensurePortalConfiguration } from '../src/plugins/portal.js'
 import { fingerprints, paygateCustomers, subscriptions } from '../src/utils.js'
 import { makeFakeContext, PLANS_PRODUCT, PRO, SERVICE, TEAM } from './fake-stripe.js'
@@ -71,6 +71,23 @@ describe('@owlmeans/server-payment — portal configuration', () => {
         { id: 'bpc_other', metadata: tagOf('other.example.com'), features: false },
         { id, metadata: tagOf('api.example.com'), features: true },
       ])
+  })
+
+  test('a declared tax behavior is hashed: changing it re-hashes and updates the configuration', async () => {
+    const fake = await withPortal({
+      pricing: { tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Exclusive }, currency: { estimate: false } },
+    })
+    const id = await ensurePortalConfiguration(fake.ctx, fake.stripe)
+    fake.state.calls.length = 0
+    expect(await ensurePortalConfiguration(fake.ctx, fake.stripe)).toBe(id)
+    expect(fake.state.calls).toEqual([])
+
+    declarePaymentPricing(fake.ctx.cfg as never, {
+      tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Inclusive },
+      currency: { estimate: false },
+    })
+    expect(await ensurePortalConfiguration(fake.ctx, fake.stripe)).toBe(id)
+    expect(fake.state.calls).toContain('billingPortal.configurations.update')
   })
 
   test('two deployments on one Stripe account keep separate configurations, even when both rows name one', async () => {

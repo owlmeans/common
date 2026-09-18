@@ -103,6 +103,22 @@ policy itself; the agent running the skill is what honours it.
 | Side-effect workflow (commit, deploy) | `disable-model-invocation: true` |
 | Background reference only | `user-invocable: false` |
 
+## What may enter AGENTS.md
+
+`AGENTS.md` — with every file it `@`-imports and `.agents/memory/MEMORY.md` — is loaded in full in
+every session, so it has a budget: **≤ 40 000 chars**, checked by `sh .agents/scripts/agents-size.sh`
+from the repo root. A line enters it only as:
+
+1. a mandatory rule that must hold before any skill is loaded (git, reporting, environments,
+   naming) — stated in one or two lines, with the detail in a skill;
+2. one line of the package map or the command list;
+3. one line of the skills index: `` - `/name` — when to load it ``, ≤ 160 chars.
+
+Everything else is loaded on demand: a subsystem's rules, contracts and failure fingerprints go to
+the skill that governs it, and the outage that taught them to `.agents/memory/`. Never paraphrase a
+skill's `description:` into the index — skills self-describe. A change that would push the file over
+budget shortens or moves an existing line in the same change.
+
 ## After creating a skill
 
 1. Run `sh .agents/scripts/link-skills.sh` — Claude Code cannot see the skill until the symlink
@@ -113,7 +129,7 @@ policy itself; the agent running the skill is what honours it.
 2. Remove any redundant `.agents/<topic>.md` file the skill replaces.
 3. If the skill distilled memory content into rules, shrink the source `.agents/memory/` node to a
    pointer line (`memory-promotion` where present) — the memory index does not list skills.
-4. Reference it from `AGENTS.md` if it should be discoverable every session.
+4. Add one line to the skills index in `AGENTS.md` (`/name` — when to load it, ≤ 160 chars) — never a paragraph (§ What may enter AGENTS.md).
 5. Test by typing `/skill-name`.
 
 ## Package README next to the skill

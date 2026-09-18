@@ -8,6 +8,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { inputAmount, parseAmountMinor } from './amount.js'
+import { PriceEstimateSummary } from './estimate-summary.js'
 import type { AmountCheckoutDialogProps } from './types.js'
 
 const money = (minor: number, currency: string, locale: string): string => new Intl.NumberFormat(locale, {
@@ -15,7 +16,7 @@ const money = (minor: number, currency: string, locale: string): string => new I
 }).format(minor / 100)
 
 export const AmountCheckoutDialog = ({
-  open, onOpenChange, policy, pending = false, onConfirm,
+  open, onOpenChange, policy, pending = false, onConfirm, estimate,
 }: AmountCheckoutDialogProps) => {
   const t = useI18nLib('web-payment', 'amount-checkout')
   const [locale] = useLanguage()
@@ -73,7 +74,9 @@ export const AmountCheckoutDialog = ({
           <dt className="text-muted-foreground">{t('adjustment')}</dt><dd>{valid ? money(adjustmentMinor, policy.currency, locale) : '—'}</dd>
           <dt className="font-medium">{t('subtotal')}</dt><dd className="font-medium">{valid ? money(chargeMinor, policy.currency, locale) : '—'}</dd>
         </dl>
-        <p className="text-muted-foreground text-xs">{t('tax-note')}</p>
+        {estimate != null
+          ? valid && <PriceEstimateSummary control={estimate} subtotalMinor={chargeMinor} currency={policy.currency} />
+          : <p className="text-muted-foreground text-xs">{t('tax-note')}</p>}
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>{t('cancel')}</Button>

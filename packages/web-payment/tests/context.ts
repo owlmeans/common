@@ -22,7 +22,8 @@ export const harnessUrl = async (): Promise<string> => {
     optimizeDeps: {
       include: [
         'react', 'react-dom/client', '@radix-ui/react-dialog', '@radix-ui/react-label',
-        '@radix-ui/react-progress', '@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge',
+        '@radix-ui/react-progress', '@radix-ui/react-select', '@radix-ui/react-slot',
+        'class-variance-authority', 'clsx', 'tailwind-merge',
       ],
     },
     server: { port: 0 },

@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client'
 import { I18nContext } from '@owlmeans/client-i18n'
 import { AmountCheckoutDialog } from '../../src/index.js'
 import { EntitlementCase } from './entitlement.js'
+import { ESTIMATE_FIXTURES } from './estimate-fixtures.js'
 
 const params = new URLSearchParams(window.location.search)
 const pending = params.get('pending') === 'true'
 const scenario = params.get('case')
+const estimateCase = params.get('estimate')
 const policy = {
   currency: 'usd', minimumMinor: 500, maximumMinor: 50_000, defaultMinor: 1_000,
   presetsMinor: [1_000, 2_000, 5_000, 10_000], fixedMinor: 0, rateBps: 200,
@@ -24,6 +26,7 @@ const Dialog = () => {
       policy={policy}
       pending={pending}
       onConfirm={setConfirmed}
+      estimate={estimateCase != null ? ESTIMATE_FIXTURES[estimateCase] : undefined}
     />
   </>
 }

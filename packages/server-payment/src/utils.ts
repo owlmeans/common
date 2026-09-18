@@ -7,13 +7,13 @@ import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   ENTITLEMENT_SERVICE, GATEWAY_SERVICE, PAYMENT_OBSERVER, RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT,
   RES_PAYMENT_FULFILLMENT, RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER,
-  RES_PAYMENT_WEBHOOK, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG,
+  RES_PAYMENT_WEBHOOK, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
 } from './consts.js'
 import type {
   CompletionObserver, EntitlementService, FingerprintResource, GatewayService, PaygateCustomerResource,
   PaymentFulfillmentResource, PaymentSubscriptionRecord, PaymentSubscriptionResource,
   PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource, PortalBrandingConfig,
-  StripePluginConfig,
+  StripePluginConfig, StripePricingPluginConfig,
 } from './types.js'
 
 export const payment = (ctx: ApiContext): PaymentService => ctx.service<PaymentService>(PAYMENT_SERVICE)
@@ -48,6 +48,10 @@ export const stripeConfig = async (ctx: ApiContext): Promise<StripePluginConfig>
 /** The portal branding declared with `portalBranding`, or `null`. */
 export const portalBrandingConfig = async (ctx: ApiContext): Promise<PortalBrandingConfig | null> =>
   await (ctx as never as PluginReader).getConfigResource(PLUGINS).load(STRIPE_PORTAL_PLUGIN_CONFIG) as PortalBrandingConfig | null
+
+/** The Stripe-only pricing settings declared with `declarePaymentPricing`, or `null`. */
+export const stripePricingConfig = async (ctx: ApiContext): Promise<StripePricingPluginConfig | null> =>
+  await (ctx as never as PluginReader).getConfigResource(PLUGINS).load(STRIPE_PRICING_PLUGIN_CONFIG) as StripePricingPluginConfig | null
 
 /**
  * A Stripe client pinned to the API version the installed SDK is typed for (its default), so every

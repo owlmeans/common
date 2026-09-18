@@ -97,6 +97,28 @@ describe('LimitMeter and CapabilityList', () => {
   }, TIMEOUT)
 })
 
+describe('CountrySelect + PriceEstimateAmount — one country, several controlled estimates', () => {
+  test('changing the one country picker refetches and re-renders every estimate that shares it', async () => {
+    const { page, close } = await open('shared-estimate')
+    try {
+      await page.locator('[data-case="pro"] [data-price-estimate]').waitFor()
+      expect(await page.locator('[data-case="pro"] [data-price-estimate]').getAttribute('data-status')).toBe('location-required')
+      expect(await page.locator('[data-case="team"] [data-price-estimate]').getAttribute('data-status')).toBe('location-required')
+
+      await page.getByLabel('Billing country').click()
+      // A raw DOM click: this minimal harness page is too short for Radix's own collision-aware
+      // placement, so Playwright's viewport-bound click never lands — the dialog spec covers the
+      // same option in a real, taller layout with an ordinary click.
+      await page.getByRole('option', { name: 'Poland' }).evaluate(el => (el as HTMLElement).click())
+
+      await page.locator('[data-case="pro"] [data-status="taxed"]').waitFor()
+      await page.locator('[data-case="team"] [data-status="taxed"]').waitFor()
+      expect(await text(page, '[data-case="pro"] [data-estimate-total]')).toContain('$24.60')
+      expect(await text(page, '[data-case="team"] [data-estimate-total]')).toContain('$61.50')
+    } finally { await close() }
+  }, TIMEOUT)
+})
+
 describe('useEntitlementView', () => {
   test('answers null until the protocol answers, then renders the revived wire view', async () => {
     const { page, close } = await open('hook')

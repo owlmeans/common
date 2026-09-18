@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { CheckoutPricingMode, PlanDuration, PlanStatus, ProductError, ProductType } from '@owlmeans/payment'
+import { CheckoutPricingMode, PlanDuration, PlanStatus, ProductError, ProductType, TaxBehavior } from '@owlmeans/payment'
 import { createEventHandler } from '../src/plugins/events.js'
 import { amountCheckoutLineItem, createCheckoutLink, quantityCheckoutLineItem } from '../src/plugins/stripe.js'
 import type { PaymentPlan, PaymentProduct } from '../src/types.js'
-import { CREDITS_PRODUCT, FREE, makeFakeContext, PLANS_PRODUCT, TEAM } from './fake-stripe.js'
+import { CREDITS_PRODUCT, FREE, makeFakeContext, PLANS_PRODUCT, PRO, TEAM } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+
+const proPrice = { id: 'price_pro', product: PLANS_PRODUCT, lookup_key: PRO, active: true, recurring: { interval: 'month' } }
+const successUrl = 'https://app.example.com/ok'
 
 const product: PaymentProduct = {
   type: ProductType.Consumable, sku: 'credits', title: 'Credits', services: ['app'],
@@ -71,7 +74,67 @@ describe('Stripe checkout', () => {
   })
 })
 
+describe('Stripe checkout — pricing policy', () => {
+  test('an undeclared policy reproduces exactly the session hard-coded before this policy existed', async () => {
+    const fake = await makeFakeContext({ stripe: { prices: [proPrice] } })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
+    })
+    const session = fake.state.checkoutSessions[0]
+    expect(session).toEqual(expect.objectContaining({
+      automatic_tax: { enabled: true }, billing_address_collection: 'required',
+      tax_id_collection: { enabled: true }, customer_update: { address: 'auto', name: 'auto' },
+    }))
+    expect(session.adaptive_pricing).toBeUndefined()
+  })
+
+  test('tax.automatic and tax.collectTaxId are independent switches', async () => {
+    const fake = await makeFakeContext({
+      pricing: { tax: { automatic: false, collectTaxId: true, estimate: false }, currency: { estimate: false } },
+      stripe: { prices: [proPrice] },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
+    })
+    const session = fake.state.checkoutSessions[0]
+    expect(session.automatic_tax).toBeUndefined()
+    expect(session.billing_address_collection).toBeUndefined()
+    expect(session.tax_id_collection).toEqual({ enabled: true })
+    // only the concern that needs it contributes a `customer_update` field
+    expect(session.customer_update).toEqual({ name: 'auto' })
+  })
+
+  test('adaptive_pricing appears on the session only when currency.adaptive is declared', async () => {
+    const fake = await makeFakeContext({
+      pricing: { tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { adaptive: true, estimate: false } },
+      stripe: { prices: [proPrice] },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
+    })
+    expect(fake.state.checkoutSessions[0].adaptive_pricing).toEqual({ enabled: true })
+  })
+
+  test('a declared behavior is set on the inline amount line item', async () => {
+    const fake = await makeFakeContext({
+      pricing: { tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Inclusive }, currency: { estimate: false } },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1_000, successUrl,
+    })
+    expect(fake.state.checkoutSessions[0].line_items[0].price_data.tax_behavior).toBe('inclusive')
+  })
+})
+
 describe('Stripe checkout fulfillment', () => {
+  test('fulfills a paid amount once even when the session carries Adaptive Pricing presentment details', async () => {
+    const fake = await makeFakeContext()
+    await process(fake, 'checkout.session.completed', paid({
+      presentment_details: { presentment_amount: 4_613, presentment_currency: 'eur' },
+    }))
+    expect(fake.observed.topUp).toEqual([expect.objectContaining({ amountMinor: 1_000, chargeAmountMinor: 1_021 })])
+  })
+
   test('fulfills a paid amount once, without crediting the adjustment, and records the payment intent', async () => {
     const fake = await makeFakeContext()
     await process(fake, 'checkout.session.completed', paid())

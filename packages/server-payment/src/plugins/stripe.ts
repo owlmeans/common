@@ -1,8 +1,9 @@
 import type Stripe from 'stripe'
 import {
   assertCheckoutAmount, chargeAmountMinor, CheckoutPricingMode, PaygateError, ProductError, ProductType,
-  WebhookSetupError,
+  TaxBehavior, WebhookSetupError,
 } from '@owlmeans/payment'
+import type { PricingPolicy } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_PAYGATE_ALIAS, STRIPE_SIGNATURE } from '../consts.js'
 import { paygateCustomers, payment } from '../utils.js'
@@ -11,13 +12,30 @@ import { createEventHandler } from './events.js'
 import { stripeWebhookSecrets } from './webhook-manager.js'
 import type { CreateLinkParams, PaymentPlan, PaymentProduct } from '../types.js'
 
-const taxOptions = (promotions: boolean): Partial<Stripe.Checkout.SessionCreateParams> => ({
-  automatic_tax: { enabled: true },
-  billing_address_collection: 'required',
-  tax_id_collection: { enabled: true },
-  customer_update: { address: 'auto', name: 'auto' },
-  allow_promotion_codes: promotions,
-})
+/**
+ * A Checkout Session's tax and currency options, entirely driven by the declared `PricingPolicy` —
+ * an undeclared one (`DEFAULT_PRICING_POLICY`) reproduces exactly what every session hard-coded
+ * before this policy existed: automatic tax and tax-id collection on, no Adaptive Pricing.
+ *
+ * `customer_update.address` lets automatic tax use the billing address Checkout just collected
+ * rather than only a previously saved one; `customer_update.name` lets tax-id collection save the
+ * business name it collects. Each is included only for the concern that needs it.
+ */
+const checkoutOptions = (policy: PricingPolicy, promotions: boolean): Partial<Stripe.Checkout.SessionCreateParams> => {
+  const customerUpdate: Stripe.Checkout.SessionCreateParams.CustomerUpdate = {}
+  if (policy.tax.automatic) customerUpdate.address = 'auto'
+  if (policy.tax.collectTaxId) customerUpdate.name = 'auto'
+
+  return {
+    ...(policy.tax.automatic
+      ? { automatic_tax: { enabled: true }, billing_address_collection: 'required' as const }
+      : {}),
+    ...(policy.tax.collectTaxId ? { tax_id_collection: { enabled: true } } : {}),
+    ...(Object.keys(customerUpdate).length > 0 ? { customer_update: customerUpdate } : {}),
+    ...(policy.currency.adaptive === true ? { adaptive_pricing: { enabled: true } } : {}),
+    allow_promotion_codes: promotions,
+  }
+}
 
 const ensureStripeCustomer = async (
   ctx: ApiContext, stripe: Stripe, params: CreateLinkParams,
@@ -72,7 +90,7 @@ const sharedSession = (
 })
 
 export const amountCheckoutLineItem = (
-  product: PaymentProduct, plan: PaymentPlan, amountMinor: number,
+  product: PaymentProduct, plan: PaymentPlan, amountMinor: number, behavior: TaxBehavior = TaxBehavior.Exclusive,
 ): { lineItem: Stripe.Checkout.SessionCreateParams.LineItem; chargeMinor: number; currency: string } => {
   if (plan.amountPolicy == null) throw new ProductError(`amount-policy:${plan.sku}`)
   assertCheckoutAmount(plan.amountPolicy, amountMinor)
@@ -81,7 +99,7 @@ export const amountCheckoutLineItem = (
   return {
     lineItem: {
       price_data: {
-        product: product.sku, currency, unit_amount: chargeMinor, tax_behavior: 'exclusive',
+        product: product.sku, currency, unit_amount: chargeMinor, tax_behavior: behavior,
       },
       quantity: 1,
     },
@@ -110,6 +128,7 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
     throw new ProductError(`plan:${params.planSku}`)
   }
   const customer = await ensureStripeCustomer(ctx, stripe, params)
+  const pricing = await payment(ctx).pricingPolicy()
 
   if (product.type === ProductType.Consumable) {
     const plan = plans.find(item => item.sku === params.planSku) ?? plans[0]
@@ -117,10 +136,12 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
 
     if (plan.pricingMode === CheckoutPricingMode.Amount) {
       if (params.amountMinor == null) throw new ProductError('amount')
-      const { lineItem, chargeMinor, currency } = amountCheckoutLineItem(product, plan, params.amountMinor)
+      const { lineItem, chargeMinor, currency } = amountCheckoutLineItem(
+        product, plan, params.amountMinor, pricing.tax.behavior,
+      )
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', line_items: [lineItem], invoice_creation: { enabled: true },
-        ...taxOptions(false),
+        ...checkoutOptions(pricing, false),
         ...sharedSession(customer, params, product, plan, {
           pricingMode: CheckoutPricingMode.Amount,
           currency,
@@ -133,16 +154,16 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
     }
 
     const price = await findPrice(stripe, product.sku, planLookupKey(product, plan))
-    const policy = plan.quantityPolicy ?? {
+    const quantityPolicy = plan.quantityPolicy ?? {
       minimum: plan.minQuantity ?? 1,
       maximum: plan.maxQuantity ?? Math.max(100_000, plan.minQuantity ?? 1),
       default: plan.defaultQuantity ?? plan.minQuantity ?? 1,
     }
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      line_items: [quantityCheckoutLineItem(price, policy)],
+      line_items: [quantityCheckoutLineItem(price, quantityPolicy)],
       invoice_creation: { enabled: true },
-      ...taxOptions(true),
+      ...checkoutOptions(pricing, true),
       ...sharedSession(customer, params, product, plan, { pricingMode: CheckoutPricingMode.Quantity }),
     })
     if (session.url == null) throw new PaygateError('session')
@@ -161,7 +182,7 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
         service: params.service, productSku: product.sku, planSku: plan.sku,
       },
     },
-    ...taxOptions(true),
+    ...checkoutOptions(pricing, true),
     ...sharedSession(customer, params, product, plan, {}),
   })
   if (session.url == null) throw new PaygateError('session')

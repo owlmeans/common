@@ -2,7 +2,7 @@ import type { InitializedService } from '@owlmeans/context'
 
 import type {
   CheckoutPricingMode, LimitKind, LimitWindow, PaymentEntityType, PlanDuration, PlanStatus, PortalFlow,
-  ProductType, SubscriptionStatus
+  ProductType, SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType
 } from './consts.js'
 import type { PermissionSet } from '@owlmeans/auth'
 
@@ -203,6 +203,91 @@ export interface PromoView {
   active: boolean
 }
 
+/**
+ * Declared once per configuration (a `PRICING_POLICY_RECORD_ID` singleton record). Absent entirely,
+ * `DEFAULT_PRICING_POLICY` applies: automatic tax and tax-id collection stay on for every checkout
+ * exactly as before this policy existed, no `behavior` is forced onto a synced price, no Adaptive
+ * Pricing, and the estimate endpoints stay off.
+ */
+export interface PricingPolicy {
+  tax: {
+    /** Stripe Tax on every checkout session (`automatic_tax`, required billing address). */
+    automatic: boolean
+    /**
+     * The behavior synced prices are given. Absent: a price's `tax_behavior` is left untouched
+     * (`unspecified`, following the Stripe account default) — never inferred, always declared.
+     */
+    behavior?: TaxBehavior
+    /** VAT/GST id collection at checkout, for reverse charge. */
+    collectTaxId: boolean
+    /** Serve `PaymentService`'s tax estimate endpoint. Requires `automatic`. */
+    estimate: boolean
+    /** How long a tax estimate may be served from cache. Absent: the gateway's own default. */
+    estimateTtlSeconds?: number
+  }
+  currency: {
+    /** Stripe Adaptive Pricing (`adaptive_pricing.enabled`) on every checkout session. */
+    adaptive?: boolean
+    /** Serve the "≈ local total" line of an estimate. Requires `currency.adaptive`. */
+    estimate: boolean
+    /** How long an FX quote may be served from cache. Absent: the gateway's own default. */
+    estimateTtlSeconds?: number
+  }
+}
+
+export interface PriceEstimateBody {
+  /** Absent: the product's own reference plan (e.g. an amount-priced consumable). */
+  planSku?: string
+  /** ISO 3166-1 alpha-2. Absent: taken from the entity's paygate customer, else `location-required`. */
+  country?: string
+}
+
+export interface TaxRateEstimate {
+  type: TaxType
+  /** The rate as Stripe states it, e.g. `"23"` or `"8.5"` — display only. */
+  percentage: string
+  /** The same rate as parts per million, exact: `23%` is `230000`. Never a float. */
+  ratePpm: number
+  country?: string
+  state?: string
+}
+
+export interface TaxEstimate {
+  status: TaxEstimateStatus
+  subtotalMinor: number
+  taxMinor: number
+  totalMinor: number
+  /**
+   * Whether `rates` scales linearly to any other amount (a flat fee, a reduced-rate portion, or
+   * several inclusive rates do not). `false` means only the reference amount's own totals are
+   * trustworthy — a different amount shows "tax at checkout" instead of being rescaled.
+   */
+  scalable: boolean
+  rates: TaxRateEstimate[]
+}
+
+export interface PriceEstimate {
+  /** The billing country the estimate was computed for, when one was resolved. */
+  country?: string
+  /** Where that country came from — absent when neither the request nor the customer named one. */
+  source?: 'request' | 'customer'
+  /** The integration currency (lowercase ISO 4217) the amounts above and `tax` are stated in. */
+  currency: string
+  behavior: TaxBehavior
+  tax: TaxEstimate
+  /** The approximate total in the country's own currency, when it differs and a rate was found. */
+  local?: {
+    currency: string
+    /**
+     * Integration-currency (`currency` above) units per one unit of `local.currency`, fee-inclusive
+     * (Stripe FX Quotes `exchange_rate`, requested `to_currency: currency, from_currencies:
+     * [local.currency]`). A local amount is `amountInCurrency / exchangeRate`.
+     */
+    exchangeRate: number
+    fxFeeRate?: number
+  }
+}
+
 export interface PortalLinkBody {
   flow: PortalFlow
   /** The target plan of a `PortalFlow.Change`. */
@@ -237,4 +322,7 @@ export interface PaymentService extends InitializedService {
   localize: (lng: string, entity: PaymentEntity) => Promise<Localization | null>
 
   shallowAuthentication: (token: string | null) => Promise<string>
+
+  /** The declared `PricingPolicy`, or `DEFAULT_PRICING_POLICY` when none was declared. */
+  pricingPolicy: () => Promise<PricingPolicy>
 }

@@ -7,9 +7,17 @@ description: Decision matrix for which testing strategy to use per package in th
 
 Every package falls into exactly one of four testing categories. The category drives which `@owlmeans/test*` package(s) the tests depend on, where tests live, and what mocking is allowed.
 
-`@owlmeans/test` is the base every category builds on — env loading, env gates and fixture loading
-(`testing-unit` documents its exports). `@owlmeans/test-auth`, `@owlmeans/test-integration` and
-`@owlmeans/test-ui` each add one category's helpers on top of it.
+`@owlmeans/test` is the base every category builds on; each other harness package adds one
+category's helpers on top of it:
+
+| Package | Main exports | Documented in |
+|---|---|---|
+| `@owlmeans/test` | `loadEnv`, `requireEnv`, `hasEnv`, `makeGates`, `loadFixture` | `testing-unit` |
+| `@owlmeans/test-auth` | `makeFixtureKeyPair`, `makeMemoryTrustedResource`, `makeMockGuard`, `withAuth`, `signMockEnvelope`, `makeBearer`, fixtures `SUPERUSER`/`USER`/`SERVICE` | `testing-auth-unit` |
+| `@owlmeans/test-integration` | `mongoGate`, `redisGate`, `s3Gate`, `kubeGate`, `randomNamespace`, `registerCleanup`, `runCleanups` | `testing-integration` |
+| `@owlmeans/test-ui` | `launchBrowser`, `closeBrowser`, `withPage`, `mountComponent`, starter `harness/index.html` — on the `playwright` library, not `@playwright/test` | `testing-ui` |
+
+New auth mocks belong in `@owlmeans/test-auth`, never in a package's own `tests/`.
 
 ## Categories
 

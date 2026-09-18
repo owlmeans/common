@@ -88,6 +88,35 @@ export enum PortalFlow {
   PaymentMethod = 'payment-method',
 }
 
+/** Whether a price's amount includes tax, or tax is added on top — never inferred, always declared. */
+export enum TaxBehavior {
+  Exclusive = 'exclusive',
+  Inclusive = 'inclusive',
+}
+
+/** What a price estimate says about tax at one billing country. */
+export enum TaxEstimateStatus {
+  /** Tax is due and its rate(s) are in `TaxEstimate.rates`. */
+  Taxed = 'taxed',
+  /** No tax because the buyer's tax id shifts liability to them (EU/GB reverse charge). */
+  ReverseCharge = 'reverse-charge',
+  /** No tax for any other reason (not registered there, exempt, zero-rated). */
+  None = 'none',
+  /** The gateway could not resolve a rate from what it was given; the real total shows at checkout. */
+  AtCheckout = 'at-checkout',
+  /** No country was given and none could be inferred from the entity's paygate customer. */
+  LocationRequired = 'location-required',
+}
+
+/** A tax type a rate carries, collapsed from Stripe's finer `tax_type` for display. */
+export enum TaxType {
+  Vat = 'vat',
+  Gst = 'gst',
+  SalesTax = 'sales-tax',
+  /** Any other Stripe `tax_type` (excise, lease, tourism, …). */
+  Tax = 'tax',
+}
+
 /** The paygate alias of subscriptions the application grants itself (a free plan, a comp). */
 export const INTERNAL_PAYGATE = 'internal'
 
@@ -136,6 +165,21 @@ export const PortalFlowSchema: JSONSchemaType<PortalFlow> = {
   enum: Object.values(PortalFlow)
 }
 
+export const TaxBehaviorSchema: JSONSchemaType<TaxBehavior> = {
+  type: 'string',
+  enum: Object.values(TaxBehavior)
+}
+
+export const TaxEstimateStatusSchema: JSONSchemaType<TaxEstimateStatus> = {
+  type: 'string',
+  enum: Object.values(TaxEstimateStatus)
+}
+
+export const TaxTypeSchema: JSONSchemaType<TaxType> = {
+  type: 'string',
+  enum: Object.values(TaxType)
+}
+
 export const ProductTitleSchema: JSONSchemaType<string> = {
   type: 'string', minLength: 1, maxLength: 128
 }
@@ -156,6 +200,10 @@ export const PLAN_RECORD_PREFIX = PLAN_RECORD_TYPE
 
 export const L10N_RECORD_TYPE = 'l10n'
 export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
+
+/** A singleton record: at most one per configuration, at this fixed id. */
+export const PRICING_POLICY_RECORD_TYPE = 'pricing-policy'
+export const PRICING_POLICY_RECORD_ID = PRICING_POLICY_RECORD_TYPE
 
 export const DEFAULT_ALIAS = 'payment'
 

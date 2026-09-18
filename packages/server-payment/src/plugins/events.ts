@@ -117,7 +117,9 @@ export const applySubscription = async (
   }
 
   const item = subscription.items?.data?.[0]
-  const planSku = item?.price?.lookup_key ?? metadata.planSku ?? previous?.planSku
+  // A price recreated by `sync.ts` (an opposite `tax_behavior`) loses its lookup key; its sku
+  // metadata survives, so a subscription switched to it in the portal still resolves its plan.
+  const planSku = item?.price?.lookup_key ?? item?.price?.metadata?.sku ?? metadata.planSku ?? previous?.planSku
   if (planSku == null) {
     console.warn(`[payment] subscription "${subscription.id}" names no plan; ignored`)
     return { record: previous, change: null, updated: false }

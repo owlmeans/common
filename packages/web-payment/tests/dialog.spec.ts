@@ -63,4 +63,53 @@ describe('AmountCheckoutDialog', () => {
       expect(await readyMount.page.locator('#dialog-state').textContent()).toBe('closed')
     } finally { await readyMount.close() }
   }, TIMEOUT)
+
+  test('a Stripe Tax estimate replaces the plain tax note with the country and the rate, converted to the local currency', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=pl` })
+    try {
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor()
+      const text = await dialog.innerText()
+      expect(text).not.toContain('Stripe calculates any applicable tax')
+      expect(text).toContain('Poland')
+      expect(text).toContain('VAT (23%)')
+      // PLN replaces USD outright once a local currency is known — never both figures at once.
+      // Intl.NumberFormat separates an ISO-code currency (no locale symbol for PLN in "en") from
+      // the amount with a NO-BREAK SPACE (U+00A0), not a plain space.
+      expect(text).not.toContain('$2.35')
+      expect(text).not.toContain('$12.56')
+      expect(text).toContain('≈ PLN 9.40')
+      expect(text).toContain('≈ PLN 50.24')
+      expect(text).toContain("Converted at Stripe's current exchange rate")
+      expect(text).toContain('Tax is included in the estimated total below.')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('shows the reverse-charge sentence and zero added tax for a valid cross-border VAT id', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=reverse` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('Germany')
+      expect(text).toContain('$10.21')
+      expect(text).toContain('your VAT ID means you account for this tax yourself')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('falls back to "computed at checkout" wording with no numeric tax row when Stripe cannot resolve a rate', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=at-checkout` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('The exact tax is calculated at checkout.')
+      expect(text).not.toContain('Estimated total')
+    } finally { await close() }
+  }, TIMEOUT)
+
+  test('asks for a country before showing any estimate', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?estimate=location-required` })
+    try {
+      const text = await page.getByRole('dialog').innerText()
+      expect(text).toContain('Choose your billing country to see an estimate.')
+      expect(text).not.toContain('Estimated total')
+    } finally { await close() }
+  }, TIMEOUT)
 })

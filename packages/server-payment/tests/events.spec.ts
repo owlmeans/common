@@ -127,6 +127,19 @@ describe('@owlmeans/server-payment — subscription events', () => {
     expect(changes(fake)).toEqual(['created'])
   })
 
+  test("resolves the plan from the price's `metadata.sku` when a replaced price carries no lookup key", async () => {
+    const fake = await makeFakeContext()
+    const replaced = {
+      ...subscriptionOf(),
+      items: {
+        object: 'list', has_more: false, url: '',
+        data: [{ id: 'si_1', price: { id: 'price_new', lookup_key: null, metadata: { sku: PRO } } }],
+      },
+    } as never
+    await send(fake, 'customer.subscription.updated', replaced)
+    expect(rows(fake)[0]).toEqual(expect.objectContaining({ planSku: PRO, priceId: 'price_new' }))
+  })
+
   test('plan changes and cancel scheduling are classified with stable keys', async () => {
     const fake = await makeFakeContext()
     await subscribe(fake)

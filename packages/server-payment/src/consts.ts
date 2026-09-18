@@ -9,7 +9,18 @@ export { INTERNAL_PAYGATE, LIMIT_GATE }
 export const STRIPE_PAYGATE_ALIAS = 'stripe'
 export const STRIPE_PLUGIN_CONFIG = '_external:stripe'
 export const STRIPE_PORTAL_PLUGIN_CONFIG = '_external:stripe-portal'
+/** Stripe-only pricing settings (FX Quotes API version, the unspecified-price migration switch) — never advertised to the browser, unlike the `PricingPolicy` record itself. */
+export const STRIPE_PRICING_PLUGIN_CONFIG = '_external:stripe-pricing'
 export const STRIPE_SIGNATURE = 'Stripe-Signature'
+
+/**
+ * The FX Quotes API is a Stripe PREVIEW endpoint as of this writing: it answers only a
+ * `Stripe-Version` header naming a preview version, never the SDK's pinned stable one. Verify this
+ * string against https://docs.stripe.com/api/fx_quotes/create before relying on it, and override it
+ * with `declarePaymentPricing({ stripe: { fxApiVersion } })` once Stripe moves the API or renames
+ * the preview.
+ */
+export const STRIPE_FX_QUOTES_API_VERSION = '2025-07-30.preview'
 export const GATEWAY_SERVICE = 'payment-gateway'
 export const PAYMENT_OBSERVER = 'payment-observer'
 export const ENTITLEMENT_SERVICE = 'payment-entitlement'

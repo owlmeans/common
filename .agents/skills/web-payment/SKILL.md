@@ -81,25 +81,73 @@ and action text come from the application). Every one accepts `className`.
 
 ## AmountCheckoutDialog
 
-The dialog takes `{ open, onOpenChange, policy, pending, onConfirm }`. It keeps integer minor units,
-accepts locale decimal separators and at most two decimals, shows configured presets plus custom
-input, and reports below/above-bound errors without clamping. Confirmation is disabled when invalid
-or pending.
+The dialog takes `{ open, onOpenChange, policy, pending, onConfirm, estimate? }`. It keeps integer
+minor units, accepts locale decimal separators and at most two decimals, shows configured presets
+plus custom input, and reports below/above-bound errors without clamping. Confirmation is disabled
+when invalid or pending.
 
-It shows net credit value, processing adjustment and pre-tax subtotal from `chargeAmountMinor`, plus
-the note that Stripe calculates applicable tax. The policy maximum bounds net credit, not the
-adjusted or tax-inclusive debit.
+It shows net credit value, processing adjustment and pre-tax subtotal from `chargeAmountMinor`.
+With no `estimate`, the plain note that Stripe calculates applicable tax; with one, `PriceEstimateSummary`
+renders instead (see below) against the SAME `chargeMinor`, so the country picker and its numbers
+track whatever the buyer has typed. The policy maximum bounds net credit, not the adjusted or
+tax-inclusive debit.
+
+## Price estimate: a live tax/currency read for any amount
+
+```typescript
+// self-contained (one estimate, its own picker) — the credit dialog:
+const estimate = usePriceEstimate(ctx.entrypoint(account.priceEstimate), { enabled: dialogOpen })
+<AmountCheckoutDialog … estimate={estimate} />
+<PriceEstimateSummary control={estimate} subtotalMinor={planPriceMinor} currency="usd" />
+
+// shared (one picker, several estimates) — a plan comparison table:
+const [country, setCountry] = useState('')
+const pro = usePriceEstimate(entry, { enabled, country, onCountryChange: setCountry }, { body: { planSku: 'pro' } })
+const team = usePriceEstimate(entry, { enabled, country, onCountryChange: setCountry }, { body: { planSku: 'team' } })
+<CountrySelect value={country} onChange={setCountry} />               {/* rendered ONCE */}
+<PriceEstimateAmount control={pro} subtotalMinor={proPriceMinor} currency="usd" />     {/* per offer */}
+<PriceEstimateAmount control={team} subtotalMinor={teamPriceMinor} currency="usd" />
+```
+
+- **`usePriceEstimate(entry, { enabled, ttlMs?, country?, onCountryChange? }, ...request)`** calls a
+  `PriceEstimateBody` protocol (`@owlmeans/payment`'s `PriceEstimate` response) only while `enabled`,
+  and again whenever the country changes — a closed dialog costs nothing. A module-level client
+  cache (keyed by the entry's alias, the request body and the country; default TTL 5 min) shares an
+  answer across every mounted instance and never caches a rejected fetch. The caller's `request`
+  omits `body.country` — the hook owns it — the same way `usePortal`'s omits `flow`.
+  - **Uncontrolled** (no `opts.country`): the hook owns the country itself, and the first answer
+    whose `source` is `'customer'` preselects it, once.
+  - **Controlled** (`opts.country` given): the caller owns the country — several `usePriceEstimate`
+    calls can share ONE value (a plan comparison table, one picker, one estimate per offer); the
+    hook never preselects on its own, and the returned control's `onCountryChange` calls
+    `opts.onCountryChange` instead of an internal setter.
+- **`CountrySelect({ value, onChange, label?, id?, className? })`** is the picker alone —
+  `Intl.DisplayNames` + `Intl.Collator` over `@owlmeans/payment`'s `COUNTRY_CODES`, so it lists the
+  buyer's language's own country names. Render it once and drive every estimate that shares it.
+- **`PriceEstimateAmount({ control, subtotalMinor, currency, suffix?, className? })`** is the
+  numbers alone, no picker: via `estimateOf` re-derived against `subtotalMinor`, a rate row for a
+  `taxed` status, an estimated total, and one sentence for every status that leaves no number to
+  trust (reverse charge, no tax, "at checkout", "choose a country"). `data-price-estimate` /
+  `data-status` are stable test hooks.
+  - When the estimate carries `local` (Adaptive Pricing found the country's currency), the tax and
+    total show ONLY in that currency, each marked `≈` — never both currencies at once, which would
+    read as two different prices for the same line. A short note explains the amount is converted
+    at Stripe's current rate and confirmed at checkout. With no `local`, the amounts show in
+    `currency` (the integration currency) with no `≈` and no note.
+- **`PriceEstimateSummary`** is `CountrySelect` bound to the control's own `country`/
+  `onCountryChange` followed by `PriceEstimateAmount` — the one-estimate composition. Building a
+  shared picker composes the two pieces separately instead, one `PriceEstimateAmount` per estimate.
 
 ## The `@/components/ui/*` contract
 
 Components import the consuming app's shadcn primitives through the app alias:
-`@/components/ui/{button,dialog,input,label}` for the dialog and
+`@/components/ui/{button,dialog,input,label,select}` for the dialog and estimate summary and
 `@/components/ui/{card,progress,button}` for the pieces (`Card`, `CardHeader`, `CardTitle`,
 `CardDescription`, `CardContent`, `CardFooter`, `Progress`). The consumer therefore provides those
-files and the peer `@radix-ui/react-progress` beside the dialog's Radix peers. The package carries
-standalone copies under `src/@` only so its own build and tests resolve the same alias; they are
-never exported. Styling uses semantic theme tokens only (`primary`, `muted-foreground`,
-`destructive`, `border`, `card`).
+files and the peers `@radix-ui/react-progress` / `@radix-ui/react-select` beside the dialog's Radix
+ones. The package carries standalone copies under `src/@` only so its own build and tests resolve
+the same alias; they are never exported. Styling uses semantic theme tokens only (`primary`,
+`muted-foreground`, `destructive`, `border`, `card`).
 
 A Tailwind v4 consumer scanning package source adds:
 
@@ -110,15 +158,17 @@ A Tailwind v4 consumer scanning package source adds:
 ## Strings
 
 All visible strings live in the `web-payment` library resource (`lib` namespace) in all seven
-languages — `en pl ru be uk es de` — under two branches: `amount-checkout` and `entitlement`
-(`plan`, `status`, `limit`, `promo`, `capability`). A new key lands in every language at once, with
+languages — `en pl ru be uk es de` — under three branches: `amount-checkout`, `entitlement`
+(`plan`, `status`, `limit`, `promo`, `capability`) and `estimate` (`country`, `tax-type`, `rate`,
+`total`, `converted-note`, `status`, `loading`, `failed`). A new key lands in every language at once, with
 the same `{{placeholders}}`; the parity spec walks the resources recursively. An application
 overrides a string with `addI18nApp(lng, 'web-payment', data, { ns: LIB_NAMESPACE })`.
 
 ## Tests
 
-Category D plus unit specs: `bun test ./tests` runs the selector and hook specs (hooks rendered with
-`react-dom/server`, a fake `window` for navigation) and drives chromium through the Vite harness,
-which picks a surface by `?case=` (none = the dialog, `pieces`, `hook`). The harness pre-bundles
-every runtime dependency in `optimizeDeps.include`; one discovered mid-navigation loads a second
-React and the page throws "Invalid hook call".
+Category D plus unit specs: `bun test ./tests` runs the selector, hook and cache specs (hooks
+rendered with `react-dom/server`, a fake `window` for navigation) and drives chromium through the
+Vite harness, which picks a surface by `?case=` (none = the dialog, `pieces`, `hook`) and, for the
+dialog, an `?estimate=<name>` canned `PriceEstimateControl` fixture (`tests/harness/estimate-fixtures.ts`
+— no server, no Stripe). The harness pre-bundles every runtime dependency in `optimizeDeps.include`;
+one discovered mid-navigation loads a second React and the page throws "Invalid hook call".

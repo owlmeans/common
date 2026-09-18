@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { CallOptions, RequestShape } from '@owlmeans/entrypoint'
 import type {
   AmountCheckoutPolicy, CapabilityView, CreateCheckoutResponse, EntitlementPlanView, LimitView,
-  PortalLinkBody,
+  PortalLinkBody, PriceEstimate, PriceEstimateBody,
 } from '@owlmeans/payment'
 
 export type CheckoutResult = CreateCheckoutResponse
@@ -12,7 +12,33 @@ export interface AmountCheckoutDialogProps {
   policy: AmountCheckoutPolicy
   pending?: boolean
   onConfirm: (amountMinor: number) => Promise<void> | void
+  /** A live tax/currency estimate for the credit line — absent: the plain "tax at checkout" note. */
+  estimate?: PriceEstimateControl
 }
+
+/** What `usePriceEstimate` returns: the latest answer, the chosen country, and its lifecycle. */
+export interface PriceEstimateControl {
+  estimate: PriceEstimate | null
+  /** ISO 3166-1 alpha-2, or `''` before a country is known. */
+  country: string
+  /** A request is in flight — including the first, silent one. */
+  loading: boolean
+  /** The last request failed; `estimate` is the previous good answer, if any. */
+  failed: boolean
+  onCountryChange: (country: string) => void
+}
+
+/** The request of a price-estimate protocol: its body is a `PriceEstimateBody`. */
+export type PriceEstimateRequest = RequestShape & { body: PriceEstimateBody }
+
+type PriceEstimateCall<Request extends PriceEstimateRequest> = Omit<Request, 'body'> & {
+  body?: Omit<Request['body'], 'country'>
+}
+
+/** A price-estimate protocol's call arguments with `body.country` left to `usePriceEstimate`. */
+export type PriceEstimateArguments<Request extends PriceEstimateRequest> = {} extends PriceEstimateCall<Request>
+  ? [request?: PriceEstimateCall<Request> & CallOptions]
+  : [request: PriceEstimateCall<Request> & CallOptions]
 
 /** A limit row plus what a UI derives from it. */
 export interface LimitStatus extends LimitView {

@@ -1,15 +1,18 @@
 import { toConfigRecord } from '@owlmeans/server-app'
 import { plugin } from '@owlmeans/config'
 import {
-  assertAmountCheckoutPolicy, assertQuantityCheckoutPolicy, CAPABILITY_LIMIT_SCOPE, CheckoutPricingMode,
-  LimitKind, LimitMisdeclared, LimitWindow, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE, PlanDuration,
-  PlanRankConflict, PlanStatus, PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE,
+  assertAmountCheckoutPolicy, assertPricingPolicy, assertQuantityCheckoutPolicy, CAPABILITY_LIMIT_SCOPE,
+  CheckoutPricingMode, LimitKind, LimitMisdeclared, LimitWindow, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE,
+  PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
+  PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE,
 } from '@owlmeans/payment'
 import type { LimitDeclaration } from '@owlmeans/payment'
-import { STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG } from './consts.js'
+import {
+  STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
+} from './consts.js'
 import type {
   Config, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PortalBrandingDef,
-  StripeSecretsDef,
+  PricingDef, StripeSecretsDef,
 } from './types.js'
 
 export const declarePaymentProduct = (cfg: Config, def: PaymentProductDef): void => {
@@ -160,4 +163,29 @@ export const portalBranding = (cfg: Config, def: PortalBrandingDef): void => {
     ...(def.privacyPolicyUrl != null ? { privacyPolicyUrl: def.privacyPolicyUrl } : {}),
     ...(def.termsOfServiceUrl != null ? { termsOfServiceUrl: def.termsOfServiceUrl } : {}),
   }, STRIPE_PORTAL_PLUGIN_CONFIG)
+}
+
+/**
+ * Declare the pricing policy: whether checkout collects tax and a VAT/GST id, what `tax_behavior`
+ * synced prices are given, Adaptive Pricing, and whether the estimate endpoints are served. A
+ * config never carries more than one — a second call replaces the first, so re-declaring (a test, a
+ * config module re-run) is safe rather than silently ignored (a config resource resolves an id to
+ * its FIRST match).
+ *
+ * `def.stripe` (the FX Quotes preview version, the unspecified-price migration switch) is
+ * Stripe-only and goes to a backend plugin, never the advertised `PricingPolicy` record.
+ *
+ * @throws PaymentError (`assertPricingPolicy`) when an estimate is declared without the tax or
+ * currency capability it requires.
+ */
+export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
+  const { stripe, ...policy } = def
+  assertPricingPolicy(policy)
+  cfg.records = (cfg.records ?? []).filter(record => record.id !== PRICING_POLICY_RECORD_ID)
+  cfg.records.push({
+    ...toConfigRecord(policy), recordType: PRICING_POLICY_RECORD_TYPE, id: PRICING_POLICY_RECORD_ID,
+  })
+  if (stripe != null) {
+    plugin(cfg, { ...stripe }, STRIPE_PRICING_PLUGIN_CONFIG)
+  }
 }

@@ -11,7 +11,7 @@ import type { Criteria, ListOptions, ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
-  declarePaymentPlan, declarePaymentProduct, portalBranding, stripeSecrets,
+  declarePaymentPlan, declarePaymentPricing, declarePaymentProduct, portalBranding, stripeSecrets,
 } from '../src/config.js'
 import {
   RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_SUBSCRIPTION,
@@ -24,7 +24,7 @@ import {
 import { appendPaymentGatewayService } from '../src/service.js'
 import { observer } from '../src/utils.js'
 import type {
-  Config, DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, RefundEvent,
+  Config, DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent,
   SubscriptionEvent, TopUpCompletion,
 } from '../src/types.js'
 
@@ -139,6 +139,21 @@ export interface FakeStripeState {
   customers: Record<string, Rec>
   lineItemQuantity: number
   seq: number
+  /** Every `tax.calculations.create` params, in call order. */
+  taxCalculations: Rec[]
+  /** Flat-percentage rates a country charges (uppercase alpha-2). Absent/empty: `not_collecting`. */
+  taxRates: Record<string, Array<{ type: string, percentage: string }>>
+  /** Countries whose calculation throws `customer_tax_location_invalid` (simulates a missing ZIP). */
+  taxInvalidCountries: string[]
+  /** Countries Stripe Tax does not cover: a `not_supported`, zero-tax breakdown row. */
+  taxUnsupportedCountries: string[]
+  taxSettings: Rec
+  /** Every `rawRequest` call, in order: `{ method, path, params }`. */
+  rawRequests: Rec[]
+  /** FX Quotes rates by (lowercase) local currency: USD per one unit of it. */
+  fxRates: Record<string, { exchangeRate: number, fxFeeRate?: number }>
+  /** Every `rawRequest` to `/v1/fx_quotes` throws. */
+  fxUnavailable: boolean
 }
 
 /** The API version the installed SDK defaults to, read from a real client. */
@@ -147,6 +162,11 @@ export const SDK_API_VERSION = (new Stripe('sk_test_offline') as unknown as { ge
 
 export const missing = (what: string): Error => Object.assign(new Error(`No such ${what}`), {
   type: 'StripeInvalidRequestError', code: 'resource_missing', statusCode: 404,
+})
+
+/** A Stripe `invalid_request_error`, duck-typed the same way `missing` fakes `resource_missing`. */
+export const invalidRequest = (code: string): Error => Object.assign(new Error(code), {
+  type: 'StripeInvalidRequestError', code, statusCode: 400,
 })
 
 const page = (items: Rec[], params: Rec = {}) => {
@@ -164,7 +184,11 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
   const state: FakeStripeState = {
     apiVersion: SDK_API_VERSION, calls: [], webhookEndpoints: [], portalConfigurations: [], portalSessions: [],
     checkoutSessions: [], subscriptions: {}, invoices: {}, charges: {}, refunds: [], prices: [], products: {},
-    customers: {}, lineItemQuantity: 7, seq: 0, ...initial,
+    customers: {}, lineItemQuantity: 7, seq: 0,
+    taxCalculations: [], taxRates: {}, taxInvalidCountries: [], taxUnsupportedCountries: [],
+    taxSettings: { defaults: { tax_behavior: null, tax_code: null }, head_office: null, status: 'active', status_details: {} },
+    rawRequests: [], fxRates: {}, fxUnavailable: false,
+    ...initial,
   }
   const next = (prefix: string): string => `${prefix}_${++state.seq}`
   const call = (name: string): void => { state.calls.push(name) }
@@ -280,14 +304,23 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
       },
       create: async (params: Rec) => {
         call('prices.create')
-        const price = { id: next('price'), active: true, ...structuredClone(params) }
+        // Stripe's own default: a price created with no `tax_behavior` is `unspecified`.
+        const price = { id: next('price'), active: true, tax_behavior: 'unspecified', ...structuredClone(params) }
         state.prices.push(price)
         return structuredClone(price)
       },
       update: async (id: string, params: Rec) => {
         call('prices.update')
-        Object.assign(find(state.prices, id, 'price'), params)
-        return structuredClone(find(state.prices, id, 'price'))
+        const price = find(state.prices, id, 'price')
+        if (
+          params.tax_behavior != null && price.tax_behavior != null && price.tax_behavior !== 'unspecified'
+          && price.tax_behavior !== params.tax_behavior
+        ) {
+          // Real Stripe: once a price's `tax_behavior` is `exclusive` or `inclusive`, it cannot change.
+          throw invalidRequest('parameter_invalid_empty')
+        }
+        Object.assign(price, params)
+        return structuredClone(price)
       },
     },
     products: {
@@ -332,6 +365,86 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
           return { data: [{ quantity: state.lineItemQuantity }] }
         },
       },
+    },
+    tax: {
+      calculations: {
+        /**
+         * A flat-percentage tax model, entirely driven by `state.taxRates` / `taxInvalidCountries`
+         * / `taxUnsupportedCountries` — real enough to exercise the status mapping and the
+         * scalability rule, never a stand-in for Stripe's actual jurisdiction logic.
+         */
+        create: async (params: Rec) => {
+          call('tax.calculations.create')
+          state.taxCalculations.push(structuredClone(params))
+          const country = params.customer_details?.address?.country as string | undefined
+          if (country != null && state.taxInvalidCountries.includes(country)) {
+            throw invalidRequest('customer_tax_location_invalid')
+          }
+          const lineItem = params.line_items[0]
+          const amount: number = lineItem.amount
+          const inclusive = lineItem.tax_behavior === 'inclusive'
+          const reverseCharge = (params.customer_details?.tax_ids ?? []).length > 0
+          const rates = reverseCharge ? [] : (country != null ? state.taxRates[country] ?? [] : [])
+          const unsupported = !reverseCharge && rates.length === 0
+            && country != null && state.taxUnsupportedCountries.includes(country)
+
+          const breakdown = reverseCharge
+            ? [{
+              amount: 0, inclusive, taxable_amount: amount, taxability_reason: 'reverse_charge',
+              tax_rate_details: { country, state: null, percentage_decimal: '0', tax_type: 'vat' },
+            }]
+            : unsupported
+              ? [{
+                amount: 0, inclusive, taxable_amount: amount, taxability_reason: 'not_supported',
+                tax_rate_details: null,
+              }]
+              : rates.length === 0
+                ? [{
+                  amount: 0, inclusive, taxable_amount: amount, taxability_reason: 'not_collecting',
+                  tax_rate_details: { country, state: null, percentage_decimal: '0', tax_type: 'vat' },
+                }]
+                : rates.map(rate => ({
+                  amount: Math.round(amount * Number(rate.percentage) / 100), inclusive, taxable_amount: amount,
+                  taxability_reason: 'standard_rated',
+                  tax_rate_details: { country, state: null, percentage_decimal: rate.percentage, tax_type: rate.type },
+                }))
+          const taxTotal = breakdown.reduce((sum, row) => sum + row.amount, 0)
+
+          return {
+            id: next('taxcalc'), object: 'tax.calculation', currency: params.currency,
+            amount_total: inclusive ? amount : amount + taxTotal,
+            tax_amount_exclusive: inclusive ? 0 : taxTotal,
+            tax_amount_inclusive: inclusive ? taxTotal : 0,
+            tax_breakdown: breakdown,
+          }
+        },
+      },
+      settings: {
+        retrieve: async () => {
+          call('tax.settings.retrieve')
+          return structuredClone(state.taxSettings)
+        },
+      },
+    },
+    rawRequest: async (method: string, path: string, params: Rec = {}) => {
+      call('rawRequest')
+      state.rawRequests.push({ method, path, params: structuredClone(params) })
+      if (path !== '/v1/fx_quotes') {
+        throw new Error(`fake-stripe: unhandled rawRequest path "${path}"`)
+      }
+      if (state.fxUnavailable) {
+        throw new Error('fx_quotes unavailable')
+      }
+      const local = params['from_currencies[]'] as string
+      const rate = state.fxRates[local]
+      if (rate == null) {
+        return { rates: {} }
+      }
+      return {
+        rates: {
+          [local]: { exchange_rate: rate.exchangeRate, rate_details: { fx_fee_rate: rate.fxFeeRate ?? 0.02 } },
+        },
+      }
     },
     webhooks: {
       /** Accepts the signature `sig:<secret>` over any body. */
@@ -582,6 +695,7 @@ export interface FakeContextOptions {
   /** The configured webhook override secret. */
   webhookSecret?: string
   portal?: PortalBrandingDef
+  pricing?: PricingDef
   stripe?: Partial<FakeStripeState>
 }
 
@@ -622,6 +736,9 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   stripeSecrets(cfg, { api: 'sk_test_offline', ...(opts.webhookSecret != null ? { webhook: opts.webhookSecret } : {}) })
   if (opts.portal != null) {
     portalBranding(cfg, opts.portal)
+  }
+  if (opts.pricing != null) {
+    declarePaymentPricing(cfg, opts.pricing)
   }
 
   const ctx = makeServerContext(cfg as unknown as ServerConfig) as unknown as ApiContext

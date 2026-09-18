@@ -10,7 +10,7 @@ import {
 import { findPlan, findProduct, planRank } from '../plan.js'
 import { planLookupKey, stripePlansOf } from '../sync.js'
 import {
-  fingerprints, isMissingObject, paygateCustomers, portalBrandingConfig, subscriptions,
+  fingerprints, isMissingObject, paygateCustomers, payment, portalBrandingConfig, subscriptions,
 } from '../utils.js'
 import { webhookUrlOf } from './webhook-manager.js'
 import type { PaymentProduct, PaymentSubscriptionRecord, PortalLinkOptions } from '../types.js'
@@ -21,6 +21,10 @@ export const portalFingerprintSku = (service: string): string => `${FINGERPRINT_
 
 /** The recurring plans sold through Stripe, per product — what the portal may switch between. */
 const recurringCatalog = async (ctx: ApiContext): Promise<Array<{ product: PaymentProduct, lookupKeys: string[], hashable: unknown[] }>> => {
+  // The declared tax behavior decides which Stripe price id `sync.ts` keeps for a plan (an
+  // in-place `unspecified` update keeps it, an opposite behavior replaces it) — hashed here too,
+  // so a behavior change refreshes this configuration's `products[].prices` to the new ids.
+  const behavior = (await payment(ctx).pricingPolicy()).tax.behavior ?? null
   const result: Array<{ product: PaymentProduct, lookupKeys: string[], hashable: unknown[] }> = []
   for (const { product, plans } of await stripePlansOf(ctx)) {
     const recurring = plans.filter(plan => plan.recurring != null)
@@ -32,7 +36,7 @@ const recurringCatalog = async (ctx: ApiContext): Promise<Array<{ product: Payme
       lookupKeys: recurring.map(plan => planLookupKey(product, plan)),
       hashable: recurring.map(plan => ({
         sku: plan.sku, price: plan.price, currency: plan.currency ?? 'usd', interval: plan.recurring?.interval,
-        rank: planRank(plan),
+        rank: planRank(plan), behavior,
       })).sort((a, b) => a.sku.localeCompare(b.sku)),
     })
   }

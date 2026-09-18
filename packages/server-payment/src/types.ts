@@ -6,8 +6,8 @@ import type { PermissionSet } from '@owlmeans/auth'
 import type { Config as ApiConfig, Context as ApiContext } from '@owlmeans/server-api'
 import type {
   AmountCheckoutPolicy, CheckoutPricingMode, EntitlementView, LimitDeclaration, LimitView,
-  PlanCapability, PlanDuration, PortalFlow, Product, ProductPlan, ProductType, QuantityCheckoutPolicy,
-  SubscriptionStatus,
+  PlanCapability, PlanDuration, PortalFlow, PriceEstimate, PricingPolicy, Product, ProductPlan,
+  ProductType, QuantityCheckoutPolicy, SubscriptionStatus,
 } from '@owlmeans/payment'
 
 export interface Config extends ApiConfig {}
@@ -76,6 +76,25 @@ export interface PaymentPlanDef {
 export interface StripeSecretsDef { api: string; webhook?: string }
 export interface StripePluginConfig extends PluginConfig { api: string; webhook?: string }
 
+/** Stripe-only pricing settings — never a browser-visible field (see `PricingPolicy` for those). */
+export interface StripePricingDef {
+  /** Overrides `STRIPE_FX_QUOTES_API_VERSION`, when Stripe moves or renames the preview. */
+  fxApiVersion?: string
+  /**
+   * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
+   * account's own tax-settings default resolves to the opposite one — which changes what an
+   * existing subscriber is charged at their next renewal. Absent/`false`: such a price is left
+   * `unspecified` and a `console.error` explains why.
+   */
+  migrateUnspecifiedPrices?: boolean
+}
+export interface StripePricingPluginConfig extends PluginConfig, StripePricingDef {}
+
+/** `declarePaymentPricing`'s argument: the browser-safe `PricingPolicy` plus Stripe-only settings. */
+export interface PricingDef extends PricingPolicy {
+  stripe?: StripePricingDef
+}
+
 /** What the managed customer portal configuration shows. */
 export interface PortalBrandingDef {
   headline?: string
@@ -109,6 +128,16 @@ export interface PortalLinkOptions {
   returnUrl: string
 }
 
+export interface PriceEstimateParams {
+  productSku: string
+  /** Stable database key resolved by the application before this in-process call. */
+  entityId: string
+  /** Absent: the product's own reference plan (an amount-priced consumable). */
+  planSku?: string
+  /** ISO 3166-1 alpha-2. Absent: taken from the entity's paygate customer address. */
+  country?: string
+}
+
 export interface GrantInternalPlanOptions {
   /** Required to grant a plan that is not `free`. */
   force?: boolean
@@ -127,6 +156,8 @@ export interface GatewayService extends InitializedService {
   managed: boolean
   createLink: (ctx: ApiContext, params: CreateLinkParams) => Promise<string>
   portalLink: (ctx: ApiContext, entityId: string, opts: PortalLinkOptions) => Promise<string>
+  /** @throws PaygateError('unmanaged') when `managed` is `false`. */
+  estimatePrice: (ctx: ApiContext, params: PriceEstimateParams) => Promise<PriceEstimate>
   grantInternalPlan: (
     ctx: ApiContext, entityId: string, planSku: string, opts?: GrantInternalPlanOptions,
   ) => Promise<PaymentSubscriptionRecord>

@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import {
-  CreateCheckoutBodySchema, EntitlementViewSchema, LimitKind, LimitWindow, PlanDuration, PlanStatus,
-  PortalFlow, PortalLinkBodySchema, ProductPlanSchema, SubscriptionStatus, entitlementViewOf,
+  COUNTRY_CURRENCIES, CreateCheckoutBodySchema, DEFAULT_PRICING_POLICY, EntitlementViewSchema,
+  LimitKind, LimitWindow, PlanDuration, PlanStatus, PortalFlow, PortalLinkBodySchema,
+  PriceEstimateBodySchema, PriceEstimateSchema, PricingPolicySchema, ProductPlanSchema,
+  SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType, entitlementViewOf,
   ENTITLING_STATUSES, TERMINAL_STATUSES,
 } from '../src/index.js'
 import * as payment from '../src/index.js'
-import type { ProductPlan } from '../src/index.js'
+import type { PriceEstimate, ProductPlan } from '../src/index.js'
 
 const ajv = new Ajv({ strict: false, validateFormats: false })
 
@@ -94,6 +96,61 @@ describe('wire shapes', () => {
     const body = { productSku: 'credit-pack', entitySlug: 'acme', service: 'app' }
     expect(validate({ ...body, amountMinor: 500 })).toBe(true)
     expect(validate({ ...body, amountMinor: 500.5 })).toBe(false)
+  })
+})
+
+describe('country currencies', () => {
+  test('every key is an uppercase alpha-2 code and every value a lowercase alpha-3 currency', () => {
+    for (const [country, currency] of Object.entries(COUNTRY_CURRENCIES)) {
+      expect(country).toMatch(/^[A-Z]{2}$/)
+      expect(currency).toMatch(/^[a-z]{3}$/)
+    }
+  })
+
+  test('keys are unique and the reference points hold', () => {
+    const keys = Object.keys(COUNTRY_CURRENCIES)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(COUNTRY_CURRENCIES.PL).toBe('pln')
+    expect(COUNTRY_CURRENCIES.DE).toBe('eur')
+    expect(COUNTRY_CURRENCIES.US).toBe('usd')
+  })
+})
+
+describe('pricing policy and price estimate schemas', () => {
+  const validatePolicy = ajv.compile(PricingPolicySchema)
+  const validateBody = ajv.compile(PriceEstimateBodySchema)
+  const validateEstimate = ajv.compile(PriceEstimateSchema)
+
+  test('the default policy round-trips through its own schema', () => {
+    expect(validatePolicy(JSON.parse(JSON.stringify(DEFAULT_PRICING_POLICY)))).toBe(true)
+  })
+
+  test('the policy carries no Stripe-specific field (api version, migration switch)', () => {
+    for (const forbidden of ['fxApiVersion', 'migrateUnspecifiedPrices', 'stripe']) {
+      expect(validatePolicy({ ...DEFAULT_PRICING_POLICY, [forbidden]: 'x' })).toBe(false)
+    }
+  })
+
+  test('a price estimate body accepts an empty body, a plan and a country, never an entity id', () => {
+    expect(validateBody({})).toBe(true)
+    expect(validateBody({ planSku: 'vib-pro-monthly' })).toBe(true)
+    expect(validateBody({ country: 'PL' })).toBe(true)
+    expect(validateBody({ country: 'pl' })).toBe(false)
+    expect(validateBody({ country: 'POL' })).toBe(false)
+    expect(validateBody({ entityId: 'internal' })).toBe(false)
+  })
+
+  test('a price estimate survives a JSON round trip and rejects an extra property', () => {
+    const estimate: PriceEstimate = {
+      country: 'PL', source: 'request', currency: 'usd', behavior: TaxBehavior.Exclusive,
+      tax: {
+        status: TaxEstimateStatus.Taxed, subtotalMinor: 1_021, taxMinor: 235, totalMinor: 1_256,
+        scalable: true, rates: [{ type: TaxType.Vat, percentage: '23', ratePpm: 230_000, country: 'PL' }],
+      },
+      local: { currency: 'pln', exchangeRate: 0.25, fxFeeRate: 0.02 },
+    }
+    expect(validateEstimate(JSON.parse(JSON.stringify(estimate)))).toBe(true)
+    expect(validateEstimate({ ...JSON.parse(JSON.stringify(estimate)), extra: true })).toBe(false)
   })
 })
 

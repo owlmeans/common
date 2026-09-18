@@ -16,6 +16,7 @@ import { makeLimitGate } from './limit.js'
 import { appendCompletionObserver } from './observer.js'
 import { findPlan, findProduct, planRank } from './plan.js'
 import { resyncStripeSubscription, resyncStripeSubscriptions } from './plugins/events.js'
+import { makeEstimateCache, estimateStripePrice } from './plugins/estimate.js'
 import { createPortalLink, ensurePortalConfiguration } from './plugins/portal.js'
 import { createCheckoutLink } from './plugins/stripe.js'
 import { ensureWebhookEndpoint } from './plugins/webhook-manager.js'
@@ -103,6 +104,9 @@ export const makeGatewayService = (
   alias: string = GATEWAY_SERVICE, opts: Pick<PaymentGatewayOptions, 'manage'> = {},
 ): GatewayService => {
   const managed = opts.manage !== false
+  // One estimate cache per gateway SERVICE instance, never module-level: several service
+  // instances (several tests, several deployments in one process) must never share hits.
+  const estimateCache = makeEstimateCache()
   const service = createService<GatewayService>(alias, {
     managed,
     createLink: async (ctx, params) => managed
@@ -114,6 +118,8 @@ export const makeGatewayService = (
       ? await resyncStripeSubscription(ctx, await stripeClient(ctx), ref) : unmanaged(),
     resyncAll: async ctx => managed
       ? await resyncStripeSubscriptions(ctx, await stripeClient(ctx)) : unmanaged(),
+    estimatePrice: async (ctx, params) => managed
+      ? await estimateStripePrice(ctx, await stripeClient(ctx), params, estimateCache) : unmanaged(),
   }, service => async () => {
     const ctx = service.assertCtx() as unknown as ApiContext
     assertPlanDeclarations(ctx.cfg)

@@ -19,13 +19,13 @@ The canonical reference is `tree.md` at the repo root. Read it directly when the
 
 1. **Configuration & tooling** — `dep-config`, `agent-skills`, `create-app`
 2. **Core foundations** — environment-agnostic primitives (`context`, `error`, `auth`, `route`, `router`, `entrypoint`, `resource`, `config`, `did`, `basic-*`, `i18n`, `state`, `socket`)
-3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
+3. **Cross-cutting domain** — `flow`, `oidc`, `iam`, `payment`, `wled`, `consent`, `mailer`, `auth-otp`, `llm-common`, `llm`, `agent-common`, `agent`, `planning`, `viable-common`, and the abstract `queue` contract (its `redis-queue` driver sits in the storage layer, its `server-job` / `client-job` transports in the server and client layers)
 4. **Auth shared** — `auth-common`
 5. **API & API config** — `api`, `api-config`, `api-config-client`, `api-config-server`
 6. **Storage & infrastructure** — `mongo*`, `redis*`, `postgres*`, `storage*`, `image-resource`, `static-resource`, `kluster`, plus the drivers behind the abstract contracts: `redis-queue`, `mailer-smtp`, `server-mailer-mailgun`
 7. **Server** — `server-*`, including the queue's server-side transport `server-job`
 8. **Client (platform-agnostic)** — `client-*`, including the queue's client-side transport `client-job`
-9. **Web** — `web-*`, the Material-UI variants `mui-panel` / `mui-oidc-rp`, and the Astro integration `astro`
+9. **Web** — `web-*`, the LEGACY Material-UI variants `mui-panel` / `mui-oidc-rp` (maintain only; new work uses the shadcn `web-panel` family), and the Astro integration `astro`
 10. **Native** — *external [owlmeans/native](https://github.com/owlmeans/native) monorepo*
 
 A prefix is not proof of a layer. `client-iam` depends on `web-client` and `web-oidc-rp`, so it is browser-only; check `tree.md` before assuming a `client-*` package is safe for React Native. `client-auth` depends on `web-flow`, so it too pulls the web layer in.

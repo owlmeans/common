@@ -17,6 +17,8 @@ export {
 export type { CommitOptions, CommitResult } from './subscription.js'
 export { planLookupKey, syncPaymentProducts, syncStripeProducts } from './sync.js'
 export { amountCheckoutLineItem, quantityCheckoutLineItem } from './plugins/stripe.js'
+export { makeEstimateCache, estimateStripePrice } from './plugins/estimate.js'
+export type { EstimateCache } from './plugins/estimate.js'
 export { applySubscription, createEventHandler, mapStatus } from './plugins/events.js'
 export type { ApplyOptions } from './plugins/events.js'
 export {
