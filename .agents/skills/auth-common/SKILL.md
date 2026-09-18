@@ -127,7 +127,10 @@ depends on the value.
   the matching client-side alias as `DEFAULT_ALIAS`.
 - `GUARD_ED25519` is for service-to-service calls, where the caller signs the request rather than
   presenting a bearer token. Give it a Redis-backed nonce cache (`BED255_CASHE_RESOURCE`) in any
-  deployment that runs more than one replica, or replay protection is per-process only.
+  deployment that runs more than one replica, or replay protection is per-process only. The guard
+  accepts only canonical timestamps inside its symmetric 60-second window and claims the
+  credential-and-nonce pair until that timestamp's absolute expiry; a replay-store error refuses
+  authentication rather than disabling deduplication.
 - An OIDC gate is not required when OIDC is only the login/bootstrap provider. Where the provider
   issues a local bearer token, authorize with a product-specific gate against local identity scopes.
 - The trust resource (`TRUSTED`, from `@owlmeans/config`) is the system's source of truth for known

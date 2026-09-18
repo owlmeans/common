@@ -11,22 +11,30 @@ import type { BasicEd25519Guard, BasicEd25519GuardOptions } from './types.js'
 import { AuthenPayloadError, AuthroizationType, AuthRole } from '@owlmeans/auth'
 import type { Auth } from '@owlmeans/auth'
 import { createIdOfLength } from '@owlmeans/basic-ids'
-import type { Resource, ResourceRecord } from '@owlmeans/resource'
 import { extractAuthToken } from '@owlmeans/auth-common/utils'
+import {
+  makeMemorySignedRequestReplayStore, makeResourceSignedRequestReplayStore
+} from './replay.js'
+import type { SignedRequestReplayResource, SignedRequestReplayStore } from './types.js'
 
 const timeKey = BED255_TIME_HEADER.toLocaleLowerCase()
 const nonceKey = BED255_NONCE_HEADER.toLocaleLowerCase()
 
-/**
- * Proper configuration:
- * - One needs to specify opts.cache as a redis resource that stores nonces for a while to
- * avoid requests duplication.
- */
 export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519GuardOptions): BasicEd25519Guard => {
+  const memoryReplay = makeMemorySignedRequestReplayStore()
 
-  const cache = (context: Context) => context.hasResource(opts?.cache ?? BED255_CASHE_RESOURCE)
-    ? context.resource<Resource<ResourceRecord>>(opts?.cache ?? BED255_CASHE_RESOURCE)
-    : null
+  const replay = (context: Context): SignedRequestReplayStore => {
+    if (opts?.replay != null) {
+      return opts.replay
+    }
+    const alias = opts?.cache ?? BED255_CASHE_RESOURCE
+    if (context.hasResource(alias)) {
+      return makeResourceSignedRequestReplayStore(
+        context.resource<SignedRequestReplayResource>(alias)
+      )
+    }
+    return memoryReplay
+  }
 
   const guard: BasicEd25519Guard = createService<BasicEd25519Guard>(GUARD_ED25519, {
     authenticated: async req => {
@@ -78,39 +86,55 @@ export const makeBasicEd25519Guard = (resource: string, opts?: BasicEd25519Guard
         return { ...result, [key.toLowerCase()]: value }
       }, {} as { credential: string, signature: string })
 
+      if (typeof signature.credential !== 'string' || signature.credential.length === 0
+        || typeof signature.signature !== 'string' || signature.signature.length === 0) {
+        throw new AuthenPayloadError('signature')
+      }
+
       const trusted = await trust(context, resource, signature.credential, "id")
       if (trusted.user.credential == null) {
         return false as T
       }
 
+      const timestamp = req.headers?.[timeKey]
+      const nonce = req.headers?.[nonceKey]
+
       const payload = {
         body: req.body ?? {},
-        headers: { [timeKey]: req.headers[timeKey], [nonceKey]: req.headers[nonceKey] }
+        headers: { [timeKey]: timestamp, [nonceKey]: nonce }
       }
 
       if (!await trusted.key.verify(payload, signature.signature)) {
         return false as T
       }
 
-      if (typeof req.headers[timeKey] !== 'string') {
+      if (typeof timestamp !== 'string') {
         throw new AuthenPayloadError('timestamp')
       }
 
-      const createdAt = new Date(req.headers[timeKey])
+      const createdAt = new Date(timestamp)
+      const signedAt = createdAt.getTime()
+      if (!Number.isFinite(signedAt) || createdAt.toISOString() !== timestamp) {
+        throw new AuthenPayloadError('timestamp')
+      }
 
-      if (createdAt.getTime() + BED255_SIG_TTL < Date.now()) {
+      if (Math.abs(Date.now() - signedAt) > BED255_SIG_TTL) {
         throw new AuthenPayloadError('expired')
       }
 
-      const nonce = req.headers[nonceKey]
-      if (typeof nonce !== 'string') {
+      if (typeof nonce !== 'string' || nonce.length === 0) {
         throw new AuthenPayloadError('nonce')
       }
 
       try {
-        const tried = cache(context)
-        if (tried != null) {
-          await tried.create({ id: nonce }, { ttl: BED255_SIG_TTL / 1000 })
+        // The replay identity is the signing credential plus its nonce. A nonce used by one
+        // trusted service does not block another, while a captured request can be admitted once.
+        const claimed = await replay(context).claim(
+          `${signature.credential.length}:${signature.credential}${nonce}`,
+          new Date(signedAt + BED255_SIG_TTL)
+        )
+        if (!claimed) {
+          throw new AuthenPayloadError('nonce')
         }
       } catch {
         throw new AuthenPayloadError('nonce')

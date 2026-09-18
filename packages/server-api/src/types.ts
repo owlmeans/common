@@ -18,7 +18,20 @@ export interface ApiServerAppend {
   getApiServer: () => ApiServer
 }
 
-export interface Config extends ServerConfig { }
+export type HttpErrorExposure = 'production' | 'development'
+
+export interface HttpErrorsConfig {
+  /** Production is the safe default; development is the only mode that exposes stacks. */
+  exposure?: HttpErrorExposure
+}
+
+export interface HttpConfig {
+  errors?: HttpErrorsConfig
+}
+
+export interface Config extends ServerConfig {
+  http?: HttpConfig
+}
 
 export interface Context<C extends Config = Config> extends ServerContext<C>,
   ApiServerAppend { }

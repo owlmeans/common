@@ -61,20 +61,19 @@ context.registerService(makeSmtpMailerService(MAILER_SERVICE))
 ```
 
 Register under `MAILER_SERVICE` so platform code — `OtpService` above all — resolves the mailer
-without knowing the transport. Select between transports on config, not on a build flag:
+without knowing the transport. A local-only console transport is an explicit mode; it is never a
+production fallback:
 
 ```ts
-context.registerService(
-  cfg.smtp?.host != null && cfg.smtp.host !== ''
-    ? makeSmtpMailerService(MAILER_SERVICE)
-    : makeConsoleMailerService(MAILER_SERVICE)
-)
+if (cfg.iamMailer.mode !== 'smtp') throw new SyntaxError('production requires smtp mode')
+context.registerService(makeSmtpMailerService(MAILER_SERVICE, {
+  authenticated: true,
+  verifyOnInit: true,
+}))
 ```
 
-That guard is mandatory, not stylistic: with `cfg.smtp.host` unset or empty this service throws
-`SyntaxError: <alias>: cfg.smtp.host is not configured` out of **every** `send()` and `verify()`.
-Without the guard an environment that never configured SMTP registers it anyway and fails at the
-first login code instead of falling back to the console transport.
+Authenticated SMTP requires a host, from address, user and password; `verifyOnInit` makes an
+unusable relay fail context startup rather than exposing a later login code through a console log.
 
 ## Ports and TLS
 
@@ -96,6 +95,9 @@ first login code instead of falling back to the console transport.
   `cfg.smtp.host` is the other failure and it is a `SyntaxError`, raised before any socket.
 - `verify()` authenticates without submitting a message — right for health checks; not proof that
   the relay accepts *a message* from your sender.
+- Production mail selection must be explicit and use `authenticated: true, verifyOnInit: true`.
+  Console mail is for local fixtures/development and must never be selected because SMTP settings
+  were absent or malformed.
 - Never register this in unit tests — use `makeConsoleMailerService`. `toMailOptions` plus
   nodemailer's own `jsonTransport` cover envelope assertions without a socket.
 - **Never authenticate with a deliberately wrong password against a live relay.** Repeated failed

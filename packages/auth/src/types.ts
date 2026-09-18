@@ -121,6 +121,10 @@ export interface Auth extends AuthPayload {
   token: string
   isUser: boolean
   createdAt: Date
+  /** Opaque session registry key; it is not an organization identifier. */
+  sessionId?: string
+  /** Monotonic authorization revision supplied by the session registry. */
+  authorizationVersion?: number
   /**
     AuthPayload:
       type: string

@@ -1,0 +1,37 @@
+{
+  "name": "@owlmeans/server-auth-session",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "Short-lived OwlMeans session registry with memory and Redis implementations.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.18-rc.25",
+    "@owlmeans/redis-resource": "^0.1.18-rc.28",
+    "@owlmeans/resource": "^0.1.18-rc.27",
+    "@owlmeans/server-context": "^0.1.18-rc.28"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

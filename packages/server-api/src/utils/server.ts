@@ -5,15 +5,16 @@ import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import type { GateService } from '@owlmeans/entrypoint'
 import { provideResponse } from '@owlmeans/entrypoint'
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
+import type { ServerContext } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
-import { handleError } from './error.js'
+import { errorExposure, handleError } from './error.js'
 import { executeResponse, provideRequest } from './payload.js'
 import { authorize } from './guards.js'
 import { RouteProtocols } from '@owlmeans/route'
+import type { Config as ApiConfig } from '../types.js'
 
-type Config = ServerConfig
+type Config = ApiConfig
 type Context = ServerContext<Config>
 
 export const canServeModule = (context: Context, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
@@ -66,14 +67,11 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
         reply.code(OK).send(response.value)
       }
     } catch (error) {
-      console.error(`Error in ${module.alias} (${location})`)
-      console.error(JSON.stringify(error, null, 2))
-      console.error(error)
       if (module.fixer != null) {
         const fixer: FixerService = context.service(module.fixer)
         fixer.handle(reply, ResilientError.ensure(error as Error))
         return
       }
-      handleError(error as Error, reply)
+      handleError(error as Error, reply, errorExposure(context.cfg))
     }
   }

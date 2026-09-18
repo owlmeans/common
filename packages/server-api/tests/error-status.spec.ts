@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
-import { ResilientError } from '@owlmeans/error'
+import { ResilientError, SEPARATOR } from '@owlmeans/error'
 import { provideResponse } from '@owlmeans/entrypoint'
-import { errorStatus, handleError } from '../src/utils/error.js'
+import { errorExposure, errorStatus, handleError, INCIDENT_ID_HEADER } from '../src/utils/error.js'
 import { executeResponse } from '../src/utils/payload.js'
 import { AccessError, AuthFailedError } from '../src/errors.js'
 
@@ -46,6 +46,26 @@ class DeclaringForbidden extends AuthForbidden {
   constructor() {
     super('declaring')
     this.type = DeclaringForbidden.typeName
+  }
+}
+
+class TemporarilyUnavailable extends ResilientError {
+  public static override typeName = 'ServerApiSpecTemporarilyUnavailable'
+  public static httpStatus = 503
+  public static allowServerErrorStatus = true
+
+  constructor() {
+    super(TemporarilyUnavailable.typeName, 'temporarily-unavailable')
+  }
+}
+
+class Throttled extends ResilientError {
+  public static override typeName = 'ServerApiSpecThrottled'
+  public static httpStatus = 429
+  public readonly retryAfter = 17.2
+
+  constructor() {
+    super(Throttled.typeName, 'throttled')
   }
 }
 
@@ -136,6 +156,10 @@ beforeAll(async () => {
     handleError(thrown as Error, reply)
     return reply
   })
+  server.get('/handle-development', async (_req, reply) => {
+    handleError(thrown as Error, reply, 'development')
+    return reply
+  })
   server.get('/execute', async (_req, reply) => {
     const response = provideResponse(reply)
     response.reject(thrown as Error)
@@ -152,8 +176,40 @@ afterAll(async () => {
 const answer = async (error: unknown, path: string = '/handle') => {
   thrown = error
   const reply = await server.inject({ method: 'GET', url: path })
-  return { status: reply.statusCode, body: reply.body }
+  return {
+    status: reply.statusCode,
+    body: reply.body,
+    incidentId: reply.headers[INCIDENT_ID_HEADER.toLowerCase()],
+    retryAfter: reply.headers['retry-after'],
+  }
 }
+
+describe('@owlmeans/server-api — production error exposure', () => {
+  test('returns only an incident id in production and correlates it with the header', async () => {
+    const response = await answer(new Error('private-marker'))
+    expect(response.body).toBe(response.incidentId)
+    expect(response.body).not.toContain('private-marker')
+    expect(response.body).not.toContain(SEPARATOR)
+    expect(response.body).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
+
+  test('includes stacks only under explicit development exposure and safely serializes SyntaxError', async () => {
+    const development = await answer(new Error('development-marker'), '/handle-development')
+    const [type, message, stack, incidentId] = development.body.split(SEPARATOR, 4)
+    expect(type).toBe(ResilientError.typeName)
+    expect(message).toBe('development-marker')
+    expect(stack).toContain('development-marker')
+    expect(incidentId).toBe(development.incidentId)
+
+    const syntax = await answer(new SyntaxError('bad wiring'))
+    expect(syntax.status).toBe(500)
+    expect(syntax.body).toBe(syntax.incidentId)
+    expect(syntax.body).not.toContain('bad wiring')
+
+    expect(errorExposure()).toBe('production')
+    expect(errorExposure({ http: { errors: { exposure: 'development' } } })).toBe('development')
+  })
+})
 
 describe('@owlmeans/server-api — handleError status', () => {
   test('keeps the auth mappings: forbidden 403, unauthenticated 401', async () => {
@@ -167,7 +223,7 @@ describe('@owlmeans/server-api — handleError status', () => {
   test('honours a 4xx a class declares — inherited, redeclared, or after a marshal hop', async () => {
     const refused = await answer(new OutOfCredit('create'))
     expect(refused.status).toBe(402)
-    expect(ResilientError.ensure(new Error(refused.body))).toBeInstanceOf(OutOfCredit)
+    expect(refused.body).toBe(refused.incidentId)
 
     expect((await answer(new OutOfCreditForStory())).status).toBe(402)
     expect((await answer(new Busy())).status).toBe(409)
@@ -186,6 +242,18 @@ describe('@owlmeans/server-api — handleError status', () => {
       expect((await answer(typed(type))).status).toBe(500)
       expect((await answer(new ForeignResilientError(type, 'near-miss'))).status).toBe(500)
     }
+  })
+
+  test('honours an explicitly exposed 5xx without opening arbitrary server statuses', async () => {
+    expect((await answer(new TemporarilyUnavailable())).status).toBe(503)
+    const Unexposed = declaring('ServerApiSpecUnexposed503', 503)
+    expect((await answer(new Unexposed())).status).toBe(500)
+  })
+
+  test('emits Retry-After for a throttled response', async () => {
+    const response = await answer(new Throttled())
+    expect(response.status).toBe(429)
+    expect(response.retryAfter).toBe('18')
   })
 
   test('executeResponse answers a rejected response with the same status', async () => {

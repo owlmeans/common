@@ -123,6 +123,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 - `/login-plugins`, `/login-methods` — read both before touching a login dispatcher
 - `/consent` — cookie consent and tag managers (`/web-consent`, `/web-gtm`, `/astro`)
 - `/server-auth-otp` — email OTP login; mail transports `/mailer`, `/mailer-smtp`, `/server-mailer-mailgun`
+- `/server-auth-session` — seven-day session registry and Redis authority
 - `/oidc-versions` — before upgrading any OIDC/OAuth dependency
 - `/router-plugins` — before wiring routing in an app
 - `/queue` — jobs and queues (`/redis-queue`, `/server-job`, `/client-job`, `/scheduled-jobs`)
