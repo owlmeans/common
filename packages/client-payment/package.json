@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.18-rc.37",
+    "@owlmeans/client-auth": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/payment": "^0.1.18-rc.29"
+    "@owlmeans/payment": "^0.1.18-rc.30"
   },
   "peerDependencies": {
     "react": "*"

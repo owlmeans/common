@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/payment",
-  "version": "0.1.18-rc.29",
+  "version": "0.1.18-rc.30",
   "license": "MIT",
   "type": "module",
   "scripts": {

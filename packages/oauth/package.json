@@ -1,0 +1,44 @@
+{
+  "name": "@owlmeans/oauth",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "Shared OAuth 2.1 contracts for OwlMeans authorization servers and clients — device authorization, authorization code + PKCE, protected-resource and authorization-server metadata, Client ID Metadata Documents, the shared consent flow, and runtime-agnostic client helpers.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18-rc.27",
+    "@owlmeans/entrypoint": "^0.1.18-rc.28",
+    "@owlmeans/error": "^0.1.18-rc.27",
+    "@owlmeans/flow": "^0.1.18-rc.30",
+    "@owlmeans/route": "^0.1.18-rc.26",
+    "@noble/hashes": "^1.5.0",
+    "@scure/base": "^2.3.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "ajv": "^8.17.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

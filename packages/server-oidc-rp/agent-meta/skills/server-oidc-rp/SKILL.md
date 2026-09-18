@@ -27,7 +27,7 @@ user-invocable: false
 | `DEFAULT_ALIAS` | `'oidc-client'` — the relying-party service alias |
 | `DEF_OIDC_ACCOUNT_LINKING`, `DEF_OIDC_PROVIDER_API` | Default aliases of the two optional seams below |
 | `OIDC_TOKEN_STORE` | The **record-id prefix** this package composes cache ids from — not a resource alias. See "Where the tokens are cached" |
-| `OIDC_AUTH_LIFTETIME` | 24 h — the TTL a stored token record is saved with |
+| `OIDC_AUTH_LIFTETIME` | Seven days — the absolute TTL of an issued wrapper and its stored token record |
 | `OIDC_WRAP_FRESHNESS` | How long a validated record stays fresh: inside this window of its last validation the wrapping service returns the token unchanged, past it the token is re-validated and re-issued |
 | `PROVIDER_CACHE_TTL` | Exported, but its only use in the package is commented out — it configures nothing |
 | `AccountLinkingService` | Optional seam: turn a provider profile into a local `AuthPayload` (`getLinkedProfile`, `linkProfile`, `linkCredentials`, `getOwnerProfiles`, `getOwnerCredentials`) |
@@ -139,7 +139,7 @@ There is no dedicated resource. The cache is `AUTH_CACHE` from `@owlmeans/server
 |---|---|
 | `${OIDC_TOKEN_STORE}:verifier:<challenge or state>` | The PKCE verifier and the client it belongs to, until the exchange takes it |
 | `${OIDC_TOKEN_STORE}:exchange:<exchange token>` | The token set from a completed code exchange, short-lived, deleted when the process step consumes it |
-| `${OIDC_TOKEN_STORE}:token:<bearer token>` | The live token set for an issued bearer token, saved with `OIDC_AUTH_LIFTETIME` |
+| `${OIDC_TOKEN_STORE}:token:<bearer token>` | The live token set for an issued wrapper, saved with its original absolute `OIDC_AUTH_LIFTETIME` expiry |
 
 A consumer that needs the provider token set behind the request it is serving reads
 `context.resource(AUTH_CACHE)` at `${OIDC_TOKEN_STORE}:token:<token>` — never
@@ -220,6 +220,15 @@ modules — what the owned names buy is that it stops there and never reaches a 
   bearer token an application actually carries are all produced here.
 - Register the wrapping service whenever the guard is registered — an OIDC-wrapped token that nothing
   refreshes expires mid-session.
+- A provider configured with `sessionValidation: 'required'` is authoritative on every protected
+  request: the wrapper must require same-client introspection and current userinfo claims. An
+  invalid provider token clears the local wrapper (401); an authority or registry outage fails
+  closed as `AuthUnavailable` (503) without deleting a valid local session.
+- When `AUTH_SESSION_MANAGER` is registered, exchange creates a tracked OIDC session and the
+  wrapper rejects pre-registry tokens. It acknowledges a changed authorization revision only after
+  live provider validation, and never extends the original wrapper/cache expiry while doing so.
+- Provider descriptors, token sets, PKCE verifiers, authorization codes and cached challenge
+  records are secrets. Do not log them or pass them to diagnostics.
 
 ## Depends On
 

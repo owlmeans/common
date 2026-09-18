@@ -14,6 +14,8 @@ import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { OIDC_AUTH_LIFTETIME } from '../consts.js'
+import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
+import type { AuthSessionManager } from '@owlmeans/server-auth-session'
 import { wrapper } from '../utils/wrapped.js'
 import { extractPermissionSets } from '../utils/permissions.js'
 import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
@@ -46,9 +48,6 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     credential: new Url.URLSearchParams(params).toString()
   } as AuthCredentials)
 
-
-  console.log("\n\n ============ \n Config we got for real autentioncation", cfg)
-
   if (tokenSet.id_token == null || tokenSet.access_token == null) {
     throw new AuthenFailed()
   }
@@ -68,12 +67,18 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
   // Integrated IAM mode: the provider mints the subject's PermissionSet[] into the id_token
   const permissions = extractPermissionSets(id[PERMISSIONS_CLAIM])
 
+  const issuedAt = Date.now()
+  const expiresAt = issuedAt + OIDC_AUTH_LIFTETIME
+  const entityId = cfg.entityId ?? cfg.clientId
+  const profileId = typeof id.sub === 'string' && id.sub !== '' ? id.sub : null
+
   let user: Auth = {
     type: OIDC_WRAPPED_TOKEN,
     token,
     // @TODO Actually this is highly incorrect - we need to get profile details
     // from the OwlMeans Auth intead ?
-    userId: id.sub as string,
+    userId: profileId ?? '',
+    profileId: profileId ?? undefined,
     // @TODO Actually we should check is it user or admin or even guest
     // and set proper role
     role: AuthRole.Guest,
@@ -91,12 +96,25 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     entitySlug: cfg.entityId,
     ...(permissions != null ? { permissions, permissioned: true } : {}),
     isUser: true,
-    createdAt: new Date(),
+    createdAt: new Date(issuedAt),
+    expiresAt: new Date(expiresAt),
   }
 
-  console.log('>>>>> ~~~~~ STORE RECORD WITH ID: ', managedId(token))
+  if (profileId == null) throw new AuthenFailed('subject')
+  if (context.hasService(AUTH_SESSION_MANAGER)) {
+    const decision = await context.service<AuthSessionManager>(AUTH_SESSION_MANAGER).register({
+      // The integrated IAM service intentionally fences a whole organization profile. A grant
+      // change in one target must also refresh an already-issued OIDC wrapper for that profile;
+      // keeping this selector global makes disablement and every permission mutation converge.
+      id: managedId(token), kind: 'oidc-access', entityId, profileId,
+      issuedAt, expiresAt,
+    })
+    if (decision.state !== 'active') throw new AuthenFailed('session')
+    user = { ...user, sessionId: managedId(token), authorizationVersion: decision.version }
+  }
+
   await cache(context).create(
-    { id: managedId(token), payload: tokenSet, client: cfg.clientId },
+    { id: managedId(token), payload: tokenSet, client: cfg.clientId, entityId, profileId, expiresAt },
     { ttl: OIDC_AUTH_LIFTETIME / 1000 }
   )
 

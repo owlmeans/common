@@ -2,7 +2,11 @@ import { FORBIDDEN_ERROR, SERVER_ERROR, UNAUTHORIZED_ERROR } from '@owlmeans/api
 import type { FastifyReply } from 'fastify'
 import { AccessError, AuthFailedError } from '../errors.js'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
-import { ResilientError } from '@owlmeans/error'
+import { isResilientError, ResilientError, SEPARATOR } from '@owlmeans/error'
+import { randomUUID } from 'node:crypto'
+import type { Config, HttpErrorExposure } from '../types.js'
+
+export const INCIDENT_ID_HEADER = 'X-Incident-ID'
 
 /**
  * What an error class may declare about the HTTP status it is answered with.
@@ -13,31 +17,38 @@ import { ResilientError } from '@owlmeans/error'
  */
 export interface HttpStatusDeclaration {
   httpStatus?: unknown
+  /** Explicit opt-in for a declared 5xx response. Client-error declarations need no opt-in. */
+  allowServerErrorStatus?: unknown
 }
 
 const CLIENT_ERROR_FIRST = 400
 const CLIENT_ERROR_LAST = 499
+const SERVER_ERROR_FIRST = 500
+const SERVER_ERROR_LAST = 599
 
 /**
- * The 4xx status an error's class declares, or `null` when it declares none that may be honoured.
+ * The HTTP status an error's class declares, or `null` when it declares none that may be honoured.
  *
  * Read through the constructor chain — a static property is inherited, so a subclass answers what
- * its nearest declaring ancestor says, and redeclares to change it. Only an integer 4xx is honoured:
- * a declaration is how a class says "this is the caller's condition, not a fault", and a 5xx, a 2xx,
- * a string or a fraction says nothing a boundary can act on. The read is structural, so a class from
- * a duplicate module copy declares exactly what the imported one does.
+ * its nearest declaring ancestor says, and redeclares to change it. An integer 4xx is honoured
+ * directly. A 5xx is honoured only with `allowServerErrorStatus = true`, so a domain class must
+ * explicitly opt in to exposing a precise availability response. The read is structural, so a
+ * class from a duplicate module copy declares exactly what the imported one does.
  */
 export const declaredErrorStatus = (error: unknown): number | null => {
   if (error == null || typeof error !== 'object') {
     return null
   }
-  const status = (error.constructor as HttpStatusDeclaration | undefined)?.httpStatus
-  if (typeof status !== 'number' || !Number.isInteger(status)
-    || status < CLIENT_ERROR_FIRST || status > CLIENT_ERROR_LAST) {
+  const declaration = error.constructor as HttpStatusDeclaration | undefined
+  const status = declaration?.httpStatus
+  if (typeof status !== 'number' || !Number.isInteger(status)) {
     return null
   }
+  if (status >= CLIENT_ERROR_FIRST && status <= CLIENT_ERROR_LAST) return status
+  if (status >= SERVER_ERROR_FIRST && status <= SERVER_ERROR_LAST
+    && declaration?.allowServerErrorStatus === true) return status
 
-  return status
+  return null
 }
 
 /**
@@ -86,7 +97,7 @@ const isOfFamily = (names: Set<string>, family: string[]): boolean =>
  * **Order matters.** `AuthForbidden extends AuthorizationError`, so the 403 branch has to be
  * tested first or every refusal of a permission is reported as a failure to authenticate. Both
  * auth branches come before a class's own declaration, so an auth refusal can never be restated
- * as something else. Everything that is neither an auth error nor a class declaring a 4xx
+ * as something else. Everything that is neither an auth error nor a class declaring an allowed
  * {@link declaredErrorStatus} answers 500.
  */
 export const errorStatus = (error: unknown): number => {
@@ -109,6 +120,66 @@ export const errorStatus = (error: unknown): number => {
   return declaredErrorStatus(error) ?? SERVER_ERROR
 }
 
+export interface SerializedHttpError {
+  status: number
+  body: string
+  incidentId: string
+}
+
+/** Invalid or absent configuration always resolves to the production-safe policy. */
+export const errorExposure = (config?: Pick<Config, 'http'>): HttpErrorExposure =>
+  config?.http?.errors?.exposure === 'development' ? 'development' : 'production'
+
+/**
+ * Preserve a typed/marshalled error when possible without asking `ensure` to convert a plain
+ * error. In particular, `ensure` deliberately rethrows SyntaxError; an HTTP boundary still has
+ * to serialize it safely and let the incident log retain the original object.
+ */
+const normalizeForWire = (error: Error): Error => {
+  if (error instanceof SyntaxError || isResilientError(error)) {
+    return error
+  }
+  if (error.message.includes(SEPARATOR)) {
+    const ensured = ResilientError.ensure(error)
+    // The catch-all converter's legacy constructor shape shifts an ordinary error's fields.
+    // Only keep `ensure`'s result when a registered wire prefix actually rebuilt something.
+    if (ensured.type !== error.message || ensured.message !== error.stack) {
+      return ensured
+    }
+  }
+  return error
+}
+
+/** One central wire shape for every server error. */
+export const serializeError = (
+  error: Error, exposure: HttpErrorExposure = 'production'
+): SerializedHttpError => {
+  const normalized = normalizeForWire(error)
+  const thrown = errorStatus(error)
+  const status = thrown !== SERVER_ERROR ? thrown : errorStatus(normalized)
+  const incidentId = randomUUID()
+  // The server log owns every diagnostic. Production callers receive only its correlation key;
+  // development keeps the typed wire form so local clients can retain their usual error details.
+  Object.assign(error, { incidentId })
+  if (isResilientError(normalized)) normalized.incidentId = incidentId
+  const body = exposure === 'production'
+    ? incidentId
+    : ResilientError.marshal(normalized, { includeStack: true, incidentId }).message
+
+  return { status, body, incidentId }
+}
+
+/** Apply safe response metadata carried by an error without coupling its package to Fastify. */
+export const applyErrorHeaders = (error: unknown, reply: FastifyReply): void => {
+  if (error == null || typeof error !== 'object') {
+    return
+  }
+  const retryAfter = (error as { retryAfter?: unknown }).retryAfter
+  if (typeof retryAfter === 'number' && Number.isFinite(retryAfter) && retryAfter > 0) {
+    reply.header('Retry-After', String(Math.ceil(retryAfter)))
+  }
+}
+
 /**
  * Answer a thrown error: a status, and the marshalled `ResilientError` as the body.
  *
@@ -119,11 +190,17 @@ export const errorStatus = (error: unknown): number => {
  * Only when the thrown error answers 500 is the ENSURED error asked, because the rebuild is what
  * gives a status to a marshalled error that crossed a hop as a plain `Error`.
  */
-export const handleError = (error: Error, reply: FastifyReply) => {
+export const handleError = (
+  error: Error, reply: FastifyReply, exposure: HttpErrorExposure = 'production'
+) => {
   if (!reply.sent) {
-    const resilient = ResilientError.ensure(error as Error)
-    const thrown = errorStatus(error)
-    reply.code(thrown !== SERVER_ERROR ? thrown : errorStatus(resilient))
-      .send(ResilientError.marshal(resilient).message)
+    const serialized = serializeError(error, exposure)
+    applyErrorHeaders(error, reply)
+    // Fastify/Pino's `err` serializer retains the original type, message and full stack. This is
+    // the one log entry that owns those details in production, keyed by the response incident ID.
+    reply.log.error({ err: error, incidentId: serialized.incidentId }, 'Request failed')
+    reply.header(INCIDENT_ID_HEADER, serialized.incidentId)
+      .code(serialized.status)
+      .send(serialized.body)
   }
 }

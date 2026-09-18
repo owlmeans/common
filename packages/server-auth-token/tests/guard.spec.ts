@@ -116,6 +116,50 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
   })
 })
 
+describe('@owlmeans/server-auth-token — audience admission', () => {
+  test('a token with no audience is admitted by a guard that opted into resource checking', async () => {
+    const { guard } = await armed({ resources: ['https://api.example.com'] })
+
+    expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
+  })
+
+  test('a token scoped to a resource is refused by a guard for a different one', async () => {
+    const context = await makeTestContext({ resources: ['https://api.example.com'] })
+    await seedProfile(context)
+    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
+
+    expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
+  })
+
+  test('a token scoped to a resource is admitted by a guard configured for it', async () => {
+    const context = await makeTestContext({ resources: ['https://api.example.com/mcp', 'https://api.example.com'] })
+    await seedProfile(context)
+    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
+
+    expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
+  })
+
+  test('a guard that never opted in ignores audience entirely — full backward compatibility', async () => {
+    const context = await makeTestContext()
+    await seedProfile(context)
+    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
+
+    expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
+  })
+
+  test('a function `resources` option is resolved with the live context, not cached from registration', async () => {
+    const context = await makeTestContext({ resources: () => ['https://api.example.com'] })
+    await seedProfile(context)
+    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com'] })
+    const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
+
+    expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
+  })
+})
+
 describe('@owlmeans/server-auth-token — the hash at rest', () => {
   test('the stored value is not the token', () => {
     const hash = hashAccessToken(TOKEN)

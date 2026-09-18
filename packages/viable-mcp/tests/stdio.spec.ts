@@ -35,6 +35,9 @@ const start = async (args: string[] = [], env: Record<string, string> = {}): Pro
     env: {
       PATH: process.env.PATH ?? '',
       HOME: process.env.HOME ?? '',
+      // Isolated by default — a test that does not override this must never fall through to the
+      // operator's REAL `~/.owlmeans`, which `HOME` above still points at.
+      OWLMEANS_CREDENTIALS: p.join(dir, '.owlmeans'),
       VIABLE_API_TOKEN: 'vib_offline_test_token',
       VIABLE_API_URL: UNREACHABLE,
       VIABLE_PROJECT_DIR: dir,
@@ -161,16 +164,50 @@ describe('@owlmeans/viable-mcp — the mode decides what is offered', () => {
     }
   }, 30_000)
 
-  test('a server started without a token explains itself and exits', async () => {
-    const proc = Bun.spawn(['node', BIN], {
-      env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '' },
+  test('a server started with no token starts anyway, and an API tool answers with a readable refusal', async () => {
+    // `start()` already isolates `OWLMEANS_CREDENTIALS` to this run's own temp directory —
+    // `HOME` is still the real one, and reading the operator's actual `~/.owlmeans` from a test
+    // run would be both nondeterministic and a privacy problem.
+    const started = await start([], { VIABLE_API_TOKEN: '' })
+    try {
+      // The server itself came up — a version that still exited 2 here would never have reached
+      // this line, since `start()` opens a real stdio client connection.
+      expect(await names(started)).toContain('list_projects')
+
+      // Signing in means reaching this deployment's authorization server first, which the
+      // discard port refuses immediately — exactly like the unreachable-platform case above, this
+      // is a tool result the caller can read, never a hung or crashed server.
+      const result = await started.client.callTool({ name: 'list_projects', arguments: {} })
+      expect(result.isError).toBe(true)
+      expect((result.content as Array<{ text: string }>)[0].text.length).toBeGreaterThan(0)
+
+      // And the session survives it — the next call is answered normally.
+      expect(await names(started)).toContain('create_project')
+    } finally {
+      await started.close()
+    }
+  }, 30_000)
+})
+
+describe('@owlmeans/viable-mcp — the url command', () => {
+  const run = async (env: Record<string, string>) => {
+    const dir = fs.mkdtempSync(p.join(os.tmpdir(), 'viable-mcp-url-'))
+    const proc = Bun.spawn(['node', BIN, 'url'], {
+      env: { PATH: process.env.PATH ?? '', OWLMEANS_CREDENTIALS: p.join(dir, '.owlmeans'), ...env },
       stdout: 'pipe', stderr: 'pipe',
     })
     const code = await proc.exited
+    const out = await new Response(proc.stdout).text()
+    fs.rmSync(dir, { recursive: true, force: true })
 
-    expect(code).toBe(2)
-    expect(await new Response(proc.stderr).text()).toContain('VIABLE_API_TOKEN')
-    // Not one byte on stdout: a host reads it as a protocol stream from the first character.
-    expect(await new Response(proc.stdout).text()).toBe('')
+    return { code, out }
+  }
+
+  test('prints the production /mcp URL, and only that, on stdout', async () => {
+    expect(await run({})).toEqual({ code: 0, out: 'https://api.owlmeans.com/mcp\n' })
+  }, 30_000)
+
+  test('prints the overridden one', async () => {
+    expect(await run({ VIABLE_MCP_URL: 'http://127.0.0.1:1/mcp' })).toEqual({ code: 0, out: 'http://127.0.0.1:1/mcp\n' })
   }, 30_000)
 })

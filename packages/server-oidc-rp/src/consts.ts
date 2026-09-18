@@ -21,6 +21,7 @@ export const OIDC_TOKEN_STORE = 'oidc-token-store'
  */
 export const PROVIDER_CACHE_TTL = (5 * 60 - 1) * 1000
 
-export const OIDC_AUTH_LIFTETIME = 24 * 3600 * 1000
+/** Wrapped OIDC sessions have the same non-sliding maximum lifetime as other browser sessions. */
+export const OIDC_AUTH_LIFTETIME = 7 * 24 * 3600 * 1000
 
 export const OIDC_WRAP_FRESHNESS = (5 * 60 - 1) * 1000

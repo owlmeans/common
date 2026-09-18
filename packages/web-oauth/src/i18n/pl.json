@@ -1,0 +1,35 @@
+{
+  "consent": {
+    "checking": "Sprawdzanie sesji…",
+    "loading": "Wczytywanie żądania…",
+    "framed": "Tego ekranu nie można wyświetlić wewnątrz innej strony. Otwórz go bezpośrednio.",
+    "error": "Coś poszło nie tak. Spróbuj ponownie z aplikacji, która Cię tu skierowała.",
+    "title": "{{client}} chce uzyskać dostęp do Twojego konta",
+    "known": "Korzystałeś już z tej aplikacji.",
+    "known-by-host": "Żądanie z {{host}}.",
+    "unverified": "Ta aplikacja zarejestrowała się samodzielnie i nie została zweryfikowana.",
+    "device-code": "Kod: {{code}}",
+    "device-name": "Urządzenie: {{name}}",
+    "redirect-host": "Wrócisz do {{host}}.",
+    "localhost-warning": "Ta aplikacja zarejestrowała wyłącznie adresy na Twoim własnym komputerze. Zatwierdź to tylko wtedy, gdy sam przed chwilą rozpocząłeś logowanie.",
+    "scope": "Żądany dostęp: {{scopes}}",
+    "approve": "Zatwierdź",
+    "deny": "Odrzuć",
+    "error-missing": "Nie ma tu nic do zatwierdzenia. Rozpocznij logowanie od nowa w aplikacji.",
+    "error-not-found": "To żądanie jest nieznane lub zostało już wykorzystane. Rozpocznij logowanie od nowa w aplikacji.",
+    "error-expired": "To żądanie wygasło. Rozpocznij logowanie od nowa w aplikacji.",
+    "error-forbidden": "Ten rodzaj konta nie może zatwierdzać dostępu. Zaloguj się kontem, którego używasz w OwlMeans, i spróbuj ponownie.",
+    "switch-account": "Użyj innego konta"
+  },
+  "device": {
+    "title": "Połącz urządzenie",
+    "description": "Wpisz kod wyświetlony przez aplikację, z którą się łączysz.",
+    "code-label": "Kod",
+    "continue": "Dalej"
+  },
+  "done": {
+    "title": "Jesteś zalogowany",
+    "message": "Możesz zamknąć to okno i kontynuować w aplikacji, która Cię tu skierowała.",
+    "device-message": "Możesz zamknąć to okno. Aplikacja wykryje to automatycznie."
+  }
+}

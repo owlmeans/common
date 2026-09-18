@@ -54,6 +54,8 @@
     "@owlmeans/resource": "^0.1.18-rc.27",
     "@owlmeans/route": "^0.1.18-rc.26",
     "@owlmeans/server-api": "^0.1.18-rc.33",
+    "@owlmeans/server-auth-identity": "^0.1.18-rc.29",
+    "@owlmeans/server-auth-session": "^0.1.18-rc.1",
     "@owlmeans/server-context": "^0.1.18-rc.28",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.27",
     "@owlmeans/server-route": "^0.1.18-rc.25",

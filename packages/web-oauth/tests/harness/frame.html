@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>@owlmeans/web-oauth framed</title>
+  </head>
+  <body>
+    <iframe id="frame" title="framed consent" width="600" height="500"></iframe>
+    <script>
+      // The consent screen, framed by a page of the same origin: the clickjacking case the screen
+      // refuses to render into, whoever the framing page is.
+      document.getElementById('frame').src = new URLSearchParams(location.search).get('src') || '/'
+    </script>
+  </body>
+</html>
