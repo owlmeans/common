@@ -1,8 +1,9 @@
 import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import type { AbstractResponse, AbstractRequest } from '@owlmeans/entrypoint'
 import type { Request, Response } from '../types.js'
-import { ACCEPTED, CREATED, OK, SERVER_ERROR } from '@owlmeans/api'
+import { ACCEPTED, CREATED, OK } from '@owlmeans/api'
 import type { AnySchemaObject } from 'ajv'
+import { errorStatus } from './error.js'
 
 export const provideRequest = (alias: string, req: Request, provision?: boolean): AbstractRequest => {
   provision = provision ?? false
@@ -35,7 +36,10 @@ export const executeResponse = <T>(response: AbstractResponse<T>, reply: Respons
     if (throwOnError ?? false) {
       throw response.error
     }
-    reply.code(SERVER_ERROR).send(response.error.message)
+    // The status of the error as rejected, resolved like `handleError`'s first step — every pipeline
+    // caller passes `throwOnError` and lands there; a caller that does not must not report a refusal
+    // as a crash either. Nothing is ensured here, so there is no rebuilt error to ask second.
+    reply.code(errorStatus(response.error)).send(response.error.message)
     return true
   } else if (response.outcome != null) {
     switch (response.outcome) {

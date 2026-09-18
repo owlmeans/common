@@ -44,7 +44,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app my-app
+npx @owlmeans/create-app@^0.1.18-rc.36 my-app
 ```
 
 This generates the three-workspace project below, installs dependencies, and — by default —
@@ -65,7 +65,7 @@ The harness guidance ships with the project itself (`agent-memory`, `memory-prom
 it is present even with `--no-install`, and the project can grow its own guidance from day one.
 
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
-`--yes`. See `npx @owlmeans/create-app --help`.
+`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.36 --help`.
 
 Then run it:
 
@@ -97,7 +97,7 @@ git init
   "name": "my-app",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.0",
   "workspaces": ["sources/*"],
   "scripts": {
     "dev": "bun run --filter './sources/common' build && bun run --filter './sources/*' --parallel dev",
@@ -114,13 +114,15 @@ package) — add it as a dev dependency in each workspace and `extends` its `tsc
 
 ### 2. `sources/common` — the shared contract
 
-Declare the API as OwlMeans **entrypoints**: a `route()` (id + path + method) wrapped by
-`entrypoint()`, with `filter(params(...) / body(...))` for AJV validation. Use a session id as a
-route param so the demo needs no auth.
+Declare the API as OwlMeans **protocols**: a `route()` (id + path + method) wrapped by
+`protocol()` (or `openProtocol()` when a route intentionally has no payload contract). Put AJV
+validation and TypeScript types in `contract.request(...)`, and access rules in protocol options.
+Use a session id as a route param so the demo needs no auth.
 
 `sources/common/src/consts.ts`:
 
 ```ts
+export const APP = 'my-app'
 export const APP_WEB = 'my-app-web'
 export const APP_API = 'my-app-api'
 export const WEB_PORT = 3001
@@ -135,25 +137,40 @@ export const session = {
 export const web = { session: 'my-app:web:session', about: 'my-app:web:about' }
 ```
 
-`sources/common/src/modules.ts`:
+`sources/common/src/entrypoints.ts`:
 
 ```ts
-import { body, entrypoint, filter, params } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod } from '@owlmeans/route'
 import { session } from './consts.js'
 import { AddItemSchema, ItemParamsSchema, SessionParamsSchema } from './schemas.js'
 import type { AddItemPayload, ItemParams, SessionParams } from './types.js'
 
-export const sessionModules = [
-  entrypoint(route(session.base, '/session')),
-  entrypoint(route(session.list, '/:sid/items', { parent: session.base, method: RouteMethod.GET }),
-    filter(params<SessionParams>(SessionParamsSchema))),
-  entrypoint(route(session.add, '/:sid/items', { parent: session.base, method: RouteMethod.POST }),
-    filter(params<SessionParams>(SessionParamsSchema, body<AddItemPayload>(AddItemSchema)))),
-  entrypoint(route(session.remove, '/:sid/items/:id', { parent: session.base, method: RouteMethod.DELETE }),
-    filter(params<ItemParams>(ItemParamsSchema))),
+export const sessionEntrypoints = [
+  openProtocol(route(session.base, '/session')),
+  protocol(
+    route(session.list, '/:sid/items', { parent: session.base, method: RouteMethod.GET }),
+    contract.request({ params: typed<SessionParams>(SessionParamsSchema) }, typed<unknown>()),
+  ),
+  protocol(
+    route(session.add, '/:sid/items', { parent: session.base, method: RouteMethod.POST }),
+    contract.request({
+      params: typed<SessionParams>(SessionParamsSchema),
+      body: typed<AddItemPayload>(AddItemSchema),
+    }, typed<unknown>()),
+  ),
+  protocol(
+    route(session.remove, '/:sid/items/:id', { parent: session.base, method: RouteMethod.DELETE }),
+    contract.request({ params: typed<ItemParams>(ItemParamsSchema) }, typed<unknown>()),
+  ),
 ]
 ```
+
+A route declaration is plain, immutable data, and its `path` is the **segment** it contributes
+under its `parent` — nothing rewrites it later. `session.list` therefore reads `/:sid/items` under
+`session.base`'s `/session`, under the api service's `base: 'api'`, and the address
+`GET /api/session/:sid/items` is computed on demand by whoever asks for it. That is why the same
+declaration serves the server that mounts it and the browser that calls it.
 
 The shared config registers both services (so the web knows where the API lives). `base: 'api'`
 prefixes every API route with `/api`. `security.unsecure` is required in local dev because the API
@@ -177,7 +194,7 @@ Add `types.ts` (`SessionItem`, `AddItemPayload`, `SessionParams`, `ItemParams`) 
 
 ### 3. `sources/api` — backend with an in-memory session resource
 
-Register the static resource in the context and `elevate()` each entrypoint with a handler.
+Register the static resource in the context and `bind()` each shared protocol with a handler.
 
 `sources/api/src/context.ts`:
 
@@ -193,38 +210,63 @@ export const makeContext = (cfg) => {
 }
 ```
 
-Handlers read/write `ctx.getStaticResource(SESSION_ITEMS)`. `handleParams` / `handleBody` give you
-the validated params/body; the second argument is the context:
+Handlers read/write `ctx.getStaticResource(SESSION_ITEMS)`. Create them from the shared protocol so
+the callback receives the validated body/params and the context with no local casts:
 
 ```ts
-import { handleBody } from '@owlmeans/server-app'
+import { handlers } from '@owlmeans/server-api'
+import { appEntrypoints as protocols } from 'my-app-common'
+import type { Context } from 'my-app-backend'
 import { randomUUID } from 'node:crypto'
 
-export const add = handleBody(async (payload, context, req) => {
+const api = handlers<Context>()
+export const add = api.body(protocols.api.session.add, async (payload, context, req) => {
   const { sid } = req.params
   const resource = context.getStaticResource(SESSION_ITEMS)
   return await resource.create({ id: randomUUID(), sessionId: sid, text: payload.text, createdAt: new Date().toISOString() })
 })
+export const list = api.params(protocols.api.session.list, async (params, context) => {
+  const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
+  const { items } = await resource.list(
+    { sessionId: params.sid },
+    { sort: [{ field: 'createdAt', order: 'desc' }] }
+  )
+
+  return items
+})
+
+export const remove = api.params(protocols.api.session.remove, async ({ sid, id }, context) => {
+  const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
+  await resource.delete(id)
+  return { sid, id }
+})
 ```
 
-> `@owlmeans/static-resource`'s `list()` returns every record (it does not accept criteria), so the
-> `list` handler lists all and filters by `sessionId` in JS. That is the whole "session scoping":
-> each browser sends its own `sid`.
+The `list` handler asks the resource the whole question rather than filtering afterwards — every
+resource takes the same criteria language, and the in-memory ones are unpaged.
 
-`sources/api/src/modules.ts` attaches handlers and merges the framework's default `modules`:
+> `list` answers `{ items, total }`. A bare criteria value means equality and a bare array means
+> "any of these"; `sort` is a field name or `{ field, order }`. That criteria on `sessionId` is the
+> whole "session scoping": each browser sends its own `sid`.
+
+`sources/api/src/entrypoints.ts` attaches handlers and merges the framework's default `entrypoints`:
 
 ```ts
-import { elevate, modules } from '@owlmeans/server-app'
-import { session, sessionModules } from 'my-app-common'
-import * as handlers from './app/session/index.js'
-
-elevate(sessionModules, session.base)
-elevate(sessionModules, session.list, handlers.list)
-elevate(sessionModules, session.add, handlers.add)
-elevate(sessionModules, session.remove, handlers.remove)
-
-export const appModules = [...modules, ...sessionModules]
+import { entrypoints as frameworkEntrypoints } from '@owlmeans/server-app'
+import { bind } from '@owlmeans/server-entrypoint'
+import { appEntrypoints as protocols } from 'my-app-common'
+import * as handlersForSession from './app/session/index.js'
+export const appEntrypoints = [
+  ...frameworkEntrypoints,
+  bind(protocols.api.session.base),
+  bind(protocols.api.session.list, handlersForSession.list),
+  bind(protocols.api.session.add, handlersForSession.add),
+  bind(protocols.api.session.remove, handlersForSession.remove),
+]
 ```
+
+`bind` materializes the immutable protocol declaration without changing the shared tree. The
+protocol carries its request/response types and access rules to every package that binds it.
 
 `sources/api/src/index.ts` boots it:
 
@@ -232,9 +274,9 @@ export const appModules = [...modules, ...sessionModules]
 import { main } from '@owlmeans/server-app'
 import config from './config.js'
 import { makeContext } from './context.js'
-import { appModules } from './modules.js'
+import { appEntrypoints } from './entrypoints.js'
 
-main(makeContext(config), appModules)
+main(makeContext(config), appEntrypoints)
 ```
 
 (`config.ts` does `config(APP_API, commonConfig)` and sets `cfg.port = API_PORT`.)
@@ -282,6 +324,25 @@ that scan by default. Without the line, the classes that exist **only** inside `
 components — the whole navigation shell and footer — never reach the stylesheet and the app renders
 an unstyled menu. Every consumer of `web-panel` needs it, not just this scaffold.
 
+`src/context.ts` builds the browser context — one factory, called once per process, composing the
+layer below plus the `append*` mixins this app needs:
+
+```ts
+import { makeContext as makeBasicContext } from '@owlmeans/web-panel'
+import { appendStateResource } from '@owlmeans/state'
+
+export const SESSION_STATE = 'session-items'
+
+export const makeContext = (cfg) => {
+  const context = makeBasicContext(cfg)
+  appendStateResource(context, SESSION_STATE)   // the client store the screens read
+  return context
+}
+```
+
+A state resource lives **on the context**, which is what separates it from a store held beside the
+app: a screen, a guard and a service all reach the same records through the same container.
+
 Render with `render` from `web-client`. Routing resolves itself from the active router plugin —
 `makeContext` already registered `@owlmeans/web-router`, so `PanelApp` takes no router prop:
 
@@ -293,40 +354,76 @@ export const render = (context) =>
   basicRender(<PanelApp context={context} />)
 ```
 
-Wire routes to components in `src/modules.ts`. A parent `BASE` route renders the layout; `HOME` is
-its default child; the session and about screens are further children. `elevate` the backend
-entrypoints (no component) so the client can call them:
+Wire routes to components in `src/entrypoints.ts`. A parent `BASE` route renders the layout; `HOME`
+is its default child; the session and about screens are further children. Bind backend protocols with
+`bindAll` so the client can call them:
 
 ```ts
-import { BASE, elevate, entrypoint, frontend, handler, HOME, modules as baseModules, route } from '@owlmeans/web-panel'
-import { session, sessionModules, web } from 'my-app-common'
+import { bindAll, bindScreen } from '@owlmeans/client-entrypoint'
+import { handler } from '@owlmeans/client'
+import { entrypoints as baseEntrypoints } from '@owlmeans/web-client'
+import { appEntrypoints as protocols } from 'my-app-common'
 import { MainLayout } from './layout/main.js'
 import { AboutScreen } from './screens/about.js'
 import { HomeScreen } from './screens/home.js'
 import { SessionScreen } from './screens/session.js'
 
-const modules = [...baseModules, ...sessionModules]
-elevate(modules, session.base); elevate(modules, session.list)
-elevate(modules, session.add);  elevate(modules, session.remove)
+const entrypoints = [
+  ...baseEntrypoints,
+  ...bindAll(protocols.api),
+  bindScreen(protocols.web.base, handler(MainLayout)),
+  bindScreen(protocols.web.home, handler(HomeScreen)),
+  bindScreen(protocols.web.session, handler(SessionScreen)),
+  bindScreen(protocols.web.about, handler(AboutScreen)),
+]
 
-modules.push(entrypoint(route(BASE, '/', frontend()), handler(MainLayout)))
-modules.push(entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen)))
-modules.push(entrypoint(route(web.session, '/session', frontend({ parent: BASE })), handler(SessionScreen)))
-modules.push(entrypoint(route(web.about, '/about', frontend({ parent: BASE })), handler(AboutScreen)))
-
-export const appModules = modules
+export const appEntrypoints = entrypoints
 ```
 
 A frontend entrypoint that **has children needs one of them declared `default: true`** — that is
 why `BASE` gets `HOME`. Without a default child a parent route renders blank at its own path.
 
-A screen calls the backend with `context.entrypoint(alias).call({ params, body })`, which returns
-`[data, outcome]`:
+Calling a backend protocol from the client requires its `bind`/`bindAll` entry in the browser package,
+so nothing the app never asked for becomes reachable from the browser. Once bound, a protocol answers
+three explicit questions:
 
 ```tsx
-const [items] = await ctx.entrypoint(session.list).call({ params: { sid } })
-await ctx.entrypoint(session.add).call({ params: { sid }, body: { text } })
+const items = await ctx.entrypoint(protocols.api.session.list).call({ params: { sid } })   // the value
+const { value, outcome } = await ctx.entrypoint(session.add)
+  .invoke({ params: { sid }, body: { text } })                              // value + outcome
+const href = await ctx.entrypoint(web.about).url()                          // the address
 ```
+
+`call` resolves to what the endpoint answered and throws the reply's error, so a caller that only
+needs the value never inspects an outcome. `invoke` gives `{ value, outcome }` for the cases where
+the outcome decides what happens next. `url` builds the address with `:params` filled in and the
+query appended — absolute when the route belongs to another service, or when you ask with
+`{ absolute: true }`. A **screen** entrypoint answers `url()` and refuses `call()`/`invoke()`: a
+screen is navigated to, not called.
+
+The screen keeps nothing in component state. `makeContext` registers a `@owlmeans/state` resource,
+and the screen subscribes to it:
+
+```tsx
+import { useStoreList } from '@owlmeans/client'
+
+const store = ctx.getStateResource<SessionItem>(SESSION_STATE)
+const items = useStoreList<SessionItem>({ resource: SESSION_STATE })
+
+const load = async () => {
+  const data = await ctx.entrypoint(session.list).call({ params: { sid } })
+  await store.replace(data)
+}
+```
+
+`replace` writes every record it is given and drops every record it does not name, which is exactly
+what "the server just told us what exists" means — saving item by item would leave behind the ones
+deleted elsewhere. Subsequent writes are ordinary resource calls (`store.save(item)` after an add,
+`store.delete(id)` after a remove) and every subscriber re-renders on its own.
+
+`useStoreList` hands back **models**, not bare records, so the row reads `item.record.text` and
+writes with `item.update({ ... })`. `useStoreModel(id)` is the single-record form; when the store
+holds nothing under that id the model's `empty` is true instead of throwing.
 
 Navigation is **data**, kept in `src/nav.ts`. Sections are the top menu; a section's items are the
 side menu shown while that section is active:
@@ -387,7 +484,7 @@ import './index.css'
 import { APP_API, APP_WEB } from 'my-app-common'
 // ...
 const context = makeContext(config)
-context.registerEntrypoints(appModules)
+context.registerEntrypoints(appEntrypoints)
 context.serviceRoute(APP_WEB, true)
 context.serviceRoute(APP_API, true)
 render(context)
@@ -405,7 +502,7 @@ bun run dev      # API :3000, web :3001
 Install the OwlMeans Claude Code skills and Copilot instructions into the project:
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested
@@ -419,21 +516,22 @@ under `sources/*` (bun often keeps workspace-only deps there) — and copies gui
 | Concern | Package | What you wrote |
 |---------|---------|----------------|
 | Shared routes + validation + types | `@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/config` | `sources/common` |
-| Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `elevate`, `main` |
+| Backend server + handlers | `@owlmeans/server-app` | `makeContext`, `bind`, `main` |
 | In-memory session store | `@owlmeans/static-resource` | `appendStaticResource` + `getStaticResource` |
-| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `elevate(handler(...))` |
+| Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `bindScreen(handler(...))` |
+| Client store the screens read | `@owlmeans/state` (hooks: `@owlmeans/client`) | `appendStateResource`, `store.replace`, `useStoreList` |
 | Two-layer navigation + footer | `@owlmeans/web-panel` (model: `@owlmeans/client-panel`) | `src/nav.ts`, `NavLayout` in `src/layout/main.tsx` |
 | shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts`, the `@source` line in `src/index.css` |
 
-**The single source of truth is `sources/common`.** The api elevates its entrypoints with handlers;
-the web elevates the same entrypoints with screen components and calls them. Change a route or
+**The single source of truth is `sources/common`.** The api materializes its entrypoints with handlers;
+the web materializes the same entrypoints with screen components and calls them. Change a route or
 schema once and both sides stay in sync.
 
 ## Where to go next
 
 - Swap in a real database: `@owlmeans/mongo` + `@owlmeans/mongo-resource` (or
   `@owlmeans/redis` + `@owlmeans/redis-resource`) instead of `@owlmeans/static-resource`.
-- Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth` and `guard(...)` on
-  entrypoints.
+- Add authentication: `@owlmeans/server-auth` + `@owlmeans/client-auth`, then set
+  `{ guards: DEFAULT_GUARD }` on the relevant protocol declarations.
 - Per-package guidance lives in each package's skill (`.agents/skills/<name>/SKILL.md`) — installed
   into your project by `@owlmeans/agent-skills`.

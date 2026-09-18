@@ -5,7 +5,7 @@
  * scan by default — so the classes that exist ONLY inside @owlmeans/web-panel components
  * (the navigation shell, the footer) would never reach the stylesheet. This line adds them.
  */
-@source "../../../node_modules/@owlmeans/web-panel/build";
+@source "../../../node_modules/@owlmeans/web-panel/src";
 
 /*
  * shadcn / Tailwind v4 design tokens (new-york, neutral). The app owns these — they

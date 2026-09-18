@@ -17,7 +17,7 @@ export const makeWlService = (alias: string = DEFAULT_ALIAS): WlWebService => {
       const context = service.assertCtx<Config, Context>()
 
       const module = context.entrypoint<ClientEntrypoint<ProvidedWLSet>>(WL_PROVIDE)
-      const [wlSet] = await module.call({ params: { entity: entityId } })
+      const wlSet = await module.call({ params: { entity: entityId } })
 
       return cache[entityId] = wlSet as ProvidedWLSet<any>
     },

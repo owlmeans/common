@@ -84,7 +84,7 @@ describe('@owlmeans/web-panel — two-layer navigation', () => {
     const { page, close } = await open('/dash')
     try {
       await page.waitForSelector('#dash')
-      const links = page.locator('footer a')
+      const links = page.locator('footer a:not([data-login-powered])')
       expect(await links.count()).toBe(2)
       expect(await links.nth(0).getAttribute('href')).toBe('/dash')
       expect(await links.nth(1).getAttribute('href')).toBe('https://owlmeans.com')
@@ -174,6 +174,89 @@ describe('@owlmeans/web-panel — the header is its own surface', () => {
         .evaluate(el => window.getComputedStyle(el).backgroundColor)
 
       expect(background).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a broken headerClassName still leaves the backdrop layer opaque', async () => {
+    // `?header=broken` hands the header a Tailwind v3 arbitrary-value class v4 never emits, plus
+    // a bare `bg-transparent` — exactly what a layout-restyle pass produced once. tailwind-merge
+    // drops the header's own `bg-background` for both, so `header` itself legitimately reports a
+    // transparent computed background — that is `headerClassName` doing exactly what it says.
+    // What must NOT be transparent is the backdrop layer painted behind it: that is the element
+    // actually responsible for keeping content from showing through the bar.
+    const { page, close } = await open('/dash?header=broken')
+    try {
+      await page.waitForSelector('#dash')
+      const background = await page.locator('[data-nav-backdrop]').first()
+        .evaluate(el => window.getComputedStyle(el).backgroundColor)
+
+      expect(background).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the backdrop layer never changes which div the shared-rhythm query finds first', async () => {
+    // `data-nav-backdrop` sits last in `header`'s DOM but paints behind everything via negative
+    // z-index — this pins that a position-based query for the header's own content div
+    // (`header > div`, `.first()`) still finds the rhythm div, not the backdrop.
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const first = await page.locator('header > div').first().getAttribute('data-nav-backdrop')
+      expect(first).toBeNull()
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+})
+
+describe('@owlmeans/web-panel — the shell footer credit', () => {
+  test('the platform credit and the owner notice render, owner notice first', async () => {
+    // The harness configures `credit: { poweredBy: true, product: 'Harness', organization: 'Acme' }`
+    // with no explicit `line`, so `resolveCredit` composes one from product/organization — the
+    // same resolver the sign-in screen uses. Order here is the opposite of the sign-in screen's:
+    // the owner's own notice leads, the platform credit follows.
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const credit = page.locator('footer [data-shell-credit]')
+      await credit.waitFor()
+      const text = await credit.textContent()
+      expect(text).toContain('Acme')
+      expect(text).toContain('Powered by OwlMeans')
+      expect(text?.indexOf('Acme')).toBeLessThan(text!.indexOf('Powered by OwlMeans'))
+      const powered = page.locator('footer [data-shell-credit] a[data-login-powered]')
+      expect(await powered.getAttribute('href')).toBe('https://owlmeans.com')
+      expect(await powered.getAttribute('target')).toBe('_blank')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the footer links and the credit are centred, not left-aligned', async () => {
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const justify = await page.locator('footer > div').first()
+        .evaluate(el => window.getComputedStyle(el).alignItems)
+      expect(justify).toBe('center')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a layout with no footer prop still shows the credit', async () => {
+    // `NavLayout` used to skip `Footer` entirely when no `footer` prop was passed, which made the
+    // credit disappear from any area layout that never wired footer links. `?footer=none` omits
+    // the prop from the harness's own `NavLayout` call.
+    const { page, close } = await open('/dash?footer=none')
+    try {
+      await page.waitForSelector('#dash')
+      expect(await page.locator('footer a:not([data-login-powered])').count()).toBe(0)
+      expect(await page.locator('footer [data-shell-credit]').count()).toBe(1)
     } finally {
       await close()
     }

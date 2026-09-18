@@ -24,7 +24,7 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     }
 
     console.log("\n\nWe are picking verifier by id: ", verifierId(challenge))
-    const verification = await cache<C, T>(context).pick(verifierId(challenge))
+    const verification = await cache<C, T>(context).take(verifierId(challenge))
     console.log("Verification we get: ", verification, "\n\n")
     if (verification.verifier == null) {
       throw new AuthenFailed()

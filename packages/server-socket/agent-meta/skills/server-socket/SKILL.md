@@ -1,32 +1,29 @@
 ---
 name: server-socket
-description: How to use @owlmeans/server-socket — Fastify WebSocket integration providing a socket service registered on the server context. Auto-invoked when importing server socket primitives or wiring WebSocket support.
-user-invocable: false
+description: Bind OwlMeans socket protocol declarations to Fastify WebSocket handlers.
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
-# @owlmeans/server-socket
+# Socket protocol handlers
 
-**Layer:** Server
-**Install:** `"@owlmeans/server-socket": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `bun add @owlmeans/server-socket@^0.1.18-rc.35`
 
-## Key Exports
+Declare a socket route and its contract in the shared protocol package. Bind it on the server with
+`connection()` and `bind()`.
 
-| Export | Description |
-|--------|-------------|
-| `makeSocketService()` | Factory for the WebSocket server service |
-| Middleware | Socket middleware for Fastify |
-| Helpers | Channel subscription / broadcast helpers |
-| Constants | Default channel names |
+```ts
+import { bind } from '@owlmeans/server-entrypoint'
+import { connection } from '@owlmeans/server-socket'
 
-## Usage
-
-```typescript
-import { makeSocketService } from '@owlmeans/server-socket'
-context.registerService(makeSocketService())
+export const serverBindings = [
+  bind(streamProtocols.watch, connection(streamProtocols.watch,
+    async (connection, context, request) => {
+      await connection.send({ type: 'ready' })
+    }
+  )),
+]
 ```
 
-## Depends On
-
-- `@owlmeans/socket`, `@owlmeans/server-context`, `@owlmeans/server-api`
-- `@fastify/websocket` (runtime)
+The handler receives a typed connection, context, request and response boundary. Guards and gates
+are inherited from the protocol tree and enforced before the WebSocket handler runs. Do not expose
+Fastify request objects through a shared contract.

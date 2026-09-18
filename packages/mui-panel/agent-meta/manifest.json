@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/mui-panel",
+  "version": "0.1.18-rc.43",
+  "generatedAt": "2026-09-17T08:16:11.257Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "mui-panel",
+      "category": "package-specific",
+      "file": "skills/mui-panel/SKILL.md",
+      "canonicalPath": ".agents/skills/mui-panel/SKILL.md"
+    }
+  ]
+}

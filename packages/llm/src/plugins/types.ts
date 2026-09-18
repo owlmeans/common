@@ -93,6 +93,14 @@ export interface LlmPlugin {
    */
   refine: (params: LlmRefineParams) => BaseChatModel
 
+  /**
+   * Does this plugin turn the model's reasoning off NATIVELY when the config asks for it
+   * (`ModelConfig.disableThinking`)? When it does, the service must not also inject the
+   * `/no_think` prompt directive — that is a soft switch for models with no request-level
+   * control, and on a provider that has one it is nothing but text in the prompt.
+   */
+  suppressesThinking?: (config: Pick<ModelConfig, 'model' | 'disableThinking'>) => boolean
+
   /** How this provider should be asked for schema-conforming output. */
   structuredMode: (config: ModelConfig) => StructuredMode
 

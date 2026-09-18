@@ -5,6 +5,8 @@ import { AuthenPayloadError, AuthUnknown, DISPATCHER } from '@owlmeans/auth'
 import { assertContext } from '@owlmeans/context'
 import type { Config, Context, OidcClientAdapter, OidcClientService } from '../types.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import type { CommonEntrypoint } from '@owlmeans/entrypoint'
+import { makeSecurityHelper } from '@owlmeans/config'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 // import {  PROVIDER_CACHE_TTL } from '../consts.js'
 // import type { Client } from 'openid-client'
@@ -45,7 +47,7 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
      * @TODO We need to move it to some remote resource.
      * And make oidc service itself use such a resource to get required client.
      */
-    const [providers] = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
+    const providers = await context.entrypoint<ClientEntrypoint<OidcProviderDescriptor[]>>(
       authService.provider.list
     ).call({
       params: { service: context.cfg.alias ?? context.cfg.service },
@@ -93,7 +95,14 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     ...(entityIdUsedForResolution ? { entityId } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
-  const [dispatcherUrl] = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).call()
+  // The dispatcher is a FRONTEND route, and this is a server context — the entrypoint registered
+  // here has no `url()` (that helper is attached by `@owlmeans/client-entrypoint` only, for a
+  // browser context that can resolve its own address). Assembled the way `server-oidc-provider`'s
+  // interaction URL is: the entrypoint's path, qualified with the address it answers on — the
+  // frontend service's, not this backend's.
+  const dispatcherEntry = context.entrypoint<CommonEntrypoint>(DISPATCHER)
+  const dispatcherUrl = makeSecurityHelper<Config, Context>(context)
+    .makeUrl(dispatcherEntry.address(), dispatcherEntry.path())
 
   const cfg = client.getConfig()
   const url = client.makeAuthUrl({

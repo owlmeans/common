@@ -62,13 +62,13 @@ export const createDebugService = (alias: string = DEF_DEBUG_ALIAS): DebugServic
   }, service => async () => {
     service.initialized = true
     const context = assertContext(service.ctx, location) as ClientContext
-    const record = await context.getConfigResource().load<DebugConfigRecord>(DEBUG_CONFIG_KEY)
+    const record = await context.getConfigResource<DebugConfigRecord>().load(DEBUG_CONFIG_KEY)
     if (record?.states != null) {
       service.addItem({
         alias: 'reset-states',
         title: `Reset states`,
         action: async (modal, context) => {
-          const record = await context.getConfigResource().load<DebugConfigRecord>(DEBUG_CONFIG_KEY)
+          const record = await context.getConfigResource<DebugConfigRecord>().load(DEBUG_CONFIG_KEY)
           if (record?.states != null) {
             await service.erase(record.states)
             context.rerender()

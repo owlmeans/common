@@ -16,7 +16,7 @@ export const makeAuthWebService = (alias: string = DEFAULT_ALIAS): AuthService =
     await update(token)
     if (token == null) {
       const module = service.assertCtx().entrypoint<ClientEntrypoint<string>>(DISPATCHER)
-      const [url] = await module.call()
+      const url = await module.url()
       document.location.href = url
     }
   }

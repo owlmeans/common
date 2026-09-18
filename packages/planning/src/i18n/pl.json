@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Karta",
+    "project": "Projekt",
+    "specification": "Specyfikacja"
+  },
+  "intrinsic": {
+    "planned": "Zaplanowane",
+    "in-progress": "W toku",
+    "closed": "Zamknięte"
+  },
+  "action": {
+    "create": "Utworzono",
+    "update": "Zaktualizowano",
+    "transit": "Zmieniono status",
+    "link": "Powiązano",
+    "unlink": "Usunięto powiązanie",
+    "delete": "Usunięto"
+  },
+  "commit": {
+    "pending": "Zapisywanie…",
+    "committed": "Zapisano",
+    "failed": "Nie zapisano"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Zwykły tekst"
+  },
+  "errors": {
+    "PlanningError": "Nie udało się wykonać żądania planowania",
+    "PlanningErrorWorkcardNotFound": "Ten element nie istnieje lub nie jest dla Ciebie dostępny",
+    "PlanningErrorUnknownWorkcardType": "Ten typ elementu jest nieznany",
+    "PlanningErrorUnknownStatusFlow": "Ten przepływ statusów jest nieznany",
+    "PlanningErrorParentNotFound": "Element nadrzędny nie istnieje",
+    "PlanningErrorCardTypeNotAllowed": "Nie można tutaj dodać elementu tego typu",
+    "PlanningErrorRefused": "Zmiana została odrzucona",
+    "PlanningErrorIllegalTransition": "Ta zmiana statusu jest niedozwolona z bieżącego statusu",
+    "PlanningErrorFieldsInvalid": "Niektóre pola mają nieprawidłowe wartości",
+    "PlanningErrorLabelNotAllowed": "Ta etykieta jest tutaj niedozwolona",
+    "PlanningErrorSpecificationSlotUnknown": "Ten rodzaj dokumentu jest tutaj niedozwolony",
+    "PlanningErrorSpecificationRevisionConflict": "Ten dokument już istnieje — edytuj go",
+    "PlanningErrorRelationshipRefused": "To powiązanie jest niedozwolone",
+    "PlanningErrorCodeTaken": "Ten kod jest już zajęty",
+    "PlanningErrorWorkcardConflict": "Ktoś w międzyczasie zmienił ten element — odśwież i spróbuj ponownie",
+    "PlanningErrorCommitTimeout": "Zmiana jest nadal zapisywana — sprawdź ponownie za chwilę",
+    "PlanningErrorCommitFailed": "Nie udało się zapisać zmiany",
+    "PlanningErrorScopeMismatch": "Ten element nie istnieje lub nie jest dla Ciebie dostępny",
+    "PlanningErrorUnsupported": "Ta operacja nie jest obsługiwana dla tego elementu"
+  }
+}

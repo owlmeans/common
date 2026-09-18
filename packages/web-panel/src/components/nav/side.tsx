@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { defaultNavTranslate, resolveNavLabel, usePanelNav } from '@owlmeans/client-panel'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { cn } from '../../@/lib/utils.js'
+import { Button } from '../../@/components/ui/button.js'
 
 import type { SideNavProps } from './types.js'
 

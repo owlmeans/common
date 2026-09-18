@@ -1,7 +1,7 @@
 ---
 name: shadcn-versions
 description: How to update versions of shadcn UI primitives, Tailwind CSS v4, and related UI libs across all shadcn-based OwlMeans web packages. Distinct from the @owlmeans/* package version sync (see [[versions]] skill). Use when bumping tailwind, shadcn components, or utility libs.
-allowed-tools: Bash(grep *) Bash(sed *) Bash(bun install)
+allowed-tools: Bash(grep *), Bash(sed *), Bash(bun install)
 metadata:
   scope: general
 ---
@@ -44,7 +44,7 @@ grep -r '"@radix-ui/' node_modules/@owlmeans/*/package.json
 
 ## Bumping external UI lib versions
 
-Shadcn packages use caret ranges in peerDependencies (e.g. `"tailwindcss": "*"` or `"tailwindcss": "^4.x"`). To pin to a specific version across all shadcn packages in the `@owlmeans/common` source repo, run these in the monorepo root (OwlMeans framework contributors):
+Shadcn packages declare these libs as **open** peerDependencies (`"tailwindcss": "*"`), so the consuming application owns the version and one copy is resolved for the whole tree. To narrow a range across every shadcn package in the OwlMeans framework source repo, run these from the monorepo root (framework contributors):
 
 ```bash
 # Example: pin tailwindcss to ^4.1.0 across all shadcn packages
@@ -54,9 +54,10 @@ NEW_TW='^4.1.0'
 # Update each shadcn package's package.json (run per package)
 sed -i "s/\"tailwindcss\": \"$OLD_TW\"/\"tailwindcss\": \"$NEW_TW\"/g" <shadcn-package>/package.json
 
-# Same pattern for other UI libs
-sed -i 's/"tailwind-merge": "\*"/"tailwind-merge": "^2.5.0"/g' <shadcn-package>/package.json
-sed -i 's/"clsx": "\*"/"clsx": "^2.1.0"/g' <shadcn-package>/package.json
+# Same pattern for other UI libs — narrow only UPWARD, to a range that covers the version the
+# packages already develop against (`tailwind-merge` is on 3.x, `clsx` on 2.x)
+sed -i 's/"tailwind-merge": "\*"/"tailwind-merge": "^3.6.0"/g' <shadcn-package>/package.json
+sed -i 's/"clsx": "\*"/"clsx": "^2.1.1"/g' <shadcn-package>/package.json
 
 bun install
 ```
@@ -114,9 +115,13 @@ After any version change:
 # Build all packages
 bun run build
 
-# Run category-D UI tests for shadcn packages
-bun test --filter <shadcn-pkg-name> ./tests
+# Run the category-D UI tests of one shadcn package
+bun run --filter '@owlmeans/<shadcn-pkg-name>' test
 ```
+
+The filter goes on `bun run`, not on `bun`. `bun --filter '<pkg>' run test` matches nothing and
+stops with `error: No workspace packages matched the filter "<pkg>"` — the filter is being applied
+to bun's own top-level arguments, not to the workspace script.
 
 If category-D tests don't exist yet, at minimum load the harness URL manually to confirm components render without JS errors.
 

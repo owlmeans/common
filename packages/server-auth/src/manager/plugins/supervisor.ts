@@ -48,8 +48,8 @@ export const makeSupervisorPlugin = (
       let matched: string | null = null
       for (const alias of opts.supervisors) {
         try {
-          const record = await context.getConfigResource(TRUSTED)
-            .load<TrustedRecord>(alias, 'name')
+          const record = await context.getConfigResource<TrustedRecord>(TRUSTED)
+            .load({ name: alias })
           if (record?.credential == null) {
             continue
           }

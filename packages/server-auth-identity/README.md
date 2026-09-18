@@ -1,97 +1,269 @@
 # @owlmeans/server-auth-identity
 
-Mongo-backed local identity resources and provider account linking for OwlMeans server applications.
-
-## Overview
-
-- Registers three Mongo resources: local accounts, local profiles, and provider credentials.
-- Provides `IdentityLinkingService` to map external provider profile details into an OwlMeans `AuthPayload`.
-- Keeps external provider identity separate from local product identity and authorization scopes.
-- Designed to work with `@owlmeans/server-auth`, `@owlmeans/server-oidc-rp`, and product-specific module gates.
+The Mongo-backed local identity store behind provider logins. An application uses it when it owns
+its users and organizations: a Google, OIDC, email-OTP or supervisor login is mapped onto one local
+account, profile and credential, and the organization entity registry turns the slug on a token into
+a stable entity id. It is not used where identity and authorization are delegated to an external IAM
+whose grants decide access (use `@owlmeans/server-oidc-rp`'s guard and gate, or
+`@owlmeans/server-iam`), and it does not verify bearer tokens (that is `@owlmeans/server-auth`).
 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-identity
+bun add @owlmeans/server-auth-identity@^0.1.18-rc.29
 ```
+
+## Concepts
+
+- **Organization entity (`OrgEntity`)** — the customer organization: `id` (stable `entityId`,
+  never on the wire), `slug` (renameable `entitySlug`, the only value a token carries),
+  `formerSlugs` that keep resolving after a rename, a frozen `iamKey`, and `names` minted once for
+  systems that cannot be renamed.
+- **Account (`IdentityAccount`)** — one per person, matched on a verified email `name`.
+- **Profile (`IdentityProfile`)** — one person inside one organization entity, with `role`,
+  `scopes` and optional `expiresAt`. The durable authorization record.
+- **Credentials (`IdentityCredentials`)** — one provider link per profile, keyed by
+  `"{type}:{service}:{providerSub}"`.
+- **Linking service** — `IdentityLinkingService` finds or creates the local identity for provider
+  profile details and returns an `AuthPayload`.
+- **Entity resolver** — the `EntityResolverService` registered under `ENTITY_RESOLVER`. Registering
+  it tells the server boundary that this deployment has organizations.
+- **Identity events** — `identityEvents(ctx)` returns the `IdentityEventsService`; its
+  `onEntityCreated` listeners run once per newly registered organization entity.
 
 ## Usage
 
-Register identity resources in a server context after Mongo and auth services are available:
+### Register in a context
 
-```typescript
-import { appendAuthIdentityResources } from '@owlmeans/server-auth-identity'
+Register after the Mongo service and `appendAuthService`. A dedicated db config under
+`AUTH_IDENTITY_DB_ALIAS` scopes a collection prefix to the identity collections only.
 
-appendAuthIdentityResources(context)
+```ts
+// config.ts
+import { AUTH_IDENTITY_DB_ALIAS, AUTH_IDENTITY_LINKING } from '@owlmeans/server-auth-identity'
+
+cfg.dbs.push({
+  alias: AUTH_IDENTITY_DB_ALIAS,
+  service: MONGO_SERVICE,
+  host: process.env.MONGO_HOST!,
+  schema: 'my-app',
+  secret: process.env.MONGO_SECRET!,
+  resourcePrefix: 'my-app-', // -> my-app-account, my-app-profile, ...
+})
+
+// let the OIDC relying party link provider logins through this store
+cfg.oidc.accountLinkingService = AUTH_IDENTITY_LINKING
 ```
 
-Link an external provider profile to a local account/profile:
+```ts
+// context.ts
+import { appendAuthService } from '@owlmeans/server-auth'
+import { appendAuthIdentityResources, AUTH_IDENTITY_DB_ALIAS } from '@owlmeans/server-auth-identity'
 
-```typescript
+appendMongo<C, T>(context)
+appendAuthService<C, T>(context)
+appendAuthIdentityResources(context, AUTH_IDENTITY_DB_ALIAS)
+context.registerService(makeMyAppGate())
+```
+
+### A product gate over profile scopes
+
+```ts
+import { createLazyService } from '@owlmeans/context'
+import type { GateService } from '@owlmeans/entrypoint'
+import { AuthForbidden } from '@owlmeans/auth'
+import { entityKeyOf } from '@owlmeans/auth-common'
+import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
+import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
+
+export const makeMyAppGate = (alias: string = MY_APP_GATE): GateService => {
+  const service: GateService = createLazyService<GateService>(alias, {
+    assert: async (req, _, params) => {
+      await service.ready()
+      const ctx = service.assertCtx<Config, Context>()
+
+      const entityId = entityKeyOf(req)
+      if (req.auth == null || entityId == null) {
+        throw new AuthForbidden('auth')
+      }
+
+      const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
+        .load({ entityId, profileId: req.auth.profileId })
+      if (profile == null || (profile.expiresAt != null && new Date(profile.expiresAt) < new Date())) {
+        throw new AuthForbidden('profile')
+      }
+
+      const scopes = req.auth.scopes ?? []
+      const required = params.map(param => param.replace(/\{entity\}/g, entityId))
+      if (!required.every(scope => scopes.includes('*') || scopes.includes(scope))) {
+        throw new AuthForbidden('permission')
+      }
+    },
+  })
+
+  return service
+}
+```
+
+A protocol uses it with `{ guards: DEFAULT_GUARD, gate: { alias: MY_APP_GATE, params: ['my-app-project-{entity}'] } }`.
+
+### Read an organization's members
+
+```ts
+import { handlers } from '@owlmeans/server-app'
+import { requireEntityKey } from '@owlmeans/auth-common'
+import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
+import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
+
+const api = handlers<Context>()
+
+export const members = api.request(memberProtocols.list, async (request, context) => {
+  const { items } = await context.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
+    .list({ entityId: requireEntityKey(request) }, { sort: [{ field: 'createdAt', order: 'desc' }] })
+
+  return items.map(({ profileId, role, name }) => ({ profileId, role, name }))
+})
+```
+
+### Link a provider login
+
+```ts
 import { AUTH_IDENTITY_LINKING } from '@owlmeans/server-auth-identity'
 import type { IdentityLinkingService } from '@owlmeans/server-auth-identity'
 
 const linking = context.service<IdentityLinkingService>(AUTH_IDENTITY_LINKING)
 
-const auth = await linking.linkProfile(providerDetails, { username })
+const details = {
+  type: 'google-oauth', // the AuthenticationType
+  service: 'google',    // the provider service alias
+  clientId: 'google',   // the provider client this login came through
+  userId: providerSub,  // the provider's subject claim
+}
+
+// Returning login: find the credential, then its profile.
+let payload = await linking.getLinkedProfile(details)
+// First login by this method: link it to the person's identity, registering one if new.
+payload ??= await linking.linkProfile(details, { username: 'person@example.org' })
+// payload: { type, role, userId, profileId, entitySlug, scopes }
 ```
 
-Read identity profiles without mutating records:
+### Provision when an organization is created
 
-```typescript
-import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
-import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
+```ts
+import { identityEvents } from '@owlmeans/server-auth-identity'
 
-const profiles = context.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-const profile = await profiles.load(profileId, 'profileId')
+// in makeContext, after appendAuthIdentityResources
+identityEvents(context)?.onEntityCreated(async (event, ctx) => {
+  await ctx.service<PlanService>(PLAN_SERVICE).grantStarterPlan(event.entityId)
+})
+```
 
-const { items } = await profiles.list({ entityId, profileId } as any)
+The event carries `entityId`, `entitySlug`, `iamKey`, `accountId`, `profileId`, `username`, the
+login `type` and `service`, and `createdAt`. It fires only when `linkProfile` registers a new
+identity (including `force: true`) — never when a second sign-in method links to an identity that
+exists. Listeners run in order and are awaited; one that throws is logged and never fails the
+sign-in, so anything a listener provisions needs its own backfill.
+
+### Rename an organization and mint a durable name
+
+```ts
+import { ENTITY_RESOLVER, requireEntityKey } from '@owlmeans/auth-common'
+import type { EntityResolverService } from '@owlmeans/auth-common'
+
+export const rename = api.body(organizationProtocols.rename, async ({ slug }, context, request) => {
+  const resolver = context.service<EntityResolverService>(ENTITY_RESOLVER)
+  const entity = await resolver.rename(requireEntityKey(request), slug) // old slug moves to formerSlugs
+
+  return { slug: entity.slug }
+})
+
+// read once, or mint and persist on first ask; later renames leave it alone
+const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-app-${entity.iamKey}`)
 ```
 
 ## API
 
-### Resource Factories
+### Functions
 
-- `makeIdentityAccountResource(dbAlias?)` - local account record, one per user.
-- `makeIdentityProfileResource(dbAlias?)` - local profile record with `entityId`, `role`, `scopes`, and optional expiry.
-- `makeIdentityCredentialsResource(dbAlias?)` - provider credentials link record.
-- `appendAuthIdentityResources(context, dbAlias?)` - registers all resources and `IdentityLinkingService`.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `appendAuthIdentityResources(context, dbAlias?)` | function | Register the four resources, the linking service, the entity resolver and (unless one is registered) the identity-events service |
+| `makeOrgEntityResource(dbAlias?)` | function | Mongo resource for `OrgEntity` |
+| `makeIdentityAccountResource(dbAlias?)` | function | Mongo resource for `IdentityAccount` |
+| `makeIdentityProfileResource(dbAlias?)` | function | Mongo resource for `IdentityProfile` |
+| `makeIdentityCredentialsResource(dbAlias?)` | function | Mongo resource for `IdentityCredentials` |
+| `makeIdentityLinkingService()` | function | The `IdentityLinkingService` implementation |
+| `makeEntityResolverService(alias = ENTITY_RESOLVER)` | function | The `EntityResolverService` implementation, cached 30 s per resolved name |
+| `makeIdentityEventsService(alias = AUTH_IDENTITY_EVENTS)` | function | The `IdentityEventsService` implementation (lazy) |
+| `identityEvents(ctx, alias?)` | function | The registered events service, or `null` |
 
-### Aliases
+### Constants
 
-- `AUTH_IDENTITY_ACCOUNT` - account resource alias.
-- `AUTH_IDENTITY_PROFILE` - profile resource alias.
-- `AUTH_IDENTITY_CREDENTIALS` - provider credentials resource alias.
-- `AUTH_IDENTITY_LINKING` - linking service alias.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `AUTH_IDENTITY_ORG_ENTITY`, `AUTH_IDENTITY_ACCOUNT`, `AUTH_IDENTITY_PROFILE`, `AUTH_IDENTITY_CREDENTIALS` | const | Resource aliases (`'auth-identity:…'`), lookup keys only |
+| `AUTH_IDENTITY_LINKING` | const | `'auth-identity:linking'` — linking service alias |
+| `AUTH_IDENTITY_EVENTS` | const | `'auth-identity:events'` — identity-events service alias |
+| `AUTH_IDENTITY_DB_ALIAS` | const | `'auth-identity'` — suggested db config alias |
+| `AUTH_IDENTITY_ORG_ENTITY_COLLECTION`, `AUTH_IDENTITY_ACCOUNT_COLLECTION`, `AUTH_IDENTITY_PROFILE_COLLECTION`, `AUTH_IDENTITY_CREDENTIALS_COLLECTION` | const | Colon-free Mongo collection base names |
+| `MAX_ENTITY_SLUG_ATTEMPTS` | const | `8` — word slugs tried before minting gives up |
+| `LOGIN_SERVICE_PREFIX`, `EXTERNAL_KEY_DELIMITER` | const | `'service'` and `':'` — the derived-key grammar |
 
 ### Types
 
-- `IdentityAccount` - `Profile & ResourceRecord`; `credential` is the generated local entity slug.
-- `IdentityProfile` - `Profile & ResourceRecord`; includes `profileId`, `userId?`, `role`, `entityId`, `scopes`, `expiresAt?`.
-- `IdentityCredentials` - `AuthCredentials & ResourceRecord`; includes `profileId` and derived provider keys.
-- `IdentityLinkingService` - `getLinkedProfile`, `linkProfile`, `linkCredentials`, `getOwnerProfiles`, `getOwnerCredentials`.
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `OrgEntity` | type | `id`, `slug`, `formerSlugs?`, `iamKey`, `names?`, `createdAt`, `updatedAt?` |
+| `IdentityAccount` | type | `Profile` without `entitySlug`, plus `id`, `credential`, `entityId?` |
+| `IdentityProfile` | type | `Profile` without `entitySlug`, plus `id`, `profileId`, `userId?`, `role`, `entityId?`, `expiresAt?` |
+| `IdentityCredentials` | type | `AuthCredentials` + `profileId` |
+| `IdentityLinkingService` | type | `getLinkedProfile`, `linkProfile`, `linkCredentials`, `unlinkCredentials`, `getOwnerProfiles`, `getOwnerCredentials` |
+| `AccountMeta` | type | `{ username, force? }` |
+| `IdentityEventsService` | type | `onEntityCreated(callback)`, `propagateEntityCreated(event)` |
+| `EntityCreatedEvent`, `EntityCreatedCallback` | type | The entity-created payload; `(event, ctx) => Promise<void>` |
+| `OrgEntityResource`, `IdentityAccountResource`, `IdentityProfileResource`, `IdentityCredentialsResource` | type | Typed `MongoResource` aliases |
+| `IdentityConfig`, `IdentityContext` | type | Server config and context shapes |
+| `GoogleUserInfo` | type | Google userinfo claims |
+| `EmailIdentityArgs`, `EmailIdentityPayload`, `IdentityIamExtension` | type | Declaration-only seam; nothing in the package consumes them |
 
-## Key Derivation
+## Key derivation
 
-- Account `credential`: generated Base58 local entity slug.
-- Profile `profileId`: `"{type}:{accountId}"`.
-- Credentials `userId`: `"{type}:{service}:{providerSub}"`.
-- Credentials `credential`: `"service:{type}:{service}"`.
+- Account `credential` — a unique 16-character Base58 slug.
+- Account / profile `entityId` — the `OrgEntity` id; a first registration creates the entity first.
+- Profile `userId` — the account's Mongo id, a declared ObjectId reference.
+- Profile `profileId` — `"{type}:{accountId}"`.
+- Credentials `userId` — `"{type}:{service}:{providerSub}"`; unrelated to the profile's `userId`.
+- Credentials / profile `credential` — `"service:{type}:{service}"`; only platform logins carry it.
 
-## Product-Viable Integration Notes
+## Common pitfalls
 
-- Google/OIDC login is only the provider bootstrap path; durable authorization data lives in `IdentityProfile`.
-- Backend contexts should register `appendAuthService(context)`, then `appendAuthIdentityResources(context)`, then product gate services.
-- Product gates should read `AUTH_IDENTITY_PROFILE`, verify `entityId`, reject expired or blocked profiles, and compare gate params against profile scopes.
-- `Resource.pick()` is destructive and deletes the matching record. Never use `pick()` for gate or handler reads; use `load()` or `list()`.
+- `Resource.take()` deletes the record it returns. Use `load(where)` or `list(where)` in gates and
+  handlers, never `take()`.
+- Query profiles and organization records by `entityId` from `requireEntityKey(request)` /
+  `entityKeyOf(request)`, never by the slug.
+- Without the resolver `request.entity` stays undefined and consumers fall back to the slug — call
+  `appendAuthIdentityResources` (or register the resolver) in every service that serves organization
+  data.
+- First-login profiles get `ALL_SCOPES` and `AuthRole.User`; narrow scopes where finer authorization
+  is needed.
+- `linkProfile(details, { username, force: true })` always registers a new identity — use it only
+  when a separate identity is intended.
+- Provisioning in an `onEntityCreated` listener is best-effort: a throwing listener is logged and the
+  sign-in succeeds, so reconcile what it provisions periodically.
+- The resolver caches for 30 seconds, so a rename reaches other replicas within that window; the old
+  slug keeps resolving meanwhile.
+- `rename` rejects a malformed slug and any slug an entity has ever answered to; `mintSlug` throws
+  `entity:slug-exhausted` after `MAX_ENTITY_SLUG_ATTEMPTS`.
 
-## Related Packages
+## Related packages
 
-- [`@owlmeans/auth`](../auth) - core `AuthPayload`, `AuthRole`, `Profile`, and auth errors.
-- [`@owlmeans/server-auth`](../server-auth) - bearer verification and default auth guard.
-- [`@owlmeans/server-oidc-rp`](../server-oidc-rp) - provider exchange and account-linking interface compatibility.
-- [`@owlmeans/oidc`](../oidc) - `ProviderProfileDetails` and provider config types.
-- [`@owlmeans/mongo-resource`](../mongo-resource) - Mongo-backed resource implementation.
+- [`@owlmeans/server-auth`](../server-auth) — bearer verification; canonicalizes the slug through the resolver
+- [`@owlmeans/auth-common`](../auth-common) — `EntityResolverService`, `ENTITY_RESOLVER`, `requireEntityKey`, `attachEntity`
+- [`@owlmeans/auth`](../auth) — `AuthPayload`, `AuthRole`, `Profile`, errors
+- [`@owlmeans/server-oidc-rp`](../server-oidc-rp) — calls the linking service during an OAuth callback
+- [`@owlmeans/server-auth-otp`](../server-auth-otp) — email OTP plugin resolving users through the linking service
+- [`@owlmeans/oidc`](../oidc) — `ProviderProfileDetails`
+- [`@owlmeans/mongo-resource`](../mongo-resource) — the Mongo resource implementation
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -101,7 +273,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

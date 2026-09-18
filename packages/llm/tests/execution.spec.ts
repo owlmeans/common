@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
-import { ExecutionEffort, ExecutionLevel } from '@owlmeans/llm-common'
+import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
 import type { ExecutionState, ModelConfigPatch, TaskExecutionState } from '@owlmeans/llm-common'
 import { DEFAULT_EFFORT, EFFORT_TABLE, makeExecutionService, makeLlmService } from '@owlmeans/llm'
 import type { ExecutionService, ProjectExecution, TaskExecution } from '@owlmeans/llm'
@@ -135,6 +135,65 @@ describe('@owlmeans/llm — model policy resolution', () => {
   })
 })
 
+describe('@owlmeans/llm — utility tier', () => {
+  test('the conventional role is resolved at the cheapest tier', () => {
+    service.utility(root)
+    expect(resolved.at(-1))
+      .toEqual({ alias: UTILITY_ROLE, override: EFFORT_TABLE[ExecutionEffort.Economy] })
+  })
+
+  // The whole point of routing it through `model`: a deployment remaps or pins the cheap
+  // tier with the levers it already uses for every other role.
+  test('a role override remaps which model the utility tier resolves', () => {
+    const remapped = service.escalate(root, { roleOverrides: { [UTILITY_ROLE]: Role.Picker } })
+    service.utility(remapped)
+    expect(resolved.at(-1)?.alias).toBe(Role.Picker)
+  })
+
+  test('a policy utility role replaces the conventional one, and is still remapped', () => {
+    const named = service.root({
+      models: makeService(),
+      policy: { effort: DEFAULT_EFFORT, utilityRole: Role.Analyst },
+      purpose: { type: 'spec' },
+    })
+    service.utility(named)
+    expect(resolved.at(-1)?.alias).toBe(Role.Analyst)
+
+    service.utility(service.escalate(named, { roleOverrides: { [Role.Analyst]: Role.Picker } }))
+    expect(resolved.at(-1)?.alias).toBe(Role.Picker)
+  })
+
+  test('a model override pins the utility role like any other', () => {
+    const pinned = service.escalate(root, { modelOverrides: { [UTILITY_ROLE]: { maxTokens: 512 } } })
+    service.utility(pinned)
+    expect(resolved.at(-1)?.override)
+      .toEqual({ ...EFFORT_TABLE[ExecutionEffort.Economy], maxTokens: 512 })
+  })
+
+  // The floor is local — asking for a cheap side model must not quietly downgrade the
+  // execution that the real work still runs on.
+  test('the economy floor does not touch the execution it was asked on', () => {
+    const high = service.escalate(root, { effort: ExecutionEffort.Max })
+    service.utility(high)
+    expect(high.policy.effort).toBe(ExecutionEffort.Max)
+
+    service.model(high, Role.Analyst)
+    expect(resolved.at(-1)?.override).toEqual(EFFORT_TABLE[ExecutionEffort.Max])
+  })
+
+  test('a named utility role survives refinement of the branch', () => {
+    const named = service.root({
+      models: makeService(),
+      policy: { effort: DEFAULT_EFFORT, utilityRole: Role.Analyst },
+      purpose: { type: 'spec' },
+    })
+    const task = service.forTask(named, { effort: ExecutionEffort.High })
+    expect(task.policy.utilityRole).toBe(Role.Analyst)
+    service.utility(task)
+    expect(resolved.at(-1)?.alias).toBe(Role.Analyst)
+  })
+})
+
 describe('@owlmeans/llm — snapshot and restore', () => {
   test('a snapshot carries the state and none of the collaborators', () => {
     const state = service.snapshot(root) as ExecutionState & Record<string, unknown>
@@ -222,32 +281,27 @@ describe('@owlmeans/llm — prompt policy accumulation', () => {
   })
 })
 
-describe('@owlmeans/llm — resilience plugin seam', () => {
-  test('checkpoint is a no-op until a plugin is registered', async () => {
-    await expect(service.checkpoint(root, 'key')).resolves.toBeUndefined()
+describe('@owlmeans/llm — plugin registration', () => {
+  test('seats a plugin by alias, so a layer wired twice answers once', async () => {
+    // Mixins compose. A plugin registered twice would answer twice, and since the first usable
+    // answer wins, the duplicate is silent rather than loud.
+    const asked: string[] = []
+    service.use({ alias: 'files', advise: async () => { asked.push('first'); return null } })
+    service.use({ alias: 'files', advise: async () => { asked.push('second'); return 'answer' } })
+
+    await service.advise(root, { kind: 'files', task: 'x' })
+
+    expect(asked).toEqual(['second'])
   })
 
-  test('a registered plugin receives the JSON-safe state and the execution', async () => {
-    const seen: Array<{ state: ExecutionState, key?: string }> = []
-    service.use({ onCheckpoint: async (state, _exec, key) => { seen.push({ state, key }) } })
+  test('a plugin with no alias is simply appended', async () => {
+    const asked: string[] = []
+    service.use({ advise: async () => { asked.push('a'); return null } })
+    service.use({ advise: async () => { asked.push('b'); return null } })
 
-    const task = service.forTask(root, { phase: 'draft' })
-    await service.checkpoint(task, 'project-1')
+    await service.advise(root, { kind: 'files', task: 'x' })
 
-    expect(seen).toHaveLength(1)
-    expect(seen[0]!.key).toBe('project-1')
-    expect((seen[0]!.state as TaskExecutionState).phase).toBe('draft')
-    expect((seen[0]!.state as unknown as { models?: unknown }).models).toBeUndefined()
-  })
-
-  test('an advise-only plugin leaves checkpoint a no-op', async () => {
-    let snapshotted = false
-    service.use({ advise: async () => 'advice' })
-    // Reaching `snapshot` at all would mean an advisor made checkpointing do work.
-    const guarded = { ...service, snapshot: (exec: never) => { snapshotted = true; return service.snapshot(exec) } }
-
-    await expect(guarded.checkpoint(root, 'key')).resolves.toBeUndefined()
-    expect(snapshotted).toBe(false)
+    expect(asked).toEqual(['a', 'b'])
   })
 })
 

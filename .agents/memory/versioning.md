@@ -26,11 +26,19 @@ updated: 2026-08
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
 - `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
   silently re-resolves floating ranges.
-- Root `overrides` pins `bson` to `7.2.0`. `bson >= 7.3.0` calls
+- **A lockfile's `workspaces` entries keep the ranges they were first written with.** Bun 1.4 never
+  rewrites a workspace entry's declared range when only the manifest's range moves — `bun install`,
+  `--lockfile-only` and `--frozen-lockfile` all answer "no changes" — so after a release sweep the
+  lock still says `^0.0.19` beside a manifest at `^0.0.22` (hundreds of such lines per repo).
+  Resolution is unaffected (workspace links); the text is simply stale. Aligning it is a text edit
+  of those range strings, validated by `bun install --frozen-lockfile --dry-run`.
+- `bson` carries **no override** — it resolves freely (7.3.x) inside `mongodb`'s `^7.2.0` range,
+  in common, internal, viable and viable-agent alike. It could not before: `bson >= 7.3.0` calls
   `v8.startupSnapshot.isBuildingSnapshot()` in a static initializer, unimplemented in every Bun
-  through 1.3.14, so `import 'mongodb'` throws before any OwlMeans code runs — a **runtime** break
-  under Bun, not just a test one. `mongodb@7.5.0` allows `^7.2.0`, so the pin is in-range. Downstream
-  `viable` is still on `mongodb@6.21.0`/`bson@6.10.4` and unaffected.
+  through 1.3.14, so `import 'mongodb'` threw before any OwlMeans code ran — a **runtime** break,
+  not just a test one. Bun **1.4.0** implements it, which is what made the pin removable. The
+  dependency is now on the Bun floor: drop a runtime below 1.4.0 and the crash returns, with builds
+  and unit suites still green.
 - Dependabot branches are cut from stale bases, so their conflicts are always "stale neighbour"
   lines (old `@owlmeans/*` ranges, old sibling deps) rather than real disagreements. Resolve by
   taking `main` for every line and applying only the one dependency the branch exists to bump.

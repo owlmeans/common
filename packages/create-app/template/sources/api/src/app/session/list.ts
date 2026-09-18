@@ -1,15 +1,18 @@
-import { handleParams } from '@owlmeans/server-app'
-import type { SessionItem, SessionParams } from '__APP_SLUG__-common'
+import { handlers } from '@owlmeans/server-app'
+import { session, type SessionItem } from '__APP_SLUG__-common'
 import { SESSION_ITEMS } from '../../consts.js'
 import type { Context } from '../../types.js'
 
-export const list = handleParams<SessionParams>(async (params, context) => {
-  const ctx = context as Context
-  const resource = ctx.getStaticResource<SessionItem>(SESSION_ITEMS)
+const handle = handlers<Context>()
 
-  // The static resource lists every record; filter to this session and sort newest first.
-  const { items } = await resource.list<SessionItem>()
+export const list = handle.params(session.list, async (params, context) => {
+  const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
+
+  // The resource answers the whole question — this session's items, newest first.
+  const { items } = await resource.list(
+    { sessionId: params.sid },
+    { sort: [{ field: 'createdAt', order: 'desc' }] }
+  )
+
   return items
-    .filter(item => item.sessionId === params.sid)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 })

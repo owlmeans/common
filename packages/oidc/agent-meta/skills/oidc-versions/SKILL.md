@@ -1,13 +1,15 @@
 ---
 name: oidc-versions
 description: How to manage and upgrade the four OIDC/OAuth third-party dependencies used by OwlMeans OIDC packages. Covers exact-pin policy, official doc anchors, breaking-change checklists for each lib, the OwlMeans isolation principle, and the verification flow across common and downstream repos. Auto-invoked when touching oidc-provider, openid-client, jose, or oidc-client-ts version strings in package.json files.
-allowed-tools: Bash(npm view *) Bash(grep *) Bash(bun *)
+allowed-tools: Bash(npm view *), Bash(grep *), Bash(bun *)
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # OIDC / OAuth dependency version management — OwlMeans Common
 
-This skill is the sibling of [[versions]] (internal `@owlmeans/*` version sync) and [[shadcn-versions]] (UI lib bumps). Use it whenever upgrading the upstream OIDC/OAuth libraries, and cross-read it before touching any OIDC package implementation.
+The sibling of [[versions]] (internal `@owlmeans/*` version sync) and [[shadcn-versions]] (UI lib
+bumps). Use it whenever upgrading the upstream OIDC/OAuth libraries, and cross-read it before
+touching any OIDC package implementation.
 
 ## The four libraries and their owning packages
 
@@ -18,9 +20,12 @@ This skill is the sibling of [[versions]] (internal `@owlmeans/*` version sync) 
 | `openid-client` | `@owlmeans/server-oidc-rp` | **exact** | `6.8.4` |
 | `oidc-client-ts` | `@owlmeans/web-oidc-rp`, `@owlmeans/mui-oidc-rp` | **exact** | `3.5.0` |
 
-`@types/oidc-provider` is a dev dep of `server-oidc-provider` and must track the oidc-provider major: `9.5.0` (v9 ships no bundled types).
+`@types/oidc-provider` is a dev dependency of `@owlmeans/server-oidc-provider` and must track the
+oidc-provider major: `9.5.0` (v9 ships no bundled types).
 
-All four are authored by panva or authts and follow semantic versioning. **Exact pins** are the project policy — every bump is deliberate and reviewed.
+All four are authored by panva or authts and follow semantic versioning. **Exact pins** are the
+policy — no caret, no range — so that every bump is a deliberate, reviewed change. The pinned value
+lives in each owning package's `dependencies`; nothing else may declare one of these libraries.
 
 ## Checking installed vs latest
 
@@ -43,91 +48,114 @@ Consult these before every bump — especially for same-major minors that might 
 
 ## Breaking-change checklist per library
 
-### oidc-provider (v9.x — current)
+### oidc-provider v9
 
-Migrated from v8 in this project. Key differences to keep in mind:
+- **The provider is a Koa app instance**, and `Provider#use(fn)` splices `fn` **ahead of** the
+  provider's own router in the Koa chain, so such a middleware runs before routing and resumes
+  normally after `await next()`. Header corrections for an OwlMeans server nonetheless belong in a
+  middleware registered on the API server **before** `oidc.callback()`, writing to the raw response
+  where `@fastify/helmet` has already put its defaults. They must never be a Fastify `onSend` hook:
+  `oidc.callback()` ends the response outside Fastify's reply lifecycle, so `onSend` never fires for
+  a route the provider answers.
+- **`enableHttpPostMethods` is `false`.** Turning it on requires `cookies.long.sameSite: 'none'` in
+  the same configuration; otherwise the constructor throws `TypeError: HTTP POST Method support
+  requires that cookies.long.sameSite is set to none`.
+- **DPoP is on.** `features.dPoP.enabled` is `true` with no configuration. Disable it when the
+  clients send no DPoP proofs.
+- **Cookie `sameSite` is `lax`** for both `cookies.long` and `cookies.short`. Review it when the
+  interaction UI lives on a different subdomain.
+- **JWK `kid` must be unique.** No two keys in `jwks.keys` may share one.
+- **There is no `provider.Account` getter.** Accounts come from the `findAccount` callback.
+- **ESM-only**, and outbound HTTP goes through the `fetch` configuration option — a function
+  mirroring the fetch API, defaulting to `globalThis.fetch`. There is no `httpOptions`.
+- **`@types/oidc-provider` must track the major** (`9.5.0`); v9 ships no bundled types.
 
-- **Provider is a Koa app instance.** `oidc.use()` middleware registered after `api.server.use(base, oidc.callback())` is *downstream* of the Koa router — `await next()` inside such middleware does **not** run after a matched route completes. Move any post-response header manipulation (e.g. CSP rewrites) to a **Fastify `onSend` hook** scoped to the OIDC base path instead.
-- **`enableHttpPostMethods`** defaults to `false` (authorization/logout endpoints no longer accept POST by default). Set `enableHttpPostMethods: true` in the Provider config if the interaction flow POSTs.
-- **DPoP is on by default.** `features.dPoP.enabled` is `true` without explicit config. Disable if the OIDC clients don't send DPoP proofs.
-- **Cookie `sameSite` defaults to `lax`** (was `none`). Review if the interaction UI lives on a different subdomain.
-- **JWK `kid` must be unique.** No two keys in `jwks.keys` can share the same `kid`. Generate or assign a deterministic unique `kid` when building the JWKS.
-- **`provider.Account` getter removed.** Use `findAccount` callback; do not read `oidc.Account`.
-- **Node 22+ required.**
-- **ESM-only** (was already ESM in v8).
-- HTTP requests now use the **global `fetch()`** (not `got`). `httpOptions` is replaced with a `fetch` config option that mirrors the fetch API.
-- **`@types/oidc-provider`** must be `9.x` (`^9.5.0` or exact); the v8 types are incompatible.
+### jose v6
 
-### jose (v6.x — current)
-
-Migrated from v5 in this project:
-
-- **WebCrypto is the only crypto backend.** `importPKCS8`, `importSPKI`, `importJWK`, `generateKeyPair` now return `CryptoKey` (not `KeyObject`).
-- **`extractable` must be set when you need to call `exportJWK` on an imported key.** In v5 Node `KeyObject` was always extractable. In v6 the `CryptoKey` default is `extractable: false`. The fix:
+- **WebCrypto is the only crypto backend.** `importPKCS8`, `importSPKI` and `importX509` resolve to a
+  `CryptoKey`; `importJWK` resolves to a `CryptoKey` for every key type except `oct`, which yields a
+  `Uint8Array`. `KeyObject` survives only as an exported type.
+- **`extractable` defaults to `false` for a private key** and `true` for everything else, so an
+  imported private key cannot be exported unless the import asked for it:
   ```typescript
-  // ✅ v6 — must pass { extractable: true }
   const key = await jose.importPKCS8(pkcs8String, 'RS256', { extractable: true })
   const jwk = await jose.exportJWK(key)   // works
   ```
-- **`decodeJwt` unchanged** — still `decodeJwt(jwt): JWTPayload`.
-- **Subpath exports removed.** All exports are from the root `'jose'` entry; e.g. `'jose/jwt/verify'` no longer works.
-- **CJS `require()` requires Node's `require(esm)` support** (Node 22+, or use dynamic `import()`).
+- `decodeJwt(jwt): JWTPayload`.
+- Both the root entry and the subpath entries (`jose/jwt/verify`, `jose/key/import`, `jose/errors`, …)
+  are exported. Prefer the root entry — an `import * as jose from 'jose'` is what the OwlMeans
+  packages use, and a subpath import buys nothing under a bundler.
+- **CJS `require()` needs Node's `require(esm)` support**; use dynamic `import()` otherwise.
 
-### openid-client (v6.x — no migration needed from v6.1)
+### openid-client v6
 
-v6 introduced a **functional API** (replacing the class-based v5 API). OwlMeans already targets v6 (migrated earlier). Key API surface used:
+A functional API — there is no client class. The surface OwlMeans uses:
 
-- `client.discovery(issuerUrl, clientId, secret, authMethod, options)` — returns a `Configuration` object.
-- `client.buildAuthorizationUrl(config, params)` — returns a `URL`.
-- `client.authorizationCodeGrant(config, url, checks)` — returns `TokenEndpointResponse`.
-- `client.clientCredentialsGrant(config)` / `client.refreshTokenGrant(config, refreshToken)`.
-- `client.tokenIntrospection(config, token)`.
-- `client.allowInsecureRequests` — passed in the `execute` array option of `discovery` when behind HTTP (dev/internal).
+- `discovery(issuerUrl, clientId, metadata?, clientAuthentication?, options?)` → `Configuration`.
+  `metadata` accepts the client secret as a bare string. `clientAuthentication` is a `ClientAuth`
+  function (`ClientSecretPost(secret)`, `ClientSecretBasic(secret)`, …) and defaults to
+  `ClientSecretPost` when a secret is present — passing `undefined` takes that default.
+- `buildAuthorizationUrl(config, params)` → `URL`.
+- `authorizationCodeGrant(config, url, checks)` → `TokenEndpointResponse`.
+- `clientCredentialsGrant(config)` / `refreshTokenGrant(config, refreshToken)`.
+- `tokenIntrospection(config, token)`.
+- `allowInsecureRequests` — passed inside the `execute` array of `discovery`'s options to permit
+  plain HTTP for an internal or development issuer.
 
-Breaking changes within v6.x are documented in the CHANGELOG; check before bumping patch/minor versions.
+### oidc-client-ts v3
 
-### oidc-client-ts (v3.x — no migration from v3.1)
-
-Current pin is `3.5.0`. OwlMeans only uses `UserManager` (browser-side, currently a stub). Check the CHANGELOG for breaking changes to `UserManager` constructor or `signinRedirect` between minor versions.
+Only `UserManager` is referenced, in the incomplete fully-browser-side path; the production flow is a
+server-side token exchange. Check the CHANGELOG for changes to the `UserManager` constructor or
+`signinRedirect` before bumping a minor.
 
 ## OwlMeans isolation principle
 
-**No upstream OIDC library type may appear in a package's public `index.ts` exports.** Define OwlMeans-owned interfaces and map at the service boundary.
+**No upstream OIDC library NAME may appear in a package's public `index.ts` exports.** Declare
+OwlMeans-owned types and map at the service boundary, so a consumer never imports from
+`openid-client` or `oidc-provider` to type a variable this stack handed it.
 
-Canonical example — `@owlmeans/server-oidc-rp` public types:
-- `OidcTokenSet` — OwlMeans-owned shape for `access_token`, `refresh_token`, `id_token`, etc.
-- `OidcGrantChecks` — owned shape for PKCE checks.
-- `OidcServerMetadata` — owned shape for issuer/endpoint metadata.
-- `OidcIntrospectionResponse` — owned shape for token introspection.
-- `OidcClientDescriptor` — **opaque branded type** (consumers receive and pass it back; never read its internal structure).
+The public types of `@owlmeans/server-oidc-rp` are the canonical example:
 
-The implementation in `src/service.ts` imports and uses the upstream types internally, mapping to/from the owned types at method boundaries. This means a future library swap is confined to a single file.
+- `OidcTokenSet` / `OidcTokenSetParameters` — declared shapes for `access_token`, `refresh_token`,
+  `id_token`, `token_type`, `expires_in`, `scope`, with and without the `claims()` helper.
+- `OidcGrantChecks` — the declared shape for PKCE checks.
+- `OidcIntrospectionResponse` — the declared shape for token introspection.
+- `OidcServerMetadata` and `OidcClientDescriptor` — deliberate aliases onto the upstream metadata and
+  configuration objects, exported under owned names. `OidcClientDescriptor` is **opaque**: consumers
+  receive it and pass it back, and never read its internals.
+
+What the principle guarantees is the **exported name**: a consumer types every value this stack hands
+it without importing `openid-client` or `oidc-provider`. It does not confine upstream imports to one
+file, and reading it that way misleads. In `@owlmeans/server-oidc-rp` the type module imports
+`Configuration`, `ServerMetadata`, `TokenEndpointResponse` and `TokenEndpointResponseHelpers` from
+`openid-client` in order to alias them under the owned names; the service module imports the
+functional API; and `jose`'s `decodeJwt` is imported directly by the token wrapper, the `oidc-client`
+auth plugin and the exchange handler. A library swap touches each of those — the owned names are what
+keep it from reaching any consumer.
 
 See [[server-oidc-rp]] for the full public surface.
 
 ## Performing a bump
 
-1. **Read the CHANGELOG** for the target version (link above). Enumerate every breaking change against the checklist above.
+1. **Read the CHANGELOG** for the target version (link above). Enumerate every breaking change
+   against the checklist above.
 2. Update the version string in **each owning package's `package.json`** — exact pins only, no caret.
-3. Update `@types/oidc-provider` if bumping `oidc-provider` across a major.
-4. **Run `bun install`** in the monorepo root to update the lockfile.
-5. **Fix any code changes** using the checklist (particularly the `extractable` gotcha for jose and the CSP/debug middleware placement for oidc-provider).
-6. Build affected packages: `bun run build` (or `tsc -b`) per package.
-7. Run unit tests: `bun test ./tests` per package.
+3. Update `@types/oidc-provider` when bumping `oidc-provider` across a major.
+4. Reinstall so the lockfile is regenerated.
+5. **Fix the code** using the checklist — particularly the jose `extractable` argument and the
+   placement of the header-correcting middleware for oidc-provider.
+6. Build every affected package, then run its unit tests.
 
 ## Downstream verification
 
-Downstream repos that link `@owlmeans/*` packages as local workspace entries (bun hoisted linker) pick up the rebuilt outputs automatically. After rebuilding the affected packages, verify each downstream:
+A project that links these packages as local workspace entries picks up the rebuilt outputs
+automatically, but its own transitive copies of the four libraries do not move on their own. After
+rebuilding, in every consuming project: reinstall, build, and run the tests.
 
-```bash
-# per repo: viable, viable-agent, internal
-cd <your-project-root>
-bun install           # refresh transitive third-party versions
-bun run build         # or per-workspace build command
-bun test              # or per-workspace test command
-```
-
-Check `overrides` in each repo's root `package.json` — remove stale pins of oidc-provider/jose/openid-client/oidc-client-ts if present.
+Then check `overrides` (or the equivalent resolution field) in each consuming project's root
+manifest and remove any stale pin of `oidc-provider`, `jose`, `openid-client` or `oidc-client-ts` —
+an override outranks the exact pin the owning package declares, so a forgotten one silently keeps the
+old version installed.
 
 ## Cross-references
 

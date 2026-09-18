@@ -1,29 +1,44 @@
-import type { CommonRouteModel } from '@owlmeans/route'
+import type { ResolvedServiceRoute, RouteAddress, RouteModel, RouteProtocols } from '@owlmeans/route'
 import type { InitializedService, LazyService, BasicEntrypoint } from '@owlmeans/context'
 import type { AnySchemaObject } from 'ajv'
 import type { EntrypointOutcome } from './consts.js'
 import type { Auth } from '@owlmeans/auth'
 
+/**
+ * A URL unit: an immutable route declaration plus what guards, gates and schemas it answers under.
+ *
+ * Nothing here is rewritten once declared. Every address question — segment, path, mount, service,
+ * host — is a question about the declaration asked against the context the entrypoint is registered
+ * in, so the same declaration answers differently in a client and in a server without being touched.
+ */
 export interface CommonEntrypoint extends BasicEntrypoint {
-  route: CommonRouteModel
+  route: RouteModel
   /**
    * @property {boolean} - if true — router attaches this entrypoint unconditionally
    * @default false
    */
   sticky: boolean
-  filter?: Filter
+  /** The guards declared on this entrypoint alone — see `getGuards()` for the inherited set. */
   guards?: string[]
   gate?: string
   gateParams?: string | string[]
+  filter?: Filter
   handle?: EntrypointHandler
-  getAlias: () => string
-  getPath: () => string
-  getParentAlias: () => string | null
-  hasParent: () => boolean
-  resolve: <M extends CommonEntrypoint>() => Promise<M>
-  getParent: <M extends CommonEntrypoint>() => M
-  setService: (service: string) => void
+
+  /** The segment this entrypoint contributes under its parent. */
+  segment: () => string
+  /** Every ancestor's segment, then this one. */
+  path: () => string
+  /** `base` + `path()` — what a server mounts and a client requests. */
+  mount: () => string
+  service: () => ResolvedServiceRoute
+  address: () => RouteAddress
+  /** Does this entrypoint belong to the service its context IS? */
+  isLocal: () => boolean
+  parent: () => CommonEntrypoint | null
+  /** Own guards and every ancestor's, deduped. Recomputed on each call. */
   getGuards: () => string[]
+  /** Own gate and every ancestor's, as `[gate, params]`. Recomputed on each call. */
   getGates: () => [string, string[]][]
 }
 
@@ -123,4 +138,16 @@ export interface Filter {
   body?: AnySchemaObject
   response?: AnySchemaObject
   headers?: AnySchemaObject
+}
+
+/**
+ * How a call to an entrypoint is actually carried.
+ *
+ * The transport is chosen by the route's protocol, so a consumer always writes `ep.call(...)` and
+ * never learns whether that became an HTTP request, a socket message or a queued job. An
+ * application binds a protocol by registering a transport service under `transportAlias(protocol)`.
+ */
+export interface EntrypointTransport extends InitializedService {
+  readonly protocol: RouteProtocols
+  handle: EntrypointHandler
 }

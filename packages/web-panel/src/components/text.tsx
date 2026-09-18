@@ -1,7 +1,7 @@
 import { usePanelI18n } from '@owlmeans/client-panel'
 import type { FC, JSX } from 'react'
 import type { TextProps, TextVariant } from './types.js'
-import { cn } from '@/lib/utils'
+import { cn } from '../@/lib/utils.js'
 
 const variantClasses: Record<TextVariant, string> = {
   h1: 'scroll-m-20 text-4xl font-extrabold tracking-tight',

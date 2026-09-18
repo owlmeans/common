@@ -24,6 +24,10 @@ const pgRaw = customType<{ data: unknown, driverData: unknown, config: { sqlType
  * Build the Drizzle table used for CRUD query construction. Structure DDL is emitted from
  * the {@link TableSpec} directly — Drizzle exposes no runtime DDL generator (that lives in
  * drizzle-kit, which would be a second owner of the same tables).
+ *
+ * The result is stated as a {@link PgRuntimeTable}: the columns exist, keyed by schema
+ * property name, but only this function knows which ones — Drizzle's own inference has a
+ * literal column map to work from, and here that map was assembled a few lines ago.
  */
 export const specToTable = (spec: TableSpec): PgRuntimeTable => {
   const namespace = pgSchema(spec.schema)
@@ -72,5 +76,5 @@ export const specToTable = (spec: TableSpec): PgRuntimeTable => {
           .filter((column: unknown) => column != null) as [any, ...any[]]
       })]
       : [])
-  ]) as PgRuntimeTable
+  ]) as unknown as PgRuntimeTable
 }

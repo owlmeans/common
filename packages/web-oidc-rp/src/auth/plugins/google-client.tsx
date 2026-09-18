@@ -8,11 +8,15 @@ import { GOOGLE_CLIENT_AUTH } from '@owlmeans/oidc'
 import { useContext, useValue } from '@owlmeans/client'
 import { HOME } from '@owlmeans/web-client'
 import type { Module } from '@owlmeans/web-client'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '../../@/components/ui/progress.js'
 import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
 
 export const googleClientPlugin: AuthenticationPlugin = {
   type: GOOGLE_CLIENT_AUTH,
+
+  // `i18nKey` rather than the default (the plugin's own type): the type is `google-oauth`, the
+  // translated key is `google`, and without this the button printed the machine id at the user.
+  method: { order: 10, icon: 'google', i18nKey: 'google', emphasis: 'primary' },
 
   Implementation: Renderer => ({ type, stage, control }) => {
     const context = useContext()
@@ -47,18 +51,18 @@ export const googleClientPlugin: AuthenticationPlugin = {
               }
 
               // Navigate to app root after successful authentication
-              const [homeUrl] = await context.module<Module<string>>(HOME).call({ full: true }) ?? []
-              window.location.href = homeUrl ?? window.location.origin
+              const homeUrl = await context.entrypoint<Module<string>>(HOME).url(undefined, { absolute: true })
+              window.location.href = homeUrl
 
               return
             }
           }
 
           // Initial request — ask server for Google auth URL
-          const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
-            full: true, params: { type }
-          }) ?? []
-          await control.requestAllowence({ type, source: source ?? '' })
+          const source = await context.entrypoint<Module<string>>(CAUTHEN_AUTHEN_TYPED).url({
+            params: { type }
+          }, { absolute: true })
+          await control.requestAllowence({ type, source })
           break
         }
 
@@ -67,10 +71,10 @@ export const googleClientPlugin: AuthenticationPlugin = {
 
           if (control.allowance?.challenge != null) {
             // The server wraps challenge as "source:googleUrl" — extract the URL part
-            const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
-              full: true, params: { type }
-            }) ?? []
-            const url = extractGoogleUrl(control.allowance.challenge, source ?? '')
+            const source = await context.entrypoint<Module<string>>(CAUTHEN_AUTHEN_TYPED).url({
+              params: { type }
+            }, { absolute: true })
+            const url = extractGoogleUrl(control.allowance.challenge, source)
 
             // Persist control state before redirect
             await control.persist()

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/context",
-  "version": "0.1.18-rc.6",
-  "generatedAt": "2026-08-18T14:48:00.551Z",
+  "version": "0.1.18-rc.25",
+  "generatedAt": "2026-09-17T11:44:28.427Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
       "kind": "skill",
-      "name": "context",
+      "name": "owlmeans-context",
       "category": "package-specific",
-      "file": "skills/context/SKILL.md",
-      "canonicalPath": ".agents/skills/context/SKILL.md"
+      "file": "skills/owlmeans-context/SKILL.md",
+      "canonicalPath": ".agents/skills/owlmeans-context/SKILL.md"
     }
   ]
 }

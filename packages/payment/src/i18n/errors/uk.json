@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Не вдалося виконати платіж",
+  "PaymentErrorPaygate": "Платіжний провайдер не зміг виконати запит",
+  "PaymentErrorPaygateUnknown": "Цей платіжний провайдер не підтримується",
+  "PaymentErrorPaygateMapping": "Не вдалося зіставити дані платіжного провайдера",
+  "PaymentErrorPaygateWebhookSetup": "Сповіщення про платежі не налаштовано",
+  "PaymentErrorPaygatePortalUnavailable": "Керування оплатою для цього облікового запису поки недоступне",
+  "PaymentErrorProduct": "Цей продукт недоступний",
+  "PaymentErrorProductUnknown": "Цей продукт не існує",
+  "PaymentErrorProductPlan": "Цей тариф не існує",
+  "PaymentErrorProductPlanRequired": "Для цього облікового запису немає доступного тарифу",
+  "PaymentErrorProductPlanRankConflict": "Тарифи налаштовано неузгоджено",
+  "PaymentErrorProductLimitUnknown": "Цей ліміт не входить до тарифу",
+  "PaymentErrorProductLimitMisdeclared": "Ліміти тарифу налаштовано неправильно",
+  "PaymentErrorIdentification": "Не вдалося визначити платника — увійдіть і спробуйте знову",
+  "PaymentErrorSubscription": "Не вдалося оновити підписку",
+  "PaymentErrorSubscriptionUnknown": "Ця підписка не існує",
+  "EntitlementRefusal": "Ваш тариф цього не дозволяє",
+  "EntitlementRefusalCapabilityRequired": "Ця функція не входить до вашого тарифу",
+  "EntitlementRefusalLimitExhausted": "Досягнуто ліміту вашого тарифу"
+}

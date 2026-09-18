@@ -1,121 +1,151 @@
 import type { BasicConfig, BasicContext, Contextual } from '@owlmeans/context'
-import type { CommonRoute, CommonRouteModel, CommonServiceRoute } from '../types.js'
+import type { RouteAddress, RouteDeclaration, RouteModel, CommonServiceRoute, ResolvedServiceRoute } from '../types.js'
 import { isServiceRoute, isServiceRouteResolved } from './service.js'
 import { normalizePath } from '../helper.js'
-import { SEP } from '../consts.js'
+import { RouteProtocols, SEP } from '../consts.js'
 
 type Config = BasicConfig
 
-export const getParentRoute = async <C extends Config, T extends BasicContext<C>>(context: T, route: CommonRoute): Promise<CommonRoute | null> => {
-  if (route.parent != null) {
-    const parent = context.module<Contextual & { _module: true, route: CommonRouteModel, resolve?: () => Promise<void> }>(route.parent)
-    assertCycle<C, T>(context, route, parent.route.route)
-    if (parent.route == null) {
-      throw new SyntaxError('Parent module doesn\'t provide a route')
-    }
-    if (!parent.route.route.resolved) {
-      if (parent.resolve != null) {
-        await parent.resolve()
-      } else {
-        return await parent.route.resolve<C, T>(context)
-      }
-    }
-    return parent.route.route
-  }
-
-  return null
+/** What an entrypoint looks like from the route layer: something that carries a route model. */
+interface RouteCarrier extends Contextual {
+  _entrypoint: true
+  route: RouteModel
 }
 
-export const overrideParams = (route: CommonRoute, overrides?: Partial<CommonRoute>, filter?: string[]) => {
+const carrier = <C extends Config, T extends BasicContext<C>>(context: T, alias: string): RouteCarrier =>
+  context.entrypoint<RouteCarrier>(alias)
+
+export const getParentRoute = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): RouteDeclaration | null => {
+  if (route.parent == null) {
+    return null
+  }
+  const parent = carrier<C, T>(context, route.parent)
+  if (parent.route == null) {
+    throw new SyntaxError('Parent entrypoint doesn\'t provide a route')
+  }
+  assertCycle<C, T>(context, route, parent.route.route)
+
+  return parent.route.route
+}
+
+export const overrideParams = (route: RouteDeclaration, overrides?: Partial<RouteDeclaration>, filter?: string[]) => {
   Object.entries(overrides ?? {}).forEach(([key, value]) => {
-    if (route[key as keyof CommonRoute] == null
+    if (route[key as keyof RouteDeclaration] == null
       && (filter == null || filter.includes(key))) {
-      (route[key as keyof CommonRoute] as CommonRoute[keyof CommonRoute]) = value
+      (route[key as keyof RouteDeclaration] as RouteDeclaration[keyof RouteDeclaration]) = value
     }
   })
 }
 
-export const resolve = <C extends Config, T extends BasicContext<C>>(route: CommonRoute) => async (context: T) => {
-  if (route.resolved) return route
-  route.resolved = true
-
+/**
+ * Pick the service route this declaration answers on: the one it names, else the default of its
+ * app type, else the first of its app type.
+ *
+ * @throws {SyntaxError}
+ */
+export const resolveService = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): ResolvedServiceRoute => {
   if (context.cfg.services == null) {
     throw new SyntaxError('Services aren\'t configured to resolve routes')
   }
 
-  const firstGuessService = context.cfg.services[route.service ?? context.cfg.service]
-  if (firstGuessService != null && !isServiceRoute(firstGuessService)) {
+  const named = context.cfg.services[route.service ?? context.cfg.service]
+  if (named != null && !isServiceRoute(named)) {
     throw new SyntaxError('Service is not a valid service route')
   }
-  const service = firstGuessService?.type === route.type ? firstGuessService
+
+  const service = named?.type === route.type ? named
     : Object.values(context.cfg.services).find<CommonServiceRoute>(
-      (service): service is CommonServiceRoute => {
-        const _service = service as CommonServiceRoute
-        return _service.default === true && _service.type === route.type
+      (candidate): candidate is CommonServiceRoute => {
+        const _candidate = candidate as CommonServiceRoute
+        return _candidate.default === true && _candidate.type === route.type
       }
     ) ?? Object.values(context.cfg.services).find<CommonServiceRoute>(
-      (service): service is CommonServiceRoute => {
-        const _service = service as CommonServiceRoute
-        return _service.type === route.type
-      }
+      (candidate): candidate is CommonServiceRoute => (candidate as CommonServiceRoute).type === route.type
     )
+
   if (!isServiceRoute(service)) {
     throw new SyntaxError('Service is not a valid service route')
-  }
-  if (!service.resolved && service.host != null) {
-    service.resolved = true
   }
   if (!isServiceRouteResolved(service)) {
     throw new SyntaxError('Service route is not resolved')
   }
 
-  overrideParams(route, service, ['host', 'port', 'service', 'base'])
-
-  // Internal host access is non secure only
-  // it's required for server side client routes
-  if ("internalHost" in route) {
-    if (route.internalHost === route.host) {
-      route.secure = false
-    }
-  } else if ("internalHost" in service) {
-    if (service.internalHost === route.host) {
-      route.secure = false
-    }
-  }
-  
-
-  const parent = await getParentRoute<C, T>(context, route)
-  if (parent != null) {
-    route.path = (parent.path.startsWith(SEP) ? SEP : '')
-      + normalizePath(normalizePath(parent.path) + SEP + normalizePath(route.path))
-  }
-
-  // Moved base resolution to the final service
-  // if (parent == null && route.base != null && route.base.trim() !== '') {
-  //   route.path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
-  //   // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
-  // }
-
-  return route
+  return service
 }
+
+/**
+ * The full path: every ancestor's declared segment, then this one. Walks the parent chain through
+ * the context, so a declaration always states only what it contributes.
+ */
+export const resolvePath = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): string => {
+  const parent = getParentRoute<C, T>(context, route)
+  if (parent == null) {
+    return route.path
+  }
+  const parentPath = resolvePath<C, T>(context, parent)
+
+  return (parentPath.startsWith(SEP) ? SEP : '')
+    + normalizePath(normalizePath(parentPath) + SEP + normalizePath(route.path))
+}
+
+/** `base` + the full path — what a server mounts and a client requests. */
+export const resolveMount = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): string => {
+  const path = resolvePath<C, T>(context, route)
+  const base = route.base ?? resolveService<C, T>(context, route).base
+
+  return base != null && base.trim() !== ''
+    ? SEP + normalizePath(base) + SEP + normalizePath(path)
+    : path
+}
+
+/**
+ * Where the route answers. A backend caller reaching a service over its INTERNAL host is inside the
+ * cluster, so that hop is never TLS.
+ */
+export const resolveAddress = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): RouteAddress => {
+  const service = resolveService<C, T>(context, route)
+  const host = route.host ?? service.host
+  const internalHost = route.internalHost ?? service.internalHost
+
+  return {
+    host,
+    port: route.port ?? service.port,
+    base: route.base ?? service.base,
+    secure: internalHost != null && internalHost === host ? false : route.secure ?? true,
+    protocol: route.protocol ?? RouteProtocols.WEB,
+  }
+}
+
+/** Does this route belong to the service the asking context IS? */
+export const isLocalRoute = <C extends Config, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration
+): boolean => (route.service ?? context.cfg.service) === context.cfg.service
 
 /**
  * @throws {SyntaxError}
  */
-const assertCycle = <C extends BasicConfig, T extends BasicContext<C>>(context: T, route: CommonRoute, parent: CommonRoute) => {
+const assertCycle = <C extends BasicConfig, T extends BasicContext<C>>(
+  context: T, route: RouteDeclaration, parent: RouteDeclaration
+) => {
   while (parent.parent != null) {
     if (parent.parent === route.alias) {
       throw new SyntaxError(`Route parentship cycle detected. Parent: ${parent.alias} has his child as ancestor ${route.alias}`)
     }
-    parent = context.module<Contextual & { _module: true, route: CommonRouteModel }>(parent.parent).route.route
+    parent = carrier<C, T>(context, parent.parent).route.route
   }
 }
 
-export const prependBase = (route: CommonRoute) => {
-  let path = route.path
-  if (route.base != null && route.base.trim() !== '') {
-    path = SEP + normalizePath(route.base) + SEP + normalizePath(route.path)
-    // route.path = route.base.startsWith(SEP) ? SEP + route.path : route.path
-  }
-  return path
-}
+export const prependBase = (route: RouteDeclaration, path: string) =>
+  route.base != null && route.base.trim() !== ''
+    ? SEP + normalizePath(route.base) + SEP + normalizePath(path)
+    : path

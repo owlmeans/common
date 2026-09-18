@@ -17,3 +17,15 @@ import type { LoginContext } from './types.js'
 export const adoptToken = async (ctx: LoginContext, token: string): Promise<void> => {
   await ctx.service<AuthService>(AUTH_ALIAS).update(token)
 }
+
+/**
+ * The one path this context's authentication is dropped, and the exact mirror of {@link adoptToken}.
+ *
+ * `undefined`, not `null`: `undefined` is the declared clearing value, and on the web the auth
+ * service reacts to it by navigating to the dispatcher. Everything that signs a user out goes
+ * through here — the hook, both browser plugins and the surrogate screen — so there is one place
+ * where "signed out" is defined rather than four that agree until one of them changes.
+ */
+export const revokeToken = async (ctx: LoginContext): Promise<void> => {
+  await ctx.service<AuthService>(AUTH_ALIAS).update(undefined)
+}

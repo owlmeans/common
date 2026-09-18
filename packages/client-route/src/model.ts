@@ -1,42 +1,20 @@
-import type { CommonRouteModel } from '@owlmeans/route'
+import type { RouteModel } from '@owlmeans/route'
 import type { ClientRouteModel, ClientRouteOptions } from './types.js'
-import { resolve, overrideParams } from '@owlmeans/route/utils'
-import type { BasicConfig, BasicContext } from '../../context/build/types.js'
+import { overrideParams } from '@owlmeans/route/utils'
 
-export const route = (route: CommonRouteModel, opts?: ClientRouteOptions): ClientRouteModel => {
-  const unresolvedPath = route.route.path
-
+/**
+ * Mark a route model as a client one and fill in whatever the declaration left blank.
+ * The declared `path` stays the segment this route contributes — the entrypoint composes the
+ * full path and the address on demand.
+ */
+export const route = (route: RouteModel, opts?: ClientRouteOptions): ClientRouteModel => {
   const model: ClientRouteModel = {
     ...(route as ClientRouteModel),
 
-    _client: true,
-
-    resolve: async <C>(context: C) => {
-      if (model.route.resolved) {
-        if (model._resolved == null) {
-          throw new SyntaxError('Cannot reach resolved state twice without resolving promise')
-        }
-        await model._resolved
-
-        return model.route
-      }
-
-      const resolver: { resolve?: () => void } = {}
-      model._resolved = new Promise(resolve => resolver.resolve = resolve)
-
-      await resolve(model.route)(context as BasicContext<BasicConfig>)
-
-      model.route.partialPath = unresolvedPath
-
-      resolver.resolve?.()
-
-      return model.route
-    }
+    _client: true
   }
 
   overrideParams(model.route, opts?.overrides)
-
-  model.route.partialPath = unresolvedPath
 
   return model
 }

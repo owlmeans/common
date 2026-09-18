@@ -21,7 +21,7 @@ export const apiConfigMiddleware: Middleware = {
         module.route.route.port = context.cfg.primaryPort
       }
       try {
-        const [config] = await module.call()
+        const config = await module.call()
         const target: CommonConfig = context.cfg as unknown as CommonConfig
         mergeConfig(target, config as CommonConfig)
       } catch (e) { 

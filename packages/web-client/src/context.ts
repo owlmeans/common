@@ -22,8 +22,6 @@ export const makeContext = <C extends AppConfig = AppConfig, T extends AppContex
   appendWebRouter<C, T>(context)
   appendWebLogin<C, T>(context)
 
-  context.makeContext = makeContext as typeof context.makeContext
-
   return context
 }
 

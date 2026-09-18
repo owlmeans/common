@@ -5,12 +5,18 @@ import { createRoot } from 'react-dom/client'
 import { config } from '@owlmeans/client-context'
 import { AppType, service } from '@owlmeans/config'
 import { BASE, HOME } from '@owlmeans/context'
-import { entrypoint } from '@owlmeans/client-entrypoint'
+import { bindScreen } from '@owlmeans/client-entrypoint'
+import { openProtocol } from '@owlmeans/entrypoint'
 import { frontend, route } from '@owlmeans/route'
 import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
-import { makeContext, modules as baseModules, NavLayout, PanelApp, Toaster } from '../../src/index.js'
+import {
+  makeContext, useContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster
+} from '../../src/index.js'
+import { LoginScreen } from '../../src/components/login/index.js'
+import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
+import type { LoginMethod } from '@owlmeans/client-auth/login'
 
 // A real app: a context, a layout entrypoint rendering NavLayout, and screens under it.
 // The nav model resolves the active screen from the router, so nothing here may be faked.
@@ -24,7 +30,14 @@ const alias = {
   reportsIndex: `${SERVICE}:web:reports-index`,
   reportDetail: `${SERVICE}:web:report-detail`,
   prefs: `${SERVICE}:web:prefs`,
+  login: `${SERVICE}:web:login`,
+  socket: `${SERVICE}:web:socket`,
 }
+
+/** A harness id for the ONE tracked connection this screen simulates — a real `ws()`/`useWs()`
+ *  connection would generate its own, but the status service only cares that it is stable across
+ *  the two buttons below. */
+const HARNESS_SOCKET_ID = 'harness-socket'
 
 const navConfig: PanelNavConfig = {
   sections: [
@@ -49,12 +62,44 @@ const footerLinks: PanelNavLink[] = [
 
 const screen = (id: string, text: string): FC => () => <div id={id}>{text}</div>
 
+/**
+ * What the sign-in screen offers in the harness.
+ *
+ * Real methods, with real `start` handlers that record they were called — the one thing the
+ * screen must never do is start one on its own, and a method that only pretended to start could
+ * not prove it.
+ */
+const started: string[] = []
+;(globalThis as unknown as { __loginStarted: string[] }).__loginStarted = started
+
+const method = (id: string, over?: Partial<LoginMethod>): LoginMethod => ({
+  id,
+  order: 10,
+  start: async () => { started.push(id); return LoginOutcome.Handled },
+  ...over,
+})
+
+/** The sign-in screen, with the terms confirmation the configuration requires. */
+const LoginHarness: FC = () => <LoginScreen
+  Logo={() => <span id="login-logo">logo</span>}
+  translate={(_key, defaultValue) => defaultValue}
+/>
+
+// `?header=broken` simulates the layout-restyle bug this harness pins: a `headerClassName`
+// carrying an invalid Tailwind v4 arbitrary-value background (v3 syntax, silently dropped) and a
+// bare `bg-transparent`, either of which used to leave the sticky header with no background paint
+// of its own at all. One harness process serves both branches, exactly like `reloadDialog` above.
+const brokenHeader = new URLSearchParams(window.location.search).get('header') === 'broken'
+// `?footer=none` omits the `footer` prop entirely — the shape every area layout had before the
+// shell grew a footer-links convention. `NavLayout` must still render the credit line then.
+const noFooterProp = new URLSearchParams(window.location.search).get('footer') === 'none'
+
 const Layout: FC<PropsWithChildren> = ({ children }) => <>
   <NavLayout
     nav={navConfig}
     title="Harness"
     actions={<button id="action-slot">action</button>}
-    footer={footerLinks}
+    {...(noFooterProp ? {} : { footer: footerLinks })}
     // A DARK APPLICATION SHELL, which is what a themed app does to the root: a contrasting
     // surface pair, both halves correct. The header paints its own opaque background, so it is
     // a different surface, and everything in it must stay legible against `--background`
@@ -65,6 +110,7 @@ const Layout: FC<PropsWithChildren> = ({ children }) => <>
     // page. It names the width and nothing else, so the centring and the side padding must
     // survive it — substituting this for the default is a page running flush to the window edge.
     containerClassName="max-w-[1280px]"
+    {...(brokenHeader ? { headerClassName: 'bg-[--nope] bg-transparent' } : {})}
   >{children}</NavLayout>
   {/* Mounted ONCE, in the layout — exactly where an application mounts it. */}
   <Toaster />
@@ -80,6 +126,26 @@ const PrefsScreen: FC = () => <div id="prefs">
 
 /** A grouping screen — it renders whichever child the router matched. */
 const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-group">{children}</div>
+
+/**
+ * Drives the SAME status service `SocketReloadDialog` reads, exactly the way a real dropped
+ * `ws()`/`useWs()` connection would — through `report()`/`release()`, never a prop the dialog
+ * itself exposes, since it has none: the whole point is that any socket, anywhere in the app,
+ * can put the dialog up.
+ */
+const SocketStatusScreen: FC = () => {
+  const context = useContext()
+
+  return <div id="socket-status">
+    socket-status-screen
+    <button id="report-lost" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost')}>
+      lose connection
+    </button>
+    <button id="release-lost" onClick={() => context.socketStatus().release(HARNESS_SOCKET_ID)}>
+      restore connection
+    </button>
+  </div>
+}
 
 /**
  * The section's landing screen. Its button navigates to a screen the MENU DOES NOT LIST,
@@ -100,7 +166,22 @@ const ReportsIndex: FC = () => {
 // sides are declared here exactly as a real app declares them.
 const base = service({ type: AppType.Frontend, service: SERVICE, host: 'localhost', port: 5173 })
 service({ type: AppType.Backend, service: API, host: 'localhost', port: 5174, base: 'api' }, base)
-base.security = { unsecure: true }
+base.security = {
+  unsecure: true,
+  auth: {
+    login: {
+      // Confirmation required, which is the case that matters: a method must be blocked until it
+      // is given, and blocking must SAY so rather than swallow the click.
+      terms: { required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy' },
+      credit: { poweredBy: true, product: 'Harness', organization: 'Acme' },
+    },
+  },
+}
+// Every other screen in this harness stays unaffected: nothing ever reports into the status
+// service unless `#report-lost` is clicked, so the flag being on by default costs nothing. A
+// test that needs the OFF case loads `?reloadDialog=0` — one harness process, both branches.
+const reloadDialogEnabled = new URLSearchParams(window.location.search).get('reloadDialog') !== '0'
+;(base as { socket?: { reloadDialog?: boolean } }).socket = { reloadDialog: reloadDialogEnabled }
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the
 // context is un-initialized, so a pre-readied context renders a blank page.
@@ -109,28 +190,51 @@ const context = makeContext(cfg as never)
 context.serviceRoute(SERVICE, true)
 context.serviceRoute(API, true)
 
-const modules = [
+ensureLoginService(context as never).registerMethodSource({
+  alias: 'harness',
+  list: () => [
+    method('primary', { emphasis: 'primary', icon: 'google', label: 'Continue with Google' }),
+    // A method that finishes without moving the document — the shape of a relying party that
+    // could not build an authorization URL. The screen must SAY so; silence reads as a dead
+    // button, which is exactly the bug this pins.
+    method('secondary', {
+      order: 20, label: 'Sign in with a key',
+      start: async () => { started.push('secondary'); return LoginOutcome.Passed },
+    }),
+    method('operator', { order: 900, restricted: true, label: 'Secret key' }),
+  ],
+})
+
+const protocols = {
+  base: openProtocol(route(BASE, '/', frontend())),
+  home: openProtocol(route(HOME, '/', frontend({ default: true, parent: BASE }))),
+  dash: openProtocol(route(alias.dash, '/dash', frontend({ parent: BASE }))),
+  reports: openProtocol(route(alias.reports, '/reports', frontend({ parent: BASE }))),
+  reportsIndex: openProtocol(route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports }))),
+  reportDetail: openProtocol(route(alias.reportDetail, '/detail', frontend({ parent: alias.reports }))),
+  prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
+  login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
+  socket: openProtocol(route(alias.socket, '/socket', frontend({ parent: BASE }))),
+}
+
+const entrypoints = [
   // The framework's own entrypoints come first — the api-config middleware the panel context
   // registers resolves one of them during init, and without them init throws before any route
   // is compiled.
-  ...baseModules,
-  entrypoint(route(BASE, '/', frontend()), handler(Layout)),
-  entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(screen('home', 'home-screen'))),
-  entrypoint(route(alias.dash, '/dash', frontend({ parent: BASE })), handler(screen('dash', 'dash-screen'))),
+  ...baseEntrypoints,
+  bindScreen(protocols.base, handler(Layout)),
+  bindScreen(protocols.home, handler(screen('home', 'home-screen'))),
+  bindScreen(protocols.dash, handler(screen('dash', 'dash-screen'))),
   // A screen that has children needs a `default: true` child of its own — without one its own
   // path matches nothing and the page renders blank.
-  entrypoint(route(alias.reports, '/reports', frontend({ parent: BASE })), handler(ReportsGroup)),
-  entrypoint(
-    route(alias.reportsIndex, '/', frontend({ default: true, parent: alias.reports })),
-    handler(ReportsIndex)
-  ),
-  entrypoint(
-    route(alias.reportDetail, '/detail', frontend({ parent: alias.reports })),
-    handler(screen('detail', 'detail-screen'))
-  ),
-  entrypoint(route(alias.prefs, '/prefs', frontend({ parent: BASE })), handler(PrefsScreen)),
+  bindScreen(protocols.reports, handler(ReportsGroup)),
+  bindScreen(protocols.reportsIndex, handler(ReportsIndex)),
+  bindScreen(protocols.reportDetail, handler(screen('detail', 'detail-screen'))),
+  bindScreen(protocols.prefs, handler(PrefsScreen)),
+  bindScreen(protocols.login, handler(LoginHarness)),
+  bindScreen(protocols.socket, handler(SocketStatusScreen)),
 ]
 
-context.registerEntrypoints(modules)
+context.registerEntrypoints(entrypoints)
 
 createRoot(document.getElementById('root')!).render(<PanelApp context={context as never} />)

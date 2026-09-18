@@ -19,7 +19,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
   const navigator = useNavigate()
   const navigate = useCallback(async () => {
     alias = alias == null || alias === DISPATCHER ? HOME : alias
-    const module = context.module<ClientEntrypoint<string>>(alias)
+    const module = context.entrypoint<ClientEntrypoint<string>>(alias)
     if (alias === HOME) {
       params = {}
       query = {}

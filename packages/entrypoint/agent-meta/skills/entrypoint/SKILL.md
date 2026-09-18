@@ -1,76 +1,98 @@
 ---
 name: entrypoint
-description: How to use @owlmeans/entrypoint — declarative entrypoint/route definitions with entrypoint(), guard(), gate(), filter(), body(), params(), query() builders. Auto-invoked when importing from this package or defining a service entrypoint declaration. Also covers the deprecated @owlmeans/module reexport shim (module() → entrypoint()).
+description: How to declare immutable, typed @owlmeans/entrypoint protocols with protocol(), contract(), typed(), protocol trees, guards, gates, and route transports. Load before defining a shared API, socket, queue, or screen contract.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # @owlmeans/entrypoint
 
+**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.28`
+
 **Layer:** Core
-**Install:** `"@owlmeans/entrypoint": "^0.1.18-rc.7"` in `dependencies`
 
-## Key Exports
+An entrypoint protocol is the immutable shared contract for one addressable route. It owns the
+route, typed request sections, response type, schemas, guards, gate, and sticky flag. Server and
+client behaviour is added only by the corresponding binding package.
 
-| Export | Description |
-|--------|-------------|
-| `entrypoint(route, opts?)` | Declare an entrypoint on a route |
-| `guard(alias, opts?)` | Require a guard; returns options, so it wraps rather than takes them |
-| `gate(alias, params, opts?)` | Require a gate; passed as the `opts` of `guard(...)` |
-| `filter(filter, opts?)` | Attach request validators |
-| `body(Schema)` | AJV body validator |
-| `params(Schema)` | URL params validator |
-| `query(Schema)` | Query string validator |
-| `ClientEntrypoint<T>` types | Resolved entrypoint type used for `ctx.entrypoint<...>(alias).call(...)` |
-| `EntrypointOutcome` | Enum: Ok, Accepted, Created, Finished |
-| Constants | Built-in entrypoint aliases |
+## Declare a named tree
 
-`guard`, `gate` and `filter` are **options-object combinators, not variadic composers**. Each
-returns a `CommonEntrypointOptions` and takes the next one as its final argument, so they nest:
+```ts
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod } from '@owlmeans/route'
 
-```typescript
-entrypoint(
-  route(app.api.item.remove, '/:id', { parent: app.api.item, method: RouteMethod.DELETE }),
-  guard(DEFAULT_GUARD, gate(OIDC_GATE, ['item--delete@id']))
-)
+const aliases = { base: 'project', create: 'project:create', get: 'project:get' } as const
+const projectBase = protocol(route(aliases.base, '/projects', backend()), contract(typed<void>()))
+
+export const projectProtocols = {
+  base: projectBase,
+  create: protocol(
+    route(aliases.create, '/', backend({ parent: projectBase, method: RouteMethod.POST })),
+    contract.request({ body: typed<CreateProject>(CreateProjectSchema) }, typed<Project>()),
+    { guards: DEFAULT_GUARD }
+  ),
+  get: protocol(
+    route(aliases.get, '/:id', backend({ parent: projectBase })),
+    contract.request({ params: typed<{ id: string }>() }, typed<Project>())
+  ),
+}
 ```
 
-Guards and gates are **inherited by child entrypoints** and enforced by the framework before a
-handler runs — a handler that re-checks them is duplicating an enforced rule, and is wrong even
-when it agrees.
+- Export a `*Protocols` object whose property names describe the contract. Its protocol values are
+  the only cross-layer references. Flatten it with `protocols(projectProtocols)` only at registration.
+- Use `protocol(route, contract, options?)` for every typed boundary.
+- `openProtocol(route, options?)` is an intentional untyped escape hatch; do not use it merely to
+  avoid declaring an input or output type.
+- Use `decorateEntrypoint(protocol, options)` only when deriving an immutable decoration; never
+  mutate guards, gates, schemas, or a declaration collection.
 
-## Subpath Exports
+Keep aliases private to this module. A child should use its parent protocol object
+(`backend({ parent: projectBase })`); route creation stores its alias. Normal application code
+imports protocol objects, while raw aliases are limited to dynamic registry or broker adapters.
 
-- `./utils` — entrypoint construction helpers (`isEntrypoint`, `CreateEntrypointSignature`)
+## Contract sources
 
-## Usage
+| Source | Use |
+|---|---|
+| `typed<Model>(schema)` | A type paired with its AJV runtime validator. Prefer at declaration boundaries. |
+| `typed<Model>()` | A type-only request section or response. |
+| `schema<Model>(schema)` | A reusable named typed AJV schema. |
+| `contract(body, response)` | A body-only contract. |
+| `contract.request({ body, params, query, headers }, response)` | Independently typed request sections. |
 
-Define entrypoints in a shared `common` package, then `elevate()` them with handlers in server/web packages:
+Use `typed<Model>(schema)` rather than a bare `JSONSchemaType<Model>` when the model must remain
+exact. A bare AJV generic can widen a protocol section to `OpenValue`.
 
-```typescript
-import { entrypoint, guard, gate, filter, body } from '@owlmeans/entrypoint'
-import { route, RouteMethod } from '@owlmeans/route'
-import { DEFAULT_GUARD } from '@owlmeans/auth-common'
-import { OIDC_GATE } from '@owlmeans/oidc'
-import { CreateProjectSchema } from './schemas.js'
+`RequestOf<Protocol>`, `ResponseOf<Protocol>`, `BodyOf<Protocol>`, `ParamsOf<Protocol>`,
+`QueryOf<Protocol>`, and `HeadersOf<Protocol>` derive the contract types. A handler receives
+`HandlerRequest<RequestOf<Protocol>>`, which includes the transport metadata as well as the typed
+sections. Use `entrypointRef<Request, Response>(alias)` only for a dynamic remote address whose
+declaration is unavailable to import.
 
-export const managerModules = [
-  entrypoint(
-    route(manager.back.account.base, '/account'),
-    guard(DEFAULT_GUARD, gate(OIDC_GATE, [`my-service-account-{entity}`]))
-  ),
-  entrypoint(
-    route(manager.back.project.create, '/create', {
-      parent: manager.back.project.base,
-      method: RouteMethod.POST,
-    }),
-    filter(body(CreateProjectSchema))
-  ),
-]
+## Authorization and addressing
+
+Add `guards`, `gate`, and `sticky` directly in `EntrypointOptions`:
+
+```ts
+protocol(route(...), contract(...), {
+  guards: [DEFAULT_GUARD, AUDIT_GUARD],
+  gate: { alias: PROJECT_GATE, params: ['project--read@id'] },
+  sticky: true,
+})
 ```
 
-## Depends On
+Guards and gates are inherited through the parent route by the bound runtime entrypoint. A route's
+protocol chooses the carrier (HTTP, socket, or queue); callers only use `call`, `invoke`, or `url`
+on the client-bound protocol and do not branch on a transport.
 
-- `@owlmeans/route` — `route()`, `RouteMethod`
-- `@owlmeans/auth-common` — guard aliases (`DEFAULT_GUARD`)
-- `@owlmeans/error`, `@owlmeans/i18n`
+## Bind, never replace
+
+- Server: `bind(protocol, handlers<Context>().body|params|request(...))` from
+  `@owlmeans/server-entrypoint` / `@owlmeans/server-api`.
+- Socket: `bind(protocol, connection(protocol, handler))`.
+- Client API route: `bind(protocol)` or `bindAll(tree)` from `@owlmeans/client-entrypoint`.
+- Client screen: `bindScreen(protocol, componentHandler)`.
+
+Do not construct contextual compatibility entrypoints, look a protocol up by alias with a generic,
+or replace an item in an entrypoint array. Import the declaration and bind that exact object. This
+keeps declarations immutable and lets TypeScript infer requests and replies end to end.

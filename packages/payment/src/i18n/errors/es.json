@@ -1,0 +1,21 @@
+{
+  "PaymentError": "No se pudo completar el pago",
+  "PaymentErrorPaygate": "El proveedor de pagos no pudo completar la solicitud",
+  "PaymentErrorPaygateUnknown": "Este proveedor de pagos no es compatible",
+  "PaymentErrorPaygateMapping": "No se pudieron asociar los datos del proveedor de pagos",
+  "PaymentErrorPaygateWebhookSetup": "Las notificaciones de pago no están configuradas",
+  "PaymentErrorPaygatePortalUnavailable": "La gestión de la facturación aún no está disponible para esta cuenta",
+  "PaymentErrorProduct": "Este producto no está disponible",
+  "PaymentErrorProductUnknown": "Este producto no existe",
+  "PaymentErrorProductPlan": "Este plan no existe",
+  "PaymentErrorProductPlanRequired": "No hay ningún plan disponible para esta cuenta",
+  "PaymentErrorProductPlanRankConflict": "Los planes están configurados de forma incoherente",
+  "PaymentErrorProductLimitUnknown": "Este límite no forma parte del plan",
+  "PaymentErrorProductLimitMisdeclared": "Los límites del plan están mal configurados",
+  "PaymentErrorIdentification": "No pudimos identificar quién paga: inicie sesión e inténtelo de nuevo",
+  "PaymentErrorSubscription": "No se pudo actualizar la suscripción",
+  "PaymentErrorSubscriptionUnknown": "Esta suscripción no existe",
+  "EntitlementRefusal": "Su plan no permite esto",
+  "EntitlementRefusalCapabilityRequired": "Esta función no está incluida en su plan",
+  "EntitlementRefusalLimitExhausted": "Ha alcanzado el límite de su plan"
+}

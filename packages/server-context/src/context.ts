@@ -10,8 +10,6 @@ export const makeServerContext = <C extends ServerConfig, T extends ServerContex
 
   context.registerMiddleware(fileConfigReader)
 
-  context.makeContext = makeServerContext as typeof context.makeContext
-
   appendConfigResource<C, T>(context)
   appendConfigResource<C, T>(context, TRUSTED, TRUSTED)
   appendConfigResource<C, T>(context, PLUGINS, PLUGIN_RECORD)

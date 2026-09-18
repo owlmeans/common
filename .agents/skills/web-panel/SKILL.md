@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.19"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.50"` in `dependencies`
 
 ## Key Exports
 
@@ -17,14 +17,34 @@ user-invocable: false
 | `NavLayout` | The application shell — header, section menu, screen menu, content, footer |
 | `TopNav` / `SideNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
-| `components` submodule | shadcn/Radix panel/form components |
+| `SocketReloadDialog` / `useSocketStatus` | The global "reload the page" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically, and the hook it reads — see below |
+| `PanelMenu` | The dropdown menu, described as data — items, arbitrary widget rows, labels, separators and one level of submenu. `PanelMenuEntry` / `PanelMenuEntryKind` / `PanelMenuProps` come with it |
+| `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
+| `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
+| `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
+| `PanelApp` | That wrapper on its own — the themed root `div` plus the i18n provider — for a host that mounts the tree itself |
+| `useContext<C, T>()` | The current context, from React. `AppContext` adds `context.flow()` over `@owlmeans/web-client`'s |
+| `entrypoints` | The base declaration list — `@owlmeans/web-client`'s plus `@owlmeans/api-config-client`'s. Compose the app's own over it |
+| `Block` / `Text` / `Status` | The shadcn `Card` panel with an optional `Actions` footer, a heading/paragraph whose copy comes from the panel namespace, and the shadcn `Alert` resolving a `ResilientError` to a translated message |
+| `Form` / `TextInput` / `Button` / `SubmitButton` / `ButtonSelector` | The web form family. `Form` builds its own `useForm` + `ajvResolver` and borrows only `FormContext` and `schemaToFormDefault` from `@owlmeans/client-panel`; `TextInput` drives `react-hook-form`'s `Controller` directly, and the buttons call `handleSubmit` directly — none of them wraps `ClientForm`, `InputCtrl` or `ActionCtrl` |
+| `ImageUploader` / `Layout` | The uploader in a drop target with a preview, and a plain content wrapper (the shell is `NavLayout`) |
+| `scalingToStyles(h, v)` | `BlockScaling` → the width/height utility classes the panels share |
+| `cn(...inputs)` | The class-name merger the components are written against — an app never re-declares it |
+| `useIsMobile()` / `MOBILE_BREAKPOINT` | Viewport narrower than Tailwind's `md` (768), matched with `matchMedia` |
+| `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
+| `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| `main`, `exports`, `context`, `modules`, `types` | Wiring helpers |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `provideRequest`, `stab`, `route`, `croute`, `frontend`, `guard`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `setupExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
 
 ## Subpath Exports
 
 - `./auth` — auth panel components for web
-- `./auth/modules` — auth panel module declarations
+- `./auth/entrypoints` — auth panel entrypoint declarations
+- `./consent` — the cookie consent dialog and policy, bound to this app's i18n, plus a menu-row
+  widget and a presence service so a host's own collapsed menu can take over the floating button's
+  job
+- `./jobs` — `JobProgress`, `JobStatus`, `useJobToasts` over `@owlmeans/queue` records
 
 ## Usage
 
@@ -38,16 +58,20 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   const context = makeBasicContext<C, T>(cfg)
   appendOidcGuard<C, T>(context)
   appendStateResource<C, T>(context, VIB_PROJECT_STATE)
-  context.makeContext = makeContext as typeof context.makeContext
   return context
 }
 ```
 
+**A context is created once per process, by one factory.** An app factory calls the factory of the
+layer below it, applies idempotent `append*(context)` mixins, and returns that same context — the
+whole shape of the file above. Nothing is stored for re-creation, and every service, resource and
+entrypoint binds to exactly the one context it was appended to.
+
 ### Navigation — `NavLayout`
 
-`NavLayout` is the application shell. A layout entrypoint elevates a component that renders it and
+`NavLayout` is the application shell. A layout entrypoint binds a component that renders it and
 nothing else; the matched screen arrives as `children`. Keep the navigation as data in its own
-module (`src/nav.ts`) so screens, modules and the shell all read the same aliases.
+module (`src/nav.ts`) so screens, entrypoints and the shell all read the same aliases.
 
 ```tsx
 import { NavLayout, HOME } from '@owlmeans/web-panel'
@@ -86,7 +110,8 @@ header. Both render the same items; only one is visible at a time.
 | `NavLayout` | `nav: PanelNavConfig`, `translate?`, `title?: ReactNode`, `home?: string` (brand target — defaults to the first section's first item), `actions?: ReactNode`, `footer?: PanelNavLink[] \| ReactNode`, `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
 | `TopNav` | `config: PanelNavConfig`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
-| `Footer` | `links?: PanelNavLink[]`, `translate?`, `children?`, `className?`, `style?` |
+| `Footer` | `links?: PanelNavLink[]`, `translate?`, `containerClassName?` (the shell's rhythm, so the footer row lines up with the header and content), `children?`, `className?`, `style?` |
+| `ShellCredit` / `useShellCredit` | `className?`; the platform/owner credit line `Footer` always renders — see below |
 
 **The style slots are REGIONS, and each region is its own SURFACE.** `className` is the root —
 the full-height page *behind* the header, side menu and footer. `headerClassName` is the sticky
@@ -104,6 +129,33 @@ invisible. Pinned by `tests/nav.spec.ts` → "the header is its own surface", wh
 rendered lightness rather than class names; the harness root carries a dark shell permanently so
 every navigation test runs against that case.
 
+**The header is opaque even when `headerClassName` fails to be.** Behind the header's own visible
+content sits a `[data-nav-backdrop]` layer that always paints `bg-background`, at negative
+z-index inside the header's own `isolate` stacking context — so it never covers a caller's actual
+header content, only whatever the header's own background would have been. It exists because
+`headerClassName` is free text a design or restyle pass writes, and three shapes of it leave
+tailwind-merge with no background utility at all on the header: a bare `bg-transparent`, an alpha
+surface (`bg-<x>/50`), or Tailwind v3's dead syntax for referencing a CSS variable
+(`bg-[--my-var]` — square brackets; v4's real shorthand is `bg-(--my-var)`, parentheses). Any of
+those used to leave the sticky header fully see-through, with page content visibly scrolling
+through the menu. A caller that genuinely wants a coloured bar still gets it: `headerClassName`'s
+own background renders on top of the backdrop. Pinned by `nav.spec.ts` → "a broken headerClassName
+still leaves the backdrop layer opaque".
+
+**`Footer` always renders the platform/owner credit line, and there is no prop that hides it.**
+Below the links (or on its own, when a layout passes no `footer` at all — `NavLayout` renders
+`<Footer>` unconditionally now), `ShellCredit` shows "Powered by OwlMeans" and the owner's own
+copyright notice, resolved from `security.auth.login.credit` via `resolveCredit`
+(`@owlmeans/client-auth/login`) — the SAME resolver and the SAME config the sign-in screen's
+`LoginCredit` reads, so an owner who pays to drop the platform credit (`poweredBy: false`) drops
+it everywhere, not only on a screen a signed-in visitor may never see again. Order is the opposite
+of the sign-in screen's: the owner's own notice leads, the platform credit follows — a footer is
+read as "whose page is this, and who built it". The links row and the credit are both centred
+(`justify-center`), not left-aligned. `useShellCredit()` is exported separately so a caller that
+needs to know whether there is anything to show (without rendering it) can ask, exactly how
+`Footer` itself decides whether to render `null`. Pinned by `nav.spec.ts` → "the shell footer
+credit".
+
 **Every style slot is MERGED over its default — none of them substitutes.** `className`,
 `headerClassName`, `contentClassName` and `containerClassName` all go through `cn`, so a caller
 names only the utility it wants to move and tailwind-merge drops just the one it conflicts with.
@@ -118,12 +170,13 @@ width-only override permanently.
 (`bg-secondary text-secondary-foreground`) — never by colouring the root and expecting the bar
 to follow.
 
-**The shell reads exactly five theme variables**: `--background` (page and top bar),
-`--foreground` (active section link), `--muted-foreground` (resting section links) and
-`--accent`/`--accent-foreground` (active side-menu item). It reads **no `--sidebar*` variable at
-all**. So `--muted-foreground` is not merely the text colour of the `--muted` surface — it is
-secondary text sitting directly on `--background`, and a theme that lightens it to suit a dark
-muted panel loses its top menu.
+**The shell reads exactly these colour variables**: `--background` (page and top bar),
+`--foreground` (active section link), `--muted-foreground` (resting section links),
+`--accent`/`--accent-foreground` (active side-menu item), `--border` (the header, side-menu and
+footer rules) and `--primary` — the footer renders its entries through `Link`, which paints
+`text-primary`. It reads **no `--sidebar*` variable at all**. So `--muted-foreground` is not merely
+the text colour of the `--muted` surface — it is secondary text sitting directly on `--background`,
+and a theme that lightens it to suit a dark muted panel loses its top menu.
 
 Rules that make the shell behave:
 
@@ -143,8 +196,72 @@ Rules that make the shell behave:
 - **A parent route needs a `default: true` child.** A frontend entrypoint that has children but no
   child declared `default: true` renders blank at its own path — give a grouping screen an index
   child at `'/'`.
-- **Vendor `navigation-menu`.** `SideNav` builds on the existing `Button`; `TopNav` uses the shadcn
-  `navigation-menu` primitive — see the `@` contract below.
+- **Vendor `navigation-menu`.** `SideNav` builds on the package-local `Button`; `TopNav` uses the
+  package-local shadcn `navigation-menu` primitive — see the package-boundary rule below.
+
+### Menus — `PanelMenu`
+
+One dropdown, described as an ENTRY LIST rather than as children. Every kind has its own focus,
+keyboard and close-on-select behaviour, so children would silently lose all three; and the same
+description then serves a collapsed toolbar, a header overflow and a mobile shell without any of
+them re-deriving it.
+
+```tsx
+import { PanelMenu, PanelMenuEntryKind } from '@owlmeans/web-panel'
+import type { PanelMenuEntry } from '@owlmeans/web-panel'
+
+const entries: PanelMenuEntry[] = [
+  { kind: PanelMenuEntryKind.Widget, key: 'credits', render: <AccountCredits /> },
+  { kind: PanelMenuEntryKind.Separator, key: 'sep' },
+  { kind: PanelMenuEntryKind.Label, key: 'app', label: 'MyApp' },
+  { kind: PanelMenuEntryKind.Item, key: 'home', alias: HOME, Icon: House },
+  { kind: PanelMenuEntryKind.Item, key: 'docs', href: DOCS, open: true, hint: <ExternalLink className="size-3.5" /> },
+  { kind: PanelMenuEntryKind.Sub, key: 'lang', label: 'Language', hint: 'EN', entries: languages },
+]
+
+<PanelMenu entries={entries} translate={t} triggerLabel="Menu" indicator={dot} align="end" />
+```
+
+| Kind | What it is |
+|---|---|
+| `Item` | A focusable row that closes the menu. Exactly one of `alias` (an entrypoint) or `href`, the same union `PanelNavLink` uses; neither makes it a pure `onSelect` action. Also `Icon`, `hint` (right-aligned), `active`, `disabled`, `variant` |
+| `Widget` | Arbitrary content as a plain ROW — see below |
+| `Label` | A section heading |
+| `Separator` | A rule between blocks |
+| `Sub` | One nested level. A `Sub` inside a `Sub` renders nothing — a dropdown that nests further is a navigation tree, not this |
+
+Rules the component owns, each of which was a real failure:
+
+- **A `Widget` is a row, never a `DropdownMenuItem`.** An item takes both the focus and the
+  activation from the controls inside it: Radix's roving tabindex swallows the inner button's
+  keyboard access, and `onSelect` fires on any click that lands on the row — so a "Top up" button
+  inside an item dismisses the menu before its own handler is observed. The row takes no roving
+  focus and does not close the menu; the widget's own buttons are the click targets.
+- **An in-app link cannot use `onSelect`.** The anchor must call `preventDefault()` or the browser
+  performs a full page load, and Radix composes its click handler with `checkForDefaultPrevented`
+  — so preventing the default also cancels `onSelect`, and with it the automatic close. `PanelMenu`
+  therefore navigates and closes explicitly from the anchor's own handler, and keeps its own open
+  state for that (a caller's `open`/`onOpenChange` still wins).
+- **The href resolves synchronously.** `Link` asks `entrypoint.url()` and settles a frame later,
+  which is fine for a link already on screen; a menu's content mounts at the moment it opens, so an
+  href that arrives afterwards is missing exactly while the row is being read. `PanelMenu` uses
+  `entrypoint.path()` — a lookup — and answers `undefined` for a path carrying route parameters.
+  Never drop the `href`: an `<a>` without one is not focusable, does not answer the keyboard,
+  cannot be opened in a new tab, and does not carry the `link` role.
+- **`hidden` takes the separators it orphans with it.** A caller composes the menu from optional
+  blocks; filtering the entries alone leaves a leading rule, a doubled rule, or one under the last
+  item. Normalisation is the whole reason the entries are data.
+- **A `Widget` entry's own mount is not the menu's mount.** Radix's `DropdownMenuContent` (which
+  this and every entries-as-data reimplementation of it builds on) only mounts its children while
+  the menu is actually OPEN — so a widget whose side effect must persist for as long as the
+  TRIGGER is on screen (not merely while a visitor happens to have it open) cannot run that effect
+  from inside the entry. Run it from the caller's own always-mounted component instead — see
+  `useConsentMenuPresence` under `./consent` below for the worked example: a naive version that
+  announced presence from inside its own menu row hid the cookie-consent floating button only
+  while the dropdown happened to be open, and showed it again the instant it closed.
+- **`translate` is a prop**, defaulting to `defaultNavTranslate` — same reason as the nav shell.
+- `indicator` is a slot on the trigger's corner (a notification dot, a count), not a `tone` enum:
+  what deserves attention is the application's judgement.
 
 ### Toasts — `Toaster`
 
@@ -173,29 +290,198 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
 - `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
   raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
 
-## Consumer setup — the `@` contract and Tailwind
+### Reload prompt — `SocketReloadDialog`
 
-`web-panel` emits `@/components/ui/*` and `@/lib/utils` verbatim; the app's bundler resolves `@` to
-its own shadcn copy. Vendor every primitive the package imports: `alert`, `button`, `card`, `input`,
-`label`, `navigation-menu`, `progress` (plus `separator` if you use it), and add
-`@radix-ui/react-navigation-menu` alongside the other Radix peers.
+`makeContext` calls `appendSocketStatus` from `@owlmeans/client-socket` unconditionally, and
+`PanelApp` mounts `SocketReloadDialog` as a sibling of the Router — exactly where
+`PanelCookieConsent` lives, and for the same reason: a dialog mounted inside a route is torn down
+on every navigation. Neither does anything unless an app opts in:
 
-Then point Tailwind at the built package. Its oxide scanner reads the CSS root plus `@source`
-directives only, and excludes `node_modules` — so classes that exist **only** inside `web-panel`
-components (the whole navigation shell and footer) never reach the stylesheet, and the app renders
-an unstyled menu. In the app's Tailwind entry:
+```typescript
+cfg.socket = { reloadDialog: true }
+```
+
+Once every `ws()`/`useWs()` connection in the app has exhausted its own retry budget
+(`useSocketStatus() === 'lost'`), a global, blocking `AlertDialog` covers the screen — no Escape,
+no outside click, one action ("Reload page") that calls `window.location.reload()`. There is
+nothing else the budget-exhausted state can resolve into: the aggregate is not released on that
+path (see the `client-socket` skill), so the only way out is the reload. Strings are lib-tier
+(`useI18nLib('socket', 'reload')`), 7 languages, under `src/components/socket/i18n/`.
+
+Leave `cfg.socket.reloadDialog` unset (or `false`) for an app that would rather show its own
+inline "reconnecting…" state — `useSocketStatus()` is exported for that, independent of the
+dialog.
+
+### Links — `Link`
+
+`Link` renders an `<a>` whose `href` is the entrypoint's own answer: it asks
+`entrypoint.url()` and puts the result on the anchor, so a link into another service comes out
+absolute and a link inside this one comes out as a path. Address a screen by **alias** (or hand it
+the entrypoint you already hold); `src` is the escape hatch for a literal URL.
+
+```tsx
+import { Link } from '@owlmeans/web-panel'
+
+<Link module={web.about} />                                  // label from `modules.<alias>`
+<Link module={web.session} name="nav.session">Session</Link>  // explicit i18n key
+<Link src="https://owlmeans.com" open>OwlMeans</Link>         // literal target, new tab
+```
+
+Resolution is asynchronous — `href` is absent for the first paint and settles once the URL is
+known — so never key a test or a layout on the anchor having an `href` synchronously. The label
+falls back to `modules.<alias>` when neither `name` nor `children` is given, `open` adds
+`target="_blank"` with `rel="noopener noreferrer"`, and `center` centres the text.
+
+### Forms — `Form`, `TextInput`, the buttons
+
+`WebFormProps` is `@owlmeans/client-panel`'s `FormProps` plus `className` and `style`. `Form` holds
+the whole model itself — `useForm` with `mode: 'all'`, `delayError: 300`, an `ajvResolver` over
+`validation` with `coerceTypes` and the `ajv-formats` formats — and publishes it through
+`FormProvider` plus `FormContext`, so every control below reads one form.
+
+```tsx
+import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
+
+<Form decorate validation={schema} onSubmit={async (data, update) => { await save(data); update(data) }}>
+  <TextInput name="email" label placeholder hint />
+  <TextInput name="password" type="password" label="Password" />
+</Form>
+```
+
+- **`decorate` switches the whole rendering.** With `decorate={true}` the fields go inside a shadcn
+  `Card`, the root error surfaces through `Status`, and a `SubmitButton` is rendered in the
+  `CardFooter` **whenever `onSubmit` is given** — the caller writes no action. Without it (the
+  default) `Form` is a bare flex column: no card, no root-error surface, no submit button, so the
+  caller renders its own action. `horizontal`/`vertical` scaling, `className` and `style` land on
+  the `Card` when decorated and on that column otherwise.
+- **`formRef`** — a `useFormRef()` ref filled with `{ form, update, loader, error }`, which is how a
+  caller drives the form, flips the loader, or plants a field/root error from outside.
+- **`TextInput` takes `label`, `placeholder` and `hint` as `string | boolean`.** `true` resolves
+  `<name>.label` / `<name>.placeholder` / `<name>.hint` from the form namespace; a string is used
+  verbatim; anything else renders nothing. It also takes `name`, `def`, `type` (any HTML input type,
+  default `text`) and `disableAutocomplete`. A field error replaces the hint line.
+- **`Button`** takes a required `label`, `onClick`, `loader` (a `Toggleable` — open disables the
+  button and shows the spinner), `size` (`small`/`medium`/`large`), `fullWidth`, and `variant`,
+  which maps the MUI vocabulary onto shadcn (`contained` → `default`, `outlined` → `outline`,
+  `text` → `ghost`) and forwards a shadcn variant name unchanged.
+- **`SubmitButton`** is that button bound to `handleSubmit`, taking `onSubmit` (or `onClick`) and a
+  `label` defaulting to `submit`. It resolves the label with the form `t` itself and passes it down
+  with `i18n.suppress` set, so the label is translated once.
+- **`ButtonSelector`** renders one `Button` per entry of `options`, the one equal to `current`
+  `contained` and the rest `outlined`, calling `onSelect(option)`. `name` prefixes each option's
+  label key as `<name>.<option>`.
+
+## Subpath: `./jobs`
+
+Three presentational pieces for a queue job, over `JobRecord` from `@owlmeans/queue`. They take
+records — `@owlmeans/client-job`'s `useJobs()` maps straight onto them — and hold no store, no
+socket and no strings of their own.
+
+```tsx
+import { JobProgress, JobStatus, useJobToasts } from '@owlmeans/web-panel/jobs'
+
+const jobs = useJobs().map(model => model.record)
+useJobToasts(jobs)
+
+<JobStatus job={job} labels={{ [JobState.Active]: t('jobs.running') }} />
+<JobProgress job={job} />
+```
+
+| Export | Description |
+|---|---|
+| `JobProgress` | The shadcn `Progress` bar. `job.progress` is read as a number, `{ percent }` or `{ done, total }`; anything else animates INDETERMINATE, because zero and "the processor never called `progress()`" look identical otherwise |
+| `JobStatus` | The state pill. `data-state` carries the raw state, so a test never keys on the wording |
+| `jobProgressValue(job)` | The percentage the bar shows, or `undefined` |
+| `useJobToasts(jobs, opts?)` | One toast per job the first time it settles, on the `Toaster` the layout already mounts |
+
+- **No packaged wording.** The states are broker vocabulary; the sentence an app wants for them
+  ("Queued", "Rendering", "Ready") is its own copy in its own namespace, so `JobStatus` takes a
+  `labels` map and otherwise renders the raw state — data, not an untranslated string.
+- **`useJobToasts` never toasts on its first pass.** A screen opening onto a store seeded with
+  yesterday's finished jobs would fire a stack of them at once, so everything already settled at
+  mount is recorded as announced and only what settles afterwards is reported.
+- It needs the same single `Toaster` as everything else — see above.
+
+## Subpath: `./consent`
+
+`PanelCookieConsent` and `PanelCookiePolicy` — `@owlmeans/web-consent`'s components bound to this
+app's language and translations, falling through to the package's own seven-language bundle for
+every key the app has not overridden. See the `consent` skill.
+
+A re-export does not move Tailwind class strings, so a consumer adds a second `@source` for
+`@owlmeans/web-consent` alongside this package's — pointing at **`src`**, for the reason spelled out
+under *Consumer setup* below. Without it the dialog renders half-styled.
+
+**A service wrapping a state resource is what lets a host's own menu take over the floating
+button's job.** `appendConsentWidgetService(context, alias?)` registers a ref-counted presence
+service (`@owlmeans/state`'s `appendStateResource` behind `@owlmeans/context`'s `createService`) —
+call it once, from the app's own `context.ts`, the same as any other `append*` mixin:
+
+```ts
+import { appendConsentWidgetService } from '@owlmeans/web-panel/consent'
+
+appendConsentWidgetService<C, T>(context)
+```
+
+Then, from the menu's own **always-mounted** shell component (never from inside a lazily-rendered
+row — see the `PanelMenu` rule above):
+
+```tsx
+import { PanelConsentMenuWidget, useConsentMenuPresence } from '@owlmeans/web-panel/consent'
+
+const MyMenu: FC = () => {
+  useConsentMenuPresence()   // declares the row reachable for as long as THIS component is mounted
+  const entries = [
+    { kind: PanelMenuEntryKind.Widget, key: 'cookie', render: <PanelConsentMenuWidget /> },
+    // ...
+  ]
+  return <PanelMenu entries={entries} ... />
+}
+```
+
+`PanelCookieConsent` reads the same service (`useConsentWidgetPresent()`, internally) and computes
+`noReopenButton` from it whenever the caller has not passed one explicitly — an app that both
+mounts `PanelCookieConsent` at its root and calls `useConsentMenuPresence()` from its collapsed
+menu gets the floating button exactly while the menu is not, with no further wiring. Ref-counted
+rather than a boolean latch, because more than one menu shell can be mounted for one commit during
+a layout transition (a stale header still showing its own collapsed menu while a new screen's own
+menu has already mounted) and because React 18 StrictMode double-invokes mount/cleanup in dev.
+
+## Consumer setup — package boundary and Tailwind
+
+`web-panel` ships its shadcn primitives and `cn` helper as private implementation files under its
+own `build/@/` tree. Package source imports them only through relative specifiers; it must never
+emit an absolute `@/…` import, because that alias belongs to the consuming application and makes a
+fresh installation depend on unrelated files. Consumers import the public `cn` export when needed
+and do not vendor this package's UI primitives.
+
+Consumers still supply the package's peer dependencies: the Radix primitives (`label`,
+`navigation-menu`, `progress`, `separator`, `slot`) plus React, Tailwind and the usual utility
+libraries. A consumer may have its own shadcn `@` alias, but it is unrelated to this package.
+
+Then point Tailwind at the installed package's **`src`** directory. Its oxide scanner reads the CSS root
+plus `@source` directives only, and excludes `node_modules` — so classes that exist **only** inside
+`web-panel` components (the whole navigation shell and footer) never reach the stylesheet, and the
+app renders an unstyled menu. In the app's Tailwind entry:
 
 ```css
 @import "tailwindcss";
 
-@source "../../../node_modules/@owlmeans/web-panel/build";
+@source "../../../node_modules/@owlmeans/web-panel/src";
 ```
 
-Adjust the relative depth to your own layout; the target is the installed package's `build`.
+Adjust the relative depth to your own layout. Source ships in the published tarball and is tracked
+in a linked workspace, so it is the reliable scan target in both modes.
 
 ## Depends On
 
 - `@owlmeans/web-client`, `@owlmeans/client-panel`, `@owlmeans/client-i18n`, `@owlmeans/web-router`
+- `@owlmeans/client-socket` — `appendSocketStatus`, `useSocketStatus`, behind `SocketReloadDialog`
+- `@owlmeans/queue` — `JobRecord` / `JobState`, read by the `./jobs` subpath
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
-  (`label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no react-router.
+  (`alert-dialog`, `label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI, no
+  react-router.
+- `ajv-formats` is imported at module scope by the form model but is declared in no dependency
+  section of the manifest, which lists `ajv` alone. An install that does not otherwise pull it in
+  fails at import time, so declare `ajv-formats` next to `ajv` in the consuming application.

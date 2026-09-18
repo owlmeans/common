@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Nie udało się zrealizować płatności",
+  "PaymentErrorPaygate": "Dostawca płatności nie mógł zrealizować żądania",
+  "PaymentErrorPaygateUnknown": "Ten dostawca płatności nie jest obsługiwany",
+  "PaymentErrorPaygateMapping": "Nie udało się dopasować danych dostawcy płatności",
+  "PaymentErrorPaygateWebhookSetup": "Powiadomienia o płatnościach nie są skonfigurowane",
+  "PaymentErrorPaygatePortalUnavailable": "Zarządzanie płatnościami nie jest jeszcze dostępne dla tego konta",
+  "PaymentErrorProduct": "Ten produkt jest niedostępny",
+  "PaymentErrorProductUnknown": "Ten produkt nie istnieje",
+  "PaymentErrorProductPlan": "Ten plan nie istnieje",
+  "PaymentErrorProductPlanRequired": "Dla tego konta nie ma dostępnego planu",
+  "PaymentErrorProductPlanRankConflict": "Plany są skonfigurowane niespójnie",
+  "PaymentErrorProductLimitUnknown": "Ten limit nie jest częścią planu",
+  "PaymentErrorProductLimitMisdeclared": "Limity planu są skonfigurowane nieprawidłowo",
+  "PaymentErrorIdentification": "Nie udało się ustalić płatnika — zaloguj się i spróbuj ponownie",
+  "PaymentErrorSubscription": "Nie udało się zaktualizować subskrypcji",
+  "PaymentErrorSubscriptionUnknown": "Ta subskrypcja nie istnieje",
+  "EntitlementRefusal": "Twój plan na to nie pozwala",
+  "EntitlementRefusalCapabilityRequired": "Ta funkcja nie jest dostępna w Twoim planie",
+  "EntitlementRefusalLimitExhausted": "Osiągnięto limit Twojego planu"
+}

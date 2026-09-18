@@ -1,50 +1,38 @@
 ---
 name: client-entrypoint
-description: How to use @owlmeans/client-entrypoint — client-side entrypoint helpers extending @owlmeans/entrypoint with React component attachment and call helpers. Auto-invoked when importing client entrypoint helpers. Also covers the deprecated @owlmeans/client-module reexport shim.
+description: Bind shared entrypoint protocols in a client context with typed call(), invoke(), url(), bindAll(), and bindScreen(). Load when wiring client API routes or screens.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # @owlmeans/client-entrypoint
 
-**Layer:** Client
-**Install:** `"@owlmeans/client-entrypoint": "^0.1.18-rc.8"` in `dependencies`
+**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.29`
 
-## Key Exports
+Bind a declaration from `@owlmeans/entrypoint`; never construct or replace a contextual
+entrypoint by alias.
 
-| Export | Description |
-|--------|-------------|
-| `ClientEntrypoint<T>` types | Client entrypoint interface (handler component + call helpers) |
-| `EntrypointCall` / `EntrypointFilter` | Typed call and validation helpers |
-| `EntrypointRef` / `RefedEntrypointHandler` | Handler reference pattern |
-| Entrypoint helpers | Build client entrypoints; resolve callable references |
+```ts
+import { bind, bindAll, bindScreen } from '@owlmeans/client-entrypoint'
 
-## Subpath Exports
+context.registerEntrypoints(bindAll(projectProtocols))
+context.registerEntrypoint(bind(projectProtocols.health))
+context.registerEntrypoint(bindScreen(projectProtocols.home, handler(Home)))
 
-- `./utils`
-
-## Usage
-
-Most app code uses `elevate()` from `@owlmeans/web-client` (which builds on this). Use this directly only for cross-platform entrypoint helpers.
-
-```typescript
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+const value = await context.entrypoint(projectProtocols.create).call({ body })
+const { value, outcome } = await context.entrypoint(projectProtocols.create).invoke({ body })
+const href = await context.entrypoint(projectProtocols.edit).url({ params: { id } })
 ```
 
-## URL Generation via Entrypoint Call
+`bindAll(tree)` flattens a nested named declaration tree while preserving the union of its protocol
+types. `bind(protocol)` is appropriate where one protocol must use a distinct client option.
+`bindScreen` is for a frontend route and renderer; screens are addressed by `url` and reject
+`call`/`invoke`.
 
-Entrypoints with a `handler` (React component) use `urlCall` internally — calling `.call()` returns a URL string. Use `{ full: true }` to get a fully-qualified URL via `makeSecurityHelper`:
+`context.entrypoint(protocol)` derives `ClientProtocolEntrypoint<Protocol>` from the protocol. Do
+not add an explicit result generic. `entrypointRef<Request, Response>(alias)` is reserved for a
+dynamic remote declaration that cannot be imported.
 
-```typescript
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import { HOME } from '@owlmeans/context'
-
-const [url] = await context.entrypoint<ClientEntrypoint<string>>(HOME).call({ full: true }) ?? []
-// Returns e.g. "https://app.example.com/"
-```
-
-This is the preferred pattern for redirect URIs and navigation targets instead of manual `window.location` concatenation.
-
-## Depends On
-
-- `@owlmeans/entrypoint`, `@owlmeans/client-route`, `@owlmeans/client-context`
+Client calls include only contract request sections plus `CallOptions` (`auth`, host/port/base,
+timeout, signal). `url` accepts params/query plus the same address options. The route transport is
+chosen by the declaration; callers do not branch for HTTP, socket, or queue.

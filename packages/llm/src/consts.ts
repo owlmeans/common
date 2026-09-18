@@ -129,6 +129,10 @@ export const EFFORT_TABLE: Record<ExecutionEffort, ModelConfigPatch> = {
  *
  * `state` is in the list because a `TaskExecution` carries its own composed state —
  * without excluding it every `derive`/`escalate`/`withPurpose` would nest another copy.
+ *
+ * `inquiry` is deliberately ABSENT: how a run may put a question to a person is state, and a run
+ * resumed from a snapshot must ask through the same channel under the same policy. Listing it
+ * here would leave a resumed run silently unable to ask anything.
  */
 export const COLLABORATOR_KEYS: string[] = [
   'state', 'models', 'model', 'temperatureFactory', 'outputErrors', 'files', 'prompts',

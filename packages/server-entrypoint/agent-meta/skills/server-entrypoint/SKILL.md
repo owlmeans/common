@@ -1,42 +1,39 @@
 ---
 name: server-entrypoint
-description: How to use @owlmeans/server-entrypoint — server-side entrypoint helpers extending @owlmeans/entrypoint with handler attachment, request lifecycle hooks. Auto-invoked when importing server-entrypoint types. Also covers the deprecated @owlmeans/server-module reexport shim.
+description: Bind immutable @owlmeans/entrypoint declarations to protocol-bound server implementations. Load when serving a shared API, socket, or queue entrypoint.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # @owlmeans/server-entrypoint
 
-**Layer:** Server
-**Install:** `"@owlmeans/server-entrypoint": "^0.1.18-rc.7"` in `dependencies`
+**Install:** `bun add @owlmeans/server-entrypoint@^0.1.18-rc.27`
 
-## Key Exports
+Bind the imported protocol object to the implementation that serves it:
 
-| Export | Description |
-|--------|-------------|
-| `ServerEntrypoint` types | Server entrypoint interface (handler + lifecycle) |
-| `EntrypointOptions` | Options for elevating with handler, fixer, intermediate |
-| `EntrypointRef` / `RefedEntrypointHandler` | Handler reference pattern |
-| Helpers | Attach handlers, hook into request lifecycle |
+```ts
+import { bind } from '@owlmeans/server-entrypoint'
+import { handlers } from '@owlmeans/server-api'
 
-## Usage
+const api = handlers<AppContext>()
 
-Most app code uses `elevate()` from `@owlmeans/server-app` (which builds on this package). Import directly only when implementing custom entrypoint helpers.
-
-```typescript
-import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
+export const serverBindings = [
+  bind(projectProtocols.create, api.body(projectProtocols.create, async (body, context) =>
+    context.projects.create(body)
+  )),
+]
 ```
 
-## Cross-Service URL Generation
+`bind(protocol, handler?, options?)` returns a `ServerProtocolEntrypoint<Protocol>`.
+`bindAll(declarations, handlers?)` is for a flat protocol collection at a registration boundary. A handler carries its
+`protocol`, and a collection is matched by object identity; an alias is never used to find or
+replace it. HTTP code should use `handlers<Context>()`; sockets use `connection(protocol, callback)`.
 
-Use `makeSecurityHelper` from `@owlmeans/config` to build URLs pointing at other services (OAuth redirect URIs, webhook callbacks, etc.):
+The second argument is either a protocol-bound handler (from `handlers<Context>()` above, or a
+library factory that returns one) or omitted entirely for a parent route. A plain callback passed
+directly to `bind()` is NOT the same thing: it is treated as a ref handler and invoked once, at
+bind time, with the entrypoint ref as its only argument — not per-request. Wrap it with
+`handlers<Context>()` first.
 
-```typescript
-import { makeSecurityHelper } from '@owlmeans/config'
-const helper = makeSecurityHelper<Config, Context>(ctx)
-const url = helper.makeUrl(route, '/callback')
-```
-
-## Depends On
-
-- `@owlmeans/entrypoint`, `@owlmeans/server-route`, `@owlmeans/server-context`
+Do not create a mutable contextual declaration, use a compatibility entrypoint type, or attach a
+handler with an alias. The declaration is shared data; the binding is its server-local runtime.

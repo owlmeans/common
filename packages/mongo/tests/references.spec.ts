@@ -108,7 +108,7 @@ describe('@owlmeans/mongo — ObjectId references', () => {
     expect(listed.items.map(i => i.title)).toEqual(['a'])
     expect(listed.items[0].ownerId).toBe(owner.id!)
 
-    const viaIn = await items.list({ ownerId: { $in: [owner.id!, other.id!] } } as never)
+    const viaIn = await items.list({ ownerId: { $in: [owner.id!, other.id!] } })
     expect(viaIn.items).toHaveLength(2)
 
     /** `id` criteria address `_id` — documents never store an `id` field. */
@@ -119,7 +119,8 @@ describe('@owlmeans/mongo — ObjectId references', () => {
     const none = await items.list({ ownerId: 'ext:not-an-id' })
     expect(none.items).toHaveLength(0)
 
-    const loaded = await items.load(owner.id!, 'ownerId')
+    /** A criteria read addresses the reference field directly — no list to take a first from. */
+    const loaded = await items.load({ ownerId: owner.id! })
     expect(loaded?.title).toBe('a')
   })
 
@@ -150,7 +151,7 @@ describe('@owlmeans/mongo — ObjectId references', () => {
     expect((stored?.ownerIds as unknown[]).every(v => v instanceof ObjectId)).toBe(true)
 
     /** Multikey criteria hit the converted elements. */
-    const listed = await items.list({ ownerIds: second.id! })
+    const listed = await items.list({ ownerIds: { $contains: [second.id!] } })
     expect(listed.items.map(i => i.title)).toEqual(['multi'])
   })
 
@@ -281,15 +282,16 @@ describe('@owlmeans/mongo — ObjectId references', () => {
     expect(updated.ownerId).toBe(next.id!)
 
     /** Addressing the record BY its reference field converts the lookup value too. */
-    const byRef = await items.update({ ...updated, title: 'by-ref' }, 'ownerId')
+    const byRef = await items.update({ ...await items.get({ ownerId: next.id! }), title: 'by-ref' })
     expect(byRef.title).toBe('by-ref')
 
     const stored = await raw(async client =>
       await client.db(suite.database).collection('ref-upd').findOne({ _id: new ObjectId(item.id!) }))
     expect(stored?.ownerId).toBeInstanceOf(ObjectId)
 
-    const gone = await items.delete(next.id!, 'ownerId')
-    expect(gone?.title).toBe('by-ref')
+    /** And the delete-and-return reached through the same converted lookup. */
+    const gone = await items.take((await items.get({ ownerId: next.id! })).id!)
+    expect(gone.title).toBe('by-ref')
   })
 
   it('survives redeclaration and reboot without conflicts', async () => {

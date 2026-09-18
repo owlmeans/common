@@ -1,0 +1,58 @@
+{
+  "name": "@owlmeans/planning",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "Runtime-free project-planning contracts — the workcard super type, projects, specifications, typed relationships, status flows with three intrinsic states, the transition event and its pure fold, the schema registry, the models and the protocol tree.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./queue": {
+      "import": "./build/queue/index.js",
+      "require": "./build/queue/index.js",
+      "default": "./build/queue/index.js",
+      "module": "./build/queue/index.js",
+      "types": "./build/queue/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18-rc.27",
+    "@owlmeans/basic-ids": "^0.1.18-rc.26",
+    "@owlmeans/context": "^0.1.18-rc.25",
+    "@owlmeans/entrypoint": "^0.1.18-rc.28",
+    "@owlmeans/error": "^0.1.18-rc.27",
+    "@owlmeans/i18n": "^0.1.18-rc.28",
+    "@owlmeans/queue": "^0.1.18-rc.23",
+    "@owlmeans/resource": "^0.1.18-rc.27",
+    "@owlmeans/route": "^0.1.18-rc.26"
+  },
+  "peerDependencies": {
+    "ajv": "*",
+    "ajv-formats": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

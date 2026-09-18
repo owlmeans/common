@@ -12,12 +12,11 @@ export interface MongoDeclaration {
 /**
  * Per-alias migration store, held at module scope rather than on the resource object.
  *
- * `reinitializeContext` rebuilds every resource from the maker, which drops anything a
- * caller attached by chaining afterwards. For indexes that is survivable — they already
- * exist in the database and `updateIndexes` only ever adds. Migrations are not: a layer
- * switch points the resource at a *different* database, and a registry emptied by the
- * rebuild would mean the entity database silently never gets the transformation. Keying
- * by alias makes the declarations outlive any number of context switches.
+ * A maker may run more than once for the same alias — a custom maker wrapping the built-in
+ * one, a maker called again by an app or a spec. Keying the declarations by alias makes
+ * that a no-op: every run reads and extends the same registry, so nothing a caller declared
+ * by chaining onto an earlier resource object is lost. Losing a migration is silent — the
+ * data transformation simply never runs — which is why the store cannot live on the object.
  */
 const declarations: Map<string, MongoDeclaration> = new Map()
 

@@ -1,4 +1,4 @@
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { AUTH_CACHE } from '@owlmeans/server-auth'
@@ -12,7 +12,6 @@ export const makeTestContext = () => {
   const cfg: Config = {
     ready: false,
     service: 'server-oidc-rp-tests',
-    layer: Layer.Service,
     type: AppType.Backend,
     services: {},
     oidc: {

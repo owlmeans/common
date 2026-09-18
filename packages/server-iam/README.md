@@ -12,7 +12,7 @@ One-call OIDC RP wiring and IAM gate for OwlMeans servers — `appendIam()` and 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-iam
+bun add @owlmeans/server-iam@^0.1.18-rc.38
 ```
 
 ## Usage
@@ -20,12 +20,19 @@ bun add @owlmeans/server-iam
 ```typescript
 import { appendIam, makeIamGate } from '@owlmeans/server-iam'
 import { IAM_GATE } from '@owlmeans/server-iam'
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { route } from '@owlmeans/route'
+import { DEFAULT_GUARD } from '@owlmeans/auth-common'
 
 // Wire IAM into a server context
 appendIam(context)
 
-// Gate a module with a permission check
-module.gate(IAM_GATE, { permission: 'manage-users' })
+// Gate a protocol with a permission check
+protocol(
+  route('users', '/users'),
+  contract(typed<User[]>()),
+  { guards: DEFAULT_GUARD, gate: { alias: IAM_GATE, params: ['manage-users@{entity}'] } },
+)
 ```
 
 Requires `@owlmeans/oidc` OIDC shared config and a running IAM provider configured via `@owlmeans/server-oidc-rp`.
@@ -38,7 +45,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,5 +1,5 @@
 import type {
-  Resource, ResourceRecord, ResourceDbService, DbLocker, ResourceLocker, MigratableResource
+  Resource, ResourceRecord, ResourceDbService, DbLocker, LockableResource, MigratableResource
 } from '@owlmeans/resource'
 import type { Collection, CreateIndexesOptions, Db, IndexSpecification, MongoClient } from 'mongodb'
 import type { AnySchema } from 'ajv'
@@ -44,7 +44,8 @@ export interface MongoRefOptions {
   noIndex?: boolean
 }
 
-export interface MongoResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T>, MigratableResource<MongoTx> {
+export interface MongoResource<T extends ResourceRecord> extends Resource<T>, LockableResource<T>,
+  MigratableResource<MongoTx, MongoResource<T>> {
   name?: string
   /**
    * The db-config alias this resource was registered against.
@@ -61,13 +62,14 @@ export interface MongoResource<T extends ResourceRecord> extends Resource<T>, Re
   collection: Collection
   db: () => Promise<Db>
   client: () => Promise<MongoClient>
-  index: <Type extends MongoResource<T>>(name: string, index: IndexSpecification, options?: CreateIndexesOptions) => Type
+  index: (name: string, index: IndexSpecification, options?: CreateIndexesOptions) => this
   /**
    * Declare that a field stores another record's id.
    *
    * Chainable and idempotent like {@link MigratableResource.migration}, and stored the same
-   * way — per alias at module scope — because losing the declaration to a context rebuild
-   * would silently stop the string/ObjectId conversion for the field.
+   * way — per alias at module scope — so a maker that runs more than once for the same alias
+   * re-declares the same entry rather than losing it. A lost declaration would silently stop
+   * the string/ObjectId conversion for the field.
    *
    * Declare only fields whose values really are mongo ids (assigned from another record's
    * `id`). Composite keys, external provider ids, DIDs and business slugs must stay

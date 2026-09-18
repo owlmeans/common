@@ -148,6 +148,49 @@ describe('@owlmeans/llm — prompt composition', () => {
     expect(context[0]!.text).toContain('second note')
   })
 
+  // Two plugins can each be able to render the same skill — a static catalogue and a
+  // detector. Without the claim they both do, and the model is told the same thing twice.
+  test('a key is claimed by the first plugin only, within one composition', async () => {
+    const grants: boolean[] = []
+    const claimer = (alias: string): LlmPromptPlugin => ({
+      alias,
+      compose: ctx => {
+        if (ctx.claim('skill:a')) {
+          ctx.add(PromptBlock.Packages, `from ${alias}`)
+        }
+        grants.push(ctx.claim('probe'))
+      },
+    })
+    const result = await compose(service([], [claimer('first'), claimer('second')]))
+
+    expect(grants).toEqual([true, false])
+    expect(result.blocks.find(b => b.block === PromptBlock.Packages)?.text).toBe('from first')
+  })
+
+  test('the claim set is per composition, not per service', async () => {
+    const svc = service([], [{
+      alias: 'claimer', compose: ctx => ctx.add(PromptBlock.Packages, `${ctx.claim('once')}`),
+    }])
+    const first = await compose(svc)
+    const second = await compose(svc)
+
+    expect(first.blocks[0]!.text).toBe('true')
+    expect(second.blocks[0]!.text).toBe('true')
+  })
+
+  // The seam has to be free: a composition where nobody claims must render the bytes it
+  // rendered before the seam existed, or every cached prefix in the fleet is invalidated.
+  test('claiming nothing changes nothing about the composed bytes', async () => {
+    const input = { role: 'R', skills: ['a'], context: ['note'] }
+    const plain = await compose(service([skill('a', 'A')]), input)
+    const claiming = await compose(
+      service([skill('a', 'A')], [{ alias: 'quiet', compose: ctx => { ctx.claim('a') } }]),
+      input,
+    )
+    expect(JSON.stringify(claiming.system)).toBe(JSON.stringify(plain.system))
+    expect(claiming.breakpoints).toBe(plain.breakpoints)
+  })
+
   test('nothing declared composes to no system message at all', async () => {
     const result = await compose(service())
     expect(result.system).toBeNull()

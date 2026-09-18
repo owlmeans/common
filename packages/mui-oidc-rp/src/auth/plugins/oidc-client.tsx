@@ -10,7 +10,7 @@ import type { Config, Context, OidcAuthService } from '../../types.js'
 import { useContext } from '@owlmeans/web-client'
 import { DEFAULT_ALIAS, OidcAuthPurposes } from '../../consts.js'
 import { OidcAuthStep, OidpAuthStep, UnknownFlowStep } from '@owlmeans/flow'
-import { useModule } from '@owlmeans/client'
+import { useEntrypoint } from '@owlmeans/client'
 
 export const oidcClientPlugin: AuthenticationPlugin = {
   type: OIDC_CLIENT_AUTH,
@@ -18,7 +18,7 @@ export const oidcClientPlugin: AuthenticationPlugin = {
   Implementation: Renderer => ({ type, stage, control }) => {
     const context = useContext<Config, Context>()
     Renderer = Renderer ?? oidcClientPlugin.Renderer
-    const module = useModule()
+    const module = useEntrypoint()
 
     useEffect(() => {
       let canceled = false

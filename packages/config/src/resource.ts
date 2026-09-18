@@ -2,11 +2,17 @@ import type { ConfigRecord, BasicContext as Context } from '@owlmeans/context'
 import { CONFIG_RECORD, appendContextual, assertContext } from '@owlmeans/context'
 import type { CommonConfig, ConfigResource, ConfigResourceAppend } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
-import type { GetterOptions, ListOptions, ListResult, LifecycleOptions, ListCriteria } from '@owlmeans/resource'
-import { UnknownRecordError, UnsupportedArgumentError, UnsupportedMethodError } from '@owlmeans/resource'
+import type { Criteria, FirstOptions, ListOptions } from '@owlmeans/resource'
+import {
+  applyQuery, filterRecords, firstMatch, UnknownRecordError, UnsupportedArgumentError,
+  UnsupportedMethodError
+} from '@owlmeans/resource'
 
-type Getter = string | GetterOptions
-
+/**
+ * The records an application was configured with, read as a resource. The store is the array under
+ * `cfg[key]`, so every read is a query over what is already in memory — and every write is refused,
+ * because configuration is what the process was started with, not something it edits at runtime.
+ */
 export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string = CONFIG_RECORD) => {
   const location = `config-resource:${alias}`
 
@@ -23,52 +29,41 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
     return context.cfg[key as Key] as ConfigRecord[]
   }
 
+  const records = (): ConfigRecord[] => getStore(_assertContext(resource.ctx))
+
+  /** An id matches the record's own `id`; criteria go through the shared in-memory engine. */
+  const first = (
+    idOrWhere: string | Criteria<ConfigRecord>, opts?: FirstOptions<ConfigRecord>
+  ): ConfigRecord | null => typeof idOrWhere === 'string'
+    ? records().find(record => record.id === idOrWhere) ?? null
+    : firstMatch(records(), idOrWhere, opts)
+
   const resource: ConfigResource = appendContextual<ConfigResource>(alias, {
-    get: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
-      const record = await resource.load<T>(id, field, opts)
+    get: async (
+      idOrWhere: string | Criteria<ConfigRecord>, opts?: FirstOptions<ConfigRecord>
+    ): Promise<ConfigRecord> => {
+      const record = first(idOrWhere, opts)
       if (record == null) {
-        throw new UnknownRecordError(id)
+        throw new UnknownRecordError(typeof idOrWhere === 'string' ? idOrWhere : 'criteria')
       }
 
       return record
     },
 
-    load: async <T extends ConfigRecord>(id: string, field?: Getter, opts?: LifecycleOptions) => {
-      field = field ?? 'id'
-      if (opts != null) {
-        throw new UnsupportedArgumentError('config:get:opts')
-      }
-      const context = _assertContext(resource.ctx)
-      const store = getStore(context)
-      const record = store.find(record => record[field as keyof typeof record] === id) as T | undefined
+    load: async (
+      idOrWhere: string | Criteria<ConfigRecord>, opts?: FirstOptions<ConfigRecord>
+    ): Promise<ConfigRecord | null> => first(idOrWhere, opts),
 
-      if (record == null) {
-        return null
+    /** Unpaged unless a size is asked for — the whole config is already in memory. */
+    list: async (where?: Criteria<ConfigRecord>, opts?: ListOptions<ConfigRecord>) => {
+      if (opts?.page != null && opts.size == null) {
+        throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return record
+      return applyQuery(records(), where, opts)
     },
 
-    list: async <T extends ConfigRecord>(criteria?: ListOptions | ListCriteria, opts?: ListOptions) => {
-      if (opts != null) {
-        throw new UnsupportedArgumentError('config:list:opts')
-      }
-      const context = _assertContext(resource.ctx)
-
-      const items = getStore(context) as T[]
-
-      const result: ListResult<T> = {
-        items: items.filter(item => {
-          if (criteria == null) {
-            return true
-          }
-          
-          return Object.entries(criteria).every(([key, value]) => item[key as keyof T] === value)
-        })
-      }
-
-      return result
-    },
+    count: async (where?: Criteria<ConfigRecord>) => filterRecords(records(), where).length,
 
     save: () => { throw new UnsupportedMethodError('config:save') },
 
@@ -78,7 +73,9 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
 
     delete: () => { throw new UnsupportedMethodError('config:delete') },
 
-    pick: () => { throw new UnsupportedMethodError('config:pick') }
+    take: () => { throw new UnsupportedMethodError('config:take') },
+
+    purge: () => { throw new UnsupportedMethodError('config:purge') }
   })
 
   return resource

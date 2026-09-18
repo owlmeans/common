@@ -1,6 +1,6 @@
-import { CommonRouteModel } from '@owlmeans/route'
+import { RouteModel } from '@owlmeans/route'
 import { CommonEntrypointOptions } from '../types.js'
 
 export interface CreateEntrypointSignature<M> {
-  (route: CommonRouteModel, opts?: CommonEntrypointOptions): M,
+  (route: RouteModel, opts?: CommonEntrypointOptions): M,
 }

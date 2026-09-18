@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import type { StatusProps } from './types.js'
 import { usePanelI18n } from '@owlmeans/client-panel'
 import { ResilientError } from '@owlmeans/error'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '../@/components/ui/alert.js'
 
 const prepareMessage = (msg: string) => msg.replace(/:/g, '.')
 

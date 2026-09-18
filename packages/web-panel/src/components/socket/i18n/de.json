@@ -1,0 +1,7 @@
+{
+  "reload": {
+    "title": "Verbindung verloren",
+    "description": "Die Verbindung konnte nach mehreren Versuchen nicht wiederhergestellt werden. Lade die Seite neu, um fortzufahren.",
+    "action": "Seite neu laden"
+  }
+}

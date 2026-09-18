@@ -1,10 +1,17 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/payment",
-  "version": "0.1.18-rc.8",
-  "generatedAt": "2026-08-27T16:32:18.507Z",
+  "version": "0.1.18-rc.29",
+  "generatedAt": "2026-09-16T17:32:31.941Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
+    {
+      "kind": "skill",
+      "name": "entitlements",
+      "category": "multi-package",
+      "file": "skills/entitlements/SKILL.md",
+      "canonicalPath": ".agents/skills/entitlements/SKILL.md"
+    },
     {
       "kind": "skill",
       "name": "payment",

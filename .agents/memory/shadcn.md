@@ -14,18 +14,26 @@ family. Development guide: `shadcn-web` skill; version bumps: `shadcn-versions`;
 
 - No shadcn registries — primitives are hand-copied into each package's
   `src/@/components/ui/`; no `registries` in `components.json`.
-- `@` alias is provided by the app at integration — packages import `@/components/ui/*` and build
-  output keeps `@/…` specifiers verbatim (TS Bundler resolution); each package's local `src/@/`
-  copy is dev/test-only; the `exports` map never exposes `./@/*`.
+- A package's shadcn primitives and utilities are private implementation files. Its emitted modules
+  use relative imports into their own `build/@/` tree; never emit `@/…`, because that alias belongs
+  to the consuming app. The consumer supplies peers, not a matching private component tree.
 - Wrap `@owlmeans/client-panel` — shadcn packages render the same headless
   form/layout/nav/react-hook-form logic; MUI → shadcn migration touches only rendered JSX.
-- The consuming app must add `@source ".../node_modules/@owlmeans/web-panel/build"` to its Tailwind
+- The consuming app must add `@source ".../node_modules/@owlmeans/web-panel/src"` to its Tailwind
   entry — the oxide scanner reads the CSS root plus `@source` only and excludes `node_modules`, so
-  package-only classes silently never reach the stylesheet.
+  package-only classes silently never reach the stylesheet. Source ships in the package tarball,
+  so the same path works for linked workspaces and fresh installs.
 
 Flag any deviation in review, especially registry usage or exposed `@/*` exports.
 
 ## Gotchas
+
+- A menu is DATA, not children (`PanelMenu`). Three things it owns and a hand-rolled dropdown
+  gets wrong: a widget row must not be a `DropdownMenuItem` (the item steals the inner button's
+  focus and closes the menu on the click); an in-app link cannot use `onSelect`, because the
+  anchor's required `preventDefault()` cancels Radix's composed handler and with it the close;
+  and the href must resolve synchronously (`entrypoint.path()`, not `url()`) since the content
+  mounts at the moment it opens.
 
 - No i18n provider means no implicit i18n read. `renderApp` (`@owlmeans/web-client`) mounts no
   provider, and `usePanelI18n` → `useI18nResource` dereferences `i18n.options` on the empty object

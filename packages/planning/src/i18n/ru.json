@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Карточка",
+    "project": "Проект",
+    "specification": "Спецификация"
+  },
+  "intrinsic": {
+    "planned": "Запланировано",
+    "in-progress": "В работе",
+    "closed": "Закрыто"
+  },
+  "action": {
+    "create": "Создано",
+    "update": "Обновлено",
+    "transit": "Статус изменён",
+    "link": "Связано",
+    "unlink": "Связь удалена",
+    "delete": "Удалено"
+  },
+  "commit": {
+    "pending": "Сохранение…",
+    "committed": "Сохранено",
+    "failed": "Не сохранено"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Обычный текст"
+  },
+  "errors": {
+    "PlanningError": "Не удалось выполнить запрос планирования",
+    "PlanningErrorWorkcardNotFound": "Этот элемент не существует или недоступен вам",
+    "PlanningErrorUnknownWorkcardType": "Этот тип элемента неизвестен",
+    "PlanningErrorUnknownStatusFlow": "Этот поток статусов неизвестен",
+    "PlanningErrorParentNotFound": "Родительский элемент не существует",
+    "PlanningErrorCardTypeNotAllowed": "Элемент этого типа нельзя добавить сюда",
+    "PlanningErrorRefused": "Изменение отклонено",
+    "PlanningErrorIllegalTransition": "Такая смена статуса недопустима из текущего статуса",
+    "PlanningErrorFieldsInvalid": "Некоторые поля содержат недопустимые значения",
+    "PlanningErrorLabelNotAllowed": "Эта метка здесь недопустима",
+    "PlanningErrorSpecificationSlotUnknown": "Этот вид документа здесь недопустим",
+    "PlanningErrorSpecificationRevisionConflict": "Этот документ уже существует — отредактируйте его",
+    "PlanningErrorRelationshipRefused": "Эта связь недопустима",
+    "PlanningErrorCodeTaken": "Этот код уже занят",
+    "PlanningErrorWorkcardConflict": "Кто-то изменил этот элемент за это время — обновите и попробуйте снова",
+    "PlanningErrorCommitTimeout": "Изменение ещё сохраняется — проверьте чуть позже",
+    "PlanningErrorCommitFailed": "Не удалось сохранить изменение",
+    "PlanningErrorScopeMismatch": "Этот элемент не существует или недоступен вам",
+    "PlanningErrorUnsupported": "Эта операция не поддерживается для этого элемента"
+  }
+}

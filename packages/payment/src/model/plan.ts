@@ -1,22 +1,22 @@
 import type { JSONSchemaType } from 'ajv'
 import type { ProductPlan } from '../types.js'
-import { ResourceValueSchema, PermissionSetSchema, DateSchema } from '@owlmeans/auth'
+import { ResourceValueSchema, DateSchema, IdValueSchema } from '@owlmeans/auth'
 import {
-  PlanDurationSchema, ProductDescriptionSchema, ProductTitleSchema,
-  SubscriptionStatusSchema
+  CheckoutPricingModeSchema, PlanDurationSchema, PlanStatusSchema, ProductDescriptionSchema,
+  ProductTitleSchema
 } from '../consts.js'
-import { LimitConfigSchema } from './utils.js'
+import { LimitDeclarationSchema, PlanCapabilitySchema } from './limit.js'
+import { AmountCheckoutPolicySchema, QuantityCheckoutPolicySchema } from './pricing.js'
 
 export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
   type: 'object',
   properties: {
     productSku: ResourceValueSchema,
     sku: ResourceValueSchema,
-    status: SubscriptionStatusSchema,
-    payagateAliases: {
-      type: 'object', required: [], nullable: true,
-      additionalProperties: { type: 'string' },
-    },
+    status: PlanStatusSchema,
+    rank: { type: 'number', minimum: 0, multipleOf: 1, nullable: true },
+    free: { type: 'boolean', nullable: true },
+    gateways: { type: 'array', items: IdValueSchema, nullable: true },
     duration: PlanDurationSchema,
     trial: { type: 'number', nullable: true },
     gatedTrial: { type: 'boolean', nullable: true },
@@ -35,13 +35,16 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
     createdAt: { ...DateSchema, nullable: true },
     archivedAt: { ...DateSchema, nullable: true },
     deprecatedAt: { ...DateSchema, nullable: true },
-    supsendedAt: { ...DateSchema, nullable: true },
+    suspendedAt: { ...DateSchema, nullable: true },
 
-    capabilities: { type: 'array', items: PermissionSetSchema, nullable: true },
+    capabilities: { type: 'array', items: PlanCapabilitySchema, nullable: true },
     limits: {
       type: 'object', required: [], nullable: true,
-      additionalProperties: LimitConfigSchema
+      additionalProperties: LimitDeclarationSchema
     },
+    pricingMode: { ...CheckoutPricingModeSchema, nullable: true },
+    amountPolicy: { ...AmountCheckoutPolicySchema, nullable: true },
+    quantityPolicy: { ...QuantityCheckoutPolicySchema, nullable: true },
   },
   required: [
     'productSku', 'sku', 'status', 'duration',

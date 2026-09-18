@@ -1,919 +1,262 @@
-# OwlMeans Common — Fullstack TypeScript Framework
+# OwlMeans Common
 
-**OwlMeans Common** is a comprehensive, security-first TypeScript framework designed for building scalable fullstack applications with modern microservices and microclients architecture. Built around the concept of unified entrypoints, context-driven dependency injection, and "quadra" pattern implementations, it provides everything needed to develop secure, maintainable applications from authentication to UI components.
+OwlMeans Common is the open-source TypeScript framework behind OwlMeans applications. It provides
+immutable full-stack entrypoint protocols, context-based composition, cryptographic authentication,
+one data-resource contract over several databases, queue and socket transports, and React web
+packages. Packages are ESM and work with Bun workspaces or ordinary npm installs.
 
-## 🎯 **Framework Principles & Goals**
+## Start here
 
-### **Security-First Architecture**
-- **Ed25519 Cryptographic Authentication**: Advanced digital signature authentication beyond traditional JWT
-- **Multi-Role Authorization**: Hierarchical roles (Guest, User, Service, Admin, System) with granular permissions
-- **Decentralized Identity (DID)**: Wallet-based authentication and cryptographic key management
-- **End-to-End Validation**: Unified AJV schema validation across frontend and backend
-- **Secure Communication**: Built-in WebSocket encryption and API request signing
-
-### **Unified Fullstack Development**
-- **Single Source of Truth**: Shared entrypoints defining routes, validation, and types across all environments
-- **Context-Driven Architecture**: Dependency injection system managing services, resources, and middleware
-- **Cross-Platform Consistency**: Unified APIs working across web browsers, React Native, and Node.js servers
-- **Type Safety**: Full TypeScript coverage with shared types between frontend and backend
-
-### **Modern Microservices Ready**
-- **Kubernetes Integration**: Built-in Kubernetes deployment and service discovery
-- **Service Mesh**: Inter-service communication with authentication and load balancing
-- **Resource Abstraction**: Unified interfaces for MongoDB, Redis, S3 storage, and more
-- **Configuration Management**: Environment-aware configuration with service discovery
-
-### **Developer Experience**
-- **Rapid Development**: High-level components and pre-configured application frameworks
-- **Material Design Integration**: Complete Material-UI integration for web applications
-- **Internationalization**: Built-in i18n with browser language detection and namespace organization
-- **File Management**: Advanced file upload, image processing, and storage capabilities
-
-## 📚 **Thesaurus & Core Concepts**
-
-### **Context**
-An application instance that manages the lifecycle and dependencies of services, entrypoints, and resources. Multiple contexts can exist within one application with different capabilities depending on the complexity of operation and its dependencies.
-
-### **Entrypoint** *(formerly Module)*
-A URL unit in the system that declares routes, nesting relationships, and transforms into API endpoints (backend) or navigation routes (frontend). Entrypoints provide a centralized place where all possible routes are registered and maintain consistency across environments.
-
-### **Route**
-Cross-environment structure consisting of URLs, URIs, aliases, permissions, and validations. Routes are POJO (Plain Old JavaScript Objects) that define the navigation and API structure.
-
-### **Service**
-Components that provide functionality and can be initialized either immediately or lazily. Services represent domain functionality without being bound to one specific model.
-
-### **Resource** 
-Components that provide data or external functionality, representing stored or remote entity sets with unified CRUD operations across different storage backends.
-
-### **Guards**
-Authentication and authorization middleware that protect routes and entrypoints based on user roles, permissions, and cryptographic verification.
-
-### **Layers**
-Hierarchical organization system supporting System, Global, Service, Entity, and User levels for complex multi-tenant applications.
-
-### **Quadra Pattern**
-OwlMeans' architectural pattern providing four implementations for comprehensive coverage:
-- **Core packages**: Environment-agnostic logic and models
-- **Server packages**: Backend implementations with API and business logic  
-- **Client packages**: Platform-agnostic client logic and components
-- **Web packages**: Browser-specific React implementations with Material-UI
-- **Native packages**: React Native mobile implementations — see [owlmeans/native](https://github.com/owlmeans/native)
-
-## 🤖 Agent guidance
-
-Every published `@owlmeans/*` package ships embedded agent skills under `agent-meta/`. These files are version-matched to each package release and guide AI assistants in using the OwlMeans framework correctly.
-
-### Install agent guidance
-
-After installing OwlMeans packages, run the agent-skills installer once:
+Create a complete starter application:
 
 ```sh
-npx @owlmeans/agent-skills
+npm create @owlmeans/app@latest my-app
+# or
+bun create @owlmeans/app my-app
 ```
 
-This scans `node_modules/@owlmeans/*/agent-meta/`, shows you what guidance is available, and (with your confirmation) copies it into `.agents/skills/<name>/SKILL.md` — the [Agent Skills](https://agentskills.io) standard location read by GitHub Copilot, Codex and others. A project that also uses Claude Code gets the per-skill symlinks it needs under `.claude/skills/`.
+The generated app has a shared contract package, Fastify API, and shadcn/Tailwind web app. For the
+scaffolded and manual paths, see [Getting started](docs/getting-started.md).
 
-Re-run after updating `@owlmeans/*` packages to pick up revised guidance.
+For this monorepo, use Bun:
 
-### Schema
-
-Each package's `agent-meta/` directory contains:
-
-```
-agent-meta/
-  manifest.json              # name, version, canonical GitHub paths, entries list
-  skills/<name>/
-    SKILL.md                 # agent skill (loaded on relevant context)
+```sh
+bun install
+bun run build
+bun run test
 ```
 
-Embedded files are **generated and read-only**. To suggest edits, open a PR against [owlmeans/common](https://github.com/owlmeans/common).
+## Why OwlMeans Common — and why not
 
-## 🚀 **Quick Start**
+### Strengths
 
-> **Building a new app?** The fastest path is to scaffold one:
-> ```sh
-> npm create @owlmeans/app@latest my-app   # or: bun create @owlmeans/app my-app
-> ```
-> This generates a minimal fullstack project (`common` + `api` + `web`) with shadcn UI navigation,
-> no authentication, and a session-scoped in-memory resource — and deploys the agent skills into it.
-> See **[docs/getting-started.md](docs/getting-started.md)** for both the scaffolded and the
-> step-by-step **manual** walkthrough.
+- **Agent-first.** Every published package ships version-matched skills in `agent-meta/`, and
+  `@owlmeans/agent-skills` installs them into a project's `.agents/skills/`. The scaffolder also
+  writes `AGENTS.md`, a shared memory graph and a self-education loop, so a coding agent works
+  from the framework's own rules rather than from guesses.
+- **Protocol-first contracts.** One immutable declaration carries the route, the typed and
+  AJV-validated request and response, and the access rules. The server, the browser, a socket and a
+  queue all bind that same object, so a changed contract breaks the compile on both sides at once.
+- **Security built in, not bolted on.** Ed25519 key pairs and DIDs are the base credential. Guards
+  and gates are declared on the protocol, and the organization entity model keeps a renameable
+  slug on the wire and a stable id in storage.
+- **One resource contract.** MongoDB, PostgreSQL, Redis, in-memory config records and the browser
+  state store all answer `get`/`load`/`list`/`save`/`delete` with the same criteria language, sort
+  and paging rules.
+- **Swappable carriers.** `context.entrypoint(protocol).call()` goes over HTTP, a WebSocket or a
+  job queue depending on the route declaration. Moving a call to a queue changes one declaration,
+  not every call site.
+- **Explicit composition.** One context per process, built by one factory from idempotent
+  `append*` mixins. No decorators, no hidden container scanning, and no global singletons.
+- **Exercised in production.** The OwlMeans Viable platform runs on these packages. The packages
+  are MIT-licensed, strict TypeScript and ESM-only.
 
-Get started with OwlMeans Common in just a few minutes by creating a simple "Hello World" application with a server endpoint and client.
+### Trade-offs
 
-### **Step 1: Install Dependencies**
+- **Pre-1.0.** Packages are published as `rc` releases with independent, deliberately uneven
+  versions. APIs still move between releases.
+- **Its own vocabulary.** Contexts, alias registries, protocols, guards and gates are in-house
+  abstractions. They take time to learn and do not transfer from other frameworks.
+- **Agent-first documentation.** The most complete and current guidance is in the skills, which
+  are written for coding agents. Human-facing docs are thinner.
+- **A fixed stack.** The server is Fastify, the web layer is React with shadcn UI and Tailwind v4,
+  and tooling is centred on Bun. Other servers or view libraries need their own adapters.
+- **Two web families.** The legacy MUI packages (`mui-panel`, `mui-oidc-rp`) remain for existing
+  apps next to the current shadcn family.
+- **Small ecosystem.** There are few third-party integrations, examples or community answers. React
+  Native packages live in the separate `native` monorepo.
 
-```bash
-npm install @owlmeans/server-app @owlmeans/web-client @owlmeans/client-entrypoint @owlmeans/client-config @owlmeans/client
+## Core concepts
+
+| Term | Meaning | Package |
+|---|---|---|
+| **Context** | The one container a process runs in. It holds three flat registries keyed by alias — services, resources and entrypoints — where a later registration replaces an earlier one. `configure().init()` moves it through the `Configuration → Loading → Ready` stages. | [`context`](packages/context) |
+| **Context factory / `append*` mixin** | Each layer exports a `makeContext(cfg)` that calls the factory of the layer below and applies its own idempotent `appendX(context)` mixins. An app writes exactly one factory the same way and calls it once. | [`server-app`](packages/server-app), [`web-panel`](packages/web-panel) |
+| **Config** | The typed application config built by the layer's `config()`. It declares the services the app talks to, security, brand, plugin records and config records. | [`config`](packages/config) |
+| **Service route** | A `service({ type, service, host, port, base })` entry in the config. It tells every app where another service lives, and entrypoints compute absolute addresses from it. | [`config`](packages/config) |
+| **Service** | A named object bound to one context, created with `createService(alias, impl)` and read with `context.service(alias)`. Services with an `init` take part in the context lifecycle. | [`context`](packages/context) |
+| **Resource** | Storage behind the uniform `Resource<T>` contract: CRUD plus one criteria, sort and paging language. It is registered on the context, and the backend is chosen by the resource package, not by the caller. | [`resource`](packages/resource) |
+| **Route** | `route(alias, path, backend() \| frontend())`: an immutable declaration of a path segment, method, parent and service. Full paths and addresses are computed on demand against the context. | [`route`](packages/route) |
+| **Protocol** | `protocol(route, contract, options)`: a route plus a typed request/response contract (`typed<T>(ajvSchema)`) plus `guards` and `gate`. It is a shared value with no server or browser behaviour, kept in a named `*Protocols` tree. | [`entrypoint`](packages/entrypoint) |
+| **Entrypoint (binding)** | A protocol materialized in one context: `bind(protocol, handler)` on the server, `bindAll` or `bindScreen` in the browser, then `context.registerEntrypoints(...)`. `context.entrypoint(protocol)` answers `call()` for the value, `invoke()` for the value plus outcome, and `url()` for the address. | [`server-entrypoint`](packages/server-entrypoint), [`client-entrypoint`](packages/client-entrypoint) |
+| **Handler** | A server function created from a protocol with `handlers<Context>().body`, `.params` or `.request`. Its arguments are inferred from the contract, and the request is validated before it runs. | [`server-api`](packages/server-api) |
+| **Screen** | A frontend protocol bound to a React component with `bindScreen(protocol, handler(Component))`. A screen is navigated to (`url()`), never called. | [`client-entrypoint`](packages/client-entrypoint), [`client`](packages/client) |
+| **Guard** | An authentication service named in a protocol's `guards`. The guard whose `match()` accepts the request resolves the `Auth` identity — the bearer guard `DEFAULT_GUARD`, `GUARD_ED25519` or OIDC. Guards are inherited from parent routes. | [`auth-common`](packages/auth-common), [`server-auth`](packages/server-auth) |
+| **Gate** | An authorization service named in a protocol's `gate` (with `gateParams`). After authentication the server calls `gate.assert(request, response, params)` for the entrypoint's own gate and every ancestor's. | [`entrypoint`](packages/entrypoint), [`server-api`](packages/server-api) |
+| **Transport** | A service registered under `transport:<protocol>` that carries `call()` for every route on that protocol. Without one the call goes over HTTP. Queue and socket transports plug in here. | [`entrypoint`](packages/entrypoint), [`queue`](packages/queue) |
+| **Plugin** | An implementation chosen at runtime from a registry: router plugins, authentication and login plugins, LLM provider plugins and agent plugins. Config plugin records (`plugin(cfg, record)`) carry their settings. | [`router`](packages/router), [`client-auth`](packages/client-auth), [`llm`](packages/llm) |
+| **Organization entity** | The customer or tenant. `entitySlug` is the renameable name and the only organization value on the wire. `entityId` is the stable record id used by storage and grants, obtained on the server with `requireEntityKey(req)`. | [`auth`](packages/auth), [`auth-common`](packages/auth-common) |
+| **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
+| **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
+| **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.28` installs it. | [`agent-skills`](packages/agent-skills) |
+
+## How an application is shaped
+
+A typical OwlMeans application is three workspaces: a shared contract, a backend and a frontend.
+
+```mermaid
+flowchart LR
+  common["common<br/>*Protocols trees, config, types, AJV schemas"]
+  api["api<br/>server-app context + bind(protocol, handler)"]
+  web["web<br/>web-panel context + bindAll / bindScreen"]
+  common --> api
+  common --> web
+  web -- "context.entrypoint(protocol).call()" --> api
 ```
 
-### **Step 2: Create Server**
+Declare a protocol once in the shared package. It carries the route, request sections, response,
+guards and gates; it is immutable and has no server or browser behaviour of its own.
 
-```typescript
-// server.ts
-import { makeContext, main, modules, elevate, handleRequest } from '@owlmeans/server-app'
-import { entrypoint, route } from '@owlmeans/entrypoint'
+```ts
+import { contract, protocol, typed } from '@owlmeans/entrypoint'
+import { backend, route, RouteMethod } from '@owlmeans/route'
 
-// Define a simple hello entrypoint
-const helloModule = entrypoint(
-  route('hello', '/api/hello', { method: 'GET' })
-)
+interface CreateProject { name: string }
+interface Project { id: string; name: string }
 
-// Handle the hello request
-elevate(helloModule, 'hello', handleRequest(async (req, res) => {
-  res.resolve({ message: 'Hello World from OwlMeans!' })
-}))
+// Alias strings remain private to the declaration module. Runtime code imports protocol objects.
+const aliases = { base: 'project', create: 'project:create' } as const
+const projectBase = protocol(route(aliases.base, '/projects', backend()), contract())
 
-// Start server
-const context = makeContext({ port: 3001 })
-main(context, [...modules, helloModule])
-```
-
-### **Step 3: Create Client**
-
-```typescript
-// client.tsx
-import React, { useState, useEffect } from 'react'
-import { makeContext, render } from '@owlmeans/web-client'
-import { App } from '@owlmeans/client'
-import { entrypoint } from '@owlmeans/client-entrypoint'
-import { route } from '@owlmeans/route'
-import { config, addWebService } from '@owlmeans/client-config'
-import { Button, Typography, Box } from '@mui/material'
-import { AppType, Layer } from '@owlmeans/context'
-
-// Create the hello entrypoint for client-side API calls
-const helloModule = entrypoint(route('hello', '/api/hello', { method: 'GET' }))
-
-// Create root component entrypoint
-const rootModule = entrypoint(route('root', '/', { frontend: true }))
-
-const HelloComponent = () => {
-  const [message, setMessage] = useState('')
-
-  const fetchHello = async () => {
-    try {
-      // Use entrypoint system to make API call
-      const [data, outcome] = await helloModule.call()
-      setMessage(data.message)
-    } catch (error) {
-      console.error('Failed to fetch hello:', error)
-      setMessage('Error loading message')
-    }
-  }
-
-  useEffect(() => { fetchHello() }, [])
-
-  return (
-    <Box sx={{ p: 3, textAlign: 'center' }}>
-      <Typography variant="h4" gutterBottom>
-        OwlMeans Common
-      </Typography>
-      <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-        {message || 'Loading...'}
-      </Typography>
-      <Button variant="contained" onClick={fetchHello}>
-        Refresh
-      </Button>
-    </Box>
-  )
+export const projectProtocols = {
+  base: projectBase,
+  create: protocol(
+    route(aliases.create, '/', backend({ parent: projectBase, method: RouteMethod.POST })),
+    contract.request({ body: typed<CreateProject>() }, typed<Project>())
+  ),
 }
+```
 
-// Create web context with API service configuration
-const context = makeContext(config(
-  AppType.Frontend,
-  'hello-world-client',
-  addWebService('api', {
-    host: 'localhost',
-    port: 3001
-  }),
-  {
-    layer: Layer.Service,
-    trusted: ['localhost:3001']
-  }
-))
+Bind the exact declaration on the server; callback arguments infer from the contract.
 
-// Register modules
-context.registerModules([helloModule, rootModule])
+```ts
+import { handlers } from '@owlmeans/server-api'
+import { bind } from '@owlmeans/server-entrypoint'
+import { projectProtocols } from './protocols.js'
 
-// Initialize context and render
-context.configure().then(() => context.init()).then(() => {
-  render(
-    <App context={context}>
-      <HelloComponent />
-    </App>,
-    { domId: 'root' }
-  )
+const api = handlers<AppContext>()
+export const serverBindings = [
+  bind(projectProtocols.base),
+  bind(projectProtocols.create, api.body(projectProtocols.create, async (body, context) =>
+    context.projects.create(body)
+  )),
+]
+```
+
+Bind the same declarations in the client context. A direct protocol reference gives `call`,
+`invoke`, and `url` their request and response types without a consumer-supplied generic.
+
+```ts
+import { bindAll } from '@owlmeans/client-entrypoint'
+
+const clientBindings = bindAll(projectProtocols)
+context.registerEntrypoints(clientBindings)
+
+const project = await context.entrypoint(projectProtocols.create).call({
+  body: { name: 'Roadmap' },
 })
 ```
 
-### **Step 4: Run the Application**
+Use `openProtocol` only where an intentionally untyped boundary is required. Use
+`typed<Model>(ajvSchema)` at an AJV declaration boundary so the runtime validator and TypeScript
+model stay together. Server handlers use `handlers<Context>().body`, `.params`, or `.request`;
+socket handlers use `connection(protocol, callback)`. Keep shared declarations in a named
+`*Protocols` tree and keep materialized server/browser lists local (`*Bindings` or, where a public
+API already calls it so, `entrypoints`). Do not create alias-addressed compatibility entrypoints or
+replace entries in a mutable declaration list. Alias lookup is only for an intentionally dynamic
+registry or broker boundary, never normal application code.
 
-```bash
-# Terminal 1: Start server
-npx ts-node server.ts
+## Package catalogue
 
-# Terminal 2: Start client (with your preferred React setup)
-npm start
+[`tree.md`](tree.md) is the dependency and build-order reference. Each package has its own README
+and a canonical skill under [`.agents/skills`](.agents/skills).
+
+### Application packages
+
+These are the packages application code imports directly and most often. Their READMEs carry
+concepts, worked examples, the full export list and common pitfalls.
+
+**Shared contract** — imported by the `common` workspace and by both sides.
+
+| Package | What it gives an app | Key exports |
+|---|---|---|
+| [`context`](packages/context) | The per-process container for services, resources and entrypoints | `createService`, `assertContext`, `AppType`, `ContextStage`, `BASE`/`HOME`/`GUEST` |
+| [`config`](packages/config) | The typed application config and the service map | `service`, `plugin`, `makeSecurityHelper`, `appendConfigResource`, `toConfigRecord` |
+| [`entrypoint`](packages/entrypoint) | Immutable, typed protocol declarations shared by server and client | `protocol`, `openProtocol`, `contract`, `typed`, `EntrypointOutcome` |
+| [`route`](packages/route) | Route declarations: path segment, method, parent, service | `route`, `backend`, `frontend`, `RouteMethod`, `RouteProtocols` |
+| [`resource`](packages/resource) | One CRUD, criteria and paging contract for every store | `Resource`, `Criteria`, `ListResult`, `UnknownRecordError`, `createListSchema` |
+| [`auth`](packages/auth) | The authentication vocabulary: identity types, roles, errors | `Auth`, `AuthPayload`, `AuthRole`, `AuthForbidden`, `entitySlugOf` |
+| [`error`](packages/error) | Errors that survive a service boundary with their class intact | `ResilientError`, `ResilientError.ensure`, `ResilientError.marshal` |
+
+**Server** — the backend workspace.
+
+| Package | What it gives an app | Key exports |
+|---|---|---|
+| [`server-app`](packages/server-app) | The backend bootstrap: one context factory and one `main` | `makeContext`, `main`, `config`, `sservice`, `entrypoints` |
+| [`server-api`](packages/server-api) | Fastify HTTP server and protocol-typed handler factories | `handlers`, `createApiServer`, `appendApiServer` |
+| [`server-entrypoint`](packages/server-entrypoint) | Materializes shared protocols with server handlers | `bind`, `bindAll` |
+| [`server-auth`](packages/server-auth) | The Ed25519 bearer guard and the authentication service | `appendAuthService`, `makeAuthService`, `AUTH_CACHE` |
+| [`server-auth-identity`](packages/server-auth-identity) | Local identities, profiles, provider linking and the organization-entity resolver | `appendAuthIdentityResources`, `IdentityLinkingService`, `makeEntityResolverService` |
+| [`server-socket`](packages/server-socket) | WebSocket entrypoints bound from socket protocols | `connection`, `appendSocketService`, `createSocketMiddleware` |
+| [`server-oidc-rp`](packages/server-oidc-rp) | Server-side OIDC relying party, guard and wrapped tokens | `appendOidcGuard`, `oidcEntrypoints`, `makeOidcClientService` |
+
+**Data and jobs** — storage backends and queues behind the resource and transport contracts.
+
+| Package | What it gives an app | Key exports |
+|---|---|---|
+| [`mongo-resource`](packages/mongo-resource) | MongoDB resources with schema validation, encryption and migrations | `makeMongoResource`, `MongoResource` |
+| [`postgres-resource`](packages/postgres-resource) | PostgreSQL resources with the same contract and migrations | `makePostgresResource`, `PostgresResource` |
+| [`redis-resource`](packages/redis-resource) | Redis resources: TTL records, pub/sub, streams, counters | `makeRedisResource`, `RedisResource` |
+| [`queue`](packages/queue) | Job queues as resources and the QUEUE route transport | `declareQueue`, `listenQueues`, `enqueueProtocol` |
+
+**Browser** — the web workspace.
+
+| Package | What it gives an app | Key exports |
+|---|---|---|
+| [`web-panel`](packages/web-panel) | The web context factory, shadcn navigation shell, forms and panels | `makeContext`, `PanelApp`, `NavLayout`, `HOME` |
+| [`web-client`](packages/web-client) | Browser bootstrap, rendering and the base client entrypoints | `makeContext`, `render`, `entrypoints` |
+| [`client`](packages/client) | Platform-agnostic React hooks for context, navigation and state | `useContext`, `useNavigate`, `useStoreList`, `useStoreModel`, `useValue` |
+| [`client-entrypoint`](packages/client-entrypoint) | Binds shared protocols for browser calls and screens | `bindAll`, `bindScreen`, `bind`, `ClientProtocolEntrypoint` |
+| [`client-auth`](packages/client-auth) | Browser authentication service, sign-in manager and login plugins | `useSelfAuth`, `entrypoints`, `./manager`, `./login` |
+| [`state`](packages/state) | The client state store with live subscriptions | `appendStateResource`, `StateModel` |
+
+### Supporting packages
+
+Lower-level building blocks, feature families and tooling. Most applications reach them through the
+application packages above, or add one when they need that specific feature.
+
+| Group | Packages |
+|---|---|
+| Configuration and tooling | [`agent-skills`](packages/agent-skills), [`create-app`](packages/create-app), [`dep-config`](packages/dep-config), [`viable-mcp`](packages/viable-mcp), [`viable-sdk`](packages/viable-sdk) |
+| Core foundations | [`basic-envelope`](packages/basic-envelope), [`basic-ids`](packages/basic-ids), [`basic-keys`](packages/basic-keys), [`did`](packages/did), [`i18n`](packages/i18n), [`router`](packages/router), [`socket`](packages/socket) |
+| Cross-cutting domain | [`agent`](packages/agent), [`agent-common`](packages/agent-common), [`auth-otp`](packages/auth-otp), [`consent`](packages/consent), [`flow`](packages/flow), [`iam`](packages/iam), [`llm`](packages/llm), [`llm-common`](packages/llm-common), [`mailer`](packages/mailer), [`oidc`](packages/oidc), [`payment`](packages/payment), [`viable-common`](packages/viable-common), [`wled`](packages/wled) |
+| Auth shared | [`auth-common`](packages/auth-common), [`auth-token`](packages/auth-token) |
+| API and runtime config | [`api`](packages/api), [`api-config`](packages/api-config), [`api-config-client`](packages/api-config-client), [`api-config-server`](packages/api-config-server) |
+| Storage and infrastructure | [`image-resource`](packages/image-resource), [`kluster`](packages/kluster), [`mailer-smtp`](packages/mailer-smtp), [`mongo`](packages/mongo), [`postgres`](packages/postgres), [`redis`](packages/redis), [`redis-queue`](packages/redis-queue), [`server-mailer-mailgun`](packages/server-mailer-mailgun), [`static-resource`](packages/static-resource), [`storage-common`](packages/storage-common), [`storage-resource`](packages/storage-resource) |
+| Server | [`server-auth-otp`](packages/server-auth-otp), [`server-auth-token`](packages/server-auth-token), [`server-config`](packages/server-config), [`server-context`](packages/server-context), [`server-iam`](packages/server-iam), [`server-job`](packages/server-job), [`server-oidc-provider`](packages/server-oidc-provider), [`server-payment`](packages/server-payment), [`server-route`](packages/server-route), [`server-wl`](packages/server-wl) |
+| Client | [`client-config`](packages/client-config), [`client-context`](packages/client-context), [`client-did`](packages/client-did), [`client-flow`](packages/client-flow), [`client-i18n`](packages/client-i18n), [`client-iam`](packages/client-iam), [`client-job`](packages/client-job), [`client-panel`](packages/client-panel), [`client-payment`](packages/client-payment), [`client-resource`](packages/client-resource), [`client-route`](packages/client-route), [`client-socket`](packages/client-socket), [`client-wl`](packages/client-wl) |
+| Web | [`astro`](packages/astro), [`mui-oidc-rp`](packages/mui-oidc-rp), [`mui-panel`](packages/mui-panel), [`web-auth`](packages/web-auth), [`web-auth-token`](packages/web-auth-token), [`web-consent`](packages/web-consent), [`web-db`](packages/web-db), [`web-flow`](packages/web-flow), [`web-gtm`](packages/web-gtm), [`web-oidc-provider`](packages/web-oidc-provider), [`web-oidc-rp`](packages/web-oidc-rp), [`web-payment`](packages/web-payment), [`web-router`](packages/web-router), [`web-router-react-router`](packages/web-router-react-router), [`web-wl`](packages/web-wl) |
+| Test support | [`test`](packages/test), [`test-auth`](packages/test-auth), [`test-integration`](packages/test-integration), [`test-ui`](packages/test-ui) |
+
+The current web family is shadcn UI and Tailwind CSS v4 (`web-panel`). `mui-panel` and
+`mui-oidc-rp` are supported only for existing MUI applications.
+
+## Agent guidance
+
+Published packages include generated, version-matched guidance in `agent-meta/`. Install it after
+installing OwlMeans packages:
+
+```sh
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
-That's it! You now have a working OwlMeans Common application. For a more comprehensive example with authentication, validation, and advanced features, see the Full Example below.
-
-## 📖 **Full Example: Complete Fullstack Application**
-
-This comprehensive example demonstrates building a complete fullstack application with user authentication, a backend API, and a React Material-UI frontend using OwlMeans Common.
-
-### **Project Structure**
-
-```
-hello-world-app/
-├── package.json
-├── server/
-│   ├── index.ts          # Backend entry point
-│   ├── modules/          # Custom API modules
-│   └── config.ts         # Server configuration
-├── client/
-│   ├── index.tsx         # Frontend entry point
-│   ├── components/       # React components
-│   └── config.ts         # Client configuration
-└── shared/
-    ├── types.ts          # Shared TypeScript types
-    └── modules.ts        # Shared module definitions
-```
-
-### **Step 1: Project Setup**
-
-```bash
-# Create project directory
-mkdir hello-world-app && cd hello-world-app
-
-# Initialize package.json
-npm init -y
-
-# Install OwlMeans dependencies
-npm install @owlmeans/server-app @owlmeans/web-panel
-npm install @owlmeans/auth @owlmeans/config @owlmeans/context
-
-# Install peer dependencies
-npm install react react-dom @mui/material @emotion/react @emotion/styled
-npm install typescript @types/node @types/react
-```
-
-### **Step 2: Shared Entrypoint Definitions**
-
-```typescript
-// shared/modules.ts
-import { entrypoint, route, guard, filter, body } from '@owlmeans/server-app'
-
-// User data validation schema
-export const userSchema = {
-  type: 'object',
-  properties: {
-    name: { type: 'string', minLength: 2, maxLength: 100 },
-    email: { type: 'string', format: 'email' },
-    message: { type: 'string', minLength: 1, maxLength: 500 }
-  },
-  required: ['name', 'email', 'message']
-}
-
-// Entrypoints shared between frontend and backend
-export const helloModule = entrypoint(
-  route('hello', '/api/hello', { method: 'GET' })
-)
-
-export const createGreetingModule = entrypoint(
-  route('create-greeting', '/api/greeting', { method: 'POST' }),
-  filter(body(userSchema), guard('authenticated'))
-)
-
-export const listGreetingsModule = entrypoint(
-  route('list-greetings', '/api/greetings', { method: 'GET' }),
-  guard('authenticated')
-)
-```
-
-```typescript
-// shared/types.ts
-export interface User {
-  id: string
-  name: string
-  email: string
-  createdAt: Date
-}
-
-export interface Greeting {
-  id: string
-  userId: string
-  name: string
-  email: string
-  message: string
-  createdAt: Date
-}
-
-export interface HelloResponse {
-  message: string
-  timestamp: Date
-  version: string
-}
-```
-
-### **Step 3: Backend Server**
-
-```typescript
-// server/config.ts
-import { config, service, AppType, Layer } from '@owlmeans/server-app'
-
-export const serverConfig = config(
-  AppType.Backend,
-  'hello-world-server',
-  service('database', {
-    // In production, use environment variables
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'hello_world'
-  }),
-  {
-    layer: Layer.Service,
-    port: parseInt(process.env.PORT || '3001'),
-    debug: { all: process.env.NODE_ENV !== 'production' }
-  }
-)
-```
-
-```typescript
-// server/modules/greeting.ts
-import { elevate, handleRequest, handleBody, ModuleOutcome } from '@owlmeans/server-app'
-import { helloModule, createGreetingModule, listGreetingsModule } from '../../shared/modules'
-import type { HelloResponse, Greeting, User } from '../../shared/types'
-
-// In-memory storage for demo (use database in production)
-const greetings: Greeting[] = []
-const users: User[] = []
-
-// Simple hello endpoint
-elevate(helloModule, 'hello', handleRequest(async (req, res) => {
-  const response: HelloResponse = {
-    message: 'Hello from OwlMeans Common!',
-    timestamp: new Date(),
-    version: '1.0.0'
-  }
-  res.resolve(response)
-}))
-
-// Create greeting with authentication
-elevate(createGreetingModule, 'create-greeting', handleBody(async (req, res) => {
-  const { name, email, message } = req.body
-  
-  // Find or create user
-  let user = users.find(u => u.email === email)
-  if (!user) {
-    user = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      createdAt: new Date()
-    }
-    users.push(user)
-  }
-  
-  // Create greeting
-  const greeting: Greeting = {
-    id: `greeting_${Date.now()}`,
-    userId: user.id,
-    name,
-    email,
-    message,
-    createdAt: new Date()
-  }
-  
-  greetings.push(greeting)
-  res.resolve(greeting, ModuleOutcome.Created)
-}))
-
-// List all greetings
-elevate(listGreetingsModule, 'list-greetings', handleRequest(async (req, res) => {
-  const sortedGreetings = greetings.sort((a, b) => 
-    b.createdAt.getTime() - a.createdAt.getTime()
-  )
-  res.resolve(sortedGreetings)
-}))
-```
-
-```typescript
-// server/index.ts
-import { makeContext, main, modules } from '@owlmeans/server-app'
-import { serverConfig } from './config'
-import { helloModule, createGreetingModule, listGreetingsModule } from '../shared/modules'
-import './modules/greeting' // Import to register handlers
-
-async function startServer() {
-  try {
-    // Create application context
-    const context = makeContext(serverConfig)
-    
-    // Combine default modules with custom modules
-    const allModules = [
-      ...modules, // Default OwlMeans modules (auth, config, etc.)
-      helloModule,
-      createGreetingModule, 
-      listGreetingsModule
-    ]
-    
-    // Start the server
-    await main(context, allModules)
-    console.log(`🚀 Server running on port ${serverConfig.port}`)
-    
-  } catch (error) {
-    console.error('❌ Failed to start server:', error)
-    process.exit(1)
-  }
-}
-
-startServer()
-```
-
-### **Step 4: Frontend Application**
-
-```typescript
-// client/config.ts
-import { config, addWebService, AppType, Layer } from '@owlmeans/web-panel'
-
-export const clientConfig = config(
-  AppType.Frontend,
-  'hello-world-client',
-  addWebService('api', {
-    host: process.env.REACT_APP_API_HOST || 'localhost',
-    port: parseInt(process.env.REACT_APP_API_PORT || '3001')
-  }),
-  {
-    layer: Layer.Service,
-    debug: { all: process.env.NODE_ENV === 'development' }
-  }
-)
-```
-
-```typescript
-// client/components/HelloWorld.tsx
-import React, { useState, useEffect } from 'react'
-import {
-  PanelForm,
-  FormField,
-  FormButton,
-  PanelText,
-  StatusIndicator,
-  PanelButton
-} from '@owlmeans/web-panel'
-import {
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Box,
-  List,
-  ListItem,
-  ListItemText
-} from '@mui/material'
-import { useClientContext } from '@owlmeans/web-client'
-import type { HelloResponse, Greeting } from '../../shared/types'
-import { userSchema } from '../../shared/modules'
-
-const HelloWorld: React.FC = () => {
-  const context = useClientContext()
-  const [hello, setHello] = useState<HelloResponse | null>(null)
-  const [greetings, setGreetings] = useState<Greeting[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Fetch hello message on component mount
-  useEffect(() => {
-    fetchHello()
-  }, [])
-
-  const fetchHello = async () => {
-    try {
-      setLoading(true)
-      const response = await context.service('api').call('hello')
-      setHello(response.data)
-    } catch (err) {
-      setError('Failed to fetch hello message')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchGreetings = async () => {
-    try {
-      setLoading(true)
-      const response = await context.service('api').call('list-greetings')
-      setGreetings(response.data)
-    } catch (err) {
-      setError('Failed to fetch greetings')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSubmitGreeting = async (data: any) => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      await context.service('api').call('create-greeting', {
-        method: 'POST',
-        body: data
-      })
-      
-      // Refresh greetings list
-      await fetchGreetings()
-      
-    } catch (err) {
-      setError('Failed to create greeting')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Grid container spacing={3} sx={{ p: 3 }}>
-      {/* Welcome Section */}
-      <Grid item xs={12}>
-        <Card>
-          <CardContent>
-            <PanelText variant="h4" gutterBottom>
-              OwlMeans Common Hello World
-            </PanelText>
-            
-            {loading && (
-              <StatusIndicator status="loading" message="Loading..." />
-            )}
-            
-            {error && (
-              <StatusIndicator 
-                status="error" 
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-            
-            {hello && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" color="primary">
-                  {hello.message}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Server time: {new Date(hello.timestamp).toLocaleString()}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Version: {hello.version}
-                </Typography>
-              </Box>
-            )}
-            
-            <PanelButton
-              variant="outlined"
-              onClick={fetchHello}
-              disabled={loading}
-              sx={{ mt: 2 }}
-            >
-              Refresh Hello
-            </PanelButton>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Greeting Form */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Leave a Greeting
-            </Typography>
-            
-            <PanelForm
-              schema={userSchema}
-              onSubmit={handleSubmitGreeting}
-              defaultValues={{
-                name: '',
-                email: '',
-                message: ''
-              }}
-            >
-              <FormField
-                name="name"
-                label="Your Name"
-                required
-                fullWidth
-                margin="normal"
-              />
-              
-              <FormField
-                name="email"
-                label="Email Address"
-                type="email"
-                required
-                fullWidth
-                margin="normal"
-              />
-              
-              <FormField
-                name="message"
-                label="Your Message"
-                multiline
-                rows={4}
-                required
-                fullWidth
-                margin="normal"
-              />
-              
-              <Box sx={{ mt: 2 }}>
-                <FormButton
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  disabled={loading}
-                >
-                  Send Greeting
-                </FormButton>
-              </Box>
-            </PanelForm>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Greetings List */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Recent Greetings
-              </Typography>
-              <PanelButton
-                variant="outlined"
-                size="small"
-                onClick={fetchGreetings}
-                disabled={loading}
-              >
-                Refresh
-              </PanelButton>
-            </Box>
-            
-            {greetings.length === 0 ? (
-              <Typography variant="body2" color="textSecondary">
-                No greetings yet. Be the first to leave one!
-              </Typography>
-            ) : (
-              <List>
-                {greetings.map((greeting) => (
-                  <ListItem key={greeting.id} divider>
-                    <ListItemText
-                      primary={`${greeting.name} (${greeting.email})`}
-                      secondary={
-                        <>
-                          <Typography component="span" variant="body2">
-                            {greeting.message}
-                          </Typography>
-                          <br />
-                          <Typography component="span" variant="caption" color="textSecondary">
-                            {new Date(greeting.createdAt).toLocaleString()}
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  )
-}
-
-export default HelloWorld
-```
-
-```typescript
-// client/index.tsx
-import React from 'react'
-import { render } from '@owlmeans/web-panel'
-import { makeWebContext } from '@owlmeans/web-client'
-import { createTheme } from '@mui/material/styles'
-import {
-  PanelApp,
-  AuthGuard
-} from '@owlmeans/web-panel'
-import HelloWorld from './components/HelloWorld'
-import { clientConfig } from './config'
-
-// Custom Material-UI theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-  typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
-  },
-})
-
-const App: React.FC = () => {
-  const context = makeWebContext(clientConfig)
-
-  return (
-    <PanelApp context={context} theme={theme}>
-      <AuthGuard fallback={<div>Please log in to continue</div>}>
-        <HelloWorld />
-      </AuthGuard>
-    </PanelApp>
-  )
-}
-
-// Render the application
-const context = makeWebContext(clientConfig)
-render(context, theme)
-```
-
-### **Step 5: Running the Application**
-
-```bash
-# Terminal 1: Start the backend server
-npx ts-node server/index.ts
-
-# Terminal 2: Start the frontend (in a new terminal)
-npx webpack serve --config webpack.config.js
-# or if using Create React App:
-npm start
-```
-
-### **Key Features Demonstrated**
-
-1. **Unified Module System**: Shared route definitions between frontend and backend
-2. **Automatic Validation**: AJV schemas enforced on both client and server
-3. **Authentication Integration**: Built-in authentication guards and user management
-4. **Material-UI Components**: Pre-styled, accessible UI components
-5. **Type Safety**: Full TypeScript integration with shared types
-6. **Context Management**: Dependency injection for services and configuration
-7. **Error Handling**: Comprehensive error management and user feedback
-
-This example showcases the power of OwlMeans Common's unified approach to fullstack development, where business logic, validation, and types are shared between frontend and backend, ensuring consistency and reducing duplication.
-
-## 📦 **Complete Package Reference**
-
-OwlMeans Common provides ~73 specialized packages organized into seven categories following the "quadra" architectural pattern. React Native packages live in the separate [owlmeans/native](https://github.com/owlmeans/native) monorepo.
-
-> **Need the full dependency map?** See [`tree.md`](tree.md) — every package, its direct `@owlmeans/*` dependencies, its architecture layer, and the topological build order, including the two known dependency cycles.
-
-### **⚙️ Configuration Packages (1 package)**
-Shared build tooling and TypeScript configuration.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/dep-config`](packages/dep-config) | Shared TypeScript configurations (base, React) for all `@owlmeans` packages |
-
-### **🏗️ Core Packages (33 packages)**
-Foundational libraries providing environment-agnostic functionality.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/api`](packages/api) | HTTP API client library with module system integration and automatic authentication |
-| [`@owlmeans/basic-envelope`](packages/basic-envelope) | Lightweight cryptographic message envelope with Ed25519 signatures |
-| [`@owlmeans/basic-ids`](packages/basic-ids) | Random and semi-random identifier generation utilities |
-| [`@owlmeans/basic-keys`](packages/basic-keys) | Core cryptographic library for key pair generation and digital signing |
-| [`@owlmeans/client`](packages/client) | Comprehensive React client library with routing and state management |
-| [`@owlmeans/config`](packages/config) | Configuration management with merging, resources, and plugin integration |
-| [`@owlmeans/context`](packages/context) | Dependency injection and management system for microservices |
-| [`@owlmeans/did`](packages/did) | Decentralized Identity (DID) and cryptographic wallet management |
-| [`@owlmeans/error`](packages/error) | Fully typed error system for seamless frontend/backend error handling |
-| [`@owlmeans/flow`](packages/flow) | Configurable user flow management with state transitions |
-| [`@owlmeans/i18n`](packages/i18n) | Multi-level internationalization with namespace-based organization |
-| [`@owlmeans/image-resource`](packages/image-resource) | Specialized image management for object storage systems |
-| [`@owlmeans/kluster`](packages/kluster) | Kubernetes integration for cloud-native service discovery |
-| [`@owlmeans/entrypoint`](packages/entrypoint) | URL unit system for fullstack route and component management |
-| [`@owlmeans/llm`](packages/llm) | LLM inference runtime: model, provider plugins (Anthropic/OpenAI/compatible), model factory, execution service |
-| [`@owlmeans/llm-common`](packages/llm-common) | Serializable LLM inference and execution contracts (no langchain runtime) |
-| [`@owlmeans/mongo`](packages/mongo) | MongoDB service integration with clustering and encryption |
-| [`@owlmeans/mongo-resource`](packages/mongo-resource) | MongoDB resource implementation with schema validation |
-| [`@owlmeans/oidc`](packages/oidc) | OpenID Connect integration with provider configuration |
-| [`@owlmeans/payment`](packages/payment) | Payment system with product management and subscriptions |
-| [`@owlmeans/postgres`](packages/postgres) | PostgreSQL service integration with pooling, readiness probing and least-privilege bootstrap |
-| [`@owlmeans/postgres-resource`](packages/postgres-resource) | PostgreSQL resource implementation with schema-driven tables, auto structure sync and migrations |
-| [`@owlmeans/queue`](packages/queue) | Message queue abstractions for distributed applications |
-| [`@owlmeans/redis`](packages/redis) | Redis service integration with clustering support |
-| [`@owlmeans/redis-resource`](packages/redis-resource) | Redis-based resource storage implementation |
-| [`@owlmeans/resource`](packages/resource) | Abstract interfaces for database operations and data access |
-| [`@owlmeans/route`](packages/route) | Cross-environment routing with URLs, permissions, and validations |
-| [`@owlmeans/socket`](packages/socket) | WebSocket communication with RPC calls and authentication |
-| [`@owlmeans/state`](packages/state) | Reactive state management with subscription-based reactivity |
-| [`@owlmeans/static-resource`](packages/static-resource) | In-memory resource storage solution |
-| [`@owlmeans/storage-common`](packages/storage-common) | Common interfaces for object storage systems |
-| [`@owlmeans/storage-resource`](packages/storage-resource) | S3-compatible object storage with file management |
-| [`@owlmeans/wled`](packages/wled) | Whitelabeling subsystem base types and modules |
-
-### **🔌 API Packages (3 packages)**
-Specialized packages for API configuration and service advertisement.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/api-config`](packages/api-config) | Shared API configuration library for exposing safe configuration data |
-| [`@owlmeans/api-config-client`](packages/api-config-client) | Client-side functionality for fetching API configuration |
-| [`@owlmeans/api-config-server`](packages/api-config-server) | Server-side functionality for advertising API configuration |
-
-### **🔐 Authentication Packages (2 packages)**
-Comprehensive authentication and authorization infrastructure.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/auth`](packages/auth) | Core authentication library with multi-role authorization and cryptographic security |
-| [`@owlmeans/auth-common`](packages/auth-common) | Shared authentication components bridging client and server implementations |
-
-### **💻 Client Packages (13 packages)**
-Platform-agnostic client libraries for React applications.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/client-auth`](packages/client-auth) | Client-side authentication with token management and session persistence |
-| [`@owlmeans/client-config`](packages/client-config) | Client-side configuration management with web service support |
-| [`@owlmeans/client-context`](packages/client-context) | Client context management with service routing and API integration |
-| [`@owlmeans/client-did`](packages/client-did) | Client-side DID wallet management and authentication |
-| [`@owlmeans/client-flow`](packages/client-flow) | Client-side user flow management with state persistence |
-| [`@owlmeans/client-i18n`](packages/client-i18n) | React-based internationalization functionality |
-| [`@owlmeans/client-entrypoint`](packages/client-entrypoint) | Client-side entrypoint system with API calls and URL generation |
-| [`@owlmeans/client-panel`](packages/client-panel) | React panel library with UI components and form management |
-| [`@owlmeans/client-payment`](packages/client-payment) | Client-side payment functionality |
-| [`@owlmeans/client-resource`](packages/client-resource) | Client-side resource management with local database storage |
-| [`@owlmeans/client-route`](packages/client-route) | Client-side routing extensions |
-| [`@owlmeans/client-socket`](packages/client-socket) | Client-side WebSocket integration for real-time communication |
-| [`@owlmeans/client-wl`](packages/client-wl) | Client-side whitelabeling functionality |
-
-### **📱 Native Packages**
-React Native implementations for mobile applications live in the **[owlmeans/native](https://github.com/owlmeans/native)** monorepo: `@owlmeans/native-client`, `@owlmeans/native-db`, `@owlmeans/native-panel`, `@owlmeans/native-router`.
-
-### **🖥️ Server Packages (12 packages)**
-Backend implementations for API services and business logic.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/server-api`](packages/server-api) | Server-side API framework built on Fastify with authentication |
-| [`@owlmeans/server-app`](packages/server-app) | **🚀 Complete server application framework** - foundation for backend applications |
-| [`@owlmeans/server-auth`](packages/server-auth) | Server-side authentication with Ed25519 verification and token management |
-| [`@owlmeans/server-config`](packages/server-config) | Server-specific configuration utilities |
-| [`@owlmeans/server-context`](packages/server-context) | Server-side context and dependency injection system |
-| [`@owlmeans/server-flow`](packages/server-flow) | Server-side flow management with persistence and API integrations |
-| [`@owlmeans/server-entrypoint`](packages/server-entrypoint) | Server-side entrypoint system for HTTP request handling |
-| [`@owlmeans/server-oidc-provider`](packages/server-oidc-provider) | Complete OIDC identity provider service |
-| [`@owlmeans/server-oidc-rp`](packages/server-oidc-rp) | Server-side OpenID Connect Relying Party functionality |
-| [`@owlmeans/server-route`](packages/server-route) | Server-side routing with request matching and path resolution |
-| [`@owlmeans/server-socket`](packages/server-socket) | WebSocket server functionality with authentication |
-| [`@owlmeans/server-wl`](packages/server-wl) | Server-side whitelabeling functionality |
-
-### **🌐 Web Packages (7 packages)**
-Browser-specific implementations with Material-UI integration.
-
-| Package | Description |
-|---------|-------------|
-| [`@owlmeans/web-client`](packages/web-client) | React DOM client library with browser-specific functionality |
-| [`@owlmeans/web-db`](packages/web-db) | Web database implementation using IndexedDB |
-| [`@owlmeans/web-flow`](packages/web-flow) | Web-specific flow management with URL-based state management |
-| [`@owlmeans/web-oidc-provider`](packages/web-oidc-provider) | Web-based OIDC Provider functionality for React applications |
-| [`@owlmeans/web-oidc-rp`](packages/web-oidc-rp) | Web client-side OIDC Relying Party functionality |
-| [`@owlmeans/web-panel`](packages/web-panel) | **🎨 Complete web panel framework** - Material-UI components for admin interfaces |
-| [`@owlmeans/web-wl`](packages/web-wl) | Web-specific whitelabeling with React components |
-
-## 🎯 **Getting Started**
-
-### **For Fullstack Applications**
-Start with the two flagship packages:
-
-1. **Backend**: [`@owlmeans/server-app`](packages/server-app) - Complete server application framework
-2. **Frontend**: [`@owlmeans/web-panel`](packages/web-panel) - Material-UI web components and infrastructure
-
-### **For Specific Use Cases**
-
-- **Authentication Systems**: Start with [`@owlmeans/auth`](packages/auth) and [`@owlmeans/auth-common`](packages/auth-common)
-- **Mobile Applications**: Use packages from [owlmeans/native](https://github.com/owlmeans/native) — `@owlmeans/native-client`, `@owlmeans/native-panel`
-- **Microservices**: Begin with [`@owlmeans/context`](packages/context) and [`@owlmeans/config`](packages/config)
-- **Data Management**: Explore [`@owlmeans/resource`](packages/resource) with storage-specific implementations
-- **Real-time Communication**: Use [`@owlmeans/socket`](packages/socket) with client/server implementations
-
-### **Development Workflow**
-
-1. **Design your entrypoints** using [`@owlmeans/entrypoint`](packages/entrypoint) for shared route definitions
-2. **Configure your context** with [`@owlmeans/config`](packages/config) for dependency management
-3. **Implement authentication** using the auth packages for security
-4. **Build your API** with server packages for backend logic
-5. **Create your UI** with web/native packages for user interfaces
-
-## 📄 **License**
-
-OwlMeans Common is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-**OwlMeans Common** — *Building the future of secure, scalable fullstack applications.*
+The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated
+Claude Code links. In this monorepo, edit only canonical files under `.agents/skills/` and run
+`bun run scripts/sync-agent-meta.ts --project common`; never edit package `agent-meta/` copies.
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md), the relevant package skill, and [tree.md](tree.md) before changing a
+package. Package versions are independent; do not synchronize them. Publish only with explicit
+operator approval.

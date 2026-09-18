@@ -1,89 +1,105 @@
 ---
 name: server-api
-description: How to use @owlmeans/server-api — Fastify-based API server factory, request/response shapes, server middleware integration. Auto-invoked when importing server-api types or extending the server middleware stack.
+description: Implement HTTP entrypoint protocols with @owlmeans/server-api handlers<Context>().body(), params(), request(), and uploadedFile(). Load before writing an API handler.
 user-invocable: false
 ---
 
 # @owlmeans/server-api
 
-**Layer:** Server
-**Install:** `"@owlmeans/server-api": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.33`
 
-## Key Exports
+Make handlers from the protocol declaration so input and output types stay coupled to the shared
+contract:
 
-| Export | Description |
-|--------|-------------|
-| `makeServer()` | Factory for the Fastify-based API server |
-| `holdApiPort(cfg, { okPath?, payload? })` | Own the app's port during boot; released by the real `listen()` |
-| `Server`, `ServerRequest`, `ServerResponse` types | Runtime shapes |
-| Errors | Typed transport errors |
-| Constants | Default ports, paths |
-| Helpers | Middleware composition |
+```ts
+const api = handlers<AppContext>()
 
-## Subpath Exports
+const create = api.body(projectProtocols.create, async (body, context, request) =>
+  context.projects.create(body, request.auth)
+)
 
-- `./utils` — server utility functions
+const get = api.params(projectProtocols.get, async ({ id }, context) =>
+  context.projects.get(id)
+)
 
-## Usage
+const search = api.request(projectProtocols.search, async (request, context) =>
+  context.projects.search(request.query)
+)
 
-The server is normally constructed transparently by `@owlmeans/server-app#main()`. Use `server-api` directly only when you need to register raw Fastify plugins or customize transport:
-
-```typescript
-import { makeServer } from '@owlmeans/server-api'
-const server = makeServer({ port: 8080 })
-context.registerService(server)
+export const serverBindings = [
+  bind(projectProtocols.create, create),
+  bind(projectProtocols.get, get),
+  bind(projectProtocols.search, search),
+]
 ```
 
-## Holding the port through the boot
+`body` and `params` are available only for a protocol declaring that section. `request` works for
+any protocol and receives all its typed sections plus request metadata. A successful callback
+return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejects it.
 
-The server builds its route table from the entrypoints the context knows about, so it can only
-bind **after** `init()` resolves — and Fastify refuses new routes once it is listening. That
-leaves every way a boot can fail with nothing on the port: the edge answers a bare upstream
-connect error naming neither the app nor the reason.
+## Wrap exactly once
 
-`holdApiPort` closes that window: a minimal Fastify instance binds the app's socket immediately —
-resolving port and host from the same `cfg.services[cfg.service]` declaration `listen()` uses —
-answers `okPath` with 200 and everything else with **503, not 404** (the real routes do not exist
-yet, and "no such route" would be a lie that outlives the boot), evaluating `payload()` per
-request so a changing boot phase is reported live.
+A handler is wrapped by `handlers<Context>()` exactly once — either shape above (create the bound
+handler and bind it directly) is correct on its own. Never combine them: a handler module that
+already exports a bound handler must be bound directly, not wrapped again where it is bound.
 
-```typescript
-const hold = await holdApiPort(ctx.cfg, { okPath: '/healtz', payload: bootPayload })
-try { await initialize() } catch (e) { recordFailure(e); return }   // hold keeps answering
-await hold.release()          // awaited — listen() binds on the next line
-await ctx.getApiServer().listen()
+```ts
+// WRONG — bound once in the handler module, wrapped a second time here
+export const create = api.body(projectProtocols.create, async (body, context) => ...)
+bind(projectProtocols.create, api.body(projectProtocols.create, create))
 ```
 
-Two rules the caller owns: a **bind failure is fatal and loud** — name it (EADDRINUSE above all)
-and `process.exit(1)`, because carrying on ends the boot with nothing listening and nothing
-holding the event loop, a clean exit 0 while a stale predecessor keeps serving; and a **failed
-init returns without exiting** — the hold keeps the loop open and is the only thing that can say
-why.
+`tsc` rejects the double wrap (`TS2345 "Argument of type 'BoundEntrypointHandler<…>' is not
+assignable"`). At runtime, `body`/`params`/`request` return an already-bound handler for the SAME
+protocol unchanged, with a one-time warning; anything else that is not a plain function fails only
+that one route with `HandlerMisconfiguredError`, instead of the opaque
+`TypeError: handler is not a function`.
 
-## Error → HTTP status
+## The status a thrown error answers
 
-`handleError` (`./utils`) is the single mapping from a thrown error to a status. Handlers own no
-status table: they throw, and this decides. Two families reach it and both are recognised —
-`AccessError` / `AuthFailedError`, raised by this package's own request pipeline, and
-`AuthForbidden` / `AuthorizationError` from `@owlmeans/auth`, which is what guards and gates throw.
+A thrown error (or a rejected response) is answered with the marshalled `ResilientError` as the
+body and a status from `errorStatus(error)` (`./utils`), resolved in this order:
 
-| Thrown | Status | Meaning |
-|--------|--------|---------|
-| `AuthForbidden`, `AccessError` | `403` | An established identity that lacks the permission — re-authenticating changes nothing |
-| `AuthorizationError`, `AuthFailedError` | `401` | No usable credential: absent, expired, revoked, or naming a session this server does not hold |
-| anything else | `500` | |
+| Error | Status |
+|---|---|
+| `AuthForbidden`, `AccessError` or a subclass — by class or registered type name | 403 |
+| `AuthorizationError`, `AuthFailedError` or a subclass — by class or registered type name | 401 |
+| a class declaring `static httpStatus` as an integer 400–499 | that status |
+| anything else, including a declaration outside 400–499 | 500 |
 
-**Order matters.** `AuthForbidden extends AuthorizationError`, so the 403 branch is tested first —
-otherwise every refusal of a permission is reported as a failure to authenticate. And an
-unrecognised refusal answering 500 reports a refused request as a crashed server: the client cannot
-tell "sign in again" from "the service is broken", and a consumer watching statuses concludes the
-application fell over.
+- **A refusal of the caller's condition declares its status; a fault declares nothing.** 400 a
+  malformed request, 402 an unpaid balance or plan, 404 an addressed target that does not exist
+  (or is another organization's), 409 a target whose current state conflicts, 422 content or a body
+  that is understood and refused — and a missing configuration, a broken peer, a timeout or a bug
+  stays 500, because monitoring, logs, proxies and retry logic read a 5xx as the server failing.
+  The table and the leaf-class rule are the `error` skill's.
+- Declare it on the class: `public static httpStatus = 409` (`override` only when an ancestor
+  already declares one). The declaration is structural — the package declaring an error never
+  imports `@owlmeans/server-api` — and a static property is inherited, so a subclass answers its
+  nearest declaring ancestor's status and redeclares to change it.
+- The auth branches win over a declaration, in that order (`AuthForbidden extends
+  AuthorizationError`, so 403 is tested first). An entitlement or permission refusal extends
+  `AuthForbidden` rather than declaring 403.
+- `handleError` resolves the status on the error AS THROWN first, and asks the ENSURED
+  (`ResilientError.ensure`) error only when that answers 500. The thrown object is the one whose
+  class is certainly what was raised; the rebuild is what gives a status to a marshalled error that
+  crossed a hop as a plain `Error`. `ensure` returns an error from any `@owlmeans/error` copy
+  untouched, so the body keeps the thrown class's `type` (`AuthFailedError|||api:auth:…`) even in a
+  process holding duplicate module copies (`bun --preserve-symlinks`). `executeResponse` ensures
+  nothing and answers the rejected error's status. `@owlmeans/server-socket` answers an upgrade
+  through the same `handleError`.
+- An auth family is recognised by `instanceof` OR by an exact registered type name — the instance's
+  `type` or any static `typeName` on its constructor chain — so a class from another module copy
+  answers the same status. Match whole names, never substrings: a subclass's `typeName` does not
+  reliably embed its parent's (`EntitlementRefusal` extends `AuthForbidden`). A declared
+  `httpStatus` is a structural static read and survives duplicate copies as it is.
+- The status never changes what a client rebuilds: `@owlmeans/api` rehydrates the class from the
+  body for any non-2xx answer, so a caller branches on the class, never on the number. Nothing in
+  the framework treats a 404 specially — a missing route is a Fastify JSON body the client turns
+  into `ApiClientError('404')`, a refusal is a marshalled string rebuilt as its class.
 
-The body is always `ResilientError.marshal(ResilientError.ensure(error)).message`, and nothing is
-written when the reply was already sent.
+`uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
+than reaching through `request.original` in application code.
 
-## Depends On
-
-- `@owlmeans/context`, `@owlmeans/entrypoint`, `@owlmeans/route`
-- `@owlmeans/auth` (the error family the guards throw), `@owlmeans/error`, `@owlmeans/api` (status constants)
-- `fastify` (runtime)
+Do not use unbound compatibility handler wrappers. For a WebSocket route use
+`@owlmeans/server-socket`'s `connection(protocol, callback)`.

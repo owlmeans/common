@@ -5,7 +5,7 @@ import { makeTestCtx } from './context.js'
 describe('@owlmeans/context — service registration', () => {
   test('registers a service and resolves it by alias after initialization', async () => {
     const ctx = makeTestCtx()
-    const stub = createService('alpha', { layers: [] })
+    const stub = createService('alpha', {})
     ctx.registerService(stub)
     expect(ctx.hasService('alpha')).toBe(true)
     ctx.configure()

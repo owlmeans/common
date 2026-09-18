@@ -12,8 +12,8 @@ import { scalingToStyles } from '../helper.js'
 import { ResilientError } from '@owlmeans/error'
 import { Status } from '../status.js'
 import type { WebFormProps } from './types.js'
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { Card, CardContent, CardFooter } from '../../@/components/ui/card.js'
+import { cn } from '../../@/lib/utils.js'
 
 const ajv = new Ajv({ coerceTypes: true })
 formatsPlugin(ajv)

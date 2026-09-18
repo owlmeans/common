@@ -1,0 +1,7 @@
+{
+  "reload": {
+    "title": "Conexión perdida",
+    "description": "No se pudo restablecer la conexión tras varios intentos. Recarga la página para continuar.",
+    "action": "Recargar página"
+  }
+}

@@ -16,7 +16,7 @@ headless navigation model.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-panel
+bun add @owlmeans/client-panel@^0.1.18-rc.38
 ```
 
 ## Usage
@@ -26,12 +26,13 @@ A complete form with submit and cancel actions:
 ```typescript
 import { ClientForm, InputCtrl, ActionCtrl, useFormRef } from '@owlmeans/client-panel'
 import type { FormOnSubmit } from '@owlmeans/client-panel'
+import { appProtocols } from 'my-app-common'
 
 function CreateProjectForm() {
   const formRef = useFormRef()
 
   const onSubmit: FormOnSubmit<CreateProject> = async (data) => {
-    await ctx.module<ClientModule<Project>>('project-create').call({ body: data })
+    await ctx.entrypoint(appProtocols.api.project.create).call({ body: data })
   }
 
   return (
@@ -122,9 +123,9 @@ Returns `sections` (with `hidden` filtered out), `current` (the active screen's 
 - `showSide` is false when the active section holds a single screen — that is where the "one screen,
   no second level" rule lives; a renderer asks the model rather than counting items.
 - The current screen resolves from the router's `location.state.alias` when present, and otherwise
-  from the pathname matched against resolved entrypoint paths — exact first, then longest prefix.
+  from the pathname matched against entrypoint paths — exact first, then longest prefix.
   Both are needed: `state` is `window.history.state`, so it is empty on a hard load or deep link. A
-  screen listed in no section resolves its section by walking `getParentAlias()` upward.
+  screen listed in no section finds its section by walking its declared `parent` upward.
 - `hrefOf` resolves a real URL synchronously so a menu entry can be a proper link (focusable,
   keyboard-operable, openable in a new tab). It returns `undefined` for a path carrying route
   parameters.
@@ -152,7 +153,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -47,18 +47,18 @@ export const googleClientPlugin: AuthenticationPlugin = {
               }
 
               // Navigate to app root after successful authentication
-              const [homeUrl] = await context.module<Module<string>>(HOME).call({ full: true }) ?? []
-              window.location.href = homeUrl ?? window.location.origin
+              const homeUrl = await context.entrypoint<Module<string>>(HOME).url(undefined, { absolute: true })
+              window.location.href = homeUrl
 
               return
             }
           }
 
           // Initial request — ask server for Google auth URL
-          const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
-            full: true, params: { type }
-          }) ?? []
-          await control.requestAllowence({ type, source: source ?? '' })
+          const source = await context.entrypoint<Module<string>>(CAUTHEN_AUTHEN_TYPED).url({
+            params: { type }
+          }, { absolute: true })
+          await control.requestAllowence({ type, source })
           break
         }
 
@@ -67,10 +67,10 @@ export const googleClientPlugin: AuthenticationPlugin = {
 
           if (control.allowance?.challenge != null) {
             // The server wraps challenge as "source:googleUrl" — extract the URL part
-            const [source] = await context.module<Module<string>>(CAUTHEN_AUTHEN_TYPED).call({
-              full: true, params: { type }
-            }) ?? []
-            const url = extractGoogleUrl(control.allowance.challenge, source ?? '')
+            const source = await context.entrypoint<Module<string>>(CAUTHEN_AUTHEN_TYPED).url({
+              params: { type }
+            }, { absolute: true })
+            const url = extractGoogleUrl(control.allowance.challenge, source)
 
             // Persist control state before redirect
             await control.persist()

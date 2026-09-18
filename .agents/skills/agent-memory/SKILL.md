@@ -1,6 +1,6 @@
 ---
 name: agent-memory
-description: Shared agent memory protocol — the .agents/memory/ graph store every agent reads and writes: MEMORY.md index, subsystem nodes, compact-on-write merging, size caps, and the read protocol. Use when reading or writing project memory, when asked to remember something, or to decide where knowledge belongs.
+description: "Shared agent memory protocol — the .agents/memory/ graph store every agent reads and writes: MEMORY.md index, subsystem nodes, compact-on-write merging, size caps, and the read protocol. Use when reading or writing project memory, when asked to remember something, or to decide where knowledge belongs."
 user-invocable: true
 metadata:
   scope: general
@@ -13,8 +13,8 @@ the `MEMORY.md` index. Compactness is the core value — every write
 merges and compacts; nothing is ever appended as a log.
 
 Never write memory to `.claude/memory/`, `.github/memory/`, `~/.claude/`, `~/.copilot/`, or
-anywhere outside the repository. Legacy `.claude/memory/` / `.github/memory/` stores are
-retired — if one exists, flag it for `memory-recompact` migration instead of writing there.
+anywhere outside the repository. Records found in any such place are folded into
+`.agents/memory/` by `memory-recompact`, never added to.
 
 ## Store layout
 
@@ -104,8 +104,8 @@ Every write is a merge, never an append:
 4. **Compact** — reread the node; collapse redundancy; delete anything the code or git history
    now states; prune resolved `Status` lines.
 5. **Cap** — over soft cap: compact harder. Over hard cap: split by sub-scope into a linked child
-   node, or promote procedure-shaped overflow (`memory-promotion` where present, else
-   `skill-authoring`).
+   node, or promote procedure-shaped overflow (`memory-promotion` where present, else the
+   project's `skill-authoring` or `create-skill` skill).
 6. **Index** — update the hook line if the node's center of gravity moved; bump `updated:`.
 
 ## Knowledge, not events
@@ -115,10 +115,10 @@ correctly, stated without reference to this session?* Keep invariants, cause→e
 counter-moves, recognition fingerprints (symptoms). Drop dates, phase numbers, who did what,
 attempt sequences, and anything recoverable from code or git.
 
-Before (event log): "Verification 2026-06-11 … Bug found: script missing embedded-count logic.
-Fix deployed to all copies; second run idempotent."
-After (knowledge): "`nested-agent-context.sh` exists as byte-identical copies in the archive and
-each repo — fan every fix out to all copies; verify with `diff`. Correct re-runs are no-ops."
+Before (event log): "2026-06-11 — CI red on the second run; the migration step was not idempotent,
+patched it, re-ran green."
+After (knowledge): "The migration step is idempotent — run against an already-migrated database
+it writes nothing; a second run that still reports work means the first did not converge."
 
 ## Size caps (hard)
 
@@ -134,8 +134,9 @@ each repo — fan every fix out to all copies; verify with `diff`. Correct re-ru
 ## Memory vs skill
 
 Fact-shaped ("what is true") stays here. Procedure-shaped ("to do X, do Y") becomes a skill —
-follow `memory-promotion` where present, otherwise `skill-authoring`. Repeated use of a node to
-*perform* tasks, and over-cap nodes full of steps, are promotion triggers.
+follow `memory-promotion` where present, otherwise the project's `skill-authoring` or
+`create-skill` skill. Repeated use of a node to *perform* tasks, and over-cap nodes full of
+steps, are promotion triggers.
 
 Promotion is a **rewrite, never a move**: never paste node text into a skill. "Record the rule,
 not the story" and the size caps above bind skill bodies at least as tightly as they bind nodes

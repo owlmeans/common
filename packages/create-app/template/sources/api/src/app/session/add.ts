@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import { handleBody } from '@owlmeans/server-app'
-import type { AddItemPayload, SessionItem, SessionParams } from '__APP_SLUG__-common'
+import { handlers } from '@owlmeans/server-app'
+import { session, type SessionItem } from '__APP_SLUG__-common'
 import { SESSION_ITEMS } from '../../consts.js'
 import type { Context } from '../../types.js'
 
-export const add = handleBody<AddItemPayload>(async (payload, context, req) => {
-  const ctx = context as Context
-  const { sid } = req.params as SessionParams
-  const resource = ctx.getStaticResource<SessionItem>(SESSION_ITEMS)
+const handle = handlers<Context>()
+
+export const add = handle.body(session.add, async (payload, context, request) => {
+  const { sid } = request.params
+  const resource = context.getStaticResource<SessionItem>(SESSION_ITEMS)
 
   const item: SessionItem = {
     id: randomUUID(),

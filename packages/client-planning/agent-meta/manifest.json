@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/client-planning",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-09-17T08:16:11.229Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-planning",
+      "category": "package-specific",
+      "file": "skills/client-planning/SKILL.md",
+      "canonicalPath": ".agents/skills/client-planning/SKILL.md"
+    }
+  ]
+}

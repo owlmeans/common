@@ -14,7 +14,7 @@ provisioning, and an opt-in least-privilege bootstrap path.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres @owlmeans/postgres-resource
+bun add @owlmeans/postgres@^0.1.18-rc.27 @owlmeans/postgres-resource@^0.1.18-rc.27
 ```
 
 ## Usage
@@ -46,8 +46,8 @@ A whole connection string works too, and wins over `host`/`user`/`secret`:
 cfg.dbs = [{ service: 'postgres', alias: 'postgres', schema: 'app', meta: { url: process.env.DATABASE_URL } }]
 ```
 
-`schema` is the Postgres **schema**, not the database — `dbName()` suffixes it per Entity/User layer,
-so per-tenant namespaces stay cheap. The database comes from `meta.database` and is never suffixed.
+`schema` is the Postgres **schema**, not the database — `dbName()` resolves it as
+`config.schema ?? config.alias ?? service.alias`. The database comes from `meta.database`.
 
 At `init()` the service opens a pool, runs a `SELECT 1` readiness probe (30 attempts, 2s apart by
 default — a Postgres sidecar routinely accepts TCP before it accepts queries), issues
@@ -129,7 +129,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

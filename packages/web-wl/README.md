@@ -1,29 +1,29 @@
 # @owlmeans/web-wl
 
-Web whitelabel — service factory, module declarations, and React components for managing whitelabel content in browser apps.
+Web whitelabel — service factory, local protocol bindings, and React components for managing whitelabel content in browser apps.
 
 ## Overview
 
 - `makeWlService(alias?)` — web-side whitelabel service factory
-- `wlModules` (exported as `modules`) — web-side whitelabel module declarations
+- `entrypoints` — web-side bindings for the shared whitelabel protocol
 - Components for displaying whitelabel content
 - `DEFAULT_ALIAS` — `'wl-web-serivce'`
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-wl
+bun add @owlmeans/web-wl@^0.1.18-rc.29
 ```
 
 ## Usage
 
-Register the service and module declarations:
+Register the service and local bindings:
 
 ```typescript
-import { makeWlService, modules as wlModules } from '@owlmeans/web-wl'
+import { makeWlService, entrypoints as wlEntrypoints } from '@owlmeans/web-wl'
 
 context.registerService(makeWlService())
-const modules = [...baseModules, ...wlModules, ...appModules]
+const clientBindings = [...baseEntrypoints, ...wlEntrypoints, ...appBindings]
 ```
 
 Downstream variants (e.g., `@owlmeans/web-wl-manager`) extend this with manager-store helpers like `setupWlManagerStore<C, T>(context)`.
@@ -34,9 +34,9 @@ Downstream variants (e.g., `@owlmeans/web-wl-manager`) extend this with manager-
 
 Creates the web whitelabel service. `alias` defaults to `DEFAULT_ALIAS` (`'wl-web-serivce'`).
 
-### `modules`
+### `entrypoints`
 
-Array of web-side module declarations for whitelabel content (re-exported as `wlModules` in downstream variants).
+Local browser bindings for `wledEntrypoints.provide`; they do not redeclare the shared protocol.
 
 ### Components
 
@@ -61,7 +61,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -11,12 +11,12 @@ export const makeConfig = <C extends CommonConfig>(type: AppType, service: strin
   return config as C
 }
 
-export const service = <C extends CommonConfig>(service: Omit<CommonServiceRoute, "resolved">, cfg?: Partial<C>): C => {
+export const service = <C extends CommonConfig>(service: CommonServiceRoute, cfg?: Partial<C>): C => {
   const _cfg: C = (cfg ?? {}) as C
   if (_cfg.services == null) {
     _cfg.services = {}
   }
-  _cfg.services[service.service] = { ...service, resolved: service.host != null }
+  _cfg.services[service.service] = { ...service }
 
   return _cfg
 }

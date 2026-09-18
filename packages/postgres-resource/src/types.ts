@@ -1,10 +1,11 @@
 import type {
-  DbLocker, ListCriteria, ListOptions, MigratableResource, Resource,
-  ResourceDbService, ResourceLocker, ResourceRecord
+  DbLocker, LockableResource, MigratableResource, Resource,
+  ResourceDbService, ResourceRecord, WriteOptions
 } from '@owlmeans/resource'
 import type { AnySchema } from 'ajv'
 import type { Pool, PoolClient, QueryResultRow } from 'pg'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { PgAutoSync, PgIndexMethod, PgReferentialAction } from './consts.js'
 
@@ -17,9 +18,9 @@ export interface PostgresDb {
   /** Drizzle bound to this config alias' pool. */
   drizzle: NodePgDatabase<Record<string, never>>
   pool: Pool
-  /** The Postgres SCHEMA — i.e. `service.name(alias)`, layer suffixed. */
+  /** The Postgres SCHEMA this config alias' resources live in — i.e. `service.name(alias)`. */
   schema: string
-  /** The Postgres DATABASE — i.e. `config.meta.database`. Never layer suffixed. */
+  /** The Postgres DATABASE the pool is connected to — i.e. `config.meta.database`. */
   database: string
 }
 
@@ -72,7 +73,16 @@ export interface PostgresTx {
   ref: (resourceAlias?: string) => string
 }
 
-export interface PostgresResource<T extends ResourceRecord> extends Resource<T>, ResourceLocker<T>, MigratableResource<PostgresTx> {
+/**
+ * A `Resource<T>` over one Postgres table.
+ *
+ * Every method beyond the base contract exists because a table has structure a document
+ * store does not: identity supplied by the caller, conflict arbiters, partial writes, and
+ * SQL that no criteria object can express. Type the resource once —
+ * `context.resource<PostgresResource<Project>>(alias)` — rather than per call.
+ */
+export interface PostgresResource<T extends ResourceRecord>
+  extends Resource<T>, LockableResource<T>, MigratableResource<PostgresTx, PostgresResource<T>> {
   /** Physical table name override. Defaults to the resource alias, sanitized. */
   name?: string
   /** The AJV schema — single source of truth for the table structure. */
@@ -86,7 +96,7 @@ export interface PostgresResource<T extends ResourceRecord> extends Resource<T>,
   client: () => Promise<Pool>
 
   /** Declare an index the JSON schema can't express. Chainable. */
-  index: <Type extends PostgresResource<T>>(name: string, spec: PgIndexSpec) => Type
+  index: (name: string, spec: PgIndexSpec) => PostgresResource<T>
 
   getDefaults: () => Partial<T>
 
@@ -96,22 +106,19 @@ export interface PostgresResource<T extends ResourceRecord> extends Resource<T>,
   /** Returns the affected row count. */
   execute: (text: string, params?: unknown[]) => Promise<number>
   /** Rows marshalled back into `T` through the table spec. */
-  select: <Type extends T>(text: string, params?: unknown[]) => Promise<Type[]>
-  selectOne: <Type extends T>(text: string, params?: unknown[]) => Promise<Type | null>
+  select: (text: string, params?: unknown[]) => Promise<T[]>
+  selectOne: (text: string, params?: unknown[]) => Promise<T | null>
   /** Fully qualified `"schema"."table"`; pass an alias to reference another resource. */
   ref: (resourceAlias?: string) => string
 
   transaction: <R>(fn: (tx: PostgresTx) => Promise<R>) => Promise<R>
 
   /** Create with a caller supplied id — `create()` refuses one, mirroring mongo. */
-  insert: <Type extends T>(record: Partial<Type>) => Promise<Type>
+  insert: (record: Partial<T>) => Promise<T>
   /** `INSERT ... ON CONFLICT (...) DO UPDATE`. Defaults to conflicting on the primary key. */
-  upsert: <Type extends T>(record: Partial<Type>, conflict?: string[]) => Promise<Type>
+  upsert: (record: Partial<T>, conflict?: string[]) => Promise<T>
   /** Merge semantics — `update()` replaces the whole record, mirroring mongo's `replaceOne`. */
-  patch: <Type extends T>(record: Partial<Type>, opts?: string | { field?: string }) => Promise<Type>
-  /** Bulk delete by criteria. Returns the deleted row count. */
-  purge: (criteria: ListCriteria) => Promise<number>
-  count: (criteria?: ListCriteria | ListOptions) => Promise<number>
+  patch: (record: Partial<T>, opts?: WriteOptions) => Promise<T>
 }
 
 /** Compiled, database ready description of a resource's table. */
@@ -245,11 +252,15 @@ export interface PgReferenceSpec {
 }
 
 /**
- * The Drizzle table object. Deliberately opaque — tables are built at runtime from JSON
- * schemas, so Drizzle's compile time inference has nothing to infer from and every
- * column would be `any` anyway. Cast it at the call site when you need the typed builder.
+ * The Drizzle table `specToTable` compiles from a {@link TableSpec}.
+ *
+ * Both halves are load bearing. `PgTable` is what the query builder accepts and what keeps
+ * the rows it hands back usable — erasing it to `never` would collapse every result row.
+ * The index signature is how a column is reached: the columns are keyed by schema property
+ * name and only known at runtime, so `eq(entity[column.property], value)` is a plain lookup
+ * rather than a cast.
  */
-export type PgRuntimeTable = Record<string, any>
+export type PgRuntimeTable = PgTable & Record<string, PgColumn>
 
 /** One column as Postgres currently reports it. */
 export interface LiveColumn {

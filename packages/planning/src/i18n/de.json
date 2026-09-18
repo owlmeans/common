@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Karte",
+    "project": "Projekt",
+    "specification": "Spezifikation"
+  },
+  "intrinsic": {
+    "planned": "Geplant",
+    "in-progress": "In Arbeit",
+    "closed": "Abgeschlossen"
+  },
+  "action": {
+    "create": "Erstellt",
+    "update": "Aktualisiert",
+    "transit": "Status geändert",
+    "link": "Verknüpft",
+    "unlink": "Verknüpfung entfernt",
+    "delete": "Gelöscht"
+  },
+  "commit": {
+    "pending": "Wird gespeichert…",
+    "committed": "Gespeichert",
+    "failed": "Nicht gespeichert"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Reiner Text"
+  },
+  "errors": {
+    "PlanningError": "Die Planungsanfrage konnte nicht ausgeführt werden",
+    "PlanningErrorWorkcardNotFound": "Dieses Element existiert nicht oder ist für dich nicht verfügbar",
+    "PlanningErrorUnknownWorkcardType": "Dieser Elementtyp ist unbekannt",
+    "PlanningErrorUnknownStatusFlow": "Dieser Statusablauf ist unbekannt",
+    "PlanningErrorParentNotFound": "Das übergeordnete Element existiert nicht",
+    "PlanningErrorCardTypeNotAllowed": "Ein Element dieses Typs kann hier nicht hinzugefügt werden",
+    "PlanningErrorRefused": "Die Änderung wurde abgelehnt",
+    "PlanningErrorIllegalTransition": "Dieser Statuswechsel ist vom aktuellen Status aus nicht erlaubt",
+    "PlanningErrorFieldsInvalid": "Einige Felder haben ungültige Werte",
+    "PlanningErrorLabelNotAllowed": "Dieses Label ist hier nicht erlaubt",
+    "PlanningErrorSpecificationSlotUnknown": "Diese Art von Dokument ist hier nicht erlaubt",
+    "PlanningErrorSpecificationRevisionConflict": "Dieses Dokument existiert bereits — bearbeite es stattdessen",
+    "PlanningErrorRelationshipRefused": "Diese Verknüpfung ist nicht erlaubt",
+    "PlanningErrorCodeTaken": "Dieser Code ist bereits vergeben",
+    "PlanningErrorWorkcardConflict": "Jemand hat dieses Element inzwischen geändert — neu laden und erneut versuchen",
+    "PlanningErrorCommitTimeout": "Die Änderung wird noch gespeichert — prüfe es gleich noch einmal",
+    "PlanningErrorCommitFailed": "Die Änderung konnte nicht gespeichert werden",
+    "PlanningErrorScopeMismatch": "Dieses Element existiert nicht oder ist für dich nicht verfügbar",
+    "PlanningErrorUnsupported": "Dieser Vorgang wird für dieses Element nicht unterstützt"
+  }
+}

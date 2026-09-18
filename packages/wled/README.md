@@ -1,27 +1,27 @@
 # @owlmeans/wled
 
-Whitelabel ("wled") core — shared types, models, and module declarations for entity-specific branding/content.
+Whitelabel ("wled") core — shared types, models, and entrypoint declarations for organization-entity-specific branding/content.
 
 ## Overview
 
-- `WL_PROVIDE` / `WL_PROVIDE_PATH` — module alias and path for the whitelabel provide endpoint
+- `WL_PROVIDE` / `WL_PROVIDE_PATH` — entrypoint alias and path for the whitelabel provide endpoint
 - `WL_TYPE_COMPANY_INFO`, `WL_TYPE_STYLES`, `WL_TYPE_MEDIA`, `WL_TYPE_DNS` — whitelabel content type discriminators
 - Type definitions: `CompanyInfo`, `CustomStyles`, `CustomColors`, `CustomFont`, `CustomMedia`, `CustomBrand`, `ProvideParams`, `ProvidedWL<T>`
-- `modules` — array containing the `GET /wl/provide/:entity` declaration
+- `wledEntrypoints.provide` — immutable protocol for `GET /wl/provide/:entity`
 - AJV models under `model/` (e.g., `ProvideParamsSchema`)
 
 ## Installation
 
 ```bash
-bun add @owlmeans/wled
+bun add @owlmeans/wled@^0.1.18-rc.25
 ```
 
 ## Usage
 
-Use the shared module declarations and types when wiring server- and web-side whitelabel features:
+Use the shared protocol declaration and types when wiring server- and web-side whitelabel features:
 
 ```typescript
-import { modules as wlModules } from '@owlmeans/wled'
+import { wledEntrypoints } from '@owlmeans/wled'
 import type { ProvidedWL, CompanyInfo, CustomStyles } from '@owlmeans/wled'
 ```
 
@@ -50,9 +50,11 @@ The actual server handlers live in `@owlmeans/server-wl`; web UI in `@owlmeans/w
 
 `CompanyInfo`, `CustomStyles`, `CustomColors`, `CustomFont`, `CustomMedia`, `CustomBrand`, `ProvideParams`, `ProvidedWL<T>` — re-exported at the root entry.
 
-### `modules`
+### `wledEntrypoints`
 
-Array with one declaration: `GET /wl/provide/:entity` (alias `WL_PROVIDE`), with `params` filter using `ProvideParamsSchema`.
+Immutable protocol tree with one declaration: `provide` is `GET /wl/provide/:entity` (alias
+`WL_PROVIDE`) with a `params` filter using `ProvideParamsSchema`. Server and browser packages bind
+that exact object into their own local binding lists.
 
 ### `model`
 
@@ -60,7 +62,7 @@ Submodule exporting AJV schemas (e.g., `ProvideParamsSchema`) and helpers for wh
 
 ## Related Packages
 
-- [`@owlmeans/server-wl`](../server-wl) — server-side whitelabel handlers (uses `modules` from here)
+- [`@owlmeans/server-wl`](../server-wl) — server-side whitelabel bindings
 - [`@owlmeans/web-wl`](../web-wl) — web UI components for whitelabel content
 - [`@owlmeans/client-wl`](../client-wl) — client-side whitelabel placeholder
 
@@ -72,7 +74,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills
+npx @owlmeans/agent-skills@^0.1.18-rc.28
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

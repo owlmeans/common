@@ -65,4 +65,27 @@ describe('agent — tool invocation is contained', () => {
 
     expect((result as { error: string }).error).toContain('not found')
   })
+
+  test('rethrows an error the caller declared fatal, and only that one', async () => {
+    // Containment has a cost the containment cannot see: a tool may be a whole pipeline, and
+    // handing the model a readable "out of tokens" is an invitation to pick another tool and spend
+    // again past a zero balance.
+    class OutOfTokens extends Error {}
+    const exploding = {
+      broke: {
+        name: 'broke',
+        invoke: async () => { throw new OutOfTokens('no balance') },
+      },
+      ordinary: {
+        name: 'ordinary',
+        invoke: async () => { throw new Error('a bad argument') },
+      },
+    } as unknown as AgentToolSet
+    const fatal = (e: unknown): boolean => e instanceof OutOfTokens
+
+    expect(safeInvokeTool(exploding, callOf('broke', {}), fatal)).rejects.toThrow('no balance')
+
+    const contained = await safeInvokeTool(exploding, callOf('ordinary', {}), fatal)
+    expect(isToolError(contained)).toBe(true)
+  })
 })

@@ -1,23 +1,26 @@
 
 import { ResourceError } from '@owlmeans/resource'
 
-export class StateToolingError extends ResourceError {
-  public static override typeName = `${ResourceError.typeName}Tooling`
+/**
+ * The resource was asked for something its {@link StateConfig} does not allow. Both cases are
+ * wiring mistakes rather than missing data, so they throw instead of answering with nothing.
+ */
+export class StateConfigError extends ResourceError {
+  public static override typeName = `${ResourceError.typeName}StateConfig`
+
+  /**
+   * A record was addressed without an id on a resource that holds many of them. Only a `single`
+   * resource has a record that needs no naming.
+   */
+  public static readonly NonSingle: string = 'non-single'
+
+  /** A write carried no value for the resource's id field, and nothing here mints one. */
+  public static readonly NoId: string = 'no-id'
 
   constructor(msg: string) {
-    super(`tooling:${msg}`)
-    this.type = StateToolingError.typeName
+    super(`state-config:${msg}`)
+    this.type = StateConfigError.typeName
   }
 }
 
-export class StateListenerError extends StateToolingError {
-  public static override typeName = `${StateToolingError.typeName}Listener`
-
-  constructor(msg: string) {
-    super(`listener:${msg}`)
-    this.type = StateListenerError.typeName
-  }
-}
-
-ResourceError.registerErrorClass(StateToolingError)
-ResourceError.registerErrorClass(StateListenerError)
+ResourceError.registerErrorClass(StateConfigError)

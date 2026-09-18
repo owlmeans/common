@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Tarjeta",
+    "project": "Proyecto",
+    "specification": "Especificación"
+  },
+  "intrinsic": {
+    "planned": "Planificado",
+    "in-progress": "En curso",
+    "closed": "Cerrado"
+  },
+  "action": {
+    "create": "Creado",
+    "update": "Actualizado",
+    "transit": "Estado cambiado",
+    "link": "Vinculado",
+    "unlink": "Vínculo eliminado",
+    "delete": "Eliminado"
+  },
+  "commit": {
+    "pending": "Guardando…",
+    "committed": "Guardado",
+    "failed": "No guardado"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Texto sin formato"
+  },
+  "errors": {
+    "PlanningError": "No se pudo completar la solicitud de planificación",
+    "PlanningErrorWorkcardNotFound": "Este elemento no existe o no está disponible para ti",
+    "PlanningErrorUnknownWorkcardType": "Este tipo de elemento no se conoce",
+    "PlanningErrorUnknownStatusFlow": "Este flujo de estados no se conoce",
+    "PlanningErrorParentNotFound": "El elemento superior no existe",
+    "PlanningErrorCardTypeNotAllowed": "No se puede añadir aquí un elemento de este tipo",
+    "PlanningErrorRefused": "El cambio fue rechazado",
+    "PlanningErrorIllegalTransition": "Este cambio de estado no está permitido desde el estado actual",
+    "PlanningErrorFieldsInvalid": "Algunos campos tienen valores no válidos",
+    "PlanningErrorLabelNotAllowed": "Esta etiqueta no está permitida aquí",
+    "PlanningErrorSpecificationSlotUnknown": "Este tipo de documento no está permitido aquí",
+    "PlanningErrorSpecificationRevisionConflict": "Este documento ya existe — edítalo en su lugar",
+    "PlanningErrorRelationshipRefused": "Este vínculo no está permitido",
+    "PlanningErrorCodeTaken": "Este código ya está en uso",
+    "PlanningErrorWorkcardConflict": "Alguien cambió este elemento mientras tanto — recarga e inténtalo de nuevo",
+    "PlanningErrorCommitTimeout": "El cambio aún se está guardando — vuelve a comprobarlo en breve",
+    "PlanningErrorCommitFailed": "No se pudo guardar el cambio",
+    "PlanningErrorScopeMismatch": "Este elemento no existe o no está disponible para ti",
+    "PlanningErrorUnsupported": "Esta operación no es compatible con este elemento"
+  }
+}

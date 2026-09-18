@@ -1,25 +1,25 @@
-import type { JSONSchemaType } from 'ajv'
+import { schema } from '@owlmeans/entrypoint'
 import type { AddItemPayload, ItemParams, SessionParams } from './types.js'
 
-export const AddItemSchema: JSONSchemaType<AddItemPayload> = {
+export const AddItemSchema = schema<AddItemPayload>({
   type: 'object',
   properties: {
     text: { type: 'string', minLength: 1, maxLength: 280 },
   },
   required: ['text'],
   additionalProperties: false,
-}
+})
 
-export const SessionParamsSchema: JSONSchemaType<SessionParams> = {
+export const SessionParamsSchema = schema<SessionParams>({
   type: 'object',
   properties: {
     sid: { type: 'string', minLength: 1 },
   },
   required: ['sid'],
   additionalProperties: false,
-}
+})
 
-export const ItemParamsSchema: JSONSchemaType<ItemParams> = {
+export const ItemParamsSchema = schema<ItemParams>({
   type: 'object',
   properties: {
     sid: { type: 'string', minLength: 1 },
@@ -27,4 +27,4 @@ export const ItemParamsSchema: JSONSchemaType<ItemParams> = {
   },
   required: ['sid', 'id'],
   additionalProperties: false,
-}
+})
