@@ -81,6 +81,13 @@ export interface StripePricingDef {
   /** Overrides `STRIPE_FX_QUOTES_API_VERSION`, when Stripe moves or renames the preview. */
   fxApiVersion?: string
   /**
+   * Stripe settlement currency used when a catalogue price is declared in another currency.
+   * Recurring prices are converted during product sync; amount checkout is converted per session.
+   */
+  settlementCurrency?: string
+  /** Explicit Stripe payment methods for subscription Checkout; absent keeps Stripe's dynamic selection. */
+  subscriptionPaymentMethodTypes?: string[]
+  /**
    * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
    * account's own tax-settings default resolves to the opposite one — which changes what an
    * existing subscriber is charged at their next renewal. Absent/`false`: such a price is left
@@ -198,8 +205,15 @@ export interface QuantityTopUpCompletion extends TopUpBase {
 }
 export interface AmountTopUpCompletion extends TopUpBase {
   mode: 'amount'
+  /** Net value in the amount policy's catalogue currency. */
   amountMinor: number
+  /** Grossed-up value in the amount policy's catalogue currency, before settlement conversion. */
+  sourceChargeAmountMinor: number
+  /** The amount policy's catalogue currency. */
+  amountCurrency: string
+  /** Pre-tax subtotal actually charged by Stripe, in `currency`. */
   chargeAmountMinor: number
+  /** Stripe integration/settlement currency. */
   currency: string
 }
 export type TopUpCompletion = QuantityTopUpCompletion | AmountTopUpCompletion
@@ -400,6 +414,8 @@ export interface PaymentFulfillmentRecord extends ResourceRecord {
   mode: CheckoutPricingMode
   units?: number
   amountMinor?: number
+  sourceChargeAmountMinor?: number
+  amountCurrency?: string
   chargeAmountMinor?: number
   currency?: string
   createdAt: Date

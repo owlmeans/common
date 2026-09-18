@@ -115,6 +115,20 @@ describe('Stripe checkout — pricing policy', () => {
     expect(fake.state.checkoutSessions[0].adaptive_pricing).toEqual({ enabled: true })
   })
 
+  test('subscription checkout can explicitly offer recurring-capable payment methods', async () => {
+    const fake = await makeFakeContext({
+      pricing: {
+        tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { estimate: false },
+        stripe: { subscriptionPaymentMethodTypes: ['CARD', 'link', 'klarna'] },
+      },
+      stripe: { prices: [proPrice] },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
+    })
+    expect(fake.state.checkoutSessions[0].payment_method_types).toEqual(['card', 'link', 'klarna'])
+  })
+
   test('a declared behavior is set on the inline amount line item', async () => {
     const fake = await makeFakeContext({
       pricing: { tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Inclusive }, currency: { estimate: false } },
@@ -123,6 +137,28 @@ describe('Stripe checkout — pricing policy', () => {
       productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1_000, successUrl,
     })
     expect(fake.state.checkoutSessions[0].line_items[0].price_data.tax_behavior).toBe('inclusive')
+  })
+
+  test('an amount checkout converts the USD catalogue charge to the settlement currency', async () => {
+    const fake = await makeFakeContext({
+      pricing: {
+        tax: { automatic: true, collectTaxId: true, estimate: false },
+        currency: { adaptive: true, estimate: false }, stripe: { settlementCurrency: 'EUR' },
+      },
+      stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
+    })
+    await createCheckoutLink(fake.ctx, fake.stripe, {
+      productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1_000, successUrl,
+    })
+    const session = fake.state.checkoutSessions[0]
+    expect(session.line_items[0].price_data).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 891 }))
+    expect(session.metadata).toEqual(expect.objectContaining({
+      amountMinor: '1000', sourceChargeAmountMinor: '1021', amountCurrency: 'usd',
+      chargeAmountMinor: '891', currency: 'eur',
+    }))
+    expect(fake.state.rawRequests[0]).toEqual(expect.objectContaining({
+      params: { to_currency: 'eur', 'from_currencies[]': 'usd', lock_duration: 'none' },
+    }))
   })
 })
 
@@ -147,6 +183,23 @@ describe('Stripe checkout fulfillment', () => {
     }))
     expect(fulfillment(fake)[0].fulfilledAt).toBeInstanceOf(Date)
     expect(fake.stores['payment-subscription'].rows).toHaveLength(0)
+  })
+
+  test('fulfills the USD credit value from an EUR settlement charge', async () => {
+    const fake = await makeFakeContext()
+    await process(fake, 'checkout.session.completed', paid({
+      currency: 'eur', amount_subtotal: 891,
+      metadata: {
+        pricingMode: 'amount', amountMinor: '1000', sourceChargeAmountMinor: '1021', amountCurrency: 'usd',
+        chargeAmountMinor: '891', currency: 'eur', entityId: 'entity-1', service: 'app',
+        productSku: CREDITS_PRODUCT, planSku: 'app-credit-unit',
+      },
+    }))
+    expect(fake.observed.topUp[0]).toEqual(expect.objectContaining({
+      amountMinor: 1_000, sourceChargeAmountMinor: 1_021, amountCurrency: 'usd',
+      chargeAmountMinor: 891, currency: 'eur',
+    }))
+    expect(fulfillment(fake)[0]).toEqual(expect.objectContaining({ amountCurrency: 'usd', currency: 'eur' }))
   })
 
   test('grants nothing for an unpaid completion; the asynchronous success does', async () => {

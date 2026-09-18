@@ -5,6 +5,16 @@ import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_PAYGATE_ALIAS } from './consts.js'
 import { fingerprints, payment, stripeClient, stripePricingConfig } from './utils.js'
 import type { PaymentPlan, PaymentProduct } from './types.js'
+import { settlementAmount } from './plugins/fx.js'
+import type { StripeFxRateCache } from './plugins/fx.js'
+
+interface ResolvedPlan {
+  plan: PaymentPlan
+  unitAmount: number
+  currency: string
+  sourceUnitAmount: number
+  sourceCurrency: string
+}
 
 export const planLookupKey = (product: PaymentProduct, plan: PaymentPlan): string =>
   product.type === ProductType.Consumable ? `${product.sku}-consumable` : plan.sku
@@ -37,16 +47,16 @@ export const stripePlansOf = async (ctx: ApiContext): Promise<Array<{ product: P
  * edit.
  */
 const fingerprintOf = (
-  product: PaymentProduct, plans: PaymentPlan[], behavior: TaxBehavior | null,
+  product: PaymentProduct, plans: ResolvedPlan[], behavior: TaxBehavior | null,
 ): string => createHash('sha256')
   .update(JSON.stringify({
     sku: product.sku, type: product.type, name: product.title,
     description: product.description ?? null, taxCode: product.taxCode ?? null,
     unitLabel: product.unitLabel ?? null, services: [...(product.services ?? [])].sort(),
     behavior,
-    plans: plans.map(plan => ({
-      sku: plan.sku, price: plan.price, currency: plan.currency ?? 'usd', duration: plan.duration,
-      recurring: plan.recurring ?? null, pricingMode: plan.pricingMode ?? null,
+    plans: plans.map(({ plan, unitAmount, currency, sourceUnitAmount, sourceCurrency }) => ({
+      sku: plan.sku, price: plan.price, currency, unitAmount, sourceUnitAmount, sourceCurrency,
+      duration: plan.duration, recurring: plan.recurring ?? null, pricingMode: plan.pricingMode ?? null,
       amountPolicy: plan.amountPolicy ?? null, quantityPolicy: plan.quantityPolicy ?? null,
       lookup: planLookupKey(product, plan),
     })).sort((a, b) => a.sku.localeCompare(b.sku)),
@@ -121,16 +131,15 @@ const applyUnspecifiedBehavior = async (
 }
 
 const ensureStripePrice = async (
-  stripe: Stripe, product: PaymentProduct, plan: PaymentPlan,
+  stripe: Stripe, product: PaymentProduct, resolved: ResolvedPlan,
   behavior: TaxBehavior | null, migrateUnspecifiedPrices: boolean,
 ): Promise<void> => {
+  const { plan, unitAmount, currency } = resolved
   if (plan.pricingMode === CheckoutPricingMode.Amount) {
     await deactivateAmountPrice(stripe, product, plan)
     return
   }
   const lookupKey = planLookupKey(product, plan)
-  const unitAmount = Math.round(plan.price * 100)
-  const currency = plan.currency ?? 'usd'
   const recurring = plan.recurring != null
     ? { interval: plan.recurring.interval } as Stripe.PriceCreateParams.Recurring : undefined
   const existing = await activePrices(stripe, product)
@@ -169,12 +178,24 @@ export const syncStripeProducts = async (ctx: ApiContext, stripe: Stripe): Promi
   const fpRes = fingerprints(ctx)
   const behavior = (await payment(ctx).pricingPolicy()).tax.behavior ?? null
   const migrateUnspecifiedPrices = (await stripePricingConfig(ctx))?.migrateUnspecifiedPrices ?? false
+  const fxRates: StripeFxRateCache = new Map()
   for (const { product, plans } of await stripePlansOf(ctx)) {
-    const hash = fingerprintOf(product, plans, behavior)
+    const resolvedPlans: ResolvedPlan[] = []
+    for (const plan of plans) {
+      const sourceUnitAmount = Math.round(plan.price * 100)
+      const sourceCurrency = (plan.currency ?? 'usd').toLowerCase()
+      const settled = plan.pricingMode === CheckoutPricingMode.Amount
+        ? { amountMinor: sourceUnitAmount, currency: sourceCurrency }
+        : await settlementAmount(ctx, stripe, sourceUnitAmount, sourceCurrency, fxRates)
+      resolvedPlans.push({ plan, unitAmount: settled.amountMinor, currency: settled.currency, sourceUnitAmount, sourceCurrency })
+    }
+    const hash = fingerprintOf(product, resolvedPlans, behavior)
     const stored = await fpRes.bySku(product.sku)
     if (stored != null && stored.hash === hash) continue
     const stripeProduct = await ensureStripeProduct(stripe, product)
-    for (const plan of plans) await ensureStripePrice(stripe, product, plan, behavior, migrateUnspecifiedPrices)
+    for (const resolved of resolvedPlans) {
+      await ensureStripePrice(stripe, product, resolved, behavior, migrateUnspecifiedPrices)
+    }
     if (stored != null) {
       await fpRes.update({ ...stored, hash, productId: stripeProduct.id, updatedAt: new Date() })
     } else {

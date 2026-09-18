@@ -24,6 +24,10 @@ portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'E
 declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
   tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
   currency: { adaptive: true, estimate: true },
+  stripe: {
+    settlementCurrency: 'eur',                         // optional: catalogue USD → settlement EUR
+    subscriptionPaymentMethodTypes: ['card', 'link', 'klarna'], // optional; absent = Stripe dynamic selection
+  },
 })
 declarePaymentProduct(cfg, { sku: 'app-plans', type: ProductType.Service, services: ['app'], name: 'Plans' })
 declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'free', rank: 0, free: true, price: 0, … })
@@ -86,8 +90,10 @@ does not know as a string, and the collection validator rejects it.
 ## Checkout and fulfillment
 
 - `Amount`: one inline `price_data` item for the synchronized product, quantity 1, its `tax_behavior`
-  the declared `PricingPolicy.tax.behavior` (default `'exclusive'`), no promotion codes; the net
-  `amountMinor` and the grossed-up `chargeAmountMinor` travel in the session metadata. `Quantity`:
+  the declared `PricingPolicy.tax.behavior` (default `'exclusive'`), no promotion codes. With
+  `stripe.settlementCurrency`, the catalogue `amountMinor` and grossed-up `sourceChargeAmountMinor`
+  stay in `amountCurrency`, while a fresh Stripe FX reference rate produces `chargeAmountMinor` in
+  the settlement `currency`. Without it, source and charge amounts/currencies are identical. `Quantity`:
   the reusable price under the plan lookup key, adjustable quantity. Subscription: `planSku` (else
   the product's first recurring plan), quantity 1.
 - A plan the paygate does not sell — a free plan, another gateway's plan — is refused
@@ -95,10 +101,15 @@ does not know as a string, and the collection validator rejects it.
   collection, tax-id collection and Adaptive Pricing (`adaptive_pricing`) on the session, each
   independently, exactly as `PricingPolicy` declares them — an undeclared policy reproduces the
   fixed pre-policy session (automatic tax + tax-id collection on, no Adaptive Pricing).
+- `stripe.subscriptionPaymentMethodTypes` explicitly sets `payment_method_types` on subscription
+  Sessions only; absent keeps Stripe's dynamic selection. Declare only recurring-capable methods:
+  Stripe rejects single-use methods such as BLIK in `subscription` mode. Account availability,
+  customer country, currency and each method's own restrictions still apply.
 - `checkout.session.completed` and `…async_payment_succeeded` fulfill only a `payment`-mode session
   with `payment_status === 'paid'`; an amount session must match its metadata currency and subtotal.
-  Adaptive Pricing never disturbs this: Session/webhook amounts stay in the integration currency
-  (USD here) whatever currency the buyer paid in.
+  Adaptive Pricing never disturbs this: Session/webhook amounts stay in the settlement/integration
+  currency whatever currency the buyer paid in. Fulfillment validates that subtotal separately
+  from the source amount and preserves both currency pairs in its row and observer event.
 - A pending `payment-fulfillment` row (with `paymentIntentId` and `invoiceId`) is written before
   observers run; `fulfilledAt` is stamped after they succeed. An observer throw escapes so Stripe
   redelivers, and the observer must stay idempotent by `externalId` — a crash after its side effect
@@ -114,6 +125,11 @@ does not know as a string, and the collection validator rejects it.
   that default would make the price behave the other way for existing renewals, unless
   `declarePaymentPricing({ stripe: { migrateUnspecifiedPrices: true } })` opts in. The behavior is
   part of the sync fingerprint, so declaring or changing it re-syncs every product exactly once.
+- When `stripe.settlementCurrency` differs from a plan's catalogue currency, each product sync gets
+  an unlocked Stripe FX Quote and converts recurring Prices with `rate_details.reference_rate`,
+  rounding minor units up. The resolved amount and currency are fingerprinted: an unchanged rounded
+  amount makes no product/price calls, while a changed amount deactivates the old Price and creates
+  a replacement. Existing subscriptions keep their accepted Price and settlement amount.
 - `GatewayService.estimatePrice(ctx, { entityId, productSku, planSku?, country? })` (`estimatePrice`
   in `plugins/estimate.ts`) is a Stripe Tax calculation (plus, with `currency.estimate` and
   `currency.adaptive` both on, an FX Quotes lookup) for one product/plan's reference amount, at a
@@ -126,7 +142,9 @@ does not know as a string, and the collection validator rejects it.
   jurisdiction, or an invalid-request error such as a US address with no postal code), and
   "choose a country" (neither the request nor the customer names one — zero Stripe calls). The FX
   Quotes call is a Stripe PREVIEW endpoint (`STRIPE_FX_QUOTES_API_VERSION`, `stripe.rawRequest`),
-  and its failure only drops the estimate's `local` field, never the tax half.
+  and its failure only drops the estimate's `local` field, never the tax half. With a distinct
+  settlement currency, the local estimate composes catalogue→settlement `reference_rate` with the
+  fee-inclusive local→settlement `exchange_rate`, matching the Checkout conversion chain.
 
 ## The subscription store
 
@@ -324,7 +342,9 @@ database.
 - https://docs.stripe.com/api/tax/calculations/create — `line_items[].tax_behavior` (default `exclusive`), `tax_code`; `customer_details.address_source` ∈ `billing|shipping`; `tax_ids[]` shifts liability (a valid id is never validated for correctness); the response's `tax_breakdown[].tax_rate_details.percentage_decimal` is a STRING (parse it exactly, never `Number(x) * 10_000`) and `.rate_type` ∈ `flat_amount|percentage` (a flat rate never scales with the amount).
 - https://docs.stripe.com/tax/products-prices-tax-codes-tax-behavior — a price's `tax_behavior` can be set only from `unspecified`; once `exclusive`/`inclusive` it cannot change, and `inferred_by_currency` (an account tax-settings default) resolves to exclusive for USD/CAD, inclusive otherwise.
 - https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — `adaptive_pricing.enabled` on a Checkout Session; requires the price currency to be a settlement currency; Session/PaymentIntent/webhook amounts stay in the integration currency, with `presentment_details.{presentment_amount, presentment_currency}` alongside them when the buyer paid differently.
-- https://docs.stripe.com/api/fx_quotes/create — a **preview** endpoint (needs a preview `Stripe-Version`, called via `stripe.rawRequest`); `to_currency`/`from_currencies[]`; `lock_duration: 'none'` is free, `five_minutes|hour|day` add a fee (`rate_details.duration_premium`) baked into `exchange_rate`.
+- https://docs.stripe.com/billing/subscriptions/klarna — Checkout can save Klarna for recurring subscription charges when the account and buyer are eligible.
+- https://docs.stripe.com/payments/blik — BLIK is single-use and does not support recurring payments.
+- https://docs.stripe.com/api/fx_quotes/create — a **preview** endpoint (needs a preview `Stripe-Version`, called via `stripe.rawRequest`); `to_currency`/`from_currencies[]`; `lock_duration: 'none'` is free, `five_minutes|hour|day` add a fee (`rate_details.duration_premium`) baked into `exchange_rate`; settlement conversion uses `rate_details.reference_rate`, while local-presentment estimates use fee-inclusive `exchange_rate`.
 
 ## Related
 

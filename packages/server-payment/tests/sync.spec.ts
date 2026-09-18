@@ -85,4 +85,30 @@ describe('@owlmeans/server-payment — price tax_behavior sync', () => {
     expect(fresh?.id).not.toBe('price_pro_existing')
     expect(fresh).toEqual(expect.objectContaining({ tax_behavior: 'exclusive', lookup_key: PRO }))
   })
+
+  test('recurring USD catalogue prices are synchronized as EUR settlement prices', async () => {
+    const fake = await withProProduct({
+      pricing: { ...exclusive, stripe: { settlementCurrency: 'eur' } },
+      stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
+    })
+    await syncStripeProducts(fake.ctx, fake.stripe)
+    expect(proPrice(fake)).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 1_746 }))
+    expect(fake.state.rawRequests).toContainEqual(expect.objectContaining({
+      params: { to_currency: 'eur', 'from_currencies[]': 'usd', lock_duration: 'none' },
+    }))
+  })
+
+  test('a changed reference rate replaces a recurring settlement price on the next sync', async () => {
+    const fake = await withProProduct({
+      pricing: { ...exclusive, stripe: { settlementCurrency: 'eur' } },
+      stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
+    })
+    await syncStripeProducts(fake.ctx, fake.stripe)
+    const first = proPrice(fake)
+    fake.state.fxRates.usd = { exchangeRate: 0.88, referenceRate: 0.9 }
+    await syncStripeProducts(fake.ctx, fake.stripe)
+    expect(first?.active).toBe(false)
+    expect(proPrice(fake)).toEqual(expect.objectContaining({ currency: 'eur', unit_amount: 1_800 }))
+    expect(proPrice(fake)?.id).not.toBe(first?.id)
+  })
 })

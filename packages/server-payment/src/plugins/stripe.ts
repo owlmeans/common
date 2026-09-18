@@ -6,9 +6,10 @@ import {
 import type { PricingPolicy } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_PAYGATE_ALIAS, STRIPE_SIGNATURE } from '../consts.js'
-import { paygateCustomers, payment } from '../utils.js'
+import { paygateCustomers, payment, stripePricingConfig } from '../utils.js'
 import { isSoldThrough, planLookupKey } from '../sync.js'
 import { createEventHandler } from './events.js'
+import { settlementAmount } from './fx.js'
 import { stripeWebhookSecrets } from './webhook-manager.js'
 import type { CreateLinkParams, PaymentPlan, PaymentProduct } from '../types.js'
 
@@ -136,17 +137,27 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
 
     if (plan.pricingMode === CheckoutPricingMode.Amount) {
       if (params.amountMinor == null) throw new ProductError('amount')
-      const { lineItem, chargeMinor, currency } = amountCheckoutLineItem(
+      const { chargeMinor: sourceChargeMinor, currency: amountCurrency } = amountCheckoutLineItem(
         product, plan, params.amountMinor, pricing.tax.behavior,
       )
+      const settled = await settlementAmount(ctx, stripe, sourceChargeMinor, amountCurrency)
+      const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = {
+        price_data: {
+          product: product.sku, currency: settled.currency, unit_amount: settled.amountMinor,
+          tax_behavior: pricing.tax.behavior,
+        },
+        quantity: 1,
+      }
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', line_items: [lineItem], invoice_creation: { enabled: true },
         ...checkoutOptions(pricing, false),
         ...sharedSession(customer, params, product, plan, {
           pricingMode: CheckoutPricingMode.Amount,
-          currency,
+          currency: settled.currency,
+          amountCurrency,
           amountMinor: String(params.amountMinor),
-          chargeAmountMinor: String(chargeMinor),
+          sourceChargeAmountMinor: String(sourceChargeMinor),
+          chargeAmountMinor: String(settled.amountMinor),
         }),
       })
       if (session.url == null) throw new PaygateError('session')
@@ -174,8 +185,12 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
     ?? plans.find(item => item.recurring != null) ?? plans[0]
   if (plan == null) throw new ProductError('plan')
   const price = await findPrice(stripe, product.sku, planLookupKey(product, plan))
+  const subscriptionPaymentMethodTypes = (
+    await stripePricingConfig(ctx)
+  )?.subscriptionPaymentMethodTypes as Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription', line_items: [{ price: price.id, quantity: 1 }],
+    ...(subscriptionPaymentMethodTypes != null ? { payment_method_types: subscriptionPaymentMethodTypes } : {}),
     subscription_data: {
       metadata: {
         pricingMode: CheckoutPricingMode.Quantity, entityId: params.entityId,

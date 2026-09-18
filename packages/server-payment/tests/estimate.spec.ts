@@ -174,6 +174,28 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
     }))
   })
 
+  test('estimates the same USD to EUR to local chain used by settlement and Adaptive Pricing', async () => {
+    const fake = await makeFakeContext({
+      pricing: { ...estimatingPolicy, stripe: { settlementCurrency: 'eur' } },
+      stripe: {
+        taxRates: { PL: [{ type: 'vat', percentage: '23' }] },
+        fxRates: {
+          usd: { exchangeRate: 0.853568, referenceRate: 0.8726 },
+          pln: { exchangeRate: 0.22, referenceRate: 0.224, fxFeeRate: 0.02 },
+        },
+      },
+    })
+    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+      entityId: 'entity-1', productSku: PLANS_PRODUCT, planSku: PRO, country: 'PL',
+    }, makeEstimateCache())
+    expect(result.local?.currency).toBe('pln')
+    expect(result.local?.exchangeRate).toBeCloseTo(0.22 / 0.8726)
+    expect(fake.state.rawRequests.map(request => request.params)).toEqual([
+      { to_currency: 'eur', 'from_currencies[]': 'usd', lock_duration: 'none' },
+      { to_currency: 'eur', 'from_currencies[]': 'pln', lock_duration: 'none' },
+    ])
+  })
+
   test('omits `local` when the FX Quotes call fails, without failing the estimate', async () => {
     const fake = await makeFakeContext({
       pricing: estimatingPolicy, stripe: { taxRates: { PL: [{ type: 'vat', percentage: '23' }] }, fxUnavailable: true },
