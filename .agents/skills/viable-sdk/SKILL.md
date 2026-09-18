@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.21"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type, story flow, `jobIdOf`) and `@owlmeans/planning` (the planning protocol tree
@@ -23,7 +23,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector protocols and the planning tree bound and the planning client registered |
+| `makeSdkContext({ apiUrl, token, service?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound and the planning client registered |
 | `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade |
 | `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
 | `renderTaskEnvelope(task, { harness })` · `parseTaskResult(task, raw)` | What the parent agent is told; what its answer is checked against |
@@ -37,7 +37,7 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
 | `readMarker`/`writeMarker`/`discoverProject`/`isViableTree` · `readEnv`/`writeEnv`/`envStatus`/`replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
-| `ENV_TOKEN`, `ENV_API_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
+| `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
 
 ## One credential, and the routes the server declares
 
@@ -53,8 +53,22 @@ planning alias and path derives from them. No socket opener is passed, so a comm
 poll only, and the schema bundle is not fetched at startup — nothing a tool does reads a flow, and a
 server nobody has asked anything yet makes no call. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
-revoking a token. A token without `CONNECT_TOKEN_PREFIX` is refused locally, because a 401 says
-nothing about which of several plausible mistakes was made and the answer is always the same one.
+revoking a token. A literal token that is empty or lacks `CONNECT_TOKEN_PREFIX` is refused locally
+(`SdkMisconfigured` / `SdkAuthError`), because a 401 says nothing about which of several plausible
+mistakes was made and the answer is always the same one.
+
+**`token` may be a thunk** (`() => string | Promise<string>`), resolved on every request — what a
+credential holder (`@owlmeans/cli-auth`) hands over, since it is `''` until a browser sign-in
+completes and a real token after, with no reconfiguration. Only a literal is validated eagerly; a
+thunk's value is unknown at construction, and an empty one is simply "not signed in". `onRejected`
+is passed to the carrier guard and fires when the platform 401s the presented token, which is where
+the holder forgets a dead file token (or reports a dead environment one) — see [[auth-token]].
+
+**The `/mcp` URL is a value the SDK resolves, never one it derives:** `resolveMcpUrl(values)` returns
+`values[ENV_MCP_URL]` (`VIABLE_MCP_URL`, empty = unset) else `DEFAULT_MCP_URL`
+(`https://api.owlmeans.com/mcp`), trailing slash dropped so a resource URI has one spelling. The
+caller passes the already merged environment + `~/.owlmeans` values (environment wins). A deployment's
+own resource identifier stays host-derived on the server.
 
 **The context must also declare the platform's `/update` base itself.** The connector's socket route
 and the planning commit feed hang under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
@@ -171,6 +185,11 @@ Rules the table rests on:
   and the story markers (`viable-project:story:not-found:` / `:missconfigured:`) each have a sentence in
   `REFUSALS`.
 
+- **A sign-in refusal is phrased**: `oauth:sign-in-required:` (detail `<url> <code>`, the code absent
+  while no device sign-in is pending), `oauth:token-rejected:` (an environment token that was refused
+  is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
+  the next call signs in). Each ends with "call this tool again".
+
 ## An out-of-credits refusal is phrased, and pushed through `notify`
 
 `registerCatalogue`'s catch special-cases `ConnectOutOfCredits` (`@owlmeans/viable-common`
@@ -285,8 +304,13 @@ safe to offer as a tool the agent may call whenever it is unsure. A configuratio
 JSON is **refused** — somebody is editing it, and overwriting would destroy every other server they
 had configured.
 
-**No file it writes contains the token**: each configuration references `VIABLE_API_TOKEN` in its
-harness's own syntax, so the result is safe to commit. `WORKING_RULE` is written once and rendered
+**No file it writes contains the token**, and none REQUIRES one: a person who signed in with a browser
+has the token in `~/.owlmeans`, which the server reads itself. So each configuration references
+`VIABLE_API_TOKEN` in its harness's own syntax only where that cannot break a machine that never set
+it — claude-code's `.mcp.json` uses `${VIABLE_API_TOKEN:-}` (an unset `${VAR}` makes Claude Code refuse
+the whole file; the server ignores the empty value), Copilot's `.vscode/mcp.json` has no token prompt
+at all, and Codex's `env_vars` lists `VIABLE_API_TOKEN`, `OWLMEANS_CREDENTIALS` and `HOME` (its filtered
+environment otherwise hides the credentials file). The result is safe to commit. `WORKING_RULE` is written once and rendered
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
 **The server command is written once, too.** Every harness configuration starts the connector from
@@ -294,7 +318,8 @@ into every harness's instruction file, so the four cannot drift into four differ
 viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
 command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
 never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
-`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version.
+`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version, that no
+file contains a `vib_…` secret, and the optional-token shapes above.
 
 ## The executor is the publisher's job, on somebody's laptop
 

@@ -113,6 +113,22 @@ describe('viable-sdk — setting a coding agent up', () => {
     }
   })
 
+  test('the token is optional in every configuration — a browser sign-in needs none', async () => {
+    const dir = await tmp()
+    await installHarness(dir, ConnectHarness.ClaudeCode, { mcpConfig: true })
+    await installHarness(dir, ConnectHarness.Copilot, { mcpConfig: true })
+
+    // An unset `${VIABLE_API_TOKEN}` makes Claude Code refuse the whole file; the empty default
+    // keeps it loading, and the server ignores an empty value so `~/.owlmeans` is still read.
+    const claude = await fs.readJson(path.join(dir, '.mcp.json'))
+    expect(claude.mcpServers.viable.env.VIABLE_API_TOKEN).toBe('${VIABLE_API_TOKEN:-}')
+
+    // No prompt: Copilot would otherwise ask for a secret on every start, sign-in or not.
+    const copilot = await fs.readFile(path.join(dir, '.vscode', 'mcp.json'), 'utf-8')
+    expect(copilot).not.toContain('promptString')
+    expect(copilot).not.toContain('${input:')
+  })
+
   test('a configuration that is not valid JSON is refused rather than overwritten', async () => {
     const dir = await tmp()
     await fs.outputFile(path.join(dir, '.mcp.json'), '{ this is being edited')

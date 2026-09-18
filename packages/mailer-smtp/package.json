@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.24",
+    "@owlmeans/test": "^0.1.18-rc.25",
     "@owlmeans/test-integration": "^0.1.18-rc.22",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",

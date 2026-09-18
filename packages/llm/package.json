@@ -47,7 +47,7 @@
     "@langchain/core": "^1.2.9",
     "@langchain/openai": "^1.5.10",
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.24",
+    "@owlmeans/test": "^0.1.18-rc.25",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",

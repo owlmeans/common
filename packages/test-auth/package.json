@@ -28,7 +28,7 @@
     "@owlmeans/context": "^0.1.18-rc.25",
     "@owlmeans/entrypoint": "^0.1.18-rc.28",
     "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/test": "^0.1.18-rc.24"
+    "@owlmeans/test": "^0.1.18-rc.25"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

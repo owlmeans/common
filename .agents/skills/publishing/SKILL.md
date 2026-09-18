@@ -119,6 +119,26 @@ packages sit at older versions than released ones. That is the intended state, n
 Do not "resynchronise" versions — a blanket bump republishes ~90 packages to ship one fix, and every
 downstream lockfile churns for nothing.
 
+## A registry-only file is usually a stale build leftover
+
+`tsc -b` never deletes an output whose source was removed, so a publish from a `build/` that was not
+cleaned ships compiled files of sources deleted long before (seen 2026-09: `flow/build/advertise.js`,
+`postgres/build/health.js`, `agent-skills/build/llm/*`, `web-panel/build/hooks` — their sources went in
+one migration commit, and the 2026-09-17 batch still carried them). A diff of a local pack against
+the published tarball that shows files ONLY in the registry copy, with no `src/` counterpart in that
+tarball and nothing importing them, is dead weight — **not** newer content and **not** a sign the tree
+lags (`git log --diff-filter=D -- packages/<pkg>/src` finds the deletion). Do not skip a package for
+it; clean `build/` and `tsconfig.tsbuildinfo` and rebuild before the plan so the leftovers stop
+shipping.
+
+A plan that lists most of the repo is expected when a few root packages (`basic-ids`, `context`,
+`config`, `flow`, `i18n`) are "changed" — every dependent follows. Post-release edits (README install
+lines, an `agent-meta` skill rename) count as changes. If the operator scopes a release to what one
+change touched, do it by hand — bump only those manifests (and the ranges among them), sweep
+consumers with `bump-deps.ts --filter '@owlmeans/<pkg>'` per package, then
+`npm publish --access public --tag <tag>` in dependency order — and say which pending packages were
+left out and why. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
+
 ## How "changed" is decided
 
 Against **the registry**, not git: the question a release answers is "does what I would publish

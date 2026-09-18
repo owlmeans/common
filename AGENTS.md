@@ -85,7 +85,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 
 ## Key Facts
 
-- 112 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 116 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.

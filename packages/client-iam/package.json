@@ -22,14 +22,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.18-rc.37",
+    "@owlmeans/client-auth": "^0.1.18-rc.38",
     "@owlmeans/consent": "^0.1.18-rc.4",
     "@owlmeans/context": "^0.1.18-rc.25",
     "@owlmeans/entrypoint": "^0.1.18-rc.28",
     "@owlmeans/iam": "^0.1.18-rc.32",
     "@owlmeans/oidc": "^0.1.18-rc.37",
     "@owlmeans/web-client": "^0.1.18-rc.41",
-    "@owlmeans/web-oidc-rp": "^0.1.18-rc.43"
+    "@owlmeans/web-oidc-rp": "^0.1.18-rc.44"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

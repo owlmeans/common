@@ -340,6 +340,21 @@ export const CONNECT_CAP_LOCAL_LLM_KEY = 'connect--local-llm'
 export const CONNECT_TOKEN_PREFIX = 'vib_'
 
 /**
+ * The production platform's own `/mcp` endpoint — what a person configures a URL-based MCP host
+ * with (`claude mcp add --transport http viable <this>`), and what a verification tool points at
+ * when nothing overrides it. The npx server never calls it (it talks to the REST API); it is a
+ * property of the PLATFORM, so it lives beside the other values both ends must agree on.
+ *
+ * `CONNECT_ENV_MCP_URL` overrides it, and so does a same-named key in `~/.owlmeans`; the
+ * environment wins over the file (`@owlmeans/cli-auth`'s `loadOwlmeansEnv`, which the resolver
+ * that reads them lives beside). A deployment's own `/mcp` resource identifier is NOT this value —
+ * it is built from that deployment's own API host.
+ */
+export const CONNECT_DEFAULT_API_URL = 'https://api.owlmeans.com'
+export const CONNECT_DEFAULT_MCP_URL = `${CONNECT_DEFAULT_API_URL}/mcp`
+export const CONNECT_ENV_MCP_URL = 'VIABLE_MCP_URL'
+
+/**
  * The marker a local project keeps so a connector attaching later knows which platform project it
  * is. No secrets: an id, a slug and the API it belongs to.
  */

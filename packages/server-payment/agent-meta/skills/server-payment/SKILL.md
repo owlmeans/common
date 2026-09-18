@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.11`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.12`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -22,6 +22,10 @@ the `entitlements` skill.
 ```typescript
 stripeSecrets(cfg, { api: '/secrets/stripe-key' })     // webhook secret: optional override
 portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'Example' })
+declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
+  tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
+  currency: { adaptive: true, estimate: true },
+})
 declarePaymentProduct(cfg, { sku: 'app-plans', type: ProductType.Service, services: ['app'], name: 'Plans' })
 declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'free', rank: 0, free: true, price: 0, … })
 declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'pro-monthly', rank: 10, price: 20,
@@ -82,18 +86,48 @@ does not know as a string, and the collection validator rejects it.
 
 ## Checkout and fulfillment
 
-- `Amount`: one inline `price_data` item for the synchronized product, quantity 1, tax-exclusive,
-  no promotion codes; the net `amountMinor` and the grossed-up `chargeAmountMinor` travel in the
-  session metadata. `Quantity`: the reusable price under the plan lookup key, adjustable quantity.
-  Subscription: `planSku` (else the product's first recurring plan), quantity 1.
+- `Amount`: one inline `price_data` item for the synchronized product, quantity 1, its `tax_behavior`
+  the declared `PricingPolicy.tax.behavior` (default `'exclusive'`), no promotion codes; the net
+  `amountMinor` and the grossed-up `chargeAmountMinor` travel in the session metadata. `Quantity`:
+  the reusable price under the plan lookup key, adjustable quantity. Subscription: `planSku` (else
+  the product's first recurring plan), quantity 1.
 - A plan the paygate does not sell — a free plan, another gateway's plan — is refused
-  (`ProductError`). Every session enables automatic tax, billing address and tax id collection.
+  (`ProductError`). `checkoutOptions(policy, promotions)` puts automatic tax, billing address
+  collection, tax-id collection and Adaptive Pricing (`adaptive_pricing`) on the session, each
+  independently, exactly as `PricingPolicy` declares them — an undeclared policy reproduces the
+  fixed pre-policy session (automatic tax + tax-id collection on, no Adaptive Pricing).
 - `checkout.session.completed` and `…async_payment_succeeded` fulfill only a `payment`-mode session
   with `payment_status === 'paid'`; an amount session must match its metadata currency and subtotal.
+  Adaptive Pricing never disturbs this: Session/webhook amounts stay in the integration currency
+  (USD here) whatever currency the buyer paid in.
 - A pending `payment-fulfillment` row (with `paymentIntentId` and `invoiceId`) is written before
   observers run; `fulfilledAt` is stamped after they succeed. An observer throw escapes so Stripe
   redelivers, and the observer must stay idempotent by `externalId` — a crash after its side effect
   and before the stamp redelivers the same session.
+
+## Price sync and the tax estimate
+
+- `syncStripeProducts` gives a matching, still-`unspecified` price the declared `tax.behavior` IN
+  PLACE (`prices.update`; Stripe forbids changing a price already `exclusive`/`inclusive`) and a
+  fresh one on creation; a price already carrying the OPPOSITE behavior is deactivated and replaced,
+  the same as any other catalogue mismatch. Before an in-place update it checks the account's own
+  tax-settings default (`stripe.tax.settings.retrieve`) and skips the update — logging why — when
+  that default would make the price behave the other way for existing renewals, unless
+  `declarePaymentPricing({ stripe: { migrateUnspecifiedPrices: true } })` opts in. The behavior is
+  part of the sync fingerprint, so declaring or changing it re-syncs every product exactly once.
+- `GatewayService.estimatePrice(ctx, { entityId, productSku, planSku?, country? })` (`estimatePrice`
+  in `plugins/estimate.ts`) is a Stripe Tax calculation (plus, with `currency.estimate` and
+  `currency.adaptive` both on, an FX Quotes lookup) for one product/plan's reference amount, at a
+  billing country the request names or the entity's paygate customer's. **$0.05 per distinct**
+  (currency, country, amount, tax code, behavior, matching tax ids) **combination** — cached per
+  gateway-service instance (never module-level: several instances in one process, as in tests, must
+  never share hits) for 24h; a rate-limit or connection error is never cached. Its status
+  (`TaxEstimateStatus`) covers a resolved rate, EU/GB reverse charge (a saved tax id whose OWN
+  country matches the one being estimated), no tax, "compute at checkout" (an unsupported
+  jurisdiction, or an invalid-request error such as a US address with no postal code), and
+  "choose a country" (neither the request nor the customer names one — zero Stripe calls). The FX
+  Quotes call is a Stripe PREVIEW endpoint (`STRIPE_FX_QUOTES_API_VERSION`, `stripe.rawRequest`),
+  and its failure only drops the estimate's `local` field, never the tax half.
 
 ## The subscription store
 
@@ -183,7 +217,9 @@ and logged when it fails.
   price switching between every product's active recurring prices with prorations — both
   subscription features off when nothing recurring is sold. `portalBranding` supplies the business
   profile and default return URL; fingerprint `portal:<service>` holds its id, and its hash covers
-  the catalogue, the branding and the deployment key, so an unchanged declaration makes no call.
+  the catalogue (including the declared tax behavior — a price `sync.ts` replaces refreshes the
+  portal's `products[].prices` too), the branding and the deployment key, so an unchanged
+  declaration makes no call.
 - **Each deployment owns its own portal configuration**, tagged
   `{ owlmeans: 'payment', service, deployment: webhookUrlOf(ctx) }` (`STRIPE_DEPLOYMENT_KEY`) — the
   webhook URL keys it even when undeliverable (local). The configuration the fingerprint row names
@@ -286,6 +322,10 @@ database.
 - https://docs.stripe.com/api/subscriptions/object — statuses `incomplete|incomplete_expired|trialing|active|past_due|canceled|unpaid|paused`; `pause_collection` pauses collection without changing the status; `paused` only after a trial without a payment method; on `2025-02-24.acacia` (stripe-node 17) `current_period_start/end` and `invoice.subscription` are top-level and move in later versions.
 - https://docs.stripe.com/customer-management/portal-deep-links and https://docs.stripe.com/api/customer_portal/sessions/create — `flow_data.type` ∈ `payment_method_update|subscription_cancel|subscription_update|subscription_update_confirm`; `subscription_update_confirm.items` holds exactly one `{ id: <subscription item id>, price, quantity }`; `after_completion` is `redirect|hosted_confirmation|portal_homepage`; the configuration must enable `subscription_update` (with `products[{product, prices[]}]`) and `subscription_cancel`.
 - https://docs.stripe.com/api/customer_portal/configurations/create — `features.{customer_update, invoice_history, payment_method_update, subscription_cancel{enabled, mode, proration_behavior}, subscription_update{enabled, default_allowed_updates, products, proration_behavior}}`, `business_profile`, `default_return_url`, `metadata`; updatable by id, retrievable and listable (`active`, paginated), and never deletable — a configuration can only be deactivated.
+- https://docs.stripe.com/api/tax/calculations/create — `line_items[].tax_behavior` (default `exclusive`), `tax_code`; `customer_details.address_source` ∈ `billing|shipping`; `tax_ids[]` shifts liability (a valid id is never validated for correctness); the response's `tax_breakdown[].tax_rate_details.percentage_decimal` is a STRING (parse it exactly, never `Number(x) * 10_000`) and `.rate_type` ∈ `flat_amount|percentage` (a flat rate never scales with the amount).
+- https://docs.stripe.com/tax/products-prices-tax-codes-tax-behavior — a price's `tax_behavior` can be set only from `unspecified`; once `exclusive`/`inclusive` it cannot change, and `inferred_by_currency` (an account tax-settings default) resolves to exclusive for USD/CAD, inclusive otherwise.
+- https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — `adaptive_pricing.enabled` on a Checkout Session; requires the price currency to be a settlement currency; Session/PaymentIntent/webhook amounts stay in the integration currency, with `presentment_details.{presentment_amount, presentment_currency}` alongside them when the buyer paid differently.
+- https://docs.stripe.com/api/fx_quotes/create — a **preview** endpoint (needs a preview `Stripe-Version`, called via `stripe.rawRequest`); `to_currency`/`from_currencies[]`; `lock_duration: 'none'` is free, `five_minutes|hour|day` add a fee (`rate_details.duration_premium`) baked into `exchange_rate`.
 
 ## Related
 

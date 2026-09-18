@@ -32,6 +32,18 @@ export interface AccessTokenRecord extends ResourceRecord {
   expiresAt?: Date
   /** Set once and never unset. A revoked token is kept so its display name still resolves. */
   revokedAt?: Date
+  /**
+   * Resources this token was issued FOR, when it was issued through an OAuth grant
+   * (`@owlmeans/server-oauth`).
+   *
+   * Absent for every token minted by hand through `createAccessToken` — those are admitted
+   * everywhere the caller's scopes reach, exactly as before this field existed. A non-empty
+   * audience narrows that: a guard configured with `resources` admits the token only when the
+   * two lists intersect, so a token minted for the `/mcp` connector cannot also drive the
+   * ordinary REST API, and vice versa (RFC 8707's audience-restriction, applied at OUR guard
+   * rather than by decoding a JWT audience claim, because this token is an opaque secret).
+   */
+  audience?: string[]
 }
 
 /** What a caller may see. The hash never leaves the server. */
@@ -69,6 +81,14 @@ export interface AccessTokenParams {
 export interface TokenCarrierOptions {
   token: string | (() => string | Promise<string>)
   scheme?: 'auth-token' | 'bearer'
+  /**
+   * Called when the platform rejects a request that presented this credential — `@owlmeans/api`
+   * reaches for `AuthService.update(undefined)` on such a 401, and a carrier with none of that
+   * machinery answers with a no-op unless this is given. A credential holder wires it to whatever
+   * it does about a dead token: sign in again if it minted the token itself, or report the
+   * problem rather than silently trying another identity if an operator supplied it by hand.
+   */
+  onRejected?: () => void | Promise<void>
 }
 
 export interface AuthTokenEntrypointOptions {

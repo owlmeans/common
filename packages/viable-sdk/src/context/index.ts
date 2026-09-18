@@ -46,9 +46,18 @@ const sdkPlanningProtocols = (): PlanningProtocols => makePlanningProtocols({
 
 export interface SdkContextOptions {
   apiUrl: string
-  token: string
+  /**
+   * A fixed token, or a thunk resolved on every request. The thunk form is what lets a
+   * credential holder (`@owlmeans/cli-auth`) hand the carrier guard something that changes
+   * across the process's lifetime — empty before a sign-in completes, a real token after — with
+   * no reconfiguration in between.
+   */
+  token: string | (() => string | Promise<string>)
   /** The service alias the API is registered under. One deployment, one alias. */
   service?: string
+  /** Called when the platform rejects a request that presented this token — a credential holder
+   * wires this to forgetting a dead token (and signing in again) or reporting the problem. */
+  onRejected?: () => void | Promise<void>
 }
 
 /**
@@ -63,14 +72,20 @@ export interface SdkContextOptions {
  * form of authentication would be a connector whose access nobody can revoke by revoking a token.
  */
 export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientContext<ClientConfig>> => {
-  if (opts.token === '') {
-    throw new SdkMisconfigured('token')
-  }
-  if (!opts.token.startsWith(CONNECT_TOKEN_PREFIX)) {
-    // Refused here rather than at the first call: a value that is not one of this platform's
-    // tokens produces a 401 with nothing in it about which of the several plausible mistakes was
-    // made, and the answer is always the same one — that is not the token you were given.
-    throw new SdkAuthError(`prefix:${CONNECT_TOKEN_PREFIX}`)
+  // A THUNK's value is unknown until it resolves — a holder that has not signed in yet returns
+  // `''` on purpose, and that is not a misconfiguration this constructor can see. Only a literal
+  // string is validated eagerly, exactly as it always was, so every existing caller that passes
+  // one keeps getting the same synchronous refusal.
+  if (typeof opts.token === 'string') {
+    if (opts.token === '') {
+      throw new SdkMisconfigured('token')
+    }
+    if (!opts.token.startsWith(CONNECT_TOKEN_PREFIX)) {
+      // Refused here rather than at the first call: a value that is not one of this platform's
+      // tokens produces a 401 with nothing in it about which of the several plausible mistakes was
+      // made, and the answer is always the same one — that is not the token you were given.
+      throw new SdkAuthError(`prefix:${CONNECT_TOKEN_PREFIX}`)
+    }
   }
 
   const service = opts.service ?? 'viable-manager-api'
@@ -107,6 +122,7 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
     // The scheme the platform's own guard claims first; `Bearer` is accepted too, and is what a
     // host configured with a bare URL will send.
     scheme: 'auth-token',
+    onRejected: opts.onRejected,
   }))
   context.registerMiddleware(authMiddleware)
 

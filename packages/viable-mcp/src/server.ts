@@ -8,6 +8,7 @@ import type { ConnectorApi, SessionRuntime, ToolDeps, ToolHost } from '@owlmeans
 import { makeLocalSlotExecutor } from '@owlmeans/viable-sdk/executor'
 import { sessionCapabilities } from './capabilities.js'
 import type { McpConfig } from './config.js'
+import { makeCredentials } from './credentials.js'
 import { makeSessionHolder } from './session-holder.js'
 import { VERSION } from './version.js'
 
@@ -15,6 +16,38 @@ export interface BuiltServer {
   server: McpServer
   close: () => Promise<void>
 }
+
+/**
+ * Well inside `TOOL_DEADLINE_MS` (45 s): a tool call that trips this waits this long for an
+ * already-pending sign-in to finish before it gives up and reports `SignInRequired`, leaving room
+ * for the round trip the platform call itself still needs to make once a token exists.
+ */
+const SIGN_IN_WAIT_MS = 20_000
+
+/**
+ * Wrap every method `target` exposes (recursively, through its own namespace objects — `api.session`,
+ * `api.project`, and so on) so it calls `ensure()` before doing anything else. `ensure` is
+ * `credentials.require`, so the FIRST real platform call of a fresh process is what starts the
+ * device sign-in, and every later call while one is pending joins the same wait rather than
+ * starting its own.
+ */
+const withSignIn = <T extends object>(target: T, ensure: () => Promise<string>): T => new Proxy(target, {
+  get(obj, prop, receiver) {
+    const value = Reflect.get(obj, prop, receiver)
+    if (typeof value === 'function') {
+      return async (...args: unknown[]) => {
+        await ensure()
+
+        return await (value as (...a: unknown[]) => unknown).apply(obj, args)
+      }
+    }
+    if (value != null && typeof value === 'object') {
+      return withSignIn(value, ensure)
+    }
+
+    return value
+  },
+}) as T
 
 /**
  * Build the server this configuration describes.
@@ -27,8 +60,28 @@ export interface BuiltServer {
 export const makeViableMcpServer = async (cfg: McpConfig): Promise<BuiltServer> => {
   const log = (line: string): void => { process.stderr.write(`[viable-mcp] ${line}\n`) }
 
-  const context = await makeSdkContext({ apiUrl: cfg.apiUrl, token: cfg.token })
-  const api: ConnectorApi = makeRemoteConnectorApi(context)
+  // A missing token is no longer fatal at startup: the holder resolves whatever `readConfig`
+  // already found (the environment or `~/.owlmeans`) on every call, and a tool that actually
+  // needs one calls `credentials.require()` itself and signs in lazily — the server announces
+  // its tools and answers the offline ones either way.
+  const credentials = makeCredentials(cfg, log)
+  const context = await makeSdkContext({
+    apiUrl: cfg.apiUrl,
+    token: async () => (await credentials.token()) ?? '',
+    // A 401 on the token this holder is currently presenting means it is dead — forgotten here
+    // (if it came from the file) so the next `require()` signs in again, or reported (if an
+    // operator supplied it through the environment) rather than silently trying another identity.
+    onRejected: async () => {
+      const current = await credentials.token()
+      if (current != null) await credentials.invalidate(current).catch(e => log(`invalidate: ${(e as Error).message}`))
+    },
+  })
+  // Every call the platform sees goes through this proxy first, so a tool never has to remember
+  // to ask for a token itself: the FIRST real API call of a fresh process is what triggers the
+  // browser sign-in, `require()`'s own wait keeps the tool call inside the host's deadline, and
+  // `SignInRequired` — timed out, not denied — surfaces to the calling agent as an ordinary
+  // refusal it can read and act on (open the URL, wait, try again).
+  const api: ConnectorApi = withSignIn(makeRemoteConnectorApi(context), () => credentials.require(SIGN_IN_WAIT_MS))
 
   const local = cfg.target === ConnectTarget.Local
   const executor = local ? makeLocalSlotExecutor(cfg.projectDir) : undefined

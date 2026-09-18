@@ -56,3 +56,8 @@ subject of [[entrypoints]]; root `tree.md` maps the package layers that stack th
 
 - Skills: `owlmeans-context`, `server-context`, `client-context`. Layer: `tree.md` §2 (core foundations) —
   `context` has no `@owlmeans/*` deps and everything else builds on it.
+- **A config string that starts with `/` or `file://` is replaced by that file's contents** — the
+  server config reader (`fileConfigReader`, `server-context`) walks every string leaf of `cfg` after
+  `makeContext`. A path-like value (an `/mcp` resource path) therefore crashes the process at boot
+  with `ENOENT: open '/mcp'`, and no unit test that skips the reader can see it. Store such values
+  without the slash (as `server-oauth` does) or as a non-leaf.

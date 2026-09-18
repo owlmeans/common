@@ -75,6 +75,16 @@ export const makeAuthTokenGuard = (
       if (record == null) return false as T
       if (record.revokedAt != null) return false as T
       if (record.expiresAt != null && new Date(record.expiresAt) < new Date()) return false as T
+      // A token minted through an OAuth grant carries the resource(s) it was issued FOR. A token
+      // with no audience is the ordinary hand-minted kind and is admitted everywhere its scopes
+      // reach, exactly as before this check existed — the guard has to OPT IN with `resources` to
+      // narrow anything, so a deployment that never touches this option sees no change at all.
+      const resources = typeof opts.resources === 'function' ? opts.resources(context) : opts.resources
+      if (record.audience != null && record.audience.length > 0
+        && resources != null && resources.length > 0
+        && !record.audience.some(resource => resources.includes(resource))) {
+        return false as T
+      }
 
       // A token is only ever as good as the profile behind it. Reading the profile per request is
       // what makes revoking a person's access revoke every token they ever minted, without any

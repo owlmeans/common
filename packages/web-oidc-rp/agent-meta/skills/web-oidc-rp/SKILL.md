@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.43"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.44"` in `dependencies`
 
 ## Key Exports
 
@@ -29,7 +29,8 @@ user-invocable: false
 ### Subpath exports
 
 - `./auth/plugins` — importing it registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` into the
-  `@owlmeans/client-auth` manager plugin registry
+  `@owlmeans/client-auth` manager plugin registry. After a successful Google sign-in the plugin lands on a
+  flow suspended in `@owlmeans/client-flow` (`resumeSuspendedFlow`) when there is one, else on `HOME`
 
 ## Wiring
 

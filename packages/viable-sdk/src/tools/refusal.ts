@@ -50,6 +50,33 @@ const aside = (detail: string): string => detail !== '' ? ` (${detail})` : ''
  * table has never heard of.
  */
 export const REFUSALS: RefusalPhrase[] = [
+  // ── The connector itself is not signed in ───────────────────────────────────────────────────
+  // The detail is `<url> <code>`; the code is absent when no device sign-in is pending yet.
+  {
+    marker: 'oauth:sign-in-required:',
+    phrase: detail => {
+      const [url = '', code = ''] = detail.split(/\s+/)
+
+      return 'You are not signed in to Viable. Ask the person to open'
+        + ` ${url}${code !== '' ? ` and enter the code ${code}` : ''} and approve the connection with their`
+        + ' OwlMeans account (a browser has been opened for them where one could be). Then call this tool'
+        + ' again — nothing else needs configuring, and the code stays valid for ten minutes.'
+    },
+  },
+  {
+    marker: 'oauth:token-rejected:',
+    phrase: variable => `The token in ${variable !== '' ? variable : 'the environment'} was refused —`
+      + ' it is expired or was revoked. It was not replaced: signing in as somebody else behind the'
+      + ' person\'s back is not something this server does. Ask them to unset it to sign in with a'
+      + ' browser, or to export a fresh token.',
+  },
+  {
+    marker: 'api:auth:guard:auth-token',
+    phrase: () => 'The platform did not accept the access token this server presented — it is expired,'
+      + ' or was revoked in Settings. A token from ~/.owlmeans has been forgotten, so the next call'
+      + ' starts a browser sign-in; call this tool again.',
+  },
+
   // ── A conversion refused by the platform ────────────────────────────────────────────────────
   {
     marker: 'conversion:unsupported:monorepo',

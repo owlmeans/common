@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/cli-auth",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-09-18T19:03:53.998Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "cli-auth",
+      "category": "package-specific",
+      "file": "skills/cli-auth/SKILL.md",
+      "canonicalPath": ".agents/skills/cli-auth/SKILL.md"
+    }
+  ]
+}
