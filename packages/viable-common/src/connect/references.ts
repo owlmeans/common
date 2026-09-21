@@ -5,12 +5,12 @@ import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
 import type { ConverterProjectLlmBody } from '../convert/index.js'
 import type {
-  ConnectAttachBody, ConnectCapabilitiesView, ConnectConfirmBody, ConnectCreateBody, ConnectJob,
-  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectJobParams,
+  ConnectAttachBody, ConnectCapabilitiesView, ConnectConfirmBody, ConnectCreateBody,
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectInquiryAnswerBody,
   ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams, ConnectPipelineResumeBody,
   ConnectPipelineState, ConnectProjectLlmBody, ConnectProjectSettings, ConnectProjectStatus,
-  ConnectProjectSummary, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView,
-  ConnectWaitQuery, ConversionStatusView, ConvertCheck,
+  ConnectProjectSummary, ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams,
+  ConnectSessionView, ConnectStoryStatus, ConversionStatusView, ConvertCheck,
 } from './types.js'
 
 type ConnectReference<Request extends RequestShape, Response> =
@@ -26,39 +26,41 @@ export interface ConnectReferences {
     close: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
   }
   op: {
-    pull: ConnectReference<{ params: ConnectSessionParams, query: ConnectWaitQuery }, ConnectOp[]>
+    pull: ConnectReference<{ params: ConnectSessionParams, query: ConnectPullQuery }, ConnectOp[]>
     submit: ConnectReference<{
       params: { sessionId: string, opId: string }, body: ConnectOpResult
     }, ConnectOpSubmission>
   }
   project: {
-    create: ConnectReference<{ body: ConnectCreateBody }, ConnectJob>
-    confirm: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectJob>
+    create: ConnectReference<{ body: ConnectCreateBody }, ConnectProjectStatus>
+    confirm: ConnectReference<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>
     list: ConnectReference<{}, ConnectProjectSummary[]>
     status: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
-    reinit: ConnectReference<{ params: { id: string } }, ConnectJob>
-    modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectJob>
+    reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
+    modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
     settings: ConnectReference<{ params: { id: string } }, ConnectProjectSettings>
     llm: ConnectReference<{ params: { id: string }, body: ConnectProjectLlmBody }, ConnectProjectSettings>
     converterLlm: ConnectReference<{
       params: { id: string }, body: ConverterProjectLlmBody
     }, ConnectProjectSettings>
-    job: ConnectReference<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>
+  }
+  story: {
+    status: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryStatus>
   }
   files: {
     list: ConnectReference<{ params: { id: string } }, string[]>
   }
   convert: {
-    create: ConnectReference<{ body: ConnectConvertCreateBody }, ConnectJob>
+    create: ConnectReference<{ body: ConnectConvertCreateBody }, ConversionStatusView>
     check: ConnectReference<{ params: { id: string } }, ConvertCheck>
-    start: ConnectReference<{ params: { id: string } }, ConnectJob>
+    start: ConnectReference<{ params: { id: string } }, ConversionStatusView>
     proceed: ConnectReference<{
       params: { id: string }, body: ConnectConvertProceedBody
-    }, ConnectJob>
-    cancel: ConnectReference<{ params: { id: string } }, ConnectJob>
+    }, ConversionStatusView>
+    cancel: ConnectReference<{ params: { id: string } }, ConversionStatusView>
     status: ConnectReference<{ params: { id: string } }, ConversionStatusView>
-    purge: ConnectReference<{ params: { id: string } }, ConnectJob>
+    purge: ConnectReference<{ params: { id: string } }, ConversionStatusView>
   }
   inquiry: {
     answer: ConnectReference<{
@@ -69,7 +71,7 @@ export interface ConnectReferences {
     state: ConnectReference<{ params: ConnectPipelineParams }, ConnectPipelineState>
     resume: ConnectReference<{
       params: ConnectPipelineParams, body: ConnectPipelineResumeBody
-    }, ConnectJob>
+    }, ConnectPipelineState>
   }
 }
 
@@ -88,19 +90,19 @@ export const connectRef: ConnectReferences = {
     close: entrypointRef<{ params: ConnectSessionParams }, ConnectSessionView>(connect.session.close),
   },
   op: {
-    pull: entrypointRef<{ params: ConnectSessionParams, query: ConnectWaitQuery }, ConnectOp[]>(connect.op.pull),
+    pull: entrypointRef<{ params: ConnectSessionParams, query: ConnectPullQuery }, ConnectOp[]>(connect.op.pull),
     submit: entrypointRef<{
       params: { sessionId: string, opId: string }, body: ConnectOpResult
     }, ConnectOpSubmission>(connect.op.submit),
   },
   project: {
-    create: entrypointRef<{ body: ConnectCreateBody }, ConnectJob>(connect.project.create),
-    confirm: entrypointRef<{ params: { id: string }, body: ConnectConfirmBody }, ConnectJob>(connect.project.confirm),
+    create: entrypointRef<{ body: ConnectCreateBody }, ConnectProjectStatus>(connect.project.create),
+    confirm: entrypointRef<{ params: { id: string }, body: ConnectConfirmBody }, ConnectProjectStatus>(connect.project.confirm),
     list: entrypointRef<{}, ConnectProjectSummary[]>(connect.project.list),
     status: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.status),
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
-    reinit: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.project.reinit),
-    modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectJob>(connect.project.modify),
+    reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
+    modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
     settings: entrypointRef<{ params: { id: string } }, ConnectProjectSettings>(connect.project.settings),
     llm: entrypointRef<{
       params: { id: string }, body: ConnectProjectLlmBody
@@ -108,20 +110,24 @@ export const connectRef: ConnectReferences = {
     converterLlm: entrypointRef<{
       params: { id: string }, body: ConverterProjectLlmBody
     }, ConnectProjectSettings>(connect.project.converterLlm),
-    job: entrypointRef<{ params: ConnectJobParams, query: ConnectWaitQuery }, ConnectJob>(connect.project.job),
+  },
+  story: {
+    status: entrypointRef<{
+      params: { id: string, storyId: string }
+    }, ConnectStoryStatus>(connect.story.status),
   },
   convert: {
-    create: entrypointRef<{ body: ConnectConvertCreateBody }, ConnectJob>(connect.convert.create),
+    create: entrypointRef<{ body: ConnectConvertCreateBody }, ConversionStatusView>(connect.convert.create),
     check: entrypointRef<{ params: { id: string } }, ConvertCheck>(connect.convert.check),
-    start: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.start),
+    start: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.start),
     proceed: entrypointRef<{
       params: { id: string }, body: ConnectConvertProceedBody
-    }, ConnectJob>(connect.convert.proceed),
-    cancel: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.cancel),
+    }, ConversionStatusView>(connect.convert.proceed),
+    cancel: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.cancel),
     status: entrypointRef<{
       params: { id: string }
     }, ConversionStatusView>(connect.convert.status),
-    purge: entrypointRef<{ params: { id: string } }, ConnectJob>(connect.convert.purge),
+    purge: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.purge),
   },
   inquiry: {
     answer: entrypointRef<{
@@ -135,6 +141,6 @@ export const connectRef: ConnectReferences = {
     state: entrypointRef<{ params: ConnectPipelineParams }, ConnectPipelineState>(connect.pipeline.state),
     resume: entrypointRef<{
       params: ConnectPipelineParams, body: ConnectPipelineResumeBody
-    }, ConnectJob>(connect.pipeline.resume),
+    }, ConnectPipelineState>(connect.pipeline.resume),
   },
 }

@@ -6,16 +6,17 @@ import { connect } from './consts.js'
 import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
   ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
-  ConnectJobParamsSchema, ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
+  ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectIdSchema,
   ConnectProjectLlmBodySchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema,
-  ConnectWaitQuerySchema, InquiryAnswerSchema,
+  ConnectPullQuerySchema, ConnectStoryParamsSchema, InquiryAnswerSchema,
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectJob, ConnectJobParams, ConnectModifyBody,
+  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSessionOpen,
-  ConnectSessionParams, ConnectWaitQuery, ConversionStatusView, ConvertCheck,
+  ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
+  ConnectStoryStatus, ConversionStatusView, ConvertCheck,
 } from './types.js'
 import type { ConnectOpResult } from './ops.js'
 import type { ConverterProjectLlmBody } from '../convert/types.js'
@@ -115,7 +116,7 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       route(connect.op.pull, '/session/:sessionId/ops', {
         parent: base, method: RouteMethod.GET
       }),
-      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema), query: typed<ConnectWaitQuery>(ConnectWaitQuerySchema) }, typed())
+      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema), query: typed<ConnectPullQuery>(ConnectPullQuerySchema) }, typed())
     ),
     submit: protocol(
       route(connect.op.submit, '/session/:sessionId/ops/:opId', {
@@ -130,7 +131,7 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     project: {
     create: protocol(
       route(connect.project.create, '/project', { parent: base, method: RouteMethod.POST }),
-      contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed())
+      contract.request({ body: typed<ConnectCreateBody>(ConnectCreateBodySchema) }, typed<ConnectProjectStatus>())
     ),
     list: protocol(
       route(connect.project.list, '/project', { parent: base, method: RouteMethod.GET }),
@@ -146,25 +147,25 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       route(connect.project.confirm, '/project/:id/confirm', {
         parent: base, method: RouteMethod.POST
       }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed())
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectConfirmBody>(ConnectConfirmBodySchema) }, typed<ConnectProjectStatus>())
     ),
     status: protocol(
       route(connect.project.status, '/project/:id/status', {
         parent: base, method: RouteMethod.GET
       }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectProjectStatus>())
     ),
     reinit: protocol(
       route(connect.project.reinit, '/project/:id/reinit', {
         parent: base, method: RouteMethod.POST
       }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectProjectStatus>())
     ),
     modify: protocol(
       route(connect.project.modify, '/project/:id/modify', {
         parent: base, method: RouteMethod.POST
       }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed())
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
     ),
     settings: protocol(
       route(connect.project.settings, '/project/:id/settings', {
@@ -187,11 +188,16 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         body: typed<ConverterProjectLlmBody>(ConverterProjectLlmBodySchema),
       }, typed()),
     ),
-    job: protocol(
-      route(connect.project.job, '/project/:id/job/:jobId', {
+    },
+
+    story: {
+    status: protocol(
+      route(connect.story.status, '/project/:id/story/:storyId/status', {
         parent: base, method: RouteMethod.GET
       }),
-      contract.request({ params: typed<ConnectJobParams>(ConnectJobParamsSchema), query: typed<ConnectWaitQuery>(ConnectWaitQuerySchema) }, typed())
+      contract.request({
+        params: typed<{ id: string, storyId: string }>(ConnectStoryParamsSchema),
+      }, typed<ConnectStoryStatus>())
     ),
 
     },
@@ -207,7 +213,7 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     convert: {
     create: protocol(
       route(connect.convert.create, '/convert', { parent: base, method: RouteMethod.POST }),
-      contract.request({ body: typed<ConnectConvertCreateBody>(ConnectConvertCreateBodySchema) }, typed<ConnectJob>()),
+      contract.request({ body: typed<ConnectConvertCreateBody>(ConnectConvertCreateBodySchema) }, typed<ConversionStatusView>()),
     ),
     check: protocol(
       route(connect.convert.check, '/convert/:id/check', { parent: base, method: RouteMethod.GET }),
@@ -215,18 +221,18 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     start: protocol(
       route(connect.convert.start, '/convert/:id/start', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
     ),
     proceed: protocol(
       route(connect.convert.proceed, '/convert/:id/proceed', { parent: base, method: RouteMethod.POST }),
       contract.request({
         params: typed<{ id: string }>(ConnectProjectIdSchema),
         body: typed<ConnectConvertProceedBody>(ConnectConvertProceedBodySchema),
-      }, typed<ConnectJob>()),
+      }, typed<ConversionStatusView>()),
     ),
     cancel: protocol(
       route(connect.convert.cancel, '/convert/:id/cancel', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
     ),
     status: protocol(
       route(connect.convert.status, '/convert/:id', { parent: base, method: RouteMethod.GET }),
@@ -234,7 +240,7 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     purge: protocol(
       route(connect.convert.purge, '/convert/:id/purge', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectJob>()),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
     ),
     },
 
@@ -256,13 +262,13 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       route(connect.pipeline.state, '/pipeline/:id/:runId', {
         parent: base, method: RouteMethod.GET
       }),
-      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema) }, typed())
+      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema) }, typed<ConnectPipelineState>())
     ),
     resume: protocol(
       route(connect.pipeline.resume, '/pipeline/:id/:runId/resume', {
         parent: base, method: RouteMethod.POST
       }),
-      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema), body: typed<ConnectPipelineResumeBody>(ConnectPipelineResumeBodySchema) }, typed())
+      contract.request({ params: typed<ConnectPipelineParams>(ConnectPipelineParamsSchema), body: typed<ConnectPipelineResumeBody>(ConnectPipelineResumeBodySchema) }, typed<ConnectPipelineState>())
     ),
     },
   }

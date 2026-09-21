@@ -124,6 +124,10 @@ export interface CreateLinkParams {
   service: string
   planSku?: string
   amountMinor?: number
+  /** Stripe Checkout and future paid-invoice language. Caller supplies a Stripe-supported locale. */
+  locale?: string
+  /** Trusted application copy shown beside the Checkout confirmation button. */
+  submitText?: string
   successUrl?: string
   cancelUrl?: string
 }

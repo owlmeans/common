@@ -7,9 +7,9 @@ import {
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectCreateBody, ConnectJobParams, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
+  ConnectCreateBody, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
   ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSession, ConnectSessionOpen,
-  ConnectSessionParams, ConnectWaitQuery
+  ConnectPullQuery, ConnectSessionParams
 } from './types.js'
 
 /**
@@ -140,12 +140,12 @@ export const ConnectOpResultSchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectOpResult>
 
-export const ConnectWaitQuerySchema = {
+export const ConnectPullQuerySchema = {
   type: 'object',
   properties: { wait: { type: 'integer', minimum: 0, maximum: 45, nullable: true } },
   required: [],
   additionalProperties: false,
-} as JSONSchemaType<ConnectWaitQuery>
+} as JSONSchemaType<ConnectPullQuery>
 
 /** Every project-scoped connector route addresses the project by `:id`. */
 export const ConnectProjectIdSchema = {
@@ -162,12 +162,12 @@ export const ConnectOpParamsSchema = {
   additionalProperties: false,
 } as JSONSchemaType<{ sessionId: string, opId: string }>
 
-export const ConnectJobParamsSchema = {
+export const ConnectStoryParamsSchema = {
   type: 'object',
-  properties: { id: idValue, jobId: { type: 'string', minLength: 1, maxLength: 256 } },
-  required: ['id', 'jobId'],
+  properties: { id: idValue, storyId: idValue },
+  required: ['id', 'storyId'],
   additionalProperties: false,
-} as JSONSchemaType<ConnectJobParams>
+} as JSONSchemaType<{ id: string, storyId: string }>
 
 export const ConnectCreateBodySchema = {
   type: 'object',

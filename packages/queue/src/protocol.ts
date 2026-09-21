@@ -1,9 +1,9 @@
 import type { EntrypointProtocolDeclaration, RequestOf, ResponseOf } from '@owlmeans/entrypoint'
 import { isEntrypointProtocol } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
-import { RouteProtocols } from '@owlmeans/route'
 import { queueOf } from './config.js'
 import { UnknownQueue } from './errors.js'
+import { isQueueRoute, queueRouteOptions } from './route.js'
 import type {
   Config, Context, JobEnvelope, JobOptions, JobRecord, JobReply, QueueAppend,
 } from './types.js'
@@ -17,13 +17,10 @@ const queueFor = (context: QueueContext, declaration: unknown): {
   if (declaration == null || typeof declaration !== 'object' || !isEntrypointProtocol(declaration)) {
     throw new UnknownQueue('protocol declaration required')
   }
-  if (declaration.route.route.protocol !== RouteProtocols.QUEUE) {
-    throw new UnknownQueue(`${declaration.alias}: not a QUEUE protocol`)
+  if (!isQueueRoute(declaration.route)) {
+    throw new UnknownQueue(`${declaration.alias}: not a queue protocol`)
   }
-  const queue = declaration.route.route.queue
-  if (queue == null) {
-    throw new UnknownQueue(`${declaration.alias}: route declares no queue`)
-  }
+  const { queue } = queueRouteOptions(declaration.route)
   const configured = queueOf(context.cfg, queue)
   if (!configured.jobs.includes(declaration.alias)) {
     throw new UnknownQueue(`${queue}:${declaration.alias}`)

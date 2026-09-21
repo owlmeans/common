@@ -24,7 +24,7 @@ const login = async (argv: string[]): Promise<number> => {
   }
 
   try {
-    // No wait ceiling worth imposing here — this command's whole job is to wait, and a person
+    // No wait ceiling worth imposing here — this command's whole purpose is to wait, and a person
     // running it interactively will simply see the same "sign in at…" line the timeout would
     // have repeated anyway.
     await credentials.require(15 * 60 * 1000)
@@ -49,7 +49,7 @@ const logout = async (argv: string[]): Promise<number> => {
 }
 
 /** `viable-mcp url` — print the platform's `/mcp` address, for `claude mcp add --transport http
- * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.20 url)"`. The ONE command whose answer belongs on stdout: no
+ * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.21 url)"`. The ONE command whose answer belongs on stdout: no
  * protocol runs in this mode, and a caller capturing it must get the bare URL and nothing else. */
 const url = async (argv: string[]): Promise<number> => {
   const cfg = await readConfig(argv, process.env)

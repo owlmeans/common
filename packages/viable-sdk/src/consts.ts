@@ -31,20 +31,9 @@ export const SDK_SERVICE = 'viable-sdk'
  *
  * Every MCP host bounds a tool call, and the strictest default in the field is sixty seconds
  * (Codex). Forty-five leaves room for the round trip and keeps the connector inside every host's
- * ceiling without configuration — which is why long operations are JOBS that return at once and
- * are polled, rather than calls that block.
+ * ceiling without configuration — long operations return a domain status and continue server-side.
  */
 export const TOOL_DEADLINE_MS = 45_000
-
-/**
- * The longest a job poll may hold its answer, in seconds.
- *
- * Strictly under {@link TOOL_DEADLINE_MS}, with room for the round trip. Set equal to it, a poll
- * that used its whole window lost the race with its own deadline every time — and the tool's own
- * "call this next" line suggested exactly that value, so an agent following the instructions it
- * was given failed on every poll that ran the full window.
- */
-export const JOB_POLL_MAX_SEC = 30
 
 /**
  * How long a story tool waits for its planning transition to COMMIT, in milliseconds.
@@ -52,7 +41,7 @@ export const JOB_POLL_MAX_SEC = 30
  * Well under {@link TOOL_DEADLINE_MS}: the same call has already resolved the story and posted the
  * transition, and on the platform a person's narrative is re-formatted by a model before it is
  * appended. A commit that is late is not a failure — the transition is durable and nothing is
- * undone — so `develop_story` answers from the job row instead of waiting out the host's ceiling.
+ * undone — so `develop_story` answers from the story status instead of waiting out the host's ceiling.
  */
 export const COMMIT_WAIT_MS = 20_000
 
@@ -70,7 +59,7 @@ export const NEXT_TASK_WAIT_MS = 30_000
  *
  * The same window as a model task's, and for the host's reasons rather than the person's: nobody
  * is expected to answer inside it. What the wait buys is a parent that asked one call too early —
- * the platform queues the question a moment after the job reported it — and what the ceiling buys
+ * the platform queues the question a moment after the domain status reported it — and what the ceiling buys
  * is that the call returns before the host's own deadline turns it into a broken server.
  */
 export const NEXT_QUESTION_WAIT_MS = 30_000

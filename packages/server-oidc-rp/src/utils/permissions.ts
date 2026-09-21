@@ -2,12 +2,12 @@ import type { PermissionSet } from '@owlmeans/auth'
 
 /**
  * Shape-validates a `permissions` token claim into PermissionSet[].
- * Returns undefined unless the claim is an array of conforming sets — Keycloak
- * tokens (or any foreign claim) never produce a conforming value, which keeps
- * the claims-based gate path inert outside the integrated IAM mode.
+ * An empty array is a valid claim for an authenticated person with no grants;
+ * undefined is reserved for missing or malformed claims, which keeps the
+ * claims-based gate path inert outside the integrated IAM mode.
  */
 export const extractPermissionSets = (claim: unknown): PermissionSet[] | undefined => {
-  if (!Array.isArray(claim) || claim.length < 1) {
+  if (!Array.isArray(claim)) {
     return undefined
   }
 
@@ -23,5 +23,5 @@ export const extractPermissionSets = (claim: unknown): PermissionSet[] | undefin
     ))
   )
 
-  return sets.length > 0 ? sets : undefined
+  return sets.length > 0 || claim.length === 0 ? sets : undefined
 }

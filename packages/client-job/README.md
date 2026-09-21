@@ -1,21 +1,8 @@
 # @owlmeans/client-job
 
-The browser half of a job feed: a state store holding `JobRecord`s, hooks to read it, and one
-socket subscription that keeps it current. It addresses the entrypoints
-[`@owlmeans/server-job`](../server-job) declares.
-
-## Overview
-
-- `appendJobs(context, alias?)` — register the job store on the client context
-- `useJob(id)` / `useJobs(filter)` — live reads over that store
-- `useJobFeed(opts?)` — one socket plus one seeding list call; mount it ONCE per screen
-- `applyJobEvent(store, event)` — the fold, for a feed of your own
-
-## Installation
-
-```bash
-bun add @owlmeans/client-job@^0.1.18-rc.15
-```
+Browser state and hooks for the sanitized application-job contract from `@owlmeans/job`. This
+package has no queue dependency and never receives transport records, credentials, ownership
+fields, stack traces or internal payloads.
 
 ## Usage
 
@@ -30,39 +17,27 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
 ```
 
 ```tsx
+import { JobViewStatus } from '@owlmeans/job'
 import { useJobFeed, useJobs } from '@owlmeans/client-job'
-import { JobProgress, JobStatus, useJobToasts } from '@owlmeans/web-panel/jobs'
-import { JobState } from '@owlmeans/queue'
 
-export const Jobs: FC = () => {
-  const { seeded } = useJobFeed({ root: REPORTS })
-  const jobs = useJobs({ state: [JobState.Waiting, JobState.Active] })
-  useJobToasts(jobs.map(job => job.record))
+export const Operations = () => {
+  const { seeded, error } = useJobFeed({ root: REPORTS, query: { size: 50 } })
+  const running = useJobs({ status: JobViewStatus.Running })
 
-  return seeded
-    ? <ul>{jobs.map(job => <li key={job.id}>
-      <JobStatus job={job.record} /><JobProgress job={job.record} />
-    </li>)}</ul>
-    : <Spinner/>
+  if (error != null) return <p>Operations could not be loaded.</p>
+  if (!seeded) return <Spinner />
+  return <ul>{running.map(model => <li key={model.id}>{model.record.summary}</li>)}</ul>
 }
 ```
 
-## The one gotcha
+- `appendJobs(context, alias?)` registers a dedicated `JobView` store.
+- `useJob(id)` and `useJobs(filter)` read safe public views.
+- `useJobFeed(opts?)` seeds from list and applies `JobViewEvent` socket frames.
+- `applyJobEvent(store, event)` is the public-view fold for a custom feed.
 
-`useJobFeed` opens a socket per call. Mount it once, high enough that everything showing jobs sits
-under it, and read the store everywhere else — a second feed makes the server push every event
-twice and doubles what the screen reacts to.
-
-## Depends On
-
-- [`@owlmeans/state`](../state) — the store; [`@owlmeans/client`](../client) — `useStoreModel` / `useStoreList`
-- [`@owlmeans/client-auth`](../client-auth) — `useWs`, which puts the token on the socket query
-- [`@owlmeans/queue`](../queue) — `JobRecord`, `JobEvent`, `JobState`
-
-## Related
-
-- [`@owlmeans/server-job`](../server-job) — the entrypoints this addresses
-- [`@owlmeans/web-panel`](../web-panel) `./jobs` — the components to render what it collects
+Mount `useJobFeed` once per screen; every call owns a socket. Public filtering is limited to
+`status`, `kind`, `page` and `size`. A server must expose the matching routes through an explicit
+`@owlmeans/server-job` policy.
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -72,7 +47,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.29
+npx @owlmeans/agent-skills@^0.1.18-rc.30
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -12,7 +12,7 @@ const UNKNOWN_VERSION = '0.0.0'
  * published candidates. `src/version.ts` and `build/version.js` both sit one directory below the
  * manifest, so the same relative URL answers in a test run over sources and in the packaged server.
  * The name is checked so a relocated build can never report some other package's version, and an
- * unreadable manifest reports `0.0.0` rather than stopping a server whose only job is the protocol.
+ * unreadable manifest reports `0.0.0` rather than stopping a server whose only role is the protocol.
  */
 const readVersion = (): string => {
   try {

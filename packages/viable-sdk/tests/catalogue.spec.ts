@@ -3,13 +3,13 @@ import { ResilientError } from '@owlmeans/error'
 import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
 import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
 import {
-  ConnectHarness, ConnectJobKind, ConnectLlm, ConnectTarget, jobIdOf, OriginKind, ProjectArea,
+  ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea,
   ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition,
 } from '@owlmeans/viable-common'
 import type { ViableStoryCard } from '@owlmeans/viable-common'
 import { catalogue, visibleTools } from '../src/tools/catalogue.js'
-import { renderJob } from '../src/tools/jobs.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
+import { renderPipelineStatus } from '../src/tools/status.js'
 import type { McpServerLike } from '../src/tools/mcp.js'
 import { REFUSALS, refusalMessage, refusalPhrase, UNPHRASED_REFUSAL } from '../src/tools/refusal.js'
 import { ToolHostKind } from '../src/tools/types.js'
@@ -31,7 +31,7 @@ const names = (h: ToolHost): string[] => visibleTools(h).map(tool => tool.name)
 describe('viable-sdk — what a parent agent is offered', () => {
   test('the model-task loop appears wherever a session can hold one, in either llm mode', () => {
     // Not gated on the llm mode: a conversion's model calls are the parent's by default whatever
-    // the account setting says, so a `cloud` session hidden from these tools would sit on a job
+    // the account setting says, so a `cloud` session hidden from these tools would leave a run
     // blocked on a task it has no way to collect.
     for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
       const offered = names(host({ llm }))
@@ -100,7 +100,7 @@ describe('viable-sdk — what a parent agent is offered', () => {
     // But it is still a complete way to build an application.
     expect(http).toContain('create_project')
     expect(http).toContain('develop_story')
-    expect(http).toContain('wait_for')
+    expect(http).toContain('story_status')
   })
 
   test('the core flow is offered in every mode', () => {
@@ -114,7 +114,7 @@ describe('viable-sdk — what a parent agent is offered', () => {
       const offered = names(mode)
       for (const tool of [
         'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
-        'list_stories', 'develop_story', 'wait_for', 'resume_pipeline', 'modify_project',
+        'list_stories', 'develop_story', 'story_status', 'resume_pipeline', 'modify_project',
       ]) {
         expect(offered).toContain(tool)
       }
@@ -186,7 +186,7 @@ describe('the story tools speak planning', () => {
    * A connector whose `planning` is a real planning service, and whose project calls are recorded.
    *
    * `order` is the whole sequence of what the tool did — the session it opened, every transition it
-   * executed, every job and lock read — because the order IS the contract: a session filed after the
+   * executed, every status and lock read — because the order IS the contract: a session filed after the
    * first write is a session the platform delivers nothing to.
    */
   const connectorFor = (suite: PlanningSuite, attachedAt: string | null, opts: {
@@ -196,9 +196,6 @@ describe('the story tools speak planning', () => {
     const order: string[] = []
     let attached = attachedAt
     let checks = 0
-    const job = (projectId: string, jobId: string) => ({
-      id: jobId, projectId, kind: ConnectJobKind.StoryDevelop, status: 'running',
-    })
     const planning: PlanningFacade = {
       ...suite.planning,
       execute: async (exec, executeOpts) => {
@@ -218,10 +215,21 @@ describe('the story tools speak planning', () => {
 
             return { agent: { locked: opts.locked?.(checks) ?? false } }
           },
-          job: async (projectId: string, jobId: string) => {
-            order.push(`job:${projectId}:${jobId}`)
+        },
+        story: {
+          status: async (projectId: string, storyId: string) => {
+            order.push(`story-status:${projectId}:${storyId}`)
+            const card = await suite.planning.cards.get(storyId) as ViableStoryCard
 
-            return job(projectId, jobId)
+            return {
+              projectId,
+              story: {
+                id: card.id!, code: card.code!, title: card.title,
+                status: card.status, intrinsic: card.intrinsic,
+                ...(card.fields.warning != null ? { warning: card.fields.warning } : {}),
+              },
+              updatedAt: '2026-09-18T00:00:00.000Z',
+            }
           },
         },
       },
@@ -242,7 +250,7 @@ describe('the story tools speak planning', () => {
     }
   }
 
-  test('develop_story attaches the named project, starts the story, then reads the job by card id', async () => {
+  test('develop_story attaches the named project, starts the story, then reads its domain status', async () => {
     // Opening before attaching would file the session against the previously attached project, and
     // the platform would deliver this story's operations to nobody.
     const suite = await makePlanningSuite()
@@ -253,35 +261,36 @@ describe('the story tools speak planning', () => {
 
     const result = await toolNamed('develop_story').run({ projectId: named.id, storyId: story.code }, deps)
 
-    const jobId = jobIdOf(ConnectJobKind.StoryDevelop, named.id!, story.id!)
     expect(attached()).toBe(named.id!)
-    expect(order).toEqual([`session:${named.id}`, 'execute:transit:start', `job:${named.id}:${jobId}`])
-    expect(result.text).toContain(jobId)
-    // The move committed before the job was read: that commit is what starts the run.
+    expect(order).toEqual([
+      `session:${named.id}`, 'execute:transit:start', `story-status:${named.id}:${story.id}`,
+    ])
+    expect(result.text).toContain(`${story.code} · ${story.title}`)
+    // The move committed before status was read: that commit is what starts the run.
     expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.InProgress)
   })
 
-  test('develop_story answers from the job when the commit is late, and refuses what the flow refuses', async () => {
+  test('develop_story answers from story status when the commit is late, and refuses what the flow refuses', async () => {
     const suite = await makePlanningSuite()
     const project = await suite.project()
     const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
 
-    // Late: the transition is durable, so the job row is the answer rather than a broken tool.
+    // Late: the transition is durable, so domain status is the answer rather than a broken tool.
     const late = connectorFor(suite, project.id!, {
       execute: async () => { throw new CommitTimeout('transition-1') },
     })
     const answered = await toolNamed('develop_story').run({ storyId: story.code }, late.deps)
     expect(answered.isError).not.toBe(true)
-    expect(late.order.at(-1)).toBe(`job:${project.id}:${jobIdOf(ConnectJobKind.StoryDevelop, project.id!, story.id!)}`)
+    expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
 
-    // Refused: a story already in progress cannot be started again, and no job is read for it.
+    // Refused: a story already in progress cannot be started again, and no status read hides it.
     const running = await suite.story(project.id!, 'As a clerk, I void a sale.', {
       moves: [ViableStoryTransition.Start],
     })
     const refused = connectorFor(suite, project.id!)
     await expect(toolNamed('develop_story').run({ storyId: running.code }, refused.deps))
       .rejects.toBeInstanceOf(IllegalTransition)
-    expect(refused.order.some(entry => entry.startsWith('job:'))).toBe(false)
+    expect(refused.order.some(entry => entry.startsWith('story-status:'))).toBe(false)
   })
 
   test('create_story sends the narrative as written, with no area — the platform decides it', async () => {
@@ -373,7 +382,9 @@ describe('the story tools speak planning', () => {
 
     for (const storyId of [story.code, story.id, story.code!.toLowerCase()]) {
       const result = await toolNamed('story_status').run({ storyId }, deps)
-      expect(result.text).toBe(`${story.code} · failed\nwarning: the boot gate refused it`)
+      expect(result.text).toContain(`${story.code} · ${story.title}`)
+      expect(result.text).toContain('story: failed')
+      expect(result.text).toContain('warning: the boot gate refused it')
     }
 
     await expect(toolNamed('story_status').run({ storyId: foreign.id }, deps))
@@ -423,7 +434,13 @@ describe('a project reads as its card and its brief', () => {
           confirm: async (projectId: string, edits: unknown) => {
             confirmed.push([projectId, edits])
 
-            return { id: 'j1', projectId, kind: 'project-init', status: 'running' }
+            return {
+              project: {
+                id: projectId, name: 'Ledger', alias: 'ledger',
+                status: 'confirmed', intrinsic: 'in-progress',
+              },
+              agent: { locked: true }, local: false, updatedAt: '2026-09-18T00:00:00.000Z',
+            }
           },
         },
       },
@@ -439,7 +456,10 @@ describe('a project reads as its card and its brief', () => {
 })
 
 describe('a conversion tool opens its session before the platform reads anything', () => {
-  const job = { id: 'j1', projectId: 'p1', kind: 'convert-intake', status: 'running' }
+  const conversion = {
+    projectId: 'p1', stage: 'intake', status: 'running', estimates: [],
+    originState: 'present', assumptions: 0, updatedAt: '2026-09-18T00:00:00.000Z',
+  }
 
   const depsFor = (opts: {
     dir?: string
@@ -470,17 +490,17 @@ describe('a conversion tool opens its session before the platform reads anything
             projectId: 'p1', verdict: 'ready', reasons: [], shape: 'foreign', monorepo: false,
             unlinked: [], files: 10, bytes: 1024, bulk: 0, ...(opts.check ?? {}),
           }),
-          start: record('start', job),
+          start: record('start', conversion),
           create: async (body: unknown) => {
             // Recorded by name rather than by argument: the body is an object, and what the
             // creation branches have to be pinned on is its CONTENT, not its stringification.
             order.push('create')
             created.push(body as Record<string, unknown>)
 
-            return job
+            return conversion
           },
-          proceed: record('proceed', job),
-          purge: record('purge', job),
+          proceed: record('proceed', conversion),
+          purge: record('purge', conversion),
           // A project with no conversion answers an ERROR rather than an empty view — which is
           // what every best-effort read of it has to survive.
           status: opts.conversion === null
@@ -696,8 +716,8 @@ describe('a question is carried to a person and its answer routed back', () => {
     next?: unknown
     held?: Record<string, unknown>
     parked?: unknown
-    /** Reachable only through the job — the conversion status read fails or comes back empty. */
-    onJob?: unknown
+    /** A question composed directly into project status. */
+    onProject?: unknown
     sent: string[]
   }) => ({
     host: host(),
@@ -710,11 +730,7 @@ describe('a question is carried to a person and its answer routed back', () => {
         },
       },
       project: {
-        job: async (projectId: string, jobId: string) => {
-          opts.sent.push(`job:${projectId}:${jobId}`)
-
-          return { inquiry: opts.onJob ?? null }
-        },
+        status: async () => ({ pendingInquiry: opts.onProject ?? null }),
       },
       inquiry: {
         answer: async (projectId: string, inquiryId: string, answer: unknown) => {
@@ -766,12 +782,12 @@ describe('a question is carried to a person and its answer routed back', () => {
     expect(result.structured?.questionId).toBe('q1')
   })
 
-  test('nothing anywhere says so, and points at the job', async () => {
+  test('nothing anywhere says so, and points back to domain status', async () => {
     const sent: string[] = []
     const result = await toolNamed('next_question').run({ maxWaitSec: 0 }, depsWith({ sent }))
 
     expect(result.isError).not.toBe(true)
-    expect(result.text).toContain('wait_for')
+    expect(result.text).toContain('matching domain status')
   })
 
   test('an answer to a question this session holds goes back on its operation', async () => {
@@ -802,16 +818,12 @@ describe('a question is carried to a person and its answer routed back', () => {
     expect(sent).toEqual([])
   })
 
-  test('a question reachable only through its job can still be answered', async () => {
-    // The two tools must reach exactly as far as each other. `next_question` finds a parked
-    // question through the job id when the conversion status read fails or comes back empty, so
-    // an `answer_question` without that reach refuses what the person has already answered — and
-    // sends the parent back to `next_question`, which offers the same question again.
+  test('a question composed into project status can still be answered', async () => {
     const sent: string[] = []
     await toolNamed('answer_question')
-      .run({ questionId: 'q1', jobId: 'j1', answer: 'two' }, depsWith({ onJob: question, sent }))
+      .run({ questionId: 'q1', answer: 'two' }, depsWith({ onProject: question, sent }))
 
-    expect(sent).toEqual(['job:p1:j1', 'api:p1:q1:{"inquiryId":"q1","value":"two"}'])
+    expect(sent).toEqual(['api:p1:q1:{"inquiryId":"q1","value":"two"}'])
   })
 
   test('a question nobody is waiting on is refused rather than invented', async () => {
@@ -857,7 +869,7 @@ describe('a task handed out can be read again', () => {
 
   test('an id re-reads the task instead of taking a new one', async () => {
     // A parent that lost the envelope — a compacted conversation, a subagent that died before
-    // answering — otherwise has no way back to it, and the job blocks for the full 45 minutes.
+    // answering — otherwise has no way back to it, and the run waits for the full 45 minutes.
     const result = await nextTask().run({ taskId: 't1' }, depsWith({ byId: { t1: task } }))
 
     expect(result.isError).not.toBe(true)
@@ -882,10 +894,10 @@ describe('a task handed out can be read again', () => {
     expect(result.text).not.toContain('do the thing')
   })
 
-  test('nothing at all says so, and points at the job', async () => {
+  test('nothing at all says so, and points at domain status', async () => {
     const result = await nextTask().run({ maxWaitSec: 0 }, depsWith({}))
 
-    expect(result.text).toContain('wait_for')
+    expect(result.text).toContain('project, story, conversion, or pipeline status')
   })
 })
 
@@ -1005,7 +1017,7 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   test('a refusal STORED on a record is phrased in every channel that renders one', async () => {
     // The platform writes a failed stage's cause with `describeFailure`, which for a refusal is
     // the marker verbatim. Rendered raw, `conversion_status` answered a declined relocation with
-    // `viable-agent-common:conversion:relocate-declined` while `wait_for` on the very same run
+    // `viable-agent-common:conversion:relocate-declined` while another status view of the same run
     // read out the sentence — one refusal, two contradictory readings.
     const marker = 'viable-agent-common:conversion:relocate-declined'
 
@@ -1044,8 +1056,8 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     const pipeline = await toolNamed('pipeline_status').run({ runId: 'r1' }, answered({
       pipeline: {
         state: async () => ({
-          pipeline: 'vib:project:convert:analysis', status: 'failed', step: 'relocate',
-          error: marker,
+          runId: 'r1', pipeline: 'vib:project:convert:analysis', status: 'failed',
+          step: 'relocate', completed: ['read'], pending: ['relocate'], error: marker,
         }),
       },
     }))
@@ -1091,18 +1103,18 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a stored cause is phrased as readily as a thrown one', () => {
-    // `slot.lastError` and `job.error` are strings with no class left on them, and the platform
+    // `slot.lastError` and pipeline errors are strings with no class left on them, and the platform
     // writes them from the same refusal — so one function has to serve both.
     expect(refusalPhrase('viable-agent-common:conversion:relocate-declined'))
       .toContain('__viable_converted/')
     expect(refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
   })
 
-  test('a failed job reports its cause in the same sentence', () => {
-    const rendered = renderJob({
-      id: 'j1', projectId: 'p1', kind: 'convert-implementation', status: 'failed',
-      error: 'viable-converter:taxonomy-missing',
-    } as never)
+  test('a failed pipeline reports its cause in the same sentence', () => {
+    const rendered = renderPipelineStatus({
+      runId: 'r1', pipeline: 'vib:project:convert:implementation', status: 'failed',
+      completed: [], pending: [], error: 'viable-converter:taxonomy-missing',
+    })
 
     expect(rendered).toContain('ANALYSIS stage records')
     expect(rendered).not.toContain('viable-converter:')
@@ -1136,11 +1148,11 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a failure that is not a refusal is passed through exactly as it is', () => {
-    expect(refusalPhrase(new Error('wait_for took longer than 45000ms')))
-      .toBe('wait_for took longer than 45000ms')
+    expect(refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
+      .toBe('pipeline_status took longer than 45000ms')
     expect(refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
 
-    // A job's `error` doubles as the build warning a slot recorded, and build diagnostics are
+    // A status error can be the build warning a slot recorded, and build diagnostics are
     // full of lines that look like stack frames. A stack only ever arrives inside the
     // marshalling, so nothing outside it is cut.
     const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'

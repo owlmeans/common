@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/agent-skills
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.29"` — in `devDependencies` for the CLI, in
+**Install:** `"@owlmeans/agent-skills": "^0.1.18-rc.30"` — in `devDependencies` for the CLI, in
 `dependencies` for the `./llm` plugins (plus the `@owlmeans/llm*`, `@owlmeans/agent` and
 `@langchain/core` **optional peers**)
 
@@ -183,7 +183,7 @@ tool never throws — a rejected tool call aborts the whole LangGraph superstep.
 
 ## Installer CLI
 
-`npx @owlmeans/agent-skills@^0.1.18-rc.29` walks the **whole** project tree, reads every nested
+`npx @owlmeans/agent-skills@^0.1.18-rc.30` walks the **whole** project tree, reads every nested
 `<dir>/node_modules/@owlmeans` scope it finds, and copies each `agent-meta/` skill into
 `.agents/skills/<name>/SKILL.md`. A workspace keeps its dependencies beside the workspace member
 that declares them, so the root scope is routinely empty and a root-only scan would find nothing.

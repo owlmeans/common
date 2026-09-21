@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.50
+bun add @owlmeans/web-panel@^0.1.18-rc.51
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -463,7 +463,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.29
+npx @owlmeans/agent-skills@^0.1.18-rc.30
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

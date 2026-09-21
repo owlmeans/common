@@ -8,10 +8,10 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.21"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.22"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
-vocabulary — story type, story flow, `jobIdOf`) and `@owlmeans/planning` (the planning protocol tree
+vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
 and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
 differently.
 
@@ -31,10 +31,10 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `installHarness(dir, harness, opts?)` · `describeHarness(harness)` · `WORKING_RULE` | Set a coding agent up; preview it first |
 | `catalogue` · `visibleTools(host)` · `toolByName` · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `renderJob(job)` · `isSettled(job)` | A job as a few lines a model can act on |
+| `renderProjectStatus`, `renderStoryStatus`, `renderPipelineStatus`, `conversionNext` | Domain status as concise lines ending in the next valid action |
 | `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` | The story tools' reading of planning cards |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks` | The host description and the availability predicates |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's job, on somebody's laptop |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's workload, on somebody's laptop |
 | `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
 | `readMarker`/`writeMarker`/`discoverProject`/`isViableTree` · `readEnv`/`writeEnv`/`envStatus`/`replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
@@ -125,19 +125,20 @@ tool a host cannot serve is a tool the parent tries once, is refused, and rememb
 the list it reads is exactly the set of things that work for it. Predicates: `anyHost`,
 `localTarget`, `cloudTarget`, `withExecutor`, `delegatedLlm`.
 
-## 45 seconds is the ceiling, which is why long operations are JOBS
+## 45 seconds is the ceiling, so long operations return domain status
 
 Every MCP host bounds a tool call and the strictest default in the field is sixty seconds (Codex).
 `TOOL_DEADLINE_MS` leaves room for the round trip and keeps the connector inside every host's
 ceiling without configuration. A tool that outlives its host's ceiling is reported to the user as a
 **broken server**, and the true answer — the platform was slow — never reaches them.
 
-So anything that takes minutes returns a `ConnectJob` at once and is polled with `wait_for`.
-`registerCatalogue` enforces the deadline per call and converts a throw into an `isError` result the
-model can read and act on, because an exception crossing the transport tells it only that something
-went wrong somewhere. `renderJob` ends every job with a single `next:` line — that is what keeps a
-parent from inventing a polling strategy of its own, or from concluding that a blocked run has
-failed.
+Anything that takes minutes returns the owning domain's status and continues server-side.
+`project_status`, `story_status`, `conversion_status` and `pipeline_status` compose the durable
+records and run state a parent needs. `registerCatalogue` enforces the deadline per call and
+converts a throw into an `isError` result the model can read and act on, because an exception
+crossing the transport tells it only that something went wrong somewhere. Each status renderer
+ends with a single `next:` line so the parent follows the domain workflow and does not invent a
+polling strategy or treat a parked run as failed.
 
 ## The story tools speak planning
 
@@ -153,8 +154,8 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 | `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
 | `update_story` | `resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
-| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, a `CommitTimeout` tolerated → `project.job(project, jobIdOf(StoryDevelop, project, card.id))` |
-| `story_status` | `resolveStory` → the card's code, status and `fields.warning` |
+| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
+| `story_status` | `resolveStory` → the card, its development run, pending inquiry and warning |
 
 Rules the table rests on:
 
@@ -168,8 +169,7 @@ Rules the table rests on:
 - **Development is the story's `start`, not a call of its own.** The platform begins the run once that
   move COMMITS, and refuses it there too (the flow, one story in progress, the balance). The wait is
   `COMMIT_WAIT_MS`, well inside the tool deadline; a late commit is not a failure — the transition is
-  durable — so `develop_story` answers from the job row rather than outliving the host's ceiling. The
-  job id is composed with viable-common's `jobIdOf`, the one spelling the platform answers under.
+  durable — so `develop_story` answers from `story_status` rather than outliving the host's ceiling.
 - **A story a person writes goes as written, with no area.** Re-formatting the narrative and deciding
   the area are the platform's, done in its planning middleware for the `connect` channel; a connector
   that guessed an area would be a second answer. `update_story` carries only `title` and the head it

@@ -91,8 +91,6 @@ export interface ConfigureResult {
 export interface ModelTask {
   id: string
   projectId: string
-  /** The job the call belongs to, so a parent can say what it is working on. */
-  jobId?: string
   /** The platform role that asked. Informational; the tier is what decides the model. */
   role: string
   tier: ModelTier
@@ -170,14 +168,13 @@ export interface ConnectInquiryOption {
 /**
  * One question put to the person the connector is working for.
  *
- * It carries where it came from — the job, the run and the step — because an answer is recorded
+ * It carries where it came from — the run and the step — because an answer is recorded
  * against the run that asked and re-read when that run resumes. `expiresAt` is what makes an
  * unanswered question fail its step instead of parking a project lock forever.
  */
 export interface InquiryPayload {
   id: string
   projectId: string
-  jobId?: string
   runId?: string
   /** The pipeline step that asked, so a resumed run can match the answer to the place it belongs. */
   step?: string

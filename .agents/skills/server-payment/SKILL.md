@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.12`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.13`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -95,7 +95,12 @@ does not know as a string, and the collection validator rejects it.
   stay in `amountCurrency`, while a fresh Stripe FX reference rate produces `chargeAmountMinor` in
   the settlement `currency`. Without it, source and charge amounts/currencies are identical. `Quantity`:
   the reusable price under the plan lookup key, adjustable quantity. Subscription: `planSku` (else
-  the product's first recurring plan), quantity 1.
+  the product's first recurring plan), quantity 1. One-time payment Sessions enable
+  `invoice_creation`; subscription payments produce their own invoices.
+- `CreateLinkParams.locale` is a caller-validated Stripe locale. It sets Session `locale` and the
+  Stripe Customer's `preferred_locales` on create or update, so later subscription invoices use the
+  same supported language. `submitText` is trusted application copy placed in
+  `custom_text.submit.message` on subscription Checkout only; never pass caller-provided text.
 - A plan the paygate does not sell — a free plan, another gateway's plan — is refused
   (`ProductError`). `checkoutOptions(policy, promotions)` puts automatic tax, billing address
   collection, tax-id collection and Adaptive Pricing (`adaptive_pricing`) on the session, each
@@ -333,6 +338,7 @@ database.
 ## External docs
 
 - https://docs.stripe.com/api/checkout/sessions/create — Checkout accepts inline `price_data` with integer minor-unit `unit_amount`; automatic tax is enabled on the Session and amount items are tax-exclusive.
+- https://docs.stripe.com/receipts — successful-payment emails are a Dashboard setting; subscriptions produce paid invoices automatically, one-time Checkout needs `invoice_creation.enabled`, and a Customer’s `preferred_locales` localizes supported Stripe templates.
 - https://docs.stripe.com/checkout/fulfillment — Fulfillment must be idempotent, check payment state and support delayed-payment success events rather than trusting completion alone.
 - https://docs.stripe.com/api/webhook_endpoints/create — the signing `secret` is returned only by create; update accepts `enabled_events`, `disabled`, `url`, `description`, `metadata`; `api_version` is create-only.
 - https://docs.stripe.com/api/events/types — the event names `WEBHOOK_EVENTS` subscribes to.

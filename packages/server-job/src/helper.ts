@@ -11,7 +11,7 @@ import type { JobEntrypoints, JobHandlerOptions } from './types.js'
  *
  * @throws {SyntaxError} when the array carries no group under that root.
  */
-export const serveJobEntrypoints = (entrypoints: JobEntrypoints, opts?: JobHandlerOptions) => [
+export const serveJobEntrypoints = (entrypoints: JobEntrypoints, opts: JobHandlerOptions) => [
   bind(entrypoints.base),
   bind(entrypoints.list, listJobs(entrypoints.list, opts)),
   bind(entrypoints.watch, watchJobs(entrypoints.watch, opts)),

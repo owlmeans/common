@@ -26,7 +26,7 @@ export const CONSENT_ESSENTIAL = 'essential'
 export const CONSENT_ANALYTICS = 'analytics'
 export const CONSENT_MARKETING = 'marketing'
 
-export const CONSENT_LOCALES = ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de'] as const
+export const CONSENT_LOCALES = ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de', 'fr'] as const
 
 export type ConsentLocale = (typeof CONSENT_LOCALES)[number]
 

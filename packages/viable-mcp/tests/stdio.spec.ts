@@ -77,8 +77,8 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
     // The default mode: the project on this machine, and the platform paying for the model calls
     // of everything but a conversion — whose calls this session collects with the same two tools.
     for (const tool of [
-      'describe_capabilities', 'create_project', 'confirm_project', 'wait_for', 'list_stories',
-      'develop_story', 'run_local', 'local_status', 'install_harness', 'next_task',
+      'describe_capabilities', 'create_project', 'confirm_project', 'project_status', 'list_stories',
+      'develop_story', 'story_status', 'run_local', 'local_status', 'install_harness', 'next_task',
       'submit_task_result',
     ]) {
       expect(offered).toContain(tool)
@@ -94,12 +94,14 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
     expect(server.client.getServerVersion()).toEqual({ name: '@owlmeans/viable-mcp', version: manifest.version })
   })
 
-  test('the instructions state the mode and the job rule', async () => {
+  test('the instructions state the mode and the domain-status rule', async () => {
     const instructions = server.client.getInstructions() ?? ''
 
     expect(instructions).toContain('target=local')
     expect(instructions).toContain('llm=cloud')
-    expect(instructions.toLowerCase()).toContain('job')
+    expect(instructions).toContain('project_status')
+    expect(instructions).toContain('story_status')
+    expect(instructions).not.toContain('wait_for')
   })
 
   test('an offline tool answers with something a model can act on', async () => {

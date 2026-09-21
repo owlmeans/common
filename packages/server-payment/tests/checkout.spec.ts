@@ -56,17 +56,20 @@ describe('Stripe checkout', () => {
     })
   })
 
-  test('a subscription checkout takes the asked plan; a free plan is never checked out', async () => {
+  test('a subscription checkout takes the asked plan, locale and disclosure; a free plan is never checked out', async () => {
     const fake = await makeFakeContext({
       stripe: { prices: [{ id: 'price_team', product: PLANS_PRODUCT, lookup_key: TEAM, active: true, recurring: { interval: 'month' } }] },
     })
     await createCheckoutLink(fake.ctx, fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: TEAM, entityId: 'entity-1', service: 'app', successUrl: 'https://app.example.com/ok',
+      locale: 'fr', submitText: 'Comprend des crédits prépayés obligatoires.',
     })
     expect(fake.state.checkoutSessions[0]).toEqual(expect.objectContaining({
       mode: 'subscription', line_items: [{ price: 'price_team', quantity: 1 }],
+      locale: 'fr', custom_text: { submit: { message: 'Comprend des crédits prépayés obligatoires.' } },
     }))
     expect(fake.state.checkoutSessions[0].subscription_data.metadata).toEqual(expect.objectContaining({ entityId: 'entity-1', planSku: TEAM }))
+    expect(fake.state.customers.cus_1.preferred_locales).toEqual(['fr'])
 
     await expect(createCheckoutLink(fake.ctx, fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: FREE, entityId: 'entity-1', service: 'app',

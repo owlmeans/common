@@ -1,10 +1,51 @@
 # @owlmeans/server-job
 
-Server entrypoints for a queue job protocol group: list, get, cancel and lifecycle watch.
+Server bridge from technical queue records to the sanitized `@owlmeans/job` domain contract.
+Every binding requires an application-owned `JobExposurePolicy`; there is no permissive default.
 
-Declare a group in shared code with `declareJobEntrypoints(root, options)`, then register
-`...serveJobEntrypoints(jobProtocols)` in the API runtime. The package returns local bindings and
-keeps the shared job declarations immutable.
+```typescript
+import { declareJobEntrypoints } from '@owlmeans/job'
+import { jobViewOf, serveJobEntrypoints } from '@owlmeans/server-job'
+
+export const reportJobs = declareJobEntrypoints('report-jobs', {
+  path: '/reports/jobs', parent: api.reports.base,
+})
+
+export const bindings = serveJobEntrypoints(reportJobs, {
+  queue: REPORT_QUEUE,
+  policy: {
+    audience: req => ({ userId: requireUserId(req) }),
+    where: (audience, query) => ({
+      $and: [
+        { 'data.ownerId': audience.userId },
+        ...(query.kind == null ? [] : [{ name: internalNameOf(query.kind) }]),
+      ],
+    }),
+    lookup: async (id, audience, resource) =>
+      resource.load({ publicId: id, 'data.ownerId': audience.userId }),
+    map: record => jobViewOf(record, {
+      id: publicIdOf(record),
+      kind: publicKindOf(record),
+      summary: publicSummaryOf(record),
+      metadata: allowlistedMetadataOf(record),
+      result: publicResultOf(record),
+    }),
+    cancel: (record, audience) => ownerIdOf(record) === audience.userId,
+  },
+})
+```
+
+The policy is the security boundary:
+
+- `audience` derives authenticated application scope.
+- `where` translates the closed public query into scoped technical criteria.
+- `lookup` resolves an opaque public id inside that scope.
+- `map` allowlists fields and returns only `JobView`; `jobViewOf` bounds and sanitizes JSON.
+- `cancel` is optional and cancellation is denied unless it explicitly approves.
+
+List, get, cancel and watch all apply the same policy. Watch frames are reloaded inside the
+audience scope and emitted as `JobViewEvent`; an unattributable event is dropped. Keep completed
+records long enough for watched completion events to be projected.
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -14,7 +55,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.29
+npx @owlmeans/agent-skills@^0.1.18-rc.30
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

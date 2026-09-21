@@ -24,10 +24,9 @@ export const canServeModule = (context: Context, module: CommonEntrypoint): modu
   if (module.route.route.service != null && module.route.route.service !== context.cfg.service) {
     return false
   }
-  // Only the protocols HTTP actually carries. A socket is upgraded elsewhere and a queued job is
-  // taken off the broker by the worker — mounting either on the HTTP server would answer it twice.
-  if (module.route.route.protocol === RouteProtocols.SOCKET
-    || module.route.route.protocol === RouteProtocols.QUEUE) {
+  // HTTP serves only its own protocol. Custom transports are handled by their owning packages.
+  if (module.route.route.protocol != null
+    && module.route.route.protocol !== RouteProtocols.WEB) {
     return false
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning",
-  "version": "0.1.18-rc.1",
+  "version": "0.1.18-rc.2",
   "license": "MIT",
   "description": "Runtime-free project-planning contracts — the workcard super type, projects, specifications, typed relationships, status flows with three intrinsic states, the transition event and its pure fold, the schema registry, the models and the protocol tree.",
   "type": "module",
@@ -20,25 +20,17 @@
       "default": "./build/index.js",
       "module": "./build/index.js",
       "types": "./build/index.d.ts"
-    },
-    "./queue": {
-      "import": "./build/queue/index.js",
-      "require": "./build/queue/index.js",
-      "default": "./build/queue/index.js",
-      "module": "./build/queue/index.js",
-      "types": "./build/queue/index.d.ts"
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.27",
-    "@owlmeans/basic-ids": "^0.1.18-rc.26",
-    "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/entrypoint": "^0.1.18-rc.28",
-    "@owlmeans/error": "^0.1.18-rc.27",
-    "@owlmeans/i18n": "^0.1.18-rc.28",
-    "@owlmeans/queue": "^0.1.18-rc.23",
-    "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/route": "^0.1.18-rc.26"
+    "@owlmeans/auth": "^0.1.18-rc.28",
+    "@owlmeans/basic-ids": "^0.1.18-rc.27",
+    "@owlmeans/context": "^0.1.18-rc.26",
+    "@owlmeans/entrypoint": "^0.1.18-rc.29",
+    "@owlmeans/error": "^0.1.18-rc.28",
+    "@owlmeans/i18n": "^0.1.18-rc.29",
+    "@owlmeans/resource": "^0.1.18-rc.28",
+    "@owlmeans/route": "^0.1.18-rc.27"
   },
   "peerDependencies": {
     "ajv": "*",

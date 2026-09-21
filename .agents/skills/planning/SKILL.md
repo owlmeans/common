@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.1"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.2"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -45,7 +45,6 @@ of the wire, so one log always means one card.
 | `makePlanningProtocols(opts)` | The protocol tree |
 | `makeWorkcardModel`, `makeProjectModel`, `makeSpecificationModel`, `modelOf`, `executeFor` | Models |
 | `*Schema` | AJV schemas of every record, declaration, request and view |
-| `@owlmeans/planning/queue` | `PLANNING_PROJECTION_QUEUE`, `PLANNING_PROJECT_JOB`, `declarePlanningQueue(cfg, opts?)`, `ProjectionRequest` |
 
 ## The record model
 
@@ -246,11 +245,10 @@ is part of the package's own tests.
 - `@owlmeans/resource` — `Criteria`, `ListOptions`, `ListResult`, `createListSchema`
 - `@owlmeans/entrypoint`, `@owlmeans/route` — the protocol tree
 - `@owlmeans/error`, `@owlmeans/i18n`, `@owlmeans/auth` (`IdValueSchema`), `@owlmeans/basic-ids`, `@owlmeans/context`
-- `@owlmeans/queue` — only through the `./queue` subpath
 
 ## Related
 
 - [[server-planning]] — the executor, the plugin registry, the memory store, the handlers
 - [[client-planning]] — the remote facade, the state mirror, waiting for a commit
 - [[resource]] — the criteria language `criteriaOf` targets
-- [[queue]] — the projection queue the `./queue` subpath declares
+- [[server-planning]] — executor, projection implementations, plugin registry and memory store

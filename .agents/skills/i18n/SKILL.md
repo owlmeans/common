@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/i18n
 
 **Layer:** Core (no runtime deps)
-**Install:** `"@owlmeans/i18n": "^0.1.18-rc.28"` in `dependencies`
+**Install:** `"@owlmeans/i18n": "^0.1.18-rc.29"` in `dependencies`
 
 ## Purpose
 
@@ -88,6 +88,7 @@ import be from './i18n/be.json' with { type: 'json' }
 import uk from './i18n/uk.json' with { type: 'json' }
 import es from './i18n/es.json' with { type: 'json' }
 import de from './i18n/de.json' with { type: 'json' }
+import fr from './i18n/fr.json' with { type: 'json' }
 
 addI18nLib('en', 'my-package', en)
 addI18nLib('pl', 'my-package', pl)
@@ -96,6 +97,7 @@ addI18nLib('be', 'my-package', be)
 addI18nLib('uk', 'my-package', uk)
 addI18nLib('es', 'my-package', es)
 addI18nLib('de', 'my-package', de)
+addI18nLib('fr', 'my-package', fr)
 ```
 
 Then re-export from `src/index.ts`:
@@ -127,7 +129,10 @@ addI18nLib('en', 'wallet', walletEn, { ns: 'did' })
 
 ## Languages
 
-All packages **must** ship all 7 languages from `SUPPORTED_LNGS`. Adding a new key → add it to all 7 files in the same commit.
+All packages **must** ship the 7 languages from `SUPPORTED_LNGS`. Adding a new key → add it to all
+7 files in the same commit. An application may opt into an additional language without changing the
+global constant; a reusable package used by that application then ships and synchronously registers
+the same extra bundle, while other applications retain their existing selectable languages.
 
 ## Depends On
 

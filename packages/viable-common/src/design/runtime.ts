@@ -40,7 +40,7 @@ export const isEphemeralActor = (actor?: StoryActor): boolean =>
 export interface StoryDesignJob {
   /** The queue it is enqueued onto. */
   queue: string
-  /** The job name, which IS its entrypoint alias — `app.job.<name>`. */
+  /** The job name, which becomes the backend-only `job:<name>` protocol alias. */
   name: string
   /** The processor module, relative to the worker package's `src`. */
   path: string

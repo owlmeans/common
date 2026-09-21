@@ -45,13 +45,20 @@ const ensureStripeCustomer = async (
   const existing = await resource.byEntity(params.entityId, STRIPE_PAYGATE_ALIAS)
   if (existing != null && existing.deletedAt == null) {
     const retrieved = await stripe.customers.retrieve(existing.externalId)
-    if (!(retrieved as Stripe.DeletedCustomer).deleted) return retrieved as Stripe.Customer
+    if (!(retrieved as Stripe.DeletedCustomer).deleted) {
+      const customer = retrieved as Stripe.Customer
+      if (params.locale != null && customer.preferred_locales?.[0] !== params.locale) {
+        return await stripe.customers.update(customer.id, { preferred_locales: [params.locale] })
+      }
+      return customer
+    }
   }
   const created = await stripe.customers.create({
     metadata: {
       entityId: params.entityId, ...(params.profileId && { profileId: params.profileId }),
       service: params.service,
     },
+    ...(params.locale != null ? { preferred_locales: [params.locale] } : {}),
   })
   if (existing != null) {
     const { deletedAt: _deleted, ...kept } = existing
@@ -74,10 +81,11 @@ const findPrice = async (stripe: Stripe, productSku: string, lookupKey: string):
 const sharedSession = (
   customer: Stripe.Customer, params: CreateLinkParams, product: PaymentProduct,
   plan: PaymentPlan, metadata: Record<string, string>,
-): Pick<Stripe.Checkout.SessionCreateParams, 'customer' | 'success_url' | 'cancel_url' | 'metadata'> => ({
+): Pick<Stripe.Checkout.SessionCreateParams, 'customer' | 'success_url' | 'cancel_url' | 'metadata' | 'locale'> => ({
   customer: customer.id,
   success_url: params.successUrl,
   cancel_url: params.cancelUrl ?? params.successUrl,
+  ...(params.locale != null ? { locale: params.locale as Stripe.Checkout.SessionCreateParams.Locale } : {}),
   metadata: {
     pricingMode: plan.pricingMode ?? CheckoutPricingMode.Quantity,
     currency: (plan.currency ?? 'usd').toLowerCase(),
@@ -191,6 +199,7 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription', line_items: [{ price: price.id, quantity: 1 }],
     ...(subscriptionPaymentMethodTypes != null ? { payment_method_types: subscriptionPaymentMethodTypes } : {}),
+    ...(params.submitText != null ? { custom_text: { submit: { message: params.submitText } } } : {}),
     subscription_data: {
       metadata: {
         pricingMode: CheckoutPricingMode.Quantity, entityId: params.entityId,

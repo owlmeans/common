@@ -2,7 +2,7 @@
 
 The route declaration vocabulary for OwlMeans entrypoints. An app imports it in its shared contract
 package, next to `@owlmeans/entrypoint`, to state for each entrypoint the URL segment, parent,
-HTTP method, app type (backend or frontend) and transport (HTTP, WebSocket or queue). It is not a
+HTTP method, app type (backend or frontend) and transport identifier. It is not a
 router and serves nothing: server binding is `@owlmeans/server-route` / `@owlmeans/server-app`,
 client binding is `@owlmeans/client-route` / `@owlmeans/client-entrypoint`, UI routing is
 `@owlmeans/router`. Application code usually reads addresses through the entrypoint accessors
@@ -16,23 +16,23 @@ context that asks, so the same declaration serves a server and a browser alike.
 ## Installation
 
 ```bash
-bun add @owlmeans/route@^0.1.18-rc.26
+bun add @owlmeans/route@^0.1.18-rc.27
 ```
 
 ## Concepts
 
 - **Declaration** — the `RouteDeclaration` a `route()` call produces: `alias`, `path` (the segment
-  under `parent`), `type`, `method`, `protocol`, the service coordinates, and the queue fields.
+  under `parent`), `type`, `method`, `protocol`, opaque `protocolOptions`, and service coordinates.
 - **Model** — `RouteModel` is `{ route: RouteDeclaration }` and nothing more. `protocol()` and
   `openProtocol()` from `@owlmeans/entrypoint` take it as their first argument.
-- **Marker** — `backend()`, `frontend()`, `socket()`, `job()` return `Partial<RouteOptions>` that set
-  the app type and protocol; `route()` accepts them as its options.
+- **Marker** — `backend()`, `frontend()` and `socket()` return `Partial<RouteOptions>` that set the
+  app type and built-in protocol; a transport package may provide another marker.
 - **Parent** — a route nests under another entrypoint. Pass the parent protocol object
   (`parent: storyProtocols.base`); the declaration stores only its alias.
 - **Service** — `service` names the configured service (`cfg.services`) that answers the route.
   Without it the route belongs to the asking context's own service or the default one of its type.
-- **Protocol** — `RouteProtocols` picks the transport that carries a call: HTTP request, socket
-  frame or queued job. The call site never chooses.
+- **Protocol** — `RouteProtocols` contains the built-in HTTP and WebSocket identifiers. A backend
+  transport package may supply another string identifier and owns its opaque option data.
 
 ## Usage
 
@@ -111,29 +111,24 @@ export const projectProtocols = {
 } as const
 ```
 
-### Sockets, queued jobs and other services
+### Sockets, custom protocols and other services
 
-`socket()` and `job()` are `backend()` with a different protocol. A route pointed at another
-service carries `service`; a queue route also names its `queue`, `timeout` and, optionally, `reply`.
+`socket()` is `backend()` with a different protocol. A route pointed at another service carries
+`service`. Adapter packages may add their own protocol and opaque `protocolOptions`; route does not
+define their semantics.
 
 ```ts
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
-import { job, route, RouteMethod, socket } from '@owlmeans/route'
-import { GUARD_ED25519 } from '@owlmeans/auth-common'
-import type { ProjectParams, StoryUpdate, Story } from './types.js'
+import { route, socket } from '@owlmeans/route'
+import type { ProjectParams, StoryUpdate } from './types.js'
 import { ProjectParamsSchema } from './schemas.js'
 
-const WORKER = 'my-app-worker'
 const aliases = {
   updates: 'my-app:api:update:base',
   story: 'my-app:api:update:story',
-  jobs: 'my-app:worker:story:base',
-  develop: 'my-app:worker:story:develop',
-  cleanup: 'my-app:worker:story:cleanup',
 } as const
 
 const updates = openProtocol(route(aliases.updates, '/update'))
-const jobs = openProtocol(route(aliases.jobs, '/story', { service: WORKER }), { guards: GUARD_ED25519 })
 
 export const storyProtocols = {
   updates,
@@ -142,26 +137,8 @@ export const storyProtocols = {
     route(aliases.story, '/story/:id', socket({ parent: updates })),
     contract.request({ params: typed<ProjectParams>(ProjectParamsSchema) }, typed<StoryUpdate>()),
   ),
-  jobs,
-  // Queued job: the caller waits up to timeout ms for the job's result
-  develop: protocol(
-    route(aliases.develop, '/:id/develop', job({
-      parent: jobs, method: RouteMethod.POST, service: WORKER, queue: 'story-work', timeout: 600_000,
-    })),
-    contract.request({ params: typed<ProjectParams>(ProjectParamsSchema) }, typed<Story>()),
-  ),
-  // reply: false resolves once the broker accepts the job; the outcome is Accepted
-  cleanup: protocol(
-    route(aliases.cleanup, '/:id/cleanup', job({
-      parent: jobs, method: RouteMethod.POST, service: WORKER, queue: 'story-ops', reply: false, timeout: 30_000,
-    })),
-    contract.request({ params: typed<ProjectParams>(ProjectParamsSchema) }, typed<unknown>()),
-  ),
 } as const
 ```
-
-Which queues a process consumes is configuration of that process (`listenQueues()`), never part of
-the declaration.
 
 ### Reading where a route answers
 
@@ -202,16 +179,15 @@ resolveAddress(context, declaration)
 | `backend(opts?, method?)` | function | Mark `AppType.Backend`; `opts` is options, a parent alias or `null`; `method` is a `RouteMethod` or more options |
 | `frontend(opts?, default?)` | function | Mark `AppType.Frontend`; `default` is a boolean flag or more options |
 | `socket(opts?, secondary?)` | function | `backend()` with `protocol: RouteProtocols.SOCKET` |
-| `job(opts?, secondary?)` | function | `backend()` with `protocol: RouteProtocols.QUEUE` |
 | `service(alias, opts?)` | function | Set `service` on `opts` (mutated and returned) |
 | `rtype(type, opts?)` | function | Set an arbitrary `AppType`; the primitive behind `backend()` / `frontend()` |
 | `normalizePath(path)` | function | Trim whitespace and one leading and trailing `/` |
 | `RouteMethod` | enum | `GET = 'get'`, `POST = 'post'`, `PATCH = 'patch'`, `PUT = 'put'`, `DELETE = 'delete'` |
-| `RouteProtocols` | enum | `WEB = 'http'`, `SOCKET = 'ws'`, `QUEUE = 'queue'` |
+| `RouteProtocols` | enum | Generic built-ins: `WEB = 'http'`, `SOCKET = 'ws'` |
 | `SEP` | const | Path separator `'/'` |
 | `PARAM` | const | Path param prefix `':'` |
 | `BasicRoute` | interface | `type`, `service?`, `host?`, `port?`, `base?`, `internalHost?`, `internalPort?` |
-| `RouteDeclaration` | interface | `BasicRoute` + `alias`, `path`, `parent?`, `default?`, `method?`, `protocol?`, `secure?`, `queue?`, `reply?`, `timeout?` |
+| `RouteDeclaration` | interface | `BasicRoute` + `alias`, `path`, `parent?`, `default?`, `method?`, `protocol?`, transport-owned `protocolOptions?`, `secure?`, `timeout?` |
 | `RouteOptions` | interface | `Partial<RouteDeclaration>` whose `parent` is a `RouteParent` |
 | `RouteParent` | type | `string \| EntrypointReference` |
 | `RouteModel` | interface | `{ route: RouteDeclaration }` |
@@ -246,8 +222,8 @@ The first six take `(context, declaration)`; the other four are pure and take no
   overwrites the child's alias. Pass protocols as `{ parent }`.
 - `path` is only this route's segment. Do not repeat the parent's path in it; `resolvePath()` joins
   the chain.
-- `job()` routes must name `service`, `queue` and `timeout`. `reply: false` returns the job identity
-  with an `Accepted` outcome, not the job's result.
+- Custom transport options are opaque here. Validate them through the package that owns the
+  protocol.
 - Do not pass a context to the pure `./utils` helpers: `overrideParams(ctx, decl)` writes route
   fields into the context object instead of resolving anything.
 - A mis-wired tree (no `cfg.services`, a service without a host, a parentship cycle) throws
@@ -264,7 +240,6 @@ The first six take `(context, declaration)`; the other four are pure and take no
 - [`@owlmeans/server-route`](../server-route) — server-side route model; re-exported by
   [`@owlmeans/server-app`](../server-app) as `broute`
 - [`@owlmeans/client-route`](../client-route) — marks a route as client-side and extracts its params
-- [`@owlmeans/queue`](../queue) — the QUEUE transport a `job()` route is carried by
 - [`@owlmeans/socket`](../socket) — the SOCKET transport contracts
 
 <!-- owlmeans:agent-guidance:start -->
@@ -275,7 +250,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.29
+npx @owlmeans/agent-skills@^0.1.18-rc.30
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

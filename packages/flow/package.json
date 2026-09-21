@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/flow",
-  "version": "0.1.18-rc.30",
+  "version": "0.1.18-rc.31",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,11 +21,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.27",
-    "@owlmeans/config": "^0.1.18-rc.29",
-    "@owlmeans/error": "^0.1.18-rc.27",
-    "@owlmeans/i18n": "^0.1.18-rc.28",
-    "@owlmeans/resource": "^0.1.18-rc.27",
+    "@owlmeans/auth": "^0.1.18-rc.28",
+    "@owlmeans/config": "^0.1.18-rc.30",
+    "@owlmeans/error": "^0.1.18-rc.28",
+    "@owlmeans/i18n": "^0.1.18-rc.29",
+    "@owlmeans/resource": "^0.1.18-rc.28",
     "@scure/base": "^2.3.0"
   },
   "devDependencies": {

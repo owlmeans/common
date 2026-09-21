@@ -5,6 +5,28 @@ description: How to cut a release of the OwlMeans Common monorepo — detect whi
 
 # Releasing OwlMeans Common
 
+## The affected dependency closure is the release unit
+
+Never bump or republish the whole monorepo merely to keep package versions uniform. Start with the
+packages whose publishable content changed, then include every transitive dependent whose shipped
+dependency range or content consequently changes. A package outside that affected closure keeps
+its current version and is not published. A package inside it receives an RC bump only when its
+declared version is already present on npm; a new, not-yet-published version is published as-is.
+
+The closure is ready to publish only after this order has converged:
+
+1. bump RC versions for changed packages and affected transitive dependents;
+2. rewrite those versions everywhere they are pinned, including manifests, templates, harnesses,
+   examples, install snippets and other documentation;
+3. install and align every affected lockfile, then rebuild sources from clean generated output;
+4. refresh the package-delivered `agent-meta` skills in **common and internal**, plus the
+   viable-agent template seed, after documentation and pins have their final versions;
+5. re-run the dry-run and consumer checks; only the affected closure may remain in the plan;
+6. with fresh operator approval, publish exactly that closure in dependency order.
+
+If any pin, lockfile, build output or delivered skill changes after the final plan, return to step
+1: that change alters publishable content and may expand the affected closure.
+
 ## Never publish without being told to
 
 **Publishing is irreversible, public, and affects every downstream consumer. Ask the operator and
@@ -44,6 +66,7 @@ bun run scripts/publish.ts --project common --bump rc
 bun run scripts/bump-deps.ts --consumers-of common --no-install
 bun run scripts/bump-deps.ts --pins-only --fix
 bun run scripts/sync-agent-meta.ts --project common
+bun run scripts/sync-agent-meta.ts --project internal
 bun run scripts/sync-agent-meta.ts --project viable-agent --seed-only
 ( cd projects/common && bun run build )
 bun run scripts/publish.ts --project common --dry-run

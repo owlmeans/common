@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useContext } from '@owlmeans/client'
 import { useWs } from '@owlmeans/client-auth'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
-import type { JobEvent, JobRecord } from '@owlmeans/queue'
+import {
+  DEFAULT_JOB_ROOT, JOB_EVENT, jobEntrypointAliases,
+} from '@owlmeans/job'
+import type { JobView, JobViewEvent } from '@owlmeans/job'
 import type { ListResult } from '@owlmeans/resource'
-import { DEFAULT_JOB_ROOT, JOBS, JOB_EVENT } from './consts.js'
-import { jobEntrypointAliases } from './helper.js'
+import { JOBS } from './consts.js'
 import type { Config, Context, JobFeed, JobFeedOptions } from './types.js'
 import { applyJobEvent } from './utils/index.js'
 
@@ -37,8 +39,8 @@ export const useJobFeed = (opts?: JobFeedOptions): JobFeed => {
     let live = true
     void (async () => {
       try {
-        const result = await context.entrypoint<ClientEntrypoint<ListResult<JobRecord>>>(aliases.list)
-          .call<ListResult<JobRecord>>({ query: opts?.query })
+        const result = await context.entrypoint<ClientEntrypoint<ListResult<JobView>>>(aliases.list)
+          .call<ListResult<JobView>>({ query: opts?.query })
         if (!live) {
           return
         }
@@ -59,7 +61,7 @@ export const useJobFeed = (opts?: JobFeedOptions): JobFeed => {
       return
     }
     const store = context.getStateResource(alias)
-    const unsubscribe = connection.observe<JobEvent>(JOB_EVENT, async message => {
+    const unsubscribe = connection.observe<JobViewEvent>(JOB_EVENT, async message => {
       try {
         await applyJobEvent(store, message.payload)
       } catch (e) {

@@ -95,8 +95,8 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
  * What the server tells a parent agent about itself, before any tool is called.
  *
  * It states the workflow and the two rules that are not discoverable from a tool list: that long
- * operations are jobs, and — in the delegated mode — that this session's model calls are the
- * parent's to perform. A parent that read only this could still drive the platform correctly.
+ * operations continue server-side and expose domain statuses, and — in the delegated mode — that
+ * this session's model calls are the parent's to perform.
  */
 export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
   const { host } = deps
@@ -108,17 +108,17 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     '',
     `Mode: target=${host.target}, llm=${host.llm}.`,
     '',
-    'Workflow: describe_capabilities → create_project → wait_for → confirm_project → wait_for →'
-    + ' list_stories → develop_story → wait_for. An application that already exists is brought'
-    + ' onto the same rails instead: convert_project → wait_for → check_convertible →'
+    'Workflow: describe_capabilities → create_project → project_status → confirm_project →'
+    + ' project_status → list_stories → develop_story → story_status. An application that already'
+    + ' exists is brought onto the same rails instead: convert_project → conversion_status → check_convertible →'
     + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
     + ' after the first stage rather than before it.',
     '',
     'Call describe_platform for what this platform can build and which of it this session can'
     + ' drive.',
     '',
-    'Long operations return a JOB and do not block. Poll with wait_for; call it again while the'
-    + ' job is still running.',
+    'Long operations do not block. Read progress with project_status, story_status,'
+    + ' conversion_status, or pipeline_status for the domain you are working in.',
     '',
     'A story\'s status moves through the platform\'s story flow; develop_story is what starts that'
     + ' move, and update_story never changes it.',
@@ -132,14 +132,14 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
         ? 'this session runs the platform\'s model calls on YOUR side.'
         : 'the platform performs its own model calls for stories and free flight, but a'
           + ' CONVERSION\'s are yours by default.')
-      + ' Whenever a job reports "blocked on: model-task", call next_task, run the returned task in'
+      + ' Whenever a domain status reports waiting for a model task, call next_task, run the returned task in'
       + ' a CLEAN subagent at LOW reasoning effort — never in this conversation — and pass its answer'
       + ' to submit_task_result verbatim. Repeat until next_task says there is nothing. Do not'
       + ' summarise, improve or reinterpret an answer.'
     )
     lines.push(
       '',
-      'QUESTIONS: when a job reports "blocked on: question", call next_question, put the question'
+      'QUESTIONS: when a domain status reports waiting for a person, use its pending inquiry or call next_question, put the question'
       + ' to the person you are working for, and send their answer back with answer_question. Do not'
       + ' answer it yourself; if they are unavailable, submit declined: true so the platform records'
       + ' an assumption.'
@@ -161,7 +161,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     lines.push(
       '',
       'The project lives on this machine. The platform writes its files through this server, so do'
-      + ' not edit them yourself while a job is running. Use local_setup_guide for what the'
+      + ' not edit them yourself while a platform run is active. Use local_setup_guide for what the'
       + ' application needs in order to run here.'
     )
   }

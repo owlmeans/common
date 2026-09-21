@@ -9,7 +9,7 @@ the executor with `@owlmeans/server-planning` and reads remotely with `@owlmeans
 ## Installation
 
 ```sh
-bun add @owlmeans/planning@^0.1.18-rc.1 ajv ajv-formats
+bun add @owlmeans/planning@^0.1.18-rc.2 ajv ajv-formats
 ```
 
 ## Concepts
@@ -131,8 +131,6 @@ const links = transitions.reduce(applyRelationship, [])
   `PlanningScopeMismatch`, `PlanningUnsupported`.
 - Schemas: `WorkcardSchema`, `SpecificationSchema`, `TransitionSchema`, `ExecuteRequestSchema`,
   `WorkcardQuerySchema`, … (every record, declaration, request and view).
-- Subpath `@owlmeans/planning/queue`: `PLANNING_PROJECTION_QUEUE`, `PLANNING_PROJECT_JOB`,
-  `declarePlanningQueue`, `ProjectionRequest`.
 
 ## Common pitfalls
 
@@ -150,7 +148,7 @@ const links = transitions.reduce(applyRelationship, [])
 - `@owlmeans/server-planning` — executor, plugin registry, memory store, handlers
 - `@owlmeans/client-planning` — remote facade, state mirror, commit waiting
 - `@owlmeans/resource` — the criteria language
-- `@owlmeans/queue` — the projection queue declared by the `./queue` subpath
+- `@owlmeans/server-planning` — server execution and projection implementations
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -160,7 +158,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.29
+npx @owlmeans/agent-skills@^0.1.18-rc.30
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,8 +1,8 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
   ConnectCapabilities, ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectHarness,
-  ConnectJob, ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission,
-  ConnectPipelineState, ConnectProjectStatus, ConnectSessionView, ConnectTarget, ConversionDecision,
+  ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission,
+  ConnectPipelineState, ConnectProjectStatus, ConnectSessionView, ConnectStoryStatus, ConnectTarget, ConversionDecision,
   ConversionStatusView, ConvertCheck, InquiryAnswerPayload, InquiryPayload, ModelTask,
   ModelTaskResult, SlotCommandPayload,
 } from '@owlmeans/viable-common'
@@ -39,14 +39,17 @@ export interface ConnectorApi {
   submitOp: (sessionId: string, result: ConnectOpResult) => Promise<ConnectOpSubmission>
 
   project: {
-    create: (prompt: string, target?: ConnectTarget) => Promise<ConnectJob>
-    confirm: (projectId: string, edits: ProjectEdits) => Promise<ConnectJob>
+    create: (prompt: string, target?: ConnectTarget) => Promise<ConnectProjectStatus>
+    confirm: (projectId: string, edits: ProjectEdits) => Promise<ConnectProjectStatus>
     list: () => Promise<Array<{ id: string, name: string, alias: string }>>
     status: (projectId: string) => Promise<ConnectProjectStatus>
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>
-    reinit: (projectId: string) => Promise<ConnectJob>
-    modify: (projectId: string, prompt: string) => Promise<ConnectJob>
-    job: (projectId: string, jobId: string, waitSec?: number) => Promise<ConnectJob>
+    reinit: (projectId: string) => Promise<ConnectProjectStatus>
+    modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
+  }
+
+  story: {
+    status: (projectId: string, storyId: string) => Promise<ConnectStoryStatus>
   }
 
   /**
@@ -65,26 +68,23 @@ export interface ConnectorApi {
 
   pipeline: {
     state: (projectId: string, runId: string) => Promise<ConnectPipelineState>
-    resume: (projectId: string, runId: string, args?: { from?: string, force?: boolean }) => Promise<ConnectJob>
+    resume: (projectId: string, runId: string, args?: { from?: string, force?: boolean }) => Promise<ConnectPipelineState>
   }
 
   /**
    * Bringing an application the platform did not generate onto its rails.
    *
-   * Every state-changing verb answers with a JOB, exactly as the project ones do: a conversion
-   * stage reads a whole repository and takes minutes, and a call that blocked for one would be
-   * reported to the user as a broken server. `check` and `status` are the two reads — the first
-   * answered from a census before anything is provisioned or charged, the second the whole
-   * conversion in one view.
+   * State-changing verbs return the conversion's current domain status. Long-running work remains
+   * server-side and is observed through `status`; broker records are never part of this API.
    */
   convert: {
-    create: (args: ConnectConvertCreateBody) => Promise<ConnectJob>
+    create: (args: ConnectConvertCreateBody) => Promise<ConversionStatusView>
     check: (projectId: string) => Promise<ConvertCheck>
-    start: (projectId: string) => Promise<ConnectJob>
-    proceed: (projectId: string, decision: ConversionDecision, note?: string) => Promise<ConnectJob>
-    cancel: (projectId: string) => Promise<ConnectJob>
+    start: (projectId: string) => Promise<ConversionStatusView>
+    proceed: (projectId: string, decision: ConversionDecision, note?: string) => Promise<ConversionStatusView>
+    cancel: (projectId: string) => Promise<ConversionStatusView>
     status: (projectId: string) => Promise<ConversionStatusView>
-    purge: (projectId: string) => Promise<ConnectJob>
+    purge: (projectId: string) => Promise<ConversionStatusView>
   }
 
   /**

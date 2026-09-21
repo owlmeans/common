@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-payment",
-  "version": "0.1.18-rc.12",
-  "generatedAt": "2026-09-18T19:43:28.483Z",
+  "version": "0.1.18-rc.13",
+  "generatedAt": "2026-09-19T13:42:56.261Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

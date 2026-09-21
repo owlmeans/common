@@ -209,47 +209,12 @@ export enum ModelTaskRole {
   Tool = 'tool',
 }
 
-/** The KIND of thing a job is, so a parent can be told what it is waiting for. */
-export enum ConnectJobKind {
-  ProjectCreate = 'project-create',
-  ProjectInit = 'project-init',
-  ProjectReinit = 'project-reinit',
-  StoryDevelop = 'story-develop',
-  FreeFlight = 'free-flight',
-  PipelineResume = 'pipeline-resume',
-  /**
-   * The four stages of a conversion, plus the purge.
-   *
-   * One kind per stage rather than one for the whole conversion: each stage is its own platform
-   * pipeline run, ends at a decision the user makes, and is looked up by the pipeline alias its
-   * kind names. A single `convert` kind would match whichever run row happened to be newest.
-   */
-  ConvertIntake = 'convert-intake',
-  ConvertAnalysis = 'convert-analysis',
-  ConvertExtraction = 'convert-extraction',
-  ConvertImplementation = 'convert-implementation',
-  ConvertPurge = 'convert-purge',
-}
-
-export enum ConnectJobStatus {
-  Queued = 'queued',
-  Running = 'running',
-  /** Running, but waiting on the connector — see `ConnectJob.blockedOn`. */
-  Blocked = 'blocked',
-  Done = 'done',
-  Failed = 'failed',
-}
-
-/** What a blocked job is waiting for. */
-export enum ConnectJobBlock {
-  /** Model tasks are queued and nobody is answering them. */
+/** Why a domain operation cannot currently advance. */
+export enum ConnectWaitReason {
+  Person = 'person',
   ModelTask = 'model-task',
-  /** Slot commands are queued and no connector is attached. */
-  LocalOp = 'local-op',
-  /** The local target has no database configured and the run needs one. */
-  Env = 'env',
-  /** A question is waiting for a person and nobody has answered it. */
-  Question = 'question',
+  LocalConnector = 'local-connector',
+  Environment = 'environment',
 }
 
 /**
@@ -398,10 +363,8 @@ export const RES_CONNECT_SESSION = 'connect-session'
  * the tree would be a second place for a name to drift. The platform spreads the declarations
  * these produce into its own entrypoint list and binds handlers onto them.
  *
- * There is no story group. A user story is a planning CARD, read and written through the planning
- * protocol tree the platform mounts beside this one (`makePlanningProtocols` in
- * `@owlmeans/planning`) — one surface for the browser and a connector alike, so a story rule the
- * platform enforces cannot be enforced on one of them only.
+ * Story mutations use the planning CARD surface. The connector story status route composes that
+ * card with its pipeline run and pending inquiry without creating a second mutation path.
  */
 export const connect = Object.freeze({
   base: 'viable:manager-api:connect:base',
@@ -430,7 +393,9 @@ export const connect = Object.freeze({
     llm: 'viable:manager-api:connect:project:llm',
     /** The per-project converter inference mode. Separate from `llm`: it is not a paid capability. */
     converterLlm: 'viable:manager-api:connect:project:converter-llm',
-    job: 'viable:manager-api:connect:project:job',
+  }),
+  story: Object.freeze({
+    status: 'viable:manager-api:connect:story:status',
   }),
   convert: Object.freeze({
     create: 'viable:manager-api:connect:convert:create',

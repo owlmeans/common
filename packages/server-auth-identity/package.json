@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-auth-identity",
-  "version": "0.1.18-rc.29",
+  "version": "0.1.18-rc.30",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,14 +22,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.27",
-    "@owlmeans/auth-common": "^0.1.18-rc.29",
-    "@owlmeans/basic-ids": "^0.1.18-rc.26",
-    "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.28",
-    "@owlmeans/oidc": "^0.1.18-rc.37",
-    "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/server-context": "^0.1.18-rc.28"
+    "@owlmeans/auth": "^0.1.18-rc.28",
+    "@owlmeans/auth-common": "^0.1.18-rc.30",
+    "@owlmeans/basic-ids": "^0.1.18-rc.27",
+    "@owlmeans/context": "^0.1.18-rc.26",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.29",
+    "@owlmeans/oidc": "^0.1.18-rc.38",
+    "@owlmeans/resource": "^0.1.18-rc.28",
+    "@owlmeans/server-context": "^0.1.18-rc.29"
   },
   "peerDependencies": {
     "mongodb": "*"

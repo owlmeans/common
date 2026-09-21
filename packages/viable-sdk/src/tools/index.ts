@@ -1,5 +1,5 @@
 export * from './types.js'
-export * from './jobs.js'
+export * from './status.js'
 export * from './refusal.js'
 export * from './platform.js'
 export * from './stories.js'

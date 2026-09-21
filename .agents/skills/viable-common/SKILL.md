@@ -1,13 +1,13 @@
 ---
 name: viable-common
-description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers the planning module (the viable project, user-story and specification types over @owlmeans/planning, their two status flows, fields, slots, code policies, relationships and the write channel), the project and story refusals, the slot command vocabulary and target layouts, the target-shape integrity manifest, the connector protocol and its job ids, the conversion vocabulary, the analysis/design/metadata shapes a generated project is described by, the StoryDesignPort, the schema conventions every model answer and stored record here is written to, and the version-skew rule a name on the wire obeys. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
+description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows, project/story refusals, slot commands and layouts, target integrity, connector domain statuses, conversion vocabulary, generated-project analysis/design/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
 user-invocable: false
 ---
 
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.24"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.25"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/resource`,
@@ -26,7 +26,7 @@ refusal two spellings, and one ceiling two values.
 |---|---|
 | `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`); `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; `ViableSkill` / `ViablePersona` / `VIABLE_SKILLS`; the BA, dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` sets, `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectJobKind`/`Status`/`Block`, `jobIdOf` / `parseJobId` / `JOB_SEPARATOR`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session/job/status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`Shape`/`State`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`Reason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
 
@@ -56,7 +56,7 @@ flowless card, which is why a document runs the one-status `viable:spec` flow.
 ### The two flows
 
 Story flow — the keys are the strings a story has always carried, and they are wire contracts:
-the `docs/stories/<code>.md` frontmatter, the connector's job-status mapping, the board columns,
+the `docs/stories/<code>.md` frontmatter, the connector's story-status mapping, the board columns,
 their i18n keys and every end-to-end selector read them. A key is never renamed.
 
 | Status | Intrinsic | Tone |
@@ -221,7 +221,7 @@ in a design, a slot or a connector schema:
   provider or a collection validator.
 
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.20` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.21` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
@@ -249,10 +249,11 @@ card into the names a parent agent reads (`name` = title, `alias` = code, the th
 plus the card's `status` and `intrinsic` as plain strings, and `ConnectConfirmBody` carries the
 three brief parts including `designSystem`.
 
-A job id is composed and split only by `jobIdOf(kind, projectId, suffix?)` / `parseJobId`, joined
-with `JOB_SEPARATOR` (`~` — aliases and run ids already use `:`). The SDK composes the id it then
-polls and the manager answers it, so the helper lives here. A story job's suffix is the story CARD
-id, which is also what `ConnectJob.storyId` holds.
+Long work is read through the domain that owns it: `ConnectProjectStatus`, `ConnectStoryStatus`,
+`ConversionStatusView` and `ConnectPipelineState`. Each view composes its current card/record, run,
+pending inquiry and `waitingFor` reason; none exposes a generic technical operation identity. Add a
+new long-running domain by extending its status view and endpoint, not by adding a parallel polling
+vocabulary.
 
 ## Closed sets that mean something
 

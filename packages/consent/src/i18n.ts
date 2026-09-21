@@ -8,6 +8,7 @@ import be from './i18n/be.json' with { type: 'json' }
 import uk from './i18n/uk.json' with { type: 'json' }
 import es from './i18n/es.json' with { type: 'json' }
 import de from './i18n/de.json' with { type: 'json' }
+import fr from './i18n/fr.json' with { type: 'json' }
 
 /**
  * The dialog's copy, in the box.
@@ -18,7 +19,7 @@ import de from './i18n/de.json' with { type: 'json' }
  * overrides every one of these.
  */
 export const DEFAULT_CONSENT_MESSAGES: Record<ConsentLocale, Record<string, string>> = {
-  en, pl, ru, be, uk, es, de,
+  en, pl, ru, be, uk, es, de, fr,
 }
 
 export const normalizeLocale = (locale?: string): ConsentLocale => {

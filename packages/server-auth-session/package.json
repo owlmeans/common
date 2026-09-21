@@ -21,10 +21,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/redis-resource": "^0.1.18-rc.28",
-    "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/server-context": "^0.1.18-rc.28"
+    "@owlmeans/context": "^0.1.18-rc.26",
+    "@owlmeans/redis-resource": "^0.1.18-rc.29",
+    "@owlmeans/resource": "^0.1.18-rc.28",
+    "@owlmeans/server-context": "^0.1.18-rc.29"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

@@ -61,8 +61,8 @@ export interface BlueprintCaseDefinition {
 /** What every AI case installs. The langchain peers are declared here, at ONE range. */
 const AI_DEPS = {
   [SubProject.Backend]: {
-    '@owlmeans/llm': '^0.1.18-rc.29',
-    '@owlmeans/agent': '^0.1.18-rc.30',
+    '@owlmeans/llm': '^0.1.18-rc.30',
+    '@owlmeans/agent': '^0.1.18-rc.31',
     '@langchain/core': '^1.2.9',
     '@langchain/anthropic': '^1.5.8',
     '@langchain/openai': '^1.5.10',
@@ -214,7 +214,7 @@ in advance.
         deps: {
           [SubProject.Backend]: {
             ...AI_DEPS[SubProject.Backend],
-            '@owlmeans/agent-skills': '^0.1.18-rc.28',
+            '@owlmeans/agent-skills': '^0.1.18-rc.30',
           },
         },
         libraries: AI_LIBRARIES,

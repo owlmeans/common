@@ -18,6 +18,10 @@ optional:
 | `@owlmeans/web-gtm` | Web | the tag-manager loader and its head snippet |
 | `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language, plus a menu-row widget and a ref-counted presence service so a host's own collapsed menu can take over the floating button's job |
 
+`CONSENT_LOCALES` may include an application-specific locale beyond `SUPPORTED_LNGS` when the core
+package ships its complete built-in copy. The manager’s French locale follows this rule; do not
+expand the reusable i18n package’s global language list for one application.
+
 ## Why it is not in `web-panel`
 
 One of the three surfaces this serves is an Astro site that vendors its own component library.

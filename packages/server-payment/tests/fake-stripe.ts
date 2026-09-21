@@ -352,6 +352,12 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
         state.customers[customer.id] = customer
         return structuredClone(customer)
       },
+      update: async (id: string, params: Rec) => {
+        call('customers.update')
+        const customer = find(state.customers, id, 'customer')
+        Object.assign(customer, params)
+        return structuredClone(customer)
+      },
     },
     checkout: {
       sessions: {

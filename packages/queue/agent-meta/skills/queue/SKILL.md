@@ -8,19 +8,20 @@ user-invocable: false
 # @owlmeans/queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/queue": "^0.1.18-rc.23"` in `dependencies`
+**Install:** `"@owlmeans/queue": "^0.1.18-rc.24"` in `dependencies`
 
-Contracts only. It carries no broker code — a driver package (`@owlmeans/redis-queue`) implements
-them. Depend on this one from a shared contract package; depend on the driver only where the
+Backend transport contracts only. It carries no broker code — a driver package
+(`@owlmeans/redis-queue`) implements them. Depend on this one from a shared backend package;
+generic common and frontend packages must not import it. Depend on the driver only where the
 application wires itself up.
 
 ## The one idea
 
-A queued call is an immutable entrypoint protocol whose route names `RouteProtocols.QUEUE`.
+A queued call is an immutable entrypoint protocol whose route names `QUEUE_PROTOCOL`.
 Ordinary calls use `ctx.entrypoint(protocol).call(request)`. Code that needs broker options or a
 job handle uses `enqueueProtocol(ctx, protocol, request, options)` and
 `waitForProtocol(ctx, protocol, job)`. Both derive queue and job name from the protocol object and
-preserve its exact request/reply pair; raw strings and non-QUEUE declarations are rejected.
+preserve its exact request/reply pair; raw strings and non-queue declarations are rejected.
 
 That is what makes it worth having: moving a service-to-service call onto the broker is a change
 to a declaration, not to the places that call it, and the broker holds the work across a restart of
@@ -59,6 +60,9 @@ protocol(
   contract.request({ params: typed<StoryParams>(StoryParamsSchema) }, typed()),
 )
 ```
+
+Import `job`, `QUEUE_PROTOCOL`, `isQueueRoute` and `queueRouteOptions` from `@owlmeans/queue`.
+The generic route package deliberately knows none of the queue option shape.
 
 The alias appears in `declareQueue(...jobs)` only because the broker is a string-keyed adapter.
 Application producers and handlers keep the protocol object.
@@ -241,7 +245,7 @@ listens to, grouped by queue, which is what a driver binds.
 
 - `@owlmeans/context` — service registration and the middleware stage
 - `@owlmeans/entrypoint` — the transport seam and the served-entrypoint dispatch
-- `@owlmeans/route` — `RouteProtocols.QUEUE` and the `job()` builder
+- `@owlmeans/route` — the generic declaration model that `QUEUE_PROTOCOL` and `job()` extend
 - `@owlmeans/resource` — the `Resource` contract jobs are read through
 - `@owlmeans/auth` / `@owlmeans/auth-common` — guarding a queued call and attaching its entity
 - `@owlmeans/error` — marshalling a refusal across the hop

@@ -1,23 +1,17 @@
 import { declareQueue } from '@owlmeans/queue'
 import type { Config, JobOptions, QueueWorkerOptions } from '@owlmeans/queue'
 
-/**
- * The projection queue — a separate subpath so a browser bundle importing `@owlmeans/planning`
- * never pulls `@owlmeans/queue`.
- *
- * The projection is a BARE processor, not a queued entrypoint: a queued entrypoint names one
- * service, and the same queue is served by every process that folds.
- */
+/** The server-side queue used to project planning transitions. */
 export const PLANNING_PROJECTION_QUEUE = 'planning-projection'
 
-/** The one job the projection queue accepts. */
+/** The processor name accepted by the planning projection queue. */
 export const PLANNING_PROJECT_JOB = 'planning:project'
 
 /** What one projection job folds. */
 export interface ProjectionRequest {
   cardId: string
   entityId: string
-  /** The transition that asked for it — a hint, never the fold's bound. */
+  /** The transition that requested projection; it is a hint rather than a fold bound. */
   transition?: string
 }
 
@@ -26,6 +20,6 @@ export interface PlanningQueueOptions {
   defaults?: JobOptions
 }
 
-/** Declare the projection queue in the SHARED config; `listenQueues` stays each process's own. */
+/** Declare the shared projection address; each process separately chooses whether to listen. */
 export const declarePlanningQueue = <C extends Config>(cfg: C, opts?: PlanningQueueOptions): C =>
   declareQueue(cfg, PLANNING_PROJECTION_QUEUE, [PLANNING_PROJECT_JOB], opts)

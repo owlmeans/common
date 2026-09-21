@@ -1,6 +1,6 @@
-import { ConnectJobBlock, ConnectJobKind, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
+import { ConnectLlm, ConnectTarget, ConnectWaitReason } from '@owlmeans/viable-common'
 
-import { JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, TOOL_DEADLINE_MS } from '../consts.js'
+import { NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
 import type { ToolHost } from './types.js'
 
@@ -22,9 +22,7 @@ export interface PlatformPipeline {
   /** Whether a crashed run is picked up where it stopped rather than started over. */
   resumable: boolean
   /** What a run of it can stop and wait for. */
-  blocks?: ConnectJobBlock[]
-  /** The job kind a parent polls it under, where it has one. */
-  jobKind?: ConnectJobKind
+  waitsFor?: ConnectWaitReason[]
 }
 
 /**
@@ -49,7 +47,6 @@ export interface PlatformCatalogue {
   capabilities: PlatformCapability[]
   limits: {
     toolDeadlineMs: number
-    jobPollMaxSec: number
     nextTaskWaitMs: number
     nextQuestionWaitMs: number
   }
@@ -61,9 +58,8 @@ export interface PlatformCatalogue {
  *
  * STATIC on purpose: `describe_platform` is the one tool that must answer before a token is valid
  * for anything, because it is what a parent reads to decide whether to use the platform at all.
- * Every pipeline a parent can poll for has an entry — the list is checked against
- * {@link ConnectJobKind}, so a job kind added without a description here fails a test rather than
- * reaching a parent as a job it cannot interpret.
+ * Every pipeline a parent can observe has an entry, with the domain status tool named by its
+ * capability group.
  */
 export const PLATFORM_CATALOGUE: PlatformCatalogue = {
   pipelines: [
@@ -74,7 +70,6 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' built and no code is generated until the draft is confirmed.',
       startedBy: ['create_project'],
       resumable: false,
-      jobKind: ConnectJobKind.ProjectCreate,
     },
     {
       id: 'vib:project:init',
@@ -86,8 +81,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         'template', 'dependencies', 'serve', 'styles', 'metadata', 'primary', 'scaffold', 'build',
       ],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp, ConnectJobBlock.Env],
-      jobKind: ConnectJobKind.ProjectInit,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector, ConnectWaitReason.Environment],
     },
     {
       id: 'vib:project:reinit',
@@ -96,8 +90,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' and reset to planned; configuration and git history survive.',
       startedBy: ['reinitialize_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ProjectReinit,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:story:develop',
@@ -107,8 +100,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       startedBy: ['develop_story'],
       stages: ['design', 'implement', 'widget', 'boot gate'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.StoryDevelop,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'free flight',
@@ -117,17 +109,15 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' a styling pass. For anything that is not a user story.',
       startedBy: ['modify_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.FreeFlight,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'resume',
       title: 'Continue a run that stopped',
       what: 'Picks a crashed or interrupted run up at the step it stopped on rather than starting'
-        + ' it over. Answers a job of the run it resumed.',
+        + ' it over. Answers with the resumed pipeline status.',
       startedBy: ['resume_pipeline'],
       resumable: true,
-      jobKind: ConnectJobKind.PipelineResume,
     },
     {
       id: 'vib:project:convert:intake',
@@ -136,8 +126,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' much of it can be converted and what that will cost. Ends at your decision.',
       startedBy: ['convert_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertIntake,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:analysis',
@@ -146,8 +135,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' main flow the platform would have written for it, then bootstraps a target around it.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertAnalysis,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:extraction',
@@ -156,8 +144,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' to an area, and prices implementing them.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertExtraction,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:implementation',
@@ -166,8 +153,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' beside it as evidence.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertImplementation,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'purge',
@@ -176,7 +162,6 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' conversion documents so they stop quoting them. Cannot be undone.',
       startedBy: ['purge_origin'],
       resumable: false,
-      jobKind: ConnectJobKind.ConvertPurge,
     },
   ],
 
@@ -206,11 +191,11 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     },
     {
       id: 'runs',
-      title: 'Runs and jobs',
-      what: 'Poll a job, read where a run stopped, continue it, and see what this connector is'
+      title: 'Runs and statuses',
+      what: 'Read where a run stopped, continue it, and see what this connector is'
         + ' currently doing.',
-      tools: ['wait_for', 'pipeline_status', 'resume_pipeline', 'session_status'],
-      absent: 'no job tools are offered here',
+      tools: ['pipeline_status', 'resume_pipeline', 'session_status'],
+      absent: 'no run tools are offered here',
     },
     {
       id: 'free-flight',
@@ -282,7 +267,6 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
 
   limits: {
     toolDeadlineMs: TOOL_DEADLINE_MS,
-    jobPollMaxSec: JOB_POLL_MAX_SEC,
     nextTaskWaitMs: NEXT_TASK_WAIT_MS,
     nextQuestionWaitMs: NEXT_QUESTION_WAIT_MS,
   },
@@ -350,11 +334,10 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
     )
     if (pipeline.stages != null) lines.push(`    steps: ${pipeline.stages.join(' → ')}`)
     lines.push(
-      `    ${pipeline.resumable ? 'resumable — resume_pipeline continues it' : 'not resumable'}`
-      + (pipeline.jobKind != null ? ` · job kind: ${pipeline.jobKind}` : ''),
+      `    ${pipeline.resumable ? 'resumable — resume_pipeline continues it' : 'not resumable'}`,
     )
-    if (pipeline.blocks != null && pipeline.blocks.length > 0) {
-      lines.push(`    may block on: ${pipeline.blocks.join(', ')}`)
+    if (pipeline.waitsFor != null && pipeline.waitsFor.length > 0) {
+      lines.push(`    may wait for: ${pipeline.waitsFor.join(', ')}`)
     }
   }
 
@@ -385,9 +368,8 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
   lines.push(
     '',
     'LIMITS',
-    `  every tool answers within ${Math.round(catalogue.limits.toolDeadlineMs / 1000)}s — anything`
-    + ' longer is a job you poll',
-    `  wait_for holds for at most ${catalogue.limits.jobPollMaxSec}s per call`,
+    `  every tool answers within ${Math.round(catalogue.limits.toolDeadlineMs / 1000)}s — long work`
+    + ' continues server-side and is read through its domain status tool',
     // Named only where the tool is offered: a limit for a call that is not in the list is an
     // invitation to make it.
     ...(has('next_task')

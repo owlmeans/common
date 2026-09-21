@@ -9,7 +9,7 @@ import { ModerationCategory } from '@owlmeans/viable-common'
  * in the platform's `viable-common`, the converter's own in `@owlmeans/viable-converter` — so an
  * `instanceof` here is impossible, and `ResilientError.ensure` rebuilds an unregistered class as a
  * bare error carrying the whole marshalled string. The same rule the browser follows for the same
- * reason: a refusal arrives thrown from a call AND stored as text on a job that failed, and only
+ * reason: a refusal arrives thrown from a call AND stored as text on a run that failed, and only
  * the marker survives both.
  */
 export interface RefusalPhrase {
@@ -142,7 +142,7 @@ export const REFUSALS: RefusalPhrase[] = [
       + ' was declined, so the conversion stopped here. Start it again and answer yes when it asks.',
   },
 
-  // ── A conversion refused by the converter itself, usually reaching a parent on a failed job ──
+  // ── A conversion refused by the converter itself, usually reaching a parent on a failed run ──
   {
     marker: 'viable-converter:not-convertible:',
     phrase: reason => `The origin is not an application this platform can convert${aside(reason)}.`,
@@ -245,7 +245,7 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'planning:illegal-transition:',
     phrase: move => `That move is not open from the status the story is in${aside(move)}. A story in`
-      + ' progress is already being developed — poll its job with wait_for; a completed one is reset'
+      + ' progress is already being developed — read story_status; a completed one is reset'
       + ' in the web application before it is developed again. story_status says where it stands.',
   },
   {
@@ -295,7 +295,7 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'viable-project:agent:occupied:',
     phrase: verb => `The platform is already working on this project${aside(verb)}.`
-      + ' Poll the running job with wait_for and ask again once it settles.',
+      + ' Read project_status and ask again once it settles.',
   },
   {
     // Spelled with its package prefix, unlike every marker above: `locked:` alone is a substring of
@@ -303,7 +303,7 @@ export const REFUSALS: RefusalPhrase[] = [
     // this sentence.
     marker: 'viable-agent-common:locked:',
     phrase: task => `The platform holds this project's lock${aside(task)}.`
-      + ' Poll the running job with wait_for and ask again once it settles.',
+      + ' Read project_status and ask again once it settles.',
   },
   {
     marker: 'git-busy:',
@@ -405,7 +405,7 @@ const baseConverted = (e: ResilientError): boolean => {
  * `ResilientError.ensure` rebuilds a class this process never registered by putting the whole
  * marshalled string in `type` and its own local STACK in `message` — and every refusal the
  * platform raises is such a class, since they are declared in packages the SDK does not depend on.
- * So the marker can be in either field, and a stored `job.error` carries it as a bare string.
+ * So the marker can be in either field, and a stored run error carries it as a bare string.
  *
  * {@link baseConverted} is asked FIRST, because that rebuild is the one shape where the stack sits
  * outside the marshalling and the fields are swapped: everything below reads `message` as text and
@@ -431,7 +431,7 @@ const textOf = (e: unknown): string => {
  * marker names the refusal even when no sentence has been written for it yet.
  *
  * Text that was never marshalled is returned exactly as it is. A stack only ever arrives inside
- * the marshalling, and the same field carries things that are not refusals at all — a job's
+ * the marshalling, and the same field carries things that are not refusals at all — a run's
  * `error` doubles as the build warning a slot recorded, and cutting that at the first line that
  * looks like a stack frame would throw away the diagnostics somebody asked for.
  */

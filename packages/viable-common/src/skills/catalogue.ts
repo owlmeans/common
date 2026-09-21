@@ -82,9 +82,6 @@ export const ALIAS_CONVENTION = `
   \`web:layout:\` alias and no \`app.web.layout\` — writing either addresses nothing.
 - An endpoint alias is \`api:<entity>:<action>\` — \`api:task:list\`, \`api:task:create\`. The
   group alias that carries the shared path and guard is \`api:<entity>\` — \`api:task\`.
-- A queued job alias is \`job:<entity>:<action>\` — \`job:report:build\`, \`job:contract:analyze\`.
-  A job is never given a \`web:\` or \`api:\` alias, and an endpoint is never given a \`job:\` one:
-  the prefix is what says which side serves it.
 - Lowercase kebab-case in every segment. The prefix is NOT optional and NOT decorative: access
   rules are applied per side by it.
 `.trim()
@@ -103,11 +100,12 @@ The generated project is a \`@owlmeans/create-app\` monorepo with five workspace
 - \`sources/web\` — the react application.
 - \`sources/worker\` — the queue consumer. Same context, no HTTP routes, one processor per job.
 
-These files are the CONTRACT between the packages. Every screen, endpoint and job passes through
-them, and each has a sentinel comment marking where a new line goes:
+These files are the CONTRACT between the public packages. Every screen and endpoint passes through
+them; technical worker protocols live in the backend package instead:
 
 - \`sources/common/src/consts.ts\` — the \`app\` alias tree.
 - \`sources/common/src/entrypoints.ts\` — the shared immutable protocol tree (\`appEntrypoints\`).
+- \`sources/backend/src/jobs/index.ts\` — backend-only queue protocols and declarations.
 - \`sources/api/src/entrypoints.ts\` — server bindings: \`bind\` + one \`handlers<Context>()\` wrap
   per handler.
 - \`sources/web/src/entrypoints.ts\` — client bindings (\`bindAll\` + \`bindScreen\`).
@@ -1390,25 +1388,34 @@ the work is invisible and the user is left pressing a button that appears to do 
   `),
 
   skill(ViableSkill.WorkerJobs, 'Queues, jobs and processors', `
-Three files have to agree, and a job that exists in two of the three is worse than one that
+Three server-side bindings have to agree, and a job that exists in two of the three is worse than one that
 exists in none — a declared name nothing processes is a message that piles up, and a processor
 with no declaration is dead code the barrel still imports.
 
-## 1. The queue — \`sources/backend/src/jobs/index.ts\`
+## 1. The protocol and queue — \`sources/backend/src/jobs/index.ts\`
 A queue is an ADDRESS: it says what exists and which job names it accepts. Both the api (which
 enqueues) and the worker (which consumes) read this one list, and a job name the queue does not
-declare is refused at enqueue time.
+declare is refused at enqueue time. The technical protocol belongs here too; common and web must
+not import it.
 
 \`\`\`ts
+export const jobProtocols = {
+  reportBuild: protocol(route(
+    'job:report:build', '/report-build',
+    queueRoute({ service: APP_WORKER, queue: APP_QUEUE, timeout: 30_000 }),
+  ), contract(typed())),
+}
 export const queues: QueueDeclaration[] = [
-  { name: APP_QUEUE, jobs: [app.job.test, app.job.<name>],
+  { name: APP_QUEUE, jobs: [jobProtocols.reportBuild.alias],
     worker: { concurrency: 4, lockDuration: 60_000 } },
 ]
 \`\`\`
 
-## 2. The alias and the entrypoint — \`sources/common/src\`
-The job's name IS its entrypoint alias. Declare \`app.job.<name>\` in \`consts.ts\` above the
-sentinel, and the protocol in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
+Use \`job()\` from \`@owlmeans/queue\`, never from the generic route package.
+
+## 2. The producer — \`sources/api/src/entrypoints.ts\`
+Bind \`bindClient(jobProtocols.reportBuild)\`. Public API contracts in common describe the domain
+operation and do not disclose that the handler delegates to a queue.
 
 ## 3. The processor — \`sources/worker/src/jobs/<name>.ts\`
 A PLAIN exported async function — named exports only, exactly like an endpoint handler. It never
@@ -1421,7 +1428,7 @@ imports \`handlers\` and never calls \`handlers<Context>()\`; that belongs only 
     // sources/worker/src/entrypoints.ts — the ONLY wrap
     import * as jobs from '@/jobs/index.js'
     const worker = handlers<Context>()
-    bind(protocols.job.reportBuild, worker.request(protocols.job.reportBuild, jobs.handleReportBuildJob))
+    bind(jobProtocols.reportBuild, worker.request(jobProtocols.reportBuild, jobs.handleReportBuildJob))
 
 WRONG — the processor module ALSO calls \`handlers()\` and wraps itself, so the export bound above
 is wrapped a SECOND time. \`tsc\` catches it (\`TS2345 "BoundEntrypointHandler<…> is not
@@ -1430,7 +1437,7 @@ function\`:
 
     // WRONG — sources/worker/src/jobs/report-build.ts
     const worker = handlers<Context>()
-    export const handleReportBuildJob = worker.request(protocols.job.reportBuild, async (req, ctx) => { ... })
+    export const handleReportBuildJob = worker.request(jobProtocols.reportBuild, async (req, ctx) => { ... })
 
 It RETURNS its result; throwing a \`ResilientError\` subclass is how a refusal is reported, and the
 class survives the broker.
@@ -1443,7 +1450,7 @@ Two rules with no equivalent on the HTTP side:
   what it created, and say in a comment which of the two this one does.
 
 Enqueue from an endpoint with the same typed call used for HTTP:
-\`context.entrypoint(appEntrypoints.job.<name>).call({ body: data })\`.
+\`context.entrypoint(jobProtocols.<name>).call({ body: data })\`.
   `),
 
   skill(ViableSkill.TargetAgents, 'LLM agents inside the application', `
