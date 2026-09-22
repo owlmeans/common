@@ -64,7 +64,16 @@ Two rules the shape enforces:
 - **Pass no `gtm` and it is still the consent defaults.** A site with no tag manager at all still
   wants them on the queue: a stored decision has to reach whatever the page loads later, and a page
   that declared nothing is a page where a later tag sees no state. `noscript` comes back empty in
-  that case, so the `<noscript>` element renders only when there is a container to frame.
+  that case too, so the `<noscript>` element renders only when there is a container both configured
+  AND emitting one — which, by default, a container in `@owlmeans/web-gtm`'s gated `'basic'` mode
+  never does (see below), so most sites now see an always-empty `noscript`.
+
+`owlHeadScripts` never forces `GtmOptions.mode`, so a configured `gtm` inherits
+`@owlmeans/web-gtm`'s `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`) automatically: the container is still
+composed into `head` — the ORDER guarantee above holds regardless of mode — but its own loader
+does not run until a visitor's stored or later decision grants a signal-bearing category, and
+`gtmNoscriptFrame` returns `''` rather than an iframe nothing has been granted for. Pass
+`gtm: { ..., mode: 'advanced' }` for the old, unconditional load and its non-empty `noscript`.
 
 `consent` options are merged into the container snippet, so a site with its own category set or
 storage key passes them here as well as to the dialog — otherwise the inline snippet and the

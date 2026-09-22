@@ -50,6 +50,13 @@ the terms are confirmed, what the credit line says, and a `select` that is delib
 (the flow may have to open a window inside the click). The rendering lives in `web-panel` — the
 same split the form and navigation models already use. See `login-methods`.
 
+`LoginTermsModel.terms` carries `documents` and `notices` (each `ResolvedTermsDocument[]` from
+`@owlmeans/client-auth/login`) rather than a flat `urls: { terms, privacy, cookies? }` — that field
+is gone; nothing in the repo read it outside this model and its one renderer, so it was dropped
+rather than kept alongside the replacement. It also carries `revisedAt?` and `version`. A renderer
+turns `documents`/`notices` into markup with `termsSentence` (`@owlmeans/client-auth/login`), never
+by re-deriving link/label pairs itself.
+
 ## Usage
 
 ```typescript

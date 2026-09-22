@@ -1,0 +1,62 @@
+{
+  "group": {
+    "communications": {
+      "title": "Komunikacja",
+      "description": "Jak się z Tobą kontaktujemy."
+    },
+    "data": {
+      "title": "Wykorzystanie danych",
+      "description": "Jak Twoje dane są wykorzystywane i udostępniane."
+    },
+    "trackers": {
+      "title": "Narzędzia śledzące",
+      "description": "Technologie analityczne i reklamowe."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Oferty i aktualności e-mail",
+        "description": "Nowości o produkcie, oferty i aktualności e-mailem."
+      },
+      "sms": {
+        "label": "Wiadomości SMS",
+        "description": "Oferty i aktualności w wiadomościach tekstowych."
+      },
+      "phone": {
+        "label": "Połączenia telefoniczne",
+        "description": "Oferty i aktualności podczas rozmowy telefonicznej."
+      },
+      "push": {
+        "label": "Powiadomienia push",
+        "description": "Oferty i aktualności w formie powiadomień push."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Personalizacja",
+        "description": "Wykorzystanie Twojej aktywności do personalizacji tego, co widzisz."
+      },
+      "partners": {
+        "label": "Udostępnianie partnerom",
+        "description": "Udostępnianie Twoich danych wybranym partnerom do ich własnych celów marketingowych."
+      }
+    },
+    "trackers": {
+      "analytics": {
+        "label": "Pliki cookie analityczne",
+        "description": "Pliki cookie pomagające zrozumieć, jak korzysta się z produktu."
+      },
+      "advertising": {
+        "label": "Pliki cookie reklamowe",
+        "description": "Pliki cookie służące do mierzenia i personalizowania reklam."
+      }
+    }
+  },
+  "link": {
+    "default": "Dowiedz się więcej"
+  },
+  "errors": {
+    "unknown": "Nieznana zgoda: {{key}}"
+  }
+}

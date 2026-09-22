@@ -1,13 +1,34 @@
 import {
-  CONSENT_ANALYTICS, CONSENT_MARKETING, consentBootstrapScript, consentStore,
+  CONSENT_ANALYTICS, CONSENT_MARKETING, consentBootstrapScript, consentGateScript, consentStore,
+  trackingGranted,
 } from '@owlmeans/consent'
 import type { ConsentOptions, ConsentService } from '@owlmeans/consent'
+
+/** `'gtm'` container / `'gtag'` — see {@link GtmOptions.mode} / {@link GoogleTagOptions.mode}. */
+export type GoogleTagMode = 'basic' | 'advanced'
+
+/**
+ * The platform default for {@link GtmOptions.mode} / {@link GoogleTagOptions.mode}.
+ *
+ * One named constant so flipping it later is a one-line change.
+ *
+ * - `'basic'` withholds the loader until a signal-bearing category is granted — which holds back
+ *   Google's own IP receipt too, not only what a granted tag may then do with it.
+ * - `'advanced'` loads immediately with Consent Mode signals denied — today's only behavior, and
+ *   Google's own recommended default for its own conversion modeling.
+ *
+ * Default is `'basic'`: read it as the EU/DE worst-case reading of ePrivacy Art. 5(3) — no third
+ * party receives a connection before consent.
+ */
+export const GOOGLE_TAG_DEFAULT_MODE: GoogleTagMode = 'basic'
 
 export interface GtmOptions extends ConsentOptions {
   /** Container id, e.g. `GTM-XXXXXXX`. */
   id: string
   /** The queue name, when a page runs more than one container. */
   dataLayerName?: string
+  /** See {@link GOOGLE_TAG_DEFAULT_MODE}. Defaults to `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`). */
+  mode?: GoogleTagMode
 }
 
 /** Google's own container IIFE, the id and queue name injected as JSON data. */
@@ -30,14 +51,38 @@ const gtmContainerScript = (layer: string, id: string): string =>
  * the window that matters, and nothing in the page reports it.
  *
  * Emit this into the document head, above everything else, as an inline script.
+ *
+ * In `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`) the container is not requested at all until a
+ * signal-bearing category is granted — {@link consentGateScript} wraps it, reading any stored
+ * decision immediately and otherwise waiting for `@owlmeans/consent`'s `CONSENT_EVENT`. Pass
+ * `mode: 'advanced'` for the original, unconditional load.
  */
-export const gtmHeadScript = (opts: GtmOptions): string =>
-  `${consentBootstrapScript(opts)};${gtmContainerScript(opts.dataLayerName ?? 'dataLayer', opts.id)}`
+export const gtmHeadScript = (opts: GtmOptions): string => {
+  const bootstrap = consentBootstrapScript(opts)
+  const loader = gtmContainerScript(opts.dataLayerName ?? 'dataLayer', opts.id)
 
-/** The `<noscript>` iframe, for the body. */
-export const gtmNoscriptFrame = (opts: GtmOptions): string =>
-  `<iframe src="https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(opts.id)}"` +
-  ` height="0" width="0" style="display:none;visibility:hidden"></iframe>`
+  if ((opts.mode ?? GOOGLE_TAG_DEFAULT_MODE) === 'basic') {
+    return `${bootstrap};${consentGateScript(loader, opts)}`
+  }
+
+  return `${bootstrap};${loader}`
+}
+
+/**
+ * The `<noscript>` iframe, for the body.
+ *
+ * In `'basic'` mode this is an empty string: the whole point of gating is that an unauthenticated
+ * `<noscript>` iframe would defeat it — a browser with JavaScript disabled cannot have granted
+ * anything, so there is nothing lawful left to render. `'advanced'` keeps the frame.
+ */
+export const gtmNoscriptFrame = (opts: GtmOptions): string => {
+  if ((opts.mode ?? GOOGLE_TAG_DEFAULT_MODE) === 'basic') {
+    return ''
+  }
+
+  return `<iframe src="https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(opts.id)}"` +
+    ` height="0" width="0" style="display:none;visibility:hidden"></iframe>`
+}
 
 /**
  * Load the container from script, for a host that cannot emit into its own head.
@@ -45,6 +90,11 @@ export const gtmNoscriptFrame = (opts: GtmOptions): string =>
  * The head snippet is strictly better and should be preferred; this exists for a single-page app
  * whose HTML is not ours to edit. It still pushes the defaults first, and it still refuses to load
  * a second time.
+ *
+ * In `'basic'` mode the container element is not appended until `trackingGranted` is true: either
+ * the stored record already grants it, or — since this runs after the bundle mounted, past the
+ * window the head snippet exists to close — a subscription to `consentStore` catches the first
+ * update where it becomes true and unsubscribes. `'advanced'` appends it immediately, as before.
  */
 export const loadGtm = (opts: GtmOptions): void => {
   if (typeof document === 'undefined') {
@@ -57,13 +107,37 @@ export const loadGtm = (opts: GtmOptions): void => {
   // Defaults before the container, every time — the same rule the head snippet exists to keep.
   consentStore.init(opts)
 
-  const layer = opts.dataLayerName ?? 'dataLayer'
-  const script = document.createElement('script')
-  script.id = marker
-  script.async = true
-  script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(opts.id)}`
-    + (layer !== 'dataLayer' ? `&l=${encodeURIComponent(layer)}` : '')
-  document.head.appendChild(script)
+  const inject = (): void => {
+    if (document.getElementById(marker) != null) {
+      return
+    }
+    const layer = opts.dataLayerName ?? 'dataLayer'
+    const script = document.createElement('script')
+    script.id = marker
+    script.async = true
+    script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(opts.id)}`
+      + (layer !== 'dataLayer' ? `&l=${encodeURIComponent(layer)}` : '')
+    document.head.appendChild(script)
+  }
+
+  if ((opts.mode ?? GOOGLE_TAG_DEFAULT_MODE) !== 'basic') {
+    inject()
+
+    return
+  }
+
+  if (trackingGranted(consentStore.get().record, opts.categories)) {
+    inject()
+
+    return
+  }
+
+  const unsubscribe = consentStore.subscribe(state => {
+    if (trackingGranted(state.record, opts.categories)) {
+      unsubscribe()
+      inject()
+    }
+  })
 }
 
 /**
@@ -102,6 +176,8 @@ export interface GoogleTagOptions extends ConsentOptions {
    * given another queue never hears a consent command. Leave it unset on a consent-gated page.
    */
   dataLayerName?: string
+  /** See {@link GOOGLE_TAG_DEFAULT_MODE}. Defaults to `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`). */
+  mode?: GoogleTagMode
 }
 
 /** A queue name has to be a plain identifier: it becomes `window[name]` in the emitted script. */
@@ -172,6 +248,14 @@ const gtagScript = (layer: string, id: string): string =>
  * An id that is not a loadable id ({@link isGoogleTagId}) yields the consent bootstrap alone — a
  * page must never lose its consent defaults because someone mistyped a tag. The result is safe to
  * place inline in HTML as-is: `</` and `<!--` inside any configured value are escaped.
+ *
+ * In `GOOGLE_TAG_DEFAULT_MODE` (`'basic'`) the loader itself — the last piece — is wrapped in
+ * `consentGateScript`: it runs immediately for a returning visitor whose stored record already
+ * grants a signal-bearing category, and otherwise waits for `@owlmeans/consent`'s `CONSENT_EVENT`
+ * before ever requesting the tag. The bootstrap and the redaction flags are unaffected and still
+ * run unconditionally — Consent Mode's OWN denied-by-default signals are declared either way, so a
+ * tag that later does load still starts from `ad_storage`/`analytics_storage` denied. Pass
+ * `mode: 'advanced'` for the original, unconditional load.
  */
 export const googleTagHeadScript = (opts: GoogleTagOptions): string => {
   const bootstrap = consentBootstrapScript(opts)
@@ -181,8 +265,13 @@ export const googleTagHeadScript = (opts: GoogleTagOptions): string => {
   }
   const layer = layerOf(opts)
   const loader = kind === 'gtm' ? gtmContainerScript(layer, opts.id) : gtagScript(layer, opts.id)
+  const redaction = redactionScript(layer)
 
-  return inlineSafe(`${bootstrap};${redactionScript(layer)};${loader}`)
+  if ((opts.mode ?? GOOGLE_TAG_DEFAULT_MODE) === 'basic') {
+    return inlineSafe(`${bootstrap};${redaction};${consentGateScript(loader, opts)}`)
+  }
+
+  return inlineSafe(`${bootstrap};${redaction};${loader}`)
 }
 
 /**

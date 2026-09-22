@@ -191,7 +191,7 @@ party, nothing walks an unbounded set, nothing is scheduled. Most products are t
 `.trim(),
     patch: {
       packages: {
-        capabilities: { postgres: true, kv: false, queue: false, worker: false, agents: false, validation: true },
+        capabilities: { postgres: true, kv: false, queue: false, worker: false, agents: false, validation: true, marketingConsent: true },
         personaSkills: LANDING_GATE_PERSONA_SKILLS,
       },
       experience: ENCOURAGE_GATE,
@@ -213,7 +213,7 @@ to call a model at all.
 `.trim(),
     patch: {
       packages: {
-        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: false, validation: true },
+        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: false, validation: true, marketingConsent: true },
         personaSkills: PRODUCER_PERSONA_SKILLS,
       },
       // Neutral: the named off-request part is usually operator-side work, and whether a guest
@@ -236,7 +236,7 @@ application, and never merely a scalable one.
 `.trim(),
     patch: {
       packages: {
-        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: true, validation: true },
+        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: true, validation: true, marketingConsent: true },
         deps: AI_DEPS,
         libraries: AI_LIBRARIES,
         skills: AI_SKILLS,
@@ -257,7 +257,7 @@ in advance.
 `.trim(),
     patch: {
       packages: {
-        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: true, validation: true },
+        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: true, validation: true, marketingConsent: true },
         deps: {
           [SubProject.Backend]: {
             ...AI_DEPS[SubProject.Backend],
@@ -285,7 +285,7 @@ is not it.
 `.trim(),
     patch: {
       packages: {
-        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: false, validation: true },
+        capabilities: { postgres: true, kv: true, queue: true, worker: true, agents: false, validation: true, marketingConsent: true },
         deps: {
           [SubProject.Web]: { three: '^0.186.0', '@types/three': '^0.185.4' },
         },

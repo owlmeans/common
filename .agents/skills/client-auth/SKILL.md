@@ -86,9 +86,12 @@ browsing context the round trip can complete at all.
 | `LoginPlugin`, `LoginEnv`, `LoginRequest`, `LogoutRequest`, `LoginOutcome`, `LoginIntent`, `LoginService`, `LoginContext`, `LoginPrecondition` | The contract |
 | `registerMethodSource`, `listMethodSources`, `resolveLoginMethods`, `primaryLoginMethod` | Which sign-in methods are offered — see `login-methods` |
 | `LoginMethod`, `LoginMethodSource`, `LoginMethodContext` | Method types |
-| `resolveTerms`, `termsAccepted`, `acceptTerms`, `ResolvedTerms` | The confirmation, recorded in `localStorage` against a version derived from the resolved URLs |
+| `landAfterLogin(ctx, opts?)`, `continueLogin(ctx, opts?)`, `landingUrl(ctx, landing)`, `useContinueLogin()` | The post-login landing decision (`src/login/land.ts`) — see `login-plugins`. `landAfterLogin` runs due landing hooks then delegates to `continueLogin`, which walks pending `LoginStep`s, then `resumeSuspendedFlow`, then `LandOptions.fallback ?? { alias: HOME }`; `landingUrl` builds the absolute URL a plugin's own `window.location.href` needs; `useContinueLogin()` is what a step's own screen calls once satisfied |
+| `LoginStep`, `LoginLanding`, `LoginLandingHook`, `LandOptions`, `LoginLandingParams` | Landing-seam types. `registerStep`/`steps`/`onLanded`/`landingHooks` on `LoginService` are the same replace-by-alias, priority-sorted registries as `registerPlugin` |
+| `LOGIN_STEP_TIMEOUT`, `LOGIN_LANDED_STORAGE` | A step's `pending`/a hook's `landed` is bounded by the former; the latter is where the last-landed token is recorded (the raw string, never a digest) |
+| `resolveTerms`, `termsAccepted`, `acceptTerms`, `termsSentence`, `ResolvedTerms`, `ResolvedTermsDocument`, `TermsSentencePart` | The confirmation. `resolveTerms` produces `documents` (what the checkbox agrees to: terms, then billing/product/custom when configured) and `notices` (what is only disclosed: privacy, plus cookies per its own inclusion rule) — see the terms-confirmation section of `login-methods`. The extra `LoginTermsConfig` fields (`billing`, `product`, `documents`, `revisions`, `showRevision`) are added by module augmentation in `src/login/terms-config.ts`, never by editing `@owlmeans/config` — importing anything from `@owlmeans/client-auth/login` pulls it in |
 | `resolveCredit`, `ResolvedCredit` | The credit and copyright line |
-| `FallbackLoginScreen`, `LoginScreenProps`, `LoginScreenComponent` | The plain sign-in screen a relying party renders when no UI family registered one |
+| `FallbackLoginScreen`, `LoginScreenProps` (now also carries `locale?: string`, for `Intl.ListFormat` and a custom document's locale-keyed label), `LoginScreenComponent` | The plain sign-in screen a relying party renders when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | Where a surrogate login window opens; `null` on an older entrypoint list |
 | `resumeAction(outcome)`, `ResumeAction`, `loginAttemptError(outcome)` | The one reading of a `resume` outcome, and the one reading of a finished attempt |
 | `registerNotifier(notifier)` (on `LoginService`), `LoginNotifier` | Surfaces a `begin`/`logout` outcome that has no inline screen to render it on — e.g. a toast on `LoginOutcome.Blocked` for a header "Log in"/"Log out" control. `web-panel`'s `appendLoginScreen` registers a default; unregistered, it is silence |
@@ -145,10 +148,10 @@ a web application only calls these when it builds its context by hand.
   `persist()` / `restore()` / `hasPersistentState()` / `cleanUpState()`. They keep the type, stage
   and allowance in the `FLOW_STATE` resource under an id this package owns and does not export —
   restore before submitting the credential, and clean up after.
-- After a sign-in, `DispatcherHOC.navigate` resumes a landing suspended in `@owlmeans/client-flow`
-  (`resumeSuspendedFlow`, one-shot, an entrypoint alias plus its query) before it falls back to `HOME`;
-  it is read BEFORE `alias` is defaulted to `HOME`. Login plugins that navigate on their own do the same
-  — see `login-plugins`.
+- After a sign-in, `DispatcherHOC.navigate` calls `landAfterLogin` — a pending `LoginStep`, else a
+  landing suspended in `@owlmeans/client-flow` (`resumeSuspendedFlow`, one-shot, an entrypoint alias
+  plus its query), else `HOME` — read BEFORE `alias` is defaulted to `HOME`. Login plugins that
+  navigate on their own do the same — see `login-plugins`.
 - The browser ends up holding an ordinary OwlMeans bearer token whichever provider issued the
   login. Product authorization stays server-side, in entrypoint gates and handler checks — never in
   client-only state.

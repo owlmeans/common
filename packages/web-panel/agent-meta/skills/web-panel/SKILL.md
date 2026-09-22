@@ -21,7 +21,7 @@ user-invocable: false
 | `ThemeToggle` / `useColorScheme` | The light/dark switcher (`ThemeToggleProps`, `ThemeToggleLabels`) and the hook behind it (`ColorSchemeModel`) — see *Light and dark* below |
 | `SocketReloadDialog` | The global "connection lost — try again / reload" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically — see below. The hooks it reads, `useSocketStatus` and `useSocketRetry`, are imported from `@owlmeans/client-socket`, not from this package |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
-| `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
+| `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods`. `LoginScreen` is pure w.r.t. `locale` too, exactly like `translate`: it is a prop, defaulting to nothing, never an implicit `useLanguage()` read, because a component that reaches for i18n context directly crashes an app mounted without one. `LocalizedLoginScreen` supplies `useLanguage()`'s value when the caller does not pass its own |
 | `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
 | `PanelApp` | That wrapper on its own — the themed root `div` plus the i18n provider — for a host that mounts the tree itself |
 | `useContext<C, T>()` | The current context, from React. `AppContext` adds `context.flow()` over `@owlmeans/web-client`'s |
@@ -420,6 +420,21 @@ import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
 - **`ButtonSelector`** renders one `Button` per entry of `options`, the one equal to `current`
   `contained` and the rest `outlined`, calling `onSelect(option)`. `name` prefixes each option's
   label key as `<name>.<option>`.
+
+### The terms confirmation — `LoginTerms`
+
+`components/login/terms.tsx` renders `LoginTermsModel` (`@owlmeans/client-panel/auth`) via
+`termsSentence` (`@owlmeans/client-auth/login`) rather than re-deriving link/label pairs itself.
+**`[data-login-terms]` marks exactly one checkbox, always** — an e2e suite elsewhere in the platform
+treats it as a strict locator, so a change here must never add a second one, whatever
+billing/product/custom documents a configuration adds. `[data-login-privacy]` is a SIBLING
+paragraph of the checkbox's `<label>`, never nested inside it — a privacy disclosure is not
+something the checkbox consents to. A linked document/notice fragment carries
+`data-login-document="<key>"`. `[data-login-revised]` renders only when the resolved terms carry a
+`revisedAt` (i.e. the configuration set `showRevision: true` and at least one document has its own
+revision date). `LoginTerms` takes `locale?: string` — from `LoginScreen`'s own `locale` prop, never
+read from context directly — for `Intl.ListFormat` and a custom document's locale-keyed `labelMap`.
+Pinned by `tests/login.spec.ts` → the "with billing, product and custom documents configured" block.
 
 ## Subpath: `./consent`
 

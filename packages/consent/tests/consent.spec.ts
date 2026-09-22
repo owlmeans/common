@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import {
-  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LOCALES, CONSENT_MARKETING,
-  CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_EVENT, CONSENT_KEY, CONSENT_LOCALES,
+  CONSENT_MARKETING, CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES,
 } from '../src/consts.js'
 import { migrateConsent, readConsent, writeConsent, clearConsent } from '../src/storage.js'
-import { consentDefaults, consentUpdate, consentBootstrapScript } from '../src/gtm.js'
+import { applyConsent, consentDefaults, consentUpdate, consentBootstrapScript } from '../src/gtm.js'
 import { makeConsentStore } from '../src/store.js'
 import {
   DEFAULT_CONSENT_MESSAGES, defaultConsentTranslate, interpolate, normalizeLocale,
@@ -114,6 +114,36 @@ describe('consent mode signals', () => {
 
     expect(Object.keys(consentDefaults(categories))).toEqual(['ad_storage'])
     expect(consentUpdate({ ads: true }, categories)).toEqual({ ad_storage: 'granted' })
+  })
+})
+
+describe('applyConsent dispatches a DOM event', () => {
+  test('fires CONSENT_EVENT with the record after writing globals and pushing the update', () => {
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent).detail) }
+    ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
+
+    try {
+      applyConsent({ [CONSENT_ANALYTICS]: true })
+
+      expect(seen).toEqual([{ record: { [CONSENT_ANALYTICS]: true } }])
+    } finally {
+      ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
+    }
+  })
+
+  test('silent mode dispatches nothing', () => {
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent).detail) }
+    ;(globalThis as any).addEventListener(CONSENT_EVENT, listener)
+
+    try {
+      applyConsent({ [CONSENT_ANALYTICS]: true }, { silent: true })
+
+      expect(seen).toEqual([])
+    } finally {
+      ;(globalThis as any).removeEventListener(CONSENT_EVENT, listener)
+    }
   })
 })
 

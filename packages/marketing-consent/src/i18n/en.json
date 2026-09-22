@@ -1,0 +1,62 @@
+{
+  "group": {
+    "communications": {
+      "title": "Communications",
+      "description": "How we contact you."
+    },
+    "data": {
+      "title": "Data use",
+      "description": "How your data is used and shared."
+    },
+    "trackers": {
+      "title": "Trackers",
+      "description": "Analytics and advertising technologies."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Email offers and updates",
+        "description": "Product news, offers and updates by email."
+      },
+      "sms": {
+        "label": "SMS messages",
+        "description": "Offers and updates by text message."
+      },
+      "phone": {
+        "label": "Phone calls",
+        "description": "Offers and updates by phone call."
+      },
+      "push": {
+        "label": "Push notifications",
+        "description": "Offers and updates as push notifications."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Personalization",
+        "description": "Using your activity to personalize what you see."
+      },
+      "partners": {
+        "label": "Sharing with partners",
+        "description": "Sharing your data with selected partners for their own marketing."
+      }
+    },
+    "trackers": {
+      "analytics": {
+        "label": "Analytics cookies",
+        "description": "Cookies that help us understand how the product is used."
+      },
+      "advertising": {
+        "label": "Advertising cookies",
+        "description": "Cookies used to measure and personalize ads."
+      }
+    }
+  },
+  "link": {
+    "default": "Learn more"
+  },
+  "errors": {
+    "unknown": "Unknown consent: {{key}}"
+  }
+}

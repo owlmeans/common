@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/consent": "^0.1.18-rc.5"
+    "@owlmeans/consent": "^0.1.18-rc.6"
   },
   "peerDependencies": {
     "clsx": "*",

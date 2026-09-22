@@ -55,9 +55,11 @@ because it is a tool rather than a way in. Test ids: `supervisor-auth-form`, `su
 
 On submit the form requests a fresh allowance, signs `buildSupervisorPayload(challenge, userId,
 salt)` with the entered private key, packs `{ salt, signature }` as the credential, exchanges the
-resulting token through the client `AuthService`, and navigates to the landing a screen suspended in
-`@owlmeans/client-flow` (`resumeSuspendedFlow` — an OAuth consent screen reached signed out, say),
-else to `HOME`.
+resulting token through the client `AuthService`, and navigates via `landAfterLogin` +
+`landingUrl` (`@owlmeans/client-auth/login`) — a pending post-login step, then a screen suspended
+in `@owlmeans/client-flow` (an OAuth consent screen reached signed out, say), else `HOME`. It no
+longer imports `@owlmeans/client-flow` or `@owlmeans/web-client` directly; `landAfterLogin` is the
+whole decision.
 
 See the **supervisor-auth** skill for the whole feature — the server append, its options, the
 security boundary and the `@owlmeans/test-ui` helpers.

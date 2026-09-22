@@ -1,0 +1,19 @@
+{
+  "screen": {
+    "title": "Twoje wybory dotyczące prywatności",
+    "subtitle": "Wybierz, czego możemy używać, aby się z Tobą kontaktować i personalizować Twoje doświadczenie.",
+    "all": "Zaznacz wszystko",
+    "updated": "Zaktualizowano",
+    "save": "Zapisz i kontynuuj",
+    "saving": "Zapisywanie…",
+    "skip": "Kontynuuj bez zapisywania",
+    "error": "Nie udało się zapisać Twoich wyborów.",
+    "gpc": "Uwzględnione dzięki sygnałowi Global Privacy Control Twojej przeglądarki",
+    "loading": "Wczytywanie…"
+  },
+  "preferences": {
+    "save": "Zapisz",
+    "saved": "Zapisano",
+    "error": "Nie udało się zapisać Twoich wyborów."
+  }
+}

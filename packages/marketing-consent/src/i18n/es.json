@@ -1,0 +1,62 @@
+{
+  "group": {
+    "communications": {
+      "title": "Comunicaciones",
+      "description": "Cómo nos ponemos en contacto contigo."
+    },
+    "data": {
+      "title": "Uso de datos",
+      "description": "Cómo se usan y comparten tus datos."
+    },
+    "trackers": {
+      "title": "Rastreadores",
+      "description": "Tecnologías de análisis y publicidad."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Ofertas y novedades por email",
+        "description": "Novedades del producto, ofertas y actualizaciones por correo electrónico."
+      },
+      "sms": {
+        "label": "Mensajes SMS",
+        "description": "Ofertas y actualizaciones por mensaje de texto."
+      },
+      "phone": {
+        "label": "Llamadas telefónicas",
+        "description": "Ofertas y actualizaciones por llamada telefónica."
+      },
+      "push": {
+        "label": "Notificaciones push",
+        "description": "Ofertas y actualizaciones como notificaciones push."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Personalización",
+        "description": "Usar tu actividad para personalizar lo que ves."
+      },
+      "partners": {
+        "label": "Compartir con socios",
+        "description": "Compartir tus datos con socios seleccionados para su propio marketing."
+      }
+    },
+    "trackers": {
+      "analytics": {
+        "label": "Cookies analíticas",
+        "description": "Cookies que nos ayudan a entender cómo se usa el producto."
+      },
+      "advertising": {
+        "label": "Cookies publicitarias",
+        "description": "Cookies usadas para medir y personalizar anuncios."
+      }
+    }
+  },
+  "link": {
+    "default": "Más información"
+  },
+  "errors": {
+    "unknown": "Consentimiento desconocido: {{key}}"
+  }
+}

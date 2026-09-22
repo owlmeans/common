@@ -16,11 +16,15 @@
       "fallback": "Kontynuuj z {{method}}"
     },
     "terms": {
-      "agreement": "Przeczytałem(-am) i akceptuję {{terms}} oraz {{privacy}}.",
+      "accept": "Przeczytałem(-am) i akceptuję {{documents}}.",
       "terms": "Regulamin",
       "privacy": "Politykę prywatności",
       "cookies": "Politykę plików cookie",
-      "required": "Aby kontynuować, potwierdź Regulamin i Politykę prywatności."
+      "billing": "Warunki rozliczeń",
+      "product": "Warunki produktu {{product}}",
+      "notice": "Jak przetwarzamy Twoje dane osobowe: {{notices}}.",
+      "revised": "Ostatnia aktualizacja: {{date}}",
+      "required": "Aby kontynuować, potwierdź {{documents}}."
     },
     "consent": {
       "required": "Logowanie zapisuje plik cookie sesji. Zaakceptuj niezbędne pliki cookie, aby kontynuować."

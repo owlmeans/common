@@ -9,6 +9,7 @@ import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { makeBearer } from '@owlmeans/test-auth'
+import { answerMarketingConsent } from './marketing-consent.js'
 
 export interface PregenerateAuthTokenOptions {
   /** Target user id / email the token represents. */
@@ -61,7 +62,15 @@ export const pregenerateAuthToken = async (opts: PregenerateAuthTokenOptions): P
  */
 export const loginViaDispatcher = async (
   page: Page, baseUrl: string, token: string,
-  opts?: { dispatcherPath?: string, waitUntil?: 'commit' | 'domcontentloaded' | 'load' | 'networkidle' }
+  opts?: {
+    dispatcherPath?: string, waitUntil?: 'commit' | 'domcontentloaded' | 'load' | 'networkidle'
+    /**
+     * Answer the marketing-consent step if it is shown right after the dispatcher navigates away.
+     * Defaults to `'save'` (select-all and save) — see {@link answerMarketingConsent}. Pass
+     * `'ignore'` to skip the call entirely, e.g. in a spec that answers the step itself.
+     */
+    marketingConsent?: 'save' | 'ignore'
+  }
 ): Promise<void> => {
   const path = opts?.dispatcherPath ?? '/dispatcher'
   const url = new URL(path, baseUrl)
@@ -70,6 +79,8 @@ export const loginViaDispatcher = async (
   await page.goto(url.toString(), { waitUntil: opts?.waitUntil ?? 'domcontentloaded' })
   // Wait until the dispatcher has navigated away (token consumed).
   await page.waitForURL(u => !u.pathname.startsWith(path), { timeout: 30_000 })
+
+  if (opts?.marketingConsent !== 'ignore') await answerMarketingConsent(page, { accept: 'all' })
 }
 
 export interface SupervisorApiAuthOptions {
@@ -187,6 +198,12 @@ export interface SupervisorFormLoginOptions {
   consent?: 'accept' | 'ignore'
   /** When set, capture the filled login form (`supervisor-login-form.png`) before submit. */
   screenshotDir?: string
+  /**
+   * Answer the marketing-consent step if it is shown right after landing. Defaults to `'save'`
+   * (select-all and save) — see {@link answerMarketingConsent}. Pass `'ignore'` to skip the call
+   * entirely, e.g. in a spec that answers the step itself.
+   */
+  marketingConsent?: 'save' | 'ignore'
 }
 
 const DEFAULT_SUPERVISOR_PATH = '/authentication/login/pk-supervisor'
@@ -265,4 +282,6 @@ export const loginViaSupervisorForm = async (
   } else {
     await page.waitForURL(url => !url.pathname.startsWith(path), { timeout })
   }
+
+  if (opts.marketingConsent !== 'ignore') await answerMarketingConsent(page, { accept: 'all' })
 }

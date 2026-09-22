@@ -196,8 +196,39 @@ screen is on the primary method button.
 (Playwright honours `aria-disabled` in its actionability check, so a test that clicks a blocked
 control needs `{ force: true }` — that is the control behaving as designed, not a test workaround.)
 
-Acceptance is recorded in `localStorage` against a version derived from the resolved URLs, so
-changing a document re-asks and a same-origin surrogate window does not ask twice.
+Acceptance is recorded in `localStorage` against a version derived from `resolveTerms`'s digest
+(`@owlmeans/client-auth/login`), so changing a document — or its revision date, or adding one —
+re-asks, and a same-origin surrogate window does not ask twice. With NO billing/product/custom
+documents and no revisions configured, that digest is byte-identical to what it was before those
+fields existed, so no existing user already recorded as accepted is asked again.
+
+**Privacy is a separate, non-consented NOTICE — never inside the checkbox's `<label>`.** `resolveTerms`
+splits what a config resolves into two lists: `documents` (what the checkbox actually agrees to —
+`terms`, then `billing`/`product` when configured, then any custom `documents` entries, in that
+order) and `notices` (what is merely disclosed — `privacy`, plus `cookies` only when the config
+named a cookie policy explicitly OR when terms/privacy/cookies are ALL still the OwlMeans defaults;
+an app that customised terms and privacy but left cookies unset never silently links
+owlmeans.com's cookie policy as its own). `termsSentence(template, resolved, locale, resolveLabel)`
+interpolates a translated sentence around either list — `{{documents}}`/`{{notices}}`, or the
+legacy `{{terms}}`/`{{privacy}}`/`{{cookies}}` placeholders for an older template string — via
+`Intl.ListFormat` when available, falling back to a plain join. `web-panel`'s `LoginTerms` renders
+the notice as its own `[data-login-privacy]` paragraph, a SIBLING of the checkbox's `<label>`, never
+nested inside it. **`[data-login-terms]` marks exactly one element** — an e2e suite elsewhere in the
+platform treats it as a strict, exactly-one-match locator, so a new document must never add a second
+checkbox.
+
+**`billing`, `product`, custom `documents`, per-document `revisions` and `showRevision`** are
+`LoginTermsConfig` fields added by TypeScript module augmentation in
+`@owlmeans/client-auth/login/terms-config.ts` — never by editing `@owlmeans/config` itself, whose
+~85 dependents all sit in one release closure. Importing anything from `@owlmeans/client-auth/login`
+pulls the augmentation in; a config literal built in a file that imports nothing from it needs
+`import type {} from '@owlmeans/client-auth/login'` to type-check. `product.name` is carried as
+`ResolvedTermsDocument.params.product` rather than baked into a label string, so
+`login.terms.product` (`"{{product}} Product Terms"`) stays one translatable key; a custom
+document's `label` may be a plain string or a locale map, resolved by the RENDERER (never by
+`resolveTerms`, which stays locale-free) against the current language, falling back to the map's
+first value. `showRevision` surfaces the latest `revisedAt` among `documents` as
+`[data-login-revised]`, off by default.
 
 The control is a **native `<input type="checkbox">`** inside the existing `label` primitive:
 `web-panel` ships no `checkbox` primitive, and forcing every consumer to vendor one plus its Radix
@@ -257,12 +288,19 @@ against the window.
 ## i18n
 
 Registered from `@owlmeans/client-auth` into the existing `auth` library resource under a `login`
-root, in all seven languages the rule covers — `en`, `pl`, `ru`, `be`, `uk`, `es`, `de`. `_addI18n` **pushes**, so this coexists with
-`web-client`'s own `auth` registration and the two merge by tier and priority.
+root, in all EIGHT languages this bundle ships — `en`, `pl`, `ru`, `be`, `uk`, `es`, `de`, `fr` (one
+more than the seven most other library bundles in this repo cover; `client-auth/tests/i18n.spec.ts`
+pins the set). `_addI18n` **pushes**, so this coexists with `web-client`'s own `auth` registration
+and the two merge by tier and priority.
 
-The agreement sentence is ONE translated string carrying `{{terms}}` / `{{privacy}}` placeholders,
-split at render time to inject anchors — word order stays translatable, and nothing but a string
-ever comes out of a translation.
+`login.terms.accept` (checkbox) and `login.terms.notice` (the separate privacy disclosure) are each
+ONE translated string carrying `{{documents}}`/`{{notices}}` — `termsSentence` also still honours the
+legacy `{{terms}}`/`{{privacy}}`/`{{cookies}}` placeholders in an older template. Word order stays
+translatable, and nothing but a string, plus an href, ever comes out of a translation.
+`login.terms.required` no longer names the Privacy Policy specifically (`{{documents}}` only) — it
+is what a BLOCKED checkbox reports, and privacy was never something the checkbox agreed to.
+`login.terms.agreement` — the old, single-sentence `{{terms}}`/`{{privacy}}` key — is gone: nothing
+in this package reads it any more.
 
 `LoginScreen` takes `translate` as a prop and reaches for no i18n context — it still calls
 `useLoginMethods`, which uses the client context for the config, the login service and navigation.

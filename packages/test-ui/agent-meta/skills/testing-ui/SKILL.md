@@ -70,8 +70,9 @@ sits behind auth without hand-rolling a token:
 |---|---|
 | `pregenerateAuthToken(opts)` | Mint an `ED25519-BASIC-TOKEN …` bearer offline from a trusted private key — no browser, no round trip. Options: `{ userId, pk, scopes?, role?, entityId?, profileId?, source? }`. |
 | `authenticateViaSupervisorApi(opts)` | Drive the live PK supervisor flow over the backend API (init → sign → authenticate → dispatch), registering the user on first use. Options: `{ apiBaseUrl, userId, pk, paths?, fetchImpl? }`. |
-| `loginViaDispatcher(page, baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route and wait for the app to navigate away. |
-| `loginViaSupervisorForm(page, opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing. Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir? }`. |
+| `loginViaDispatcher(page, baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route, wait for the app to navigate away, then answer marketing consent (see below). Options: `{ dispatcherPath?, waitUntil?, marketingConsent? }`. |
+| `loginViaSupervisorForm(page, opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
+| `answerMarketingConsent(page, opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none', timeout? }`, default `accept: 'all'`. Returns whether the step was actually shown and answered — `false` means it never appeared. |
 
 These need a project whose backend trusts the private key they sign with, so they belong to specs
 that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
@@ -309,3 +310,30 @@ app that ships no consent widget the login helper therefore sits for a full minu
 the first field, with nothing on screen to explain it. Drive such an app with `consent: 'ignore'`,
 which skips the call entirely; that is also the switch a spec flips when it wants to answer the
 dialog itself.
+
+## `answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
+
+`loginViaSupervisorForm` and `loginViaDispatcher` both call `answerMarketingConsent(page, { accept:
+'all' })` right after they confirm the app has navigated away from login/dispatch, and both default
+`marketingConsent` (their own option, not `answerMarketingConsent`'s) to `'save'` — pass
+`'ignore'` to skip the call in a spec that drives the step itself. `@owlmeans/web-marketing-consent`
+renders a full-page step, when shown, with `[data-marketing-consent]` (root),
+`[data-marketing-consent-all]` (select-all), `[data-marketing-consent-item="<key>"]` (per-consent),
+`[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown only after a save error) and
+`[data-marketing-consent-error]`.
+
+Unlike `acceptConsent`, whose `false` return deliberately costs the full wait (see above),
+`answerMarketingConsent` does NOT pay the full `timeout` (default `6_000`) when the step is absent.
+The screen is opt-in per app and most applications and environments don't have it wired in yet, and this helper
+is called unconditionally by both login helpers — a full-timeout tax on every login, on every app,
+whether or not the screen exists, would be an unacceptable regression to every existing suite. It
+instead races `[data-marketing-consent]` against the generic "the app has already landed" /
+"still on the login screen" markers the login helpers themselves already rely on (`#app-prompt`,
+`[data-login-method]`) via the same `locator('a, b, c').first().waitFor({ state: 'visible' })` idiom
+`loginViaSupervisorForm` uses for its own dialog-vs-form race. By the time a login helper calls this,
+one of those markers has typically already rendered, so on an app without the screen the race
+resolves as soon as it does — no fixed sleep, and no meaningful added latency over what the login
+helper already paid to get there. Returns `false` when the step never appeared; `true` when it did,
+whether the save succeeded or fell back to clicking `[data-marketing-consent-skip]` after a save
+error (logged as a console warning, never thrown) — the step is "answered" either way, so a spec is
+never permanently blocked behind a flaky save.
