@@ -66,7 +66,7 @@ bun run scripts/publish.ts --project common --bump rc
 
 # 3. Propagate: pins (--no-install: npm does not serve the new versions yet), then reference
 #    versions in docs and skills, then the injected skills. Nothing outside the bump moves.
-bun run scripts/bump-deps.ts --consumers-of common --no-install
+bun run scripts/bump-deps.ts --consumers-of common --no-install --force     # step 1 left the tree dirty on purpose
 bun run scripts/bump-deps.ts --pins-only --fix
 bun run scripts/sync-agent-meta.ts --project common
 bun run scripts/sync-agent-meta.ts --project internal
