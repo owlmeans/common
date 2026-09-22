@@ -45,9 +45,9 @@ that accidentally reshapes `decisions` into something path-addressable).
 
 ## Indexes
 
-- `idx_mc_state_subject` — `{ columns: ['subject'], unique: true }`: one state row per subject,
-  the same invariant `subjectKey(subject)` being the record's own `id` already gives on the Mongo
-  side.
+- `idx_mc_state_subject` — `{ columns: ['subject'], unique: true }`: one state row per subject.
+  The service addresses a person's row by `subject` (the row's `id` is minted by Postgres), so
+  this index is what makes that address unique, and what a racing first save collides on.
 - `idx_mc_state_user` — `{ columns: ['userId'] }`: lookups across a user's profiles/entities.
 - `idx_mc_log_subject_key` — `{ columns: ['subject', 'key', 'decidedAt'] }`: a subject's history
   for one consent key, newest first.

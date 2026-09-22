@@ -68,9 +68,9 @@ not fix `mongo-resource` itself.
 
 ## The two indexes
 
-- `idx_mc_state_subject` on `{ subject: 1 }`, **unique** — one current-state record per person
-  (`subject` is already `subjectKey(subject)`, so this is a collection-level backstop against a
-  create race, not the primary uniqueness mechanism).
+- `idx_mc_state_subject` on `{ subject: 1 }`, **unique** — one current-state record per person.
+  The service addresses a person's row by `subject` (Mongo mints `_id`), so this index is what
+  makes that address unique, and what a racing first save collides on.
 - `idx_mc_state_user` on `{ userId: 1 }` — lookups by account, independent of `subject`'s
   entity-scoping.
 - `idx_mc_log_subject_key` on `{ subject: 1, key: 1, decidedAt: -1 }` — the log's one real read,
