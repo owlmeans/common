@@ -56,11 +56,19 @@ and typescript.
 /** The rules every coder and the fixer need, whatever they are writing. */
 const CODING_BASE = [ViableSkill.OutputSourceOnly, ViableSkill.TsStyle, ViableSkill.TsImports]
 
-/** The frontend stack, in the order a component is built up. */
+/**
+ * The frontend stack, in the order a component is built up.
+ *
+ * `OwlmeansState` is here, not only on the state coder: the view models that READ the stores are
+ * written by the view and nav coders and repaired by the fixer, and none of them carried it —
+ * the traces show `useStoreList(...)` read as `.list` / `.items` / a plain `T[]` in 18 projects,
+ * the second most frequent repair the fixer made.
+ */
 const FRONTEND = [
   ViableSkill.ReactComponents, ViableSkill.OwlMeansEntrypoints, ViableSkill.OwlMeansNav,
   ViableSkill.OwlMeansServices, ViableSkill.ShadcnUi, ViableSkill.FormFeedback,
-  ViableSkill.StoreAccess, ViableSkill.ViewModelNaming, ViableSkill.LibrariesUi,
+  ViableSkill.OwlmeansState, ViableSkill.StoreAccess, ViableSkill.ViewModelNaming,
+  ViableSkill.LibrariesUi,
 ]
 
 /** The backend stack. */

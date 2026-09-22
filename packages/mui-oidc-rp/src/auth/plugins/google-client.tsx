@@ -6,7 +6,7 @@ import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import { GOOGLE_CLIENT_AUTH } from '@owlmeans/oidc'
 import { useContext, useValue } from '@owlmeans/client'
-import { HOME } from '@owlmeans/web-client'
+import { landAfterLogin, landingUrl } from '@owlmeans/client-auth/login'
 import type { Module } from '@owlmeans/web-client'
 import LinearProgress from '@mui/material/LinearProgress'
 import { extractGoogleUrl, buildCallbackCredentials } from './helpers.js'
@@ -46,9 +46,13 @@ export const googleClientPlugin: AuthenticationPlugin = {
                 await authService.authenticate(token)
               }
 
-              // Navigate to app root after successful authentication
-              const homeUrl = await context.entrypoint<Module<string>>(HOME).url(undefined, { absolute: true })
-              window.location.href = homeUrl
+              // A registered step (marketing consent, say) or a device/authorization-code
+              // consent screen that suspended itself here before sending the browser to sign in
+              // both take priority over the app's own home — `landAfterLogin` is the whole
+              // decision. This closes a gap the MUI relying party carried before: it used to go
+              // straight to HOME with no suspended-landing check at all.
+              const landing = await landAfterLogin(context)
+              window.location.href = await landingUrl(context, landing)
 
               return
             }

@@ -211,10 +211,25 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'google-tag',
       title: 'A Google tag',
-      what: 'A GTM-, G-, GT-, AW- or DC- id in the project settings loads on the preview and in'
-        + ' production, behind the cookie consent: Consent Mode v2 keeps analytics and ads storage'
-        + ' denied until the visitor allows them, and the Privacy page gains its Google section.',
+      what: 'A GTM-, G-, GT-, AW- or DC- id in the project settings is held back — not merely'
+        + ' denied by Consent Mode v2, but not fetched at all — until the visitor allows analytics'
+        + ' or advertising cookies, on the preview and in production alike; a returning visitor who'
+        + ' already granted one loads it immediately. The Privacy page gains its Google section,'
+        + ' and the cookie policy lists what the tag discloses.',
       tools: ['update_project_settings'],
+    },
+    {
+      id: 'marketing-consent',
+      title: 'Marketing consent',
+      what: 'Every generated project ships a post-sign-in consent step and a "Privacy choices"'
+        + ' settings screen over eight standard, independently opt-in consents — email, SMS, phone'
+        + ' and push marketing, behavioural profiling, sharing with partners, and the two tracker'
+        + ' categories (bridged to the cookie-consent dialog, so a tracker decision made either'
+        + ' place stays in sync). Decisions are kept in a server-side ledger, evidenced and dated,'
+        + ' and a story that sends a marketing message or shares data with a partner must check the'
+        + ' recipient\'s own saved decision before it acts — never assume consent because someone'
+        + ' signed up. Service messages (a receipt, a security alert) are never gated by it.',
+      tools: ['list_stories', 'story_status', 'develop_story', 'project_settings'],
     },
     {
       id: 'look',

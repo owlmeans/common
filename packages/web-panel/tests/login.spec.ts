@@ -8,8 +8,8 @@ afterAll(async () => {
   await closeBrowser()
 })
 
-const open = async () => {
-  const mounted = await mountComponent({ url: `${HARNESS_URL}login` })
+const open = async (query?: string) => {
+  const mounted = await mountComponent({ url: `${HARNESS_URL}login${query ?? ''}` })
   await mounted.page.waitForSelector('[data-login-method]')
   // A fresh acceptance for every test: the confirmation is remembered per browser, and a test
   // that inherited the previous one would assert the unblocked path while claiming the other.
@@ -187,4 +187,76 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       await close()
     }
   }, TIMEOUT)
+
+  test('[data-login-revised] is absent when the configuration never asked to show it', async () => {
+    const { page, close } = await open()
+    try {
+      expect(await page.locator('[data-login-revised]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  describe('with billing, product and custom documents configured', () => {
+    test('there is still exactly one [data-login-terms] checkbox', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('[data-login-privacy] renders OUTSIDE the checkbox\'s label', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('label:has([data-login-terms]) [data-login-privacy]').count())
+          .toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('[data-login-revised] shows the latest revision date', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        expect(await page.locator('[data-login-revised]').count()).toBe(1)
+        expect(await page.locator('[data-login-revised]').textContent()).toContain('2026-01-01')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('every configured document renders its own [data-login-document] link', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        const hrefByKey = async (key: string) =>
+          await page.locator(`[data-login-document="${key}"]`).getAttribute('href')
+
+        expect(await hrefByKey('terms')).toBe('https://example.test/terms')
+        expect(await hrefByKey('billing')).toBe('https://example.test/billing')
+        expect(await hrefByKey('product')).toBe('https://example.test/product')
+        expect(await hrefByKey('custom-a')).toBe('https://example.test/custom-a')
+        expect(await hrefByKey('custom-b')).toBe('https://example.test/custom-b')
+        // The notice line, not the consented one.
+        expect(await hrefByKey('privacy')).toBe('https://example.test/privacy')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('confirming the single checkbox still unblocks the methods', async () => {
+      const { page, close } = await open('?terms=extended')
+      try {
+        await page.locator('[data-login-terms]').check()
+        await page.locator('[data-login-method="primary"]').click()
+
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
 })

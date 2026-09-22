@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.28"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.29"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/resource`,
@@ -252,7 +252,7 @@ code, never as `minItems`/`maxItems`. The descriptions are what the planning mod
 state each field's purpose and bounds; `gate.target` is filled by code and described as such.
 
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.24` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.25` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older

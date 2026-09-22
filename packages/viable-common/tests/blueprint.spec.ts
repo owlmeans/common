@@ -17,7 +17,7 @@ const base = (extra: Partial<Blueprint> = {}): Blueprint => ({
   createApp: { id: 'create-app', package: '@owlmeans/create-app', bare: true, template: 'bare' },
   packages: {
     id: 'packages',
-    capabilities: { postgres: true, kv: false, queue: false, worker: false, agents: false, validation: true },
+    capabilities: { postgres: true, kv: false, queue: false, worker: false, agents: false, validation: true, marketingConsent: true },
     libraries: {},
     skills: [ViableSkill.ShadcnUi],
     personaSkills: { [ViablePersona.BusinessAnalyst]: [ViableSkill.MainFlowFocus] },

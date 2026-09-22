@@ -1,0 +1,62 @@
+{
+  "group": {
+    "communications": {
+      "title": "Communications",
+      "description": "Comment nous vous contactons."
+    },
+    "data": {
+      "title": "Utilisation des données",
+      "description": "Comment vos données sont utilisées et partagées."
+    },
+    "trackers": {
+      "title": "Traceurs",
+      "description": "Technologies d'analyse et de publicité."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Offres et actualités par email",
+        "description": "Actualités produit, offres et mises à jour par email."
+      },
+      "sms": {
+        "label": "Messages SMS",
+        "description": "Offres et mises à jour par message texte."
+      },
+      "phone": {
+        "label": "Appels téléphoniques",
+        "description": "Offres et mises à jour par appel téléphonique."
+      },
+      "push": {
+        "label": "Notifications push",
+        "description": "Offres et mises à jour sous forme de notifications push."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Personnalisation",
+        "description": "Utiliser votre activité pour personnaliser ce que vous voyez."
+      },
+      "partners": {
+        "label": "Partage avec des partenaires",
+        "description": "Partage de vos données avec des partenaires sélectionnés pour leur propre marketing."
+      }
+    },
+    "trackers": {
+      "analytics": {
+        "label": "Cookies analytiques",
+        "description": "Cookies qui nous aident à comprendre comment le produit est utilisé."
+      },
+      "advertising": {
+        "label": "Cookies publicitaires",
+        "description": "Cookies utilisés pour mesurer et personnaliser les publicités."
+      }
+    }
+  },
+  "link": {
+    "default": "En savoir plus"
+  },
+  "errors": {
+    "unknown": "Consentement inconnu : {{key}}"
+  }
+}

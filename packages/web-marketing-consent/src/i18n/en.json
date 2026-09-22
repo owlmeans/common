@@ -1,0 +1,19 @@
+{
+  "screen": {
+    "title": "Your privacy choices",
+    "subtitle": "Choose what we may use to reach you and personalize your experience.",
+    "all": "Select all",
+    "updated": "Updated",
+    "save": "Save and continue",
+    "saving": "Saving…",
+    "skip": "Continue without saving",
+    "error": "We couldn't save your choices.",
+    "gpc": "Honored via your browser's Global Privacy Control signal",
+    "loading": "Loading…"
+  },
+  "preferences": {
+    "save": "Save",
+    "saved": "Saved",
+    "error": "We couldn't save your choices."
+  }
+}

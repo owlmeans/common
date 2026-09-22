@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/marketing-consent-postgres",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-09-22T18:27:08.241Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "marketing-consent-postgres",
+      "category": "package-specific",
+      "file": "skills/marketing-consent-postgres/SKILL.md",
+      "canonicalPath": ".agents/skills/marketing-consent-postgres/SKILL.md"
+    }
+  ]
+}

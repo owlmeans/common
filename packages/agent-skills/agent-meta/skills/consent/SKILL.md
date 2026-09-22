@@ -144,6 +144,35 @@ twice, and a second `default` after a tag has loaded can WIDEN what was already 
 `gtagConsent` pushes `arguments`, not an array literal — that is the shape `gtag.js` itself emits,
 and a page carrying both snippets should not have two shapes in one queue.
 
+## Gated loading (`trackingGranted`, `consentGateScript`, `CONSENT_EVENT`)
+
+Consent Mode signals (above) tell a LOADED tag what it may do; they say nothing about whether the
+tag should be requested at all. `@owlmeans/web-gtm`'s gated `'basic'` loading mode (its default —
+see `/web-gtm`) is built from three small primitives that live here, not there, so any loader —
+including one in a target project — can reuse the same gate without depending on `web-gtm`:
+
+- **`trackingGranted(record, categories?)`** — whether a stored/applied `ConsentRecord` grants
+  tracking at all: some category that is both NOT `required` and drives at least one Consent Mode
+  signal is `true` in the record. A required category (however many signals it drives, like
+  `essential`'s `security_storage`) never counts — it is disclosure, not a question, and everyone
+  gets it regardless.
+- **`CONSENT_EVENT`** (`'owlmeans:consent'`) — the DOM event `applyConsent` dispatches on `window`
+  after it finishes writing globals and pushing the Consent Mode update, with `detail: { record }`.
+  It is the only way a loader that already ran — and decided, on first paint, not to load yet — can
+  hear a LATER grant: Consent Mode itself speaks only on `dataLayer`, which nothing not yet loaded
+  is listening to. Guarded so it never throws where `CustomEvent`/`dispatchEvent` are not shimmed
+  (tests, SSR).
+- **`consentGateScript(loaderExpr, opts?)`** — the inline-safe counterpart to
+  `consentBootstrapScript` for withholding a loader rather than declaring defaults for one: it
+  inlines the SAME localStorage-then-cookie lookup the bootstrap uses, and either runs `loaderExpr`
+  immediately (a returning visitor already satisfies `trackingGranted`) or attaches a one-shot
+  `CONSENT_EVENT` listener that runs it on the first grant and removes itself. `loaderExpr` is a
+  complete, already-self-invoking statement (the same shape `gtmContainerScript`/`gtagScript`
+  produce) — `consentGateScript` embeds it verbatim rather than calling it, so the caller controls
+  exactly what "the loader" means. Like `consentBootstrapScript`, it does not itself escape `</` or
+  `<!--` for HTML — escaping the composed result inline is the caller's job (`googleTagHeadScript`
+  already does it over its whole output, gated loader included).
+
 ## The store
 
 `consentStore` is a module singleton, and deliberately so: consent is a property of the DOCUMENT,

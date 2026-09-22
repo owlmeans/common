@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.6",
   "license": "MIT",
   "description": "The general planning implementation — the planning service and its plugin/middleware registry, the transition executor, the in-memory store, the protocol handlers and the commit feed.",
   "type": "module",
@@ -37,21 +37,21 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.30",
-    "@owlmeans/auth-common": "^0.1.18-rc.32",
-    "@owlmeans/basic-ids": "^0.1.18-rc.29",
-    "@owlmeans/context": "^0.1.18-rc.28",
-    "@owlmeans/entrypoint": "^0.1.18-rc.31",
-    "@owlmeans/error": "^0.1.18-rc.30",
-    "@owlmeans/planning": "^0.1.18-rc.4",
-    "@owlmeans/queue": "^0.1.18-rc.26",
-    "@owlmeans/resource": "^0.1.18-rc.30",
-    "@owlmeans/route": "^0.1.18-rc.29",
-    "@owlmeans/server-api": "^0.1.18-rc.36",
-    "@owlmeans/server-context": "^0.1.18-rc.31",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.30",
-    "@owlmeans/server-socket": "^0.1.18-rc.38",
-    "@owlmeans/socket": "^0.1.18-rc.28"
+    "@owlmeans/auth": "^0.1.18-rc.31",
+    "@owlmeans/auth-common": "^0.1.18-rc.33",
+    "@owlmeans/basic-ids": "^0.1.18-rc.30",
+    "@owlmeans/context": "^0.1.18-rc.29",
+    "@owlmeans/entrypoint": "^0.1.18-rc.32",
+    "@owlmeans/error": "^0.1.18-rc.31",
+    "@owlmeans/planning": "^0.1.18-rc.5",
+    "@owlmeans/queue": "^0.1.18-rc.27",
+    "@owlmeans/resource": "^0.1.18-rc.31",
+    "@owlmeans/route": "^0.1.18-rc.30",
+    "@owlmeans/server-api": "^0.1.18-rc.37",
+    "@owlmeans/server-context": "^0.1.18-rc.32",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.31",
+    "@owlmeans/server-socket": "^0.1.18-rc.40",
+    "@owlmeans/socket": "^0.1.18-rc.29"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -59,7 +59,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.28",
+    "@owlmeans/test": "^0.1.18-rc.29",
     "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "ajv": "^8.17.1",

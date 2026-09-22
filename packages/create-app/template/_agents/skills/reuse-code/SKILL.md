@@ -57,7 +57,7 @@ other `@owlmeans/*` packages:
 
 ```json
 "dependencies": {
-  "@owlmeans/queue": "^0.1.18-rc.26"
+  "@owlmeans/queue": "^0.1.18-rc.27"
 }
 ```
 

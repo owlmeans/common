@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-job
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-job": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/server-job": "^0.1.18-rc.19"` in `dependencies`
 
 This package is the boundary between technical `@owlmeans/queue` records and the safe
 `@owlmeans/job` contract. `serveJobEntrypoints` requires a `JobExposurePolicy`; there is no default

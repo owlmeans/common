@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { appendContextual } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
 import type {
@@ -87,11 +88,17 @@ export const createStaticResource = <T extends ResourceRecord = ResourceRecord>(
     count: async (where?: Criteria<T>) => filterRecords(records(), where).length,
 
     create: async (record: Partial<T>, opts?: WriteOptions) => {
+      /**
+       * A supplied id is honored (many callers key by a natural id, Redis-style) — but a missing
+       * one is minted here rather than rejected, the same as a real Mongo/Postgres `create()`
+       * auto-generates its own id when the caller supplies none. Only a supplied id that already
+       * exists is `RecordExists`.
+       */
       if (record.id == null) {
-        throw new MisshapedRecord('id')
+        record = { ...record, id: randomUUID() }
       }
-      if (getStore().has(record.id)) {
-        throw new RecordExists(record.id)
+      if (getStore().has(record.id as string)) {
+        throw new RecordExists(record.id as string)
       }
 
       return write(record, opts)

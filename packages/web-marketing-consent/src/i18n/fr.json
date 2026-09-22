@@ -1,0 +1,19 @@
+{
+  "screen": {
+    "title": "Vos choix de confidentialité",
+    "subtitle": "Choisissez ce que nous pouvons utiliser pour vous contacter et personnaliser votre expérience.",
+    "all": "Tout sélectionner",
+    "updated": "Mis à jour",
+    "save": "Enregistrer et continuer",
+    "saving": "Enregistrement…",
+    "skip": "Continuer sans enregistrer",
+    "error": "Nous n'avons pas pu enregistrer vos choix.",
+    "gpc": "Respecté grâce au signal Global Privacy Control de votre navigateur",
+    "loading": "Chargement…"
+  },
+  "preferences": {
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "error": "Nous n'avons pas pu enregistrer vos choix."
+  }
+}
