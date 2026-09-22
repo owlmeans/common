@@ -13,7 +13,7 @@ Browser-side OIDC relying party — guard, auth service, and React components fo
 ## Installation
 
 ```bash
-bun add @owlmeans/web-oidc-rp@^0.1.18-rc.52
+bun add @owlmeans/web-oidc-rp@^0.1.18-rc.53
 ```
 
 The package owns its private shadcn progress primitive and imports it through relative specifiers;
@@ -100,7 +100,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.36
+npx @owlmeans/agent-skills@^0.1.18-rc.37
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

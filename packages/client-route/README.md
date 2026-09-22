@@ -12,7 +12,7 @@ Client-side route model extension — marks routes as client-side and provides U
 ## Installation
 
 ```bash
-bun add @owlmeans/client-route@^0.1.18-rc.37
+bun add @owlmeans/client-route@^0.1.18-rc.38
 ```
 
 ## Usage
@@ -69,7 +69,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.36
+npx @owlmeans/agent-skills@^0.1.18-rc.37
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-planning",
-  "version": "0.1.18-rc.9",
+  "version": "0.1.18-rc.10",
   "license": "MIT",
   "description": "The client half of OwlMeans planning — the remote planning facade, the state mirror and its commit fold, and the subscribe-then-poll commit wait. React-free: it runs in a browser and in a Node client alike.",
   "type": "module",
@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.34",
-    "@owlmeans/client-context": "^0.1.18-rc.37",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.36",
+    "@owlmeans/client-context": "^0.1.18-rc.38",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.37",
     "@owlmeans/context": "^0.1.18-rc.32",
     "@owlmeans/entrypoint": "^0.1.18-rc.35",
     "@owlmeans/error": "^0.1.18-rc.34",
@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/server-planning": "^0.1.18-rc.9",
+    "@owlmeans/server-planning": "^0.1.18-rc.10",
     "@owlmeans/test": "^0.1.18-rc.32",
     "@types/bun": "^1.4.0",
     "ajv": "^8.17.1",

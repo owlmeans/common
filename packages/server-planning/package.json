@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-planning",
-  "version": "0.1.18-rc.9",
+  "version": "0.1.18-rc.10",
   "license": "MIT",
   "description": "The general planning implementation — the planning service and its plugin/middleware registry, the transition executor, the in-memory store, the protocol handlers and the commit feed.",
   "type": "module",
@@ -38,19 +38,19 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.34",
-    "@owlmeans/auth-common": "^0.1.18-rc.36",
+    "@owlmeans/auth-common": "^0.1.18-rc.37",
     "@owlmeans/basic-ids": "^0.1.18-rc.33",
     "@owlmeans/context": "^0.1.18-rc.32",
     "@owlmeans/entrypoint": "^0.1.18-rc.35",
     "@owlmeans/error": "^0.1.18-rc.34",
     "@owlmeans/planning": "^0.1.18-rc.8",
-    "@owlmeans/queue": "^0.1.18-rc.30",
+    "@owlmeans/queue": "^0.1.18-rc.31",
     "@owlmeans/resource": "^0.1.18-rc.34",
     "@owlmeans/route": "^0.1.18-rc.33",
-    "@owlmeans/server-api": "^0.1.18-rc.40",
-    "@owlmeans/server-context": "^0.1.18-rc.35",
+    "@owlmeans/server-api": "^0.1.18-rc.41",
+    "@owlmeans/server-context": "^0.1.18-rc.36",
     "@owlmeans/server-entrypoint": "^0.1.18-rc.34",
-    "@owlmeans/server-socket": "^0.1.18-rc.43",
+    "@owlmeans/server-socket": "^0.1.18-rc.44",
     "@owlmeans/socket": "^0.1.18-rc.32"
   },
   "peerDependencies": {
