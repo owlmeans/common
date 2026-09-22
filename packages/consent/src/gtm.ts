@@ -1,5 +1,6 @@
 import {
-  CONSENT_KEY, CONSENT_SETUP_FLAG, CONSENT_SIGNAL_DEFAULTS, DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_EVENT, CONSENT_KEY, CONSENT_SETUP_FLAG, CONSENT_SIGNAL_DEFAULTS,
+  DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
 import type { ConsentCategory, ConsentOptions, ConsentRecord } from './types.js'
 
@@ -103,7 +104,30 @@ export const applyConsent = (record: ConsentRecord, opts?: ConsentOptions): void
       win.dataLayer.push({ event: category.event })
     }
   }
+
+  // A gate script (`consentGateScript`) that already decided NOT to load, because nothing was
+  // granted at the time it ran, has no other way to hear this. Consent Mode itself speaks only on
+  // `dataLayer`, which a tag that never loaded is not listening to.
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+    && typeof CustomEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: { record } }))
+  }
 }
+
+/**
+ * Whether a stored decision grants tracking at all — a signal-bearing category, not merely the
+ * required essential one.
+ *
+ * "Signal-bearing" is what a required category can never be: it exists to gate whether a LOADER
+ * runs, and a required category is disclosure, not a question — everyone gets it. Only a category
+ * that both is optional and drives at least one Consent Mode signal counts, which is exactly what
+ * `googleTagHeadScript`'s `'basic'` mode gates a Google tag behind.
+ */
+export const trackingGranted = (
+  record: ConsentRecord | null, categories: ConsentCategory[] = DEFAULT_CONSENT_CATEGORIES
+): boolean => record != null && categories.some(
+  category => !category.required && (category.signals?.length ?? 0) > 0 && record[category.key] === true
+)
 
 /**
  * The inline script a document stamps ABOVE its tag-manager snippet.
@@ -138,4 +162,51 @@ export const consentBootstrapScript = (opts?: ConsentOptions): string => {
     `for(var j=0;j<c.signals.length;j++){var s=c.signals[j];` +
     `u[s]=ok&&u[s]!=='denied'?'granted':'denied'}}` +
     `g('consent','update',u)})(window,document)`
+}
+
+/**
+ * Withhold a loader until a stored or later decision grants tracking.
+ *
+ * The counterpart to `consentBootstrapScript` for the `'basic'` gated loading mode
+ * (`@owlmeans/web-gtm`'s `GOOGLE_TAG_DEFAULT_MODE`): where the bootstrap always declares Consent
+ * Mode's defaults so a tag may load cookieless, this withholds the tag itself — the loader string
+ * is only ever reached once `trackingGranted` is true, either because a returning visitor's stored
+ * record already says so, or because `applyConsent` later dispatches {@link CONSENT_EVENT} with
+ * one that does. The listener removes itself on the first passing event, so the loader — which
+ * marks its own element and refuses to run twice — is asked to run at most once from here.
+ *
+ * `loaderExpr` is a complete statement or expression that runs the loader when reached — the
+ * self-invoking IIFE string `googleTagHeadScript`'s `gtagScript`/`gtmContainerScript` already
+ * produce, embedded here verbatim rather than called. It is placed inline exactly as
+ * `consentBootstrapScript`'s own output is: dynamic values (the storage key, the category shape,
+ * the event name) are JSON-encoded so nothing configured can break out of a string literal, and
+ * escaping the RESULT for HTML (`</script`, `<!--`) is left to whoever composes the final inline
+ * script — the same discipline `consentBootstrapScript` follows, and `googleTagHeadScript` already
+ * applies to the whole script it stamps.
+ */
+export const consentGateScript = (
+  loaderExpr: string, opts?: ConsentOptions & { categories?: ConsentCategory[] }
+): string => {
+  const gate = JSON.stringify(categoriesOf(opts).map(category => ({
+    key: category.key,
+    required: category.required === true,
+    hasSignal: (category.signals ?? []).length > 0,
+  })))
+  const storageKey = JSON.stringify(opts?.storageKey ?? CONSENT_KEY)
+  const event = JSON.stringify(CONSENT_EVENT)
+
+  return `(function(w,d){` +
+    `function ok(r){if(!r)return false;var cs=${gate};` +
+    `for(var i=0;i<cs.length;i++){var c=cs[i];` +
+    `if(!c.required&&c.hasSignal&&r[c.key]===true)return true}return false}` +
+    `function load(){${loaderExpr}}` +
+    `var raw=null;try{raw=w.localStorage.getItem(${storageKey})}catch(e){}` +
+    `if(!raw){var p=('; '+d.cookie).split('; '+${storageKey}+'=');` +
+    `if(p.length===2){raw=p.pop().split(';').shift()}}` +
+    `var r=null;if(raw){try{r=JSON.parse(raw)}catch(e){r=null}}` +
+    `if(ok(r)){load();return}` +
+    `function h(ev){if(ok(ev&&ev.detail&&ev.detail.record)){` +
+    `w.removeEventListener(${event},h);load()}}` +
+    `w.addEventListener(${event},h)` +
+    `})(window,document)`
 }

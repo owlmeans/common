@@ -16,11 +16,15 @@
       "fallback": "Mit {{method}} fortfahren"
     },
     "terms": {
-      "agreement": "Ich habe die {{terms}} und die {{privacy}} gelesen und stimme ihnen zu.",
+      "accept": "Ich habe {{documents}} gelesen und stimme ihnen zu.",
       "terms": "Allgemeinen Geschäftsbedingungen",
       "privacy": "Datenschutzerklärung",
       "cookies": "Cookie-Richtlinie",
-      "required": "Bitte bestätigen Sie die Allgemeinen Geschäftsbedingungen und die Datenschutzerklärung, um fortzufahren."
+      "billing": "Abrechnungsbedingungen",
+      "product": "{{product}}-Produktbedingungen",
+      "notice": "Wie wir Ihre personenbezogenen Daten verarbeiten: {{notices}}.",
+      "revised": "Zuletzt aktualisiert: {{date}}",
+      "required": "Bitte bestätigen Sie {{documents}}, um fortzufahren."
     },
     "consent": {
       "required": "Bei der Anmeldung wird ein Sitzungs-Cookie gespeichert. Akzeptieren Sie die notwendigen Cookies, um fortzufahren."

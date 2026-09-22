@@ -22,6 +22,17 @@ export const CONSENT_SCHEMA_VERSION = 2
 /** Idempotence flag for the Consent Mode defaults. Fixed: a page may carry two bundles. */
 export const CONSENT_SETUP_FLAG = 'cookieConsentSetup'
 
+/**
+ * The DOM event `applyConsent` dispatches on `window` after it finishes writing globals and
+ * pushing the Consent Mode update.
+ *
+ * A loader that already ran (a gate script that decided, on first paint, not to load yet) has no
+ * other way to hear a LATER grant — Consent Mode itself speaks only on `window.dataLayer`, which a
+ * tag that has not loaded is not listening to. `event.detail.record` carries the record that was
+ * just applied.
+ */
+export const CONSENT_EVENT = 'owlmeans:consent'
+
 export const CONSENT_ESSENTIAL = 'essential'
 export const CONSENT_ANALYTICS = 'analytics'
 export const CONSENT_MARKETING = 'marketing'

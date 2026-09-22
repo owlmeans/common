@@ -2,11 +2,23 @@ import { describe, expect, test } from 'bun:test'
 import { isLegalPath, owlHeadScripts, owlLocale } from '../src/index.js'
 
 describe('@owlmeans/astro — head scripts', () => {
-  test('with a container, consent comes first and the noscript frame is emitted', async () => {
-    const { head, noscript } = owlHeadScripts({ gtm: { id: 'GTM-ASTRO01' } })
+  test('with a container, consent comes first and the noscript frame is emitted ("advanced" mode)', async () => {
+    const { head, noscript } = owlHeadScripts({ gtm: { id: 'GTM-ASTRO01', mode: 'advanced' } })
 
     expect(head.indexOf("'consent','default'")).toBeLessThan(head.indexOf('gtm.js'))
     expect(noscript).toContain('GTM-ASTRO01')
+  })
+
+  test('by default (gated "basic" mode) the container is gated and the noscript frame is empty', async () => {
+    // `owlHeadScripts` does not force a mode, so it inherits `GOOGLE_TAG_DEFAULT_MODE` from
+    // `@owlmeans/web-gtm` automatically — and an unauthenticated `<noscript>` iframe would defeat
+    // the gate, so it stays empty rather than framing a container nothing has granted yet.
+    const { head, noscript } = owlHeadScripts({ gtm: { id: 'GTM-ASTRO01' } })
+
+    expect(head).toContain("'consent','default'")
+    expect(head).toContain('gtm.js')
+    expect(head).toContain('addEventListener')
+    expect(noscript).toBe('')
   })
 
   test('without a container it is still the consent defaults, and no frame', async () => {

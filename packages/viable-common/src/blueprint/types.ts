@@ -231,6 +231,16 @@ export interface BlueprintCapabilities {
   agents: boolean
   /** Request-body validation from generated AJV schemas. */
   validation: boolean
+  /**
+   * The marketing-consent ledger (`@owlmeans/marketing-consent` + `@owlmeans/web-marketing-consent`
+   * + `@owlmeans/server-marketing-consent` + a database extension) — the post-sign-in consent step,
+   * the settings control, and the server-side `isGranted` checks a story's sends and shares must
+   * honor. Required on every case today: a target that sends marketing communications, profiles
+   * behaviour, shares data with partners or loads a tracker needs this regardless of what kind of
+   * product it is: the case only decides HOW the target uses what the capability turns on, never
+   * whether the capability itself is reachable.
+   */
+  marketingConsent: boolean
 }
 
 /** A partial override of a blueprint, deep-merged over the resolved value. */

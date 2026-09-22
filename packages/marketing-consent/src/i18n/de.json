@@ -1,0 +1,62 @@
+{
+  "group": {
+    "communications": {
+      "title": "Kommunikation",
+      "description": "Wie wir Sie kontaktieren."
+    },
+    "data": {
+      "title": "Datennutzung",
+      "description": "Wie Ihre Daten verwendet und weitergegeben werden."
+    },
+    "trackers": {
+      "title": "Tracker",
+      "description": "Analyse- und Werbetechnologien."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Angebote und Neuigkeiten per E-Mail",
+        "description": "Produktneuigkeiten, Angebote und Updates per E-Mail."
+      },
+      "sms": {
+        "label": "SMS-Nachrichten",
+        "description": "Angebote und Updates per Textnachricht."
+      },
+      "phone": {
+        "label": "Telefonanrufe",
+        "description": "Angebote und Updates per Telefonanruf."
+      },
+      "push": {
+        "label": "Push-Benachrichtigungen",
+        "description": "Angebote und Updates als Push-Benachrichtigungen."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Personalisierung",
+        "description": "Nutzung Ihrer Aktivität, um Inhalte für Sie zu personalisieren."
+      },
+      "partners": {
+        "label": "Weitergabe an Partner",
+        "description": "Weitergabe Ihrer Daten an ausgewählte Partner für deren eigenes Marketing."
+      }
+    },
+    "trackers": {
+      "analytics": {
+        "label": "Analyse-Cookies",
+        "description": "Cookies, die uns helfen zu verstehen, wie das Produkt genutzt wird."
+      },
+      "advertising": {
+        "label": "Werbe-Cookies",
+        "description": "Cookies zur Messung und Personalisierung von Werbung."
+      }
+    }
+  },
+  "link": {
+    "default": "Mehr erfahren"
+  },
+  "errors": {
+    "unknown": "Unbekannte Einwilligung: {{key}}"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "@owlmeans/server-marketing-consent",
+  "version": "0.1.18-rc.1",
+  "license": "MIT",
+  "description": "The server half of @owlmeans/marketing-consent — a database-agnostic MarketingConsentService (status/save/terms/purge over resources resolved by alias) plus the guarded status/save/terms entrypoint handlers.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18-rc.31",
+    "@owlmeans/auth-common": "^0.1.18-rc.33",
+    "@owlmeans/context": "^0.1.18-rc.29",
+    "@owlmeans/entrypoint": "^0.1.18-rc.32",
+    "@owlmeans/error": "^0.1.18-rc.31",
+    "@owlmeans/marketing-consent": "^0.1.18-rc.0",
+    "@owlmeans/resource": "^0.1.18-rc.31",
+    "@owlmeans/server-api": "^0.1.18-rc.37",
+    "@owlmeans/server-auth-token": "^0.1.18-rc.18",
+    "@owlmeans/server-context": "^0.1.18-rc.32",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.31"
+  },
+  "peerDependencies": {
+    "ajv": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/static-resource": "^0.1.18-rc.30",
+    "@owlmeans/test": "^0.1.18-rc.29",
+    "@owlmeans/test-auth": "^0.1.18-rc.32",
+    "@types/bun": "^1.4.0",
+    "ajv": "^8.17.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

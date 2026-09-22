@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.47"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.49"` in `dependencies`
 
 ## Key Exports
 
@@ -29,8 +29,16 @@ user-invocable: false
 ### Subpath exports
 
 - `./auth/plugins` — importing it registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` into the
-  `@owlmeans/client-auth` manager plugin registry. After a successful Google sign-in the plugin lands on a
-  flow suspended in `@owlmeans/client-flow` (`resumeSuspendedFlow`) when there is one, else on `HOME`
+  `@owlmeans/client-auth` manager plugin registry. After a successful Google sign-in the plugin lands via
+  `landAfterLogin` + `landingUrl` (`@owlmeans/client-auth/login`) — a pending post-login step, then a flow
+  suspended in `@owlmeans/client-flow` when there is one, else `HOME`. It no longer imports
+  `@owlmeans/client-flow`/`@owlmeans/web-client` for this; `landAfterLogin` is the whole decision
+
+The generic OIDC method's own framed/chooser branch (`oidcMethodSource` in `src/auth/methods.ts`) forwards
+the component's `LoginMethodContext.navigate` into the `LoginRequest.navigate` it hands `login.begin(...)`,
+mirroring `useLogin`'s own `nav.go(target ?? DISPATCHER)` — without it, a sign-in started by clicking a
+method button (as opposed to a header "Log in" control) inside a frame adopted the token from the
+surrogate and then left the framed application exactly where it was, with no continuation at all.
 
 ## Wiring
 

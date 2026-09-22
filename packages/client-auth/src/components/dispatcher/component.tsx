@@ -9,9 +9,10 @@ import type { AuthService } from '@owlmeans/auth-common'
 import { useNavigate } from '@owlmeans/client'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { FlowService } from '@owlmeans/client-flow'
-import { DEFAULT_ALIAS as FLOW_SERVICE, resumeSuspendedFlow } from '@owlmeans/client-flow'
+import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
+import { landAfterLogin } from '../../login/land.js'
 
 export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query, payload }) => {
   const [forwarding, setForwarding] = useState<StateToken | undefined>()
@@ -20,28 +21,40 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
   const navigate = useCallback(async () => {
     if (alias == null || alias === DISPATCHER) {
       // A sign-in that started elsewhere — a device or authorization-code consent screen, most
-      // commonly — suspended itself here before leaving. Resuming it takes priority over the
-      // ordinary HOME landing, and does so BEFORE `alias` is overwritten, because once it is
-      // `HOME` there is no way back to tell the two cases apart.
-      const landing = await resumeSuspendedFlow(context)
-      if (landing != null) {
+      // commonly — suspended itself here before leaving, or a registered step still has
+      // something to collect (a marketing-consent screen, say). `landAfterLogin` is the whole
+      // post-sign-in landing decision (steps, landing hooks, the suspended flow, then HOME) and
+      // takes priority over the ordinary HOME landing, resolved BEFORE `alias` is overwritten,
+      // because once it is `HOME` there is no way back to tell the cases apart.
+      const landing = await landAfterLogin(context)
+      if (landing.alias !== HOME) {
         await navigator.navigate(
-          context.entrypoint<ClientEntrypoint<string>>(landing.entrypoint), { query: landing.query }
+          context.entrypoint<ClientEntrypoint<string>>(landing.alias),
+          { params: landing.params, query: landing.query }
         )
         return
       }
       alias = HOME
-    }
-    const module = context.entrypoint<ClientEntrypoint<string>>(alias)
-    if (alias === HOME) {
-      params = {}
-      query = {}
     } else {
+      // A concrete destination already exists (an OIDC `?code=` return, etc.) — a registered step
+      // still gets to interject, but `resumeSuspendedFlow` must not run a second time: this
+      // branch already has somewhere to go.
       query = { ...forwarding?.query, ...query }
       if (query != null && AUTH_QUERY in query) {
         delete query[AUTH_QUERY]
       }
+      const landing = await landAfterLogin(
+        context, { fallback: { alias, params, query }, resume: false }
+      )
+      await navigator.navigate(
+        context.entrypoint<ClientEntrypoint<string>>(landing.alias),
+        { params: landing.params, query: landing.query }
+      )
+      return
     }
+    const module = context.entrypoint<ClientEntrypoint<string>>(alias)
+    params = {}
+    query = {}
     await navigator.navigate(module, { params, query })
   }, [forwarding])
 

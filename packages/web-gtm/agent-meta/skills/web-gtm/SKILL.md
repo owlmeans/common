@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.25"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.26"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through
@@ -25,20 +25,51 @@ for the window that matters*, and nothing in the page reports it.
 So every head snippet here emits the consent bootstrap first and the loader after it, as ONE
 inline script. Everything else in this package exists to serve that.
 
+## Loading mode: gated by default
+
+`googleTagHeadScript`, `gtmHeadScript` and `loadGtm` all take an optional `mode:
+'basic' | 'advanced'`, defaulting to `GOOGLE_TAG_DEFAULT_MODE` — currently `'basic'`, one named
+constant so flipping the platform default later is a one-line change:
+
+| `mode` | What runs, and when |
+|---|---|
+| `'basic'` (default) | The bootstrap and the ads-redaction flags still run unconditionally — Consent Mode's own denied-by-default signals are declared either way. The LOADER itself — `gtm.js`, or `gtag/js` + `js` + `config` — is wrapped in `@owlmeans/consent`'s `consentGateScript`: it runs immediately if the visitor's stored record already `trackingGranted`, and otherwise waits for a later `CONSENT_EVENT` (from `applyConsent`, i.e. an in-page consent decision) that does. Nothing — not even Google's own IP receipt — reaches the tag before a signal-bearing category (`analytics` or `marketing` by default; a `required` or signal-less category never counts) is granted. |
+| `'advanced'` | The original, only behavior before this mode existed: the loader runs immediately, Consent Mode signals denied by default, so the tag itself starts receiving traffic cookielessly from first paint. This is Google's own recommended default for its conversion modeling, and remains available for a site that has decided that tradeoff is acceptable. |
+
+Read `'basic'`'s default as the EU/DE worst-case reading of ePrivacy Art. 5(3): no third party
+receives a connection before consent.
+
+`gtmNoscriptFrame` returns `''` in `'basic'` mode rather than an iframe — a browser with JavaScript
+disabled cannot have granted anything, so an unauthenticated `<noscript>` frame would defeat the
+whole point of gating. It keeps emitting the iframe in `'advanced'` mode, unchanged.
+
+`loadGtm` gates the same way at the DOM level: it still calls `consentStore.init(opts)` first, but
+only appends the container's `<script>` element once `trackingGranted(consentStore.get().record,
+opts.categories)` is true — immediately if already granted, or via a one-shot `consentStore.subscribe`
+that unsubscribes itself on the first update where it becomes true. The anti-double-load guard (the
+element's own id) is unchanged.
+
+None of this is new state: it is one more consumer of `@owlmeans/consent`'s existing surface —
+`trackingGranted(record, categories)` (whether a stored/applied record grants a signal-bearing,
+non-required category) and `consentGateScript(loaderExpr, opts)` (the inline script implementing the
+"run now or wait for `CONSENT_EVENT`" branch). Both live in `@owlmeans/consent`, not here, because a
+target project's own custom loader can reuse the same gate without depending on this package.
+
 ## Key Exports
 
 | Export | Description |
 |--------|-------------|
-| `googleTagHeadScript(opts)` | The inline `<head>` script for any Google id: consent bootstrap, ads redaction, then the loader the prefix calls for. **The default for new code** |
+| `googleTagHeadScript(opts)` | The inline `<head>` script for any Google id: consent bootstrap, ads redaction, then the loader the prefix calls for — gated behind `consentGateScript` in `opts.mode`'s default, `'basic'`. **The default for new code** |
 | `isGoogleTagId(id)` / `googleTagKind(id)` | Whether an id is loadable, and whether it takes `gtm` (container) or `gtag` (gtag.js); `null` for anything else |
-| `GoogleTagOptions` / `GoogleTagKind` | `ConsentOptions` plus `id` and optional `dataLayerName`; `'gtm' \| 'gtag'` |
+| `GoogleTagOptions` / `GoogleTagKind` | `ConsentOptions` plus `id`, optional `dataLayerName` and `mode`; `'gtm' \| 'gtag'` |
+| `GoogleTagMode` / `GOOGLE_TAG_DEFAULT_MODE` | `'basic' \| 'advanced'`; the platform default, `'basic'` — see **Loading mode** below |
 | `GOOGLE_TAG_CSP_SOURCES` | The hosts GA4, Tag Manager and Google Ads need in `script-src`, `connect-src` and `img-src` (7, frozen) |
 | `GOOGLE_TAG_FRAME_SOURCES` | The hosts they frame, for `frame-src`: `https://www.googletagmanager.com`, `https://td.doubleclick.net` |
 | `googleTagServices(id)` | The `ConsentService[]` a cookie policy discloses for that tag — pass to `CookiePolicy`'s `services` |
-| `gtmHeadScript(opts)` | The container-only snippet: consent defaults, stored decision, then `gtm.js` |
-| `gtmNoscriptFrame(opts)` | The hidden `<noscript>` iframe, for the top of `<body>` |
-| `loadGtm(opts)` | Script-side container load, for a host that cannot emit into its own head |
-| `GtmOptions` | `ConsentOptions` plus `id` (e.g. `GTM-XXXXXXX`) and optional `dataLayerName` |
+| `gtmHeadScript(opts)` | The container-only snippet: consent defaults, stored decision, then `gtm.js` — gated the same way as `googleTagHeadScript` |
+| `gtmNoscriptFrame(opts)` | The hidden `<noscript>` iframe, for the top of `<body>` — `''` in `'basic'` mode |
+| `loadGtm(opts)` | Script-side container load, for a host that cannot emit into its own head — gated the same way |
+| `GtmOptions` | `ConsentOptions` plus `id` (e.g. `GTM-XXXXXXX`), optional `dataLayerName` and `mode` |
 
 ## Ids
 
@@ -64,11 +95,14 @@ Lower case is rejected rather than folded; normalise in the form if you want to 
    owns it, so app code can send events), `js`, `config`, and the gtag.js `<script async>`
    element created from the inline script — one inline script rather than Google's two elements,
    so a build stamps one thing. The element carries id `owl-gtag-<id>`, so running the snippet
-   twice configures the tag once instead of double-counting page views.
+   twice configures the tag once instead of double-counting page views. In `mode`'s default,
+   `'basic'`, this whole step 3 is what `consentGateScript` withholds — steps 1 and 2 always run;
+   pass `mode: 'advanced'` to run step 3 unconditionally too, as before this mode existed.
 
-An **invalid id yields the consent bootstrap alone** — a mistyped tag must never cost a page its
-consent defaults. So a host may stamp `googleTagHeadScript({ id: configured })` unconditionally,
-or stamp `consentBootstrapScript()` when no tag is configured; both are correct.
+An **invalid id yields the consent bootstrap alone, regardless of `mode`** — a mistyped tag must
+never cost a page its consent defaults. So a host may stamp `googleTagHeadScript({ id: configured
+})` unconditionally, or stamp `consentBootstrapScript()` when no tag is configured; both are
+correct.
 
 **The output is safe to place inline in HTML as-is.** JSON encoding keeps configured values inside
 their string literals, but the HTML parser ends a script element at the first `</script` wherever
@@ -148,7 +182,13 @@ cookie page does so when a Google tag is set. The strings are English data, not 
 - **`loadGtm` is the fallback, not the default.** It is for a single-page app whose HTML is not
   yours to edit. It still pushes the defaults first (through `consentStore.init`) and refuses to
   load a second time — it marks its own `<script>` element with an id derived from the container —
-  but it runs after the bundle, which is exactly the window the head snippet closes.
+  but it runs after the bundle, which is exactly the window the head snippet closes. In `'basic'`
+  mode it additionally withholds the element itself until `trackingGranted`, same as the head
+  snippets.
+- **The default flipped to `'basic'`.** Code written before this mode existed called
+  `googleTagHeadScript({ id })` / `gtmHeadScript({ id })` expecting the tag to load unconditionally.
+  It now gates by default; pass `mode: 'advanced'` explicitly to keep the old behavior for a site
+  that has made that call deliberately.
 - **A second `consent/default` after a tag has loaded can WIDEN what was already narrowed**, so the
   bootstrap is idempotent through a window flag. A page may therefore carry the call twice — once
   inline, once from the bundle that mounts the dialog — without harm. Do not defeat the flag.
@@ -158,7 +198,8 @@ cookie page does so when a Google tag is set. The strings are English data, not 
 ## Depends On
 
 - `@owlmeans/consent` — `consentBootstrapScript`, `consentStore`, `ConsentOptions`,
-  `ConsentService`, the category keys and the Consent Mode signal mapping
+  `ConsentService`, the category keys and the Consent Mode signal mapping, plus (for the `'basic'`
+  gated mode) `consentGateScript` and `trackingGranted`
 
 ## Related
 

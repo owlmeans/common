@@ -110,6 +110,10 @@ const consentMode = new URLSearchParams(window.location.search).get('consent')
 const skipOff = new URLSearchParams(window.location.search).get('skip') === 'off'
 // `?themeToggle=1` asks for the footer's light/dark switcher. Absent, the prop is not passed.
 const themeToggle = new URLSearchParams(window.location.search).get('themeToggle') === '1'
+// `?terms=extended` adds billing/product/custom documents and a revision date to the terms
+// confirmation — the shape that pins the "still exactly one checkbox" and "documents render
+// outside the notice" rules even when there is more than terms+privacy to show.
+const extendedTerms = new URLSearchParams(window.location.search).get('terms') === 'extended'
 
 /**
  * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
@@ -217,7 +221,18 @@ base.security = {
     login: {
       // Confirmation required, which is the case that matters: a method must be blocked until it
       // is given, and blocking must SAY so rather than swallow the click.
-      terms: { required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy' },
+      terms: {
+        required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
+        ...(extendedTerms ? {
+          billing: { href: 'https://example.test/billing', revisedAt: '2026-01-01' },
+          product: { name: 'Harness', href: 'https://example.test/product' },
+          documents: [
+            { key: 'custom-a', href: 'https://example.test/custom-a', label: 'Custom A' },
+            { key: 'custom-b', href: 'https://example.test/custom-b', label: 'Custom B' },
+          ],
+          showRevision: true,
+        } : {}),
+      },
       credit: { poweredBy: true, product: 'Harness', organization: 'Acme' },
     },
   },

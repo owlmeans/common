@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-provider",
-  "version": "0.1.18-rc.42",
+  "version": "0.1.18-rc.44",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,11 +21,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.30",
-    "@owlmeans/client-flow": "^0.1.18-rc.37",
-    "@owlmeans/oidc": "^0.1.18-rc.40",
-    "@owlmeans/resource": "^0.1.18-rc.30",
-    "@owlmeans/web-client": "^0.1.18-rc.44",
+    "@owlmeans/auth": "^0.1.18-rc.31",
+    "@owlmeans/client-flow": "^0.1.18-rc.39",
+    "@owlmeans/oidc": "^0.1.18-rc.41",
+    "@owlmeans/resource": "^0.1.18-rc.31",
+    "@owlmeans/web-client": "^0.1.18-rc.46",
     "universal-cookie": "^7.2.1"
   },
   "peerDependencies": {
