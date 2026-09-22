@@ -325,12 +325,23 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
         const amountMinor = integerMetadata(metadata, 'amountMinor')
         const chargedMinor = integerMetadata(metadata, 'chargeAmountMinor')
         const currency = metadata.currency?.toLowerCase()
+        const sourceChargedMinor = metadata.sourceChargeAmountMinor == null
+          ? chargedMinor : integerMetadata(metadata, 'sourceChargeAmountMinor')
+        const amountCurrency = (metadata.amountCurrency ?? currency)?.toLowerCase()
         if (currency == null || session.currency?.toLowerCase() !== currency
-          || session.amount_subtotal !== chargedMinor || amountMinor <= 0 || chargedMinor < amountMinor) {
+          || amountCurrency == null || session.amount_subtotal !== chargedMinor
+          || amountMinor <= 0 || chargedMinor <= 0 || sourceChargedMinor < amountMinor
+          || (amountCurrency === currency && sourceChargedMinor !== chargedMinor)) {
           throw new PaygateError('amount-mismatch')
         }
-        record = { mode: CheckoutPricingMode.Amount, amountMinor, chargeAmountMinor: chargedMinor, currency }
-        completion = { ...base, mode: 'amount', amountMinor, chargeAmountMinor: chargedMinor, currency }
+        record = {
+          mode: CheckoutPricingMode.Amount, amountMinor, sourceChargeAmountMinor: sourceChargedMinor,
+          amountCurrency, chargeAmountMinor: chargedMinor, currency,
+        }
+        completion = {
+          ...base, mode: 'amount', amountMinor, sourceChargeAmountMinor: sourceChargedMinor,
+          amountCurrency, chargeAmountMinor: chargedMinor, currency,
+        }
       } else {
         if (metadata.currency != null && session.currency?.toLowerCase() !== metadata.currency.toLowerCase()) {
           throw new PaygateError('currency-mismatch')

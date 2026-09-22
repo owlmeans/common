@@ -4,8 +4,8 @@ import type {
   OriginState, StoryEstimateBand
 } from '../convert/index.js'
 import type {
-  ConnectExecutor, ConnectHarness, ConnectJobBlock, ConnectJobKind, ConnectJobStatus, ConnectLlm,
-  ConnectSessionStatus, ConnectTarget, ConnectTransport, ModelTier
+  ConnectExecutor, ConnectHarness, ConnectLlm, ConnectSessionStatus, ConnectTarget,
+  ConnectTransport, ConnectWaitReason, ModelTier
 } from './consts.js'
 import type { InquiryAnswerPayload, InquiryPayload } from './ops.js'
 
@@ -82,68 +82,22 @@ export interface ConnectSessionView {
   expiresAt: string
 }
 
-/**
- * A derived view of "what the platform is doing for this project right now".
- *
- * Never stored. It is composed per request from the project lock, the slot record, the story
- * card, the latest pipeline run row and the operations queued for the project — the same facts
- * the manager UI reads, arranged for a caller that has one question ("may I stop waiting?") and
- * one follow-up ("what do I call next?").
- *
- * Its `id` is composed and parsed only through `jobIdOf` / `parseJobId`.
- */
-export interface ConnectJob {
-  id: string
-  kind: ConnectJobKind
-  status: ConnectJobStatus
-  /** The project CARD id. */
-  projectId: string
-  /**
-   * The story CARD id — never the story's code.
-   *
-   * The name is kept because a parent agent reads it: a wire field name is that agent's
-   * vocabulary and is never renamed, only re-documented.
-   */
-  storyId?: string
-  runId?: string
-  /** The pipeline step in flight, when a run row says. */
-  phase?: string
-  progress?: ConnectJobProgress
-  blockedOn?: ConnectJobBlock
-  /**
-   * The question a parked run is waiting on — present exactly when it is blocked on one.
-   *
-   * Carried on the job rather than left to a second lookup because a parent reads a job and
-   * nothing else while it polls: a run that stopped for a person, described only as "blocked",
-   * is a run whose parent waits out the timeout for a question it was never shown. It is also
-   * the ONLY way back to a question whose operation timed out while nobody was attached — the
-   * connector's own queue holds nothing at that point.
-   */
-  inquiry?: InquiryPayload
-  /** One sentence a parent agent can show a human. */
-  message?: string
-  /** Present on `Failed`, and on `Done` where the run recorded a warning. */
-  error?: string
-  /** Kind-specific payload once `Done`. */
-  result?: Record<string, unknown>
-  startedAt?: string
-  updatedAt: string
+export interface ConnectPullQuery {
+  /** Seconds to wait before answering; clamped to the pull ceiling. */
+  wait?: number
 }
 
-export interface ConnectJobProgress {
+export interface ConnectRunStatus {
+  runId: string
+  pipeline: string
+  status: string
   step?: string
   completed: string[]
   pending: string[]
-}
-
-export interface ConnectJobParams {
-  id: string
-  jobId: string
-}
-
-export interface ConnectWaitQuery {
-  /** Seconds to wait before answering; clamped to the pull ceiling. */
-  wait?: number
+  warnings?: string[]
+  error?: string
+  startedAt?: string
+  updatedAt?: string
 }
 
 /** What a connector needs to know about a project in one call. */
@@ -181,18 +135,30 @@ export interface ConnectProjectStatus {
   }
   production?: { id: string, status: string, host?: string }
   agent: { locked: boolean, task?: string, lockedAt?: string }
-  run?: {
-    runId: string
-    pipeline: string
-    status: string
-    step?: string
-    completed: string[]
-    pending: string[]
-    error?: string
-  }
+  run?: ConnectRunStatus
+  waitingFor?: ConnectWaitReason
+  pendingInquiry?: InquiryPayload
   session?: ConnectSessionView
   /** Set for a local target: the connector should not offer cloud-only operations. */
   local: boolean
+  updatedAt: string
+}
+
+/** A story card composed with its deterministic development run. */
+export interface ConnectStoryStatus {
+  projectId: string
+  story: {
+    id: string
+    code: string
+    title: string
+    status: string
+    intrinsic: string
+    warning?: string
+  }
+  run?: ConnectRunStatus
+  waitingFor?: ConnectWaitReason
+  pendingInquiry?: InquiryPayload
+  updatedAt: string
 }
 
 /** The record a local project keeps so a later session knows what it is. */
@@ -217,7 +183,7 @@ export interface ConnectProfileSettingsView extends ConnectProfileSettings {
    * The profile's preference for who performs a CONVERSION's model calls.
    *
    * Its own setting rather than a reading of `llmMode`, because the two answer for different
-   * work: a conversion reads somebody else's whole repository, which is the one job where handing
+   * work: a conversion reads somebody else's whole repository, which is the one case where handing
    * the inference to the parent agent is the cheap default rather than the experimental option.
    *
    * OPTIONAL for the same reason {@link ConnectCapabilitiesView.defaults} carries `converterLlm`
@@ -256,6 +222,34 @@ export interface ConnectProjectSettings {
 export interface ConnectProjectLlmBody {
   llmMode: ConnectLlm | null
 }
+
+/**
+ * A project's branding as a connector reads it — what the generated application says about who
+ * made it, and the Google tag it loads.
+ *
+ * Every field is a string, `''` when unset, in the platform's own branding vocabulary. The
+ * platform credit is absent on purpose: hiding it is a paid capability behind its own gated route,
+ * and neither reading nor saving this record may reach it.
+ */
+export interface ConnectProjectBranding {
+  /** The copyright line in the application's footer. Never empty once saved. */
+  copyright: string
+  /** The organization's display name. Never empty once saved. */
+  organizationName: string
+  /** `''`, an `https://` URL, or a same-origin path such as `/terms` (the generated page). */
+  termsUrl: string
+  /** `''`, an `https://` URL, or a same-origin path such as `/privacy` (the generated page). */
+  privacyUrl: string
+  /** `''`, or a Google tag id: `GTM-…`, `G-…`, `GT-…`, `AW-…`, `DC-…`. */
+  googleTag: string
+}
+
+/**
+ * A PATCH of a project's branding: every field optional, and an absent field keeps its current
+ * value. The platform merges it over what is stored, validates the result as a whole with the
+ * rules the web form uses, and answers the merged record.
+ */
+export interface ConnectProjectBrandingSave extends Partial<ConnectProjectBranding> {}
 
 /** What the platform tells a connector about itself. */
 export interface ConnectCapabilitiesView {
@@ -397,6 +391,7 @@ export interface ConversionStatusView {
   runId?: string
   /** Set exactly when `status` is `Waiting`: the question the run stopped on. */
   pendingInquiry?: InquiryPayload
+  waitingFor?: ConnectWaitReason
   lastError?: string
   updatedAt: string
 }
@@ -428,6 +423,8 @@ export interface ConnectPipelineState {
   failedAt?: string
   error?: string
   note?: string
+  waitingFor?: ConnectWaitReason
+  pendingInquiry?: InquiryPayload
   attempts: number
   startedAt: string
   heartbeatAt: string

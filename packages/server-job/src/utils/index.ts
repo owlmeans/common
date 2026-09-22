@@ -1,2 +1,2 @@
-export * from './owner.js'
-export * from './resource.js'
+export * from './policy.js'
+export * from './view.js'

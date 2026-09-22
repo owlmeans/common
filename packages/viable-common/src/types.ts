@@ -33,6 +33,17 @@ export interface SlotConstMetadata {
   brandingPrivacyUrl: string
   brandingCredit: string
   brandingHideCreditIntent: string
+  /**
+   * The Google tag the owner attached — a `GTM-` container or a `G-`/`GT-`/`AW-`/`DC-` tag id —
+   * loaded by the generated application behind its cookie consent, in the preview and in
+   * production alike.
+   *
+   * OPTIONAL, unlike the branding keys above, and OMITTED from a push while it is unset: a slot
+   * publisher built before the key existed validates the signed body against a schema that does
+   * not declare it, strips it, and refuses the whole configuration with a 401. An unset tag must
+   * therefore never reach one — which only absence guarantees.
+   */
+  brandingGoogleTag?: string
 }
 
 export interface SlotSecretMetadata {
@@ -82,6 +93,25 @@ export interface SlotListMetadata {
    * hosts are always accepted and are never in this list.
    */
   allowedOrigins: string[]
+  /**
+   * Extra Content-Security-Policy source expressions the slot's runtime adds to what it serves —
+   * a third party a generated app legitimately needs that the platform does not already know about.
+   *
+   * OPTIONAL and omitted from a push while empty, for the reason `brandingGoogleTag` is: an older
+   * publisher refuses a signed body carrying a key its schema does not declare, and a slot
+   * provisioned before the key existed simply has no value for it. The runtime reads it
+   * defensively and filters every source before it reaches a header.
+   *
+   * The Google tag's hosts are NOT carried here: the publisher derives them itself from
+   * `brandingGoogleTag` (and, for a production build, from the record the build writes), so the
+   * tag and the hosts it needs cannot disagree. Nothing writes this key today; it is declared so the
+   * publisher's existing reader has a vocabulary entry and a schema slot.
+   *
+   * Deliberately NOT in `metadataLists`. That array enumerates the lists an OWNER stores — one
+   * `project-config` row each, loaded on every metadata read and pushed back verbatim — and no
+   * owner-facing setting stores this one.
+   */
+  cspSources?: string[]
 }
 
 export interface CustomSecretMetadata {

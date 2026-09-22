@@ -1,0 +1,58 @@
+{
+  "name": "@owlmeans/server-oauth",
+  "version": "0.1.18-rc.4",
+  "license": "MIT",
+  "description": "The server half of @owlmeans/oauth — a standards-facing OAuth 2.1 authorization server (device authorization + authorization code with PKCE, RFC 9728/8414 metadata, Client ID Metadata Documents, Dynamic Client Registration) that mints ordinary @owlmeans/auth-token access tokens on approval.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18-rc.30",
+    "@owlmeans/auth-common": "^0.1.18-rc.32",
+    "@owlmeans/auth-token": "^0.1.18-rc.20",
+    "@owlmeans/config": "^0.1.18-rc.32",
+    "@owlmeans/context": "^0.1.18-rc.28",
+    "@owlmeans/entrypoint": "^0.1.18-rc.31",
+    "@owlmeans/error": "^0.1.18-rc.30",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.31",
+    "@owlmeans/oauth": "^0.1.18-rc.4",
+    "@owlmeans/resource": "^0.1.18-rc.30",
+    "@owlmeans/route": "^0.1.18-rc.29",
+    "@owlmeans/server-api": "^0.1.18-rc.36",
+    "@owlmeans/server-auth-token": "^0.1.18-rc.17",
+    "@owlmeans/server-context": "^0.1.18-rc.31",
+    "@owlmeans/static-resource": "^0.1.18-rc.28"
+  },
+  "peerDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/redis-resource": "^0.1.18-rc.31",
+    "@owlmeans/server-auth-identity": "^0.1.18-rc.32",
+    "@types/bun": "^1.4.0",
+    "ajv": "^8.17.1",
+    "fastify": "^5.0.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

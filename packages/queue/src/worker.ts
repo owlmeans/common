@@ -1,10 +1,10 @@
 import type { Middleware } from '@owlmeans/context'
 import { MiddlewareStage, MiddlewareType, AppType } from '@owlmeans/context'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import { RouteProtocols } from '@owlmeans/route'
 import type { Config, Context, JobContext, JobEnvelope, JobProcessor, QueueWorkerService } from './types.js'
 import { handleJob } from './bridge.js'
 import { DEFAULT_ALIAS } from './consts.js'
+import { isQueueRoute, queueRouteOptions } from './route.js'
 
 /**
  * Every queued entrypoint this process both SERVES and LISTENS to, grouped by queue.
@@ -22,17 +22,18 @@ export const servedJobs = <C extends Config, T extends Context<C>>(
 
   context.entrypoints<CommonEntrypoint>().forEach(entrypoint => {
     const route = entrypoint.route.route
-    if (route.type !== AppType.Backend || route.protocol !== RouteProtocols.QUEUE) {
+    if (route.type !== AppType.Backend || !isQueueRoute(route)) {
       return
     }
     if (route.service != null && route.service !== context.cfg.service) {
       return
     }
-    if (entrypoint.handle == null || route.queue == null || !listen.includes(route.queue)) {
+    const { queue } = queueRouteOptions(route)
+    if (entrypoint.handle == null || !listen.includes(queue)) {
       return
     }
 
-    served.set(route.queue, [...(served.get(route.queue) ?? []), entrypoint])
+    served.set(queue, [...(served.get(queue) ?? []), entrypoint])
   })
 
   return served

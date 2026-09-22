@@ -8,7 +8,7 @@ server integration (`@owlmeans/server-payment`) implements against these contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/payment@^0.1.18-rc.29
+bun add @owlmeans/payment@^0.1.18-rc.33
 ```
 
 ## Concepts
@@ -129,7 +129,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.28
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

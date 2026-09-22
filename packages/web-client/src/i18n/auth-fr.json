@@ -1,0 +1,38 @@
+{
+  "dispatcher": {
+    "loading": "Chargement…",
+    "error": "Échec de l’authentification : {{error}}"
+  },
+  "surrogate": {
+    "login": {
+      "working": "Connexion en cours…",
+      "gesture": {
+        "title": "Continuez pour vous connecter.",
+        "action": "Se connecter"
+      },
+      "handing": "Terminé. Retour à l’application…",
+      "orphaned": "Vous êtes connecté. Vous pouvez fermer cette fenêtre et continuer dans l’application.",
+      "failed": "Cela n’a pas abouti. Vous pouvez fermer cette fenêtre et réessayer.",
+      "standalone": {
+        "title": "Cette page sert à vous connecter depuis une autre fenêtre.",
+        "action": "Ouvrir l’application"
+      },
+      "close": "Fermer"
+    },
+    "logout": {
+      "working": "Déconnexion en cours…",
+      "gesture": {
+        "title": "Continuez pour vous déconnecter.",
+        "action": "Se déconnecter"
+      },
+      "handing": "Déconnecté. Retour à l’application…",
+      "orphaned": "Vous êtes déconnecté. Vous pouvez fermer cette fenêtre.",
+      "failed": "La déconnexion n’a pas abouti ici. Vous pouvez fermer cette fenêtre.",
+      "standalone": {
+        "title": "Cette page sert à vous déconnecter depuis une autre fenêtre.",
+        "action": "Ouvrir l’application"
+      },
+      "close": "Fermer"
+    }
+  }
+}

@@ -15,6 +15,9 @@ import {
   makeContext, useContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster
 } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
+import {
+  PanelCookieConsent, PanelConsentMenuWidget, appendConsentWidgetService, useConsentMenuPresence
+} from '../../src/consent/index.js'
 import { LoginOutcome, ensureLoginService } from '@owlmeans/client-auth/login'
 import type { LoginMethod } from '@owlmeans/client-auth/login'
 
@@ -93,13 +96,55 @@ const brokenHeader = new URLSearchParams(window.location.search).get('header') =
 // `?footer=none` omits the `footer` prop entirely — the shape every area layout had before the
 // shell grew a footer-links convention. `NavLayout` must still render the credit line then.
 const noFooterProp = new URLSearchParams(window.location.search).get('footer') === 'none'
+// `?footer=node` hands `NavLayout` a NODE footer — an application's own footer layout (a brand
+// block and a Legal column), the shape a generated app's footer takes — instead of links.
+const nodeFooter = new URLSearchParams(window.location.search).get('footer') === 'node'
+// `?mobileMenu=1` opts into the narrow-viewport menu sheet. Absent, the prop is not passed at
+// all — the shape every existing layout has — and the shell must render exactly what it always did.
+const mobileMenu = new URLSearchParams(window.location.search).get('mobileMenu') === '1'
+// `?consent=bare` mounts `PanelCookieConsent` on a context that never appended the presence
+// service — an application using the dialog on its own. `?consent=menu` appends the service, so
+// the footer's "Cookie settings" control takes over the floating button's job.
+const consentMode = new URLSearchParams(window.location.search).get('consent')
+// `?skip=off` passes `skipLinkLabel={false}` — an application that renders its own skip link.
+const skipOff = new URLSearchParams(window.location.search).get('skip') === 'off'
+// `?themeToggle=1` asks for the footer's light/dark switcher. Absent, the prop is not passed.
+const themeToggle = new URLSearchParams(window.location.search).get('themeToggle') === '1'
+
+/**
+ * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
+ * component that also declares the presence, exactly as the `./consent` rules ask.
+ */
+const CookieSettings: FC = () => {
+  useConsentMenuPresence()
+
+  return <PanelConsentMenuWidget label="Cookie settings" className="w-auto" />
+}
+
+const FooterBlock: FC = () => <div id="footer-block" className="flex flex-wrap justify-between gap-8">
+  <div>
+    <strong>Harness</strong>
+    <p>One line about what the harness does.</p>
+  </div>
+  <nav aria-label="Legal">
+    <p>Legal</p>
+    <ul>
+      <li><a href="/privacy">Privacy</a></li>
+      <li><a href="/terms">Terms</a></li>
+      {consentMode != null && <li><CookieSettings /></li>}
+    </ul>
+  </nav>
+</div>
 
 const Layout: FC<PropsWithChildren> = ({ children }) => <>
   <NavLayout
     nav={navConfig}
     title="Harness"
     actions={<button id="action-slot">action</button>}
-    {...(noFooterProp ? {} : { footer: footerLinks })}
+    {...(noFooterProp ? {} : { footer: nodeFooter ? <FooterBlock /> : footerLinks })}
+    {...(mobileMenu ? { mobileMenu: true } : {})}
+    {...(skipOff ? { skipLinkLabel: false as const } : {})}
+    {...(themeToggle ? { themeToggle: true } : {})}
     // A DARK APPLICATION SHELL, which is what a themed app does to the root: a contrasting
     // surface pair, both halves correct. The header paints its own opaque background, so it is
     // a different surface, and everything in it must stay legible against `--background`
@@ -189,6 +234,9 @@ const cfg = config(SERVICE, base as never)
 const context = makeContext(cfg as never)
 context.serviceRoute(SERVICE, true)
 context.serviceRoute(API, true)
+if (consentMode === 'menu') {
+  appendConsentWidgetService(context as never)
+}
 
 ensureLoginService(context as never).registerMethodSource({
   alias: 'harness',
@@ -237,4 +285,8 @@ const entrypoints = [
 
 context.registerEntrypoints(entrypoints)
 
-createRoot(document.getElementById('root')!).render(<PanelApp context={context as never} />)
+// The consent dialog is a sibling of the Router, as in an application — and only on the consent
+// branches, since its first-visit overlay covers the page every other test clicks through.
+createRoot(document.getElementById('root')!).render(<PanelApp context={context as never}>
+  {consentMode != null && <PanelCookieConsent policyHref="/cookies" />}
+</PanelApp>)

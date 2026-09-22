@@ -35,7 +35,7 @@ export const VIABLE_SPEC_FLOW = 'viable:spec'
  * The story flow's status keys.
  *
  * Byte-identical to the strings a story has always carried — the frontmatter of
- * `docs/stories/<code>.md`, the connector's job status mapping, the board's columns, their i18n
+ * `docs/stories/<code>.md`, connector status rendering, the board's columns, their i18n
  * keys and every end-to-end selector read these exact values. A key is a wire contract and is
  * never renamed.
  */

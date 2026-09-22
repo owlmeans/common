@@ -7,18 +7,17 @@ metadata:
 
 # Using `@owlmeans/server-auth-otp`
 
-**Install:** `"@owlmeans/server-auth-otp": "^0.1.18-rc.34"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-otp": "^0.1.18-rc.37"` in `dependencies`
 
 Email OTP authentication plugin for the OwlMeans auth-manager plugin system. Relies on `@owlmeans/auth-otp` for the OTP service interface, a Redis resource for code storage, and a `MailerService` to send codes.
 
 ## `@owlmeans/auth-otp` — the contracts
 
-`@owlmeans/auth-otp` has no skill of its own because it has no behaviour: it is the contract half of
-this pair, and everything it declares is implemented here. It carries the `OtpService` interface —
-`issueChallenge(email)`, which generates a code, persists it with a TTL and mails it, and
-`verifyChallenge(email, code)`, which verifies and consumes it — plus the names both halves agree
-on: `OTP_SERVICE`, `OTP_AUTH_TYPE` (`'email-otp'`), `OTP_RESOURCE`, `OTP_TTL_SECONDS` (600) and
-`OTP_CODE_LENGTH` (6). Nothing else; no Redis, no mailer, no plugin.
+`@owlmeans/auth-otp` has no skill of its own because it is the contracts half of this pair. Its
+`OtpService` issues an opaque issuance id, persists and mails a code, and verifies that exact
+issuance; it also owns `OTP_SERVICE`, `OTP_AUTH_TYPE` (`'email-otp'`), `OTP_RESOURCE`,
+`OTP_TTL_SECONDS` (600), `OTP_CODE_LENGTH` (6), and the five-attempt policy. The server package
+provides the challenge stores, throttles, mailer integration and plugin.
 
 Depend on it from a shared package that must name the auth type or type the service, and depend on
 `@owlmeans/server-auth-otp` only where the server wires itself up — the same producer/consumer split
@@ -66,13 +65,11 @@ appendOtpPlugin(context)
 
 **Init** — client sends `{ type: 'email-otp', userId: 'user@email.com' }`:
 - OTP service generates a 6-digit code, stores it in Redis with 10 min TTL, emails it.
-- Returns `{ challenge: '<email>::<nonce>' }` in a signed envelope — see Gotchas below for why the
-  nonce is required, not optional.
+- Returns an opaque issuance id in a signed envelope. The id never contains the email or code.
 
 **Authenticate** — client sends `{ challenge: <signed-envelope>, userId: email, credential: '123456', type: 'email-otp', role: AuthRole.User, scopes: [ALL_SCOPES] }`:
-- Envelope is opened → `email::nonce` is extracted, split on `::` to recover the email (the nonce
-  itself is discarded — it only exists to make the challenge unique, see Gotchas).
-- OTP service verifies the code (throws `AuthenFailed` if wrong or expired), then deletes it.
+- Envelope is opened → the plugin verifies the opaque issuance and code atomically. Five failed
+  attempts invalidate it; one concurrent correct verification can consume it.
 - `IdentityLinkingService` finds the linked profile, or links this email to the person's platform
   identity — registering an account, a profile and an organization entity only when the address is
   new to the platform.
@@ -97,7 +94,9 @@ cfg.otp = {
 
 ## Rules
 
-- Always register the Redis resource AND the mailer service BEFORE the OTP service.
+- Always register the Redis challenge store, Redis throttle service, and mailer service BEFORE the
+  OTP service. Production uses `makeRedisOtpChallengeStore` and `makeRedisThrottleService`; memory
+  implementations are local/test defaults only.
 - Call `appendOtpPlugin(context)` once per context — it adds to the shared plugin registry singleton.
 - `credential.entitySlug` on the authenticate request **selects nothing**. The plugin copies it into
   the linking details as `clientId` (defaulting to `'default'`) and `entityId`, and
@@ -108,23 +107,20 @@ cfg.otp = {
   slug before the envelope is signed, so the address alone decides which identity and which
   organization the token names.
 - Errors from this plugin are `AuthenFailed` (from `@owlmeans/auth`) — callers catch that, not raw `Error`.
+- Use the email throttle for the public integrated-IAM flow: one issuance per minute and ten per
+  hour, with a 429 and Retry-After. The companion IP throttle is available for an ingress that
+  safely supplies a normalized client address; throttle keys hash email/IP values and never store
+  the raw identifier.
 - For tests, register `makeDefaultConsoleMailerService()` and read `svc.captured[n].text` to extract
   the code. Bare `makeConsoleMailerService()` registers under `CONSOLE_MAILER` (`'console-mailer'`),
   which is not the alias `makeOtpService` resolves — it looks up `cfg.otp?.mailerAlias ?? MAILER_SERVICE`.
 
 ## Gotchas
 
-- **The challenge must never be just the plaintext email.** The auth manager's anti-replay guard
-  (`AUTH_CACHE` in `@owlmeans/server-auth`) burns the *decoded* challenge into a create-once record
-  before the plugin's own credential check runs. `AUTH_CACHE` defaults to a **static, in-memory**
-  resource — the manager's context appends it, and nothing here upgrades it to Redis; the OTP codes
-  are the only thing this package keeps in Redis. If `init()` returned the bare email, that decoded
-  value would be identical across every independent login attempt for the same address, so a second
-  legitimate login within the cache TTL (`AUTHEN_TIMEFRAME`, 15 min) — right code or wrong —
-  collides with the still-cached prior attempt and throws `AuthenFailed('challenge')` (the
-  resource's `RecordExists` underneath), not an OTP-specific error. Fix: `init()` appends a fresh
-  `createIdOfLength(16, IdStyle.Base58)` nonce (`'<email>::<nonce>'`); `authenticate()` splits it
-  back apart. Never revert to a bare-email challenge.
+- **The OTP challenge must be opaque and plugin-owned.** The generic auth-manager replay policy
+  does not consume it before the OTP store can count attempts; the plugin atomically owns verify
+  and consume. Never encode the email or code in the issuance id, and never replace the bounded
+  attempt counter with a bare auth-cache replay key.
 - **`AuthCredentialsSchema.credential` has a `minLength` floor** (from `@owlmeans/auth`) sized for
   long tokens/signatures from other plugins (Ed25519 signature, OAuth code). A 6-digit OTP code is
   legitimately shorter — the floor is `minLength: 1` and must stay low enough to admit it, or every

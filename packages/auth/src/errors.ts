@@ -27,6 +27,18 @@ export class AuthManagerError extends AuthError {
   }
 }
 
+/** An authentication authority could not be consulted, so access must fail closed. */
+export class AuthUnavailable extends AuthError {
+  public static override typeName: string = `${AuthError.typeName}Unavailable`
+  public static httpStatus = 503
+  public static allowServerErrorStatus = true
+
+  constructor(message: string = 'unavailable') {
+    super(`unavailable:${message}`)
+    this.type = AuthUnavailable.typeName
+  }
+}
+
 export class AuthManagerUnsupported extends AuthManagerError {
   public static override typeName: string = `${AuthManagerError.typeName}Unsupported`
 
@@ -120,6 +132,7 @@ export class ProfileConsistencyError extends ProfileError {
 ResilientError.registerErrorClass(AuthError)
 ResilientError.registerErrorClass(AuthUnknown)
 ResilientError.registerErrorClass(AuthManagerError)
+ResilientError.registerErrorClass(AuthUnavailable)
 ResilientError.registerErrorClass(AuthManagerUnsupported)
 ResilientError.registerErrorClass(AuthenFailed)
 ResilientError.registerErrorClass(AuthenExists)

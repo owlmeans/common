@@ -1,6 +1,6 @@
-import { ConnectJobBlock, ConnectJobKind, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
+import { ConnectLlm, ConnectTarget, ConnectWaitReason } from '@owlmeans/viable-common'
 
-import { JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, TOOL_DEADLINE_MS } from '../consts.js'
+import { NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
 import type { ToolHost } from './types.js'
 
@@ -22,9 +22,7 @@ export interface PlatformPipeline {
   /** Whether a crashed run is picked up where it stopped rather than started over. */
   resumable: boolean
   /** What a run of it can stop and wait for. */
-  blocks?: ConnectJobBlock[]
-  /** The job kind a parent polls it under, where it has one. */
-  jobKind?: ConnectJobKind
+  waitsFor?: ConnectWaitReason[]
 }
 
 /**
@@ -44,12 +42,27 @@ export interface PlatformCapability {
   absent: string
 }
 
+/**
+ * Something every application the platform generates carries, described for a parent agent.
+ *
+ * Neither a pipeline nor a tool: a fact about the PRODUCT the runs produce, which a parent needs in
+ * order to describe it truthfully to the person it works for, and to not "add" by hand what the
+ * platform already generates. `tools` names what reads or changes it, where anything does.
+ */
+export interface PlatformFeature {
+  id: string
+  title: string
+  what: string
+  /** Tool names in this SDK's own catalogue. A test pins that every one of them exists. */
+  tools?: string[]
+}
+
 export interface PlatformCatalogue {
   pipelines: PlatformPipeline[]
+  features: PlatformFeature[]
   capabilities: PlatformCapability[]
   limits: {
     toolDeadlineMs: number
-    jobPollMaxSec: number
     nextTaskWaitMs: number
     nextQuestionWaitMs: number
   }
@@ -61,9 +74,8 @@ export interface PlatformCatalogue {
  *
  * STATIC on purpose: `describe_platform` is the one tool that must answer before a token is valid
  * for anything, because it is what a parent reads to decide whether to use the platform at all.
- * Every pipeline a parent can poll for has an entry — the list is checked against
- * {@link ConnectJobKind}, so a job kind added without a description here fails a test rather than
- * reaching a parent as a job it cannot interpret.
+ * Every pipeline a parent can observe has an entry, with the domain status tool named by its
+ * capability group.
  */
 export const PLATFORM_CATALOGUE: PlatformCatalogue = {
   pipelines: [
@@ -74,41 +86,42 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' built and no code is generated until the draft is confirmed.',
       startedBy: ['create_project'],
       resumable: false,
-      jobKind: ConnectJobKind.ProjectCreate,
     },
     {
       id: 'vib:project:init',
       title: 'Build the whole application',
-      what: 'Lays the template down, installs dependencies, configures the target, draws every'
-        + ' screen the analysis found as a placeholder, and builds it. The long one.',
+      what: 'Lays the template down, installs dependencies, configures the target, decides whether'
+        + ' the guest home gets a landing gate, draws every screen the analysis found as a'
+        + ' placeholder, writes the Terms and Privacy pages, and builds it. The long one.',
       startedBy: ['confirm_project'],
       stages: [
-        'template', 'dependencies', 'serve', 'styles', 'metadata', 'primary', 'scaffold', 'build',
+        'template', 'dependencies', 'serve', 'styles', 'metadata', 'primary', 'landing', 'scaffold',
+        'legal', 'build',
       ],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp, ConnectJobBlock.Env],
-      jobKind: ConnectJobKind.ProjectInit,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector, ConnectWaitReason.Environment],
     },
     {
       id: 'vib:project:reinit',
       title: 'Lay the template down again',
       what: 'Wipes the generated sources and rebuilds from the template. The user stories are kept'
-        + ' and reset to planned; configuration and git history survive.',
+        + ' and reset to planned; configuration and git history survive, and so does a landing-gate'
+        + ' decision already made. Blank or platform-default Terms and Privacy links switch to the'
+        + ' generated /terms and /privacy pages; custom ones are kept.',
       startedBy: ['reinitialize_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ProjectReinit,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:story:develop',
       title: 'Implement one user story',
       what: 'Designs the story, then implements it: types, data, endpoints, access, state,'
-        + ' components, screens and navigation, then checks that the application still boots.',
+        + ' components, screens and navigation, then checks that the application still boots. The'
+        + ' landing gate story also puts its real component on the guest home.',
       startedBy: ['develop_story'],
-      stages: ['design', 'implement', 'widget', 'boot gate'],
+      stages: ['design', 'implement', 'widget', 'landing', 'boot gate'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.StoryDevelop,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'free flight',
@@ -117,17 +130,15 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' a styling pass. For anything that is not a user story.',
       startedBy: ['modify_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.FreeFlight,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'resume',
       title: 'Continue a run that stopped',
       what: 'Picks a crashed or interrupted run up at the step it stopped on rather than starting'
-        + ' it over. Answers a job of the run it resumed.',
+        + ' it over. Answers with the resumed pipeline status.',
       startedBy: ['resume_pipeline'],
       resumable: true,
-      jobKind: ConnectJobKind.PipelineResume,
     },
     {
       id: 'vib:project:convert:intake',
@@ -136,8 +147,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' much of it can be converted and what that will cost. Ends at your decision.',
       startedBy: ['convert_project'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertIntake,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:analysis',
@@ -146,8 +156,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' main flow the platform would have written for it, then bootstraps a target around it.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertAnalysis,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:extraction',
@@ -156,8 +165,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' to an area, and prices implementing them.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.Question, ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertExtraction,
+      waitsFor: [ConnectWaitReason.Person, ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'vib:project:convert:implementation',
@@ -166,8 +174,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' beside it as evidence.',
       startedBy: ['proceed_conversion'],
       resumable: true,
-      blocks: [ConnectJobBlock.ModelTask, ConnectJobBlock.LocalOp],
-      jobKind: ConnectJobKind.ConvertImplementation,
+      waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
     {
       id: 'purge',
@@ -176,7 +183,52 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' conversion documents so they stop quoting them. Cannot be undone.',
       startedBy: ['purge_origin'],
       resumable: false,
-      jobKind: ConnectJobKind.ConvertPurge,
+    },
+  ],
+
+  features: [
+    {
+      id: 'landing-gate',
+      title: 'The landing gate',
+      what: 'The key step of the END USER\'s workflow can begin on the guest home: in place of the'
+        + ' hero\'s buttons, a card lets a visitor start it without an account, and signing in'
+        + ' carries their choices to that story\'s full screen. Initialization weighs whether the'
+        + ' product wants one — encouraged for web, AI-agent and AI-pipeline products, discouraged'
+        + ' for games — and marks at most one story; a converted application gets none. Developing'
+        + ' that story replaces the sketch with the real component.',
+      tools: ['list_stories', 'story_status', 'develop_story'],
+    },
+    {
+      id: 'legal-pages',
+      title: 'Terms and Privacy pages',
+      what: 'Generated at /terms and /privacy from the specification and the plan, aware of EU and'
+        + ' US law, and linked from every footer beside the cookie settings. They name the'
+        + ' organization and the copyright from the project settings, so changing those updates'
+        + ' both pages with no new generation. The preview marks them as drafts to review before'
+        + ' publishing.',
+      tools: ['project_settings', 'update_project_settings'],
+    },
+    {
+      id: 'google-tag',
+      title: 'A Google tag',
+      what: 'A GTM-, G-, GT-, AW- or DC- id in the project settings loads on the preview and in'
+        + ' production, behind the cookie consent: Consent Mode v2 keeps analytics and ads storage'
+        + ' denied until the visitor allows them, and the Privacy page gains its Google section.',
+      tools: ['update_project_settings'],
+    },
+    {
+      id: 'look',
+      title: 'The look',
+      what: 'A white ground in light mode and black in dark, one product accent, hairlines and'
+        + ' neutral tiles, a heavy grotesk type, and an illustration of the product\'s own domain in'
+        + ' the hero. No gradients, glass or glow unless the specification asks for them by name —'
+        + ' a product\'s subject matter is not such a request.',
+    },
+    {
+      id: 'production',
+      title: 'Production builds',
+      what: 'A published build carries no preview scaffolding: no story codes, no "preview" pills,'
+        + ' no dashed placeholder frames — a placeholder widget renders as an ordinary card.',
     },
   ],
 
@@ -193,6 +245,15 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       absent: 'no project tools are offered here',
     },
     {
+      id: 'settings',
+      title: 'Project settings',
+      what: 'Read and change what a person edits on the project\'s control panel: the copyright'
+        + ' line, the organization name, the Terms and Privacy links and the Google tag. A save'
+        + ' rebuilds the preview; production takes it at the next Publish.',
+      tools: ['project_settings', 'update_project_settings'],
+      absent: 'project settings are changed in the web application from here',
+    },
+    {
       id: 'stories',
       title: 'User stories',
       what: 'User stories are planning CARDS: each has a code, a status in the story flow'
@@ -206,11 +267,11 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     },
     {
       id: 'runs',
-      title: 'Runs and jobs',
-      what: 'Poll a job, read where a run stopped, continue it, and see what this connector is'
+      title: 'Runs and statuses',
+      what: 'Read where a run stopped, continue it, and see what this connector is'
         + ' currently doing.',
-      tools: ['wait_for', 'pipeline_status', 'resume_pipeline', 'session_status'],
-      absent: 'no job tools are offered here',
+      tools: ['pipeline_status', 'resume_pipeline', 'session_status'],
+      absent: 'no run tools are offered here',
     },
     {
       id: 'free-flight',
@@ -282,7 +343,6 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
 
   limits: {
     toolDeadlineMs: TOOL_DEADLINE_MS,
-    jobPollMaxSec: JOB_POLL_MAX_SEC,
     nextTaskWaitMs: NEXT_TASK_WAIT_MS,
     nextQuestionWaitMs: NEXT_QUESTION_WAIT_MS,
   },
@@ -292,6 +352,18 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     llms: [ConnectLlm.Cloud, ConnectLlm.Local],
   },
 }
+
+/**
+ * {@link PlatformCatalogue.features} in one sentence, for `describe_capabilities`.
+ *
+ * That answer is read at the same moment as `describe_platform` — once, before anything is created
+ * — by a parent that may call only one of the two. Kept beside the entries it summarises so the
+ * two cannot drift apart unnoticed; the full text stays in `describe_platform`.
+ */
+export const GENERATED_SUMMARY = 'Every generated application carries a landing gate on the guest'
+  + ' home where the product wants one, Terms and Privacy pages at /terms and /privacy, an optional'
+  + ' consent-gated Google tag, a white (black in dark mode) ground with one accent, and production'
+  + ' builds without preview scaffolding — describe_platform says what each means.'
 
 /**
  * The catalogue as text, narrowed to what THIS session can drive.
@@ -350,12 +422,20 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
     )
     if (pipeline.stages != null) lines.push(`    steps: ${pipeline.stages.join(' → ')}`)
     lines.push(
-      `    ${pipeline.resumable ? 'resumable — resume_pipeline continues it' : 'not resumable'}`
-      + (pipeline.jobKind != null ? ` · job kind: ${pipeline.jobKind}` : ''),
+      `    ${pipeline.resumable ? 'resumable — resume_pipeline continues it' : 'not resumable'}`,
     )
-    if (pipeline.blocks != null && pipeline.blocks.length > 0) {
-      lines.push(`    may block on: ${pipeline.blocks.join(', ')}`)
+    if (pipeline.waitsFor != null && pipeline.waitsFor.length > 0) {
+      lines.push(`    may wait for: ${pipeline.waitsFor.join(', ')}`)
     }
+  }
+
+  // Rendered whole on every host: what the platform GENERATES does not depend on which connector
+  // is reading. Only the tool names are narrowed, like everywhere else.
+  lines.push('', 'WHAT A GENERATED APPLICATION CARRIES')
+  for (const feature of catalogue.features) {
+    lines.push('', `  ${feature.title}`, `    ${feature.what}`)
+    const tools = (feature.tools ?? []).filter(has)
+    if (tools.length > 0) lines.push(`    see: ${tools.join(', ')}`)
   }
 
   lines.push('', 'WHAT YOU CAN CALL')
@@ -385,9 +465,8 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
   lines.push(
     '',
     'LIMITS',
-    `  every tool answers within ${Math.round(catalogue.limits.toolDeadlineMs / 1000)}s — anything`
-    + ' longer is a job you poll',
-    `  wait_for holds for at most ${catalogue.limits.jobPollMaxSec}s per call`,
+    `  every tool answers within ${Math.round(catalogue.limits.toolDeadlineMs / 1000)}s — long work`
+    + ' continues server-side and is read through its domain status tool',
     // Named only where the tool is offered: a limit for a call that is not in the list is an
     // invitation to make it.
     ...(has('next_task')

@@ -9,7 +9,7 @@ import type { AuthService } from '@owlmeans/auth-common'
 import { useNavigate } from '@owlmeans/client'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { FlowService } from '@owlmeans/client-flow'
-import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
+import { DEFAULT_ALIAS as FLOW_SERVICE, resumeSuspendedFlow } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
 
@@ -18,7 +18,20 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
 
   const navigator = useNavigate()
   const navigate = useCallback(async () => {
-    alias = alias == null || alias === DISPATCHER ? HOME : alias
+    if (alias == null || alias === DISPATCHER) {
+      // A sign-in that started elsewhere — a device or authorization-code consent screen, most
+      // commonly — suspended itself here before leaving. Resuming it takes priority over the
+      // ordinary HOME landing, and does so BEFORE `alias` is overwritten, because once it is
+      // `HOME` there is no way back to tell the two cases apart.
+      const landing = await resumeSuspendedFlow(context)
+      if (landing != null) {
+        await navigator.navigate(
+          context.entrypoint<ClientEntrypoint<string>>(landing.entrypoint), { query: landing.query }
+        )
+        return
+      }
+      alias = HOME
+    }
     const module = context.entrypoint<ClientEntrypoint<string>>(alias)
     if (alias === HOME) {
       params = {}

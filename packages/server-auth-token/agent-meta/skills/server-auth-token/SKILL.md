@@ -1,6 +1,6 @@
 ---
 name: server-auth-token
-description: How to use @owlmeans/server-auth-token — the server half of long-lived access tokens — the Mongo store, the guard that verifies a presented token and intersects its scopes with the profile's, the mint/list/revoke handlers, and the coguard that admits a token on every already-guarded route. Auto-invoked when registering the token guard or resources, mounting the token handlers, or diagnosing a 401 on a route an access token should reach.
+description: How to use @owlmeans/server-auth-token — the server half of long-lived access tokens — the Mongo store, the guard that verifies a presented token and intersects its scopes with the profile's, the mint/list/revoke handlers, the shared `issueAccessToken`, audience admission for OAuth-issued tokens, and the coguard that admits a token on every already-guarded route. Auto-invoked when registering the token guard or resources, mounting the token handlers, or diagnosing a 401 on a route an access token should reach.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-auth-token
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-token": "^0.1.18-rc.17"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — the record, the routes, the format helpers
 
 ## Key Exports
@@ -23,7 +23,9 @@ user-invocable: false
 | `hashAccessToken(token)` · `mintAccessToken(prefix)` | The stored form; one minted `{ token, hash, display }` |
 | `withAuthTokenCoguard(protocolTree, guard?)` | Return the same-shaped immutable tree with the guard appended to every already-guarded protocol |
 | `listAccessTokens` · `createAccessToken` · `revokeAccessToken` | The three handlers |
-| `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`) · `AuthTokenConfig` · `AccessTokenResource` | Types |
+| `issueAccessToken(ctx, subject, request)` | Mint one token for `{ entityId, userId, profileId, role, scopes }` — what `createAccessToken` does over an HTTP body, and what an OAuth token endpoint calls over a session it verified itself. `request` is `CreateAccessToken` plus `audience?: string[]` |
+| `refuseTokenAuth(req, what)` | The one "interactive session only" check — throws `AuthForbidden` when `req.auth.type` is an access token |
+| `AuthTokenGuardOptions` (`prefix`, `denyAliases`, `touchInterval`, `resourceAlias`, `profileAlias`, `resources`) · `IssueAccessTokenSubject` · `IssueAccessTokenRequest` · `AuthTokenConfig` · `AccessTokenResource` | Types |
 
 ## Wiring
 
@@ -77,6 +79,16 @@ Three properties keep it from colliding with the guards beside it:
 - `entitySlug` is resolved through `ENTITY_RESOLVER` when one is registered, so the payload is
   identical to a browser session's rather than carrying a raw id.
 
+**Audience admission is opt-in.** A token minted through an OAuth grant carries `audience` (the resources
+it is FOR, RFC 8707). A guard configured with `resources` (`string[]` or `(ctx) => string[]`, resolved
+per request, because `appendAuthTokenGuard` runs from `makeContext` before a secret-mounted hostname is
+necessarily readable) refuses — as an ordinary non-match, a 401 — a token whose non-empty `audience`
+does not intersect it. A token with **no** audience (every hand-minted one) is admitted everywhere its
+scopes reach, and a guard with no `resources` admits every token whatever its audience, so a deployment
+that never mints an audience-restricted token sees no change. Two guards over different surfaces are
+how a token bound to `/mcp` stays out of the ordinary REST API while a REST-scoped token still works
+through `/mcp`.
+
 `lastUsedAt` is a **throttled, fire-and-forget** write (`touchInterval`, default 5 minutes). A usage
 timestamp is never a reason to fail a request, and awaiting it would put a database write on the
 critical path of every authenticated call. It answers one question — "is this token still in use?" —
@@ -85,8 +97,8 @@ and is not an access log.
 ## A token may never mint or revoke a token
 
 Minting is the one operation that turns a stolen credential into a permanent one: a token that can
-create tokens survives the revocation of the token that leaked. `createAccessToken` and
-`revokeAccessToken` refuse a request whose `auth.type` is `AuthroizationType.AuthToken`, and a
+create tokens survives the revocation of the token that leaked. `createAccessToken`, `revokeAccessToken` and any other minting path (an OAuth consent approval calls
+`refuseTokenAuth` before it snapshots the subject) refuse a request whose `auth.type` is `AuthroizationType.AuthToken`, and a
 deployment additionally names those routes in the guard's **deny list**, so the refusal is a 401 at
 the boundary rather than a check every future handler has to remember.
 
@@ -121,7 +133,7 @@ works.
 ## Tests
 
 `bun test ./tests` in the package — what the guard claims, what it resolves (including that a token
-can never outrank its profile), the mint/list/revoke rules, and the coguard's four properties.
+can never outrank its profile), the mint/list/revoke rules, `issueAccessToken` parity with the route, audience admission, and the coguard's four properties.
 
 ## Depends On
 
@@ -132,5 +144,6 @@ can never outrank its profile), the mint/list/revoke rules, and the coguard's fo
 
 ## Related
 
-- [[auth-token]] — the format, the routes and the client carrier guard
+- [[auth-token]] — the format, the routes, `audience` and the client carrier guard
+- [[server-oauth]] — the authorization server that mints audience-scoped tokens through `issueAccessToken`
 - [[web-auth-token]] — the management panel · [[auth-protocol]] · [[server-auth]]

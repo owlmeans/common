@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
-import { CONNECT_TOKEN_PREFIX, VIABLE_STORY_TYPE } from '@owlmeans/viable-common'
+import { CONNECT_TOKEN_PREFIX, connect, VIABLE_STORY_TYPE } from '@owlmeans/viable-common'
 
 import { isTransientTransportError, makeRemoteConnectorApi, recoverLongPoll } from '../src/api/remote.js'
 import { COMMIT_POLL_SEC, COMMIT_WAIT_MS, TOOL_DEADLINE_MS } from '../src/consts.js'
@@ -39,6 +39,32 @@ describe('viable-sdk — remote transport recovery', () => {
       async () => { snapshots++; return 'wrong' },
     )).rejects.toBe(refusal)
     expect(snapshots).toBe(0)
+  })
+})
+
+describe('viable-sdk — the remote project settings', () => {
+  test('read and save one record over the connector routes, under the tool deadline', async () => {
+    const context = await makeSdkContext({
+      apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
+    })
+    const stored = {
+      copyright: '© 2026 Acme', organizationName: 'Acme', termsUrl: '/terms', privacyUrl: '/privacy',
+      googleTag: '',
+    }
+    const calls = captureTransport(context, call =>
+      call.body != null ? { ...stored, ...(call.body as object) } : stored)
+    const api = makeRemoteConnectorApi(context)
+
+    expect(await api.projectBranding('p1')).toEqual(stored)
+    const saved = await api.saveProjectBranding('p1', { googleTag: 'GTM-ABC1234' })
+
+    expect(saved.googleTag).toBe('GTM-ABC1234')
+    expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
+      [connect.project.branding.get, '/connect/project/:id/branding', TOOL_DEADLINE_MS],
+      [connect.project.branding.save, '/connect/project/:id/branding', TOOL_DEADLINE_MS],
+    ])
+    // The patch crosses as given: a field it did not name is not sent, so it keeps its stored value.
+    expect(calls[1]!.body).toEqual({ googleTag: 'GTM-ABC1234' })
   })
 })
 

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/error
 
 **Layer:** Core
-**Install:** `"@owlmeans/error": "^0.1.18-rc.27"` in `dependencies`
+**Install:** `"@owlmeans/error": "^0.1.18-rc.30"` in `dependencies`
 
 ## Key Exports
 
@@ -141,9 +141,11 @@ keys a module by its unresolved path, so a package that keeps its own
 
 ## Crossing a service boundary
 
-`marshal` flattens `type`, `message` and the original stack into one `Error` message joined by
-`SEPARATOR`. On the far side `ensure` recognises the prefix and rebuilds the registered class, so a
-typed error thrown in a backend is caught as the same class in a client. Override
+`marshal` flattens `type`, `message`, the selected stack exposure and an optional incident id into
+one `Error` message joined by `SEPARATOR`. On the far side `ensure` recognises the prefix and rebuilds
+the registered class, so a typed error thrown in a backend is caught as the same class in a client.
+The HTTP boundary attaches the incident id to the logged error and sends only that id in production;
+development callers may select the stack explicitly. Override
 `finalizeUnmarshal()` on a subclass that needs to rebuild state from its message after that.
 
 ## Messages are i18n keys

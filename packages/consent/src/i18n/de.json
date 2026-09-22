@@ -21,5 +21,14 @@
   "policyStorage": "Ihre Auswahl wird in diesem Browser unter „{{key}}\" gespeichert — sowohl im lokalen Speicher als auch als Cookie.",
   "policyRetention": "Der Eintrag wird {{days}} Tage aufbewahrt, danach werden Sie erneut gefragt.",
   "policyOperator": "Diese Anwendung wird von {{operator}} betrieben.",
-  "policyContact": "Sehen Sie in deren Datenschutzerklärung und Bedingungen nach, wie Ihre Daten verarbeitet werden."
+  "policyContact": "Sehen Sie in deren Datenschutzerklärung und Bedingungen nach, wie Ihre Daten verarbeitet werden.",
+  "policyServicesOf": "Dienste — {{category}}",
+  "policyOtherServices": "Weitere Dienste",
+  "policyOtherServicesDesc": "Dienste, die diese Anwendung außerhalb der oben genannten Kategorien nutzt.",
+  "policyProvider": "Anbieter",
+  "policyPurpose": "Zweck",
+  "policyCookies": "Cookies",
+  "policyServicePrivacy": "Datenschutzerklärung von {{provider}}",
+  "privacy": "Datenschutzerklärung",
+  "terms": "Nutzungsbedingungen"
 }

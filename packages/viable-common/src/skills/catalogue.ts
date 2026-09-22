@@ -82,9 +82,6 @@ export const ALIAS_CONVENTION = `
   \`web:layout:\` alias and no \`app.web.layout\` — writing either addresses nothing.
 - An endpoint alias is \`api:<entity>:<action>\` — \`api:task:list\`, \`api:task:create\`. The
   group alias that carries the shared path and guard is \`api:<entity>\` — \`api:task\`.
-- A queued job alias is \`job:<entity>:<action>\` — \`job:report:build\`, \`job:contract:analyze\`.
-  A job is never given a \`web:\` or \`api:\` alias, and an endpoint is never given a \`job:\` one:
-  the prefix is what says which side serves it.
 - Lowercase kebab-case in every segment. The prefix is NOT optional and NOT decorative: access
   rules are applied per side by it.
 `.trim()
@@ -103,11 +100,12 @@ The generated project is a \`@owlmeans/create-app\` monorepo with five workspace
 - \`sources/web\` — the react application.
 - \`sources/worker\` — the queue consumer. Same context, no HTTP routes, one processor per job.
 
-These files are the CONTRACT between the packages. Every screen, endpoint and job passes through
-them, and each has a sentinel comment marking where a new line goes:
+These files are the CONTRACT between the public packages. Every screen and endpoint passes through
+them; technical worker protocols live in the backend package instead:
 
 - \`sources/common/src/consts.ts\` — the \`app\` alias tree.
 - \`sources/common/src/entrypoints.ts\` — the shared immutable protocol tree (\`appEntrypoints\`).
+- \`sources/backend/src/jobs/index.ts\` — backend-only queue protocols and declarations.
 - \`sources/api/src/entrypoints.ts\` — server bindings: \`bind\` + one \`handlers<Context>()\` wrap
   per handler.
 - \`sources/web/src/entrypoints.ts\` — client bindings (\`bindAll\` + \`bindScreen\`).
@@ -598,39 +596,66 @@ carries. Introducing a second spelling orphans every grant made against the firs
   files, not a copy of their own. They are already there: import them, never delete, rename or
   move one, and never re-add a primitive the directory already carries.
 - Styling is Tailwind utility classes. There are no CSS modules and no styled-components.
+- The GROUND is white in light mode and black in dark mode, and it stays that way: every page,
+  section, band and header sits on \`bg-background\`. Colour comes from ONE product accent —
+  \`bg-primary\` / \`text-primary\` — and only on the primary button, a section's small label, the rule
+  over the first step and a check mark. It never comes from a background, a tint or a band.
+
+      <section className="bg-primary/10 py-20">...</section>                       // WRONG
+      <section className="bg-gradient-to-b from-amber-50 to-white py-20">...</section>  // WRONG
+      <section className="border-t py-20">...</section>                            // right
+
+- Depth comes from exactly three things: a 1px HAIRLINE (\`border\`, the \`--border\` token), the
+  NEUTRAL TILE (\`bg-muted\` — the only tinted surface: feature tiles, testimonial tiles, result
+  rows), and ONE shadow, \`shadow-floating\`, which belongs to the one card that floats (the landing
+  gate). An ordinary card is \`rounded-xl border bg-card\` and carries no shadow. There are no
+  gradients, no glass, no backdrop blur, no glow and no coloured shadows anywhere in the interface.
+
+      <div className="rounded-xl bg-white/60 shadow-2xl backdrop-blur-md p-6" />  // WRONG
+      <div className="rounded-xl border bg-card p-6" />                           // right
+      <li className="rounded-[32px] bg-muted p-10" />                             // right — a tile
+
+- TYPE carries the brand. Headings are the theme's heavy grotesk — \`font-extrabold\` with tight
+  negative tracking (\`tracking-tight\`, or \`tracking-[-0.045em]\` on a section heading) and
+  \`text-balance\`; paragraphs are \`text-muted-foreground\` with \`text-pretty\` and a readable
+  measure (\`max-w-[52ch]\`); whitespace is generous. Never set a different font family.
+- A section opens with a small LABEL — a plain \`<p className="text-[15px] font-bold text-primary">\`
+  — then its \`<h2>\`. A label is text: never a chip, a pill or a badge.
+- Buttons are pills. The primary one is \`cta-btn\` (on an \`<a>\` or a bare \`<button>\`, never on a
+  shadcn \`Button\`, whose own \`bg-\` utility would win); the secondary one is
+  \`rounded-full border-[1.5px] border-foreground text-foreground hover:bg-muted\`. Labels are verbs.
+- Motion is small and belongs to the picture: \`reveal\` fades a block in once as it enters, and
+  \`float-slow\` / \`drift-slow\` lift PARTS OF AN ILLUSTRATION by a few pixels. Nothing spins,
+  pulses, orbits or scales, and nothing moves for someone who asked for reduced motion.
+- The stylesheet still defines the older classes \`gradient-heading\`, \`glass-card\`, \`eyebrow\`,
+  \`glow-orb\`, \`shadow-soft\`, \`shadow-raised\`, \`shadow-glow\`, \`pulse-soft\` and \`spin-slow\`,
+  because screens written earlier use them. They are REPAINTED flat — \`gradient-heading\` is solid
+  ink, \`glass-card\` a neutral tile, \`eyebrow\` a plain accent label, \`glow-orb\` hidden, the three
+  shadows and the two animations nothing at all. Never reach for one of them as decoration: it
+  paints nothing, or it paints the flat thing you could have written directly. Do not invent other
+  classes in the same family.
+- Overrides: change any of the look rules above — the ground, the accent, depth, type, motion —
+  ONLY when the customer's specification explicitly asks: it names a background colour, a
+  dark-only or coloured theme, a brand palette, or gradients. The product's subject matter is not
+  a request — a bakery is not a warm background and a bank is not a blue one.
 - Colour comes in PAIRS. Every surface token in this theme has a foreground partner —
   \`--background\`/\`--foreground\`, \`--card\`/\`--card-foreground\`, \`--primary\`/\`--primary-foreground\`,
   and the same for \`secondary\`, \`muted\`, \`accent\`, \`popover\`, \`destructive\` and \`sidebar\`. Painting a
   surface is therefore never a single decision: give the element its partner in the SAME
   \`className\`, or the text keeps the colour meant for the surface underneath and vanishes wherever
-  the design made that surface dark.
+  that surface is dark.
 
-      <section className="bg-primary p-6">Join us</section>                         // WRONG
-      <section className="bg-primary text-primary-foreground p-6">Join us</section>  // right
+      <a className="rounded-full bg-primary px-7 py-3">Get started</a>                          // WRONG
+      <a className="rounded-full bg-primary text-primary-foreground px-7 py-3">Get started</a>  // right
 
-  Nothing catches the wrong form — it compiles and it renders. It is unreadable only on the
-  surfaces the design happened to make dark, which is why it survives to the finished screen.
+  Nothing catches the wrong form — it compiles and it renders. It is unreadable only where the
+  accent happens to be dark, which is why it survives to the finished screen.
 - Never paint a surface with a raw or palette colour — \`bg-slate-900\`, \`bg-[#101820]\`,
   \`style={{ background: '#101820' }}\`. Those have no foreground partner, so nothing keeps the text
-  on them legible, and they ignore the theme. Every surface is one of the tokens above.
-- Depth and emphasis come from the theme's DECORATION VOCABULARY, and using it is expected rather
-  than exceptional — a screen built only from flat cards is an unfinished screen. That vocabulary
-  is: the component classes \`gradient-heading\` (a page or section headline), \`glass-card\` (a
-  panel with depth), \`eyebrow\` (the small chip above a headline), \`cta-btn\` (the primary call to
-  action, on an \`<a>\` or a bare \`<button>\`, never on a shadcn \`Button\` whose own \`bg-\`
-  utility would win), \`glow-orb\` (a soft colour field behind a section, always
-  \`pointer-events-none\` and behind the content); the elevation utilities \`shadow-soft\`,
-  \`shadow-raised\`, \`shadow-floating\`, \`shadow-glow\`; the idle-motion classes \`reveal\`,
-  \`float-slow\`, \`drift-slow\`, \`pulse-soft\`, \`spin-slow\`; and gradients whose stops are THEME
-  tokens with opacity. None of these is a raw colour.
-
-      <div className="bg-[radial-gradient(#818cf8,transparent)] blur-[120px]" />   // WRONG
-      <span className="glow-orb h-80 w-96 -z-10" aria-hidden />                    // right
-      <div className="bg-gradient-to-br from-primary/20 to-transparent p-6" />     // right
-
-  Keep a gradient under a text element light — \`/20\` or less — unless the element also carries a
-  \`-foreground\` partner class. These class names are defined in the project's stylesheet; do not
-  invent others in the same family.
+  on them legible, and they ignore the theme and its dark mode. Every surface is one of the tokens
+  above.
+- Every interactive element keeps its visible \`focus-visible\` ring, is at least 44px tall to touch,
+  and never signals anything by hover alone.
 - Text that is NOT on a coloured surface takes NO colour class: it already inherits the readable
   one. Never add \`text-white\`, \`text-black\` or a \`-foreground\` class "to be safe" — on an ordinary
   panel that is the same fault inverted. \`text-muted-foreground\` for secondary text is the
@@ -795,6 +820,87 @@ symbols from the component name (PascalCase of the component definition — for 
 Both sides must use these exact names. This is a DEFAULT: when a "View-model contract"
 block is present in the task, it lists the symbols that actually exist and overrides this
 convention entirely.
+`),
+
+  skill(ViableSkill.LandingGate, 'The landing gate — from the landing page into the app', `
+A product can let a guest START its key end-user workflow on the landing page, before any account
+exists, and finish it in the app after signing in with the choices they made carried over. The
+card that does this is the LANDING GATE. It sits in the hero where the call-to-action buttons
+would be, and it REPLACES them.
+
+**Which story is gate-worthy.** At most ONE per project, and only a story that is all of:
+- in the \`user\` area — the signed-in END user's own workflow, never an operator's, an owner's or
+  one a guest already completes without signing in;
+- a FIRST-VALUE step — something useful comes out of it the moment the guest acts;
+- BEGUN with NON-SENSITIVE input — a few picks, a filter, a short text. Its FIRST input is never a
+  payment, an address, an upload, contact details or anything else about the person; later steps
+  may need those, because they happen after signing in.
+A pantry-to-recipe finder is gate-worthy: pick ingredients, see what you can bake. So is writing a
+post with photos, begun by picking what it is about; checking out a basket, setting up a profile or
+reviewing a queue of requests is not. Nearly every product whose end user acts for themselves has
+such a step: when none of its stories is phrased that way, the analyst WRITES that story for the
+gate, and a product without a gate is the exception.
+
+**The card.** The sketch is \`@/components/home/gate\`; the implemented one is
+\`@/components/home/landing-gate\` and exports the same \`LandingGate\` with the same props.
+- Its root is \`<div id="gate" data-home-gate>\` — never a \`<section>\`, \`<aside>\`, \`<header>\`
+  or \`<footer>\`; the page already has exactly one of each landmark it needs.
+- A question in the end user's words as its heading, and a "No account needed" hint beside it.
+- 5 to 8 choice chips, each a \`<button type="button" aria-pressed={selected}>\` inside a
+  \`role="group"\` with an \`aria-label\`, 4 or 5 pre-selected so the first view already shows
+  results. When choices do not fit, 1 to 3 labelled fields instead.
+- A count with \`aria-live="polite"\`, at most 2 result rows re-ranked on every change, and one
+  line for when nothing matches. A row's lock icon is named "Full details after sign-in".
+- A one-line note ("Sign in with your email. Your picks come with you.") and ONE primary button,
+  straight after the choices in tab order. No second button beside it.
+- The sketch works signed out and offline from its sample records. The implemented card may call
+  a PUBLIC endpoint; never one that needs a signed-in user.
+
+**The handoff.** The button carries the guest's choices across sign-in in \`sessionStorage\`,
+through \`@/lib/handoff\` — never in the URL, never in a cookie, never through the server:
+
+    import { useLandingStart } from '@/lib/handoff'
+
+    const start = useLandingStart(target)
+    <button type="button" className="cta-btn" onClick={() => start({ picks })}>{cta}</button>
+
+- \`target\` is the ALIAS of the story's own full-scale screen in the user area — the prop the guest
+  home passes — never a URL.
+- \`useLandingStart(target)\` is the whole button: it writes the handoff, then navigates to
+  \`target\` when the visitor is already signed in, or starts the ordinary sign-in otherwise. After
+  sign-in the guest home's \`Hero\` (\`useLandingContinuation\`) sends the visitor on to \`target\`.
+- NEVER \`useLogin(target)\` for the gate: its continuation navigates straight to the guarded screen,
+  which answers a signed-out visitor with "Sign in required", and that card's own sign-in lands on the
+  home page — the full-scale screen is never reached.
+- The handler \`useLandingStart\` returns is SYNCHRONOUS, and the click calls it in the same gesture.
+  A sign-in that has to open a window is eaten by the popup blocker once anything has been awaited.
+
+      onClick={async () => { await saveDraft(picks); start({ picks }) }}  // WRONG — the gesture is gone
+      href={'/frontoffice/recipes?picks=' + picks.join(',')}               // WRONG — a URL, the picks in it, no sign-in
+
+**The full-scale screen** — the story's own screen in the user area — reads the handoff once in its
+view model, pre-fills from it, says so in one line, and clears it:
+
+    import { clearLandingHandoff, readLandingHandoff } from '@/lib/handoff'
+
+    useEffect(() => {
+      const carried = readLandingHandoff<{ picks: string[] }>(alias)
+      if (carried == null) return
+      setPicks(carried.picks)
+      setCarriedOver(true)          // "We kept your 4 picks from the home page."
+      clearLandingHandoff()
+    }, [alias])
+
+\`alias\` is the screen's own alias — the same string the gate was given as \`target\`. A missing,
+expired or foreign handoff reads as \`null\`, and the screen then starts empty exactly as it does for
+someone who arrived from the menu; never treat its absence as an error.
+
+**Never:**
+- ask for an account, a payment, an email address or any personal detail before sign-in — the gate
+  collects choices and nothing else, and the handoff stores only those choices;
+- render a story code, a "Preview" badge or a dashed frame inside the gate — it is the product's
+  public face in production;
+- keep the hero's buttons beside a gate, or give the gate a second call to action.
 `),
 
   skill(ViableSkill.ResourceLayer, 'OwlMeans resources own the schema', `
@@ -1390,25 +1496,34 @@ the work is invisible and the user is left pressing a button that appears to do 
   `),
 
   skill(ViableSkill.WorkerJobs, 'Queues, jobs and processors', `
-Three files have to agree, and a job that exists in two of the three is worse than one that
+Three server-side bindings have to agree, and a job that exists in two of the three is worse than one that
 exists in none — a declared name nothing processes is a message that piles up, and a processor
 with no declaration is dead code the barrel still imports.
 
-## 1. The queue — \`sources/backend/src/jobs/index.ts\`
+## 1. The protocol and queue — \`sources/backend/src/jobs/index.ts\`
 A queue is an ADDRESS: it says what exists and which job names it accepts. Both the api (which
 enqueues) and the worker (which consumes) read this one list, and a job name the queue does not
-declare is refused at enqueue time.
+declare is refused at enqueue time. The technical protocol belongs here too; common and web must
+not import it.
 
 \`\`\`ts
+export const jobProtocols = {
+  reportBuild: protocol(route(
+    'job:report:build', '/report-build',
+    queueRoute({ service: APP_WORKER, queue: APP_QUEUE, timeout: 30_000 }),
+  ), contract(typed())),
+}
 export const queues: QueueDeclaration[] = [
-  { name: APP_QUEUE, jobs: [app.job.test, app.job.<name>],
+  { name: APP_QUEUE, jobs: [jobProtocols.reportBuild.alias],
     worker: { concurrency: 4, lockDuration: 60_000 } },
 ]
 \`\`\`
 
-## 2. The alias and the entrypoint — \`sources/common/src\`
-The job's name IS its entrypoint alias. Declare \`app.job.<name>\` in \`consts.ts\` above the
-sentinel, and the protocol in \`entrypoints.ts\` with \`job()\` from \`@owlmeans/route\`.
+Use \`job()\` from \`@owlmeans/queue\`, never from the generic route package.
+
+## 2. The producer — \`sources/api/src/entrypoints.ts\`
+Bind \`bindClient(jobProtocols.reportBuild)\`. Public API contracts in common describe the domain
+operation and do not disclose that the handler delegates to a queue.
 
 ## 3. The processor — \`sources/worker/src/jobs/<name>.ts\`
 A PLAIN exported async function — named exports only, exactly like an endpoint handler. It never
@@ -1421,7 +1536,7 @@ imports \`handlers\` and never calls \`handlers<Context>()\`; that belongs only 
     // sources/worker/src/entrypoints.ts — the ONLY wrap
     import * as jobs from '@/jobs/index.js'
     const worker = handlers<Context>()
-    bind(protocols.job.reportBuild, worker.request(protocols.job.reportBuild, jobs.handleReportBuildJob))
+    bind(jobProtocols.reportBuild, worker.request(jobProtocols.reportBuild, jobs.handleReportBuildJob))
 
 WRONG — the processor module ALSO calls \`handlers()\` and wraps itself, so the export bound above
 is wrapped a SECOND time. \`tsc\` catches it (\`TS2345 "BoundEntrypointHandler<…> is not
@@ -1430,7 +1545,7 @@ function\`:
 
     // WRONG — sources/worker/src/jobs/report-build.ts
     const worker = handlers<Context>()
-    export const handleReportBuildJob = worker.request(protocols.job.reportBuild, async (req, ctx) => { ... })
+    export const handleReportBuildJob = worker.request(jobProtocols.reportBuild, async (req, ctx) => { ... })
 
 It RETURNS its result; throwing a \`ResilientError\` subclass is how a refusal is reported, and the
 class survives the broker.
@@ -1443,7 +1558,7 @@ Two rules with no equivalent on the HTTP side:
   what it created, and say in a comment which of the two this one does.
 
 Enqueue from an endpoint with the same typed call used for HTTP:
-\`context.entrypoint(appEntrypoints.job.<name>).call({ body: data })\`.
+\`context.entrypoint(jobProtocols.<name>).call({ body: data })\`.
   `),
 
   skill(ViableSkill.TargetAgents, 'LLM agents inside the application', `

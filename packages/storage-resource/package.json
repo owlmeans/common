@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/storage-resource",
-  "version": "0.1.18-rc.28",
+  "version": "0.1.18-rc.31",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -25,11 +25,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.701.0",
-    "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/error": "^0.1.18-rc.27",
-    "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/server-context": "^0.1.18-rc.28",
-    "@owlmeans/storage-common": "^0.1.18-rc.25",
+    "@owlmeans/context": "^0.1.18-rc.28",
+    "@owlmeans/error": "^0.1.18-rc.30",
+    "@owlmeans/resource": "^0.1.18-rc.30",
+    "@owlmeans/server-context": "^0.1.18-rc.31",
+    "@owlmeans/storage-common": "^0.1.18-rc.28",
     "file-type": "^22.0.1"
   },
   "devDependencies": {

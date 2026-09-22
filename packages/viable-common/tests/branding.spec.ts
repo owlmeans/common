@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { brandingEnv } from '../src/branding.js'
+import { BRANDING_ENV_KEYS, brandingEnv } from '../src/branding.js'
+import { metadataConfigs, metadataLists } from '../src/consts.js'
 
 /**
  * `BRANDING_CREDIT` is the one key whose ABSENCE means something different from an explicit
@@ -32,6 +33,25 @@ describe('brandingEnv', () => {
       BRANDING_PRIVACY_URL: '',
       BRANDING_CREDIT: '1',
       BRANDING_PRODUCT: 'Acme CRM',
+      BRANDING_GOOGLE_TAG: '',
     })
+  })
+
+  it('carries the Google tag, and emits it empty when none is set', () => {
+    // The METADATA key is omitted from a push while unset (an older publisher refuses it); the
+    // ENVIRONMENT key is always there, and '' is what tells the build to load no tag.
+    expect(brandingEnv({ brandingGoogleTag: 'G-ABC123XYZ' }).BRANDING_GOOGLE_TAG).toBe('G-ABC123XYZ')
+    expect(brandingEnv({}).BRANDING_GOOGLE_TAG).toBe('')
+  })
+
+  it('emits exactly the keys BRANDING_ENV_KEYS names', () => {
+    expect(Object.keys(brandingEnv({})).sort()).toEqual([...BRANDING_ENV_KEYS].sort())
+  })
+})
+
+describe('the metadata vocabulary', () => {
+  it('delivers the Google tag as a config key, and keeps the derived CSP list out of the stored lists', () => {
+    expect(metadataConfigs).toContain('brandingGoogleTag')
+    expect(metadataLists as string[]).not.toContain('cspSources')
   })
 })

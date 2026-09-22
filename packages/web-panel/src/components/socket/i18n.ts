@@ -7,6 +7,7 @@ import be from './i18n/be.json' with { type: 'json' }
 import uk from './i18n/uk.json' with { type: 'json' }
 import es from './i18n/es.json' with { type: 'json' }
 import de from './i18n/de.json' with { type: 'json' }
+import fr from './i18n/fr.json' with { type: 'json' }
 
 addI18nLib('en', 'socket', en)
 addI18nLib('pl', 'socket', pl)
@@ -15,3 +16,4 @@ addI18nLib('be', 'socket', be)
 addI18nLib('uk', 'socket', uk)
 addI18nLib('es', 'socket', es)
 addI18nLib('de', 'socket', de)
+addI18nLib('fr', 'socket', fr)

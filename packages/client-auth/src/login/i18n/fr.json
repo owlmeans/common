@@ -1,0 +1,37 @@
+{
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Choisissez comment continuer.",
+    "busy": "Ouverture de la connexion…",
+    "empty": "Aucune méthode de connexion n’est configurée pour cette application.",
+    "method": {
+      "google": "Continuer avec Google",
+      "oidc": "Continuer avec {{provider}}",
+      "oidc-default": "Connexion / Inscription",
+      "oidc-client": "Continuer avec {{provider}}",
+      "basic-ed25519": "Se connecter avec une clé",
+      "pk-supervisor": "Clé secrète (opérateur)",
+      "wallet-consumer": "Portefeuille d’identité OwlMeans",
+      "one-time-token": "Se connecter avec un code e-mail",
+      "fallback": "Continuer avec {{method}}"
+    },
+    "terms": {
+      "agreement": "J’ai lu et j’accepte les {{terms}} et la {{privacy}}.",
+      "terms": "conditions générales",
+      "privacy": "politique de confidentialité",
+      "cookies": "Politique relative aux cookies",
+      "required": "Confirmez les conditions générales et la politique de confidentialité pour continuer."
+    },
+    "consent": {
+      "required": "La connexion enregistre un cookie de session. Acceptez les cookies essentiels pour continuer."
+    },
+    "credit": {
+      "powered": "Propulsé par OwlMeans"
+    },
+    "error": {
+      "failed": "La connexion n’a pas abouti. Réessayez.",
+      "blocked": "La fenêtre de connexion a été bloquée. Cliquez sur l’icône de fenêtre contextuelle bloquée dans la barre d’adresse pour l’ouvrir."
+    },
+    "orphaned": "Vous êtes connecté. Vous pouvez fermer cette fenêtre et continuer dans l’application."
+  }
+}

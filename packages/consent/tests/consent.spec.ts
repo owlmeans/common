@@ -1,12 +1,14 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import {
-  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_MARKETING, CONSENT_SCHEMA_VERSION,
-  DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LOCALES, CONSENT_MARKETING,
+  CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES,
 } from '../src/consts.js'
 import { migrateConsent, readConsent, writeConsent, clearConsent } from '../src/storage.js'
 import { consentDefaults, consentUpdate, consentBootstrapScript } from '../src/gtm.js'
 import { makeConsentStore } from '../src/store.js'
-import { defaultConsentTranslate, interpolate, normalizeLocale } from '../src/i18n.js'
+import {
+  DEFAULT_CONSENT_MESSAGES, defaultConsentTranslate, interpolate, normalizeLocale,
+} from '../src/i18n.js'
 import type { ConsentCategory } from '../src/types.js'
 
 /** A minimal browser: just the two stores this package writes to. */
@@ -186,10 +188,26 @@ describe('the built-in translations', () => {
     // Without this, a language added to the bundle ships with English strings in it and nothing
     // reports it — the readers who cannot tell us are exactly the ones affected.
     const keys = Object.keys(require('../src/i18n/en.json') as Record<string, string>)
-    for (const lng of ['pl', 'ru', 'be', 'uk', 'es', 'de']) {
+    // Driven by the shipped locale list, so a language added there is checked without anyone
+    // remembering to add it here — French was once in the list and missing from this loop.
+    for (const lng of CONSENT_LOCALES.filter(locale => locale !== 'en')) {
       const bundle = require(`../src/i18n/${lng}.json`) as Record<string, string>
       expect({ lng, missing: keys.filter(key => bundle[key] == null) })
         .toEqual({ lng, missing: [] })
+    }
+  })
+
+  test('every locale keeps every placeholder English has', () => {
+    // A translation that drops `{{provider}}` still renders — just without the name of the company
+    // the link belongs to, which is the one word of that line a reader needed.
+    const en = DEFAULT_CONSENT_MESSAGES.en
+    const placeholders = (text: string) => (text.match(/\{\{[a-z]+\}\}/gi) ?? []).sort()
+    for (const lng of CONSENT_LOCALES) {
+      const bundle = DEFAULT_CONSENT_MESSAGES[lng]
+      const drifted = Object.keys(en).filter(key =>
+        typeof bundle[key] === 'string'
+        && placeholders(bundle[key]).join() !== placeholders(en[key]).join())
+      expect({ lng, drifted }).toEqual({ lng, drifted: [] })
     }
   })
 

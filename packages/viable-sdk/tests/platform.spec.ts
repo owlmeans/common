@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { ConnectHarness, ConnectJobKind, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
+import { ConnectHarness, ConnectLlm, ConnectTarget } from '@owlmeans/viable-common'
 
 import { catalogue } from '../src/tools/catalogue.js'
 import { PLATFORM_CATALOGUE, renderPlatform } from '../src/tools/platform.js'
@@ -35,21 +35,17 @@ const urlDelegated = host({
  * What a parent agent reads before it decides how to approach a request.
  *
  * The catalogue is the one description of the platform that is not derived from a tool list, so
- * the two must not drift: every job kind a parent can poll for has an entry here, and every tool
- * either of them names exists. The rendering is checked for determinism because it is meant to sit
+ * the two must not drift: every observable pipeline has one entry here, and every tool either of
+ * them names exists. The rendering is checked for determinism because it is meant to sit
  * in a system prompt, and for its refusals because a group hidden without an explanation reads as
  * a platform that cannot do the thing at all.
  */
 describe('viable-sdk — describe_platform', () => {
-  test('every job kind a parent can poll for is described', () => {
-    // A kind added without an entry reaches a parent as a job it cannot interpret.
-    const described = new Set(
-      PLATFORM_CATALOGUE.pipelines.map(pipeline => pipeline.jobKind).filter(kind => kind != null)
-    )
+  test('every pipeline has a stable unique domain id', () => {
+    const ids = PLATFORM_CATALOGUE.pipelines.map(pipeline => pipeline.id)
 
-    for (const kind of Object.values(ConnectJobKind)) {
-      expect(described.has(kind)).toBe(true)
-    }
+    expect(ids.every(id => id.trim() !== '')).toBe(true)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   test('every tool the catalogue names is a tool that exists', () => {
@@ -65,6 +61,31 @@ describe('viable-sdk — describe_platform', () => {
       // Rendered instead of the group where a host hides it, so it can never be empty.
       expect(capability.absent.length).toBeGreaterThan(10)
     }
+    for (const feature of PLATFORM_CATALOGUE.features) {
+      for (const tool of feature.tools ?? []) expect(known.has(tool)).toBe(true)
+    }
+  })
+
+  test('what a generated application carries is told on every host, with its settings tools', () => {
+    // A fact about the PRODUCT, not about the connector: a parent that is not told the platform
+    // already generates the legal pages or the landing gate writes its own, by hand, beside them.
+    const features = new Set(PLATFORM_CATALOGUE.features.map(feature => feature.id))
+    for (const id of ['landing-gate', 'legal-pages', 'google-tag', 'look', 'production']) {
+      expect(features.has(id)).toBe(true)
+    }
+
+    for (const rendered of [renderPlatform(PLATFORM_CATALOGUE, host()), renderPlatform(PLATFORM_CATALOGUE, url)]) {
+      expect(rendered).toContain('WHAT A GENERATED APPLICATION CARRIES')
+      expect(rendered).toContain('/terms and /privacy')
+      expect(rendered).toContain('Consent Mode v2')
+      expect(rendered).toContain('no preview scaffolding')
+      expect(rendered).toContain('project_settings, update_project_settings')
+    }
+    // The steps a parent may see a run stop at include the two new ones.
+    const init = PLATFORM_CATALOGUE.pipelines.find(pipeline => pipeline.id === 'vib:project:init')!
+    expect(init.stages!.indexOf('landing')).toBeLessThan(init.stages!.indexOf('scaffold'))
+    expect(init.stages!.indexOf('legal')).toBeGreaterThan(init.stages!.indexOf('scaffold'))
+    expect(init.stages!.indexOf('legal')).toBeLessThan(init.stages!.indexOf('build'))
   })
 
   test('every tool that exists is reachable through some group', () => {

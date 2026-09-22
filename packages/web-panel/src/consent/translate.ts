@@ -9,7 +9,7 @@ import { useI18nLib } from '@owlmeans/client-i18n'
  * stops consulting its own translations — so a wrapper that forwarded the framework resolver
  * alone would render the ENGLISH default for every key the application had not overridden, in
  * every language. Falling through to the packaged bundle for the current locale means an
- * application overrides what it wants to and inherits seven languages for the rest.
+ * application overrides what it wants to and inherits the packaged languages for the rest.
  *
  * Shared by `PanelCookieConsent`/`PanelCookiePolicy` and `PanelConsentMenuWidget` — every
  * `web-panel/consent` surface resolves copy through this one chain.

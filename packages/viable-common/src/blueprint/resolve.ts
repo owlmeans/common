@@ -54,6 +54,9 @@ export const freezeBlueprint = (blueprint: Blueprint): Blueprint => Object.freez
     ...blueprint.packages,
     capabilities: Object.freeze({ ...blueprint.packages.capabilities }),
   }),
+  // The one optional layer: frozen when present, and never ADDED when absent, so a blueprint that
+  // has none still compares equal to what it was before the layer existed.
+  ...(blueprint.experience != null ? { experience: Object.freeze({ ...blueprint.experience }) } : {}),
 })
 
 /** Every skill the blueprint asks for, stack first, deduped, order preserved. */

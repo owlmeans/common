@@ -39,7 +39,7 @@ export const AmountCheckoutDialog = ({
   const submit = async () => {
     if (amountMinor == null || !valid || pending) return
     assertCheckoutAmount(policy, amountMinor)
-    await onConfirm(amountMinor)
+    await onConfirm(amountMinor, estimate?.country)
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>

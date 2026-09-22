@@ -16,6 +16,12 @@ import type { TopologyDescriptor } from '../topology/types.js'
  * Deliberately NOT called a preset: `presets/` in the agent library already means the LLM
  * model/provider configurations, and the two are asked at different moments about different
  * things.
+ *
+ * Five layers are REQUIRED and say what the project is built WITH; the sixth, `experience`, is
+ * OPTIONAL and says what its product should do for the people using it. Optional because a
+ * blueprint registered before the layer existed — or a patch serialized into a run row — must keep
+ * resolving: every reader asks through a helper that answers the default for an absent layer
+ * ({@link landingGatePreferenceOf}).
  */
 export interface Blueprint {
   id: string
@@ -25,6 +31,7 @@ export interface Blueprint {
   template: TemplateLayer
   createApp: CreateAppLayer
   packages: PackagesLayer
+  experience?: ExperienceLayer
 }
 
 /**
@@ -32,7 +39,8 @@ export interface Blueprint {
  *
  * The ordering is the point: `technology` overrides everything, because a change of language
  * invalidates every template, prompt and package below it. Nothing today has more than one
- * technology — the ladder exists so that adding one is a data change.
+ * technology — the ladder exists so that adding one is a data change. `experience` is last and
+ * optional: it shares no key with the five build layers, so its place decides nothing today.
  */
 export enum BlueprintLayer {
   Technology = 'technology',
@@ -40,6 +48,7 @@ export enum BlueprintLayer {
   Template = 'template',
   CreateApp = 'create-app',
   Packages = 'packages',
+  Experience = 'experience',
 }
 
 export const BLUEPRINT_LAYER_ORDER: BlueprintLayer[] = [
@@ -48,7 +57,54 @@ export const BLUEPRINT_LAYER_ORDER: BlueprintLayer[] = [
   BlueprintLayer.Template,
   BlueprintLayer.CreateApp,
   BlueprintLayer.Packages,
+  BlueprintLayer.Experience,
 ]
+
+/**
+ * How strongly a product of this kind wants a LANDING GATE — the working entry into the key
+ * end-user workflow drawn on the guest home, where a guest starts before signing in.
+ *
+ * A PRIOR handed to the model that decides, never the decision itself: `Encourage` still lets it
+ * answer "no gate" for a product with no end-user step a guest could begin, and `Discourage` still
+ * lets it choose one when the specification plainly describes such a step.
+ */
+export enum LandingGatePreference {
+  /** Most products of this kind have a first-value step a guest can begin — look for it. */
+  Encourage = 'encourage',
+  /** Neutral: decide from the specification alone. */
+  Allow = 'allow',
+  /** Products of this kind rarely have one — choose a gate only when the specification asks. */
+  Discourage = 'discourage',
+}
+
+/**
+ * What the product should do for the people using it, independent of the stack it is built on.
+ *
+ * A layer of its own rather than a field of `packages`, because it changes no dependency, no
+ * capability and no prompt a coder reads — it is asked by the analysis stage about the PRODUCT.
+ */
+export interface ExperienceLayer {
+  landingGate: LandingGatePreference
+}
+
+const LANDING_GATE_PREFERENCES = new Set<string>(Object.values(LandingGatePreference))
+
+/**
+ * The landing-gate preference of a resolved blueprint.
+ *
+ * Total: an absent layer, an absent key and a value this deploy does not know (a patch serialized
+ * by a newer one) all answer `Allow` — the neutral prior, which leaves the decision to the
+ * specification rather than tilting it either way on a value nobody set.
+ */
+export const landingGatePreferenceOf = (
+  blueprint?: Pick<Blueprint, 'experience'> | null
+): LandingGatePreference => {
+  const value = blueprint?.experience?.landingGate
+
+  return value != null && LANDING_GATE_PREFERENCES.has(value)
+    ? value
+    : LandingGatePreference.Allow
+}
 
 /** Language and toolchain. Overrides everything below it. */
 export interface TechnologyLayer {

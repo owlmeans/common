@@ -1,6 +1,6 @@
 import { handlers } from '@owlmeans/server-api'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
-import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
+import { jobsOf, readExposedJob } from '../utils/index.js'
 
 /**
  * One job.
@@ -9,10 +9,11 @@ import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
  */
 export const getJob = (
   protocol: JobEntrypoints['get'],
-  opts?: JobHandlerOptions
+  opts: JobHandlerOptions
 ): ReturnType<ReturnType<typeof handlers<Context>>['params']> =>
   handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
     const resource = jobsOf(ctx, opts)
-
-    return await readOwnedJob(resource, id, await jobViewer(req, ctx, opts), opts)
+    const audience = await opts.policy.audience(req, ctx)
+    const record = await readExposedJob(resource, id, audience, opts)
+    return await opts.policy.map(record, audience)
   })

@@ -1,12 +1,13 @@
 {
   "name": "@owlmeans/server-job",
-  "version": "0.1.18-rc.15",
+  "version": "0.1.18-rc.18",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 354 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.0",
     "@types/node": "^26.1.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
@@ -30,17 +32,18 @@
     "access": "public"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.27",
-    "@owlmeans/auth-common": "^0.1.18-rc.29",
-    "@owlmeans/context": "^0.1.18-rc.25",
-    "@owlmeans/entrypoint": "^0.1.18-rc.28",
-    "@owlmeans/queue": "^0.1.18-rc.23",
-    "@owlmeans/resource": "^0.1.18-rc.27",
-    "@owlmeans/route": "^0.1.18-rc.26",
-    "@owlmeans/server-api": "^0.1.18-rc.33",
-    "@owlmeans/server-context": "^0.1.18-rc.28",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.27",
-    "@owlmeans/server-socket": "^0.1.18-rc.35",
-    "@owlmeans/socket": "^0.1.18-rc.25"
+    "@owlmeans/auth": "^0.1.18-rc.30",
+    "@owlmeans/auth-common": "^0.1.18-rc.32",
+    "@owlmeans/context": "^0.1.18-rc.28",
+    "@owlmeans/entrypoint": "^0.1.18-rc.31",
+    "@owlmeans/job": "^0.1.18-rc.2",
+    "@owlmeans/queue": "^0.1.18-rc.26",
+    "@owlmeans/resource": "^0.1.18-rc.30",
+    "@owlmeans/route": "^0.1.18-rc.29",
+    "@owlmeans/server-api": "^0.1.18-rc.36",
+    "@owlmeans/server-context": "^0.1.18-rc.31",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.30",
+    "@owlmeans/server-socket": "^0.1.18-rc.38",
+    "@owlmeans/socket": "^0.1.18-rc.28"
   }
 }

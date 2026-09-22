@@ -3,7 +3,7 @@ import { plugin } from '@owlmeans/config'
 import {
   assertAmountCheckoutPolicy, assertPricingPolicy, assertQuantityCheckoutPolicy, CAPABILITY_LIMIT_SCOPE,
   CheckoutPricingMode, LimitKind, LimitMisdeclared, LimitWindow, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE,
-  PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
+  PaymentError, PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
   PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE,
 } from '@owlmeans/payment'
 import type { LimitDeclaration } from '@owlmeans/payment'
@@ -186,6 +186,20 @@ export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
     ...toConfigRecord(policy), recordType: PRICING_POLICY_RECORD_TYPE, id: PRICING_POLICY_RECORD_ID,
   })
   if (stripe != null) {
-    plugin(cfg, { ...stripe }, STRIPE_PRICING_PLUGIN_CONFIG)
+    const settlementCurrency = stripe.settlementCurrency?.toLowerCase()
+    if (settlementCurrency != null && !/^[a-z]{3}$/.test(settlementCurrency)) {
+      throw new PaymentError('pricing-policy:settlement-currency')
+    }
+    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes?.map(type => type.toLowerCase())
+    if (subscriptionPaymentMethodTypes != null && (subscriptionPaymentMethodTypes.length === 0
+      || subscriptionPaymentMethodTypes.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
+      || new Set(subscriptionPaymentMethodTypes).size !== subscriptionPaymentMethodTypes.length)) {
+      throw new PaymentError('pricing-policy:subscription-payment-methods')
+    }
+    plugin(cfg, {
+      ...stripe,
+      ...(settlementCurrency != null ? { settlementCurrency } : {}),
+      ...(subscriptionPaymentMethodTypes != null ? { subscriptionPaymentMethodTypes } : {}),
+    }, STRIPE_PRICING_PLUGIN_CONFIG)
   }
 }

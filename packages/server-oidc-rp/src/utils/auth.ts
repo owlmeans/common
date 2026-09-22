@@ -11,7 +11,6 @@ import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
 export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(context: T) =>
   async (credential: AuthCredentials): Promise<[OidcProviderConfig, OidcTokenSet, string]> => {
-    console.log('Challenge we got: ', credential.challenge)
     const challengeParts = credential.challenge.split(':http')
     // This is ex. source - url we were going to return user to after all it happens
     const redirectUrl = challengeParts[0]
@@ -23,9 +22,7 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
       throw new AuthenPayloadError('code_challenge')
     }
 
-    console.log("\n\nWe are picking verifier by id: ", verifierId(challenge))
     const verification = await cache<C, T>(context).take(verifierId(challenge))
-    console.log("Verification we get: ", verification, "\n\n")
     if (verification.verifier == null) {
       throw new AuthenFailed()
     }
@@ -34,7 +31,6 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     }
 
     const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-    console.log(">>>>>>>> client we are trying to extract: ", verification)
     const cfg = await oidc.getConfig({
       clientId: verification.client,
       ...(verification.entityId != null ? { entityId: verification.entityId } : {})

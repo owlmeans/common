@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.35"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.38"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -29,6 +29,7 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `AUTH_CACHE` | `'auth-cache'` — the single-use challenge store |
 | `AUTH_SRV_KEY` | `'auth-service'` — the TRUSTED record whose key signs credential envelopes |
 | `AUTHEN_TIMEFRAME` | `15 * 60 * 1000` — challenge lifetime and anti-replay window, in ms |
+| `AUTH_SESSION_MANAGER` / `appendMemoryAuthSessionManager` | Seven-day session registry contract and the process-local default; use the Redis implementation from `@owlmeans/server-auth-session` for a shared authority |
 | `AuthService`, `AuthServiceAppend`, `AuthSpent` | Types |
 | `makeRelyModel`, `makeProviderRely`, `makeConsumerRely`, `RelyOptions` | The rely (wallet handshake) models |
 
@@ -102,6 +103,13 @@ registerPlugin('my-method', context => ({
   register a Redis resource under the same alias before calling it in any scaled deployment.
 - A plugin's `init` must return a challenge that is unique per request. A challenge that repeats
   across independent attempts collides in `AUTH_CACHE` and surfaces as `AuthenFailed('challenge')`.
+- Bearers issued by this service carry an absolute seven-day expiry and an opaque session id. In a
+  context with `AUTH_SESSION_MANAGER`, the guard rejects an absent, expired, pending or revoked
+  session and re-signs fresh profile claims after a registry revision. Registry or identity-store
+  failure is `AuthUnavailable` (503), never a false 401/logout.
+- `appendAuthService` installs the memory session manager only as a single-process default. A
+  central or multi-replica issuer registers `appendRedisAuthSessionManager(context)` before it;
+  the manager is the authority that fences, refreshes or revokes an organization profile's sessions.
 - The manager canonicalizes the organization entity: whatever slug (current, retired, or the frozen
   key) a plugin leaves on `credential.entitySlug` is resolved through `ENTITY_RESOLVER` and replaced
   with the current slug before the envelope is signed. An unresolvable value throws

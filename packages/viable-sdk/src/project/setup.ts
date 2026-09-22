@@ -12,7 +12,7 @@ import { probeUrl, readEnv, ROOT_ENV_FILE } from './env.js'
  *
  * The platform provisions nothing on somebody's own computer: a database and, for a project with a
  * background worker, a queue store are the two things it cannot supply and cannot guess. So the
- * connector's job is to find out what is already there, and where nothing is, to ASK — never to
+ * connector's responsibility is to find out what is already there, and where nothing is, to ASK — never to
  * install something on a person's machine on its own initiative, and never to invent a connection
  * string and let the failure surface later as a boot error nobody can place.
  */

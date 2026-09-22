@@ -7,5 +7,8 @@ export interface OIDCAuthCache extends AuthSpent {
   client?: string
   validated?: Date
   entityId?: string
+  profileId?: string
+  /** Absolute expiry; cache refreshes must never slide this session beyond its initial TTL. */
+  expiresAt?: number
   redirectUri?: string
 }

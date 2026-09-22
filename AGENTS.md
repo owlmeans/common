@@ -85,7 +85,7 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 
 ## Key Facts
 
-- 112 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 116 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -123,6 +123,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 - `/login-plugins`, `/login-methods` — read both before touching a login dispatcher
 - `/consent` — cookie consent and tag managers (`/web-consent`, `/web-gtm`, `/astro`)
 - `/server-auth-otp` — email OTP login; mail transports `/mailer`, `/mailer-smtp`, `/server-mailer-mailgun`
+- `/server-auth-session` — seven-day session registry and Redis authority
 - `/oidc-versions` — before upgrading any OIDC/OAuth dependency
 - `/router-plugins` — before wiring routing in an app
 - `/queue` — jobs and queues (`/redis-queue`, `/server-job`, `/client-job`, `/scheduled-jobs`)

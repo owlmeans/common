@@ -1,6 +1,7 @@
 import { handlers } from '@owlmeans/server-api'
+import { UnknownJob } from '@owlmeans/queue'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
-import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
+import { jobsOf, readExposedJob } from '../utils/index.js'
 
 /**
  * Cancel a job and answer with what was cancelled.
@@ -14,12 +15,15 @@ import { jobViewer, jobsOf, readOwnedJob } from '../utils/index.js'
  */
 export const cancelJob = (
   protocol: JobEntrypoints['cancel'],
-  opts?: JobHandlerOptions
+  opts: JobHandlerOptions
 ): ReturnType<ReturnType<typeof handlers<Context>>['params']> =>
   handlers<Context>().params(protocol, async ({ id }, ctx, req) => {
     const resource = jobsOf(ctx, opts)
-    // Read first: `take` cannot tell whose job it removed, so ownership is settled before it.
-    await readOwnedJob(resource, id, await jobViewer(req, ctx, opts), opts)
-
-    return await resource.take(id)
+    const audience = await opts.policy.audience(req, ctx)
+    const record = await readExposedJob(resource, id, audience, opts)
+    if (opts.policy.cancel == null || !await opts.policy.cancel(record, audience)) {
+      throw new UnknownJob('job')
+    }
+    const removed = await resource.take(record.id as string)
+    return await opts.policy.map(removed, audience)
   })

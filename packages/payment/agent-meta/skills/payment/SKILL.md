@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.33"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), amount- and
 quantity-priced checkout, and the entitlement model — plan capabilities, counted limits, promos,
@@ -35,6 +35,9 @@ admission, the usage ledger, the two gate services — is the `entitlements` ski
 | `capabilityViewsOf` · `limitViewsOf` · `entitlementViewOf` · `reviveEntitlementView` · `capabilityOf` · `limitOf` · `hasLimitRoom` | Pure view builders and readers. |
 | `CreateCheckoutBody` (`planSku`) · `CreateCheckoutResponse` · `PortalLinkBody` · `PortalLinkResponse` (+ schemas) | Wire shapes an application's own checkout and portal protocols use. |
 | `CheckoutPricingMode` · `AmountCheckoutPolicy` / `QuantityCheckoutPolicy` (+ schemas) · `assertAmountCheckoutPolicy` · `assertQuantityCheckoutPolicy` · `assertCheckoutAmount` · `chargeAmountMinor` | Checkout pricing policies and their validation. |
+| `PricingPolicy` (+ schema) · `DEFAULT_PRICING_POLICY` · `assertPricingPolicy` · `TaxBehavior` · `TaxEstimateStatus` · `TaxType` (+ schemas) | Declared tax/currency behaviour (see § Pricing policy and tax estimate). |
+| `PriceEstimate` · `PriceEstimateBody` · `TaxEstimate` · `TaxRateEstimate` (+ schemas) · `estimateOf` · `ratePpmOf` | The tax/local-currency estimate read model and its pure math. |
+| `COUNTRY_CURRENCIES` · `currencyOfCountry` · `COUNTRY_CODES` · `CountrySchema` | ISO 3166-1 → ISO 4217 reference map for a country picker. |
 | `EntitlementRefusal` · `CapabilityRequired` · `LimitExhausted` | Refusals — all `AuthForbidden`. |
 | `PaymentError` · `PaygateError` · `UnknownPaygate` · `PaygateMappingError` · `WebhookSetupError` · `PortalUnavailable` · `ProductError` · `UnknownProduct` · `UnknownPlan` · `PlanRequired` · `PlanRankConflict` · `LimitUnknown` · `LimitMisdeclared` · `PaymentIdentificationError` · `SubscriptionError` · `UnknownSubscription` | Faults (500), except `PortalUnavailable` (409). Importing the package registers every type's message under `errors.<type>` in the seven languages. |
 
@@ -205,6 +208,35 @@ to `amountMinor`, not the adjusted checkout subtotal or tax-inclusive total.
 
 Quantity checkout remains supported. It uses its reusable unit price and quantity policy; do not
 infer a pricing mode from the presence of `amountMinor`.
+
+## Pricing policy and tax estimate
+
+`PricingPolicy` (a `PRICING_POLICY_RECORD_ID` singleton config record, `declarePaymentPricing` in
+`@owlmeans/server-payment`) is what a checkout-owning application declares once for tax and
+currency behaviour: `tax.automatic` (Stripe Tax on the session), `tax.behavior` (a synced price's
+`TaxBehavior.Exclusive`/`Inclusive`, absent = leave it `unspecified`), `tax.collectTaxId`,
+`tax.estimate` / `currency.estimate` (serve a tax/local-currency estimate endpoint — the estimate
+requires `tax.automatic`, the currency one requires `currency.adaptive`), `currency.adaptive`
+(Stripe Adaptive Pricing on the session). `PaymentService.pricingPolicy()` reads the declared record
+or `DEFAULT_PRICING_POLICY` — the fixed behaviour every checkout had before this policy existed
+(automatic tax and tax-id collection on, no forced behavior, no Adaptive Pricing, no estimate), so
+an application that declares nothing sees no change.
+
+`PriceEstimate` (built by `@owlmeans/server-payment`'s gateway, `estimatePrice`) is the read model:
+`country`/`source` (`'request'`/`'customer'`), `currency`, `behavior`, `tax: TaxEstimate` (`status`
+one of `TaxEstimateStatus` — `taxed`/`reverse-charge`/`none`/`at-checkout`/`location-required` —
+plus `subtotalMinor`/`taxMinor`/`totalMinor`, `scalable`, and `rates: TaxRateEstimate[]` with
+`ratePpm` parsed by `ratePpmOf` from Stripe's `percentage_decimal`, never `Number(x) * 10_000`),
+and an optional `local` (currency + `exchangeRate`, from Stripe's FX Quotes). The pure helper
+`estimateOf(amountMinor, estimate)` re-derives tax and a total for a DIFFERENT amount than the
+estimate's own reference one — exact only when `scalable` and the behavior is `Exclusive`; both
+`taxMinor`/`totalMinor` come back `null` otherwise, meaning "computed at checkout", never a wrong
+number. When the source estimate carries `local`, the result's own `local` gives the subtotal, tax
+and total in THAT currency (`subtotalAmount`/`taxAmount`/`totalAmount`, major units) alongside the
+integration-currency ones — a UI shows one or the other, marking the local figures `≈`, never both
+side by side. `COUNTRY_CURRENCIES` / `currencyOfCountry` / `COUNTRY_CODES` is a reference ISO 3166-1 →
+ISO 4217 map for a country picker and the local-currency lookup — not a Stripe list, and a country
+absent from it still gets a tax estimate, just no local-currency line.
 
 ## `shallowAuthentication` identifies, it does not authorize
 
