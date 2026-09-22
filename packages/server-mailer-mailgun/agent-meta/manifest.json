@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-mailer-mailgun",
-  "version": "0.1.18-rc.26",
-  "generatedAt": "2026-09-22T17:39:02.546Z",
+  "version": "0.1.18-rc.27",
+  "generatedAt": "2026-09-22T20:45:24.068Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

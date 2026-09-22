@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.34"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.35"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), amount- and
 quantity-priced checkout, and the entitlement model — plan capabilities, counted limits, promos,

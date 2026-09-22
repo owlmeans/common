@@ -36,6 +36,11 @@ export interface ManagedConnection {
   /** Settles once the first socket opens; rejects with `SocketConnectionError('lost')` once the
    *  retry budget elapses first (or the single attempt fails, with `retry: false`). */
   ready: Promise<void>
+  /** Restart retrying a connection that gave up after its budget: one attempt at once, then the
+   *  usual backoff within `policy.reviveBudget`. On a connection still waiting out a backoff
+   *  delay: attempt at once, and leave it at least `reviveBudget`. A no-op otherwise — a terminal
+   *  close (client close, 1000/1008, `retry: false`) is never revived. */
+  revive: () => void
 }
 
 /**
@@ -55,12 +60,16 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
   let current: WebSocket | null = null
   let closedByClient = false
   let finished = false
+  // Gave up after the budget, but still revivable — unlike `finished`, nothing here is final.
+  let lost = false
   let attempts = 0
   let outageStartedAt: number | null = null
+  let outageBudget = policy.budget
   let stableTimer: ReturnType<typeof setTimeout> | null = null
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
-  let lastFrameAt = Date.now()
+  // When the ping still waiting for an answer was sent, or null once anything came back.
+  let pingSentAt: number | null = null
 
   let resolveReady: () => void = () => void 0
   let rejectReady: (error: Error) => void = () => void 0
@@ -97,16 +106,21 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
   }
 
   const startHeartbeat = (socket: WebSocket) => {
-    lastFrameAt = Date.now()
+    pingSentAt = null
     heartbeatTimer = setInterval(() => {
       if (socket.readyState !== WebSocket.OPEN) return
-      if (Date.now() - lastFrameAt > policy.heartbeat + policy.pongTimeout) {
-        // Silent half-open TCP: nothing at all has arrived since well past a heartbeat interval
-        // plus its grace period — force the close this socket's own stack would eventually
+      if (pingSentAt != null && Date.now() - pingSentAt > policy.pongTimeout) {
+        // Silent half-open TCP: the ping this socket owes an answer to went out long enough ago
+        // that any live peer would have replied — force the close its own stack would eventually
         // notice on its own, minutes later.
         socket.close(SOCKET_HEARTBEAT_TIMEOUT_CODE)
         return
       }
+      // Measured from the PING rather than from the last frame: a hidden tab's timers are
+      // throttled to about one wake-up a minute, so "nothing has arrived for longer than a
+      // heartbeat interval" is what throttling looks like, not what a dead socket looks like —
+      // it used to kill a perfectly healthy backgrounded connection on every wake-up.
+      pingSentAt = Date.now()
       socket.send(JSON.stringify({ type: 'ping' }))
     }, policy.heartbeat)
   }
@@ -128,14 +142,19 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     settle(new SocketConnectionError('lost'))
   }
 
-  const scheduleReconnect = (code: number) => {
+  // No `Close` frame here: the connection stays revivable, and `close` means gone for good.
+  const giveUp = async () => {
+    lost = true
+    clearTimers()
+    onStatus?.('lost')
+    await emitSystem(SocketSystemEvent.Lost, {})
+    settle(new SocketConnectionError('lost'))
+  }
+
+  const scheduleReconnect = () => {
     if (outageStartedAt == null) outageStartedAt = Date.now()
-    if (Date.now() - outageStartedAt >= policy.budget) {
-      void (async () => {
-        onStatus?.('lost')
-        await emitSystem(SocketSystemEvent.Lost, {})
-        await finish(code)
-      })()
+    if (Date.now() - outageStartedAt >= outageBudget) {
+      void giveUp()
       return
     }
     attempts += 1
@@ -147,13 +166,47 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
 
   const attemptConnect = async () => {
     if (closedByClient) return
+    let socket: WebSocket
     try {
-      const socket = await open()
-      onOpened(socket)
+      socket = await open()
     } catch {
-      if (retry) scheduleReconnect(1006)
+      if (retry) scheduleReconnect()
       else void finish(1006)
+      return
     }
+    if (closedByClient) {
+      // Closed while this handshake was in flight — nobody is left to own the socket.
+      socket.close(1000)
+      return
+    }
+    onOpened(socket)
+  }
+
+  const revive = () => {
+    if (finished) return
+    if (lost) {
+      lost = false
+      attempts = 1
+      outageStartedAt = Date.now()
+      outageBudget = policy.reviveBudget
+      onStatus?.('reconnecting')
+      void emitSystem(SocketSystemEvent.Reconnecting, { attempt: attempts, delay: 0 })
+      void attemptConnect()
+      return
+    }
+    // Still retrying: never give up sooner than a revived connection would — otherwise a retry of
+    // its lost siblings is undone moments later when this one's older budget runs out, even by an
+    // attempt already in flight — and attempt now rather than after the backoff.
+    if (current != null) return
+    const now = Date.now()
+    if (outageStartedAt != null && outageBudget - (now - outageStartedAt) < policy.reviveBudget) {
+      outageStartedAt = now
+      outageBudget = policy.reviveBudget
+    }
+    if (retryTimer == null) return
+    clearTimeout(retryTimer)
+    retryTimer = null
+    void attemptConnect()
   }
 
   const onOpened = (socket: WebSocket) => {
@@ -161,7 +214,8 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     const wasRetry = attempts > 0
 
     const receiveMessage = async (event: MessageEvent) => {
-      lastFrameAt = Date.now()
+      // Any frame at all answers the outstanding ping — the point is liveness, not pongs.
+      pingSentAt = null
       if (typeof event.data === 'string') {
         try {
           if (JSON.parse(event.data)?.type === 'pong') return
@@ -204,7 +258,7 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
       }
       model.stage = AuthenticationStage.Init
       await emitSystem(SocketSystemEvent.Disconnected, { code: event.code })
-      scheduleReconnect(event.code)
+      scheduleReconnect()
     }
 
     socket.addEventListener('message', messageHandler)
@@ -213,7 +267,11 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     startHeartbeat(socket)
 
     if (stableTimer != null) clearTimeout(stableTimer)
-    stableTimer = setTimeout(() => { attempts = 0; outageStartedAt = null }, policy.stableAfter)
+    stableTimer = setTimeout(() => {
+      attempts = 0
+      outageStartedAt = null
+      outageBudget = policy.budget
+    }, policy.stableAfter)
 
     onStatus?.('online')
     settle()
@@ -255,5 +313,5 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
 
   void attemptConnect()
 
-  return { connection: model, ready }
+  return { connection: model, ready, revive }
 }

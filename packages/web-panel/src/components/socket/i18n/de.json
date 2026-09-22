@@ -1,7 +1,9 @@
 {
   "reload": {
     "title": "Verbindung verloren",
-    "description": "Die Verbindung konnte nach mehreren Versuchen nicht wiederhergestellt werden. Lade die Seite neu, um fortzufahren.",
-    "action": "Seite neu laden"
+    "description": "Die Verbindung konnte nach mehreren Versuchen nicht wiederhergestellt werden. Versuche es erneut oder lade die Seite neu, um fortzufahren.",
+    "action": "Seite neu laden",
+    "retry": "Erneut versuchen",
+    "retrying": "Verbindung wird wiederhergestellt…"
   }
 }

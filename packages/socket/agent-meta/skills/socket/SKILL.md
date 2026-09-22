@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.18-rc.30"` in `dependencies`
 
 Contracts and one implementation-free connection model. It knows nothing about WebSockets: the
 browser side is `@owlmeans/client-socket`, the Fastify side `@owlmeans/server-socket`, and each
@@ -91,12 +91,12 @@ subscription a handler opened is released there.
 | `disconnected` | The socket dropped and a retry IS scheduled (client-socket only) — `{ code }` |
 | `reconnecting` | Before each retry attempt (client-socket only) — `{ attempt, delay }` |
 | `reconnected` | A retry succeeded, same `Connection` model (client-socket only) — `{ attempts }` |
-| `lost` | The retry budget elapsed with no success, immediately followed by `close` (client-socket only) |
+| `lost` | The retry budget elapsed with no success (client-socket only). NOT followed by `close`: the connection stays revivable until its owner closes it |
 
 `close` is the only one of the five a plain carrier with no retry logic (like `server-socket`, or
-`client-socket` itself with `reconnect: false`) will ever emit — a listener written against `close`
-alone, before reconnect support existed, still sees exactly the frame it always did once a
-reconnecting carrier's retries give up.
+`client-socket` itself with `reconnect: false`) will ever emit. A listener that must react to a
+reconnecting carrier giving up listens for `lost` — a `close` there comes only from its owner's
+own `close()` or a terminal server code.
 
 ## What the model expects of a carrier
 

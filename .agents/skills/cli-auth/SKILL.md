@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/cli-auth
 
 **Layer:** Tooling (Node/Bun — no React, no DOM, no framework runtime)
-**Install:** `"@owlmeans/cli-auth": "^0.1.18-rc.4"` in `dependencies`
+**Install:** `"@owlmeans/cli-auth": "^0.1.18-rc.6"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` (discovery, device authorization, polling, revoke, `SignInRequired`)
 **Server half:** any API built on `@owlmeans/server-oauth`; **consumers:** `@owlmeans/viable-mcp`
 

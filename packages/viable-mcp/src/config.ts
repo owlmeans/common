@@ -96,7 +96,7 @@ export const readConfig = async (argv: string[], env: NodeJS.ProcessEnv): Promis
 
 export const HELP = `viable-mcp — drive the OwlMeans Viable platform from a coding agent
 
-  npx -y @owlmeans/viable-mcp@^0.1.18-rc.25 [options]
+  npx -y @owlmeans/viable-mcp@^0.1.18-rc.27 [options]
 
 Options
   --api-url <url>       The platform's API. Default: ${DEFAULT_API_URL}

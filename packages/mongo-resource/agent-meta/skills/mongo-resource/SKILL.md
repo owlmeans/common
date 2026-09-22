@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/mongo-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.32"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/mongo-resource": "^0.1.18-rc.33"` in `dependencies` (peers `mongodb`, `ajv`)
 
 The Mongo counterpart of [[postgres-resource]]. A collection has no structure of its own, so
 here the resource layer owns the *validator* (`$jsonSchema` from the AJV schema), the indexes,
@@ -133,9 +133,14 @@ with `marshalReference(field, value)` and convert read-back documents' reference
   after earlier collections were already rewritten, leaving the database half-migrated and the boot
   aborting on every restart. Drop the stale index by name in the body first (guard on the key spec
   so the drop is idempotent) and let reconciliation recreate it from the declaration.
-- **Index reconciliation matches by name and recreates on any difference.** A live index whose key
-  pattern or options differ from the declaration is dropped and created again, so a renamed field
-  does converge — after `Pre`, which is why the bullet above exists. Text indexes are the one
+- **Index reconciliation matches by name and recreates on a REAL difference.** A live index whose
+  key pattern or options differ from the declaration is dropped and created again, so a renamed
+  field does converge — after `Pre`, which is why the bullet above exists. The comparison treats
+  the key as ordered (a compound index is its key order) and the options as a set, and ignores
+  what the server reports rather than the declaration asks for (`v`, `collation`, index versions):
+  comparing the two documents as JSON instead made every boot drop and recreate every index, which
+  stayed invisible until two processes booted together and the loser died on `IndexNotFound`. A
+  drop that finds the index already gone is therefore tolerated. Text indexes are the one
   exception: a live index carrying `weights` is left as it is, and changing one means dropping it
   yourself.
 - On a collection this boot just created, every registered migration is **baselined**
