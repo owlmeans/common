@@ -64,7 +64,7 @@ const marked = (body: string): string =>
  * viable-mcp release. A tag (`@next`) is refused by that audit, and a copy per harness was how three
  * of four configs kept a tag while the fourth carried the pin.
  */
-const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.25'] as const
+const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.27'] as const
 const MCP_EXECUTABLE = MCP_COMMAND[0]
 const MCP_ARGS: string[] = MCP_COMMAND.slice(1)
 

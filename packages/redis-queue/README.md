@@ -14,7 +14,7 @@ BullMQ-over-Redis driver for the queue contracts declared in [`@owlmeans/queue`]
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-queue@^0.1.18-rc.21
+bun add @owlmeans/redis-queue@^0.1.18-rc.22
 ```
 
 ## Usage
@@ -297,7 +297,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.33
+npx @owlmeans/agent-skills@^0.1.18-rc.34
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

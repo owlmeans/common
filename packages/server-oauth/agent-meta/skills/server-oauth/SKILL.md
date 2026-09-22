@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-oauth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oauth": "^0.1.18-rc.4"` in `dependencies`
+**Install:** `"@owlmeans/server-oauth": "^0.1.18-rc.7"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — constants, protocols, client helpers, errors
 **Issues through:** `@owlmeans/server-auth-token` (`issueAccessToken`, `refuseTokenAuth`)
 

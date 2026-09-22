@@ -7,7 +7,7 @@ for multi-instance production deployments.
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-session@^0.1.18-rc.4
+bun add @owlmeans/server-auth-session@^0.1.18-rc.5
 ```
 
 ## Usage
@@ -36,7 +36,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.33
+npx @owlmeans/agent-skills@^0.1.18-rc.34
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

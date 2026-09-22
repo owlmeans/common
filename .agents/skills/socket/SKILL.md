@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.18-rc.30"` in `dependencies`
 
 Contracts and one implementation-free connection model. It knows nothing about WebSockets: the
 browser side is `@owlmeans/client-socket`, the Fastify side `@owlmeans/server-socket`, and each
