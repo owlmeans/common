@@ -11,7 +11,7 @@ is the legacy MUI layer — start nothing new there. React Native apps use the `
 ## Installation
 
 ```bash
-bun add @owlmeans/web-client@^0.1.18-rc.50
+bun add @owlmeans/web-client@^0.1.18-rc.49
 ```
 
 ## Concepts
@@ -289,7 +289,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.37
+npx @owlmeans/agent-skills@^0.1.18-rc.36
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

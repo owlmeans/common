@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.10"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.9"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit

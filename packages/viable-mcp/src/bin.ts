@@ -49,7 +49,7 @@ const logout = async (argv: string[]): Promise<number> => {
 }
 
 /** `viable-mcp url` — print the platform's `/mcp` address, for `claude mcp add --transport http
- * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.30 url)"`. The ONE command whose answer belongs on stdout: no
+ * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.29 url)"`. The ONE command whose answer belongs on stdout: no
  * protocol runs in this mode, and a caller capturing it must get the bare URL and nothing else. */
 const url = async (argv: string[]): Promise<number> => {
   const cfg = await readConfig(argv, process.env)
