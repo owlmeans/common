@@ -3,6 +3,7 @@ import type {
   ConnectPipelineState, ConnectProjectStatus, ConnectStoryStatus, ConversionStatusView,
 } from '@owlmeans/viable-common'
 import { refusalPhrase } from './refusal.js'
+import { LANDING_NOTE } from './stories.js'
 
 const waitingNext = (
   waitingFor: ConnectWaitReason | undefined,
@@ -56,10 +57,23 @@ export const renderProjectStatus = (status: ConnectProjectStatus): string => {
   return lines.join('\n')
 }
 
-export const renderStoryStatus = (status: ConnectStoryStatus): string => {
+/**
+ * What the story tools know about a story beyond its domain status.
+ *
+ * Read off the planning CARD the tool resolved before it asked for the status — the status route
+ * carries the run and the question, not the card's fields — so a new fact needs no second call and
+ * no change to the wire.
+ */
+export interface StoryStatusExtra {
+  /** The project's landing gate story (`fields.landing`). */
+  landing?: boolean
+}
+
+export const renderStoryStatus = (status: ConnectStoryStatus, extra: StoryStatusExtra = {}): string => {
   const lines = [
     `${status.story.code} · ${status.story.title}`,
     `story: ${status.story.status} (${status.story.intrinsic})`,
+    ...(extra.landing === true ? [LANDING_NOTE] : []),
     ...runLines(status.run),
   ]
   if (status.story.warning != null && status.story.warning !== '') {

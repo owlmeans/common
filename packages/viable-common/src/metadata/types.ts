@@ -116,6 +116,12 @@ export interface StoryMeta extends Record<string, unknown> {
    * that moves section when it is implemented leaves its own dashboard behind.
    */
   section?: string
+  /**
+   * This is the landing gate's story — a guest starts it on the landing page and continues here
+   * after signing in. Copied from the card's `fields.landing`; written only when `true`, so every
+   * other story's file keeps the shape it always had.
+   */
+  landing?: boolean
   entity: string
   entities: string[]
   screens: StoryScreenRef[]
@@ -153,6 +159,8 @@ export interface StoryWriteInput {
   narrative: string
   status: string
   primary: boolean
+  /** The card's landing flag — see {@link StoryMeta.landing}. Absent reads as `false`. */
+  landing?: boolean
   /** Carried through a develop run so the rewrite does not drop the scaffold's assignment. */
   section?: string
   /** Likewise the reserved screen name. */

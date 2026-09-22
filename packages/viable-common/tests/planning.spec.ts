@@ -4,7 +4,7 @@ import addFormats from 'ajv-formats'
 import { ResilientError } from '@owlmeans/error'
 import {
   canTransit, CodeScope, CodeStyle, intrinsicOf, IntrinsicStatus, makeSchemaRegistry,
-  SpecificationFormat, transitionsFrom, WorkcardKind,
+  SpecificationFormat, TITLE_MAX, transitionsFrom, WorkcardKind,
 } from '@owlmeans/planning'
 import type { Specification } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
@@ -14,6 +14,9 @@ import { STORY_DESIGN_VERSION } from '../src/design/consts.js'
 import { emptyStoryDesign } from '../src/design/helpers.js'
 import { StoryActor } from '../src/design/runtime.js'
 import type { StoryDesign } from '../src/design/types.js'
+import {
+  hasLandingSentence, LANDING_STORY_SENTENCE, withLandingSentence,
+} from '../src/index.js'
 import {
   isUserChannel, isViableProject, isViableStory, ProjectAgentOccupied, ProjectNotFound,
   ProjectStoryMissconfigured, projectBriefOf, storyDraftOf, storyWriteInputOf, userStoryOf,
@@ -255,8 +258,23 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({
       formerAliases: ['old-name'], language: 'en', blueprint: 'owlmeans', blueprintCase: 'web',
       target: null, connectLlmMode: 'local', origin: { kind: 'github', repoUrl: 'https://x/y' },
+      landing: { story: 'US-ABC12', at },
     })).toBe(true)
     expect(project({ alias: 'slot-booker' })).toBe(false)
+  })
+
+  test('a story carries the landing flag, spelled or nulled', () => {
+    expect(story({ area: ProjectArea.User, primary: false, landing: true })).toBe(true)
+    expect(story({ area: ProjectArea.User, primary: false, landing: null })).toBe(true)
+    expect(story({ area: ProjectArea.User, primary: false, landing: 'yes' })).toBe(false)
+  })
+
+  test('a project records a decided "no gate" as story null, and never a decision without a time', () => {
+    // Absent = never decided; `story: null` = decided, no gate. Both must be spellable.
+    expect(project({ landing: { story: null, at } })).toBe(true)
+    expect(project({ landing: null })).toBe(true)
+    expect(project({ landing: { story: 'US-ABC12' } })).toBe(false)
+    expect(project({ landing: { story: 'US-ABC12', at, reason: 'best fit' } })).toBe(false)
   })
 })
 
@@ -311,11 +329,48 @@ describe('viable-common - the viable card helpers', () => {
       .toThrow(ProjectStoryMissconfigured)
   })
 
+  test('storyWriteInputOf copies the landing flag from the card, and only when it is set', () => {
+    const content = {
+      userStory: userStoryOf(storyCard()), screenPaths: {}, componentPaths: {}, transitions: [],
+    }
+    const landing = storyCard({ fields: { area: ProjectArea.User, primary: false, landing: true } })
+
+    expect(storyWriteInputOf(landing, content).landing).toBe(true)
+    expect('landing' in storyWriteInputOf(storyCard(), content)).toBe(false)
+  })
+
   test('only a person writes through the web and connect channels', () => {
     expect(isUserChannel(ViableChannel.Web)).toBe(true)
     expect(isUserChannel(ViableChannel.Connect)).toBe(true)
     expect(isUserChannel(ViableChannel.Pipeline)).toBe(false)
     expect(isUserChannel(undefined)).toBe(false)
+  })
+})
+
+describe('viable-common - the landing sentence', () => {
+  test('is appended once, with one space, and a resumed step never adds a second copy', () => {
+    const once = withLandingSentence('A member books a slot.')
+
+    expect(once).toBe(`A member books a slot. ${LANDING_STORY_SENTENCE}`)
+    expect(withLandingSentence(once)).toBe(once)
+    expect(hasLandingSentence(once)).toBe(true)
+    expect(hasLandingSentence('A member books a slot.')).toBe(false)
+  })
+
+  test('is recognised whatever whitespace a person left around it', () => {
+    const rewrapped = `A member books a slot.\n${LANDING_STORY_SENTENCE.replace('; after', ';\n  after')}`
+
+    expect(hasLandingSentence(rewrapped)).toBe(true)
+    expect(withLandingSentence(rewrapped)).toBe(rewrapped)
+  })
+
+  test('never makes a title longer than a card accepts, and never cuts the narrative', () => {
+    const long = 'x'.repeat(TITLE_MAX - 10)
+
+    expect(withLandingSentence(long)).toBe(long)
+    expect(withLandingSentence('x'.repeat(TITLE_MAX - LANDING_STORY_SENTENCE.length - 1)).length)
+      .toBe(TITLE_MAX)
+    expect(withLandingSentence('  ')).toBe(LANDING_STORY_SENTENCE)
   })
 })
 

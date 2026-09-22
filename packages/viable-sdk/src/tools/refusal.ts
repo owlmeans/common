@@ -1,5 +1,6 @@
 import { ResilientError } from '@owlmeans/error'
 import { ModerationCategory } from '@owlmeans/viable-common'
+import { projectSettingOf } from './settings.js'
 
 /**
  * One refusal: the marker it travels as, and the sentence a parent agent reads instead of it.
@@ -338,6 +339,23 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'viable-connect:op-unknown:',
     phrase: () => 'That operation is unknown, already answered, or belongs to another session.',
+  },
+
+  // ── A value the platform will not store ──────────────────────────────────────────────────────
+  // `AuthenPayloadError(<field>)` — the web branding save's refusal, and the connector save's,
+  // which reuses its validation. The detail is the wire field, so a project setting is answered with
+  // its own rule; any other field still reads as a sentence.
+  {
+    marker: 'authen:payload:',
+    phrase: field => {
+      const setting = projectSettingOf(field)
+
+      return setting != null
+        ? `The platform refused the ${setting.label} setting: it takes ${setting.rule}. Nothing was`
+          + ' changed — project_settings shows what is stored.'
+        : `The platform refused a value in this call as malformed${aside(field)}. Nothing was changed;`
+          + ' correct that value and call the tool again.'
+    },
   },
 
   // ── The call itself ──────────────────────────────────────────────────────────────────────────

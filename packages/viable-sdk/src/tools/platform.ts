@@ -42,8 +42,24 @@ export interface PlatformCapability {
   absent: string
 }
 
+/**
+ * Something every application the platform generates carries, described for a parent agent.
+ *
+ * Neither a pipeline nor a tool: a fact about the PRODUCT the runs produce, which a parent needs in
+ * order to describe it truthfully to the person it works for, and to not "add" by hand what the
+ * platform already generates. `tools` names what reads or changes it, where anything does.
+ */
+export interface PlatformFeature {
+  id: string
+  title: string
+  what: string
+  /** Tool names in this SDK's own catalogue. A test pins that every one of them exists. */
+  tools?: string[]
+}
+
 export interface PlatformCatalogue {
   pipelines: PlatformPipeline[]
+  features: PlatformFeature[]
   capabilities: PlatformCapability[]
   limits: {
     toolDeadlineMs: number
@@ -74,11 +90,13 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'vib:project:init',
       title: 'Build the whole application',
-      what: 'Lays the template down, installs dependencies, configures the target, draws every'
-        + ' screen the analysis found as a placeholder, and builds it. The long one.',
+      what: 'Lays the template down, installs dependencies, configures the target, decides whether'
+        + ' the guest home gets a landing gate, draws every screen the analysis found as a'
+        + ' placeholder, writes the Terms and Privacy pages, and builds it. The long one.',
       startedBy: ['confirm_project'],
       stages: [
-        'template', 'dependencies', 'serve', 'styles', 'metadata', 'primary', 'scaffold', 'build',
+        'template', 'dependencies', 'serve', 'styles', 'metadata', 'primary', 'landing', 'scaffold',
+        'legal', 'build',
       ],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector, ConnectWaitReason.Environment],
@@ -87,7 +105,9 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'vib:project:reinit',
       title: 'Lay the template down again',
       what: 'Wipes the generated sources and rebuilds from the template. The user stories are kept'
-        + ' and reset to planned; configuration and git history survive.',
+        + ' and reset to planned; configuration and git history survive, and so does a landing-gate'
+        + ' decision already made. Blank or platform-default Terms and Privacy links switch to the'
+        + ' generated /terms and /privacy pages; custom ones are kept.',
       startedBy: ['reinitialize_project'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
@@ -96,9 +116,10 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       id: 'vib:story:develop',
       title: 'Implement one user story',
       what: 'Designs the story, then implements it: types, data, endpoints, access, state,'
-        + ' components, screens and navigation, then checks that the application still boots.',
+        + ' components, screens and navigation, then checks that the application still boots. The'
+        + ' landing gate story also puts its real component on the guest home.',
       startedBy: ['develop_story'],
-      stages: ['design', 'implement', 'widget', 'boot gate'],
+      stages: ['design', 'implement', 'widget', 'landing', 'boot gate'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
@@ -165,6 +186,52 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     },
   ],
 
+  features: [
+    {
+      id: 'landing-gate',
+      title: 'The landing gate',
+      what: 'The key step of the END USER\'s workflow can begin on the guest home: in place of the'
+        + ' hero\'s buttons, a card lets a visitor start it without an account, and signing in'
+        + ' carries their choices to that story\'s full screen. Initialization weighs whether the'
+        + ' product wants one — encouraged for web, AI-agent and AI-pipeline products, discouraged'
+        + ' for games — and marks at most one story; a converted application gets none. Developing'
+        + ' that story replaces the sketch with the real component.',
+      tools: ['list_stories', 'story_status', 'develop_story'],
+    },
+    {
+      id: 'legal-pages',
+      title: 'Terms and Privacy pages',
+      what: 'Generated at /terms and /privacy from the specification and the plan, aware of EU and'
+        + ' US law, and linked from every footer beside the cookie settings. They name the'
+        + ' organization and the copyright from the project settings, so changing those updates'
+        + ' both pages with no new generation. The preview marks them as drafts to review before'
+        + ' publishing.',
+      tools: ['project_settings', 'update_project_settings'],
+    },
+    {
+      id: 'google-tag',
+      title: 'A Google tag',
+      what: 'A GTM-, G-, GT-, AW- or DC- id in the project settings loads on the preview and in'
+        + ' production, behind the cookie consent: Consent Mode v2 keeps analytics and ads storage'
+        + ' denied until the visitor allows them, and the Privacy page gains its Google section.',
+      tools: ['update_project_settings'],
+    },
+    {
+      id: 'look',
+      title: 'The look',
+      what: 'A white ground in light mode and black in dark, one product accent, hairlines and'
+        + ' neutral tiles, a heavy grotesk type, and an illustration of the product\'s own domain in'
+        + ' the hero. No gradients, glass or glow unless the specification asks for them by name —'
+        + ' a product\'s subject matter is not such a request.',
+    },
+    {
+      id: 'production',
+      title: 'Production builds',
+      what: 'A published build carries no preview scaffolding: no story codes, no "preview" pills,'
+        + ' no dashed placeholder frames — a placeholder widget renders as an ordinary card.',
+    },
+  ],
+
   capabilities: [
     {
       id: 'projects',
@@ -176,6 +243,15 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         'list_projects', 'attach_project', 'reinitialize_project',
       ],
       absent: 'no project tools are offered here',
+    },
+    {
+      id: 'settings',
+      title: 'Project settings',
+      what: 'Read and change what a person edits on the project\'s control panel: the copyright'
+        + ' line, the organization name, the Terms and Privacy links and the Google tag. A save'
+        + ' rebuilds the preview; production takes it at the next Publish.',
+      tools: ['project_settings', 'update_project_settings'],
+      absent: 'project settings are changed in the web application from here',
     },
     {
       id: 'stories',
@@ -278,6 +354,18 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
 }
 
 /**
+ * {@link PlatformCatalogue.features} in one sentence, for `describe_capabilities`.
+ *
+ * That answer is read at the same moment as `describe_platform` — once, before anything is created
+ * — by a parent that may call only one of the two. Kept beside the entries it summarises so the
+ * two cannot drift apart unnoticed; the full text stays in `describe_platform`.
+ */
+export const GENERATED_SUMMARY = 'Every generated application carries a landing gate on the guest'
+  + ' home where the product wants one, Terms and Privacy pages at /terms and /privacy, an optional'
+  + ' consent-gated Google tag, a white (black in dark mode) ground with one accent, and production'
+  + ' builds without preview scaffolding — describe_platform says what each means.'
+
+/**
  * The catalogue as text, narrowed to what THIS session can drive.
  *
  * Two rules, and the second is the point. Nothing is listed that the host does not offer, so a
@@ -339,6 +427,15 @@ export const renderPlatform = (catalogue: PlatformCatalogue, host: ToolHost): st
     if (pipeline.waitsFor != null && pipeline.waitsFor.length > 0) {
       lines.push(`    may wait for: ${pipeline.waitsFor.join(', ')}`)
     }
+  }
+
+  // Rendered whole on every host: what the platform GENERATES does not depend on which connector
+  // is reading. Only the tool names are narrowed, like everywhere else.
+  lines.push('', 'WHAT A GENERATED APPLICATION CARRIES')
+  for (const feature of catalogue.features) {
+    lines.push('', `  ${feature.title}`, `    ${feature.what}`)
+    const tools = (feature.tools ?? []).filter(has)
+    if (tools.length > 0) lines.push(`    see: ${tools.join(', ')}`)
   }
 
   lines.push('', 'WHAT YOU CAN CALL')

@@ -11,14 +11,14 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.51
+bun add @owlmeans/web-panel@^0.1.18-rc.54
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
 `react-hook-form`, `ajv`, `tailwindcss@^4`, `lucide-react`, `clsx`,
 `tailwind-merge`, `class-variance-authority`, plus the radix primitives
-listed in `peerDependencies` (`alert-dialog`, `label`, `navigation-menu`, `progress`, `separator`,
-`slot`). Also declare `ajv-formats` next to `ajv`: the form model imports it, but no dependency
+listed in `peerDependencies` (`alert-dialog`, `dialog`, `label`, `navigation-menu`, `progress`,
+`separator`, `slot`). Also declare `ajv-formats` next to `ajv`: the form model imports it, but no dependency
 section of this manifest lists it.
 
 ## Concepts
@@ -31,7 +31,8 @@ section of this manifest lists it.
   supplies the peers, its Tailwind theme tokens and an `@source` line for this package.
 - **Two-layer navigation** — the top menu lists sections and the side menu lists the active
   section's screens. A section holding a single screen renders no side menu. The model
-  (`usePanelNav`, `PanelNav*`) is headless in `@owlmeans/client-panel`.
+  (`usePanelNav`, `PanelNav*`) is headless in `@owlmeans/client-panel`. With `mobileMenu`, a
+  narrow viewport gets both levels behind one menu button and a sheet instead.
 - **Style slots** — `className` (page root), `headerClassName` (sticky bar), `contentClassName`
   and `containerClassName` (width and padding of all three rows) are merged over their defaults
   with tailwind-merge, never substituted.
@@ -223,10 +224,12 @@ alias. Default keys are `nav.<section>` and `modules.<alias>`.
 
 | Component | Props |
 |---|---|
-| `NavLayout` | `nav`, `translate?`, `title?`, `home?` (brand target; defaults to the first section's first item), `actions?`, `footer?` (`PanelNavLink[]` renders the standard footer, a node replaces it), `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
+| `NavLayout` | `nav`, `translate?`, `title?`, `home?` (brand target; defaults to the first section's first item), `actions?`, `mobileMenu?` (below `md`, a menu button and a sheet replace the section menu and the screen strip; `actions` stay), `skipLinkLabel?` (the first-on-page skip link to `<main id="main">`; default `shell.skip` → "Skip to content"; `false` renders no link and no `#main`), `themeToggle?` (`true` or `{ labels? }`: the light/dark switcher in the footer's bottom row beside the credit; names via `shell.toLight` / `shell.toDark`), `footer?` (`PanelNavLink[]` renders the centred link row; a node renders as a full-width block above the credit), `headerClassName?`, `contentClassName?`, `containerClassName?`, `className?`, `style?` |
 | `TopNav` | `config`, `translate?`, `ariaLabel?`, `className?`, `style?` |
 | `SideNav` | the same, plus `variant?: 'side' \| 'bar'` |
-| `Footer` | `links?`, `translate?`, `containerClassName?`, `children?`, `className?`, `style?` — always renders the platform/owner credit line too, via `ShellCredit` |
+| `MobileNav` | the same as `TopNav`; the trigger's name and the sheet title resolve `shell.menu` ("Menu"), its close button `shell.close` ("Close"); `className`/`style` land on the trigger |
+| `Footer` | `links?`, `content?` (full-width block, `data-footer-content`), `translate?`, `containerClassName?`, `children?` (join the link row), `themeToggle?`, `className?`, `style?` — always renders the platform/owner credit line last, via `ShellCredit` |
+| `ThemeToggle` | `labels?: { toLight?, toDark? }` (English defaults), `className?`, `style?` — a 44px `<button data-theme-toggle>` flipping the resolved scheme |
 | `ShellCredit`, `useShellCredit` | `className?` — "Powered by OwlMeans" plus the owner's copyright, resolved the same way the sign-in screen's credit is |
 
 ### 4. Forms, panels and status
@@ -331,8 +334,8 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `NavLayout`, `TopNav`, `SideNav`, `Footer`, `ShellCredit` | component | Navigation shell and its pieces, including the footer's platform/owner credit |
-| `NavLayoutProps`, `TopNavProps`, `SideNavProps`, `FooterProps`, `ShellCreditProps` | type | Their props |
+| `NavLayout`, `TopNav`, `SideNav`, `MobileNav`, `Footer`, `ShellCredit` | component | Navigation shell and its pieces, including the narrow-viewport menu sheet and the footer's platform/owner credit |
+| `NavLayoutProps`, `TopNavProps`, `SideNavProps`, `MobileNavProps`, `FooterProps`, `ShellCreditProps` | type | Their props |
 | `useShellCredit` | hook | Resolves the credit `ShellCredit` renders, without rendering it |
 | `Layout`, `LayoutProps` | component, type | Plain content wrapper |
 | `Form`, `WebFormProps` | component, type | Web form; `FormProps` plus `className` / `style` |
@@ -343,6 +346,8 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 | `BlockProps`, `TextProps`, `LinkProps`, `StatusProps`, `StyledProps`, `TextVariant` | type | Their props |
 | `ImageUploader`, `ImageUploaderProps` | component, type | Drop target with a `previewUrl` |
 | `Toaster` | component | `sonner` surface themed from app tokens; follows `.dark` on the document element |
+| `ThemeToggle`, `ThemeToggleProps`, `ThemeToggleLabels` | component, type | The light/dark switcher |
+| `useColorScheme()`, `ColorSchemeModel` | hook, type | `{ scheme, choice, setChoice }` — the resolved scheme, the stored choice (`null` = follow the OS), and the setter |
 | `SocketReloadDialog` | component | Blocking reload prompt for `'lost'` sockets |
 | `LoginScreen`, `LocalizedLoginScreen` | component | Identity-provider choice screen; the localized one binds `translate` to the app's resources |
 | `appendLoginScreen(ctx, setup?)`, `LoginScreenSetup` | function, type | Register the screen on the login service, with `Logo` and other `LoginScreenProps` |
@@ -386,12 +391,30 @@ relying party.
 `@owlmeans/web-panel/auth/entrypoints` exports `entrypoints`: `@owlmeans/client-auth/manager`'s
 bindings plus `@owlmeans/api-config-client`'s.
 
+### `@owlmeans/web-panel/scheme`
+
+React-free — it imports nothing, so a Node build script can load it.
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `COLOR_SCHEME_KEY` | const | `'owlmeans:color-scheme'`, the `localStorage` key |
+| `COLOR_SCHEME_EVENT` | const | The `window` event every change dispatches |
+| `ColorSchemeChoice` | type | `'light' \| 'dark'` |
+| `readColorScheme()` | function | The stored choice or `null` (storage errors swallowed) |
+| `applyColorScheme(choice \| null)` | function | Sets the `light`/`dark` class on `<html>`, stores or clears the key, dispatches the event |
+| `colorSchemeBootstrapScript()` | function | The inline head script that applies a stored choice before first paint |
+
+The class contract: `.dark` = chosen dark, `.light` = chosen light, neither = follow the OS. A
+consumer's CSS puts dark tokens under `.dark` AND under
+`@media (prefers-color-scheme: dark) { :root:not(.light) { … } }`, and inlines
+`colorSchemeBootstrapScript()` in the document head.
+
 ### `@owlmeans/web-panel/consent`
 
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `PanelCookieConsent`, `PanelCookiePolicy` | component | `@owlmeans/web-consent` components bound to the app's language and translations |
-| `PanelConsentMenuWidget` | component | The cookie-preferences row for a host menu |
+| `PanelConsentMenuWidget` | component | The cookie-preferences control for a host menu or footer ("Cookie settings" — pass `label` and `className`) |
 | `appendConsentWidgetService(ctx, alias?)`, `createConsentWidgetService` | function | Ref-counted presence service over a state resource |
 | `useConsentMenuPresence()`, `useConsentWidgetPresent()` | hook | Declare that a menu shows the row; read whether one does (hides the floating button) |
 | `CONSENT_WIDGET_SERVICE`, `CONSENT_WIDGET_STATE` | const | Service alias and state alias |
@@ -439,7 +462,17 @@ The public names match the MUI implementation; these props and types differ:
 - **`reloadDialog` is off by default.** The dialog renders nothing unless `cfg.socket.reloadDialog`
   is `true`.
 - **Run `useConsentMenuPresence()` from the menu's always-mounted component**, never from inside a
-  dropdown row, which mounts only while the menu is open.
+  dropdown row, which mounts only while the menu is open. Without `appendConsentWidgetService` it
+  does nothing and `PanelCookieConsent` keeps its floating button.
+- **Pass an application footer layout as a node `footer`.** It renders full-width above the credit;
+  an array renders the centred link row. Neither removes the credit.
+- **A theme for `ThemeToggle` reads both classes.** Dark tokens under `.dark` only never follow
+  the OS; under the media query only, they ignore an explicit light choice. Inline the head
+  bootstrap or a stored dark choice flashes light for a frame.
+- **The shell already renders the skip link and `<main id="main">`.** A screen never renders a
+  second `<main>` or `#main`; an app with its own skip link passes `skipLinkLabel={false}`.
+- **`mobileMenu` is opt-in.** Without it a narrow viewport keeps the section menu and the screen
+  strip; with it both move into the sheet.
 - **Never import `@/…` from package code or vendor its primitives in the app.** The `@` alias
   belongs to the consumer.
 - **Every override of a packaged string covers all seven languages** (`SUPPORTED_LNGS`).
@@ -463,7 +496,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.30
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

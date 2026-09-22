@@ -21,5 +21,14 @@
   "policyStorage": "Twój wybór jest zapisywany w tej przeglądarce pod kluczem „{{key}}\" — zarówno w pamięci lokalnej, jak i w pliku cookie.",
   "policyRetention": "Zapis jest przechowywany przez {{days}} dni, po czym zapytamy ponownie.",
   "policyOperator": "Tę aplikację prowadzi {{operator}}.",
-  "policyContact": "Zapoznaj się z ich polityką prywatności i regulaminem, aby dowiedzieć się, jak przetwarzają Twoje dane."
+  "policyContact": "Zapoznaj się z ich polityką prywatności i regulaminem, aby dowiedzieć się, jak przetwarzają Twoje dane.",
+  "policyServicesOf": "Usługi — {{category}}",
+  "policyOtherServices": "Inne usługi",
+  "policyOtherServicesDesc": "Usługi, z których ta aplikacja korzysta poza powyższymi kategoriami.",
+  "policyProvider": "Dostawca",
+  "policyPurpose": "Cel",
+  "policyCookies": "Pliki cookie",
+  "policyServicePrivacy": "Polityka prywatności: {{provider}}",
+  "privacy": "Polityka prywatności",
+  "terms": "Regulamin"
 }

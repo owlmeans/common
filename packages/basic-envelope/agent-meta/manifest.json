@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/basic-envelope",
-  "version": "0.1.18-rc.29",
-  "generatedAt": "2026-09-19T13:42:56.282Z",
+  "version": "0.1.18-rc.31",
+  "generatedAt": "2026-09-22T12:36:21.889Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/socket",
-  "version": "0.1.18-rc.26",
+  "version": "0.1.18-rc.28",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.28",
-    "@owlmeans/basic-ids": "^0.1.18-rc.27",
-    "@owlmeans/error": "^0.1.18-rc.28"
+    "@owlmeans/auth": "^0.1.18-rc.30",
+    "@owlmeans/basic-ids": "^0.1.18-rc.29",
+    "@owlmeans/error": "^0.1.18-rc.30"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

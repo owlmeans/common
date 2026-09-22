@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.23"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.26"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 Consent Mode signalling — is `@owlmeans/consent`, and this package re-exports a **named selection**
@@ -40,7 +40,7 @@ components — see below.
 | `useConsent(opts?)` | This document's consent state and the actions over it (`UseConsentModel`) — **it also initialises the store on mount**, see below |
 | `useConsentCategory(key)` | Whether one category is granted, for a component gating a single thing |
 | `CookieConsentProps` / `CookiePolicyProps` / `ConsentLink` | The component props |
-| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale` |
+| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale` |
 
 ## Mounting the dialog
 
@@ -62,7 +62,7 @@ import { CookieConsent } from '@owlmeans/web-consent'
   goes for `storageKey`, `cookieDays` and `cookieDomain`.
 - `locale` picks the packaged language; leave it unset and English is used, so an app with a
   language of its own passes it (or mounts `PanelCookieConsent`, which does). A region tag is
-  reduced to its base (`pl-PL` → `pl`), and anything outside the seven falls back to English.
+  reduced to its base (`pl-PL` → `pl`), and anything outside `CONSENT_LOCALES` falls back to English.
 - `policyHref` is a plain string, so an app-resolved path, a framework route and a raw href all
   work — the component must not know how its host does routing.
 - `noReopenButton` hides the floating button for an app that offers a footer link instead; that link
@@ -71,8 +71,42 @@ import { CookieConsent } from '@owlmeans/web-consent'
   filled background, no border, no shadow, no hover-scale — `bg-transparent`, dimmed
   (`opacity-70`) at rest and picked out on hover/focus — because it sits on every page of a site
   for as long as a visitor stays and must read as a small fixture rather than compete with the
-  page's own controls. The pictogram itself stays at its original 20px (`h-5 w-5`); only the
-  chrome around it shrank. `[data-consent-reopen]` is still what any test or CSS override keys on.
+  page's own controls. The pictogram is 20px (`h-5 w-5`) inside an invisible 44px hit area
+  (`h-11 w-11`). `[data-consent-reopen]` is what any test or CSS override keys on.
+
+## The look — flat, from the host's tokens
+
+The dialog is the first thing every new visitor of a generated app sees, so it follows the flat
+rule those apps are held to: **no gradient, shadow, glow, glass or `backdrop-filter`** anywhere in
+it. Everything is a theme token, so light and dark follow the host:
+
+| Part | Classes |
+|---|---|
+| Overlay | `bg-black/70`, flat — no blur |
+| Card | `rounded-3xl border border-border bg-background text-foreground`, no shadow or ring |
+| Icon | `rounded-full bg-muted text-primary` |
+| Category row | `rounded-2xl border border-border`; *Required* is plain uppercase muted text, never a badge |
+| Switch | `bg-primary` on / `bg-muted-foreground/40` off, white knob; 44px hit area around the 24×44 track |
+| Accept | the one accent pill — `rounded-full bg-primary text-primary-foreground min-h-11` |
+| Save, policy *Manage preferences* | outlined pill — `rounded-full border-[1.5px] border-foreground bg-transparent`, `hover:bg-muted` |
+| Links | muted, underlined at rest, `min-h-11` |
+
+Every control shows a 3px `outline-ring` focus outline 3px off the element (`outline-3
+outline-offset-3`; the switch draws it on its track through `peer-focus-visible`). An outline, not
+a ring, so a host that zeroes shadows keeps it. Never reintroduce a decorative class here — the
+package tests fail on `bg-gradient`, `backdrop-`, `blur`, `shadow` or `ring-primary` in the dialog.
+
+**Each switch is named by reference.** The `<label>` around a switch's checkbox holds only the
+drawn track, and the category's words sit in a sibling column it cannot reach, so the checkbox
+carries `aria-labelledby="<id>-label"` (the category label) and `aria-describedby` pointing at
+`<id>-required` and `<id>-desc`. Drop those and axe reports three unnamed checkboxes (`label`,
+critical). A required category stays `disabled` and keeps its name.
+
+`tests/a11y.spec.ts` runs axe-core (a dev dependency) against the open dialog in both schemes, the
+re-open button, and the policy page with services, and fails on any serious or critical
+violation. It loads the harness with `?styled=1` (plus `&theme=dark`), which compiles the package
+sources with a generated app's neutral tokens — contrast cannot be judged on the unstyled harness
+the other specs need.
 - `silent` skips every `dataLayer` and global write. It is for tests and for an app that runs no
   tags at all.
 - The draft is **re-seeded from storage every time the dialog opens**, not from the last render — a
@@ -144,12 +178,34 @@ why it is generated rather than written: a hand-written policy drifts the first 
 changes, and nobody notices because nobody reads it until it matters.
 
 ```tsx
-<CookiePolicy operator="Example Sp. z o.o." privacyHref="/legal/privacy" termsHref="/legal/terms" />
+import { googleTagServices } from '@owlmeans/web-gtm'
+
+<CookiePolicy
+  operator="Example Sp. z o.o." privacyHref="/legal/privacy" termsHref="/legal/terms"
+  services={googleTag !== '' ? googleTagServices(googleTag) : undefined}
+/>
 ```
 
 Everything OwlMeans cannot assert on the operator's behalf — who the controller is, the lawful
 basis, how to exercise rights — is deferred to those two links. It also renders a *Manage
 preferences* control, so the policy page is a way back into the decision.
+
+**`services`** (`ConsentService[]`, see the `consent` skill) discloses WHO receives data: each
+service is listed inside the item of the category whose `key` it names — name, provider, purpose,
+cookie names in `<code>`, and a link to the provider's privacy policy (new tab). A service whose
+category is not among `categories` goes into a trailing *Other services* item rather than being
+dropped. Without `services` the page renders exactly as it always has.
+
+The structure stays one `h1` and lists: categories are `li`s, a category's services are a nested
+`ul` named by `aria-label` (*Services — ‹category label›*), each service a `li` holding a `dl`.
+Never add headings for categories or services — they would skip a level under the `h1`. Test and
+CSS hooks: `[data-cookie-policy-category="<key>"]`, `[data-cookie-policy-services]`,
+`[data-cookie-policy-service]`, `[data-cookie-policy-other]`.
+
+The service labels (`policyProvider`, `policyPurpose`, `policyCookies`, `policyServicesOf`,
+`policyServicePrivacy`, `policyOtherServices`, `policyOtherServicesDesc`) go through `translate`
+with English defaults and are in the packaged bundle for every locale; the service's own `name`,
+`provider` and `purpose` are data and render as given.
 
 ## Tailwind — one `@source` line, pointing at `src`
 
@@ -187,7 +243,13 @@ Describe a glob in words, or keep it out of the comment.
 ## i18n
 
 Given no `translate` prop, the components resolve every string through the packaged bundle for
-`locale` — seven languages, the same set the framework supports. **Once a `translate` prop is given,
+`locale` — every language in `CONSENT_LOCALES` (the framework's seven plus French). The bundle
+lives in `@owlmeans/consent` (`src/i18n/<locale>.json`); a new key goes into every one of them,
+and that package's tests fail on a missing key or a dropped `{{placeholder}}` in any locale.
+This package's `tests/bundle.spec.ts` reads every `t('…')` literal from the components, so a new
+string without an English bundle entry fails there. A JSON-only edit is not re-emitted by an
+incremental `tsc -b` — rebuild `@owlmeans/consent` with `tsc -b --force`, or consumers keep the old
+bundle from `build/i18n`. **Once a `translate` prop is given,
 the packaged bundle is not consulted at all**, so a wrapper that forwards a framework resolver alone
 renders the English default for every key the application has not overridden, in every language. The
 resolver must fall through to `defaultConsentTranslate(locale)` for the default — which is exactly
@@ -206,7 +268,8 @@ caller's, already resolved.
 
 - `consent` — the model: categories, `globalVar`, storage and migration, Consent Mode v2, the
   ordering rule. Read it before changing anything a category means
-- `web-gtm` — the head snippet that carries a stored decision to the tag manager
+- `web-gtm` — the head snippet that carries a stored decision to a Google tag, and
+  `googleTagServices(id)` for this page's `services`
 - `astro` — stamping that snippet from a static site's layout
 - `login-methods` / `login-plugins` — the sign-in precondition that raises this dialog with
   `reason: 'login'`

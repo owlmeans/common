@@ -6,8 +6,8 @@ import {
   STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition
 } from '@owlmeans/viable-common'
 import type {
-  ConnectPipelineState, ConnectProjectStatus, ConnectStoryStatus, ConversionStatusView,
-  ConvertCheck, InquiryPayload
+  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus,
+  ConnectStoryStatus, ConversionStatusView, ConvertCheck, InquiryPayload, ViableStoryCard
 } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
@@ -18,12 +18,13 @@ import { missingServices, readSetupReport, renderSetupGuide, setUserEnv } from '
 import { localStatus, runLocal, stopLocal } from '../run/index.js'
 import { parseTaskResult, renderTaskEnvelope } from '../task/envelope.js'
 import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
-import { PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
+import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
 import { refusalMessage, refusalPhrase } from './refusal.js'
+import { renderProjectSettings, settingsPatch, settingsReach } from './settings.js'
 import {
   conversionNext, renderPipelineStatus, renderProjectStatus, renderStoryStatus,
 } from './status.js'
-import { renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
+import { isLandingStory, renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import {
   anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
@@ -101,8 +102,19 @@ const projectOf = (args: Record<string, unknown>, deps: { attached: () => string
 const projectResult = (status: ConnectProjectStatus) => ok(
   renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
 )
-const storyResult = (status: ConnectStoryStatus) => ok(
-  renderStoryStatus(status), { story: status as unknown as Record<string, unknown> }
+/** A story's domain status, with what its card says that the status route does not carry. */
+const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard) => {
+  const landing = isLandingStory(card)
+
+  return ok(
+    renderStoryStatus(status, { landing }),
+    { story: status as unknown as Record<string, unknown>, ...(landing ? { landing } : {}) }
+  )
+}
+/** The project settings, led by what a save just did where one did. */
+const settingsResult = (projectId: string, settings: ConnectProjectBranding, lead?: string) => ok(
+  (lead != null ? `${lead}\n\n` : '') + renderProjectSettings(projectId, settings),
+  { projectId, settings: settings as unknown as Record<string, unknown> }
 )
 const pipelineResult = (status: ConnectPipelineState) => ok(
   renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
@@ -348,9 +360,9 @@ export const catalogue: ToolDefinition[] = [
     title: 'What this platform can build, and what you can drive from here',
     description:
       'Everything the platform runs — building an application from a description, implementing'
-      + ' user stories, converting an application you already have — and which of it this session'
-      + ' can start. Read it before deciding how to approach a request. Needs no project and'
-      + ' makes no network call.',
+      + ' user stories, converting an application you already have — what every application it'
+      + ' generates carries, and which of it this session can start. Read it before deciding how to'
+      + ' approach a request. Needs no project and makes no network call.',
     input: {},
     availability: anyHost,
     run: async (_args, deps) => ok(renderPlatform(PLATFORM_CATALOGUE, deps.host)),
@@ -361,7 +373,8 @@ export const catalogue: ToolDefinition[] = [
     title: 'Report what your models can do',
     description:
       'Tell the platform which of your models it may use, so it can size each call. Call this once,'
-      + ' before creating or developing anything. Returns the mapping it will use.',
+      + ' before creating or developing anything. Returns the mapping it will use, and what every'
+      + ' generated application carries.',
     input: {
       strong: z.string().optional().describe('Your most capable model, e.g. the one you plan with'),
       standard: z.string().optional().describe('Your everyday model'),
@@ -389,7 +402,8 @@ export const catalogue: ToolDefinition[] = [
           'No model was recorded: this tool takes `strong`, `standard` and `cheap` as TOP-LEVEL'
           + ' string arguments, not nested under another key. The platform will size every call'
           + ' with its own defaults until you send them.\n\n'
-          + roleSummary(),
+          + roleSummary()
+          + `\n\n${GENERATED_SUMMARY}`,
           { tiers, roles: rolesByTier() }
         )
       }
@@ -412,7 +426,8 @@ export const catalogue: ToolDefinition[] = [
             ? '\n\nThe platform performs its own model calls for stories and free flight. A'
               + ' CONVERSION\'s calls are yours by default. Whenever a domain status reports'
               + ' waiting for a model task, call next_task.'
-            : ''),
+            : '')
+        + `\n\n${GENERATED_SUMMARY}`,
         { tiers, subagents, effortControl, roles: byTier }
       )
     },
@@ -667,9 +682,68 @@ export const catalogue: ToolDefinition[] = [
   },
 
   {
+    name: 'project_settings',
+    title: 'The project\'s settings',
+    description:
+      'The settings a person edits on the project\'s control panel: the copyright line, the'
+      + ' organization name, the Terms and Privacy links, and the Google tag. A relative link such'
+      + ' as /terms or /privacy is normal — it is the page the platform generated inside the'
+      + ' application, and the generated pages name the organization and copyright set here.',
+    input: { projectId: z.string().optional() },
+    availability: anyHost,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+
+      return settingsResult(project, await deps.api.projectBranding(project))
+    },
+  },
+
+  {
+    name: 'update_project_settings',
+    title: 'Change the project\'s settings',
+    description:
+      'Change any of the copyright line, the organization name, the Terms and Privacy links and the'
+      + ' Google tag; whatever you leave out keeps its value. Copyright and organization are never'
+      + ' empty. A legal link is an https:// address or a path on the application itself — /terms'
+      + ' and /privacy are the generated pages. A Google tag is a GTM-, G-, GT-, AW- or DC- id, or'
+      + ' an empty string to remove it; it loads on the preview and in production behind the cookie'
+      + ' consent. The preview is rebuilt with the change; production takes it at the next Publish.',
+    input: {
+      projectId: z.string().optional(),
+      copyright: z.string().optional().describe('The copyright line, e.g. "© 2026 Acme Ltd"'),
+      organizationName: z.string().optional().describe('Who runs the application'),
+      termsUrl: z.string().optional().describe('https://… or a path such as /terms'),
+      privacyUrl: z.string().optional().describe('https://… or a path such as /privacy'),
+      googleTag: z.string().optional()
+        .describe('GTM-XXXXXXX, G-XXXXXXXXXX, GT-…, AW-… or DC-…; an empty string removes it'),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'update_project_settings', async () => {
+      const project = projectOf(args, deps)
+      const patch: ConnectProjectBrandingSave = settingsPatch(args)
+      const changed = Object.keys(patch)
+      if (changed.length < 1) {
+        return fail(
+          'Nothing to change. Give at least one of copyright, organizationName, termsUrl, privacyUrl'
+          + ' or googleTag — project_settings shows the current values.'
+        )
+      }
+      // The save ends in a configuration push, and for a local project that push is an operation
+      // THIS connector answers — so it is attached before the platform is asked, exactly as a story
+      // mutation is. A host that holds no session skips it and the platform delivers the push itself.
+      await ensureSession(deps, project)
+      const saved = await deps.api.saveProjectBranding(project, patch)
+
+      return settingsResult(project, saved, `Saved ${changed.join(', ')}. ${settingsReach(deps.host.target)}`)
+    }),
+  },
+
+  {
     name: 'list_stories',
     title: 'The user stories of a project',
-    description: 'One page of the project\'s stories, with their status.',
+    description:
+      'One page of the project\'s stories, with their status, the primary story, and the landing'
+      + ' gate story a guest starts on the guest home.',
     input: {
       projectId: z.string().optional(),
       page: z.number().int().min(0).optional(),
@@ -829,21 +903,23 @@ export const catalogue: ToolDefinition[] = [
           + ' answering from story status')
       }
 
-      return storyResult(await deps.api.story.status(project, card.id!))
+      return storyResult(await deps.api.story.status(project, card.id!), card)
     },
   },
 
   {
     name: 'story_status',
     title: 'What happened to a story',
-    description: 'One story, its development run, and any warning explaining a failure.',
+    description:
+      'One story, its development run, any warning explaining a failure, and whether it is the'
+      + ' project\'s landing gate story — the one a guest starts on the guest home.',
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       const card = await resolveStory(deps, project, args.storyId as string)
 
-      return storyResult(await deps.api.story.status(project, card.id!))
+      return storyResult(await deps.api.story.status(project, card.id!), card)
     },
   },
 

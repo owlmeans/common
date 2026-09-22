@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/client-planning",
-  "version": "0.1.18-rc.2",
-  "generatedAt": "2026-09-19T13:42:56.255Z",
+  "version": "0.1.18-rc.4",
+  "generatedAt": "2026-09-22T12:36:21.841Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

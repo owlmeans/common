@@ -7,14 +7,15 @@ import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
   ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
   ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
-  ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectIdSchema,
-  ConnectProjectLlmBodySchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema,
-  ConnectPullQuerySchema, ConnectStoryParamsSchema, InquiryAnswerSchema,
+  ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
+  ConnectProjectIdSchema, ConnectProjectLlmBodySchema, ConnectSessionOpenSchema,
+  ConnectSessionParamsSchema, ConnectPullQuerySchema, ConnectStoryParamsSchema, InquiryAnswerSchema,
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
   ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
-  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSessionOpen,
+  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
+  ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSessionOpen,
   ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
   ConnectStoryStatus, ConversionStatusView, ConvertCheck,
 } from './types.js'
@@ -188,6 +189,27 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         body: typed<ConverterProjectLlmBody>(ConverterProjectLlmBodySchema),
       }, typed()),
     ),
+    // Under `base` like every sibling — the guard and the ownership gate — and never under the
+    // paid gate: saving branding is free, and the paid credit switch is not reachable from here.
+    branding: {
+      get: protocol(
+        route(connect.project.branding.get, '/project/:id/branding', {
+          parent: base, method: RouteMethod.GET,
+        }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+        }, typed<ConnectProjectBranding>()),
+      ),
+      save: protocol(
+        route(connect.project.branding.save, '/project/:id/branding', {
+          parent: base, method: RouteMethod.POST,
+        }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectProjectBrandingSave>(ConnectProjectBrandingSaveSchema),
+        }, typed<ConnectProjectBranding>()),
+      ),
+    },
     },
 
     story: {

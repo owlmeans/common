@@ -221,6 +221,25 @@ write run — `--apply` and `--publish` alike — and across ALL skills, not onl
 what fixes it. Afterwards re-run the agent-meta sync so the embedded copies follow the canonical
 text.
 
+## A small release must not touch create-app or agent-skills
+
+Every package README carries `npx @owlmeans/agent-skills@^<version>`, and `--pins-only --fix`
+rewrites it. So an `agent-skills` bump changes EVERY package's shipped content, and the next plan is
+the whole repository. The usual way into that cascade is the consumer sweep: it moves the pins
+inside `create-app/template/**`, which makes `create-app` "changed", its install line in
+`agent-skills`' agent-meta follows, and `agent-skills` needs an rc. A one-package fix then became a
+whole-repo plan (2026-09, a `web-consent` accessibility fix).
+
+For a release scoped to a few packages: after `bump-deps --consumers-of common`, restore any
+`create-app/template` pin the sweep moved when the old caret still admits the new version (a
+same-triple rc does), so `create-app` stays equal to its published version. Re-plan. If a generated
+file (`agent-meta/manifest.json` `generatedAt`, a `build/` source-map comment) is the only difference
+left against the registry, restore the published copy rather than bumping. The pin check then
+reports that one template pin as trailing (exit 11); the next full release moves it. When the plan
+lists only the changed packages and their real dependents, publish. Otherwise publish just the
+changed package with `npm publish --access public --tag <tag>`, since its dependents' carets already
+admit it, and say which dependents were left out and why.
+
 ## Pre-flights and exit codes
 
 `publish.ts` applies four gates before anything reaches npm. The agent-meta gate fails two

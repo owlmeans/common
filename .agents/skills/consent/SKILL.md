@@ -15,7 +15,7 @@ optional:
 |---|---|---|
 | `@owlmeans/consent` | Core, **zero runtime dependencies** | categories, storage, the observable store, the Consent Mode surface, the built-in copy |
 | `@owlmeans/web-consent` | Web (React) | the dialog, the re-open button, `CookiePolicy`, `useConsent` |
-| `@owlmeans/web-gtm` | Web | the tag-manager loader and its head snippet |
+| `@owlmeans/web-gtm` | Web | the Google tag head snippet (container or gtag.js), its CSP hosts and its cookie-policy disclosure |
 | `@owlmeans/web-panel/consent` | subpath | the same components, bound to OwlMeans i18n and language, plus a menu-row widget and a ref-counted presence service so a host's own collapsed menu can take over the floating button's job |
 
 `CONSENT_LOCALES` may include an application-specific locale beyond `SUPPORTED_LNGS` when the core
@@ -122,13 +122,20 @@ milliseconds and has already decided.
 
 `consentBootstrapScript()` is that script — it declares the defaults AND reads the stored record, so
 a returning visitor's tags are not denied for the first paint of every page. `@owlmeans/web-gtm`'s
-`gtmHeadScript()` emits it followed by the container.
+`googleTagHeadScript()` emits it followed by ads redaction and the loader for any Google id
+(`GTM-` container, `G-`/`GT-`/`AW-`/`DC-` gtag.js), and yields the bootstrap alone for an invalid
+id; `gtmHeadScript()` is the older container-only form.
 
 Every consumer stamps it from HTML:
 
 - `manager-web` — a Vite `transformIndexHtml` plugin, so the snippet cannot drift from the package.
 - owlmeans.com — `owlHeadScripts()` from `@owlmeans/astro`, `set:html` in `Base.astro`.
-- a generated target — its `rollup.config.js` emits it into the `<head>` it writes.
+- a generated target — its `rollup.config.js` emits `googleTagHeadScript({ id })` into the
+  `<head>` it writes when the project owner set a Google tag, and `consentBootstrapScript()`
+  otherwise, in preview and production alike.
+
+Consent Mode speaks on `window.dataLayer` only — the bootstrap, `gtagConsent` and
+`applyConsent` all push there — so a tag loaded onto another queue never hears a consent command.
 
 `pushConsentDefaults` is idempotent through `window.cookieConsentSetup`: a page may carry the call
 twice, and a second `default` after a tag has loaded can WIDEN what was already narrowed.
@@ -157,6 +164,26 @@ reach the stamped snippet: `consentBootstrapScript` ignores the flag, and the st
 still pushes `consent/default` and, for a stored record, `consent/update`. A surface that must emit
 nothing at all does not stamp the bootstrap.
 
+## Services
+
+A category says WHY something is stored; a `ConsentService` says WHO receives it — the part a
+regulator actually reads:
+
+```typescript
+interface ConsentService {
+  name: string          // "Google Analytics"
+  provider: string      // "Google LLC"
+  category: string      // the ConsentCategory.key it runs under
+  purpose?: string
+  cookies?: string[]    // ['_ga', '_ga_<ID>']
+  privacyHref?: string  // the provider's own policy
+}
+```
+
+It is plain data, not translation keys: whatever adds a tag knows what it is and says so.
+`googleTagServices(id)` from `@owlmeans/web-gtm` is the disclosure for a Google tag. Services
+change nothing about what is asked or stored — they are disclosure only, passed to the policy page.
+
 ## The policy page
 
 `CookiePolicy` states only what the widget provably does — each category in force with its label,
@@ -165,6 +192,11 @@ all read from the same configuration the dialog renders. It does not enumerate C
 signals: the category description is the whole disclosure of what a category drives. That is why
 the page is generated rather than written: a hand-written policy drifts the first time a category
 changes, and nobody notices because nobody reads it until it matters.
+
+The one thing it cannot derive is who receives data, so `services` lists each `ConsentService`
+inside the item of the category that gates it. A service whose category is not in force is listed
+in a trailing "Other services" item, never dropped — an undisclosed service is worse than one
+disclosed in the wrong place.
 
 Everything OwlMeans cannot assert on the operator's behalf is deferred to their own privacy policy
 and terms.

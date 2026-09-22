@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.22"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.25"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -31,8 +31,10 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `installHarness(dir, harness, opts?)` · `describeHarness(harness)` · `WORKING_RULE` | Set a coding agent up; preview it first |
 | `catalogue` · `visibleTools(host)` · `toolByName` · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `renderProjectStatus`, `renderStoryStatus`, `renderPipelineStatus`, `conversionNext` | Domain status as concise lines ending in the next valid action |
-| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` | The story tools' reading of planning cards |
+| `renderProjectStatus`, `renderStoryStatus(status, { landing? })`, `renderPipelineStatus`, `conversionNext` | Domain status as concise lines ending in the next valid action |
+| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` · `isLandingStory(card)` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
+| `PROJECT_SETTINGS` · `projectSettingOf(key)` · `settingsPatch(args)` · `renderProjectSettings(projectId, settings)` · `settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
+| `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks` | The host description and the availability predicates |
 | `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's workload, on somebody's laptop |
 | `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
@@ -155,7 +157,7 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 | `update_story` | `resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
 | `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
-| `story_status` | `resolveStory` → the card, its development run, pending inquiry and warning |
+| `story_status` | `resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
 
 Rules the table rests on:
 
@@ -179,8 +181,16 @@ Rules the table rests on:
   unlocked observations.
 - **Stories are read in `order`, then `createdAt`**: `order` is the analysis's flow ordinal (a
   connective story sits at a fraction between two steps). `renderStories` keeps the line shape a parent
-  already reads — `code · status[ · primary][ · area]` over the narrative — under a header counting the
-  page by intrinsic state.
+  already reads — `code · status[ · primary][ · landing gate][ · area]` over the narrative — under a
+  header counting the page by intrinsic state. A new fact is a new FLAG beside `primary`; the area
+  stays last.
+- **The landing gate story is read off the card the tool already holds** (`fields.landing`, at most
+  one per project, decided by the platform at initialization — a connector never sets it). The list
+  flags it; `story_status` and `develop_story` pass the resolved card to `renderStoryStatus`, which
+  adds `LANDING_NOTE` under the status line, and their structured result gains `landing: true`. No
+  second call and no change to `connect.story.status`: that route carries the run, not the card's
+  fields. It is said because developing that story also replaces the guest-home sketch with the real
+  component, which the narrative alone never tells a parent.
 - **A planning refusal is phrased like any other**: `planning:illegal-transition:`,
   `workcard-conflict:`, `workcard-not-found:`, `fields-invalid:`, `commit-timeout:`, `commit-failed:`
   and the story markers (`viable-project:story:not-found:` / `:missconfigured:`) each have a sentence in
@@ -190,6 +200,48 @@ Rules the table rests on:
   while no device sign-in is pending), `oauth:token-rejected:` (an environment token that was refused
   is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
   the next call signs in). Each ends with "call this tool again".
+
+## The project settings are ONE record, and the platform is the only validator
+
+`project_settings` and `update_project_settings` read and change what a person edits on the project's
+control panel — the copyright line, the organization name, the Terms and Privacy links and the Google
+tag — through `ConnectorApi.projectBranding(projectId)` and
+`saveProjectBranding(projectId, patch)` (`connect.project.branding.get` / `.save`,
+`ConnectProjectBranding` / `ConnectProjectBrandingSave` from `@owlmeans/viable-common`).
+
+- **A save is a PATCH.** `settingsPatch` keeps exactly the settings the call named, trimmed; an
+  omitted one keeps its stored value, and an EMPTY string is sent as given — for the Google tag that
+  is the removal, for the others a value the platform refuses. A call naming none is refused locally
+  and saves nothing. The answer is the merged record the platform stored, led by where the change
+  shows (`settingsReach`): a cloud preview is rebuilt, production takes it at the next Publish; a
+  local project gets it in its `.env` and `run_local` builds with it.
+- **The connector states the rules and checks none of them.** `PROJECT_SETTINGS[].rule` is the web
+  save's validation in words — never-empty copyright and organization; an `https://` address without
+  credentials or a single-slash path on the application (`/terms`, `/privacy` are the generated
+  pages); a `GTM-`/`G-`/`GT-`/`AW-`/`DC-` id or `''` — used by the tool description and by the
+  refusal. A second copy of the check would be a second answer that drifts from the platform's.
+- **A refusal names the setting and its rule.** The platform refuses a field with
+  `AuthenPayloadError(<wire field>)`; the `authen:payload:` phrase answers a known setting with its
+  label and rule and "Nothing was changed", any other field with a generic sentence. The tool runs in
+  `answering`, so the refusal is its own `isError` result and is still logged.
+- **The save attaches the connector first** (`ensureSession`), like a story mutation: it ends in the
+  platform's configuration push, which for a local project is a `Configure` operation this connector
+  answers.
+- **A relative link is annotated, never "fixed"**: `/terms` renders as "the generated Terms page", so
+  a parent does not rewrite it into an absolute address that points away from the generated page.
+- **The credit switch is not reachable.** It is a paid capability with its own gated route;
+  neither the record nor the patch carries it.
+
+## `describe_platform` also says what a generated application CARRIES
+
+`PLATFORM_CATALOGUE.features` holds facts about the product the runs produce — the landing gate, the
+generated Terms and Privacy pages, the consent-gated Google tag, the look, production builds without
+preview scaffolding — rendered whole on every host under "WHAT A GENERATED APPLICATION CARRIES", with
+only their `tools` narrowed to what the host offers. A parent that is not told the platform generates
+the legal pages writes its own beside them. `describe_capabilities` ends with `GENERATED_SUMMARY`, the
+same facts in one sentence, because it is read at the same moment by a parent that may never call
+`describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
+a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
 ## An out-of-credits refusal is phrased, and pushed through `notify`
 
@@ -440,9 +492,12 @@ reader looking for a database that was never configured.
 the `registerCatalogue` out-of-credits and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
-types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`;
-`planning-wiring.spec.ts` pins the planning aliases and paths a context binds, and `remote.spec.ts`
-drives the remote facade through a captured transport to pin its deadlines.
+types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
+the landing mark included; the settings tools over a recorded `ConnectorApi` (order of session and
+save, the patch sent, the phrased `AuthenPayloadError`). `platform.spec.ts` pins that every tool a
+pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
+the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade and the
+settings routes through a captured transport to pin their paths and deadlines.
 
 ## Depends On
 

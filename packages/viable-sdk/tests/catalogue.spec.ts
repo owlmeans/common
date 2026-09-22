@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { AuthenPayloadError } from '@owlmeans/auth'
 import { ResilientError } from '@owlmeans/error'
 import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
 import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
@@ -6,10 +7,14 @@ import {
   ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea,
   ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition,
 } from '@owlmeans/viable-common'
-import type { ViableStoryCard } from '@owlmeans/viable-common'
+import type {
+  ConnectProjectBranding, ConnectProjectBrandingSave, ViableStoryCard,
+} from '@owlmeans/viable-common'
 import { catalogue, visibleTools } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import { renderPipelineStatus } from '../src/tools/status.js'
+import { GENERATED_SUMMARY } from '../src/tools/platform.js'
+import { LANDING_MARK, LANDING_NOTE } from '../src/tools/stories.js'
 import type { McpServerLike } from '../src/tools/mcp.js'
 import { REFUSALS, refusalMessage, refusalPhrase, UNPHRASED_REFUSAL } from '../src/tools/refusal.js'
 import { ToolHostKind } from '../src/tools/types.js'
@@ -157,6 +162,21 @@ describe('viable-sdk — what a parent agent is offered', () => {
       expect(http).not.toContain('next_question')
       expect(http).not.toContain('answer_question')
     }
+  })
+
+  test('describe_capabilities also says what every generated application carries', async () => {
+    // Read once, before anything is created — by a parent that may never call describe_platform.
+    const tool = catalogue.find(entry => entry.name === 'describe_capabilities')!
+    const deps = {
+      host: host(), log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    for (const args of [{}, { strong: 'big-model' }]) {
+      const result = await tool.run(args, deps)
+      expect(result.text.endsWith(GENERATED_SUMMARY)).toBe(true)
+    }
+    expect(GENERATED_SUMMARY).toContain('/terms and /privacy')
+    expect(GENERATED_SUMMARY).toContain('landing gate')
   })
 
   test('the conversion tools are offered on both hosts', () => {
@@ -390,6 +410,32 @@ describe('the story tools speak planning', () => {
     await expect(toolNamed('story_status').run({ storyId: foreign.id }, deps))
       .rejects.toBeInstanceOf(ProjectStoryNotFound)
   })
+
+  test('the landing gate story is marked from its card, in the list and in its status', async () => {
+    // `fields.landing` is on the card the tools already hold, so the mark needs no second call and
+    // no change to the status route — and a parent learns that developing THIS story also changes
+    // the guest home, which the narrative alone never says.
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const gate = await suite.story(project.id!, 'As a cook, I pick what is in my pantry.', {
+      order: 1, fields: { landing: true },
+    })
+    const plain = await suite.story(project.id!, 'As a cook, I save a recipe.', { order: 2 })
+    const { deps } = connectorFor(suite, project.id!)
+
+    const listed = (await toolNamed('list_stories').run({}, deps)).text.split('\n')
+    // A flag beside `primary`, and the area stays last: the line a parent already reads.
+    expect(listed[1]).toMatch(new RegExp(`^ {2}US-\\w+ · planned · ${LANDING_MARK} · user$`))
+    expect(listed[3]).toMatch(/^ {2}US-\w+ · planned · user$/)
+
+    const status = await toolNamed('story_status').run({ storyId: gate.code }, deps)
+    expect(status.text.split('\n')).toContain(LANDING_NOTE)
+    expect(status.structured).toMatchObject({ landing: true })
+
+    const other = await toolNamed('story_status').run({ storyId: plain.code }, deps)
+    expect(other.text).not.toContain(LANDING_MARK)
+    expect(other.structured).not.toHaveProperty('landing')
+  })
 })
 
 describe('a project reads as its card and its brief', () => {
@@ -452,6 +498,149 @@ describe('a project reads as its card and its brief', () => {
     } as unknown as ToolHostDeps)
 
     expect(confirmed).toEqual([['p1', { name: 'Ledger', designSystem: 'Dark.' }]])
+  })
+})
+
+describe('the project settings are one record, read and written through the platform', () => {
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  const STORED: ConnectProjectBranding = {
+    copyright: '© 2026 Acme Ltd', organizationName: 'Acme Ltd',
+    termsUrl: '/terms', privacyUrl: 'https://acme.example/privacy', googleTag: '',
+  }
+
+  /**
+   * A connector whose settings calls are recorded in ORDER with the session it opens — the save
+   * ends in a configuration push, which for a local project is an operation this connector answers.
+   */
+  const settingsConnector = (opts: {
+    host?: ToolHost, save?: (patch: ConnectProjectBrandingSave) => Promise<ConnectProjectBranding>
+  } = {}) => {
+    const order: string[] = []
+    const sent: unknown[] = []
+    const logged: string[] = []
+    const deps = {
+      host: opts.host ?? host(),
+      api: {
+        projectBranding: async (projectId: string) => {
+          order.push(`read:${projectId}`)
+
+          return STORED
+        },
+        saveProjectBranding: async (projectId: string, patch: ConnectProjectBrandingSave) => {
+          order.push(`save:${projectId}`)
+          sent.push(patch)
+
+          return await (opts.save ?? (async () => ({ ...STORED, ...patch })))(patch)
+        },
+      },
+      session: async () => {
+        order.push('session')
+
+        return {} as never
+      },
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: (line: string) => { logged.push(line) },
+    } as unknown as ToolHostDeps
+
+    return { deps, order, sent, logged }
+  }
+
+  test('both tools are offered on both hosts', () => {
+    for (const kind of [ToolHostKind.Stdio, ToolHostKind.Http]) {
+      const offered = names(host({ kind, hasExecutor: kind === ToolHostKind.Stdio }))
+      expect(offered).toContain('project_settings')
+      expect(offered).toContain('update_project_settings')
+    }
+  })
+
+  test('project_settings reads the record, and a relative legal link reads as the generated page', async () => {
+    const { deps, order } = settingsConnector()
+
+    const result = await toolNamed('project_settings').run({}, deps)
+
+    expect(order).toEqual(['read:p1'])
+    const lines = result.text.split('\n')
+    expect(lines).toContain('copyright: © 2026 Acme Ltd')
+    expect(lines).toContain('organization: Acme Ltd')
+    // A bare `/terms` reads like an unfinished address; a parent that "fixed" it would point the
+    // legal links away from the pages the platform generated.
+    expect(lines).toContain('terms: /terms — the generated Terms page')
+    expect(lines).toContain('privacy: https://acme.example/privacy')
+    expect(lines).toContain('google tag: none')
+    expect(lines.at(-1)).toBe('next: update_project_settings to change any of them')
+    expect(result.structured).toEqual({ projectId: 'p1', settings: STORED })
+  })
+
+  test('update_project_settings sends only what it was given, after attaching its connector', async () => {
+    const { deps, order, sent } = settingsConnector()
+
+    const result = await toolNamed('update_project_settings').run({
+      googleTag: '  GTM-ABC1234 ', privacyUrl: '/privacy', unrelated: 'x',
+    }, deps)
+
+    // The session first: the save's configuration push is an operation a LOCAL project's connector
+    // answers, and one dispatched before the connector is attached is answered by nobody.
+    expect(order).toEqual(['session', 'save:p1'])
+    // Trimmed, and nothing the call did not name — an omitted field keeps its stored value.
+    expect(sent).toEqual([{ googleTag: 'GTM-ABC1234', privacyUrl: '/privacy' }])
+    expect(result.isError).not.toBe(true)
+    // Named in the order the control panel shows them, whatever order the call used.
+    expect(result.text).toContain('Saved privacyUrl, googleTag.')
+    expect(result.text).toContain('run_local builds the application with it')
+    expect(result.text).toContain('google tag: GTM-ABC1234 · behind the cookie consent (Consent Mode v2)')
+    expect(result.text).toContain('privacy: /privacy — the generated Privacy page')
+  })
+
+  test('an empty Google tag is a removal, and is sent as one', async () => {
+    const { deps, sent } = settingsConnector({
+      host: host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false }),
+    })
+
+    const result = await toolNamed('update_project_settings').run({ googleTag: '' }, deps)
+
+    expect(sent).toEqual([{ googleTag: '' }])
+    // A cloud project's preview is rebuilt; production waits for the Publish.
+    expect(result.text).toContain('production takes it at the next Publish')
+  })
+
+  test('with nothing to change it says so, and neither attaches nor saves', async () => {
+    const { deps, order } = settingsConnector()
+
+    const result = await toolNamed('update_project_settings').run({ projectId: 'p1' }, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('project_settings shows the current values')
+    expect(order).toEqual([])
+  })
+
+  test('a value the platform refuses comes back as that setting\'s rule, and is logged', async () => {
+    // The refusal the web save raises, as the HTTP client rebuilds it on this side.
+    const refused = ResilientError.ensure(ResilientError.marshal(new AuthenPayloadError('termsUrl')))
+    const { deps, logged } = settingsConnector({ save: async () => { throw refused } })
+
+    const result = await toolNamed('update_project_settings').run({ termsUrl: '//evil.example' }, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('refused the terms setting')
+    expect(result.text).toContain('https://')
+    expect(result.text).toContain('Nothing was changed')
+    expect(result.text).not.toContain('authen:payload:')
+    expect(logged[0]).toContain('authen:payload:termsUrl')
+  })
+
+  test('a refused field that is not a setting still reads as a sentence', () => {
+    const phrase = refusalPhrase(new AuthenPayloadError('prompt'))
+
+    expect(phrase).toContain('(prompt)')
+    expect(phrase).not.toContain('authen:payload:')
   })
 })
 

@@ -79,7 +79,7 @@ describe('@owlmeans/viable-mcp — the built server over stdio', () => {
     for (const tool of [
       'describe_capabilities', 'create_project', 'confirm_project', 'project_status', 'list_stories',
       'develop_story', 'story_status', 'run_local', 'local_status', 'install_harness', 'next_task',
-      'submit_task_result',
+      'submit_task_result', 'project_settings', 'update_project_settings',
     ]) {
       expect(offered).toContain(tool)
     }

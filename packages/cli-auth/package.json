@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/cli-auth",
-  "version": "0.1.18-rc.2",
+  "version": "0.1.18-rc.4",
   "license": "MIT",
   "description": "OAuth device-authorization sign-in for a command-line tool: a dotenv-style ~/.owlmeans credentials file (overridable, environment always wins), a cross-process sign-in lock so several invocations converge on one browser round trip, a browser opener, and a small credential holder a CLI wraps its API calls with.",
   "type": "module",
@@ -23,8 +23,8 @@
     }
   },
   "dependencies": {
-    "@owlmeans/error": "^0.1.18-rc.28",
-    "@owlmeans/oauth": "^0.1.18-rc.2"
+    "@owlmeans/error": "^0.1.18-rc.30",
+    "@owlmeans/oauth": "^0.1.18-rc.4"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

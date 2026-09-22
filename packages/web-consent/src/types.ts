@@ -1,5 +1,5 @@
 import type {
-  ConsentCategory, ConsentReason, ConsentRecord,
+  ConsentCategory, ConsentReason, ConsentRecord, ConsentService,
 } from '@owlmeans/consent'
 
 export interface ConsentLink {
@@ -39,6 +39,13 @@ export interface CookiePolicyProps {
   termsHref?: string
   storageKey?: string
   cookieDays?: number
+  /**
+   * The third-party services the site runs, each listed under the category that gates it —
+   * name, provider, purpose, cookie names and the provider's privacy policy. A service whose
+   * category is not among `categories` is listed in a trailing "Other services" group rather than
+   * dropped. `@owlmeans/web-gtm`'s `googleTagServices(id)` supplies the entries for a Google tag.
+   */
+  services?: ConsentService[]
   className?: string
 }
 

@@ -2,7 +2,7 @@ import type { FC } from 'react'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { CookieConsent, CookiePolicy, DEFAULT_CONSENT_CATEGORIES } from '../../src/index.js'
-import type { ConsentCategory } from '../../src/index.js'
+import type { ConsentCategory, ConsentService } from '../../src/index.js'
 
 /**
  * The harness renders whatever the query string asks for, so a spec chooses its case by URL and
@@ -11,8 +11,18 @@ import type { ConsentCategory } from '../../src/index.js'
  * - `?locale=<lng>` — render the dialog in that language.
  * - `?categories=custom` — a category set that is NOT the default, with its own global var.
  * - `?view=policy` — the cookie-policy page instead of the dialog.
+ * - `?services=1` — with `view=policy`, disclose {@link SERVICES} on it.
+ * - `?styled=1` — compile a real theme (`styled.css`), for the accessibility spec only.
+ * - `?theme=dark` — with `styled=1`, the dark scheme.
  */
 const params = new URLSearchParams(window.location.search)
+
+if (params.get('styled') != null) {
+  await import('./styled.css')
+  if (params.get('theme') === 'dark') {
+    document.documentElement.classList.add('dark')
+  }
+}
 
 /**
  * A deliberately non-default set: a different key, a different global var, and a signal list that
@@ -33,6 +43,19 @@ const CUSTOM: ConsentCategory[] = [
 ]
 
 const categories = params.get('categories') === 'custom' ? CUSTOM : DEFAULT_CONSENT_CATEGORIES
+
+/**
+ * One service under a category in force, and one under a category that is not — the second is
+ * what proves a service is never silently dropped for want of a matching category.
+ */
+const SERVICES: ConsentService[] = [
+  {
+    name: 'Example Analytics', provider: 'Example Corp', category: 'analytics',
+    purpose: 'Counts page views.', cookies: ['_ex', '_ex_1'],
+    privacyHref: 'https://example.test/vendor-privacy',
+  },
+  { name: 'Orphan Pixel', provider: 'Orphan Ltd', category: 'nowhere' },
+]
 
 const translate = params.get('categories') === 'custom'
   // Only the custom keys need wording; everything else falls through to the packaged bundle,
@@ -57,6 +80,7 @@ const App: FC = () => {
       operator="Acme"
       privacyHref="https://example.test/privacy"
       termsHref="https://example.test/terms"
+      services={params.get('services') != null ? SERVICES : undefined}
     />}
     {/*
       Mounted in EVERY view, including alongside the policy page — that is how an application

@@ -89,22 +89,122 @@ export interface ProductIdentity {
   description: string
 }
 
+/**
+ * A labelled link on the landing page — a secondary pill, the "just browsing" link, a closing card.
+ *
+ * `href` is OPTIONAL and normally absent: absent means the default action the stamper decides
+ * (start sign-in, or jump to a section of the page itself). A model never knows the application's
+ * addresses, and an invented one is a link that 404s on the public face of the product.
+ */
+export interface PlanLink {
+  label: string
+  href?: string
+}
+
+/** The four shapes a bento tile's product fragment can take — each one a stamped primitive. */
+export type BentoFragmentKind = 'list' | 'note' | 'people' | 'steps'
+
+/**
+ * A small piece of the product's own interface, drawn at the bottom of a bento tile.
+ *
+ * Structured for the same reason {@link SketchContent} is: the fragment is STAMPED, so it must be
+ * rows a component can lay out, never a paragraph describing them. Built from the product's own
+ * records, and decorative — the stamper renders it `aria-hidden`.
+ */
+export interface BentoFragment {
+  kind: BentoFragmentKind
+  /** Small caption over the fragment ("INGREDIENTS · 1 LOAF", "Baker's note"). */
+  title?: string
+  /** list: {label, value}; note: {label: text}; people: {label: name, value: role}; steps: {label}. */
+  rows: { label: string, value?: string }[]
+}
+
+/**
+ * The landing gate — the working entry into the product's key END-USER workflow, drawn in the
+ * hero where the call-to-action pills would otherwise be.
+ *
+ * A guest makes a few non-sensitive choices on the landing page, sees sample results ranked
+ * against them, and signs in to continue on the story's full-scale screen with those choices
+ * carried over. Every field is copy or sample data in the end user's own words; nothing here is
+ * an address the model invented — `target` is filled by code.
+ */
+export interface LandingGatePlan {
+  /** The key end-user story's code — never rendered. */
+  story: string
+  /** Entrypoint ALIAS of the story's full-scale screen in the user area (filled by code, not the model). */
+  target?: string
+  /** The question the gate asks, in the end user's words: "What's in your pantry?". */
+  question: string
+  /** The reassurance beside it: "No account needed". */
+  hint: string
+  /** The accessible name of the chip group: "Your pantry". */
+  label: string
+  /** 5–8 chip labels the guest picks from. */
+  inputs: string[]
+  /** 4–5 of `inputs`, pre-selected so the first view already shows results. */
+  selected: string[]
+  /** 3–4 sample records; `needs` is the subset of `inputs` each one uses. */
+  results: { title: string, meta: string, needs: string[] }[]
+  /** The live count label; `{n}` is replaced by the number ("{n} bakes match"). */
+  count: { one: string, many: string, none: string }
+  /** The line shown when nothing matches the picks. */
+  empty: string
+  /** The line beside the CTA: "Sign in with your email. Your picks come with you.". */
+  note: string
+  /** The CTA label: "Open recipes →". */
+  cta: string
+  /** The accessible name of a result row's lock icon: "Full method after sign-in". */
+  lock: string
+}
+
 /** The guest area's landing page — the product's public face. */
 export interface GuestHomePlan {
   hero: {
     headline: string
     sub: string
+    /** The primary pill's label — shown only when the page has no {@link GuestHomePlan.gate}. */
     cta: string
     /**
-     * A badge above the headline — OPTIONAL and normally absent. A landing page carries no badge
-     * unless its specification asks for one; the headline is what positions the product.
+     * A badge above the headline — OPTIONAL and kept only so an older stored plan still reads.
+     * The page renders no badge: the headline is what positions the product.
      */
     eyebrow?: string
+    /** The second pill beside the primary one, when there is no gate. */
+    secondary?: PlanLink
+    /** The muted text link under the gate or the pills: "Just browsing? Explore bakes ›". */
+    browse?: PlanLink
   }
   problem: { title: string, text: string }
   solution: { title: string, text: string }
-  features: { title: string, text: string }[]
+  /** The bento tiles — four, each optionally anchored by a fragment of the product's interface. */
+  features: { title: string, text: string, fragment?: BentoFragment }[]
   testimonials: { quote: string, name: string, role: string }[]
+  /** "How it works" — three steps taken from the main flow. */
+  steps?: { title: string, text: string }[]
+  /** The small section labels and section headings; absent ones fall back to the stamper's own. */
+  labels?: {
+    steps?: string
+    stepsTitle?: string
+    features?: string
+    featuresTitle?: string
+    testimonials?: string
+    testimonialsTitle?: string
+    problem?: string
+    solution?: string
+  }
+  /** The closing band: a headline, a lead, the two pills and two link cards. */
+  closing?: {
+    headline: string
+    lead: string
+    primary: string
+    secondary?: PlanLink
+    links?: { title: string, text: string, href?: string }[]
+  }
+  /**
+   * The landing gate — present only when a gate story was decided for the project. When it is,
+   * it REPLACES the hero's pills.
+   */
+  gate?: LandingGatePlan
 }
 
 /**
@@ -120,8 +220,8 @@ export interface ScaffoldPlan {
   areas: ScaffoldAreaPlan[]
   stories: ScaffoldStoryPlan[]
   /**
-   * How this product's illustrations should look — geometry and motif, in the design system's
-   * own vocabulary. The one field here that is prose, because it is read by a model.
+   * How this product's illustrations should look — the scene, its domain objects and their
+   * palette. The one field here that is prose, because it is read by a model.
    */
   motifs: string
 }

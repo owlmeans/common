@@ -1,15 +1,17 @@
 import type { JSONSchemaType } from 'ajv'
 import { ConversionDecision, OriginKind } from '../convert/consts.js'
 import {
-  CONNECT_INQUIRY_MAX_TEXT, ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus,
-  ConnectTarget, ConnectTransport, ModelTaskResultKind, ModelTier
+  CONNECT_BRANDING_COPYRIGHT_MAX, CONNECT_BRANDING_GOOGLE_TAG_MAX,
+  CONNECT_BRANDING_ORGANIZATION_MAX, CONNECT_BRANDING_URL_MAX, CONNECT_INQUIRY_MAX_TEXT,
+  ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus, ConnectTarget,
+  ConnectTransport, ModelTaskResultKind, ModelTier
 } from './consts.js'
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
   ConnectCreateBody, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
-  ConnectPipelineResumeBody, ConnectProjectLlmBody, ConnectSession, ConnectSessionOpen,
-  ConnectPullQuery, ConnectSessionParams
+  ConnectPipelineResumeBody, ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSession,
+  ConnectSessionOpen, ConnectPullQuery, ConnectSessionParams
 } from './types.js'
 
 /**
@@ -312,6 +314,33 @@ export const ConnectProjectLlmBodySchema = {
   required: ['llmMode'],
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectProjectLlmBody>
+
+/**
+ * The branding patch a connector saves.
+ *
+ * STRUCTURAL only — lengths and types. What makes a value acceptable (a non-empty copyright and
+ * organization, a legal link that is `https://` or a same-origin path, a real Google tag id) is the
+ * platform's rule, applied by the handler to the MERGED record with the same checks the web form
+ * uses; a pattern repeated here would be a second copy of those rules free to drift from the first.
+ * No `pattern`, and no `enum` on the tag: a connector and the platform deploy apart, and a tag kind
+ * Google adds later must be refused by the rule that knows about it, not by a stale wire schema.
+ */
+export const ConnectProjectBrandingSaveSchema = {
+  type: 'object',
+  properties: {
+    copyright: {
+      type: 'string', minLength: 1, maxLength: CONNECT_BRANDING_COPYRIGHT_MAX, nullable: true,
+    },
+    organizationName: {
+      type: 'string', minLength: 1, maxLength: CONNECT_BRANDING_ORGANIZATION_MAX, nullable: true,
+    },
+    termsUrl: { type: 'string', maxLength: CONNECT_BRANDING_URL_MAX, nullable: true },
+    privacyUrl: { type: 'string', maxLength: CONNECT_BRANDING_URL_MAX, nullable: true },
+    googleTag: { type: 'string', maxLength: CONNECT_BRANDING_GOOGLE_TAG_MAX, nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectProjectBrandingSave>
 
 export const ModelTaskResultSchema = {
   type: 'object',

@@ -21,5 +21,14 @@
   "policyStorage": "Votre choix est enregistré dans ce navigateur sous « {{key}} », dans le stockage local et dans un cookie.",
   "policyRetention": "Ce choix est conservé {{days}} jours, après quoi il vous sera demandé de nouveau.",
   "policyOperator": "Cette application est exploitée par {{operator}}.",
-  "policyContact": "Consultez leur politique de confidentialité et leurs conditions pour savoir comment vos données sont traitées."
+  "policyContact": "Consultez leur politique de confidentialité et leurs conditions pour savoir comment vos données sont traitées.",
+  "policyServicesOf": "Services — {{category}}",
+  "policyOtherServices": "Autres services",
+  "policyOtherServicesDesc": "Services utilisés par cette application en dehors des catégories ci-dessus.",
+  "policyProvider": "Fournisseur",
+  "policyPurpose": "Finalité",
+  "policyCookies": "Cookies",
+  "policyServicePrivacy": "Politique de confidentialité de {{provider}}",
+  "privacy": "Politique de confidentialité",
+  "terms": "Conditions générales"
 }

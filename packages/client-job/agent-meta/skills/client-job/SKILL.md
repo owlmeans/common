@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-job
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-job": "^0.1.18-rc.16"` in `dependencies`
+**Install:** `"@owlmeans/client-job": "^0.1.18-rc.18"` in `dependencies`
 
 This package stores and streams `JobView` from `@owlmeans/job`. It has no dependency on
 `@owlmeans/queue`; raw transport records, internal payloads, credentials, ownership fields and

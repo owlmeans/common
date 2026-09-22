@@ -61,6 +61,31 @@ describe('viable-sdk — describe_platform', () => {
       // Rendered instead of the group where a host hides it, so it can never be empty.
       expect(capability.absent.length).toBeGreaterThan(10)
     }
+    for (const feature of PLATFORM_CATALOGUE.features) {
+      for (const tool of feature.tools ?? []) expect(known.has(tool)).toBe(true)
+    }
+  })
+
+  test('what a generated application carries is told on every host, with its settings tools', () => {
+    // A fact about the PRODUCT, not about the connector: a parent that is not told the platform
+    // already generates the legal pages or the landing gate writes its own, by hand, beside them.
+    const features = new Set(PLATFORM_CATALOGUE.features.map(feature => feature.id))
+    for (const id of ['landing-gate', 'legal-pages', 'google-tag', 'look', 'production']) {
+      expect(features.has(id)).toBe(true)
+    }
+
+    for (const rendered of [renderPlatform(PLATFORM_CATALOGUE, host()), renderPlatform(PLATFORM_CATALOGUE, url)]) {
+      expect(rendered).toContain('WHAT A GENERATED APPLICATION CARRIES')
+      expect(rendered).toContain('/terms and /privacy')
+      expect(rendered).toContain('Consent Mode v2')
+      expect(rendered).toContain('no preview scaffolding')
+      expect(rendered).toContain('project_settings, update_project_settings')
+    }
+    // The steps a parent may see a run stop at include the two new ones.
+    const init = PLATFORM_CATALOGUE.pipelines.find(pipeline => pipeline.id === 'vib:project:init')!
+    expect(init.stages!.indexOf('landing')).toBeLessThan(init.stages!.indexOf('scaffold'))
+    expect(init.stages!.indexOf('legal')).toBeGreaterThan(init.stages!.indexOf('scaffold'))
+    expect(init.stages!.indexOf('legal')).toBeLessThan(init.stages!.indexOf('build'))
   })
 
   test('every tool that exists is reachable through some group', () => {

@@ -3,7 +3,8 @@ import { planningOf } from '@owlmeans/client-planning'
 import { connectRef } from '@owlmeans/viable-common'
 import type {
   ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectOp, ConnectOpResult,
-  ConnectOpSubmission, ConnectPipelineState, ConnectProjectStatus, ConnectSessionView,
+  ConnectOpSubmission, ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave,
+  ConnectProjectStatus, ConnectSessionView,
   ConnectStoryStatus, ConnectTarget, ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
 } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
@@ -124,6 +125,15 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
           params: { id }, body: { prompt }, timeout: TOOL_DEADLINE_MS,
         }),
     },
+
+    projectBranding: async (id: string): Promise<ConnectProjectBranding> => await context
+      .entrypoint(connectRef.project.branding.get).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+    // Only the fields the caller named cross the wire: the platform merges the patch over what it
+    // stores, so a key sent empty would be a change rather than an omission.
+    saveProjectBranding: async (id: string, patch: ConnectProjectBrandingSave): Promise<ConnectProjectBranding> =>
+      await context.entrypoint(connectRef.project.branding.save).call({
+        params: { id }, body: patch, timeout: TOOL_DEADLINE_MS,
+      }),
 
     story: {
       status: async (id: string, storyId: string): Promise<ConnectStoryStatus> => await context

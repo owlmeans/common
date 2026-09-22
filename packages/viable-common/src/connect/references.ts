@@ -8,9 +8,10 @@ import type {
   ConnectAttachBody, ConnectCapabilitiesView, ConnectConfirmBody, ConnectCreateBody,
   ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectInquiryAnswerBody,
   ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams, ConnectPipelineResumeBody,
-  ConnectPipelineState, ConnectProjectLlmBody, ConnectProjectSettings, ConnectProjectStatus,
-  ConnectProjectSummary, ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams,
-  ConnectSessionView, ConnectStoryStatus, ConversionStatusView, ConvertCheck,
+  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectLlmBody,
+  ConnectProjectSettings, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
+  ConnectSessionOpen, ConnectSessionParams, ConnectSessionView, ConnectStoryStatus,
+  ConversionStatusView, ConvertCheck,
 } from './types.js'
 
 type ConnectReference<Request extends RequestShape, Response> =
@@ -44,6 +45,12 @@ export interface ConnectReferences {
     converterLlm: ConnectReference<{
       params: { id: string }, body: ConverterProjectLlmBody
     }, ConnectProjectSettings>
+    branding: {
+      get: ConnectReference<{ params: { id: string } }, ConnectProjectBranding>
+      save: ConnectReference<{
+        params: { id: string }, body: ConnectProjectBrandingSave
+      }, ConnectProjectBranding>
+    }
   }
   story: {
     status: ConnectReference<{ params: { id: string, storyId: string } }, ConnectStoryStatus>
@@ -110,6 +117,12 @@ export const connectRef: ConnectReferences = {
     converterLlm: entrypointRef<{
       params: { id: string }, body: ConverterProjectLlmBody
     }, ConnectProjectSettings>(connect.project.converterLlm),
+    branding: {
+      get: entrypointRef<{ params: { id: string } }, ConnectProjectBranding>(connect.project.branding.get),
+      save: entrypointRef<{
+        params: { id: string }, body: ConnectProjectBrandingSave
+      }, ConnectProjectBranding>(connect.project.branding.save),
+    },
   },
   story: {
     status: entrypointRef<{

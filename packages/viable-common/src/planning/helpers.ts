@@ -115,19 +115,22 @@ export const projectBriefOf = (project: Workcard, specs: readonly Specification[
  * What the metadata store writes to `docs/stories/<code>.md`, from the card and a run's content.
  *
  * The CODE is the target's only story identifier — a card id never reaches a target file — so a
- * story card without one is refused rather than filed under its id.
+ * story card without one is refused rather than filed under its id. The landing flag is carried
+ * only when it is set, so every other story's frontmatter keeps the shape it always had.
  */
 export const storyWriteInputOf = (card: Workcard, content: StoryWriteContent): StoryWriteInput => {
   if (card.code == null || card.code === '') {
     throw new ProjectStoryMissconfigured('no-code')
   }
   const { status, ...rest } = content
+  const fields = storyFieldsOf(card)
 
   return {
     ...rest,
     code: card.code,
     narrative: card.title,
     status: status ?? card.status,
-    primary: storyFieldsOf(card).primary,
+    primary: fields.primary,
+    ...(fields.landing === true ? { landing: true } : {}),
   }
 }

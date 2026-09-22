@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.21`; bin name `viable-mcp`
+**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.24`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
 configuration, sign-in (over `@owlmeans/cli-auth`), the stdout guard, and the server object. The planning client the story tools write
 through is wired inside `makeSdkContext` as well — the planning tree, `appendPlanningClient` with no
@@ -69,8 +69,9 @@ and answers the offline ones either way.
 
 `server.ts` builds the holder with `makeCredentials` and hands `makeSdkContext` a token **thunk**
 plus `onRejected`. The remote `ConnectorApi` is wrapped by `withSignIn` (a recursive Proxy): every
-call first awaits `credentials.require(SIGN_IN_WAIT_MS)` (20 s, inside every host's tool deadline),
-so no tool remembers to ask. The first real API call of a fresh process starts ONE device sign-in
+call — a namespaced one (`api.project.status`) and a top-level one (`api.projectBranding`) alike —
+first awaits `credentials.require(SIGN_IN_WAIT_MS)` (20 s, inside every host's tool deadline),
+so no tool remembers to ask and a member added to the interface needs no wiring here. The first real API call of a fresh process starts ONE device sign-in
 (RFC 8628, HTTP polling — `device_code` never leaves the process, no socket to defend); later calls
 join the same wait. If it is still pending at the deadline the call fails with `SignInRequired` — a
 sentence naming the URL and code, which the calling agent reads and acts on (`REFUSALS` in
@@ -91,7 +92,7 @@ Subcommands (`bin.ts`; the first bare argument, absent = the server):
 | `login` | Runs the device sign-in to completion (15 min ceiling), stores the token in the file |
 | `logout` | Revokes the token (`/oauth/revoke`) and forgets it |
 | `status` | Reports on stderr whether this machine is signed in |
-| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.21 url)"` |
+| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.24 url)"` |
 
 The `/mcp` URL is `VIABLE_MCP_URL` (environment over file), else `https://api.owlmeans.com/mcp`
 (`resolveMcpUrl` in viable-sdk). A test or a self-hosted setup overrides it; a deployment's own
@@ -156,7 +157,8 @@ self-hosted or development deployment, which is what every end-to-end test does.
 ## Tests
 
 `bun test ./tests` — `config.spec.ts` (flag > environment > file precedence, empty environment values, `url`), `stdio.spec.ts` (the built
-binary over a real stdio transport, against an unreachable API: what the server announces, answers
+binary over a real stdio transport, against an unreachable API: what the server announces — the
+default mode's core, local and settings tools — answers
 and contains before its first successful call; no token → it starts and an API tool answers with a sign-in refusal) and `session-holder.spec.ts` (re-binding, the
 single-flight guard, and recovery from a failed open — all offline, over a fake opener).
 

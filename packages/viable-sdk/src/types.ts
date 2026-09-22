@@ -1,8 +1,9 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
   ConnectCapabilities, ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectHarness,
-  ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission,
-  ConnectPipelineState, ConnectProjectStatus, ConnectSessionView, ConnectStoryStatus, ConnectTarget, ConversionDecision,
+  ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
+  ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
+  ConnectStoryStatus, ConnectTarget, ConversionDecision,
   ConversionStatusView, ConvertCheck, InquiryAnswerPayload, InquiryPayload, ModelTask,
   ModelTaskResult, SlotCommandPayload,
 } from '@owlmeans/viable-common'
@@ -47,6 +48,25 @@ export interface ConnectorApi {
     reinit: (projectId: string) => Promise<ConnectProjectStatus>
     modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
   }
+
+  /**
+   * The project settings a person edits on the project's control panel: the copyright line, the
+   * organization name, the Terms and Privacy links and the Google tag.
+   *
+   * Read and written as ONE record, because the platform validates them as one — a save merges the
+   * patch over what is stored, checks and moderates the merged record exactly as the web save does,
+   * and answers with it. The credit switch is not part of it: that is a paid capability with its
+   * own gated route, and a connector has no business near it.
+   */
+  projectBranding: (projectId: string) => Promise<ConnectProjectBranding>
+  /**
+   * Change some of the project settings; the fields left out keep their stored values.
+   *
+   * The platform applies the change to the PREVIEW by a configuration push (which rebuilds it);
+   * production takes it at the next Publish. For a local target that push is a `Configure`
+   * operation, so the caller attaches its connector first.
+   */
+  saveProjectBranding: (projectId: string, patch: ConnectProjectBrandingSave) => Promise<ConnectProjectBranding>
 
   story: {
     status: (projectId: string, storyId: string) => Promise<ConnectStoryStatus>

@@ -122,6 +122,11 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     '',
     'A story\'s status moves through the platform\'s story flow; develop_story is what starts that'
     + ' move, and update_story never changes it.',
+    '',
+    'The copyright line, the organization name, the Terms and Privacy links and the Google tag are'
+    + ' project settings: project_settings reads them and update_project_settings changes them. The'
+    + ' Terms and Privacy pages at /terms and /privacy are generated with the application — do not'
+    + ' write your own.',
   ]
 
   if (sessionCapable(host)) {

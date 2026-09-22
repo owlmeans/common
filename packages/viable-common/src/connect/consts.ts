@@ -301,6 +301,19 @@ export const CONNECT_CONFIGURE_TIMEOUT_MS = 60_000
  */
 export const CONNECT_CAP_LOCAL_LLM_KEY = 'connect--local-llm'
 
+/**
+ * The ceilings of a project's branding strings on the connector wire.
+ *
+ * Each equals its twin in the platform's own branding contract (`BRANDING_COPYRIGHT_MAX`,
+ * `BRANDING_ORGANIZATION_MAX`, `BRANDING_URL_MAX`) and must stay equal: a connector refused below the
+ * web form's limit, or accepted above it and refused further in, is one value with two answers.
+ * The Google tag's is its own — the longest id any Google product issues is well under it.
+ */
+export const CONNECT_BRANDING_COPYRIGHT_MAX = 200
+export const CONNECT_BRANDING_ORGANIZATION_MAX = 120
+export const CONNECT_BRANDING_URL_MAX = 2048
+export const CONNECT_BRANDING_GOOGLE_TAG_MAX = 32
+
 /** The access-token prefix the platform issues. Every connector token starts with it. */
 export const CONNECT_TOKEN_PREFIX = 'vib_'
 
@@ -393,6 +406,15 @@ export const connect = Object.freeze({
     llm: 'viable:manager-api:connect:project:llm',
     /** The per-project converter inference mode. Separate from `llm`: it is not a paid capability. */
     converterLlm: 'viable:manager-api:connect:project:converter-llm',
+    /**
+     * The project's own branding — copyright, organization, the two legal links, the Google tag.
+     * The platform credit is deliberately NOT here: hiding it is a paid capability with its own
+     * gated route, and a connector setting the rest must never be able to touch it.
+     */
+    branding: Object.freeze({
+      get: 'viable:manager-api:connect:project:branding:get',
+      save: 'viable:manager-api:connect:project:branding:save',
+    }),
   }),
   story: Object.freeze({
     status: 'viable:manager-api:connect:story:status',

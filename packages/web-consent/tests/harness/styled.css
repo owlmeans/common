@@ -1,0 +1,54 @@
+/*
+  A real theme for the accessibility spec, loaded only when the URL asks for it (`?styled=1`).
+
+  Every other spec asserts on class lists and needs the page unstyled: a styled dialog is a fixed,
+  full-screen overlay, and the specs that click past it would be clicking through it. Contrast,
+  on the other hand, cannot be judged on an unstyled page — so this sheet compiles the package's
+  own sources with the neutral tokens a generated app ships (ground, ink, muted, hairline, tile,
+  one accent) in both schemes.
+*/
+@import "tailwindcss";
+
+@source "../../src";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a2540;
+  --muted: #f5f7fa;
+  --muted-foreground: #51606f;
+  --border: #e6e6ea;
+  --primary: #8a3f1c;
+  --primary-foreground: #ffffff;
+  --ring: #0a2540;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #f5f7fa;
+  --muted: #0e1318;
+  --muted-foreground: #9aa7b4;
+  --border: #1f2630;
+  --primary: #d9895f;
+  --primary-foreground: #000000;
+  --ring: #f5f7fa;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

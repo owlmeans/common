@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/oauth
 
 **Layer:** Auth shared (beside `auth-token`)
-**Install:** `"@owlmeans/oauth": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/oauth": "^0.1.18-rc.4"` in `dependencies`
 **Halves:** `@owlmeans/server-oauth` (the authorization server), `@owlmeans/web-oauth` (the consent
 screens), `@owlmeans/cli-auth` (the command-line credential holder). None of the three imports
 another — they meet only here.
