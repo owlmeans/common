@@ -158,12 +158,10 @@ it; clean `build/` and `tsconfig.tsbuildinfo` and rebuild before the plan so the
 shipping.
 
 A plan that lists most of the repo is expected when a few root packages (`basic-ids`, `context`,
-`config`, `flow`, `i18n`) are "changed" — every dependent follows. Post-release edits (README install
-lines, an `agent-meta` skill rename) count as changes. If the operator scopes a release to what one
-change touched, do it by hand — bump only those manifests (and the ranges among them), sweep
-consumers with `bump-deps.ts --filter '@owlmeans/<pkg>'` per package, then
-`npm publish --access public --tag <tag>` in dependency order — and say which pending packages were
-left out and why. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
+`config`, `flow`, `i18n`) really changed — every dependent follows. It is NOT expected from
+propagation: the harness no longer rewrites admitted pins in packages outside the release, nor
+hashes their `build/` — so a plan that widens after steps 2–4 means a real content edit landed in
+them. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
 
 ## How "changed" is decided
 
@@ -177,14 +175,19 @@ tarball.
 Two fields are excluded from that hash, and the tool is useless without the exclusion: a package's
 own `version` and its `@owlmeans/*` ranges. Both move mechanically on every bump, so counting them
 would report the entire graph as changed forever and collapse this back into a blanket release.
+`build/` is excluded as well whenever the package ships its `src/` (every package here does): build
+output is not reproducible byte for byte — an incremental build drops `//# sourceMappingURL`
+comments a clean one writes, and `tsc` orders union members in a `.d.ts` by check order — so
+hashing it reported untouched packages as changed and dragged in their dependents. A source edit
+still shows in `src/`.
 
 Consequences worth knowing:
 - A package **never published**, or one whose declared version is not on the registry, counts as
   changed — a staged release goes out on the next run.
 - A package whose local hash cannot be computed is treated as changed. Shipping something
   unnecessary is recoverable; silently skipping a real change is not.
-- Because `build/` is part of the published file set, **build before planning** — a stale `build/`
-  makes the plan describe the wrong thing.
+- `build/` still ships, so **build before publishing** — a stale `build/` ships stale code even
+  though the plan (which compares sources) calls the package right.
 
 ## Versions and dist-tags
 
