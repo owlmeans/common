@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.37",
+  "version": "0.1.18-rc.38",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -28,17 +28,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.32",
-    "@owlmeans/client-context": "^0.1.18-rc.35",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.34",
-    "@owlmeans/client-resource": "^0.1.18-rc.34",
-    "@owlmeans/config": "^0.1.18-rc.34",
-    "@owlmeans/context": "^0.1.18-rc.30",
-    "@owlmeans/error": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.33",
-    "@owlmeans/resource": "^0.1.18-rc.32",
-    "@owlmeans/router": "^0.1.18-rc.29",
-    "@owlmeans/state": "^0.1.18-rc.31"
+    "@owlmeans/auth": "^0.1.18-rc.33",
+    "@owlmeans/client-context": "^0.1.18-rc.36",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.35",
+    "@owlmeans/client-resource": "^0.1.18-rc.35",
+    "@owlmeans/config": "^0.1.18-rc.35",
+    "@owlmeans/context": "^0.1.18-rc.31",
+    "@owlmeans/error": "^0.1.18-rc.33",
+    "@owlmeans/entrypoint": "^0.1.18-rc.34",
+    "@owlmeans/resource": "^0.1.18-rc.33",
+    "@owlmeans/router": "^0.1.18-rc.30",
+    "@owlmeans/state": "^0.1.18-rc.32"
   },
   "peerDependencies": {
     "@remix-run/router": "*",

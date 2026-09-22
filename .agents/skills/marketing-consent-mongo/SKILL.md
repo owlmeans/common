@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/marketing-consent-mongo
 
 **Layer:** Infra
-**Install:** `"@owlmeans/marketing-consent-mongo": "^0.1.18-rc.0"` in `dependencies` (peers `mongodb`, `ajv`)
+**Install:** `"@owlmeans/marketing-consent-mongo": "^0.1.18-rc.2"` in `dependencies` (peers `mongodb`, `ajv`)
 
 Mongo storage for `@owlmeans/server-marketing-consent`'s two resources —
 `marketing-consent-state` (`RES_MARKETING_CONSENT_STATE`) and `marketing-consent-log`

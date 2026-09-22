@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/marketing-consent-postgres",
-  "version": "0.1.18-rc.1",
+  "version": "0.1.18-rc.2",
   "license": "MIT",
   "description": "Postgres-backed resources for @owlmeans/marketing-consent — the state and log tables of a generated target project, compiled from the shared AJV schema in @owlmeans/server-marketing-consent.",
   "type": "module",
@@ -23,11 +23,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.30",
-    "@owlmeans/marketing-consent": "^0.1.18-rc.0",
-    "@owlmeans/postgres-resource": "^0.1.18-rc.32",
-    "@owlmeans/resource": "^0.1.18-rc.32",
-    "@owlmeans/server-marketing-consent": "^0.1.18-rc.1"
+    "@owlmeans/context": "^0.1.18-rc.31",
+    "@owlmeans/marketing-consent": "^0.1.18-rc.1",
+    "@owlmeans/postgres-resource": "^0.1.18-rc.33",
+    "@owlmeans/resource": "^0.1.18-rc.33",
+    "@owlmeans/server-marketing-consent": "^0.1.18-rc.2"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -35,8 +35,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.30",
-    "@owlmeans/test-integration": "^0.1.18-rc.27",
+    "@owlmeans/test": "^0.1.18-rc.31",
+    "@owlmeans/test-integration": "^0.1.18-rc.28",
     "@types/bun": "^1.4.0",
     "@types/pg": "^8.20.4",
     "ajv": "^8.17.1",

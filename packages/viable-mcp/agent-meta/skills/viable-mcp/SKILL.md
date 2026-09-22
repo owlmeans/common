@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.27`; bin name `viable-mcp`
+**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.28`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
 configuration, sign-in (over `@owlmeans/cli-auth`), the stdout guard, and the server object. The planning client the story tools write
 through is wired inside `makeSdkContext` as well — the planning tree, `appendPlanningClient` with no
@@ -93,7 +93,7 @@ Subcommands (`bin.ts`; the first bare argument, absent = the server):
 | `login` | Runs the device sign-in to completion (15 min ceiling), stores the token in the file |
 | `logout` | Revokes the token (`/oauth/revoke`) and forgets it |
 | `status` | Reports on stderr whether this machine is signed in |
-| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.27 url)"` |
+| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.28 url)"` |
 
 The `/mcp` URL is `VIABLE_MCP_URL` (environment over file), else `https://api.owlmeans.com/mcp`
 (`resolveMcpUrl` in viable-sdk). A test or a self-hosted setup overrides it; a deployment's own

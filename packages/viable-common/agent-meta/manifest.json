@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/viable-common",
-  "version": "0.0.30",
-  "generatedAt": "2026-09-22T20:45:24.063Z",
+  "version": "0.0.31",
+  "generatedAt": "2026-09-22T21:57:18.828Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

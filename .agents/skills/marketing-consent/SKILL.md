@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/marketing-consent
 
 **Layer:** Domain (beside `consent`, `payment`, `planning`)
-**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.1"` in `dependencies`
 **Sibling:** `@owlmeans/consent` — the cookie-consent widget. This package's two `trackers.*` keys
 carry a `cookieCategory` pointing at that package's `CONSENT_ANALYTICS`/`CONSENT_MARKETING` keys,
 so the two surfaces describe the SAME cookies from two angles: a banner (broad, cookie-law-shaped)

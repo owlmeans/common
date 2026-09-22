@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/marketing-consent",
-  "version": "0.1.18-rc.0",
-  "generatedAt": "2026-09-22T21:27:36.152Z",
+  "version": "0.1.18-rc.1",
+  "generatedAt": "2026-09-22T21:57:18.828Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

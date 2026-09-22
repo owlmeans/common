@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/test-auth",
-  "version": "0.1.18-rc.33",
+  "version": "0.1.18-rc.34",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,14 +21,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.32",
-    "@owlmeans/auth-common": "^0.1.18-rc.34",
-    "@owlmeans/basic-envelope": "^0.1.18-rc.33",
-    "@owlmeans/basic-keys": "^0.1.18-rc.35",
-    "@owlmeans/context": "^0.1.18-rc.30",
-    "@owlmeans/entrypoint": "^0.1.18-rc.33",
-    "@owlmeans/resource": "^0.1.18-rc.32",
-    "@owlmeans/test": "^0.1.18-rc.30"
+    "@owlmeans/auth": "^0.1.18-rc.33",
+    "@owlmeans/auth-common": "^0.1.18-rc.35",
+    "@owlmeans/basic-envelope": "^0.1.18-rc.34",
+    "@owlmeans/basic-keys": "^0.1.18-rc.36",
+    "@owlmeans/context": "^0.1.18-rc.31",
+    "@owlmeans/entrypoint": "^0.1.18-rc.34",
+    "@owlmeans/resource": "^0.1.18-rc.33",
+    "@owlmeans/test": "^0.1.18-rc.31"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

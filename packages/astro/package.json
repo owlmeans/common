@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/astro",
-  "version": "0.1.18-rc.27",
+  "version": "0.1.18-rc.28",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@owlmeans/consent": "^0.1.18-rc.6",
-    "@owlmeans/web-gtm": "^0.1.18-rc.27"
+    "@owlmeans/web-gtm": "^0.1.18-rc.28"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
