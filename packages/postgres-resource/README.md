@@ -13,7 +13,7 @@ SQL. Other stores fit other shapes:
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres-resource@^0.1.18-rc.33 @owlmeans/postgres@^0.1.18-rc.33 pg
+bun add @owlmeans/postgres-resource@^0.1.18-rc.34 @owlmeans/postgres@^0.1.18-rc.34 pg
 ```
 
 `pg` and `ajv` are peer dependencies of this package. `@owlmeans/postgres` provides the connection
@@ -293,7 +293,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.35
+npx @owlmeans/agent-skills@^0.1.18-rc.36
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/static-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/static-resource": "^0.1.18-rc.32"` in `dependencies`
+**Install:** `"@owlmeans/static-resource": "^0.1.18-rc.33"` in `dependencies`
 
 The whole `Resource` contract over a `Map` held at module scope. Use it where records must be
 reachable through the context like any other resource but have no database behind them — fixtures,
@@ -40,9 +40,11 @@ await fixtures.list({ name: { $startsWith: 'Owl' } }, { sort: ['name'] })
 
 ## Semantics
 
-- The store is a map keyed by id and there is nothing here to mint one from, so **every write
-  needs an id**: `create`, `update` and `save` all throw `MisshapedRecord('id')` without one.
-  `create` additionally throws `RecordExists`, `update` `UnknownRecordError`; `save` is the upsert.
+- The store is a map keyed by id. **`create` mints one (`randomUUID()`) when the record carries
+  none** — what a Mongo or Postgres `create()` does, so code written against those backends runs
+  unchanged over this one — and honours a supplied id, throwing `RecordExists` only when that id is
+  already stored. `update` and `save` need an id and throw `MisshapedRecord('id')` without one;
+  `update` also throws `UnknownRecordError`, and `save` is the upsert.
 - `load(id)` / `get(id)` / `delete(id)` / `take(id)` hit the map directly. `take(id)` **deletes**
   the record it returns and throws `UnknownRecordError` on a miss.
 - `load(where)`, `get(where)`, `list`, `count` and `purge` go through the shared in-memory engine

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-marketing-consent
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.2"` in `dependencies`
+**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.3"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `consentStatus`, the protocol tree, the error family
 
 ## Key Exports
@@ -16,12 +16,12 @@ user-invocable: false
 | Export | Description |
 |--------|-------------|
 | `RES_MARKETING_CONSENT_STATE` (`marketing-consent-state`) · `RES_MARKETING_CONSENT_LOG` (`marketing-consent-log`) | Resource aliases — never rename, a later Mongo/Postgres extension's generated resource file names derive from these exact strings |
-| `MarketingConsentStateRecord` · `MarketingConsentLogRecord` · `MarketingConsentStateSchema` · `MarketingConsentLogSchema` | The two record shapes and their AJV `JSONSchemaType` schemas — shared with the (not yet built) `@owlmeans/marketing-consent-mongo` / `@owlmeans/marketing-consent-postgres` extensions, which import them rather than redeclaring |
-| `subjectOf(req)` · `subjectKey(subject)` · `MarketingConsentSubject` | Who a decision is recorded for, and its one string record id |
+| `MarketingConsentStateRecord` · `MarketingConsentLogRecord` · `MarketingConsentStateSchema` · `MarketingConsentLogSchema` | The two record shapes and their AJV `JSONSchemaType` schemas — shared with the `@owlmeans/marketing-consent-mongo` / `@owlmeans/marketing-consent-postgres` extensions, which import them rather than redeclaring |
+| `subjectOf(req)` · `subjectKey(subject)` · `MarketingConsentSubject` | Who a decision is recorded for, and the `subject` key its one state record is addressed by |
 | `makeMarketingConsentService(opts?)` · `appendMarketingConsentService(ctx, opts?)` | Build/register the `MarketingConsentService` |
 | `MarketingConsentService` | `definitions`, `status`, `save`, `recordTerms`, `isGranted`, `purge`, `observe` |
 | `marketingConsentStatus` · `saveMarketingConsent` · `recordTermsAcceptance` | Handler makers for `makeMarketingConsentProtocols().status/save/terms` |
-| `serveMarketingConsentEntrypoints(protocols, opts?)` | Binds `status`/`save`/`terms` — `base` and `screen` carry no server handler of their own |
+| `serveMarketingConsentEntrypoints(protocols, opts?)` | Binds `status`/`save`/`terms` and asks for nothing else (`MarketingConsentServedProtocols`) — `base` and `screen` carry no server handler, so an api tree without the frontend `screen` passes as it is. A `base` declared with no `parent` must still be bound by the app (`bind(tree.base)`), or boot fails with `Entrypoint marketing-consent not found` |
 
 ## Wiring
 
@@ -76,8 +76,11 @@ export const subjectOf = (req: AbstractRequest): MarketingConsentSubject => {
 A deployment with no organization concept at all (a generated target app serving its own end users,
 say) registers no entity resolver, so `req.entity` stays `undefined` and `entityId` is simply
 absent — a valid, expected shape this package must never throw on. `subjectKey(subject)` —
-`` `${entityId ?? ''}|${userId}|${profileId ?? ''}` `` — is the state record's own `id`: one record
-per subject, looked up with a plain `load(id)`, no secondary index needed for the common read path.
+`` `${entityId ?? ''}|${userId}|${profileId ?? ''}` `` — is the state record's `subject` field, and
+every read and write addresses the record by it (`load({ subject })`, `purge({ subject })`), never
+by `id`. The record's `id` is whatever the backend mints on `create()`: Mongo and Postgres refuse a
+caller-supplied id outright (`RecordExists('id-present')`, whether or not such a row exists), so a
+natural key can only ever live in a field. Each storage extension makes `subject` unique.
 
 ## `isGranted` is not `consentStatus`'s display `granted`
 
@@ -102,9 +105,12 @@ trusted. Getting this backwards — wiring a send to `status(...).items.find(...
   REPLACED in place (by key) and the rest left untouched; a second save for the same key never
   duplicates it, it supersedes it. `recordTerms` mirrors this for the state record's single `terms`
   field, without touching `decisions`.
-- The state record's create-vs-update race is handled the same way
-  `@owlmeans/server-auth-session`'s Redis manager handles a natural-id create race: try `create`,
-  and on `RecordExists` reload and `save` instead.
+- The state record is upserted by `subject`: an existing row is `save`d over; otherwise `create`
+  runs WITHOUT an id, and if that fails for any reason the row is re-read by `subject` — found
+  means a concurrent writer won and it is `save`d over, not found rethrows the original error. Do
+  not copy `@owlmeans/server-auth-session`'s try-`create`-with-id idiom here: it only works on a
+  key-value backend where the key IS the id, and on Mongo/Postgres it fails every first save.
+  The append-only log rows are created without an id for the same reason.
 
 ## The append-only log as GDPR Art. 7(1) evidence
 

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/job
 
 **Layer:** Shared domain contract
-**Install:** `"@owlmeans/job": "^0.1.18-rc.5"` in `dependencies`
+**Install:** `"@owlmeans/job": "^0.1.18-rc.6"` in `dependencies`
 
 Use this package only when jobs are part of the application's domain—for example, an operator
 screen that manages imports or an account screen that follows an export. It is not a queue API.
