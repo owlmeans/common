@@ -52,11 +52,11 @@ skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke cod
 ### Never add an OwlMeans dependency without an explicit range
 
 Write the range yourself, as a caret at the version the rest of this project already uses for its
-other `@owlmeans/*` packages:
+other `@owlmeans/*` packages (or the one the package's own skill names on its **Install:** line):
 
 ```json
 "dependencies": {
-  "@owlmeans/queue": "^0.1.18-rc.30"
+  "@owlmeans/queue": "^<version>"
 }
 ```
 
