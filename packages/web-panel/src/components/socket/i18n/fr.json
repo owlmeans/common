@@ -1,7 +1,9 @@
 {
   "reload": {
     "title": "Connexion perdue",
-    "description": "Nous n’avons pas pu rétablir la connexion après plusieurs tentatives. Actualisez la page pour continuer.",
-    "action": "Actualiser la page"
+    "description": "Nous n’avons pas pu rétablir la connexion après plusieurs tentatives. Réessayez ou actualisez la page pour continuer.",
+    "action": "Actualiser la page",
+    "retry": "Réessayer",
+    "retrying": "Reconnexion…"
   }
 }

@@ -11,6 +11,7 @@ export const DEFAULT_RECONNECT_POLICY: ReconnectPolicy = {
   factor: 2,
   jitter: 0.1,
   budget: 600_000,
+  reviveBudget: 15_000,
   stableAfter: 10_000,
   heartbeat: 30_000,
   pongTimeout: 10_000,

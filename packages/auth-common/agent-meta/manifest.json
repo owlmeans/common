@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/auth-common",
-  "version": "0.1.18-rc.33",
-  "generatedAt": "2026-09-22T17:37:10.906Z",
+  "version": "0.1.18-rc.34",
+  "generatedAt": "2026-09-22T20:45:24.047Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

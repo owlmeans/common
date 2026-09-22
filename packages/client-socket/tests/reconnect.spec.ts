@@ -14,16 +14,33 @@ import { makeTestContext } from './context.js'
  */
 let server: Server | null = null
 
-const startServer = (port: number): Server => {
+const startServer = (port: number, echo: boolean = true): Server => {
   server = Bun.serve({
     port,
     fetch(req, srv) {
       if (srv.upgrade(req)) return undefined
       return new Response('upgrade failed', { status: 400 })
     },
-    // Echoes everything back (heartbeat pings included) — enough for a test to prove a frame
-    // sent after a reconnect reaches the SAME pre-drop `observe` handler.
-    websocket: { open() { }, message(ws, data) { ws.send(data) }, close() { } },
+    // Answers a heartbeat ping with a pong, exactly as `server-socket` does, and echoes every
+    // other frame — enough for a test to prove a frame sent after a reconnect reaches the SAME
+    // pre-drop `observe` handler. `echo: false` upgrades and then answers nothing at all: a
+    // half-open connection, from the client's side.
+    websocket: {
+      open() { },
+      message(ws, data) {
+        if (!echo) return
+        try {
+          if (typeof data === 'string' && JSON.parse(data)?.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }))
+            return
+          }
+        } catch {
+          // Not JSON at all — echoed below like any other frame.
+        }
+        ws.send(data)
+      },
+      close() { },
+    },
   })
   return server
 }
@@ -91,7 +108,7 @@ describe('@owlmeans/client-socket — reconnect', () => {
     // `ready` settles, and here we need to observe frames WHILE every attempt is still failing.
     const policy = {
       minDelay: 200, maxDelay: 3_000, factor: 2, jitter: 0.1,
-      budget: 60_000, stableAfter: 999_999, heartbeat: 999_999, pongTimeout: 999_999,
+      budget: 60_000, reviveBudget: 60_000, stableAfter: 999_999, heartbeat: 999_999, pongTimeout: 999_999,
     }
     const delays: number[] = []
     const { connection, ready } = makeConnection({
@@ -137,7 +154,60 @@ describe('@owlmeans/client-socket — reconnect', () => {
     expect(events).not.toContain(SocketSystemEvent.Reconnecting)
   }, 5_000)
 
-  test('gives up after the retry budget elapses: lost, then close, status reads lost, connect() rejects', async () => {
+  test('a socket that answers nothing at all is force-closed by the heartbeat', async () => {
+    const silent = startServer(0, false)
+
+    const ctx = makeTestContext({
+      reconnect: { heartbeat: 60, pongTimeout: 30, minDelay: 20, maxDelay: 40, budget: 10_000 }
+    })
+    const connection = await connect(() => `ws://localhost:${silent.port}`, ctx)
+    const events = systemEvents(connection)
+
+    await waitFor(() => events.includes(SocketSystemEvent.Disconnected), 3_000)
+
+    await connection.close()
+  }, 10_000)
+
+  test('a heartbeat wake-up long after the previous one keeps a socket the server answers', async () => {
+    const initial = startServer(0)
+    const port = initial.port
+    const realNow = Date.now.bind(Date)
+
+    const ctx = makeTestContext({
+      reconnect: { heartbeat: 100, pongTimeout: 50, minDelay: 20, maxDelay: 40, budget: 10_000 }
+    })
+    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const events = systemEvents(connection)
+    let observed = 0
+    connection.observe('probe', async () => { observed += 1 })
+
+    // What a backgrounded tab looks like: real timers keep firing, but every wake-up lands a
+    // minute later than the last as far as the clock is concerned.
+    let skew = 0
+    Date.now = () => realNow() + skew
+    const throttle = setInterval(() => { skew += 60_000 }, 50)
+    const wait = async (ms: number) => {
+      const until = realNow() + ms
+      while (realNow() < until) await Bun.sleep(20)
+    }
+
+    try {
+      await wait(800)
+      // Several heartbeat intervals with an apparent minute between each: nothing dropped.
+      expect(events).toEqual([])
+
+      await connection.notify('probe', {})
+      const deadline = realNow() + 2_000
+      while (observed === 0 && realNow() < deadline) await Bun.sleep(20)
+      expect(observed).toBe(1)
+    } finally {
+      clearInterval(throttle)
+      Date.now = realNow
+      await connection.close()
+    }
+  }, 15_000)
+
+  test('gives up after the retry budget elapses: status reads lost, connect() rejects', async () => {
     const ctx = makeTestContext({ reconnect: { minDelay: 20, maxDelay: 40, budget: 200, stableAfter: 50 } })
     appendSocketStatus(ctx)
     ctx.configure()
@@ -146,5 +216,157 @@ describe('@owlmeans/client-socket — reconnect', () => {
     await expect(connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
 
     expect(ctx.socketStatus().state()).toBe('lost')
+  }, 5_000)
+
+  test('retry() revives a lost connection in place: no close frame, reconnected on the SAME connection', async () => {
+    const initial = startServer(0)
+    const port = initial.port
+
+    const ctx = makeTestContext({
+      reconnect: { minDelay: 20, maxDelay: 40, budget: 300, reviveBudget: 2_000, stableAfter: 50 }
+    })
+    appendSocketStatus(ctx)
+    ctx.configure()
+    await ctx.init()
+
+    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const events = systemEvents(connection)
+    let observed = 0
+    connection.observe('probe', async () => { observed += 1 })
+
+    stopServer()
+    await waitFor(() => events.includes(SocketSystemEvent.Lost), 3_000)
+    expect(ctx.socketStatus().state()).toBe('lost')
+    // `close` means gone for good — a lost connection is still revivable.
+    expect(events).not.toContain(SocketSystemEvent.Close)
+
+    startServer(port)
+    let retried = 0
+    ctx.socketStatus().onRetry(() => { retried += 1 })
+    expect(ctx.socketStatus().retry()).toBe(true)
+    expect(retried).toBe(1)
+    expect(ctx.socketStatus().state()).toBe('reconnecting')
+
+    await waitFor(() => events.includes(SocketSystemEvent.Reconnected), 3_000)
+    expect(ctx.socketStatus().state()).toBe('online')
+
+    await connection.notify('probe', {})
+    await waitFor(() => observed === 1, 1_000)
+
+    // Nothing is lost any more — a second retry has nothing to do and tells nobody.
+    expect(ctx.socketStatus().retry()).toBe(false)
+    expect(retried).toBe(1)
+
+    await connection.close()
+  }, 10_000)
+
+  test('a revive that cannot succeed reports lost again once reviveBudget elapses', async () => {
+    const initial = startServer(0)
+    const port = initial.port
+
+    const ctx = makeTestContext({
+      reconnect: { minDelay: 20, maxDelay: 40, budget: 200, reviveBudget: 200, stableAfter: 50 }
+    })
+    appendSocketStatus(ctx)
+    ctx.configure()
+    await ctx.init()
+
+    const connection = await connect(() => `ws://localhost:${port}`, ctx)
+    const events = systemEvents(connection)
+
+    stopServer()
+    await waitFor(() => events.includes(SocketSystemEvent.Lost), 3_000)
+
+    ctx.socketStatus().retry()
+    expect(ctx.socketStatus().state()).toBe('reconnecting')
+    await waitFor(() => events.filter(e => e === SocketSystemEvent.Lost).length === 2, 3_000)
+    expect(ctx.socketStatus().state()).toBe('lost')
+    expect(events).not.toContain(SocketSystemEvent.Close)
+
+    await connection.close()
+    expect(ctx.socketStatus().state()).toBe('online')
+  }, 10_000)
+
+  test('revive() on a connection still retrying attempts at once and outlives its old budget', async () => {
+    // Its own budget alone would report lost ~400ms in; the revive at ~50ms must push that out.
+    const policy = {
+      minDelay: 200, maxDelay: 200, factor: 1, jitter: 0,
+      budget: 300, reviveBudget: 1_500, stableAfter: 999_999, heartbeat: 999_999, pongTimeout: 999_999,
+    }
+    let opens = 0
+    const events: string[] = []
+    const { connection, ready, revive } = makeConnection({
+      policy, retry: true, open: () => { opens += 1; return Promise.reject(new Error('down')) },
+    })
+    ready.catch(() => void 0)
+    connection.listen(async message => {
+      const msg = message as EventMessage<unknown>
+      if (typeof message === 'object' && msg.type === 'system') events.push(msg.event)
+    })
+
+    await waitFor(() => opens === 1, 1_000)
+    await Bun.sleep(50)
+    revive()
+    // At once — not after the 200ms backoff the failed first attempt scheduled.
+    expect(opens).toBe(2)
+
+    await Bun.sleep(600)
+    expect(events).not.toContain(SocketSystemEvent.Lost)
+    await waitFor(() => events.includes(SocketSystemEvent.Lost), 3_000)
+
+    await connection.close()
+  }, 10_000)
+
+  test('revive() during an in-flight attempt still extends the budget that attempt will face', async () => {
+    // The 2nd attempt hangs 400ms and fails at ~450ms, past the 300ms budget — lost, unless the
+    // revive at ~100ms moved the budget first.
+    const policy = {
+      minDelay: 50, maxDelay: 50, factor: 1, jitter: 0,
+      budget: 300, reviveBudget: 1_500, stableAfter: 999_999, heartbeat: 999_999, pongTimeout: 999_999,
+    }
+    let opens = 0
+    const events: string[] = []
+    const { connection, ready, revive } = makeConnection({
+      policy, retry: true, open: async () => {
+        opens += 1
+        if (opens === 2) await Bun.sleep(400)
+        throw new Error('down')
+      },
+    })
+    ready.catch(() => void 0)
+    connection.listen(async message => {
+      const msg = message as EventMessage<unknown>
+      if (typeof message === 'object' && msg.type === 'system') events.push(msg.event)
+    })
+
+    await waitFor(() => opens === 2, 1_000)
+    await Bun.sleep(50)
+    revive()
+    // No second attempt on top of the one in flight.
+    expect(opens).toBe(2)
+
+    await Bun.sleep(600)
+    expect(events).not.toContain(SocketSystemEvent.Lost)
+    await waitFor(() => events.includes(SocketSystemEvent.Lost), 3_000)
+
+    await connection.close()
+  }, 10_000)
+
+  test('retry() drops a connection that never opened and tells its owner to dial again', async () => {
+    const ctx = makeTestContext({ reconnect: { minDelay: 20, maxDelay: 40, budget: 200, stableAfter: 50 } })
+    appendSocketStatus(ctx)
+    ctx.configure()
+    await ctx.init()
+
+    await expect(connect(() => 'ws://127.0.0.1:1', ctx)).rejects.toBeTruthy()
+    expect(ctx.socketStatus().state()).toBe('lost')
+
+    let retried = 0
+    ctx.socketStatus().onRetry(() => { retried += 1 })
+    expect(ctx.socketStatus().retry()).toBe(true)
+
+    // There was no `Connection` to revive, so nothing is left reporting — the owner re-dials.
+    expect(ctx.socketStatus().state()).toBe('online')
+    expect(retried).toBe(1)
   }, 5_000)
 })

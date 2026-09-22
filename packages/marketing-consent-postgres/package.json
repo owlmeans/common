@@ -23,10 +23,10 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.29",
+    "@owlmeans/context": "^0.1.18-rc.30",
     "@owlmeans/marketing-consent": "^0.1.18-rc.0",
-    "@owlmeans/postgres-resource": "^0.1.18-rc.31",
-    "@owlmeans/resource": "^0.1.18-rc.31",
+    "@owlmeans/postgres-resource": "^0.1.18-rc.32",
+    "@owlmeans/resource": "^0.1.18-rc.32",
     "@owlmeans/server-marketing-consent": "^0.1.18-rc.1"
   },
   "peerDependencies": {
@@ -35,8 +35,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.29",
-    "@owlmeans/test-integration": "^0.1.18-rc.26",
+    "@owlmeans/test": "^0.1.18-rc.30",
+    "@owlmeans/test-integration": "^0.1.18-rc.27",
     "@types/bun": "^1.4.0",
     "@types/pg": "^8.20.4",
     "ajv": "^8.17.1",

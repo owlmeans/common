@@ -1,7 +1,7 @@
 {
   "name": "@owlmeans/config",
   "type": "module",
-  "version": "0.1.18-rc.33",
+  "version": "0.1.18-rc.34",
   "license": "MIT",
   "scripts": {
     "build": "tsc -b",
@@ -28,11 +28,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.31",
-    "@owlmeans/context": "^0.1.18-rc.29",
-    "@owlmeans/error": "^0.1.18-rc.31",
-    "@owlmeans/resource": "^0.1.18-rc.31",
-    "@owlmeans/route": "^0.1.18-rc.30"
+    "@owlmeans/auth": "^0.1.18-rc.32",
+    "@owlmeans/context": "^0.1.18-rc.30",
+    "@owlmeans/error": "^0.1.18-rc.32",
+    "@owlmeans/resource": "^0.1.18-rc.32",
+    "@owlmeans/route": "^0.1.18-rc.31"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

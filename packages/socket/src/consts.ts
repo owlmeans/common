@@ -16,10 +16,9 @@ export const CALL_TIMEOUT = 60000
 /**
  * System frames a carrier synthesises around the lifecycle of the underlying transport.
  *
- * `Close` keeps its original meaning: the connection is gone for good — a client-initiated
- * close, a terminal server code, or a reconnect budget exhausted. A drop the carrier intends to
- * retry is reported as `Disconnected` instead, so a listener that only knew about `close` before
- * this carried reconnect support still sees exactly the frame it always did once retries give up.
+ * `Close` means the connection is gone for good — a client-initiated close, or a terminal server
+ * code. A drop the carrier intends to retry is reported as `Disconnected`, and an exhausted retry
+ * budget as `Lost` alone: a lost connection can still be revived, so it is not closed.
  */
 export enum SocketSystemEvent {
   Close = 'close',

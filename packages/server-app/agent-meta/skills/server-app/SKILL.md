@@ -6,7 +6,7 @@ description: Build OwlMeans server applications from immutable entrypoint protoc
 
 # Server application entrypoints
 
-**Install:** `bun add @owlmeans/server-app@^0.1.18-rc.37`
+**Install:** `bun add @owlmeans/server-app@^0.1.18-rc.39`
 
 Declare routes and request/response contracts in a shared package with `protocol()` or
 `openProtocol()`. A server package supplies local implementations with `bind()` and `handlers()`;
