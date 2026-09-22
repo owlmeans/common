@@ -1,6 +1,7 @@
 import '../../src/@/globals.css'
 
 import type { FC, PropsWithChildren } from 'react'
+import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { config } from '@owlmeans/client-context'
 import { AppType, service } from '@owlmeans/config'
@@ -180,11 +181,22 @@ const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-g
  */
 const SocketStatusScreen: FC = () => {
   const context = useContext()
+  // A revive the way a real carrier's goes: the connection is retrying again the moment it is
+  // asked to. How that retry ends is up to the test — `#report-online` or `#report-lost`.
+  const [revived, setRevived] = useState(0)
+  const reportLost = () => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost', () => {
+    setRevived(n => n + 1)
+    context.socketStatus().report(HARNESS_SOCKET_ID, 'reconnecting')
+  })
 
   return <div id="socket-status">
     socket-status-screen
-    <button id="report-lost" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost')}>
+    <span id="revived">{revived}</span>
+    <button id="report-lost" onClick={reportLost}>
       lose connection
+    </button>
+    <button id="report-online" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'online')}>
+      reconnected
     </button>
     <button id="release-lost" onClick={() => context.socketStatus().release(HARNESS_SOCKET_ID)}>
       restore connection

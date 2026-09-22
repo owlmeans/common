@@ -23,7 +23,7 @@ re-registered after a network blip.
 | `ws(entrypoint, request?, options?)` | Open a `Connection` to a socket entrypoint. Resolves once the FIRST attempt opens; rejects with `SocketConnectionError('lost')` if the retry budget elapses first |
 | `useWs(protocol \| alias, request?, options?)` | React hook — `Connection \| null` until it opens (or gives up); re-opens on `alias`/`AUTH_QUERY`/`params` change and closes on unmount |
 | `connect(address, ctx, options?)` | The same machinery with no entrypoint behind it — an `address` callback returning the URL, for an adapter or a test |
-| `appendSocketStatus(ctx, alias?)` / `useSocketStatus()` | The status aggregator — see below |
+| `appendSocketStatus(ctx, alias?)` / `useSocketStatus()` / `useSocketRetry()` | The status aggregator and its retry — see below |
 | `Config` / `Context` | The client config (`socket?: SocketClientSettings`) and context types this package expects |
 | `ReconnectPolicy` / `SocketClientSettings` / `ConnectOptions` / `WsOptions` | The reconnect policy shape and where it can be set — config, or per-call `options` |
 
@@ -102,9 +102,10 @@ reconnect, because it was registered on the model, not on the socket.
 | `factor` | 2 | Geometric growth per failed attempt |
 | `jitter` | 0.1 | ±10% randomization on each computed delay |
 | `budget` | 600000ms (10 min) | Total retry time before the carrier gives up |
-| `stableAfter` | 10000ms | How long a reopened socket must stay up before the attempt count and the outage clock reset |
+| `reviveBudget` | 15000ms | Retry window `retry()` gives a lost socket (and the minimum it leaves one still retrying) — short, so a retry that cannot succeed reports `'lost'` again while someone is still looking |
+| `stableAfter` | 10000ms | How long a reopened socket must stay up before the attempt count, the outage clock and the budget (back to `budget`) reset |
 | `heartbeat` | 30000ms | Ping interval — runs even with `reconnect: false` |
-| `pongTimeout` | 10000ms | No frame of ANY kind since the last ping past this long ⇒ the carrier force-closes the socket itself (code 4000, `SOCKET_HEARTBEAT_TIMEOUT_CODE`) — the only way a silently half-open TCP connection is noticed before the OS would, minutes later |
+| `pongTimeout` | 10000ms | Checked at the next heartbeat tick: the ping still unanswered this long ⇒ the carrier force-closes the socket itself (code 4000, `SOCKET_HEARTBEAT_TIMEOUT_CODE`) — the only way a silently half-open TCP connection is noticed before the OS would, minutes later. Measured from the PING, never from the last frame: a hidden tab's timers are throttled to roughly one wake-up a minute, and "nothing for a whole interval" is what throttling looks like, not what a dead socket looks like. Any inbound frame answers the ping; `server-socket` replies `{"type":"pong"}` |
 
 Set it on `ctx.cfg.socket.reconnect` (app-wide) or per call via `options.reconnect` (which wins).
 `reconnect: false` disables retries — a drop is reported once and stays dropped, the
@@ -118,10 +119,10 @@ subscriber:
 | Event | When |
 |---|---|
 | `disconnected` | The socket dropped and a retry IS scheduled — `{ code }` |
-| `reconnecting` | Before each retry attempt — `{ attempt, delay }` |
-| `reconnected` | A retry succeeded — `{ attempts }` |
-| `lost` | The retry budget elapsed with no success — no payload |
-| `close` | The connection is gone for GOOD: a client-initiated close, a terminal server code (1000/1008), `reconnect: false` and the one attempt failed, or right after `lost` |
+| `reconnecting` | Before each retry attempt — `{ attempt, delay }` (`delay: 0` for a revive's immediate attempt) |
+| `reconnected` | A retry succeeded, a revived one included — `{ attempts }` |
+| `lost` | The retry budget elapsed with no success — no payload. The connection is NOT closed: it stays revivable (below) until its owner closes it |
+| `close` | The connection is gone for GOOD: a client-initiated close, a terminal server code (1000/1008), or `reconnect: false` and the one attempt failed. Never follows `lost` by itself |
 
 ```typescript
 connection.listen(async message => {
@@ -134,13 +135,33 @@ connection.listen(async message => {
 
 **The status aggregator.** `appendSocketStatus(ctx)` registers a shared service every
 `ws()`/`useWs()` connection reports its state into; `useSocketStatus()` reads the WORST state
-across all of them (`'online' | 'reconnecting' | 'lost'`). A connection that ends in `'lost'` is
-NOT released from the aggregate — there is no `Connection` for the caller to close, since `ws()`
-rejected — so the aggregate latches at `'lost'` until the page reloads. That is deliberate: it is
-what `@owlmeans/web-panel`'s `SocketReloadDialog` reads to put up a global, blocking "reload the
-page" prompt once every socket in the app has given up (`cfg.socket.reloadDialog`). Calling
+across all of them (`'online' | 'reconnecting' | 'lost'`). A `'lost'` connection stays in the
+aggregate — that is what `@owlmeans/web-panel`'s `SocketReloadDialog` reads to put up its global
+prompt (`cfg.socket.reloadDialog`) — until something revives or closes it. Calling
 `appendSocketStatus` unconditionally is cheap and safe for a host package — nothing reports into
 it unless something calls `ws()`/`useWs()`, so an app that never does behaves exactly as before.
+
+**Retry.** `socketStatus().retry()` revives every `'lost'` connection and hurries every
+`'reconnecting'` one (attempt at once instead of after the backoff, and at least `reviveBudget`
+left) — without that, a sibling whose older budget runs out a moment later reports `'lost'` right
+after the retry and puts the dialog straight back. It fires `onRetry` listeners and returns `true`
+only when something was lost, so calling it freely is safe.
+The service calls it by itself when the tab becomes visible, the window gains focus, or the
+browser goes back `online` — a background tab is where sockets die unnoticed (throttled timers, a
+sleeping machine), so the moment it is looked at again is when to retry. How a lost connection
+comes back depends on whether it ever opened:
+
+- **Opened before** — revived in place: one attempt at once, then the normal backoff within
+  `reviveBudget`. Same `Connection` model, and success emits `reconnected`, so the re-auth / re-sync
+  listeners every caller already has for a network blip cover this too. Failing again reports
+  `lost` again.
+- **Never opened** — `ws()` already rejected and nobody holds it, so it is closed for good and
+  released. `useWs` re-dials by itself on `onRetry` (a fresh `ws()`, full `budget`); a direct
+  `ws()` caller re-opens on its own terms.
+- A terminal close (1000/1008, `reconnect: false`) is never revived.
+
+`useSocketRetry()` gives a UI `{ retry, retrying }` — `retrying` is true from any retry (the
+button, or the service's own on activation) until the aggregate settles on `'online'` or `'lost'`.
 
 `useSocketStatus()` tolerates being called before the context's own `configure()`/`init()` has
 run (it defaults to `'online'` and re-attaches once `ctx.waitForInitialized()` resolves) — a
@@ -169,4 +190,5 @@ its thinking/slot socket relies on a separate periodic API push for the same rea
 - `server-socket` — the far side: guard enforcement, and what it stamps on a frame
 - `client-auth` — the `useWs` that carries the token and refreshes it across reconnects;
   `client-job` — `useJobFeed`, a worked subscription built on it
-- `web-panel` — `SocketReloadDialog`, the global blocking prompt built on `useSocketStatus()`
+- `web-panel` — `SocketReloadDialog`, the global blocking prompt built on `useSocketStatus()` /
+  `useSocketRetry()`

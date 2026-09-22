@@ -10,7 +10,7 @@ import type { Config, Context, ConnectOptions, ReconnectPolicy, SocketStatusServ
 import { useContext, useValue } from '@owlmeans/client'
 import { AUTH_QUERY } from '@owlmeans/auth'
 import { entrypointUrl } from '@owlmeans/client-entrypoint/utils'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import { DEFAULT_RECONNECT_POLICY } from './consts.js'
 import { SOCKET_STATUS } from './status.js'
@@ -47,9 +47,15 @@ const establish = async (
   const status = ctx.hasService(SOCKET_STATUS)
     ? (ctx as unknown as SocketStatusServiceAppend).socketStatus() : null
 
-  const { connection, ready } = makeConnection({
-    policy, retry, open, onStatus: state => status?.report(statusId, state)
+  let opened = false
+  let lost = false
+  const managed = makeConnection({
+    policy, retry, open, onStatus: state => {
+      lost = state === 'lost'
+      status?.report(statusId, state, state === 'online' ? undefined : revive)
+    }
   })
+  const { connection, ready } = managed
 
   const baseClose = connection.close
   connection.close = async () => {
@@ -57,13 +63,22 @@ const establish = async (
     status?.release(statusId)
   }
 
-  // A rejection here means `finish()` already ran and reported this id's terminal state —
-  // `'lost'` in every case, since the budget-exhausted path is the only one that rejects
-  // `ready`. Deliberately NOT released: there is no `Connection` to hand back for a caller to
-  // close, so the aggregate stays `'lost'` — the whole reason `SocketReloadDialog` exists — until
-  // the page reloads. Only a connection this function actually returns can be released, and only
-  // by the caller closing it on purpose.
+  const revive = () => {
+    if (opened || !lost) {
+      managed.revive()
+      return
+    }
+    // Never opened, so `ws()` already rejected and nobody holds this connection to hand a revived
+    // socket to: drop it for good and leave re-dialing to its owner (`useWs` does, on `onRetry`).
+    void baseClose()
+    status?.release(statusId)
+  }
+
+  // A rejection leaves this id reporting `'lost'` rather than releasing it — there is no
+  // `Connection` to hand back for a caller to close, and the aggregate is what puts
+  // `SocketReloadDialog` up. It is released by `revive` above, on the next `retry()`.
   await ready
+  opened = true
 
   return connection
 }
@@ -107,8 +122,9 @@ export const ws = async (
  * entrypoint here at the transport boundary.
  *
  * Re-opens on its own after a network drop (see `ws()`). `null` until the first attempt opens,
- * and again once the retry budget elapses without one ever opening — a screen that must tell
- * those two apart reads `useSocketStatus()` (from `./status.js`) alongside this.
+ * and again once the retry budget elapses without one ever opening — dialed afresh on the next
+ * `SocketStatusService.retry()`. A screen that must tell those two apart reads
+ * `useSocketStatus()` (from `./status.js`) alongside this.
  */
 export const useWs = (
   module: EntrypointReference | string, request?: Partial<AbstractRequest<any>>, options?: WsOptions
@@ -118,6 +134,8 @@ export const useWs = (
     () => ctx.entrypoint<ClientEntrypoint>(module),
     [module]
   )
+  const [failed, setFailed] = useState(false)
+  const [dial, setDial] = useState(0)
   const connection = useValue<Connection | null>(async (cancel) => {
     const _request = provideRequest(mod.alias, mod.path())
     Object.assign(_request, request)
@@ -132,13 +150,23 @@ export const useWs = (
       }
       return conn
     } catch {
+      if (!cancel?.current) setFailed(true)
       return null
     }
   }, [
     mod.alias,
     request?.query?.[AUTH_QUERY],
-    request?.params ? JSON.stringify(request.params) : undefined
+    request?.params ? JSON.stringify(request.params) : undefined,
+    dial
   ])
+
+  useEffect(() => {
+    if (!failed || !ctx.hasService(SOCKET_STATUS)) return
+    return (ctx as unknown as SocketStatusServiceAppend).socketStatus().onRetry(() => {
+      setFailed(false)
+      setDial(n => n + 1)
+    })
+  }, [failed])
 
   useEffect(() => {
     if (connection != null) {

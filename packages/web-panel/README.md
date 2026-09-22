@@ -86,7 +86,7 @@ import { commonConfig, MY_APP_WEB } from 'my-app-common'
 import type { Config } from './types.js'
 
 const cfg: Config = config(MY_APP_WEB, commonConfig as Config)
-// Block the screen with a "reload the page" prompt once every socket has given up reconnecting.
+// Block the screen with a "try again / reload the page" prompt once a socket has given up reconnecting.
 cfg.socket = { ...cfg.socket, reloadDialog: true }
 
 export default cfg

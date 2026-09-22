@@ -7,7 +7,7 @@ import type { SocketClientSettings, SocketStatusServiceAppend } from '@owlmeans/
 export interface AppConfig extends Config, WithFlowConfig {
   socket?: SocketClientSettings & {
     /**
-     * Show `SocketReloadDialog` — a global, blocking "reload the page" prompt — once every
+     * Show `SocketReloadDialog` — a global, blocking "try again / reload the page" prompt — once every
      * socket in the app has given up reconnecting (`useSocketStatus() === 'lost'`). Off by
      * default: an app opts in once it has decided that outcome deserves a full-page prompt
      * rather than the caller's own fallback UI.

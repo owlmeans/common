@@ -18,7 +18,7 @@ user-invocable: false
 | `TopNav` / `SideNav` / `MobileNav` / `Footer` | The shell's pieces, mountable on their own |
 | `Toaster` | The application's toast surface — mounted once, in the layout |
 | `ThemeToggle` / `useColorScheme` | The light/dark switcher (`ThemeToggleProps`, `ThemeToggleLabels`) and the hook behind it (`ColorSchemeModel`) — see *Light and dark* below |
-| `SocketReloadDialog` | The global "reload the page" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically — see below. The hook it reads, `useSocketStatus`, is imported from `@owlmeans/client-socket`, not from this package |
+| `SocketReloadDialog` | The global "connection lost — try again / reload" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically — see below. The hooks it reads, `useSocketStatus` and `useSocketRetry`, are imported from `@owlmeans/client-socket`, not from this package |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods` |
 | `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
@@ -340,12 +340,22 @@ on every navigation. Neither does anything unless an app opts in:
 cfg.socket = { reloadDialog: true }
 ```
 
-Once every `ws()`/`useWs()` connection in the app has exhausted its own retry budget
+Once any `ws()`/`useWs()` connection in the app has exhausted its own retry budget
 (`useSocketStatus() === 'lost'`), a global, blocking `AlertDialog` covers the screen — no Escape,
-no outside click, one action ("Reload page") that calls `window.location.reload()`. There is
-nothing else the budget-exhausted state can resolve into: the aggregate is not released on that
-path (see the `client-socket` skill), so the only way out is the reload. Strings are lib-tier
-(`useI18nLib('socket', 'reload')`), 7 languages, under `src/components/socket/i18n/`.
+no outside click, two actions:
+
+- **"Try again"** (`data-socket-retry-action`) — `useSocketRetry().retry()` revives every lost
+  connection (see the `client-socket` skill). The dialog stays up with the button disabled and
+  reading "Reconnecting…" while they retry, closes once the aggregate is `'online'`, and offers
+  both buttons again if it falls back to `'lost'`.
+- **"Reload page"** (`data-socket-reload-action`) — `window.location.reload()`, the fallback that
+  always works.
+
+The status service also retries by itself when the tab becomes visible, the window gains focus or
+the browser comes back online, so a socket that died in a background tab is usually back before
+anyone presses anything — an open dialog shows "Reconnecting…" through that too. Strings are
+lib-tier (`useI18nLib('socket', 'reload')`: `title`, `description`, `action`, `retry`,
+`retrying`), 8 languages, under `src/components/socket/i18n/`.
 
 Leave `cfg.socket.reloadDialog` unset (or `false`) for an app that would rather show its own
 inline "reconnecting…" state — `useSocketStatus()` from `@owlmeans/client-socket` serves that,
@@ -520,7 +530,7 @@ in a linked workspace, so it is the reliable scan target in both modes.
 ## Depends On
 
 - `@owlmeans/web-client`, `@owlmeans/client-panel`, `@owlmeans/client-i18n`, `@owlmeans/web-router`
-- `@owlmeans/client-socket` — `appendSocketStatus`, `useSocketStatus`, behind `SocketReloadDialog`
+- `@owlmeans/client-socket` — `appendSocketStatus`, `useSocketStatus`, `useSocketRetry`, behind `SocketReloadDialog`
 - Peers (app-provided): `react`, `react-dom`, `react-hook-form`, `tailwindcss`, `tailwind-merge`,
   `clsx`, `class-variance-authority`, `lucide-react`, `ajv`, and the `@radix-ui/react-*` primitives
   (`alert-dialog`, `dialog`, `label`, `navigation-menu`, `progress`, `separator`, `slot`). No MUI,
