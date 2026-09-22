@@ -58,16 +58,11 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
       throw new AuthUnknown()
     }
 
-    console.log("\n\n ************* \n Providers we get from remote:", providers)
-
     const provider = providers.find(p => p.def === true) ?? providers.shift()
     // Loaded providers can't be default otherwise we will get stuck with one of them
     if (provider != null && "def" in provider) {
       delete provider.def
     }
-
-    console.log("\n\nProvider we choose:", provider)
-    console.log("************* \n\n")
 
     if (provider == null) {
       throw new AuthUnknown()
@@ -85,8 +80,6 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
 
   const verifier = base64.encode(randomBytes(32))
   const challenge = base64.encode(sha256(verifier))
-
-  console.log("\n\n We create verifierID: ", verifierId(challenge), verifier, " with client: ", client.getClientId(), "\n\n")
 
   await cache(context).create({
     id: verifierId(challenge),
@@ -111,8 +104,6 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     code_challenge_method: 'S256',
     redirect_uri: dispatcherUrl,
   })
-
-  console.log('Url we got', url)
 
   return url
 })

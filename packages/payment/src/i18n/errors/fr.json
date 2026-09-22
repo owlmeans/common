@@ -1,0 +1,21 @@
+{
+  "PaymentError": "Le paiement n’a pas pu être finalisé",
+  "PaymentErrorPaygate": "Le prestataire de paiement n’a pas pu traiter la demande",
+  "PaymentErrorPaygateUnknown": "Ce prestataire de paiement n’est pas pris en charge",
+  "PaymentErrorPaygateMapping": "Les données du prestataire de paiement n’ont pas pu être associées",
+  "PaymentErrorPaygateWebhookSetup": "Les notifications de paiement ne sont pas configurées",
+  "PaymentErrorPaygatePortalUnavailable": "La gestion de la facturation n’est pas encore disponible pour ce compte",
+  "PaymentErrorProduct": "Ce produit n’est pas disponible",
+  "PaymentErrorProductUnknown": "Ce produit n’existe pas",
+  "PaymentErrorProductPlan": "Ce plan n’existe pas",
+  "PaymentErrorProductPlanRequired": "Aucun plan n’est disponible pour ce compte",
+  "PaymentErrorProductPlanRankConflict": "Les plans sont configurés de manière incohérente",
+  "PaymentErrorProductLimitUnknown": "Cette limite ne fait pas partie du plan",
+  "PaymentErrorProductLimitMisdeclared": "Les limites du plan sont mal configurées",
+  "PaymentErrorIdentification": "Nous n’avons pas pu identifier la personne qui paie. Connectez-vous puis réessayez.",
+  "PaymentErrorSubscription": "L’abonnement n’a pas pu être mis à jour",
+  "PaymentErrorSubscriptionUnknown": "Cet abonnement n’existe pas",
+  "EntitlementRefusal": "Votre plan ne l’autorise pas",
+  "EntitlementRefusalCapabilityRequired": "Cette fonction n’est pas incluse dans votre plan",
+  "EntitlementRefusalLimitExhausted": "Vous avez atteint la limite de votre plan pour cet élément"
+}

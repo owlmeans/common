@@ -11,7 +11,15 @@ updated: 2026-08
 - All packages are synchronized at one version (currently `0.1.16`); internal cross-package
   deps use the caret range carrying any prerelease suffix (`^0.1.16`, `^0.1.16-rc.0`).
   `@owlmeans/dep-config` is always `workspace:*` (config-only, no runtime code).
-- Bump ALL packages at once — commands in the `versions` skill.
+- Versions are NOT uniform after a release — only what changed (plus what must move with it) is
+  bumped; `publishing` skill. The published tarballs of the 2026-09-17 batch carry compiled files of
+  sources deleted on 2026-09-11 (an uncleaned `build/`), so a local-vs-registry diff shows
+  "registry-only" files that are dead leftovers, not content this tree lacks. Post-release commits
+  (README install lines, the `owlmeans-` agent-meta renames) then make ~20 root packages "changed"
+  and their dependents (~90) follow, so a full plan is ~110 packages: expected, not a misconfigured
+  checkout. Scoping a release to one change is a deliberate manual act (see the skill).
+- A caret on a `0.0.x` version is exact (`^0.0.23` does not admit `0.0.24`): bumping `viable-common`
+  means moving every consumer pin (viable, viable-agent, internal) in the same sweep.
 - Version fields and caret ranges must be rewritten in one pass before `bun install`. An install
   run while they disagree (or against a range left at an older version) finds no workspace match,
   fetches the old published tarballs into `packages/*/node_modules/@owlmeans/*`, and those shadow

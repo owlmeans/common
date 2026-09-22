@@ -46,6 +46,12 @@ export interface OidcProviderDescriptor {
   // This flag works only on client side. It specifies a default relying party
   def?: boolean
   /**
+   * Require a live authorization-server decision before accepting a wrapped
+   * session. `required` is for applications whose provider is their authority
+   * for account disablement and permission changes.
+   */
+  sessionValidation?: 'required' | 'optional'
+  /**
    * How this provider presents itself on the sign-in screen.
    *
    * A provider list is configuration, so the only place its human-readable name can come from is

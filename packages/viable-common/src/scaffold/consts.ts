@@ -1,3 +1,5 @@
+import type { BentoFragmentKind } from './types.js'
+
 /**
  * The shapes a drawn widget can take.
  *
@@ -24,3 +26,11 @@ export const AREA_HOME_WIDGET_CAP = 3
 
 /** Sections per area beyond which a top menu stops being navigable. */
 export const AREA_SECTION_CAP = 6
+
+/**
+ * The shapes a landing page's bento fragment can take.
+ *
+ * A closed set for the same reason as {@link WidgetKind}: each value is one stamped primitive, so a
+ * value nothing can draw is a tile with an empty bottom.
+ */
+export const BENTO_FRAGMENT_KINDS: BentoFragmentKind[] = ['list', 'note', 'people', 'steps']

@@ -150,8 +150,8 @@ export interface FakeStripeState {
   taxSettings: Rec
   /** Every `rawRequest` call, in order: `{ method, path, params }`. */
   rawRequests: Rec[]
-  /** FX Quotes rates by (lowercase) local currency: USD per one unit of it. */
-  fxRates: Record<string, { exchangeRate: number, fxFeeRate?: number }>
+  /** FX Quotes rates by lowercase source currency. */
+  fxRates: Record<string, { exchangeRate: number, baseRate?: number, referenceRate?: number, fxFeeRate?: number }>
   /** Every `rawRequest` to `/v1/fx_quotes` throws. */
   fxUnavailable: boolean
 }
@@ -352,6 +352,12 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
         state.customers[customer.id] = customer
         return structuredClone(customer)
       },
+      update: async (id: string, params: Rec) => {
+        call('customers.update')
+        const customer = find(state.customers, id, 'customer')
+        Object.assign(customer, params)
+        return structuredClone(customer)
+      },
     },
     checkout: {
       sessions: {
@@ -442,7 +448,14 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
       }
       return {
         rates: {
-          [local]: { exchange_rate: rate.exchangeRate, rate_details: { fx_fee_rate: rate.fxFeeRate ?? 0.02 } },
+          [local]: {
+            exchange_rate: rate.exchangeRate,
+            rate_details: {
+              base_rate: rate.baseRate ?? rate.exchangeRate,
+              reference_rate: rate.referenceRate ?? rate.baseRate ?? rate.exchangeRate,
+              fx_fee_rate: rate.fxFeeRate ?? 0.02,
+            },
+          },
         },
       }
     },

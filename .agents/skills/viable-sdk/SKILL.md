@@ -7,10 +7,10 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.20"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.25"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
-vocabulary — story type, story flow, `jobIdOf`) and `@owlmeans/planning` (the planning protocol tree
+vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
 and facade) — every name on the wire is declared there, so the SDK and the platform cannot spell one
 differently.
 
@@ -23,21 +23,23 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 
 | Export | Description |
 |--------|-------------|
-| `makeSdkContext({ apiUrl, token, service? })` | A client context authenticated by one token, with the connector protocols and the planning tree bound and the planning client registered |
+| `makeSdkContext({ apiUrl, token, service?, onRejected? })` | A client context authenticated by one token — a literal or a thunk — with the connector protocols and the planning tree bound and the planning client registered |
 | `makeRemoteConnectorApi(context)` | `ConnectorApi` over HTTP; its `planning` is the context's planning client facade |
 | `openSession(opts)` → `SessionRuntime` | One attached session: the operation loop, the task queue, `stats` |
 | `renderTaskEnvelope(task, { harness })` · `parseTaskResult(task, raw)` | What the parent agent is told; what its answer is checked against |
 | `makeModelTaskDriver({ models })` · `TaskDriver` | A reference parent agent backed by a chat model (tests, CLIs) |
 | `installHarness(dir, harness, opts?)` · `describeHarness(harness)` · `WORKING_RULE` | Set a coding agent up; preview it first |
 | `catalogue` · `visibleTools(host)` · `toolByName` · `registerCatalogue(server, deps)` · `serverInstructions({ host })` | The tools and how they reach an MCP server |
-| `renderJob(job)` · `isSettled(job)` | A job as a few lines a model can act on |
-| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` | The story tools' reading of planning cards |
+| `renderProjectStatus`, `renderStoryStatus(status, { landing? })`, `renderPipelineStatus`, `conversionNext` | Domain status as concise lines ending in the next valid action |
+| `resolveStory(deps, projectId, ref)` · `storyQuery(projectId, filter?)` · `renderStories(items, page, total)` · `STORY_ORDER` · `isLandingStory(card)` · `LANDING_MARK` · `LANDING_NOTE` | The story tools' reading of planning cards |
+| `PROJECT_SETTINGS` · `projectSettingOf(key)` · `settingsPatch(args)` · `renderProjectSettings(projectId, settings)` · `settingsReach(target)` | The project-settings tools: each setting's label and rule, the patch a call asks for, the rendering |
+| `PLATFORM_CATALOGUE` (`pipelines`, `features`, `capabilities`) · `renderPlatform(catalogue, host)` · `GENERATED_SUMMARY` | What `describe_platform` renders, and the one-sentence product summary `describe_capabilities` ends with |
 | `ToolHostKind` (`Stdio`/`Http`) · `ToolHost` · `ToolDeps` · `anyHost`/`localTarget`/`cloudTarget`/`withExecutor`/`delegatedLlm`/`sessionCapable`/`performsModelTasks` | The host description and the availability predicates |
-| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's job, on somebody's laptop |
+| `./executor`: `makeLocalSlotExecutor(dir, opts?)`, `createLocalFileHelper`, `createLocalShellHelper`, `dispatchGitCommand`, `verifyTarget`/`forgetIntegrity`, `targetPaths`/`apiPath`/`webPath`/`workerPath`, `backendEnv`/`frontendEnv`, `classifyTargetHealth`/`readTargetHealth`, `runBootCheck`, `confineToProject`, the spawn helpers | The publisher's workload, on somebody's laptop |
 | `./run`: `runLocal`, `stopLocal`, `localStatus`, `createLocalServer`, `startApi`/`startWorker`/`restartApi`/`stopProcess`, `readRun`/`writeRun`/`clearRun` | Building and running the generated app locally |
 | `readMarker`/`writeMarker`/`discoverProject`/`isViableTree` · `readEnv`/`writeEnv`/`envStatus`/`replaceManagedBlock` | The `.viable/connect.json` marker and the managed `.env` block |
 | `SdkError`, `SdkAuthError`, `SdkMisconfigured`, `SdkUnsupported` | Registered `ResilientError` classes |
-| `ENV_TOKEN`, `ENV_API_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
+| `ENV_TOKEN`, `ENV_API_URL`, `ENV_MCP_URL`, `ENV_TARGET`, `ENV_LLM`, `ENV_HARNESS`, `ENV_PROJECT_DIR` · `DEFAULT_MCP_URL` · `resolveMcpUrl(values)` · `TOOL_DEADLINE_MS` (45 s) · `COMMIT_WAIT_MS` (20 s) · `COMMIT_POLL_SEC` · `STORY_PAGE_SIZE` · `NEXT_TASK_WAIT_MS` · `PULL_WAIT_MS` | Configuration and deadlines |
 
 ## One credential, and the routes the server declares
 
@@ -53,8 +55,22 @@ planning alias and path derives from them. No socket opener is passed, so a comm
 poll only, and the schema bundle is not fetched at startup — nothing a tool does reads a flow, and a
 server nobody has asked anything yet makes no call. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
-revoking a token. A token without `CONNECT_TOKEN_PREFIX` is refused locally, because a 401 says
-nothing about which of several plausible mistakes was made and the answer is always the same one.
+revoking a token. A literal token that is empty or lacks `CONNECT_TOKEN_PREFIX` is refused locally
+(`SdkMisconfigured` / `SdkAuthError`), because a 401 says nothing about which of several plausible
+mistakes was made and the answer is always the same one.
+
+**`token` may be a thunk** (`() => string | Promise<string>`), resolved on every request — what a
+credential holder (`@owlmeans/cli-auth`) hands over, since it is `''` until a browser sign-in
+completes and a real token after, with no reconfiguration. Only a literal is validated eagerly; a
+thunk's value is unknown at construction, and an empty one is simply "not signed in". `onRejected`
+is passed to the carrier guard and fires when the platform 401s the presented token, which is where
+the holder forgets a dead file token (or reports a dead environment one) — see [[auth-token]].
+
+**The `/mcp` URL is a value the SDK resolves, never one it derives:** `resolveMcpUrl(values)` returns
+`values[ENV_MCP_URL]` (`VIABLE_MCP_URL`, empty = unset) else `DEFAULT_MCP_URL`
+(`https://api.owlmeans.com/mcp`), trailing slash dropped so a resource URI has one spelling. The
+caller passes the already merged environment + `~/.owlmeans` values (environment wins). A deployment's
+own resource identifier stays host-derived on the server.
 
 **The context must also declare the platform's `/update` base itself.** The connector's socket route
 and the planning commit feed hang under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
@@ -110,19 +126,20 @@ tool a host cannot serve is a tool the parent tries once, is refused, and rememb
 the list it reads is exactly the set of things that work for it. Predicates: `anyHost`,
 `localTarget`, `cloudTarget`, `withExecutor`, `delegatedLlm`.
 
-## 45 seconds is the ceiling, which is why long operations are JOBS
+## 45 seconds is the ceiling, so long operations return domain status
 
 Every MCP host bounds a tool call and the strictest default in the field is sixty seconds (Codex).
 `TOOL_DEADLINE_MS` leaves room for the round trip and keeps the connector inside every host's
 ceiling without configuration. A tool that outlives its host's ceiling is reported to the user as a
 **broken server**, and the true answer — the platform was slow — never reaches them.
 
-So anything that takes minutes returns a `ConnectJob` at once and is polled with `wait_for`.
-`registerCatalogue` enforces the deadline per call and converts a throw into an `isError` result the
-model can read and act on, because an exception crossing the transport tells it only that something
-went wrong somewhere. `renderJob` ends every job with a single `next:` line — that is what keeps a
-parent from inventing a polling strategy of its own, or from concluding that a blocked run has
-failed.
+Anything that takes minutes returns the owning domain's status and continues server-side.
+`project_status`, `story_status`, `conversion_status` and `pipeline_status` compose the durable
+records and run state a parent needs. `registerCatalogue` enforces the deadline per call and
+converts a throw into an `isError` result the model can read and act on, because an exception
+crossing the transport tells it only that something went wrong somewhere. Each status renderer
+ends with a single `next:` line so the parent follows the domain workflow and does not invent a
+polling strategy or treat a parked run as failed.
 
 ## The story tools speak planning
 
@@ -138,8 +155,8 @@ platform's in-process host. The scope a call answers for is the CREDENTIAL's; a 
 | `create_story` | `execute({ action: create, card: { kind: card, type: VIABLE_STORY_TYPE, parent, title, fields: { primary: false } } }, { wait: true, timeout: COMMIT_WAIT_MS })` |
 | `update_story` | `resolveStory` → `execute({ card, action: update, changes: { title }, expectSeq: head ?? seq }, { wait: true, … })` |
 | `delete_story` | `resolveStory` → `execute({ card, action: delete }, { wait: true, … })` → the project-lock poll |
-| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, a `CommitTimeout` tolerated → `project.job(project, jobIdOf(StoryDevelop, project, card.id))` |
-| `story_status` | `resolveStory` → the card's code, status and `fields.warning` |
+| `develop_story` | `resolveStory` → `execute({ card, action: transit, transition: start }, { wait: true, … })`, tolerating `CommitTimeout` → `story.status(project, card.id)` |
+| `story_status` | `resolveStory` → the card, its development run, pending inquiry, warning and landing mark |
 
 Rules the table rests on:
 
@@ -153,8 +170,7 @@ Rules the table rests on:
 - **Development is the story's `start`, not a call of its own.** The platform begins the run once that
   move COMMITS, and refuses it there too (the flow, one story in progress, the balance). The wait is
   `COMMIT_WAIT_MS`, well inside the tool deadline; a late commit is not a failure — the transition is
-  durable — so `develop_story` answers from the job row rather than outliving the host's ceiling. The
-  job id is composed with viable-common's `jobIdOf`, the one spelling the platform answers under.
+  durable — so `develop_story` answers from `story_status` rather than outliving the host's ceiling.
 - **A story a person writes goes as written, with no area.** Re-formatting the narrative and deciding
   the area are the platform's, done in its planning middleware for the `connect` channel; a connector
   that guessed an area would be a second answer. `update_story` carries only `title` and the head it
@@ -164,12 +180,67 @@ Rules the table rests on:
   unlocked observations.
 - **Stories are read in `order`, then `createdAt`**: `order` is the analysis's flow ordinal (a
   connective story sits at a fraction between two steps). `renderStories` keeps the line shape a parent
-  already reads — `code · status[ · primary][ · area]` over the narrative — under a header counting the
-  page by intrinsic state.
+  already reads — `code · status[ · primary][ · landing gate][ · area]` over the narrative — under a
+  header counting the page by intrinsic state. A new fact is a new FLAG beside `primary`; the area
+  stays last.
+- **The landing gate story is read off the card the tool already holds** (`fields.landing`, at most
+  one per project, decided by the platform at initialization — a connector never sets it). The list
+  flags it; `story_status` and `develop_story` pass the resolved card to `renderStoryStatus`, which
+  adds `LANDING_NOTE` under the status line, and their structured result gains `landing: true`. No
+  second call and no change to `connect.story.status`: that route carries the run, not the card's
+  fields. It is said because developing that story also replaces the guest-home sketch with the real
+  component, which the narrative alone never tells a parent.
 - **A planning refusal is phrased like any other**: `planning:illegal-transition:`,
   `workcard-conflict:`, `workcard-not-found:`, `fields-invalid:`, `commit-timeout:`, `commit-failed:`
   and the story markers (`viable-project:story:not-found:` / `:missconfigured:`) each have a sentence in
   `REFUSALS`.
+
+- **A sign-in refusal is phrased**: `oauth:sign-in-required:` (detail `<url> <code>`, the code absent
+  while no device sign-in is pending), `oauth:token-rejected:` (an environment token that was refused
+  is never replaced) and `api:auth:guard:auth-token` (a file token the platform refused — forgotten,
+  the next call signs in). Each ends with "call this tool again".
+
+## The project settings are ONE record, and the platform is the only validator
+
+`project_settings` and `update_project_settings` read and change what a person edits on the project's
+control panel — the copyright line, the organization name, the Terms and Privacy links and the Google
+tag — through `ConnectorApi.projectBranding(projectId)` and
+`saveProjectBranding(projectId, patch)` (`connect.project.branding.get` / `.save`,
+`ConnectProjectBranding` / `ConnectProjectBrandingSave` from `@owlmeans/viable-common`).
+
+- **A save is a PATCH.** `settingsPatch` keeps exactly the settings the call named, trimmed; an
+  omitted one keeps its stored value, and an EMPTY string is sent as given — for the Google tag that
+  is the removal, for the others a value the platform refuses. A call naming none is refused locally
+  and saves nothing. The answer is the merged record the platform stored, led by where the change
+  shows (`settingsReach`): a cloud preview is rebuilt, production takes it at the next Publish; a
+  local project gets it in its `.env` and `run_local` builds with it.
+- **The connector states the rules and checks none of them.** `PROJECT_SETTINGS[].rule` is the web
+  save's validation in words — never-empty copyright and organization; an `https://` address without
+  credentials or a single-slash path on the application (`/terms`, `/privacy` are the generated
+  pages); a `GTM-`/`G-`/`GT-`/`AW-`/`DC-` id or `''` — used by the tool description and by the
+  refusal. A second copy of the check would be a second answer that drifts from the platform's.
+- **A refusal names the setting and its rule.** The platform refuses a field with
+  `AuthenPayloadError(<wire field>)`; the `authen:payload:` phrase answers a known setting with its
+  label and rule and "Nothing was changed", any other field with a generic sentence. The tool runs in
+  `answering`, so the refusal is its own `isError` result and is still logged.
+- **The save attaches the connector first** (`ensureSession`), like a story mutation: it ends in the
+  platform's configuration push, which for a local project is a `Configure` operation this connector
+  answers.
+- **A relative link is annotated, never "fixed"**: `/terms` renders as "the generated Terms page", so
+  a parent does not rewrite it into an absolute address that points away from the generated page.
+- **The credit switch is not reachable.** It is a paid capability with its own gated route;
+  neither the record nor the patch carries it.
+
+## `describe_platform` also says what a generated application CARRIES
+
+`PLATFORM_CATALOGUE.features` holds facts about the product the runs produce — the landing gate, the
+generated Terms and Privacy pages, the consent-gated Google tag, the look, production builds without
+preview scaffolding — rendered whole on every host under "WHAT A GENERATED APPLICATION CARRIES", with
+only their `tools` narrowed to what the host offers. A parent that is not told the platform generates
+the legal pages writes its own beside them. `describe_capabilities` ends with `GENERATED_SUMMARY`, the
+same facts in one sentence, because it is read at the same moment by a parent that may never call
+`describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
+a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
 ## An out-of-credits refusal is phrased, and pushed through `notify`
 
@@ -285,8 +356,13 @@ safe to offer as a tool the agent may call whenever it is unsure. A configuratio
 JSON is **refused** — somebody is editing it, and overwriting would destroy every other server they
 had configured.
 
-**No file it writes contains the token**: each configuration references `VIABLE_API_TOKEN` in its
-harness's own syntax, so the result is safe to commit. `WORKING_RULE` is written once and rendered
+**No file it writes contains the token**, and none REQUIRES one: a person who signed in with a browser
+has the token in `~/.owlmeans`, which the server reads itself. So each configuration references
+`VIABLE_API_TOKEN` in its harness's own syntax only where that cannot break a machine that never set
+it — claude-code's `.mcp.json` uses `${VIABLE_API_TOKEN:-}` (an unset `${VAR}` makes Claude Code refuse
+the whole file; the server ignores the empty value), Copilot's `.vscode/mcp.json` has no token prompt
+at all, and Codex's `env_vars` lists `VIABLE_API_TOKEN`, `OWLMEANS_CREDENTIALS` and `HOME` (its filtered
+environment otherwise hides the credentials file). The result is safe to commit. `WORKING_RULE` is written once and rendered
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
 **The server command is written once, too.** Every harness configuration starts the connector from
@@ -294,7 +370,8 @@ into every harness's instruction file, so the four cannot drift into four differ
 viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
 command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
 never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
-`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version.
+`tests/harness.spec.ts` asserts all four configurations name the viable-mcp manifest's version, that no
+file contains a `vib_…` secret, and the optional-token shapes above.
 
 ## The executor is the publisher's job, on somebody's laptop
 
@@ -414,9 +491,12 @@ reader looking for a database that was never configured.
 the `registerCatalogue` out-of-credits and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
-types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`;
-`planning-wiring.spec.ts` pins the planning aliases and paths a context binds, and `remote.spec.ts`
-drives the remote facade through a captured transport to pin its deadlines.
+types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
+the landing mark included; the settings tools over a recorded `ConnectorApi` (order of session and
+save, the patch sent, the phrased `AuthenPayloadError`). `platform.spec.ts` pins that every tool a
+pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
+the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade and the
+settings routes through a captured transport to pin their paths and deadlines.
 
 ## Depends On
 

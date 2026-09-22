@@ -38,6 +38,36 @@ export interface ConsentCategory {
   event?: string
 }
 
+/**
+ * One third-party service the site runs under a consent category, as the cookie policy discloses
+ * it.
+ *
+ * A category says WHY something is stored; a service says WHO receives it. A regulator reading
+ * the policy wants the second — "analytics cookies" discloses nothing about which company learns
+ * what a visitor did — so a site that runs a tag lists it here, beside the category that gates
+ * it. Plain data rather than keys: the name, the provider and the purpose are whatever the party
+ * adding the tag knows about it, and `@owlmeans/web-gtm`'s `googleTagServices(id)` is the
+ * disclosure for a Google tag.
+ */
+export interface ConsentService {
+  /** Display name: "Google Analytics". */
+  name: string
+  /** Who receives the data: "Google LLC". */
+  provider: string
+  /**
+   * The `ConsentCategory.key` this service runs under: `'analytics'`, `'marketing'`,
+   * `'essential'`, or a custom key. A service whose category is not in force is still disclosed,
+   * in a trailing group of its own — hiding it would hide something that may still run.
+   */
+  category: string
+  /** One sentence on what it does with the data. */
+  purpose?: string
+  /** Cookie names it may set: `['_ga', '_ga_<ID>']`. */
+  cookies?: string[]
+  /** The provider's own privacy policy. */
+  privacyHref?: string
+}
+
 /** `v` is the schema version; every other key is a category key. */
 export interface ConsentRecord {
   v?: number

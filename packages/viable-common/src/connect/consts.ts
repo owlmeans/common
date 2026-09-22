@@ -209,47 +209,12 @@ export enum ModelTaskRole {
   Tool = 'tool',
 }
 
-/** The KIND of thing a job is, so a parent can be told what it is waiting for. */
-export enum ConnectJobKind {
-  ProjectCreate = 'project-create',
-  ProjectInit = 'project-init',
-  ProjectReinit = 'project-reinit',
-  StoryDevelop = 'story-develop',
-  FreeFlight = 'free-flight',
-  PipelineResume = 'pipeline-resume',
-  /**
-   * The four stages of a conversion, plus the purge.
-   *
-   * One kind per stage rather than one for the whole conversion: each stage is its own platform
-   * pipeline run, ends at a decision the user makes, and is looked up by the pipeline alias its
-   * kind names. A single `convert` kind would match whichever run row happened to be newest.
-   */
-  ConvertIntake = 'convert-intake',
-  ConvertAnalysis = 'convert-analysis',
-  ConvertExtraction = 'convert-extraction',
-  ConvertImplementation = 'convert-implementation',
-  ConvertPurge = 'convert-purge',
-}
-
-export enum ConnectJobStatus {
-  Queued = 'queued',
-  Running = 'running',
-  /** Running, but waiting on the connector — see `ConnectJob.blockedOn`. */
-  Blocked = 'blocked',
-  Done = 'done',
-  Failed = 'failed',
-}
-
-/** What a blocked job is waiting for. */
-export enum ConnectJobBlock {
-  /** Model tasks are queued and nobody is answering them. */
+/** Why a domain operation cannot currently advance. */
+export enum ConnectWaitReason {
+  Person = 'person',
   ModelTask = 'model-task',
-  /** Slot commands are queued and no connector is attached. */
-  LocalOp = 'local-op',
-  /** The local target has no database configured and the run needs one. */
-  Env = 'env',
-  /** A question is waiting for a person and nobody has answered it. */
-  Question = 'question',
+  LocalConnector = 'local-connector',
+  Environment = 'environment',
 }
 
 /**
@@ -336,8 +301,36 @@ export const CONNECT_CONFIGURE_TIMEOUT_MS = 60_000
  */
 export const CONNECT_CAP_LOCAL_LLM_KEY = 'connect--local-llm'
 
+/**
+ * The ceilings of a project's branding strings on the connector wire.
+ *
+ * Each equals its twin in the platform's own branding contract (`BRANDING_COPYRIGHT_MAX`,
+ * `BRANDING_ORGANIZATION_MAX`, `BRANDING_URL_MAX`) and must stay equal: a connector refused below the
+ * web form's limit, or accepted above it and refused further in, is one value with two answers.
+ * The Google tag's is its own — the longest id any Google product issues is well under it.
+ */
+export const CONNECT_BRANDING_COPYRIGHT_MAX = 200
+export const CONNECT_BRANDING_ORGANIZATION_MAX = 120
+export const CONNECT_BRANDING_URL_MAX = 2048
+export const CONNECT_BRANDING_GOOGLE_TAG_MAX = 32
+
 /** The access-token prefix the platform issues. Every connector token starts with it. */
 export const CONNECT_TOKEN_PREFIX = 'vib_'
+
+/**
+ * The production platform's own `/mcp` endpoint — what a person configures a URL-based MCP host
+ * with (`claude mcp add --transport http viable <this>`), and what a verification tool points at
+ * when nothing overrides it. The npx server never calls it (it talks to the REST API); it is a
+ * property of the PLATFORM, so it lives beside the other values both ends must agree on.
+ *
+ * `CONNECT_ENV_MCP_URL` overrides it, and so does a same-named key in `~/.owlmeans`; the
+ * environment wins over the file (`@owlmeans/cli-auth`'s `loadOwlmeansEnv`, which the resolver
+ * that reads them lives beside). A deployment's own `/mcp` resource identifier is NOT this value —
+ * it is built from that deployment's own API host.
+ */
+export const CONNECT_DEFAULT_API_URL = 'https://api.owlmeans.com'
+export const CONNECT_DEFAULT_MCP_URL = `${CONNECT_DEFAULT_API_URL}/mcp`
+export const CONNECT_ENV_MCP_URL = 'VIABLE_MCP_URL'
 
 /**
  * The marker a local project keeps so a connector attaching later knows which platform project it
@@ -383,10 +376,8 @@ export const RES_CONNECT_SESSION = 'connect-session'
  * the tree would be a second place for a name to drift. The platform spreads the declarations
  * these produce into its own entrypoint list and binds handlers onto them.
  *
- * There is no story group. A user story is a planning CARD, read and written through the planning
- * protocol tree the platform mounts beside this one (`makePlanningProtocols` in
- * `@owlmeans/planning`) — one surface for the browser and a connector alike, so a story rule the
- * platform enforces cannot be enforced on one of them only.
+ * Story mutations use the planning CARD surface. The connector story status route composes that
+ * card with its pipeline run and pending inquiry without creating a second mutation path.
  */
 export const connect = Object.freeze({
   base: 'viable:manager-api:connect:base',
@@ -415,7 +406,18 @@ export const connect = Object.freeze({
     llm: 'viable:manager-api:connect:project:llm',
     /** The per-project converter inference mode. Separate from `llm`: it is not a paid capability. */
     converterLlm: 'viable:manager-api:connect:project:converter-llm',
-    job: 'viable:manager-api:connect:project:job',
+    /**
+     * The project's own branding — copyright, organization, the two legal links, the Google tag.
+     * The platform credit is deliberately NOT here: hiding it is a paid capability with its own
+     * gated route, and a connector setting the rest must never be able to touch it.
+     */
+    branding: Object.freeze({
+      get: 'viable:manager-api:connect:project:branding:get',
+      save: 'viable:manager-api:connect:project:branding:save',
+    }),
+  }),
+  story: Object.freeze({
+    status: 'viable:manager-api:connect:story:status',
   }),
   convert: Object.freeze({
     create: 'viable:manager-api:connect:convert:create',

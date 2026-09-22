@@ -70,6 +70,27 @@ export const resolveStory = async (
   throw new ProjectStoryNotFound(ref)
 }
 
+/**
+ * What marks the project's LANDING GATE story, in a story line and in a story's own status.
+ *
+ * The platform picks at most one story per project — the key step of the end user's workflow — and
+ * draws a sketch of it on the guest home in place of the hero's call-to-action buttons: a visitor
+ * starts it there without an account, and signing in carries their choices to the story's
+ * full-scale screen. It is recorded as `fields.landing` on the story card, so the tools read it from
+ * the card they already hold, never from a second call.
+ *
+ * Said because it changes what developing the story does — the development also replaces the
+ * guest-home sketch with the real component — and a parent that reads only the narrative has no
+ * way to know that.
+ */
+export const LANDING_MARK = 'landing gate'
+export const LANDING_NOTE = 'landing gate story — a guest starts it on the guest home without an'
+  + ' account, and signing in carries their choices to its full screen; developing it also puts the'
+  + ' real component on the guest home'
+
+/** Whether a story card is the project's landing gate story. */
+export const isLandingStory = (card: Workcard): boolean => storyFieldsOf(card).landing === true
+
 /** `2 planned, 1 in progress` — the page's cards per intrinsic state, zeros left out. */
 const intrinsicCounts = (items: readonly Workcard[]): string => {
   const counts = new Map<string, number>()
@@ -89,7 +110,8 @@ const intrinsicCounts = (items: readonly Workcard[]): string => {
  * The header counts the page by INTRINSIC state, which is what "how much is left" means across
  * flows — a failed story is still work to do. Every story line is the shape the connector has
  * always printed, so a parent that learned to read it keeps reading it: the code first, because it
- * is what every other story tool takes.
+ * is what every other story tool takes. A new fact is a new flag beside `primary`, never a
+ * substitute for one, and the area stays last.
  */
 export const renderStories = (items: readonly Workcard[], page: number, total: number): string =>
   items.length < 1
@@ -100,5 +122,6 @@ export const renderStories = (items: readonly Workcard[], page: number, total: n
 
         return `  ${item.code ?? item.id ?? ''} · ${item.status}`
           + `${fields.primary ? ' · primary' : ''}`
+          + `${fields.landing === true ? ` · ${LANDING_MARK}` : ''}`
           + `${item.fields?.area != null ? ` · ${fields.area}` : ''}\n      ${item.title.slice(0, 160)}`
       }).join('\n')

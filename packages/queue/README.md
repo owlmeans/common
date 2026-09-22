@@ -16,7 +16,7 @@ and on the driver only where the application wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/queue@^0.1.18-rc.23
+bun add @owlmeans/queue@^0.1.18-rc.26
 ```
 
 ## Concepts
@@ -26,8 +26,8 @@ bun add @owlmeans/queue@^0.1.18-rc.23
   address, not a deployment.
 - **Listen**: `listenQueues(cfg, ...names)` in one process's own config says which queues *that
   process* consumes. A process that listens to nothing is a producer only.
-- **Queued protocol**: an immutable entrypoint protocol whose route uses `job()` instead of
-  `backend()` (`RouteProtocols.QUEUE`). Callers use `ctx.entrypoint(protocol).call(...)` unchanged,
+- **Queued protocol**: an immutable backend entrypoint protocol whose route uses `job()` from this
+  package (`QUEUE_PROTOCOL`). Callers use `ctx.entrypoint(protocol).call(...)` unchanged,
   and the QUEUE transport carries the call through the broker.
 - **Job record**: `ctx.jobs(queue)` returns a `QueueResource`, the ordinary `Resource<JobRecord>`
   contract plus `wait`, `flow`, `counts` and `close`. `create` enqueues, `list` inspects and `take`
@@ -80,7 +80,8 @@ appendRedisQueue(context, { hooks: billingQueueHooks(context) })
 
 ```ts
 import { contract, protocol, typed } from '@owlmeans/entrypoint'
-import { backend, job, route } from '@owlmeans/route'
+import { job } from '@owlmeans/queue'
+import { backend, route } from '@owlmeans/route'
 
 const aliases = { base: 'app:report', build: 'app:report:build' } as const
 const reportBase = protocol(route(aliases.base, '/reports', backend({ service: APP_WORKER })), contract())
@@ -286,7 +287,7 @@ not the job, so read the job back to learn what became of it.
 ## Related packages
 
 - [`@owlmeans/redis-queue`](../redis-queue): the BullMQ driver, and where queue integration tests live
-- [`@owlmeans/route`](../route): `RouteProtocols.QUEUE` and the `job()` builder
+- [`@owlmeans/route`](../route): transport-neutral route declarations used by the queue-owned `job()` builder
 - [`@owlmeans/entrypoint`](../entrypoint): protocol declarations and the transport seam
 - [`@owlmeans/resource`](../resource): the `Resource` contract jobs are read through
 - [`@owlmeans/server-job`](../server-job) / [`@owlmeans/client-job`](../client-job): listing,
@@ -300,7 +301,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.28
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

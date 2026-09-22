@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import nodemailer from 'nodemailer'
-import { SMTP_DEFAULT_PORT, toMailOptions, toTransportOptions } from '@owlmeans/mailer-smtp'
+import {
+  assertSmtpSettings, SMTP_DEFAULT_PORT, toMailOptions, toTransportOptions,
+} from '@owlmeans/mailer-smtp'
 import type { SmtpSettings } from '@owlmeans/mailer-smtp'
 
 const base: SmtpSettings = {
@@ -15,6 +17,14 @@ const base: SmtpSettings = {
  * and let nodemailer itself build the envelope through its bundled `jsonTransport`.
  */
 describe('@owlmeans/mailer-smtp — transport options', () => {
+  test('authenticated mode requires host, from, user, and password', () => {
+    expect(() => assertSmtpSettings(base, 'mailer', { authenticated: true })).not.toThrow()
+    for (const field of ['host', 'from', 'user', 'pass'] as const) {
+      expect(() => assertSmtpSettings({ ...base, [field]: '' }, 'mailer', { authenticated: true }))
+        .toThrow(`cfg.smtp.${field}`)
+    }
+  })
+
   test('defaults to implicit TLS on 465 with certificate verification', () => {
     const options = toTransportOptions(base)
 

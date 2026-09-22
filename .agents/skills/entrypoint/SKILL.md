@@ -1,12 +1,12 @@
 ---
 name: entrypoint
-description: How to declare immutable, typed @owlmeans/entrypoint protocols with protocol(), contract(), typed(), protocol trees, guards, gates, and route transports. Load before defining a shared API, socket, queue, or screen contract.
+description: How to declare immutable, typed @owlmeans/entrypoint protocols with protocol(), contract(), typed(), protocol trees, guards, gates, and route transports. Load before defining a shared API, socket, or screen contract.
 user-invocable: false
 ---
 
 # @owlmeans/entrypoint
 
-**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.28`
+**Install:** `bun add @owlmeans/entrypoint@^0.1.18-rc.31`
 
 **Layer:** Core
 
@@ -47,7 +47,7 @@ export const projectProtocols = {
 
 Keep aliases private to this module. A child should use its parent protocol object
 (`backend({ parent: projectBase })`); route creation stores its alias. Normal application code
-imports protocol objects, while raw aliases are limited to dynamic registry or broker adapters.
+imports protocol objects, while raw aliases are limited to dynamic registry or transport adapters.
 
 ## Contract sources
 
@@ -81,7 +81,7 @@ protocol(route(...), contract(...), {
 ```
 
 Guards and gates are inherited through the parent route by the bound runtime entrypoint. A route's
-protocol chooses the carrier (HTTP, socket, or queue); callers only use `call`, `invoke`, or `url`
+protocol chooses the built-in or package-owned carrier; callers only use `call`, `invoke`, or `url`
 on the client-bound protocol and do not branch on a transport.
 
 ## Bind, never replace

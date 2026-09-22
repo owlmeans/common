@@ -11,7 +11,8 @@ export interface AmountCheckoutDialogProps {
   onOpenChange: (open: boolean) => void
   policy: AmountCheckoutPolicy
   pending?: boolean
-  onConfirm: (amountMinor: number) => Promise<void> | void
+  /** Chosen amount and, where tax estimation collected it, the billing country. */
+  onConfirm: (amountMinor: number, country?: string) => Promise<void> | void
   /** A live tax/currency estimate for the credit line — absent: the plain "tax at checkout" note. */
   estimate?: PriceEstimateControl
 }

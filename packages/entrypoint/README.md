@@ -2,7 +2,7 @@
 
 Entrypoint protocol system — the typed route contract shared between server and client in OwlMeans
 apps. An application uses it in its shared (`common`) package to declare every addressable unit —
-an HTTP API route, a socket, a queued job or a screen — once, as an immutable protocol with typed
+an HTTP API route, a socket or a screen — once, as an immutable protocol with typed
 request sections, a response type, AJV schemas and access rules. Runtime behaviour is not added
 here: the server attaches handlers with `@owlmeans/server-entrypoint` / `@owlmeans/server-api`, the
 client binds calls and screens with `@owlmeans/client-entrypoint`, and route shapes themselves come
@@ -17,7 +17,7 @@ entrypoint is registered in — `path()` walks the parent chain, `mount()` adds 
 ## Installation
 
 ```bash
-bun add @owlmeans/entrypoint@^0.1.18-rc.28
+bun add @owlmeans/entrypoint@^0.1.18-rc.31
 ```
 
 ## Concepts
@@ -37,7 +37,7 @@ bun add @owlmeans/entrypoint@^0.1.18-rc.28
 - **Binding / materialization** — a side-specific package turns a declaration into a context-bound
   `CommonEntrypoint` (`materializeEntrypoint`) and adds a handler, a call or a screen. The declaration
   itself is never mutated.
-- **Transport** — the route's protocol (`http`, `ws`, `queue`) picks the carrier through a service
+- **Transport** — the route's protocol picks a built-in or package-owned carrier through a service
   registered under `transportAlias(protocol)`; callers write `call()` and never branch on it.
 
 ## Usage
@@ -139,18 +139,18 @@ const link = await context.entrypoint(storyProtocols.get).url({ params: { id: va
 address. `CallOptions` (`auth`, `host`, `base`, `unsecure`, `timeout`, `signal`) ride alongside the
 request sections and are never part of the payload contract.
 
-### 4. Gates, socket and queue carriers, derived types
+### 4. Gates, socket carriers, derived types
 
 ```ts
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import type { HandlerRequest, RequestOf, ResponseOf } from '@owlmeans/entrypoint'
-import { backend, job, route, RouteMethod, socket } from '@owlmeans/route'
-import { DEFAULT_GUARD, GUARD_ED25519 } from '@owlmeans/auth-common'
-import { PROJECT_GATE, WORKER, WORK_QUEUE } from './consts.js'
+import { backend, route, socket } from '@owlmeans/route'
+import { DEFAULT_GUARD } from '@owlmeans/auth-common'
+import { PROJECT_GATE } from './consts.js'
 
 const aliases = {
   base: 'my-app:project:base', update: 'my-app:project:update',
-  watch: 'my-app:project:watch', build: 'my-app:project:build',
+  watch: 'my-app:project:watch',
 } as const
 
 const base = protocol(route(aliases.base, '/projects', backend()), contract(), {
@@ -167,18 +167,8 @@ export const projectProtocols = {
     route(aliases.watch, '/project/:id', socket({ parent: updates })),
     contract.request({ params: typed<{ id: string }>() }, typed<void>()),
   ),
-  // Carried as a queued job for a worker service; callers still write `call()`.
-  build: protocol(
-    route(aliases.build, '/:id/build', job({
-      parent: base, method: RouteMethod.POST, service: WORKER, queue: WORK_QUEUE,
-    })),
-    contract.request({ params: typed<{ id: string }>() }, typed<{ jobId: string }>()),
-    { guards: GUARD_ED25519 },
-  ),
 } as const
 
-type BuildRequest = RequestOf<typeof projectProtocols.build> // { params: { id: string } }
-type BuildReply = ResponseOf<typeof projectProtocols.build>  // { jobId: string }
 type WatchRequest = HandlerRequest<RequestOf<typeof projectProtocols.watch>>
 ```
 
@@ -218,7 +208,7 @@ tree and its protocols are left untouched.
 | `gatesOf(protocol, tree)` | function | Gates a protocol inherits through its route parents, without materializing |
 | `isEntrypointProtocol(value)` | function | Type guard for a protocol declaration |
 | `entrypointRef<Request, Response>(alias)` | function | Typed reference for a dynamic remote address whose declaration cannot be imported |
-| `aliasOf(reference)` | function | Alias of a reference or string, for registry/broker adapters |
+| `aliasOf(reference)` | function | Alias of a reference or string, for registry/transport adapters |
 | `materializeEntrypoint(protocol)` | function | Make a context-bindable `CommonEntrypoint` from a declaration (used by binding packages) |
 | `provideResponse<T>(original?)` | function | Create an `AbstractResponse<T>` for invoking a handler or guard outside a transport |
 | `transportAlias(protocol = 'http')` | function | Service alias `transport:<protocol>` a transport registers under |
@@ -270,13 +260,14 @@ tree and its protocols are left untouched.
 ### Transport
 
 Register a service under `transportAlias(protocol)` implementing `EntrypointTransport` and every
-call to an entrypoint on that route protocol goes through it — `@owlmeans/queue` does this for
-`RouteProtocols.QUEUE`. Without a registered transport the call goes over HTTP.
+call to an entrypoint on that route protocol goes through it. The package defining a custom
+protocol owns its transport and option validation. Without a registered transport the call goes
+over HTTP.
 
 ## Common pitfalls
 
 - Do not export or import alias strings as an API. Keep them private to the declaration module and
-  pass protocol objects; raw aliases belong only in dynamic registry or broker adapters.
+  pass protocol objects; raw aliases belong only in dynamic registry or transport adapters.
 - Do not use `openProtocol` just to skip declaring input or output types — it is for intentionally
   untyped boundaries.
 - Use `typed<Model>(schema)` or `schema<Model>(...)` rather than a bare `JSONSchemaType<Model>`; a bare
@@ -296,13 +287,12 @@ call to an entrypoint on that route protocol goes through it — `@owlmeans/queu
 
 ## Related packages
 
-- [`@owlmeans/route`](../route) — `route()`, `backend()`, `socket()`, `job()`, `frontend()` used in `protocol(route(...), ...)`
+- [`@owlmeans/route`](../route) — `route()`, `backend()`, `socket()`, `frontend()` used in `protocol(route(...), ...)`
 - [`@owlmeans/context`](../context) — `BasicEntrypoint`, `EntrypointReference` and `context.entrypoint(...)`
 - [`@owlmeans/server-entrypoint`](../server-entrypoint) — server-side `bind()` / `bindAll()` to attach handlers
 - [`@owlmeans/server-api`](../server-api) — `handlers<Context>()` with protocol-inferred `body` / `params` / `request`
 - [`@owlmeans/server-socket`](../server-socket) — `connection(protocol, handler)` for socket protocols
 - [`@owlmeans/client-entrypoint`](../client-entrypoint) — client `bind()`, `bindAll()`, `bindScreen()` with typed calls
-- [`@owlmeans/queue`](../queue) — the QUEUE transport for `job()` routes
 - [`@owlmeans/auth-common`](../auth-common) — guard aliases and entity helpers used in access options and handlers
 - [`@owlmeans/server-app`](../server-app) — re-exports `contract`, `protocol`, `typed`, `EntrypointOutcome` and the request/response types
 
@@ -314,7 +304,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.28
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

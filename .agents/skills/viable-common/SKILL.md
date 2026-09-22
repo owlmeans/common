@@ -1,13 +1,13 @@
 ---
 name: viable-common
-description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers the planning module (the viable project, user-story and specification types over @owlmeans/planning, their two status flows, fields, slots, code policies, relationships and the write channel), the project and story refusals, the slot command vocabulary and target layouts, the target-shape integrity manifest, the connector protocol and its job ids, the conversion vocabulary, the analysis/design/metadata shapes a generated project is described by, the StoryDesignPort, the schema conventions every model answer and stored record here is written to, and the version-skew rule a name on the wire obeys. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
+description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate fields), project/story refusals, slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, conversion vocabulary, blueprint layers and cases, the persona/skill catalogue and its design house style, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
 user-invocable: false
 ---
 
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.23"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.28"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/resource`,
@@ -24,9 +24,9 @@ refusal two spellings, and one ceiling two values.
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`); `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; `ViableSkill` / `ViablePersona` / `VIABLE_SKILLS`; the BA, dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; `ViableSkill` / `ViablePersona` / `VIABLE_SKILLS`; the blueprint, its cases and `landingGatePreferenceOf`; the BA, dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` sets, `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectJobKind`/`Status`/`Block`, `jobIdOf` / `parseJobId` / `JOB_SEPARATOR`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session/job/status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`Shape`/`State`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`Reason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
 
@@ -56,7 +56,7 @@ flowless card, which is why a document runs the one-status `viable:spec` flow.
 ### The two flows
 
 Story flow — the keys are the strings a story has always carried, and they are wire contracts:
-the `docs/stories/<code>.md` frontmatter, the connector's job-status mapping, the board columns,
+the `docs/stories/<code>.md` frontmatter, the connector's story-status mapping, the board columns,
 their i18n keys and every end-to-end selector read them. A key is never renamed.
 
 | Status | Intrinsic | Tone |
@@ -109,12 +109,13 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | project `description` | `description` |
 | project `specification` / `vision` / `designSystem` | specification bodies, categories `specification` / `vision` / `design-system` |
 | project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
+| the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | story narrative (`story`) | `title` |
 | story `code` | `code` |
 | story `status` | `status` (same strings) |
 | story `projectId` | `parent` |
 | story position in the flow | `order` — a double; a connective story sits between two flow steps (`3.5`) |
-| story `area`, `primary`, `actor`, `warning`, `kind` | `fields.*` (`kind` is persisted) |
+| story `area`, `primary`, `actor`, `warning`, `kind`, `landing` | `fields.*` (`kind` is persisted) |
 | a story's design | specification `design` under the STORY card |
 | the scaffold plan | specification `scaffold` under the PROJECT card |
 
@@ -122,6 +123,27 @@ the wire and in target files — a parent agent's vocabulary, which never change
 still valid when it is checked, because validation runs after the planning middlewares and the
 viable plugin fills the area of a narrative a person wrote. `storyFieldsOf` answers an absent area
 as `guest` and an absent flag as `false`.
+
+### The landing gate on the cards
+
+The landing gate is the key end-user story a guest starts on the landing page and continues on its
+full-scale screen after signing in. Two fields record it, and they answer different questions:
+
+- project `fields.landing` is the DECISION, in three states: absent — never decided (a run that has
+  not reached it, a project older than the gate); `{ story: null, at }` — decided, no gate;
+  `{ story: <code>, at }` — that story. A failed decision is never written: `null` would read as a
+  decided "none" and nothing would ask again. The schema keeps `story` nullable for exactly that
+  reason, and `at` carries no `format` because the planning registry compiles without ajv-formats.
+- story `fields.landing: true` marks the chosen card — at most one per project — and is what the
+  design and development stages key on. `storyWriteInputOf` copies it into
+  `StoryWriteInput.landing` only when set, so `StoryMeta.landing` appears only in that story's
+  `docs/stories/<code>.md`; like `primary` it is the CARD's and is never passed in
+  `StoryWriteContent`.
+
+The chosen narrative also carries `LANDING_STORY_SENTENCE`, appended by `withLandingSentence` — a
+note for the people reading the board, never the authority. It is idempotent (checked with
+`hasLandingSentence`, whitespace-insensitive), joined with one space, and never pushes a title past
+`TITLE_MAX`: a narrative with no room is returned uncut rather than truncated.
 
 ### Slots
 
@@ -220,8 +242,17 @@ in a design, a slot or a connector schema:
 - **`items` is never an array.** A draft-04 tuple is refused wherever the schema reaches a
   provider or a collection validator.
 
+**A schema that validates a STORED document only grows optional.** `ScaffoldPlanSchema` is both a
+model-answer schema and the validator of the project card's `scaffold` slot, so a plan written
+before a field existed must still pass whenever it is carried into a new revision. Every field
+added to it — the hero's `secondary`/`browse` links, `steps`, `labels`, `closing`, a feature's bento
+`fragment`, the landing `gate` — is optional in the type and `nullable` in the schema, and a count
+the model should respect ("4 tiles", "5–8 chips") lives in the `description` and is clamped in
+code, never as `minItems`/`maxItems`. The descriptions are what the planning model reads, so they
+state each field's purpose and bounds; `gate.target` is filled by code and described as such.
+
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.19` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.24` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
@@ -249,10 +280,77 @@ card into the names a parent agent reads (`name` = title, `alias` = code, the th
 plus the card's `status` and `intrinsic` as plain strings, and `ConnectConfirmBody` carries the
 three brief parts including `designSystem`.
 
-A job id is composed and split only by `jobIdOf(kind, projectId, suffix?)` / `parseJobId`, joined
-with `JOB_SEPARATOR` (`~` — aliases and run ids already use `:`). The SDK composes the id it then
-polls and the manager answers it, so the helper lives here. A story job's suffix is the story CARD
-id, which is also what `ConnectJob.storyId` holds.
+A project's branding is read and saved at `/project/:id/branding` (`connect.project.branding.get`
+GET, `.save` POST) under `base` — the guard and the ownership gate, no paid gate. The save body
+(`ConnectProjectBrandingSaveSchema`) is a PATCH of strings with structural bounds only
+(`CONNECT_BRANDING_*_MAX`, each equal to its twin in the platform's branding contract); what makes a
+value acceptable — non-empty copyright and organization, a legal link that is `https://` or a
+same-origin path, a real Google tag id — is the platform's rule, applied to the MERGED record. The
+platform credit is never part of either record: hiding it is a paid capability with its own route.
+
+Long work is read through the domain that owns it: `ConnectProjectStatus`, `ConnectStoryStatus`,
+`ConversionStatusView` and `ConnectPipelineState`. Each view composes its current card/record, run,
+pending inquiry and `waitingFor` reason; none exposes a generic technical operation identity. Add a
+new long-running domain by extending its status view and endpoint, not by adding a parallel polling
+vocabulary.
+
+## Slot metadata keys: optional means omitted
+
+`SlotMetadata` is what the platform signs and pushes into a slot, and a slot publisher validates it
+against its own declared schema — refusing the WHOLE configuration with a 401 when the body carries
+a key it does not know. A key added after slots exist is therefore OPTIONAL in the type and OMITTED
+from a push while unset: `brandingGoogleTag` (in `metadataConfigs`), `cspSources` (in
+`SlotListMetadata`). The build ENVIRONMENT is different — `brandingEnv` always emits every
+`BRANDING_ENV_KEYS` entry, `BRANDING_GOOGLE_TAG` as `''` when unset, because the application's own
+build reads `''` as "none".
+
+`metadataConfigs` / `metadataLists` / `metadataSecrets` enumerate what an owner STORES — one
+`project-config` / `project-secret` row per key, loaded on every metadata read. `cspSources` is not
+an owner setting, so it is declared on the type and kept out of them. The Google tag's CSP hosts
+never travel in it: the publisher derives them from `brandingGoogleTag` itself (and from the record a
+production build writes), so the tag and the hosts it needs cannot disagree.
+
+## Blueprint layers and the case table
+
+A `Blueprint` has five REQUIRED build layers (`technology`, `stack`, `template`, `createApp`,
+`packages`) and one OPTIONAL `experience` layer — what the product should do for its users,
+changing no dependency and no coder prompt. Read it only through a helper that answers the default
+for an absent layer: `landingGatePreferenceOf(blueprint)` answers `LandingGatePreference.Allow` for
+no layer, no key or a value this deploy does not know. `freezeBlueprint` freezes the layer when
+present and never adds it when absent.
+
+The preference is a PRIOR for the model that decides the landing gate, never the decision:
+
+| Case | `experience.landingGate` | `ViableSkill.LandingGate` added to |
+|---|---|---|
+| `web`, `ai-pipeline`, `ai-agent` | `encourage` | `BusinessAnalyst`, `UxDesigner`, `LayoutArchitect`, `ComponentArchitect`, `UiViewCoder`, `UiNavCoder` |
+| `scalable` | `allow` | — |
+| `game` | `discourage` | — |
+
+A case's `personaSkills` are composed with `joinPersonaSkills`, which UNIONS a persona two maps
+both name — an object spread keeps only the last list and silently drops the other case's skill.
+`applyBlueprintCase` then unions the case's persona skills with the base blueprint's.
+
+## The design house style in the catalogue
+
+The `VisualDesigner` persona and the `ShadcnUi` skill teach one house style, and the template seed
+ships the same values: a white ground (black in dark mode) on `bg-background`; colour from ONE
+product accent, never from a background; depth only from a hairline, the neutral tile (`bg-muted`)
+and one `shadow-floating`; a heavy grotesk display face with tight tracking; motion that belongs
+to the illustration. The older classes (`gradient-heading`, `glass-card`, `eyebrow`, `glow-orb`,
+the soft/raised/glow shadows, `pulse-soft`, `spin-slow`) stay DEFINED because existing targets use
+them, are repainted flat, and are never taught as decoration. Any of it changes only when the
+customer's specification explicitly asks — a named background colour, a dark-only or coloured
+theme, a brand palette, gradients; the product's subject matter is not a request.
+`tests/skills.spec.ts` pins both texts against drifting back.
+
+`ViableSkill.LandingGate` teaches the gate-worthy story, the gate card, the synchronous handoff
+(`useLandingStart(target)` from the seed's `@/lib/handoff`: write, then navigate when signed in or
+start the plain sign-in; the guest home's `useLandingContinuation` sends the visitor on after
+sign-in — never `useLogin(target)`, whose continuation lands on the guarded screen) and the
+full-scale screen that reads and clears it. Every `ViableSkill` member has a body in `VIABLE_SKILLS` and a weight in
+`SKILL_ORDER`: the prompt service skips an alias it cannot resolve, so a missing body is a rule no
+model ever receives.
 
 ## Closed sets that mean something
 
@@ -342,8 +440,14 @@ with it.
 helpers — status keys as literals, `failed` intrinsically planned, the transition table — the type
 declarations, slots with no co-located category, code policies, reserved types outside `cardTypes`,
 the field schemas accepting `null` and refusing an undeclared field or a value outside a closed
-set, the card helpers, the `follows` anchor, and the refusals' type names surviving a marshal),
-`connect-entrypoints.spec.ts` (the tree's protocol count, no story route, the job-id round trip),
+set, the landing fields and the landing sentence, the card helpers, the `follows` anchor, and the
+refusals' type names surviving a marshal), `scaffold.spec.ts` (an old-shape and a new-shape plan
+both passing the schema and the `scaffold` slot, `null` optionals accepted, no `minItems`),
+`blueprint.spec.ts` (each case's gate preference, the default, and the persona-skill unions),
+`branding.spec.ts` (the build env and the metadata vocabulary), `skills.spec.ts` (every skill has a
+body and a weight, the handler wrap-once teaching, the house style and the landing-gate skill),
+`connect-entrypoints.spec.ts` (the tree's protocol count, no story route, the job-id round trip,
+the branding routes and their save body),
 `convert.spec.ts` (the three structural walks over the barrel, the
 conversion schemas compiling, a nullable enum accepting `null` under Ajv while still refusing an
 unknown member, the census classifiers and the stage transitions), `connect-convert.spec.ts` (the

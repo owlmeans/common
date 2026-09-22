@@ -3,7 +3,7 @@ import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 import { RouteMethod, route } from '@owlmeans/route'
 import { aliasOf, openProtocol, protocols } from '@owlmeans/entrypoint'
-import { connect, ConnectInquiryKind, ConnectJobKind, ConnectOpKind } from '../src/connect/consts.js'
+import { connect, ConnectInquiryKind, ConnectOpKind } from '../src/connect/consts.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 import {
@@ -151,12 +151,6 @@ describe('viable-common - the conversion additions to the connector contract', (
     // while the two enums stay byte-identical — `manager-api` does not depend on the model
     // runtime, so nothing else in the stack would notice one of them gaining a fourth shape.
     expect(Object.values(ConnectInquiryKind)).toEqual(Object.values(InquiryKind))
-    // One job kind per stage: each stage is its own pipeline run, looked up by the alias its kind
-    // names, so a single `convert` kind would match whichever run row happened to be newest.
-    expect(ConnectJobKind.ConvertIntake).toBe('convert-intake')
-    expect(ConnectJobKind.ConvertAnalysis).toBe('convert-analysis')
-    expect(ConnectJobKind.ConvertExtraction).toBe('convert-extraction')
-    expect(ConnectJobKind.ConvertImplementation).toBe('convert-implementation')
-    expect(ConnectJobKind.ConvertPurge).toBe('convert-purge')
+    expect(connect.convert.status).toBe('viable:manager-api:connect:convert:status')
   })
 })

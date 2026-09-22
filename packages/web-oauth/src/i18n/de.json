@@ -1,0 +1,35 @@
+{
+  "consent": {
+    "checking": "Sitzung wird überprüft…",
+    "loading": "Anfrage wird geladen…",
+    "framed": "Dieser Bildschirm kann nicht innerhalb einer anderen Seite angezeigt werden. Öffne ihn direkt.",
+    "error": "Etwas ist schiefgelaufen. Versuche es erneut über die Anwendung, die dich hierher geschickt hat.",
+    "title": "{{client}} möchte auf dein Konto zugreifen",
+    "known": "Du hast diese Anwendung bereits verwendet.",
+    "known-by-host": "Anfrage von {{host}}.",
+    "unverified": "Diese Anwendung hat sich selbst registriert und wurde nicht verifiziert.",
+    "device-code": "Code: {{code}}",
+    "device-name": "Gerät: {{name}}",
+    "redirect-host": "Du kehrst zu {{host}} zurück.",
+    "localhost-warning": "Diese Anwendung hat nur Adressen auf deinem eigenen Computer registriert. Bestätige dies nur, wenn du die Anmeldung gerade selbst gestartet hast.",
+    "scope": "Angeforderter Zugriff: {{scopes}}",
+    "approve": "Genehmigen",
+    "deny": "Ablehnen",
+    "error-missing": "Hier gibt es nichts zu bestätigen. Starte die Anmeldung erneut in der Anwendung.",
+    "error-not-found": "Diese Anfrage ist unbekannt oder wurde bereits verwendet. Starte die Anmeldung erneut in der Anwendung.",
+    "error-expired": "Diese Anfrage ist abgelaufen. Starte die Anmeldung erneut in der Anwendung.",
+    "error-forbidden": "Diese Art von Konto kann keinen Zugriff bestätigen. Melde dich mit dem Konto an, das du für OwlMeans verwendest, und versuche es erneut.",
+    "switch-account": "Anderes Konto verwenden"
+  },
+  "device": {
+    "title": "Gerät verbinden",
+    "description": "Gib den Code ein, den die Anwendung anzeigt, mit der du dich verbindest.",
+    "code-label": "Code",
+    "continue": "Weiter"
+  },
+  "done": {
+    "title": "Du bist angemeldet",
+    "message": "Du kannst dieses Fenster schließen und in der Anwendung fortfahren, die dich hierher geschickt hat.",
+    "device-message": "Du kannst dieses Fenster schließen. Die Anwendung übernimmt dies automatisch."
+  }
+}

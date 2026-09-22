@@ -1,5 +1,6 @@
 import { ResilientError } from '@owlmeans/error'
 import { ModerationCategory } from '@owlmeans/viable-common'
+import { projectSettingOf } from './settings.js'
 
 /**
  * One refusal: the marker it travels as, and the sentence a parent agent reads instead of it.
@@ -9,7 +10,7 @@ import { ModerationCategory } from '@owlmeans/viable-common'
  * in the platform's `viable-common`, the converter's own in `@owlmeans/viable-converter` — so an
  * `instanceof` here is impossible, and `ResilientError.ensure` rebuilds an unregistered class as a
  * bare error carrying the whole marshalled string. The same rule the browser follows for the same
- * reason: a refusal arrives thrown from a call AND stored as text on a job that failed, and only
+ * reason: a refusal arrives thrown from a call AND stored as text on a run that failed, and only
  * the marker survives both.
  */
 export interface RefusalPhrase {
@@ -50,6 +51,33 @@ const aside = (detail: string): string => detail !== '' ? ` (${detail})` : ''
  * table has never heard of.
  */
 export const REFUSALS: RefusalPhrase[] = [
+  // ── The connector itself is not signed in ───────────────────────────────────────────────────
+  // The detail is `<url> <code>`; the code is absent when no device sign-in is pending yet.
+  {
+    marker: 'oauth:sign-in-required:',
+    phrase: detail => {
+      const [url = '', code = ''] = detail.split(/\s+/)
+
+      return 'You are not signed in to Viable. Ask the person to open'
+        + ` ${url}${code !== '' ? ` and enter the code ${code}` : ''} and approve the connection with their`
+        + ' OwlMeans account (a browser has been opened for them where one could be). Then call this tool'
+        + ' again — nothing else needs configuring, and the code stays valid for ten minutes.'
+    },
+  },
+  {
+    marker: 'oauth:token-rejected:',
+    phrase: variable => `The token in ${variable !== '' ? variable : 'the environment'} was refused —`
+      + ' it is expired or was revoked. It was not replaced: signing in as somebody else behind the'
+      + ' person\'s back is not something this server does. Ask them to unset it to sign in with a'
+      + ' browser, or to export a fresh token.',
+  },
+  {
+    marker: 'api:auth:guard:auth-token',
+    phrase: () => 'The platform did not accept the access token this server presented — it is expired,'
+      + ' or was revoked in Settings. A token from ~/.owlmeans has been forgotten, so the next call'
+      + ' starts a browser sign-in; call this tool again.',
+  },
+
   // ── A conversion refused by the platform ────────────────────────────────────────────────────
   {
     marker: 'conversion:unsupported:monorepo',
@@ -115,7 +143,7 @@ export const REFUSALS: RefusalPhrase[] = [
       + ' was declined, so the conversion stopped here. Start it again and answer yes when it asks.',
   },
 
-  // ── A conversion refused by the converter itself, usually reaching a parent on a failed job ──
+  // ── A conversion refused by the converter itself, usually reaching a parent on a failed run ──
   {
     marker: 'viable-converter:not-convertible:',
     phrase: reason => `The origin is not an application this platform can convert${aside(reason)}.`,
@@ -218,7 +246,7 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'planning:illegal-transition:',
     phrase: move => `That move is not open from the status the story is in${aside(move)}. A story in`
-      + ' progress is already being developed — poll its job with wait_for; a completed one is reset'
+      + ' progress is already being developed — read story_status; a completed one is reset'
       + ' in the web application before it is developed again. story_status says where it stands.',
   },
   {
@@ -268,7 +296,7 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'viable-project:agent:occupied:',
     phrase: verb => `The platform is already working on this project${aside(verb)}.`
-      + ' Poll the running job with wait_for and ask again once it settles.',
+      + ' Read project_status and ask again once it settles.',
   },
   {
     // Spelled with its package prefix, unlike every marker above: `locked:` alone is a substring of
@@ -276,7 +304,7 @@ export const REFUSALS: RefusalPhrase[] = [
     // this sentence.
     marker: 'viable-agent-common:locked:',
     phrase: task => `The platform holds this project's lock${aside(task)}.`
-      + ' Poll the running job with wait_for and ask again once it settles.',
+      + ' Read project_status and ask again once it settles.',
   },
   {
     marker: 'git-busy:',
@@ -311,6 +339,23 @@ export const REFUSALS: RefusalPhrase[] = [
   {
     marker: 'viable-connect:op-unknown:',
     phrase: () => 'That operation is unknown, already answered, or belongs to another session.',
+  },
+
+  // ── A value the platform will not store ──────────────────────────────────────────────────────
+  // `AuthenPayloadError(<field>)` — the web branding save's refusal, and the connector save's,
+  // which reuses its validation. The detail is the wire field, so a project setting is answered with
+  // its own rule; any other field still reads as a sentence.
+  {
+    marker: 'authen:payload:',
+    phrase: field => {
+      const setting = projectSettingOf(field)
+
+      return setting != null
+        ? `The platform refused the ${setting.label} setting: it takes ${setting.rule}. Nothing was`
+          + ' changed — project_settings shows what is stored.'
+        : `The platform refused a value in this call as malformed${aside(field)}. Nothing was changed;`
+          + ' correct that value and call the tool again.'
+    },
   },
 
   // ── The call itself ──────────────────────────────────────────────────────────────────────────
@@ -378,7 +423,7 @@ const baseConverted = (e: ResilientError): boolean => {
  * `ResilientError.ensure` rebuilds a class this process never registered by putting the whole
  * marshalled string in `type` and its own local STACK in `message` — and every refusal the
  * platform raises is such a class, since they are declared in packages the SDK does not depend on.
- * So the marker can be in either field, and a stored `job.error` carries it as a bare string.
+ * So the marker can be in either field, and a stored run error carries it as a bare string.
  *
  * {@link baseConverted} is asked FIRST, because that rebuild is the one shape where the stack sits
  * outside the marshalling and the fields are swapped: everything below reads `message` as text and
@@ -404,7 +449,7 @@ const textOf = (e: unknown): string => {
  * marker names the refusal even when no sentence has been written for it yet.
  *
  * Text that was never marshalled is returned exactly as it is. A stack only ever arrives inside
- * the marshalling, and the same field carries things that are not refusals at all — a job's
+ * the marshalling, and the same field carries things that are not refusals at all — a run's
  * `error` doubles as the build warning a slot recorded, and cutting that at the first line that
  * looks like a stack frame would throw away the diagnostics somebody asked for.
  */

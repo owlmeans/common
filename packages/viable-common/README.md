@@ -14,14 +14,14 @@ filesystem, no inference SDK. It is safe to import from a browser bundle.
 |---|---|
 | `.` | The shapes a generated project is described by: user stories and entities, the design and scaffold plans, UX/UI specs, the `docs/` metadata paths, the four user areas, the model roles and personas, moderation categories, slot metadata |
 | `@owlmeans/viable-common/slot` | The slot command vocabulary — file, shell and git commands, the sub-project roles, the target's ports and process markers |
-| `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, jobs, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
+| `@owlmeans/viable-common/connect` | The connector protocol: sessions, operations, model tasks, questions, domain statuses, capabilities, the error family, and `connectProtocols()` — the one declaration both the platform and the SDK bind |
 | `@owlmeans/viable-common/convert` | Converting an application that already exists: the stages and their transitions, the origin and stack taxonomy, the census classifiers, and the `docs/conversion/` layout |
 | `@owlmeans/viable-common/integrity` | The target-shape manifest — what a slot is allowed to install, build and run — per target layout |
 
 ## Installation
 
 ```bash
-bun add @owlmeans/viable-common@^0.0.23
+bun add @owlmeans/viable-common@^0.0.28
 ```
 
 ## Rules worth knowing before you change something
@@ -39,7 +39,7 @@ means "inherit" has no other spelling. `tests/convert.spec.ts` walks every expor
 both faults, and for draft-04 tuple `items`.
 
 **A field that crosses a version skew carries no `enum`.** A connector is installed with
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.19` and talks to a separately deployed platform, so an executor kind it
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.24` and talks to a separately deployed platform, so an executor kind it
 sends must remain an unused capability on an older platform rather than a refused session.
 
 **A ceiling exists once.** The inquiry answer cap here equals `DEFAULT_INQUIRY_ANSWER_CHARS` in
@@ -59,7 +59,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.28
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

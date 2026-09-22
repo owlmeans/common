@@ -1,9 +1,10 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
-import type { QueueAppend, QueueConfig } from '@owlmeans/queue'
+import type { JobEntrypoints, JobListQuery, JobView } from '@owlmeans/job'
+import type { JobRecord, QueueAppend, QueueConfig, QueueResource } from '@owlmeans/queue'
+import type { Criteria } from '@owlmeans/resource'
 import type { ApiServerAppend } from '@owlmeans/server-api'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
 
 export interface Config extends ServerConfig {
   queue?: QueueConfig
@@ -12,65 +13,27 @@ export interface Config extends ServerConfig {
 export interface Context<C extends Config = Config> extends ServerContext<C>,
   ApiServerAppend, QueueAppend { }
 
-/** The alias every entrypoint of one job group answers under, derived from the group's root. */
-export interface JobEntrypointAliases {
-  base: string
-  list: string
-  get: string
-  cancel: string
-  watch: string
+export type JobAudience = Record<string, unknown>
+
+/** Required application policy at the raw-broker to public-domain boundary. */
+export interface JobExposurePolicy<A extends JobAudience = JobAudience> {
+  audience: (req: AbstractRequest, ctx: BasicContext<BasicConfig>) => A | Promise<A>
+  /** Translate public filters and authenticated scope into broker criteria. */
+  where: (audience: A, query: JobListQuery) => Criteria<JobRecord>
+  /** Resolve an opaque public id within the authenticated scope. */
+  lookup: (
+    id: string, audience: A, resource: QueueResource
+  ) => Promise<JobRecord | null>
+  /** Allowlist and map a scoped broker record into its public representation. */
+  map: (record: JobRecord, audience: A) => JobView | Promise<JobView>
+  /** Cancellation is unavailable unless this callback is present and approves the record. */
+  cancel?: (record: JobRecord, audience: A) => boolean | Promise<boolean>
 }
 
-/** The immutable declarations for one job group, addressed by property rather than alias lookup. */
-export interface JobEntrypoints {
-  base: EntrypointProtocol<OpenRequest, OpenValue>
-  list: EntrypointProtocol<{ query: JobListQuery }, unknown>
-  get: EntrypointProtocol<{ params: { id: string } }, unknown>
-  cancel: EntrypointProtocol<{ params: { id: string } }, unknown>
-  watch: EntrypointProtocol<OpenRequest, void>
-}
-
-export interface JobEntrypointOptions {
-  /** The path segment the group answers under. Defaults to `/jobs`. */
-  path?: string
-  /** The entrypoint the group hangs under — an app's API base. Top level when omitted. */
-  parent?: string
-  /** The service route the group answers on, when it is not this app's own. */
-  service?: string
-  /**
-   * The guard the group's base carries, and every entrypoint under it inherits.
-   *
-   * `DEFAULT_GUARD` unless told otherwise, because ownership is derived from the authenticated
-   * subject and an unguarded declaration has no subject to derive it from. Pass `null` only for a
-   * group that is scoped some other way — its handlers then answer `AuthorizationError`.
-   */
-  guard?: string | null
-}
-
-/** The list entrypoint's query, as it travels on the wire. */
-export interface JobListQuery {
-  state?: string
-  name?: string
-  page?: number
-  size?: number
-}
-
-/**
- * A request that may read the queue unscoped.
- *
- * A predicate rather than a permission name: which permission, gate or role means "operator" is
- * the application's decision, and hardcoding one here would make every deployment that names it
- * differently patch this package.
- */
-export interface JobAdminCheck {
-  (req: AbstractRequest, ctx: BasicContext<BasicConfig>): boolean | Promise<boolean>
-}
-
-export interface JobHandlerOptions {
+export interface JobHandlerOptions<A extends JobAudience = JobAudience> {
   /** Which declared queue these handlers read. The context's sole queue when omitted. */
   queue?: string
-  /** The field inside `JobRecord.data` that names the owner. Defaults to `owner`. */
-  ownerField?: string
-  /** The escape hatch — see {@link JobAdminCheck}. Nothing is unscoped without one. */
-  admin?: JobAdminCheck
+  policy: JobExposurePolicy<A>
 }
+
+export type { JobEntrypoints, JobListQuery }

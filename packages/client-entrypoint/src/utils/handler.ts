@@ -26,9 +26,8 @@ export const apiHandler: <
 
   const ep = context.entrypoint<ClientEntrypoint>(req.alias)
 
-  // A route names the protocol it answers on, and a protocol may be carried by something other than
-  // HTTP — a queue, say. Whatever is bound under this protocol takes the call, so a consumer writes
-  // `ep.call(...)` and never learns which of them ran.
+  // A route names the protocol it answers on. Whatever is bound under that protocol takes the
+  // call, so a consumer writes `ep.call(...)` without learning which transport ran.
   const transport = transportAlias(ep.route.route.protocol)
   if (context.hasService(transport)) {
     req.path = ep.path()

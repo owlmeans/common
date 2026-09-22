@@ -1,15 +1,16 @@
 import { z } from 'zod'
 import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import {
-  ConnectHarness, ConnectJobKind, ConnectTarget, ConversionDecision, ConversionStatus,
-  ConvertibilityVerdict, decisionFor, jobIdOf, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD,
+  ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus,
+  ConvertibilityVerdict, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD,
   STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition
 } from '@owlmeans/viable-common'
 import type {
-  ConnectJob, ConversionStatusView, ConvertCheck, InquiryPayload
+  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus,
+  ConnectStoryStatus, ConversionStatusView, ConvertCheck, InquiryPayload, ViableStoryCard
 } from '@owlmeans/viable-common'
 import {
-  COMMIT_WAIT_MS, JOB_POLL_MAX_SEC, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
+  COMMIT_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
 import { describeHarness, installHarness } from '../harness/index.js'
 import { envStatus } from '../project/env.js'
@@ -17,10 +18,13 @@ import { missingServices, readSetupReport, renderSetupGuide, setUserEnv } from '
 import { localStatus, runLocal, stopLocal } from '../run/index.js'
 import { parseTaskResult, renderTaskEnvelope } from '../task/envelope.js'
 import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
-import { renderJob } from './jobs.js'
-import { PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
+import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
 import { refusalMessage, refusalPhrase } from './refusal.js'
-import { renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
+import { renderProjectSettings, settingsPatch, settingsReach } from './settings.js'
+import {
+  conversionNext, renderPipelineStatus, renderProjectStatus, renderStoryStatus,
+} from './status.js'
+import { isLandingStory, renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
 import {
   anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
@@ -95,7 +99,29 @@ const projectOf = (args: Record<string, unknown>, deps: { attached: () => string
   return project
 }
 
-const jobResult = (job: ConnectJob) => ok(renderJob(job), { job: job as unknown as Record<string, unknown> })
+const projectResult = (status: ConnectProjectStatus) => ok(
+  renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
+)
+/** A story's domain status, with what its card says that the status route does not carry. */
+const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard) => {
+  const landing = isLandingStory(card)
+
+  return ok(
+    renderStoryStatus(status, { landing }),
+    { story: status as unknown as Record<string, unknown>, ...(landing ? { landing } : {}) }
+  )
+}
+/** The project settings, led by what a save just did where one did. */
+const settingsResult = (projectId: string, settings: ConnectProjectBranding, lead?: string) => ok(
+  (lead != null ? `${lead}\n\n` : '') + renderProjectSettings(projectId, settings),
+  { projectId, settings: settings as unknown as Record<string, unknown> }
+)
+const pipelineResult = (status: ConnectPipelineState) => ok(
+  renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
+)
+const conversionResult = (status: ConversionStatusView) => ok(
+  renderConversion(status), { conversion: status as unknown as Record<string, unknown> }
+)
 
 /**
  * Attach a connector, where this host can hold one.
@@ -152,36 +178,32 @@ const projectOrNull = (args: Record<string, unknown>, deps: ToolDeps): string | 
   typeof args.projectId === 'string' ? args.projectId : deps.attached()
 
 /**
- * The question a PARKED run is waiting on, when the connector's own queue holds none.
+ * The question a parked domain operation is waiting on, when this session holds none.
  *
  * A question is delivered as an operation and answered against it, and that is the fast path. But
  * an operation expires: a run that asked while nobody was attached, or while this connector was
  * being restarted, is left `Waiting` with a question no queue here has ever seen. Without this the
- * only way back to it is the web application, and a parent polling the job would wait out the
- * whole timeout on a question it could have carried in seconds.
+ * only way back to it is the web application, and a parent watching only the run would wait out the
+ * whole interaction on a question it could have carried in seconds.
  *
  * Best-effort on both reads. A project with no conversion answers an error, and failing the call
  * that asked for a question because the lookup for it failed would be worse than answering "none".
  */
-const parkedQuestion = async (
-  deps: ToolDeps, projectId: string, jobId?: string
-): Promise<InquiryPayload | null> => {
+const parkedQuestion = async (deps: ToolDeps, projectId: string): Promise<InquiryPayload | null> => {
+  try {
+    const status = await deps.api.project.status(projectId)
+    if (status.pendingInquiry != null) return status.pendingInquiry
+  } catch (e) {
+    deps.log(`no project question for ${projectId}: ${(e as Error).message}`)
+  }
   try {
     const status = await deps.api.convert.status(projectId)
     if (status.pendingInquiry != null) return status.pendingInquiry
   } catch (e) {
     deps.log(`no conversion question for ${projectId}: ${(e as Error).message}`)
   }
-  if (jobId == null) return null
-  try {
-    const job = await deps.api.project.job(projectId, jobId)
 
-    return job.inquiry ?? null
-  } catch (e) {
-    deps.log(`no question on job ${jobId}: ${(e as Error).message}`)
-
-    return null
-  }
+  return null
 }
 
 const questionResult = (inquiry: InquiryPayload, deps: ToolDeps, note?: string) => ok(
@@ -279,7 +301,7 @@ const renderCheck = (check: ConvertCheck, conversion: ConversionStatusView | nul
       ? 'nothing — this origin cannot be converted'
       : conversion != null
         ? conversionNext(conversion)
-        : 'convert_project to start, then poll the job with wait_for'
+        : 'convert_project to start, then read conversion_status'
   }`)
 
   return lines.join('\n')
@@ -312,9 +334,8 @@ const renderConversion = (view: ConversionStatusView): string => {
     )
   }
   // Phrased, exactly like a thrown one: the platform writes a failed stage's cause here with
-  // `describeFailure`, which for a refusal is the marker verbatim — so a conversion stopped by a
-  // declined relocation answered this tool with `viable-agent-common:conversion:relocate-declined`
-  // while `wait_for` on the very same run read out the sentence. One refusal, two readings.
+  // `describeFailure`, which for a refusal is the marker verbatim. Phrase the stored value the
+  // same way as a thrown refusal so every conversion status has one user-facing reading.
   if (view.lastError != null && view.lastError !== '') {
     lines.push(`error: ${refusalPhrase(view.lastError)}`)
   }
@@ -325,38 +346,11 @@ const renderConversion = (view: ConversionStatusView): string => {
 }
 
 /**
- * What to call after reading a conversion.
- *
- * Derived from the STATUS first and the stage second, because the two say different things: a
- * stage says how far the conversion has got, and only the status says whether the platform is
- * working, waiting for a person, or waiting for a decision that is the user's.
- */
-const conversionNext = (view: ConversionStatusView): string => {
-  switch (view.status) {
-    case ConversionStatus.Running:
-      return 'wait_for on the job, or conversion_status again'
-    case ConversionStatus.Waiting:
-      return 'next_question — this conversion needs a decision from the person you work for'
-    case ConversionStatus.Awaiting:
-      return `proceed_conversion { "decision": "${decisionFor(view.stage)}" } to go on, or`
-        + ` { "decision": "${ConversionDecision.Leave}" } to keep what it has produced`
-    case ConversionStatus.Failed:
-      return `proceed_conversion { "decision": "${ConversionDecision.Retry}" } once the cause is addressed`
-    case ConversionStatus.Done:
-      return 'nothing — this conversion is finished. purge_origin deletes the original sources.'
-    case ConversionStatus.Cancelled:
-      return 'nothing — this conversion was cancelled'
-    default:
-      return 'convert_project to start it'
-  }
-}
-
-/**
  * Everything a parent agent can ask the platform to do.
  *
  * Two rules shape the whole list. Every tool answers inside the strictest host's per-tool ceiling,
- * so anything that takes minutes returns a JOB at once and is polled — a coding agent that blocks
- * for twenty minutes is reported to its user as a hung server. And every tool that cannot work in
+ * so anything that takes minutes returns its current domain status and continues server-side. And
+ * every tool that cannot work in
  * a given mode is HIDDEN rather than failing, so the catalogue a parent reads is exactly the set
  * of things that work for it.
  */
@@ -366,9 +360,9 @@ export const catalogue: ToolDefinition[] = [
     title: 'What this platform can build, and what you can drive from here',
     description:
       'Everything the platform runs — building an application from a description, implementing'
-      + ' user stories, converting an application you already have — and which of it this session'
-      + ' can start. Read it before deciding how to approach a request. Needs no project and'
-      + ' makes no network call.',
+      + ' user stories, converting an application you already have — what every application it'
+      + ' generates carries, and which of it this session can start. Read it before deciding how to'
+      + ' approach a request. Needs no project and makes no network call.',
     input: {},
     availability: anyHost,
     run: async (_args, deps) => ok(renderPlatform(PLATFORM_CATALOGUE, deps.host)),
@@ -379,7 +373,8 @@ export const catalogue: ToolDefinition[] = [
     title: 'Report what your models can do',
     description:
       'Tell the platform which of your models it may use, so it can size each call. Call this once,'
-      + ' before creating or developing anything. Returns the mapping it will use.',
+      + ' before creating or developing anything. Returns the mapping it will use, and what every'
+      + ' generated application carries.',
     input: {
       strong: z.string().optional().describe('Your most capable model, e.g. the one you plan with'),
       standard: z.string().optional().describe('Your everyday model'),
@@ -407,7 +402,8 @@ export const catalogue: ToolDefinition[] = [
           'No model was recorded: this tool takes `strong`, `standard` and `cheap` as TOP-LEVEL'
           + ' string arguments, not nested under another key. The platform will size every call'
           + ' with its own defaults until you send them.\n\n'
-          + roleSummary(),
+          + roleSummary()
+          + `\n\n${GENERATED_SUMMARY}`,
           { tiers, roles: rolesByTier() }
         )
       }
@@ -424,13 +420,14 @@ export const catalogue: ToolDefinition[] = [
         // a delegated session performs all of them, an ordinary one performs a conversion's. Both
         // collect them the same way, so both are told to call next_task.
         + (performsModelTasks(deps.host)
-          ? '\n\nThis session runs the platform\'s model calls on YOUR side. Whenever a job reports'
-            + ' "blocked on: model-task", call next_task.'
+          ? '\n\nThis session runs the platform\'s model calls on YOUR side. Whenever a domain status'
+            + ' reports waiting for a model task, call next_task.'
           : sessionCapable(deps.host)
             ? '\n\nThe platform performs its own model calls for stories and free flight. A'
-              + ' CONVERSION\'s calls are yours by default. Whenever a job reports "blocked on:'
-              + ' model-task", call next_task.'
-            : ''),
+              + ' CONVERSION\'s calls are yours by default. Whenever a domain status reports'
+              + ' waiting for a model task, call next_task.'
+            : '')
+        + `\n\n${GENERATED_SUMMARY}`,
         { tiers, subagents, effortControl, roles: byTier }
       )
     },
@@ -519,43 +516,21 @@ export const catalogue: ToolDefinition[] = [
   },
 
   {
-    name: 'wait_for',
-    title: 'Wait for a job',
-    description:
-      `Poll one job for up to ${JOB_POLL_MAX_SEC} seconds. Returns as soon as it finishes or`
-      + ' becomes blocked; call again while it is still running.',
-    input: {
-      jobId: z.string(),
-      projectId: z.string().optional(),
-      maxWaitSec: z.number().int().min(0).max(JOB_POLL_MAX_SEC).optional(),
-    },
-    availability: anyHost,
-    run: async (args, deps) => {
-      const project = projectOf(args, deps)
-      const wait = Math.min((args.maxWaitSec as number) ?? JOB_POLL_MAX_SEC, JOB_POLL_MAX_SEC)
-      const job = await deps.api.project.job(project, args.jobId as string, wait)
-
-      return jobResult(job)
-    },
-  },
-
-  {
     name: 'create_project',
     title: 'Start a project from a description',
     description:
       'Describe the application in a sentence or two. The platform writes a specification, names it'
-      + ' and drafts a vision. Returns a job — poll it with wait_for, then read the draft and call'
-      + ' confirm_project.',
+      + ' and drafts a vision. Returns the project status; read the draft and call confirm_project.',
     input: { prompt: z.string().min(1) },
     availability: anyHost,
     run: async (args, deps) => {
-      const job = await deps.api.project.create(
+      const status = await deps.api.project.create(
         args.prompt as string,
         deps.host.target === ConnectTarget.Local ? ConnectTarget.Local : ConnectTarget.Cloud
       )
-      deps.attach(job.projectId)
+      deps.attach(status.project.id)
 
-      return jobResult(job)
+      return projectResult(status)
     },
   },
 
@@ -565,7 +540,7 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Confirm the drafted project, optionally editing what the analysis produced. This is what'
       + ' starts the build: the template lands, dependencies install, the whole application is'
-      + ' drawn. Returns a job — it takes several minutes.',
+      + ' drawn. Returns the project status while the server-side run continues.',
     input: {
       projectId: z.string().optional(),
       name: z.string().optional(),
@@ -582,14 +557,14 @@ export const catalogue: ToolDefinition[] = [
       // whose connector has not filed a session yet is not queued for later — a local target
       // answers it with `ConnectSessionGone` and the step fails.
       await ensureSession(deps, project)
-      const job = await deps.api.project.confirm(project, {
+      const status = await deps.api.project.confirm(project, {
         ...(typeof args.name === 'string' ? { name: args.name } : {}),
         ...(typeof args.description === 'string' ? { description: args.description } : {}),
         ...(typeof args.specification === 'string' ? { specification: args.specification } : {}),
         ...(typeof args.vision === 'string' ? { vision: args.vision } : {}),
         ...(typeof args.designSystem === 'string' ? { designSystem: args.designSystem } : {}),
       })
-      return jobResult(job)
+      return projectResult(status)
     },
   },
 
@@ -702,15 +677,73 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const job = await deps.api.project.reinit(project)
-      return jobResult(job)
+      return projectResult(await deps.api.project.reinit(project))
     },
+  },
+
+  {
+    name: 'project_settings',
+    title: 'The project\'s settings',
+    description:
+      'The settings a person edits on the project\'s control panel: the copyright line, the'
+      + ' organization name, the Terms and Privacy links, and the Google tag. A relative link such'
+      + ' as /terms or /privacy is normal — it is the page the platform generated inside the'
+      + ' application, and the generated pages name the organization and copyright set here.',
+    input: { projectId: z.string().optional() },
+    availability: anyHost,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+
+      return settingsResult(project, await deps.api.projectBranding(project))
+    },
+  },
+
+  {
+    name: 'update_project_settings',
+    title: 'Change the project\'s settings',
+    description:
+      'Change any of the copyright line, the organization name, the Terms and Privacy links and the'
+      + ' Google tag; whatever you leave out keeps its value. Copyright and organization are never'
+      + ' empty. A legal link is an https:// address or a path on the application itself — /terms'
+      + ' and /privacy are the generated pages. A Google tag is a GTM-, G-, GT-, AW- or DC- id, or'
+      + ' an empty string to remove it; it loads on the preview and in production behind the cookie'
+      + ' consent. The preview is rebuilt with the change; production takes it at the next Publish.',
+    input: {
+      projectId: z.string().optional(),
+      copyright: z.string().optional().describe('The copyright line, e.g. "© 2026 Acme Ltd"'),
+      organizationName: z.string().optional().describe('Who runs the application'),
+      termsUrl: z.string().optional().describe('https://… or a path such as /terms'),
+      privacyUrl: z.string().optional().describe('https://… or a path such as /privacy'),
+      googleTag: z.string().optional()
+        .describe('GTM-XXXXXXX, G-XXXXXXXXXX, GT-…, AW-… or DC-…; an empty string removes it'),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'update_project_settings', async () => {
+      const project = projectOf(args, deps)
+      const patch: ConnectProjectBrandingSave = settingsPatch(args)
+      const changed = Object.keys(patch)
+      if (changed.length < 1) {
+        return fail(
+          'Nothing to change. Give at least one of copyright, organizationName, termsUrl, privacyUrl'
+          + ' or googleTag — project_settings shows the current values.'
+        )
+      }
+      // The save ends in a configuration push, and for a local project that push is an operation
+      // THIS connector answers — so it is attached before the platform is asked, exactly as a story
+      // mutation is. A host that holds no session skips it and the platform delivers the push itself.
+      await ensureSession(deps, project)
+      const saved = await deps.api.saveProjectBranding(project, patch)
+
+      return settingsResult(project, saved, `Saved ${changed.join(', ')}. ${settingsReach(deps.host.target)}`)
+    }),
   },
 
   {
     name: 'list_stories',
     title: 'The user stories of a project',
-    description: 'One page of the project\'s stories, with their status.',
+    description:
+      'One page of the project\'s stories, with their status, the primary story, and the landing'
+      + ' gate story a guest starts on the guest home.',
     input: {
       projectId: z.string().optional(),
       page: z.number().int().min(0).optional(),
@@ -767,7 +800,7 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       // Formatting reads the target's file-backed entities before it persists the story. A local
       // project therefore needs its connector back after an MCP restart even though this tool does
-      // not itself return a long-running job.
+      // not itself start a long-running operation.
       await ensureSession(deps, project)
       // The narrative goes as written and with no area: rewriting it and deciding the area is the
       // platform's, done on the way in for a person's story — a connector that guessed an area
@@ -845,7 +878,7 @@ export const catalogue: ToolDefinition[] = [
     title: 'Implement a user story',
     description:
       'Ask the platform to design and build one story: its screens, its data, its endpoints, its'
-      + ' navigation. This is the main event and takes many minutes. Returns a job.',
+      + ' navigation. This is the main event and takes many minutes. Returns the story status.',
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
@@ -864,34 +897,29 @@ export const catalogue: ToolDefinition[] = [
         }, { wait: true, timeout: COMMIT_WAIT_MS })
       } catch (e) {
         if (!(e instanceof CommitTimeout)) throw e
-        // The move is durable and only its commit is late, so the job row is still the answer —
+        // The move is durable and only its commit is late, so the story status is still the answer —
         // waiting out the host's ceiling here would report a slow platform as a broken server.
         deps.log(`develop_story: the start of ${card.code ?? card.id} has not committed yet;`
-          + ' answering from the job')
+          + ' answering from story status')
       }
 
-      return jobResult(await deps.api.project.job(
-        project, jobIdOf(ConnectJobKind.StoryDevelop, project, card.id!)
-      ))
+      return storyResult(await deps.api.story.status(project, card.id!), card)
     },
   },
 
   {
     name: 'story_status',
     title: 'What happened to a story',
-    description: 'One story: its status, and the warning explaining a failure.',
+    description:
+      'One story, its development run, any warning explaining a failure, and whether it is the'
+      + ' project\'s landing gate story — the one a guest starts on the guest home.',
     input: { storyId: z.string(), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
-      const card = await resolveStory(deps, projectOf(args, deps), args.storyId as string)
-      // A warning is cleared by writing it empty, so an empty one is no warning at all.
-      const warning = card.fields?.warning
+      const project = projectOf(args, deps)
+      const card = await resolveStory(deps, project, args.storyId as string)
 
-      return ok(
-        `${card.code ?? card.id} · ${card.status}`
-        + (warning != null && warning !== '' ? `\nwarning: ${String(warning)}` : ''),
-        card
-      )
+      return storyResult(await deps.api.story.status(project, card.id!), card)
     },
   },
 
@@ -900,14 +928,13 @@ export const catalogue: ToolDefinition[] = [
     title: 'Ask the agent for an open-ended change',
     description:
       'Describe a change in words and let the platform\'s own coding agent make it. For anything'
-      + ' that is not a user story: a rename, a fix, a styling change. Returns a job.',
+      + ' that is not a user story: a rename, a fix, a styling change. Returns project status.',
     input: { prompt: z.string().min(1), projectId: z.string().optional() },
     availability: anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const job = await deps.api.project.modify(project, args.prompt as string)
-      return jobResult(job)
+      return projectResult(await deps.api.project.modify(project, args.prompt as string))
     },
   },
 
@@ -920,13 +947,7 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const state = await deps.api.pipeline.state(projectOf(args, deps), args.runId as string)
 
-      return ok(
-        `${String(state.pipeline)} · ${String(state.status)}`
-        + (state.step != null ? ` · stopped at ${String(state.step)}` : '')
-        // A run stops on the same refusals a call is thrown, and the row keeps the cause as text.
-        + (state.error != null ? `\nerror: ${refusalPhrase(String(state.error))}` : ''),
-        state
-      )
+      return pipelineResult(state)
     },
   },
 
@@ -945,10 +966,10 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const job = await deps.api.pipeline.resume(project, args.runId as string, {
+      const status = await deps.api.pipeline.resume(project, args.runId as string, {
         ...(typeof args.from === 'string' ? { from: args.from } : {}),
       })
-      return jobResult(job)
+      return pipelineResult(status)
     },
   },
 
@@ -958,8 +979,8 @@ export const catalogue: ToolDefinition[] = [
     description:
       'The platform hands you model calls to perform: a conversion\'s by default, and everything'
       + ' else when this session runs in the delegated mode. Returns one task with instructions for'
-      + ' running it in a clean subagent, or says there is nothing yet. Call it whenever a job'
-      + ' reports "blocked on: model-task", and keep calling until it says none.',
+      + ' running it in a clean subagent, or says there is nothing yet. Call it whenever a domain'
+      + ' status says it is waiting for a model task, and keep calling until it says none.',
     input: {
       maxWaitSec: z.number().int().min(0).max(45).optional(),
       taskId: z.string().optional()
@@ -968,7 +989,7 @@ export const catalogue: ToolDefinition[] = [
     // Not `performsModelTasks`: a conversion's model calls are the parent's by default whatever
     // the account setting says, so a session billed to the platform must still be able to collect
     // one. What they do need is a host that STAYS — a task is handed out once and answered
-    // minutes later.
+      // minutes later.
     availability: sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
@@ -976,7 +997,7 @@ export const catalogue: ToolDefinition[] = [
       // Asking for one by id re-reads it rather than taking a new one. A task is handed out once
       // and the platform waits on it for up to 45 minutes, so a parent that lost the envelope —
       // a compacted conversation, a subagent that died before answering — otherwise has no way
-      // back to it and the job blocks until the deadline for no reason.
+      // back to it and the run waits until the deadline for no reason.
       if (typeof args.taskId === 'string') {
         const known = session.taskById(args.taskId)
         if (known == null) {
@@ -1001,8 +1022,8 @@ export const catalogue: ToolDefinition[] = [
         }
 
         return ok(
-          'No task right now. If a job is still running, call wait_for; if it reported'
-          + ' "blocked on: model-task", call next_task again.'
+          'No task right now. Read the matching project, story, conversion, or pipeline status;'
+          + ' call next_task again only while it reports waiting for a model task.'
         )
       }
 
@@ -1041,7 +1062,7 @@ export const catalogue: ToolDefinition[] = [
       return ok(
         next > 0
           ? `Accepted. ${next} more task(s) waiting — call next_task.`
-          : 'Accepted. Call wait_for on the job, or next_task if it is still blocked.'
+          : 'Accepted. Read the matching project, story, conversion, or pipeline status.'
       )
     },
   },
@@ -1051,13 +1072,11 @@ export const catalogue: ToolDefinition[] = [
     title: 'Get the question the platform is asking',
     description:
       'The platform sometimes needs a decision only the person you are working for can make.'
-      + ' Returns one question to put to them, or says there is none. Call it whenever a job'
-      + ' reports "blocked on: question".',
+      + ' Returns one question to put to them, or says there is none. Domain status responses also'
+      + ' include parked questions directly.',
     input: {
       maxWaitSec: z.number().int().min(0).max(45).optional(),
       questionId: z.string().optional().describe('Re-read a question you were already given.'),
-      jobId: z.string().optional()
-        .describe('The job that reported "blocked on: question", if you have its id.'),
       projectId: z.string().optional(),
     },
     // Not `performsModelTasks`: a question has nothing to do with who performs the model calls,
@@ -1067,13 +1086,12 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => {
       const session = await deps.session()
       const project = projectOrNull(args, deps)
-      const jobId = typeof args.jobId === 'string' ? args.jobId : undefined
 
       // Asking for one by id re-reads it rather than taking a new one — the same reason
       // `next_task` does: a parent that lost the envelope has no other way back to it.
       if (typeof args.questionId === 'string') {
         const known = session.questionById(args.questionId)
-          ?? (project != null ? await parkedQuestion(deps, project, jobId) : null)
+          ?? (project != null ? await parkedQuestion(deps, project) : null)
         if (known == null || known.id !== args.questionId) {
           return fail(`No question ${args.questionId} is waiting. Call next_question with no id.`)
         }
@@ -1096,7 +1114,7 @@ export const catalogue: ToolDefinition[] = [
 
       // Nothing queued here, which does not mean nothing is being asked: a run that parked while
       // this connector was away is waiting on a question whose operation has long expired.
-      const parked = project != null ? await parkedQuestion(deps, project, jobId) : null
+      const parked = project != null ? await parkedQuestion(deps, project) : null
       if (parked != null) {
         return questionResult(
           parked, deps,
@@ -1105,8 +1123,8 @@ export const catalogue: ToolDefinition[] = [
       }
 
       return ok(
-        'No question right now. If a job is still running, call wait_for; if it reported'
-        + ' "blocked on: question", call next_question again.'
+        'No question right now. Read the matching domain status and answer any pendingInquiry it'
+        + ' returns; call next_question again only while it reports waiting for a person.'
       )
     },
   },
@@ -1123,11 +1141,6 @@ export const catalogue: ToolDefinition[] = [
       answer: z.union([z.string(), z.array(z.string())]).optional(),
       text: z.string().optional().describe('What they said, where the question takes words.'),
       declined: z.boolean().optional().describe('Nobody could decide this.'),
-      // Taken here for the same reason `next_question` takes it, and it has to be the SAME reach:
-      // a question this tool cannot find is refused after a person has already answered it, and
-      // the parent is sent back to `next_question`, which would offer it again through the job.
-      jobId: z.string().optional()
-        .describe('The job that reported "blocked on: question", if you have its id.'),
       projectId: z.string().optional(),
     },
     availability: sessionCapable,
@@ -1135,12 +1148,11 @@ export const catalogue: ToolDefinition[] = [
       const session = await deps.session()
       const questionId = args.questionId as string
       const project = projectOrNull(args, deps)
-      const jobId = typeof args.jobId === 'string' ? args.jobId : undefined
 
       // The question this session is holding, if it still is. That is what decides HOW the answer
       // travels: an operation the platform is waiting on, or the question's own id.
       const held = session.questionById(questionId)
-      const inquiry = held ?? (project != null ? await parkedQuestion(deps, project, jobId) : null)
+      const inquiry = held ?? (project != null ? await parkedQuestion(deps, project) : null)
       if (inquiry == null || inquiry.id !== questionId) {
         return fail(
           `No question ${questionId} is waiting. Call next_question for the current one.`
@@ -1163,7 +1175,7 @@ export const catalogue: ToolDefinition[] = [
         await deps.api.inquiry.answer(project, questionId, answer!)
       }
 
-      return ok('Recorded. Call wait_for on the job.')
+      return ok('Recorded. Read the matching project, story, conversion, or pipeline status.')
     },
   },
 
@@ -1199,7 +1211,7 @@ export const catalogue: ToolDefinition[] = [
     description:
       'Bring an existing application onto the platform: it reads the code, restores the'
       + ' specification and the user stories nobody wrote down, and rebuilds it on the platform\'s'
-      + ' stack. The original is kept beside it. Returns a job, and stops at your decision after'
+      + ' stack. The original is kept beside it. Returns conversion status and stops at your decision after'
       + ' each stage.',
     input: {
       projectId: z.string().optional().describe('Convert into a project that already exists.'),
@@ -1215,7 +1227,7 @@ export const catalogue: ToolDefinition[] = [
       if (named != null) {
         await ensureSession(deps, named)
 
-        return jobResult(await deps.api.convert.start(named))
+        return conversionResult(await deps.api.convert.start(named))
       }
 
       const repoUrl = typeof args.repoUrl === 'string' && args.repoUrl.trim() !== ''
@@ -1228,7 +1240,7 @@ export const catalogue: ToolDefinition[] = [
         )
       }
 
-      const job = await deps.api.convert.create({
+      const status = await deps.api.convert.create({
         ...(typeof args.name === 'string' ? { name: args.name } : {}),
         ...(typeof args.about === 'string' ? { about: args.about } : {}),
         // A NAMED repository outranks the directory this connector runs in. A stdio connector
@@ -1248,10 +1260,10 @@ export const catalogue: ToolDefinition[] = [
             },
           }),
       })
-      deps.attach(job.projectId)
-      await ensureSession(deps, job.projectId)
+      deps.attach(status.projectId)
+      await ensureSession(deps, status.projectId)
 
-      return jobResult(await deps.api.convert.start(job.projectId))
+      return conversionResult(await deps.api.convert.start(status.projectId))
     }),
   },
 
@@ -1261,7 +1273,7 @@ export const catalogue: ToolDefinition[] = [
     description:
       'A conversion stops after each stage and waits for a decision: analyze what was read,'
       + ' extract the user stories, implement them, leave it as it stands, retry a stage that'
-      + ' failed, or cancel. Returns a job for anything that runs.',
+      + ' failed, or cancel. Returns the conversion status.',
     input: {
       decision: z.enum(Object.values(ConversionDecision) as [string, ...string[]]),
       projectId: z.string().optional(),
@@ -1271,13 +1283,13 @@ export const catalogue: ToolDefinition[] = [
     run: async (args, deps) => await answering(deps, 'proceed_conversion', async () => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const job = await deps.api.convert.proceed(
+      const status = await deps.api.convert.proceed(
         project,
         args.decision as ConversionDecision,
         typeof args.note === 'string' ? args.note : undefined
       )
 
-      return jobResult(job)
+      return conversionResult(status)
     }),
   },
 
@@ -1319,7 +1331,7 @@ export const catalogue: ToolDefinition[] = [
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
 
-      return jobResult(await deps.api.convert.purge(project))
+      return conversionResult(await deps.api.convert.purge(project))
     }),
   },
 

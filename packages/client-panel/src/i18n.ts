@@ -8,6 +8,7 @@ const buttons = {
   uk: { buttons: { submit: 'Надіслати' } },
   es: { buttons: { submit: 'Enviar' } },
   de: { buttons: { submit: 'Senden' } },
+  fr: { buttons: { submit: 'Envoyer' } },
 } as const
 
 for (const [language, values] of Object.entries(buttons)) {

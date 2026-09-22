@@ -31,6 +31,11 @@ export enum ViableSkill {
   FormFeedback = 'form-feedback',
   StoreAccess = 'store-access',
   ViewModelNaming = 'viewmodel-naming',
+  /**
+   * The landing gate: a guest starts the key end-user story on the landing page and continues on
+   * its full-scale screen after signing in, with the choices carried over.
+   */
+  LandingGate = 'landing-gate',
 
   ResourceLayer = 'resource-layer',
   ResourceResults = 'resource-results',
@@ -99,6 +104,9 @@ export const SKILL_ORDER: Record<ViableSkill, number> = {
   [ViableSkill.FormFeedback]: 51,
   [ViableSkill.StoreAccess]: 52,
   [ViableSkill.ViewModelNaming]: 55,
+  // After the frontend rules it builds on (entrypoints, nav, shadcn, form feedback, the store), and
+  // before the backend block — it is only ever carried by analysis and frontend personas.
+  [ViableSkill.LandingGate]: 56,
   [ViableSkill.ResourceLayer]: 60,
   [ViableSkill.ResourceResults]: 62,
   [ViableSkill.ResourceMigrations]: 64,

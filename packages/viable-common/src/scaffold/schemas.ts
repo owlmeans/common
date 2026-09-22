@@ -1,9 +1,10 @@
 import type { JSONSchemaType } from 'ajv'
 
 import { ProjectArea } from '../areas/consts.js'
-import { WidgetKind } from './consts.js'
+import { BENTO_FRAGMENT_KINDS, WidgetKind } from './consts.js'
 import type {
-  GuestHomePlan, ProductIdentity, ScaffoldAreaPlan, ScaffoldPlan, ScaffoldStoryPlan, SketchContent,
+  BentoFragment, GuestHomePlan, LandingGatePlan, ProductIdentity,
+  ScaffoldAreaPlan, ScaffoldPlan, ScaffoldStoryPlan, SketchContent,
 } from './types.js'
 
 const SketchContentSchema: JSONSchemaType<SketchContent> = {
@@ -160,6 +161,166 @@ const ScaffoldAreaPlanSchema: JSONSchemaType<ScaffoldAreaPlan> = {
   additionalProperties: false,
 }
 
+/**
+ * Every property added to the guest home after the first stored plans is OPTIONAL and `nullable`.
+ *
+ * This schema is not only what a model answers with: it is the validator of the project card's
+ * `scaffold` document (`VIABLE_PROJECT_SLOTS`), so a plan written before a field existed must
+ * still pass it whenever that plan is carried into a new revision. A field made required here is a
+ * project whose plan can no longer be revised.
+ *
+ * Counts ("four tiles", "5–8 chips") are stated in the descriptions and CLAMPED in code — never
+ * `minItems`/`maxItems`, which a provider's structured output refuses or ignores, and never a
+ * tuple.
+ */
+const nullableLink = (description: string) => ({
+  type: 'object' as const,
+  nullable: true as const,
+  description,
+  properties: {
+    label: { type: 'string' as const, description: 'The link text, a verb first, 2-4 words' },
+    href: {
+      type: 'string' as const, nullable: true as const,
+      description: 'OPTIONAL, normally omitted: absent means the default action (sign in, or a'
+        + ' section of this page). Never invent an address'
+    },
+  },
+  required: ['label'] as 'label'[],
+  additionalProperties: false,
+})
+
+const BentoFragmentSchema: JSONSchemaType<BentoFragment> = {
+  type: 'object',
+  description: 'A small piece of the product\'s own interface drawn at the bottom of the tile, built'
+    + ' from its own records - never a paragraph',
+  properties: {
+    kind: {
+      type: 'string',
+      enum: BENTO_FRAGMENT_KINDS,
+      description: 'list (label + value rows, e.g. ingredients and amounts), note (one short remark'
+        + ' in the label), people (name in the label, role in the value), steps (numbered labels)'
+    },
+    title: {
+      type: 'string', nullable: true,
+      description: 'OPTIONAL small caption over the fragment, e.g. "INGREDIENTS · 1 LOAF"'
+    },
+    rows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', description: 'The row\'s main text, a few words' },
+          value: {
+            type: 'string', nullable: true,
+            description: 'The row\'s second column - an amount, a role; omit it for note and steps'
+          },
+        },
+        required: ['label'],
+        additionalProperties: false,
+      },
+      description: '2-4 rows of realistic records of this product'
+    },
+  },
+  required: ['kind', 'rows'],
+  additionalProperties: false,
+}
+
+const LandingGatePlanSchema: JSONSchemaType<LandingGatePlan> = {
+  type: 'object',
+  title: 'LandingGatePlan',
+  description: 'The working entry into the key end-user workflow, drawn in the hero instead of the'
+    + ' call-to-action buttons: a guest makes a few picks, sees sample results ranked against them,'
+    + ' and signs in to continue with the picks carried over. Every text is in the end user\'s words',
+  properties: {
+    story: {
+      type: 'string',
+      description: 'The code of the landing story, copied EXACTLY as given to you. Never shown'
+    },
+    target: {
+      type: 'string', nullable: true,
+      description: 'Leave it out - the platform fills it'
+    },
+    question: {
+      type: 'string',
+      description: 'The question the gate asks, 3-6 words, in the end user\'s words - e.g. "What\'s'
+        + ' in your pantry?"'
+    },
+    hint: { type: 'string', description: 'A short reassurance beside it, e.g. "No account needed"' },
+    label: {
+      type: 'string',
+      description: 'The accessible name of the group of choices, 2-3 words - e.g. "Your pantry"'
+    },
+    inputs: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '5 to 8 things a guest can pick, 1-3 words each, from the story\'s own domain.'
+        + ' Nothing personal, nothing sensitive, nothing that needs an account'
+    },
+    selected: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '4 or 5 of the inputs above, copied exactly, pre-selected so the first view'
+        + ' already shows results'
+    },
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'A realistic record title, 2-4 words' },
+          meta: {
+            type: 'string',
+            description: 'One short line: how well it fits and one fact, e.g. "Uses all 3 · 3 h 20 min"'
+          },
+          needs: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '2-4 of the inputs above, copied exactly, that this record uses'
+          },
+        },
+        required: ['title', 'meta', 'needs'],
+        additionalProperties: false,
+      },
+      description: '3 or 4 sample records the picks are ranked against - illustrative, never real data'
+    },
+    count: {
+      type: 'object',
+      properties: {
+        one: { type: 'string', description: 'The count for one match, with {n}: "{n} bake matches"' },
+        many: { type: 'string', description: 'The count for several, with {n}: "{n} bakes match"' },
+        none: { type: 'string', description: 'The count for none, e.g. "No matches yet"' },
+      },
+      required: ['one', 'many', 'none'],
+      additionalProperties: false,
+      description: 'The live count label; write the literal token {n} where the number goes'
+    },
+    empty: {
+      type: 'string',
+      description: 'One line shown when nothing matches, saying what to pick - e.g. "Pick two or more'
+        + ' ingredients to see what you can bake."'
+    },
+    note: {
+      type: 'string',
+      description: 'One short line beside the button: signing in is by email and the picks come'
+        + ' along - e.g. "Sign in with your email. Your picks come with you."'
+    },
+    cta: {
+      type: 'string',
+      description: 'The button label, a verb first, 2-3 words and an arrow - e.g. "Open recipes →"'
+    },
+    lock: {
+      type: 'string',
+      description: 'What unlocks after sign-in, as the accessible name of a lock icon - e.g. "Full'
+        + ' method after sign-in"'
+    },
+  },
+  required: [
+    'story', 'question', 'hint', 'label', 'inputs', 'selected', 'results', 'count', 'empty',
+    'note', 'cta', 'lock',
+  ],
+  additionalProperties: false,
+}
+
 const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
   type: 'object',
   title: 'GuestHomePlan',
@@ -170,16 +331,27 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
       properties: {
         headline: {
           type: 'string',
-          description: 'The product\'s promise in one line, under 9 words. Never the product name alone'
+          description: 'The product\'s promise in one short concrete line, at most 6 words. Never the'
+            + ' product name alone'
         },
-        sub: { type: 'string', description: 'One or two sentences: what it does and who it is for' },
-        cta: { type: 'string', description: 'The call-to-action label, 2-3 words' },
+        sub: {
+          type: 'string',
+          description: 'One or two sentences: what it does and who it is for. No invented numbers'
+        },
+        cta: {
+          type: 'string',
+          description: 'The primary button label, a verb first, 2-3 words. Shown only when the page'
+            + ' has no gate'
+        },
         eyebrow: {
           type: 'string', nullable: true,
-          description: 'OPTIONAL, normally omitted. A small badge above the headline - set it only when'
-            + ' the specification explicitly asks for a label there. A landing page carries no badge by'
-            + ' default: the headline is what positions the product'
+          description: 'Omit it. The page shows no badge above the headline; the headline is what'
+            + ' positions the product'
         },
+        secondary: nullableLink('OPTIONAL second button beside the primary one, when there is no'
+          + ' gate - e.g. "Browse bakes"'),
+        browse: nullableLink('OPTIONAL muted link under the gate or the buttons for someone not'
+          + ' ready to start - the whole line, e.g. "Just browsing? Explore bakes"'),
       },
       required: ['headline', 'sub', 'cta'],
       additionalProperties: false,
@@ -213,11 +385,13 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
         properties: {
           title: { type: 'string', description: 'The capability, 2-4 words' },
           text: { type: 'string', description: 'One sentence on what it lets someone do' },
+          fragment: { ...BentoFragmentSchema, nullable: true },
         },
         required: ['title', 'text'],
         additionalProperties: false,
       },
-      description: '3 to 6 capabilities, taken from what the specification actually describes'
+      description: '4 capabilities - the bento tiles "What you get" - taken from what the'
+        + ' specification actually describes. Give most of them a fragment'
     },
     testimonials: {
       type: 'array',
@@ -231,7 +405,80 @@ const GuestHomePlanSchema: JSONSchemaType<GuestHomePlan> = {
         required: ['quote', 'name', 'role'],
         additionalProperties: false,
       },
-      description: '2 or 3 illustrative testimonials'
+      description: '2 illustrative testimonials. No ratings, no numbers, no company names'
+    },
+    steps: {
+      type: 'array', nullable: true,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'The step as an action, 2-5 words' },
+          text: { type: 'string', description: 'One short sentence on what happens in it' },
+        },
+        required: ['title', 'text'],
+        additionalProperties: false,
+      },
+      description: '"How it works": 3 steps taken from the main flow, in order, the last one'
+        + ' delivering the value'
+    },
+    labels: {
+      type: 'object', nullable: true,
+      description: 'The small label over each section and that section\'s heading, in the product\'s'
+        + ' language. Labels are 1-3 plain words; headings are one short concrete sentence',
+      properties: {
+        steps: { type: 'string', nullable: true, description: 'e.g. "How it works"' },
+        stepsTitle: {
+          type: 'string', nullable: true,
+          description: 'e.g. "From pantry to proofing basket in three steps."'
+        },
+        features: { type: 'string', nullable: true, description: 'e.g. "What you get"' },
+        featuresTitle: {
+          type: 'string', nullable: true, description: 'e.g. "Everything behind the bake."'
+        },
+        testimonials: { type: 'string', nullable: true, description: 'e.g. "Community"' },
+        testimonialsTitle: {
+          type: 'string', nullable: true, description: 'e.g. "Bakers who made it at home."'
+        },
+        problem: { type: 'string', nullable: true, description: 'e.g. "The problem"' },
+        solution: { type: 'string', nullable: true, description: 'e.g. "The solution"' },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    closing: {
+      type: 'object', nullable: true,
+      description: 'The closing band at the foot of the page',
+      properties: {
+        headline: { type: 'string', description: 'A short invitation, at most 6 words' },
+        lead: { type: 'string', description: 'One or two sentences under it' },
+        primary: { type: 'string', description: 'The primary button label, a verb first, 2-4 words' },
+        secondary: nullableLink('OPTIONAL second button, e.g. "Browse bakes"'),
+        links: {
+          type: 'array', nullable: true,
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'What the card leads to, 2-3 words' },
+              text: { type: 'string', description: 'One short line about it' },
+              href: {
+                type: 'string', nullable: true,
+                description: 'OPTIONAL, normally omitted. Never invent an address'
+              },
+            },
+            required: ['title', 'text'],
+            additionalProperties: false,
+          },
+          description: '2 link cards beside the closing headline'
+        },
+      },
+      required: ['headline', 'lead', 'primary'],
+      additionalProperties: false,
+    },
+    gate: {
+      ...LandingGatePlanSchema,
+      nullable: true,
+      description: 'ONLY when you were given a landing story; omit it otherwise. '
+        + LandingGatePlanSchema.description,
     },
   },
   required: ['hero', 'problem', 'solution', 'features', 'testimonials'],
@@ -278,9 +525,11 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
     },
     motifs: {
       type: 'string',
-      description: 'Two or three sentences directing this product\'s illustrations: what shapes'
-        + ' and subjects belong to it, in the design system\'s own vocabulary. Abstract geometry,'
-        + ' never a described photograph'
+      description: 'Two or three sentences describing this product\'s hero illustration as a SCENE:'
+        + ' one main object of its domain resting on a surface, one or two smaller objects beside'
+        + ' it, and one simplified piece of the product\'s interface, each in its natural muted'
+        + ' colours. Concrete recognisable objects - never abstract geometry, never floating'
+        + ' circles, rings or dots, never people, text or a described photograph'
     },
   },
   required: ['identity', 'guestHome', 'areas', 'stories', 'motifs'],

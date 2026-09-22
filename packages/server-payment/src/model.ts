@@ -63,7 +63,8 @@ export const PaymentFulfillmentSchema = {
   properties: {
     id, entityId: str, productSku: str, planSku: optStr, service: str, paygate: str, externalId: str,
     paymentIntentId: optStr, chargeId: optStr, invoiceId: optStr, mode: CheckoutPricingModeSchema,
-    units: optNum, amountMinor: optNum, chargeAmountMinor: optNum, currency: optStr, createdAt: date,
+    units: optNum, amountMinor: optNum, sourceChargeAmountMinor: optNum, amountCurrency: optStr,
+    chargeAmountMinor: optNum, currency: optStr, createdAt: date,
     fulfilledAt: optDate, failedAt: optDate, refundedMinor: optNum, refundedAt: optDate,
     disputedAt: optDate, disputeStatus: optStr,
   },

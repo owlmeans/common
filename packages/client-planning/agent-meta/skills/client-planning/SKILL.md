@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.4"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -208,5 +208,5 @@ gets `WorkcardConflict` — reload and retry.
 
 - `planning` — records, flows, the fold, the models
 - `server-planning` — the handlers this addresses, the executor, the commit hub
-- `client-job` — the same seed-then-fold shape for queue jobs
+- `client-job` — the same seed-then-fold shape for safe application-job views
 - `state` — `syncCards` is built on its criteria engine and `purge`

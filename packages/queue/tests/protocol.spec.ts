@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { contract, protocol, schema } from '@owlmeans/entrypoint'
-import { job, route } from '@owlmeans/route'
+import { route } from '@owlmeans/route'
 import type { JSONSchemaType } from 'ajv'
-import { enqueueProtocol, waitForProtocol, type JobRecord } from '../src/index.js'
+import { enqueueProtocol, job, waitForProtocol, type JobRecord } from '../src/index.js'
 
 interface Input { value: number }
 interface Output { doubled: number }

@@ -14,6 +14,6 @@ export {
   CONSENT_ESSENTIAL, CONSENT_ANALYTICS, CONSENT_MARKETING,
 } from '@owlmeans/consent'
 export type {
-  ConsentCategory, ConsentOptions, ConsentReason, ConsentRecord, ConsentSignal, ConsentState,
-  ConsentStore, ConsentLocale,
+  ConsentCategory, ConsentOptions, ConsentReason, ConsentRecord, ConsentService, ConsentSignal,
+  ConsentState, ConsentStore, ConsentLocale,
 } from '@owlmeans/consent'

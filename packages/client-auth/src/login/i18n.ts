@@ -7,6 +7,7 @@ import be from './i18n/be.json' with { type: 'json' }
 import uk from './i18n/uk.json' with { type: 'json' }
 import es from './i18n/es.json' with { type: 'json' }
 import de from './i18n/de.json' with { type: 'json' }
+import fr from './i18n/fr.json' with { type: 'json' }
 
 /**
  * The sign-in screen's copy, registered into the `auth` library resource.
@@ -24,3 +25,4 @@ addI18nLib('be', 'auth', be)
 addI18nLib('uk', 'auth', uk)
 addI18nLib('es', 'auth', es)
 addI18nLib('de', 'auth', de)
+addI18nLib('fr', 'auth', fr)

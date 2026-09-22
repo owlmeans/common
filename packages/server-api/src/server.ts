@@ -8,6 +8,7 @@ import { RouteMethod } from '@owlmeans/route'
 import { createServerHandler, fixFormatDates } from './utils/index.js'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
+import { INCIDENT_ID_HEADER } from './utils/error.js'
 
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -99,7 +100,7 @@ export const createApiServer = (alias: string): ApiServer => {
         ...Object.values(RouteMethod).map(method => method.toUpperCase()),
         'HEAD', 'OPTIONS'
       ],
-      exposedHeaders: [TOKEN_UPDATE]
+      exposedHeaders: [TOKEN_UPDATE, INCIDENT_ID_HEADER]
     })
 
     await server.register(Multipart, {
@@ -199,4 +200,3 @@ export const appendApiServer = <C extends Config, T extends ServerContext<C>>(
 
   return context
 }
-

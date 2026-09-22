@@ -5,7 +5,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.30"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.33"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -13,7 +13,7 @@ below is the consuming package's own, so a package that builds one also declares
 `@vitejs/plugin-react`, plus `@tailwindcss/vite` and `tailwindcss` for a shadcn package. A
 smoke-only package that serves a `data:` URL needs none of those.
 
-Category D applies to packages that ship a rendered surface: `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-client`, `web-consent`, `web-flow`, `web-panel`, `web-router`, `web-wl`. Tests are **component-level acceptance** — they mount one component in a real browser and assert against rendered DOM. They are **not** end-to-end tests (no live backend).
+Category D applies to packages that ship a rendered surface: `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-client`, `web-consent`, `web-flow`, `web-oauth`, `web-panel`, `web-router`, `web-wl`. Tests are **component-level acceptance** — they mount one component in a real browser and assert against rendered DOM. They are **not** end-to-end tests (no live backend).
 
 The runner is **`bun test`** — same as categories A/B/C — kept consistent so contributors only learn one harness. Playwright is consumed as a **library** (`playwright` package, not `@playwright/test`). The `playwright` library exposes `chromium`, `firefox`, `webkit` browser launchers; specs drive them directly from inside `bun:test` blocks.
 

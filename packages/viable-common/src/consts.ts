@@ -17,6 +17,9 @@ export const metadataConfigs = [
   'brandingPrivacyUrl',
   'brandingCredit',
   'brandingHideCreditIntent',
+  // Optional in `SlotConstMetadata`: omitted from a push while unset (an older publisher refuses
+  // an undeclared key), so an empty stored row must never be delivered as `''`.
+  'brandingGoogleTag',
 ] satisfies (keyof NonSecretScalarSlotMetadata)[]
 
 export const metadataLists = [

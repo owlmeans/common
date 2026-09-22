@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.33`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.36`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -100,6 +100,13 @@ body and a status from `errorStatus(error)` (`./utils`), resolved in this order:
 
 `uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
 than reaching through `request.original` in application code.
+
+## Error exposure
+
+`handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
+`X-Incident-ID` response header (exposed through CORS). A production response body contains only
+that id; an explicit `cfg.http.errors.exposure = 'development'` uses the typed marshalled form with
+message and stack. Keep the default production-safe, and tell a client to report the incident id.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use
 `@owlmeans/server-socket`'s `connection(protocol, callback)`.

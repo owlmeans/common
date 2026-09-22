@@ -1,6 +1,9 @@
 import type { AppType, EntrypointReference } from '@owlmeans/context'
 import type { RouteProtocols, RouteMethod } from './consts'
 
+/** A built-in or package-owned transport identifier. */
+export type RouteProtocol = RouteProtocols | (string & {})
+
 export interface BasicRoute {
   type: AppType
   service?: string
@@ -22,18 +25,10 @@ export interface RouteDeclaration extends BasicRoute {
   parent?: string
   default?: boolean
   method?: RouteMethod
-  protocol?: RouteProtocols
+  protocol?: RouteProtocol
   secure?: boolean
-  /**
-   * QUEUE routes only: the queue that carries this entrypoint's jobs. It names an address, not a
-   * process — which queues a given process consumes is configuration, never a declaration.
-   */
-  queue?: string
-  /**
-   * QUEUE routes only: whether the caller waits for the job's return value. `false` resolves as
-   * soon as the job is accepted, which is what a long pipeline wants; the default is to wait.
-   */
-  reply?: boolean
+  /** Transport-owned declaration data. The package defining `protocol` owns and validates it. */
+  protocolOptions?: unknown
   /** How long a caller waits for an answer, in milliseconds, when the transport supports it. */
   timeout?: number
 }
@@ -54,7 +49,7 @@ export interface RouteAddress {
   port?: number
   base?: string
   secure: boolean
-  protocol: RouteProtocols
+  protocol: RouteProtocol
 }
 
 /**

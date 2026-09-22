@@ -14,7 +14,7 @@ BullMQ-over-Redis driver for the queue contracts declared in [`@owlmeans/queue`]
 ## Installation
 
 ```bash
-bun add @owlmeans/redis-queue@^0.1.18-rc.17
+bun add @owlmeans/redis-queue@^0.1.18-rc.20
 ```
 
 ## Usage
@@ -88,8 +88,8 @@ guards and filter, and the answer comes back to the caller.
 
 ```typescript
 import { contract, protocol, typed } from '@owlmeans/entrypoint'
-import { enqueueProtocol, waitForProtocol } from '@owlmeans/queue'
-import { job, route } from '@owlmeans/route'
+import { enqueueProtocol, job, waitForProtocol } from '@owlmeans/queue'
+import { route } from '@owlmeans/route'
 
 const generateProtocol = protocol(
   route('generate-app', 'generate', job({ service: 'agent', queue: 'generation', timeout: 300_000 })),
@@ -297,7 +297,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.28
+npx @owlmeans/agent-skills@^0.1.18-rc.32
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

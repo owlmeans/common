@@ -6,9 +6,10 @@ import {
 import type { PricingPolicy } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_PAYGATE_ALIAS, STRIPE_SIGNATURE } from '../consts.js'
-import { paygateCustomers, payment } from '../utils.js'
+import { paygateCustomers, payment, stripePricingConfig } from '../utils.js'
 import { isSoldThrough, planLookupKey } from '../sync.js'
 import { createEventHandler } from './events.js'
+import { settlementAmount } from './fx.js'
 import { stripeWebhookSecrets } from './webhook-manager.js'
 import type { CreateLinkParams, PaymentPlan, PaymentProduct } from '../types.js'
 
@@ -44,13 +45,20 @@ const ensureStripeCustomer = async (
   const existing = await resource.byEntity(params.entityId, STRIPE_PAYGATE_ALIAS)
   if (existing != null && existing.deletedAt == null) {
     const retrieved = await stripe.customers.retrieve(existing.externalId)
-    if (!(retrieved as Stripe.DeletedCustomer).deleted) return retrieved as Stripe.Customer
+    if (!(retrieved as Stripe.DeletedCustomer).deleted) {
+      const customer = retrieved as Stripe.Customer
+      if (params.locale != null && customer.preferred_locales?.[0] !== params.locale) {
+        return await stripe.customers.update(customer.id, { preferred_locales: [params.locale] })
+      }
+      return customer
+    }
   }
   const created = await stripe.customers.create({
     metadata: {
       entityId: params.entityId, ...(params.profileId && { profileId: params.profileId }),
       service: params.service,
     },
+    ...(params.locale != null ? { preferred_locales: [params.locale] } : {}),
   })
   if (existing != null) {
     const { deletedAt: _deleted, ...kept } = existing
@@ -73,10 +81,11 @@ const findPrice = async (stripe: Stripe, productSku: string, lookupKey: string):
 const sharedSession = (
   customer: Stripe.Customer, params: CreateLinkParams, product: PaymentProduct,
   plan: PaymentPlan, metadata: Record<string, string>,
-): Pick<Stripe.Checkout.SessionCreateParams, 'customer' | 'success_url' | 'cancel_url' | 'metadata'> => ({
+): Pick<Stripe.Checkout.SessionCreateParams, 'customer' | 'success_url' | 'cancel_url' | 'metadata' | 'locale'> => ({
   customer: customer.id,
   success_url: params.successUrl,
   cancel_url: params.cancelUrl ?? params.successUrl,
+  ...(params.locale != null ? { locale: params.locale as Stripe.Checkout.SessionCreateParams.Locale } : {}),
   metadata: {
     pricingMode: plan.pricingMode ?? CheckoutPricingMode.Quantity,
     currency: (plan.currency ?? 'usd').toLowerCase(),
@@ -136,17 +145,27 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
 
     if (plan.pricingMode === CheckoutPricingMode.Amount) {
       if (params.amountMinor == null) throw new ProductError('amount')
-      const { lineItem, chargeMinor, currency } = amountCheckoutLineItem(
+      const { chargeMinor: sourceChargeMinor, currency: amountCurrency } = amountCheckoutLineItem(
         product, plan, params.amountMinor, pricing.tax.behavior,
       )
+      const settled = await settlementAmount(ctx, stripe, sourceChargeMinor, amountCurrency)
+      const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = {
+        price_data: {
+          product: product.sku, currency: settled.currency, unit_amount: settled.amountMinor,
+          tax_behavior: pricing.tax.behavior,
+        },
+        quantity: 1,
+      }
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', line_items: [lineItem], invoice_creation: { enabled: true },
         ...checkoutOptions(pricing, false),
         ...sharedSession(customer, params, product, plan, {
           pricingMode: CheckoutPricingMode.Amount,
-          currency,
+          currency: settled.currency,
+          amountCurrency,
           amountMinor: String(params.amountMinor),
-          chargeAmountMinor: String(chargeMinor),
+          sourceChargeAmountMinor: String(sourceChargeMinor),
+          chargeAmountMinor: String(settled.amountMinor),
         }),
       })
       if (session.url == null) throw new PaygateError('session')
@@ -174,8 +193,13 @@ export const createCheckoutLink = async (ctx: ApiContext, stripe: Stripe, params
     ?? plans.find(item => item.recurring != null) ?? plans[0]
   if (plan == null) throw new ProductError('plan')
   const price = await findPrice(stripe, product.sku, planLookupKey(product, plan))
+  const subscriptionPaymentMethodTypes = (
+    await stripePricingConfig(ctx)
+  )?.subscriptionPaymentMethodTypes as Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription', line_items: [{ price: price.id, quantity: 1 }],
+    ...(subscriptionPaymentMethodTypes != null ? { payment_method_types: subscriptionPaymentMethodTypes } : {}),
+    ...(params.submitText != null ? { custom_text: { submit: { message: params.submitText } } } : {}),
     subscription_data: {
       metadata: {
         pricingMode: CheckoutPricingMode.Quantity, entityId: params.entityId,

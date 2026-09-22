@@ -28,6 +28,18 @@ export const ViableProjectFieldsSchema = {
     origin: { ...ProjectOriginSchema, nullable: true },
     connectLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },
     converterLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },
+    // `story: null` is a DECIDED "no gate" and must stay spellable; an absent `landing` is "never
+    // decided". `at` carries no `format`: the planning registry compiles without ajv-formats.
+    landing: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        story: { type: 'string', minLength: 1, maxLength: CODE_MAX, nullable: true },
+        at: { type: 'string', minLength: 1, maxLength: 32 },
+      },
+      required: ['at'],
+      additionalProperties: false,
+    },
   },
   required: [],
   additionalProperties: false,
@@ -48,6 +60,7 @@ export const ViableStoryFieldsSchema = {
     actor: { type: 'string', enum: [...Object.values(StoryActor), null], nullable: true },
     warning: { type: 'string', maxLength: 1024, nullable: true },
     kind: { type: 'string', enum: [...Object.values(StoryKind), null], nullable: true },
+    landing: { type: 'boolean', nullable: true },
   },
   required: ['area', 'primary'],
   additionalProperties: false,

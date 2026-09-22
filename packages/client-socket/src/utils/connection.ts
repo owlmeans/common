@@ -77,7 +77,13 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
   const emitSystem = async <T,>(event: SocketSystemEvent, payload: T): Promise<void> => {
     const msg: EMessage<T> = { type: MessageType.System, event, payload }
     model.prepare?.(msg)
-    await Promise.all(model.getListeners().map(async listener => listener(msg)))
+    await Promise.all(model.getListeners().map(async listener => {
+      try {
+        await listener(msg)
+      } catch (error) {
+        console.error('Socket system listener error:', error)
+      }
+    }))
   }
 
   const clearHeartbeat = () => {
@@ -154,9 +160,22 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     current = socket
     const wasRetry = attempts > 0
 
-    const messageHandler = async (event: MessageEvent) => {
+    const receiveMessage = async (event: MessageEvent) => {
       lastFrameAt = Date.now()
+      if (typeof event.data === 'string') {
+        try {
+          if (JSON.parse(event.data)?.type === 'pong') return
+        } catch {
+          // The shared parser below reports malformed JSON consistently.
+        }
+      }
       await model.receive(event.data)
+    }
+    const messageHandler = (event: MessageEvent) => {
+      void receiveMessage(event).catch(error => {
+        console.error('WebSocket message rejected:', error)
+        socket.close(1008)
+      })
     }
     const errorHandler = () => {
       // The close event that always follows carries the code; nothing actionable here beyond

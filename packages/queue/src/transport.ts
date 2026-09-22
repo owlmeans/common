@@ -1,12 +1,11 @@
 import { assertContext, createService } from '@owlmeans/context'
 import type { AbstractRequest, AbstractResponse, EntrypointTransport } from '@owlmeans/entrypoint'
 import { EntrypointOutcome, transportAlias } from '@owlmeans/entrypoint'
-import { RouteProtocols } from '@owlmeans/route'
 import { ResilientError } from '@owlmeans/error'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import type { Config, Context, JobEnvelope, JobReply, QueueAppend } from './types.js'
 import { DEFAULT_JOB_TIMEOUT } from './consts.js'
-import { UnknownQueue } from './errors.js'
+import { QUEUE_PROTOCOL, queueRouteOptions } from './route.js'
 
 /**
  * The producing half of the bridge: it turns a call on a QUEUE entrypoint into a job, and the
@@ -18,22 +17,20 @@ import { UnknownQueue } from './errors.js'
  * the request rather than from the entrypoint: the far side rebuilds a request, and anything only
  * HTTP understands would not survive the trip anyway.
  */
-export const makeQueueTransport = (alias: string = transportAlias(RouteProtocols.QUEUE)) => {
+export const makeQueueTransport = (alias: string = transportAlias(QUEUE_PROTOCOL)) => {
   const location = `queue-transport:${alias}`
 
   const service = createService<EntrypointTransport>(alias, {
-    protocol: RouteProtocols.QUEUE,
+    protocol: QUEUE_PROTOCOL,
 
     handle: (async <T>(req: AbstractRequest, res: AbstractResponse<T>) => {
       const context = assertContext<Config, Context<Config>>(service.ctx as Context<Config>, location)
       const entrypoint = context.entrypoint<CommonEntrypoint>(req.alias)
       const route = entrypoint.route.route
 
-      if (route.queue == null) {
-        throw new UnknownQueue(`${req.alias}: route declares no queue`)
-      }
+      const { queue, reply: waitsForReply } = queueRouteOptions(route)
 
-      const jobs = (context as unknown as QueueAppend).jobs<JobEnvelope, JobReply<T>>(route.queue)
+      const jobs = (context as unknown as QueueAppend).jobs<JobEnvelope, JobReply<T>>(queue)
 
       const envelope: JobEnvelope = {
         alias: req.alias,
@@ -44,12 +41,12 @@ export const makeQueueTransport = (alias: string = transportAlias(RouteProtocols
         enqueuedAt: new Date().toISOString(),
       }
 
-      const job = await jobs.create({ queue: route.queue, name: req.alias, data: envelope })
+      const job = await jobs.create({ queue, name: req.alias, data: envelope })
 
       // `reply: false` says the caller is not waiting for the work, only for the promise that it
       // was taken. `Accepted` plus the job's identity is the whole answer — enough to watch it.
-      if (route.reply === false) {
-        res.resolve({ id: job.id, queue: route.queue } as T, EntrypointOutcome.Accepted)
+      if (waitsForReply === false) {
+        res.resolve({ id: job.id, queue } as T, EntrypointOutcome.Accepted)
 
         return
       }

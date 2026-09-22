@@ -1,4 +1,4 @@
-import type { ResolvedServiceRoute, RouteAddress, RouteModel, RouteProtocols } from '@owlmeans/route'
+import type { ResolvedServiceRoute, RouteAddress, RouteModel, RouteProtocol } from '@owlmeans/route'
 import type { InitializedService, LazyService, BasicEntrypoint } from '@owlmeans/context'
 import type { AnySchemaObject } from 'ajv'
 import type { EntrypointOutcome } from './consts.js'
@@ -144,10 +144,10 @@ export interface Filter {
  * How a call to an entrypoint is actually carried.
  *
  * The transport is chosen by the route's protocol, so a consumer always writes `ep.call(...)` and
- * never learns whether that became an HTTP request, a socket message or a queued job. An
+ * never learns which built-in or package-owned carrier handled it. An
  * application binds a protocol by registering a transport service under `transportAlias(protocol)`.
  */
 export interface EntrypointTransport extends InitializedService {
-  readonly protocol: RouteProtocols
+  readonly protocol: RouteProtocol
   handle: EntrypointHandler
 }

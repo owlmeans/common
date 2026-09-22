@@ -3,10 +3,10 @@ import { contract, provideResponse, protocol, transportAlias, typed } from '@owl
 import type {
   AbstractRequest, AbstractResponse, EntrypointHandler, EntrypointTransport
 } from '@owlmeans/entrypoint'
-import { job, route, RouteProtocols } from '@owlmeans/route'
+import { route } from '@owlmeans/route'
 import { bind } from '@owlmeans/server-entrypoint'
 import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import { UnknownJob } from '@owlmeans/queue'
+import { job, QUEUE_PROTOCOL, UnknownJob } from '@owlmeans/queue'
 import { gate, makeSuite } from './context.js'
 
 /**
@@ -60,7 +60,7 @@ describe('@owlmeans/redis-queue — queued entrypoints', () => {
   test('a queued call round-trips its value', async () => {
     const { context } = await boot()
     const transport = context.service<EntrypointTransport>(
-      transportAlias(RouteProtocols.QUEUE)
+      transportAlias(QUEUE_PROTOCOL)
     )
 
     const response = provideResponse<{ echoed: string }>()
@@ -73,7 +73,7 @@ describe('@owlmeans/redis-queue — queued entrypoints', () => {
   test('a refusal arrives as its own class, not as a string', async () => {
     const { context } = await boot()
     const transport = context.service<EntrypointTransport>(
-      transportAlias(RouteProtocols.QUEUE)
+      transportAlias(QUEUE_PROTOCOL)
     )
 
     const response = provideResponse<unknown>()

@@ -28,6 +28,21 @@ export interface AuthTokenGuardOptions {
   resourceAlias?: string
   /** Resource alias holding the identity profiles a token is bound to. */
   profileAlias?: string
+  /**
+   * The resource(s) this guard speaks for, opting it into audience admission.
+   *
+   * Left unset (the default), the guard admits every token whatever its `audience` — full
+   * backward compatibility for a deployment that never mints an audience-restricted token. Set
+   * it to the canonical resource URI(s) this route surface serves, and a token issued FOR a
+   * different resource (an OAuth-issued, MCP-only token, say) is refused here rather than
+   * quietly working everywhere the profile's scopes would otherwise reach.
+   *
+   * A function is resolved with the live context on every request rather than once at
+   * registration time — `appendAuthTokenGuard` runs from `makeContext`, before a hostname a
+   * Kubernetes secret mount populates is necessarily readable yet, and this guard's `handle`
+   * already runs per-request regardless.
+   */
+  resources?: string[] | ((context: AuthTokenContext) => string[])
 }
 
 export interface AuthTokenConfig extends ServerConfig {

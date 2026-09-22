@@ -10,6 +10,7 @@ import { findProduct } from '../plan.js'
 import { isSoldThrough } from '../sync.js'
 import { isMissingObject, paygateCustomers, payment, stripePricingConfig } from '../utils.js'
 import type { PaymentPlan, PaymentProduct, PriceEstimateParams } from '../types.js'
+import { stripeFxRate } from './fx.js'
 
 // -------------------------------------------------------------------------------------------
 // Cache — one instance per gateway service, never module-level (a test builds many contexts in
@@ -166,27 +167,25 @@ const unresolvedEstimate = (status: TaxEstimateStatus, subtotalMinor: number): T
 // Currency (Stripe FX Quotes, a PREVIEW endpoint — see `STRIPE_FX_QUOTES_API_VERSION`)
 // -------------------------------------------------------------------------------------------
 
-interface FxQuoteResponse {
-  rates?: Record<string, { exchange_rate?: number; rate_details?: { fx_fee_rate?: number } }>
-}
-
 type FxOutcome = { currency: string; exchangeRate: number; fxFeeRate?: number } | null
 
 const fetchFxRate = async (
   stripe: Stripe, currency: string, localCurrency: string, apiVersion: string,
+  settlementCurrency: string = currency,
 ): Promise<FxOutcome> => {
-  const response = await stripe.rawRequest(
-    'POST', '/v1/fx_quotes',
-    { to_currency: currency, 'from_currencies[]': localCurrency, lock_duration: 'none' },
-    { apiVersion },
-  ) as Stripe.Response<FxQuoteResponse>
-  const rate = response.rates?.[localCurrency]
-  if (rate?.exchange_rate == null) {
-    return null
+  const settlement = settlementCurrency.toLowerCase()
+  const sourceRate = settlement === currency
+    ? { referenceRate: 1 }
+    : await stripeFxRate(stripe, currency, settlement, apiVersion)
+  if (sourceRate == null) return null
+  if (localCurrency === settlement) {
+    return { currency: localCurrency, exchangeRate: 1 / sourceRate.referenceRate }
   }
+  const localRate = await stripeFxRate(stripe, localCurrency, settlement, apiVersion)
+  if (localRate == null) return null
   return {
-    currency: localCurrency, exchangeRate: rate.exchange_rate,
-    ...(rate.rate_details?.fx_fee_rate != null ? { fxFeeRate: rate.rate_details.fx_fee_rate } : {}),
+    currency: localCurrency, exchangeRate: localRate.exchangeRate / sourceRate.referenceRate,
+    ...(localRate.fxFeeRate != null ? { fxFeeRate: localRate.fxFeeRate } : {}),
   }
 }
 
@@ -282,11 +281,13 @@ export const estimateStripePrice = async (
   if (pricing.currency.estimate && pricing.currency.adaptive === true) {
     const localCurrency = currencyOfCountry(country)
     if (localCurrency != null && localCurrency !== currency) {
-      const apiVersion = (await stripePricingConfig(ctx))?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
+      const stripePricing = await stripePricingConfig(ctx)
+      const apiVersion = stripePricing?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
+      const settlementCurrency = stripePricing?.settlementCurrency?.toLowerCase() ?? currency
       // A preview endpoint: unreachable or erroring never fails the estimate, it only drops `local`.
       const fx = await cached(
-        cache.fx, cache.inflight, `fx:${currency}:${localCurrency}:${apiVersion}`, cache.fxTtlMs,
-        () => fetchFxRate(stripe, currency, localCurrency, apiVersion),
+        cache.fx, cache.inflight, `fx:${currency}:${settlementCurrency}:${localCurrency}:${apiVersion}`, cache.fxTtlMs,
+        () => fetchFxRate(stripe, currency, localCurrency, apiVersion, settlementCurrency),
       ).catch(() => null)
       if (fx != null) {
         result.local = { currency: fx.currency, exchangeRate: fx.exchangeRate, ...(fx.fxFeeRate != null ? { fxFeeRate: fx.fxFeeRate } : {}) }

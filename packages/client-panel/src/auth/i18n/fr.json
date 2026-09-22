@@ -1,0 +1,56 @@
+{
+  "basic-ed25519": {
+    "entityId": {
+      "label": "Identifiant de l’organisation"
+    },
+    "address": {
+      "label": "DID de l’utilisateur"
+    },
+    "privateKey": {
+      "label": "Clé privée"
+    },
+    "submit": "S’authentifier"
+  },
+  "re-captcha": {
+    "guideline": "Nous devons vérifier que vous n’êtes pas un robot. Cliquez dans la case blanche ci-dessous pour prouver que vous êtes humain."
+  },
+  "wallet-provider": {
+    "pin": {
+      "loading": "Chargement…",
+      "guideline": "Utilisez ce code PIN avec toute ressource prenant en charge l’autorisation par portefeuille"
+    }
+  },
+  "wallet-consumer": {
+    "pin": {
+      "label": "Code PIN",
+      "hint": "Scannez le code QR ou générez un code PIN avec votre application OwlMeans ID"
+    },
+    "submit": "Continuer avec le PIN"
+  },
+  "oidp-auth": {
+    "reset": "Réinitialiser",
+    "error": {
+      "socket": {
+        "timeout": {
+          "rely": "La fenêtre d’authentification a expiré. Actualisez la page pour réessayer."
+        }
+      }
+    }
+  },
+  "oidp-create-id": {
+    "error": {
+      "socket": {
+        "timeout": {
+          "call": "Délai d’action dépassé. Pour des raisons de sécurité, les actions d’authentification sont limitées dans le temps. Réessayez.",
+          "rely": "Le code d’authentification a expiré. Réessayez."
+        }
+      },
+      "auth": {
+        "authorization": {
+          "sequence": "Le processus d’authentification a été interrompu par l’application d’authentification utilisée."
+        }
+      }
+    },
+    "reset": "Actualiser"
+  }
+}

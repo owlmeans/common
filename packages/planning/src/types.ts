@@ -423,7 +423,7 @@ export interface ProjectionStore {
   summary: (parents: string[], where?: Criteria<Workcard>) => Promise<SummaryView>
   put: (card: Workcard) => Promise<void>
   drop: (id: string, entityId: string) => Promise<void>
-  /** Fold what is pending for the card — now (a sync store) or queued (a durable one). */
+  /** Fold what is pending for the card — now or through a durable server projection. */
   project: (card: string, hint?: { transition?: string }) => Promise<void>
   /** Remove a project and everything under it. */
   purge: (project: string, entityId: string) => Promise<number>
@@ -834,4 +834,3 @@ export interface PlanningProtocols {
     events: EntrypointProtocol<{ query: CommitFeedQuery }, CommitEvent>
   }
 }
-

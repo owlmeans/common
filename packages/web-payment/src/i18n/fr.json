@@ -1,0 +1,50 @@
+{
+  "amount-checkout": {
+    "title": "Ajouter des crédits",
+    "description": "Choisissez la valeur nette de crédits à ajouter à votre organisation.",
+    "presets": "Montants prédéfinis",
+    "custom": "Montant personnalisé",
+    "invalid": "Saisissez un montant valide avec au plus deux décimales.",
+    "below": "Le montant minimal est de {{amount}}.",
+    "above": "Le montant maximal est de {{amount}}.",
+    "bounds": "Choisissez entre {{minimum}} et {{maximum}}.",
+    "credits": "Valeur des crédits",
+    "adjustment": "Ajustement de traitement",
+    "subtotal": "Sous-total hors taxes",
+    "tax-note": "Stripe calcule les taxes applicables lors du paiement.",
+    "cancel": "Annuler",
+    "continue": "Continuer vers Stripe",
+    "pending": "Ouverture du paiement…",
+    "close": "Fermer"
+  },
+  "entitlement": {
+    "plan": { "current": "Plan actuel" },
+    "status": {
+      "trial": "Essai", "trial-on": "L’essai se termine le {{date}}", "past-due": "Paiement en retard",
+      "cancel-scheduled": "Annulation programmée", "cancel-scheduled-on": "Annulé le {{date}}",
+      "paused": "En pause", "paused-on": "En pause depuis le {{date}}", "suspended": "Suspendu",
+      "free": "Plan gratuit", "renews-on": "Se renouvelle le {{date}}", "active": "Actif",
+      "created": "En attente d’activation", "canceled": "Annulé", "expired": "Expiré", "ended": "Terminé", "blocked": "Bloqué"
+    },
+    "limit": {
+      "usage": "{{used}} sur {{limit}}", "usage-unit": "{{used}} sur {{limit}} {{unit}}", "not-included": "Non inclus",
+      "exhausted": "Limite atteinte", "resets-on": "Se renouvelle le {{date}}"
+    },
+    "promo": { "free-until": "Gratuit jusqu’au {{date}}", "grandfathered": "Inclus dans votre plan", "ended": "Promotion terminée" },
+    "capability": { "included": "Inclus", "not-included": "Non inclus" }
+  },
+  "estimate": {
+    "country": "Pays de facturation", "country-placeholder": "Choisissez un pays",
+    "tax-type": { "vat": "TVA", "gst": "GST", "sales-tax": "Taxe de vente", "tax": "Taxe" },
+    "rate": "{{type}} ({{percentage}} %)", "total": "Total estimé",
+    "converted-note": "Conversion au taux de change actuel de Stripe ; le montant exact et les éventuels frais de conversion sont confirmés lors du paiement.",
+    "status": {
+      "taxed": "La taxe est incluse dans le total estimé ci-dessous.",
+      "reverse-charge": "Autoliquidation : votre numéro de TVA vous fait déclarer vous-même cette taxe, aucun montant n’est ajouté.",
+      "none": "Aucune taxe ne s’applique dans ce pays.",
+      "at-checkout": "La taxe exacte est calculée lors du paiement.",
+      "location-required": "Choisissez votre pays de facturation pour voir une estimation."
+    },
+    "loading": "Vérification de la taxe…", "failed": "La taxe ne peut pas être vérifiée pour le moment."
+  }
+}

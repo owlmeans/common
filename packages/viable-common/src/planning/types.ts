@@ -32,6 +32,23 @@ export type ViableProjectFields = {
   connectLlmMode?: ConnectLlm
   /** Who performs a conversion's model calls on this project; absent inherits. */
   converterLlmMode?: ConnectLlm
+  /**
+   * The landing-gate decision: which story a guest can start on the landing page.
+   *
+   * Three states, and the third is why this is an object rather than a code: ABSENT means the
+   * decision was never made (an initialization that has not reached it, or a project older than
+   * the gate), `story: null` means it WAS made and the answer is "no gate", and a code names the
+   * story. A failed decision is never recorded — writing `null` for it would read as a decided
+   * "none" and no later run would ask again. `at` is when it was decided, an ISO timestamp.
+   */
+  landing?: ViableLandingDecision
+}
+
+/** The recorded landing-gate decision — see {@link ViableProjectFields.landing}. */
+export interface ViableLandingDecision {
+  /** The story card's CODE, or `null` for a decided "no gate". */
+  story: string | null
+  at: string
 }
 
 /**
@@ -51,6 +68,15 @@ export type ViableStoryFields = {
   warning?: string
   /** Which half of the analysis the story came from. */
   kind?: StoryKind
+  /**
+   * The story a guest starts on the landing page — the landing gate's story. At most one per
+   * project, and the project card's `fields.landing.story` names the same code.
+   *
+   * Its development gains a step that replaces the gate's sketch on the guest home with the real
+   * component, and its full-scale screen reads the choices the guest carried over. Absent and
+   * `false` read the same.
+   */
+  landing?: boolean
 }
 
 export interface ViableProjectCard extends Project {
@@ -67,9 +93,9 @@ export type ViableSpecification = Specification
 /**
  * What a develop run hands the metadata store beside the card.
  *
- * The code, the narrative and the primary flag are the CARD's and are never passed separately — a
- * second copy is a second answer. `status` defaults to the card's own.
+ * The code, the narrative, the primary flag and the landing flag are the CARD's and are never
+ * passed separately — a second copy is a second answer. `status` defaults to the card's own.
  */
 export type StoryWriteContent =
-  & Omit<StoryWriteInput, 'code' | 'narrative' | 'primary' | 'status'>
+  & Omit<StoryWriteInput, 'code' | 'narrative' | 'primary' | 'landing' | 'status'>
   & { status?: string }

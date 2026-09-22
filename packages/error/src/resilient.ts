@@ -1,5 +1,5 @@
 import { CATCH_ALL_CONVERTER, CONVERTER_REGISTRY, RESILENT_ERROR, RESILIENT_BRAND, SEPARATOR } from './consts.js'
-import type { Converter, ResilientErrorConstructor } from './types.js'
+import type { Converter, MarshalErrorOptions, ResilientErrorConstructor } from './types.js'
 import { createErrorConverter } from './utils.js'
 
 type ConverterHolder = typeof globalThis & { [CONVERTER_REGISTRY]?: Converter[] }
@@ -125,17 +125,29 @@ export class ResilientError extends Error {
     return new ResilientError(this.typeName, err.message, err.stack)
   }
 
-  public static marshal(err: Error): Error {
-    if (isResilientError(err)) {
-      return new Error([err.type, err.message, err.oiriginalStack].join(this.separator))
+  public static marshal(err: Error, opts?: MarshalErrorOptions): Error {
+    const resilient = isResilientError(err)
+    const structuralType = (err as Error & { type?: unknown }).type
+    const type = resilient
+      ? err.type
+      : typeof structuralType === 'string' ? structuralType : this.typeName
+    const stack = opts?.includeStack === false
+      ? ''
+      : resilient ? err.oiriginalStack : err.stack
+    const fields: Array<string | undefined> = [type, err.message, stack]
+    if (opts?.incidentId != null) {
+      fields.push(opts.incidentId)
     }
 
-    return new Error([this.typeName, err.message, err.stack].join(this.separator))
+    return new Error(fields.join(this.separator))
   }
 
   public type: string = RESILENT_ERROR
 
   public oiriginalStack?: string
+
+  /** Correlates a serialized boundary error with the server log entry that owns its full stack. */
+  public incidentId?: string
 
   constructor(type: string, message: string, stack?: string) {
     super(message)
@@ -147,8 +159,8 @@ export class ResilientError extends Error {
     }
   }
 
-  marshal(): Error {
-    return ResilientError.marshal(this)
+  marshal(opts?: MarshalErrorOptions): Error {
+    return ResilientError.marshal(this, opts)
   }
 
   finalizeUnmarshal(): void { }

@@ -26,8 +26,8 @@ imports one.
 **Rule or skill?** A rule is policy that has to hold whether or not anyone thought to load
 anything — the git workflow is the standing example, whether a repo keeps it as
 `.agents/rules/git.md` or inline in `AGENTS.md`. A skill is guidance for a task, loaded when that
-task comes up. If it only matters while you are doing X, write a skill; if breaking it is wrong at
-any moment, put it where `AGENTS.md` loads it every session.
+task comes up. If it only matters while you are doing X, write a skill; if breaking it is wrong at any moment, state it in a line or two where `AGENTS.md` loads it every
+session, and keep its detail in a skill (§ What may enter AGENTS.md).
 
 `.agents/skills/` is the [Agent Skills](https://agentskills.io) standard location: GitHub Copilot
 and Codex discover it natively. Claude Code reads skills only from `.claude/skills/`, so each skill
@@ -130,10 +130,26 @@ Never paste memory text into a skill. Memory content enters guidance only as a r
 rule — trigger, step, and the failure it prevents, with dates, phase/status markers, versions and
 incident narrative stripped (`memory-promotion` → Distillation).
 
+## What may enter AGENTS.md
+
+`AGENTS.md` — with every file it `@`-imports and `.agents/memory/MEMORY.md` — is loaded in full in
+every session, so it has a budget: **≤ 40 000 chars**, checked by `sh .agents/scripts/agents-size.sh`
+from the repo root where the repo carries it. A line enters it only as:
+
+1. a mandatory rule that must hold before any skill is loaded (git, reporting, environments,
+   naming) — stated in one or two lines, with the detail in a skill;
+2. one line of the package map or the command list;
+3. one line of the skills index: `` - `/name` — when to load it ``, ≤ 160 chars.
+
+Everything else is loaded on demand: a subsystem's rules, contracts and failure fingerprints go to
+the skill that governs it, and the outage that taught them to `.agents/memory/`. Never paraphrase a
+skill's `description:` into the index — skills self-describe. A change that would push the file over
+budget shortens or moves an existing line in the same change.
+
 ## After adding a skill
 
 1. If it replaces an ad-hoc `.agents/<topic>.md`, remove that file.
 2. If it distilled memory content into rules, shrink the source `.agents/memory/` node to a
    pointer line (`memory-promotion`) — the memory index does not list skills.
-3. Reference it from `AGENTS.md` if it should be discoverable every session.
+3. Add one line to the skills index in `AGENTS.md` (`/name` — when to load it, ≤ 160 chars) — never a paragraph (§ What may enter AGENTS.md).
 4. Run `sh .agents/scripts/link-skills.sh`.

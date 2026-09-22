@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/socket
 
 **Layer:** Core
-**Install:** `"@owlmeans/socket": "^0.1.18-rc.25"` in `dependencies`
+**Install:** `"@owlmeans/socket": "^0.1.18-rc.28"` in `dependencies`
 
 Contracts and one implementation-free connection model. It knows nothing about WebSockets: the
 browser side is `@owlmeans/client-socket`, the Fastify side `@owlmeans/server-socket`, and each
@@ -119,6 +119,11 @@ the next stage and its payload, or throws — a rejection travels back as an `Au
 null stage and is rebuilt by the initiator. `connection.stage` holds the current
 `AuthenticationStage` throughout. Only the server carrier implements a real sequence; see the
 `server-socket` skill.
+
+Raw inbound data is parsed and structurally checked before dispatch. A server connection may accept
+only authentication frames until its carrier marks it authenticated; an unknown call returns a
+typed socket error, and listener failures are isolated and logged so an EventEmitter never receives
+an unhandled rejected promise. Keep sensitive actions behind the carrier's authentication stage.
 
 ## Depends On
 

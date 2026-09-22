@@ -6,7 +6,7 @@ description: How to use @owlmeans/context — the context every OwlMeans app loo
 
 # Context lookups
 
-**Install:** `bun add @owlmeans/context@^0.1.18-rc.25`
+**Install:** `bun add @owlmeans/context@^0.1.18-rc.28`
 
 Use a protocol declaration directly when obtaining an entrypoint. The declaration supplies the
 registered entrypoint’s request and response types.
