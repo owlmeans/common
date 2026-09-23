@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/static-resource",
-  "version": "0.1.18-rc.33",
-  "generatedAt": "2026-09-22T22:22:19.451Z",
+  "version": "0.1.18-rc.34",
+  "generatedAt": "2026-09-23T19:57:40.713Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

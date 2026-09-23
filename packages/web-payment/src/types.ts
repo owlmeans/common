@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { CallOptions, RequestShape } from '@owlmeans/entrypoint'
 import type {
-  AmountCheckoutPolicy, CapabilityView, CreateCheckoutResponse, EntitlementPlanView, LimitView,
+  AmountCheckoutPolicy, CapabilityView, CheckoutLimitView, CreateCheckoutResponse, EntitlementPlanView, LimitView,
   PortalLinkBody, PriceEstimate, PriceEstimateBody,
 } from '@owlmeans/payment'
 
@@ -9,12 +9,21 @@ export type CheckoutResult = CreateCheckoutResponse
 export interface AmountCheckoutDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The plan's policy — or one already narrowed for the entity (`AmountPolicyView.policy`). */
   policy: AmountCheckoutPolicy
   pending?: boolean
   /** Chosen amount and, where tax estimation collected it, the billing country. */
   onConfirm: (amountMinor: number, country?: string) => Promise<void> | void
   /** A live tax/currency estimate for the credit line — absent: the plain "tax at checkout" note. */
   estimate?: PriceEstimateControl
+  /**
+   * What the entity may buy now (`AmountPolicyView.limit`). The dialog narrows `policy` with it
+   * through `narrowAmountPolicy` — presets above the maximum disappear, the default is clamped —
+   * shows a `CheckoutLimitNote`, and on `blocked` disables the input and the confirm button.
+   */
+  limit?: CheckoutLimitView | null
+  /** Legal text the application places right above the buttons (a withdrawal note, terms links). */
+  legalNote?: ReactNode
 }
 
 /** What `usePriceEstimate` returns: the latest answer, the chosen country, and its lifecycle. */
@@ -26,7 +35,20 @@ export interface PriceEstimateControl {
   loading: boolean
   /** The last request failed; `estimate` is the previous good answer, if any. */
   failed: boolean
+  /**
+   * The country is the entity's locked billing country (an answer with `locked` or `source:
+   * 'profile'`): a picker shows it disabled, and `onCountryChange` does nothing.
+   */
+  locked?: boolean
   onCountryChange: (country: string) => void
+}
+
+export interface CheckoutLimitNoteProps {
+  /** `null`, or a limit that narrowed nothing, renders nothing. */
+  limit: CheckoutLimitView | null | undefined
+  /** Replaces the package's sentence for the limit's `reason` (`per-purchase`, `window`, `hold`). */
+  reasonLabel?: string | ((reason: string) => string | null | undefined)
+  className?: string
 }
 
 /** The request of a price-estimate protocol: its body is a `PriceEstimateBody`. */

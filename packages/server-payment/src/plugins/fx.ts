@@ -64,6 +64,35 @@ export interface SettlementAmount {
 
 export type StripeFxRateCache = Map<string, Promise<StripeFxRate | null>>
 
+/**
+ * A catalogue amount in the currency the buyer is charged in: unchanged — no FX call — when the
+ * currencies are equal; otherwise converted at Stripe's FX reference rate, rounded up.
+ */
+export const chargeAmount = async (
+  ctx: ApiContext, stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string, chargeCurrency: string,
+  cache?: StripeFxRateCache,
+): Promise<SettlementAmount> => {
+  const source = sourceCurrency.toLowerCase()
+  const currency = chargeCurrency.toLowerCase()
+  if (currency === source) {
+    return { amountMinor: sourceAmountMinor, currency, sourceAmountMinor, sourceCurrency: source, referenceRate: 1 }
+  }
+  const apiVersion = (await stripePricingConfig(ctx))?.fxApiVersion ?? STRIPE_FX_QUOTES_API_VERSION
+  const key = `${source}:${currency}:${apiVersion}`
+  let pending = cache?.get(key)
+  if (pending == null) {
+    pending = stripeFxRate(stripe, source, currency, apiVersion)
+    cache?.set(key, pending)
+  }
+  const quote = await pending
+  if (quote == null) throw new PaygateError(`fx-rate:${source}:${currency}`)
+
+  return {
+    amountMinor: convertMinor(sourceAmountMinor, quote.referenceRate), currency,
+    sourceAmountMinor, sourceCurrency: source, referenceRate: quote.referenceRate,
+  }
+}
+
 /** Translate a catalogue amount into the configured Stripe settlement currency. */
 export const settlementAmount = async (
   ctx: ApiContext, stripe: Stripe, sourceAmountMinor: number, sourceCurrency: string,

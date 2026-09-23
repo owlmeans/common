@@ -35,6 +35,36 @@ const getPersistedLanguage = (): string | null => {
   }
 }
 
+/**
+ * The first of the browser's preferred languages the application supports — exact (`pt-BR`) or by
+ * its base (`de-DE` → `de`) — or `null` when none is. Pure, so a host (or a test) can pass the list.
+ */
+export const preferredLanguageOf = (
+  supportedLngs: readonly string[], preferred: readonly (string | null | undefined)[],
+): string | null => {
+  const supported = new Map(supportedLngs.map(lng => [lng.toLowerCase(), lng]))
+  for (const candidate of preferred) {
+    const tag = candidate?.trim().toLowerCase() ?? ''
+    if (tag === '') continue
+    const match = supported.get(tag) ?? supported.get(tag.split(/[-_]/)[0])
+    if (match != null) return match
+  }
+
+  return null
+}
+
+/** The browser's preferred languages, in order; `[]` outside a browser. */
+const browserLanguages = (): readonly string[] => {
+  try {
+    if (typeof navigator === 'undefined') return []
+    return navigator.languages != null && navigator.languages.length > 0
+      ? navigator.languages
+      : navigator.language != null ? [navigator.language] : []
+  } catch (_) {
+    return []
+  }
+}
+
 const createI18nInstance = (config: ClientConfig): i18n => {
   if (i18nInstance != null) {
     return i18nInstance
@@ -43,9 +73,12 @@ const createI18nInstance = (config: ClientConfig): i18n => {
   const fallbackLng = config.i18n?.fallbackLng ?? config.i18n?.defaultLng ?? DEFAULT_LNG
   const supportedLngs = config.i18n?.supportedLngs ?? [...SUPPORTED_LNGS]
   const persistedLng = getPersistedLanguage()
+  // A person's explicit choice first; on a first visit the browser's own language — the instance is
+  // initialized right here with an explicit `lng`, so a detector plugin installed afterwards
+  // (`instance.use(detector)`) is never consulted and cannot do this.
   const lng = persistedLng != null && supportedLngs.includes(persistedLng)
     ? persistedLng
-    : fallbackLng
+    : preferredLanguageOf(supportedLngs, browserLanguages()) ?? fallbackLng
 
   const instance = createInstance({
     // No `compatibilityJSON` — i18next >= 26 accepts only the v4 JSON format

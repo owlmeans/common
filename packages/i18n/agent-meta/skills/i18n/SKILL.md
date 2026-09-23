@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/i18n
 
 **Layer:** Core (no runtime deps)
-**Install:** `"@owlmeans/i18n": "^0.1.18-rc.35"` in `dependencies`
+**Install:** `"@owlmeans/i18n": "^0.1.18-rc.36"` in `dependencies`
 
 ## Purpose
 
@@ -21,6 +21,7 @@ Global registration store that packages write into at import time. React clients
 | `addI18nLib(lng, resource, data, opts?)` | Register library-owned strings (ns defaults to `'lib'`) |
 | `addI18nApp(lng, resource, data, opts?)` | Register app-owned strings (ns defaults to resource name) |
 | `initI18nResource(lng, resource, ns?)` | Drain a registered bundle for a language (called by client-i18n) |
+| `resolveI18nResource(lng, resource, ns = DEFAULT_NAMESPACE)` | The merged bundle of ANY language, read WITHOUT draining it — `null` when nothing is registered (see § Reading without draining) |
 | `SUPPORTED_LNGS` / `SupportedLng` | `['en','pl','ru','be','uk','es','de']` — the canonical language set, and its union type |
 | `DEFAULT_LNG` | `'en'` |
 | `LIB_NAMESPACE` | `'lib'` |
@@ -74,6 +75,21 @@ raising it. Leave it unset unless one library must lose to another.
 later call, so an `import '@owlmeans/<pkg>'` evaluated after a screen has rendered adds nothing a
 component can read. Register at module load — a side-effect import at the top of the entry file,
 which is what re-exporting `./i18n.js` from `src/index.ts` achieves.
+
+## Reading without draining
+
+`resolveI18nResource(lng, resource, ns)` deep-merges every bundle registered for the slot in the
+exact order `initI18nResource` hands them out — library tier, then app tier, `priority` ascending,
+an unset priority last — so an app override wins as it does in i18next. Plain objects merge key by
+key; any other value replaces (arrays are copied). It never marks the slot drained and never
+creates an empty slot, so a later `initI18nResource` still returns the same bundles, and a drained
+slot still resolves. The result never aliases a registered bundle.
+
+Use it where there is no i18next instance or the language is not the active one: a server
+rendering an e-mail or a paygate text, a legal text shown in the billing country's language while
+the interface speaks another (`@owlmeans/payment`'s `consumerRightsCopy` is built on it). Pass the
+namespace the bundle lives in — `LIB_NAMESPACE` for an `addI18nLib` bundle; the default is
+i18next's own `'translation'`.
 
 ## Per-package pattern
 

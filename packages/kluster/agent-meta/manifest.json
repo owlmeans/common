@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/kluster",
-  "version": "0.1.18-rc.35",
-  "generatedAt": "2026-09-22T22:24:39.588Z",
+  "version": "0.1.18-rc.36",
+  "generatedAt": "2026-09-23T19:57:40.701Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

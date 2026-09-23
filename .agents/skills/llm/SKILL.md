@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.36"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.37"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -30,10 +30,11 @@ symbol "because a test needs it".
 | `plugins`, `registerLlmPlugin`, `resolvePlugin`, `pluginOf`, `pluginFor` | The provider-plugin registry. Also at `@owlmeans/llm/plugins`. |
 | `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily` | Built-in providers; `openAiFamily` is the shared OpenAI-client behaviour to spread into a new plugin. |
 | `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table below. Consumers pin presets against them. |
-| `withRetry`, `registerFatalError`, `isFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
+| `effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `ANTHROPIC_EFFORT_SUPPORT` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts — see "Fallback chains and provider effort". |
+| `withRetry`, `registerFatalError`, `isFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
 | `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
 | `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role. |
-| `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
+| `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `TEMPERATURE_PER_EFFORT_STEP`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
 ## Provider differences are plugins, never `if`s
 
@@ -42,8 +43,9 @@ symbol "because a test needs it".
 | Plugin member | Replaces |
 |---|---|
 | `build` | the provider switch in the model factory |
-| `owns` / `family` | `instanceof` checks; `family` gates cross-provider fallback |
-| `refine` | the per-provider retry rebuild (budget doubling, reasoning shrink) |
+| `owns` / `family` | `instanceof` checks; a `family` change between rungs re-renders the prompt |
+| `refine` | the per-provider retry rebuild (budget doubling, reasoning shrink, effort climb) |
+| `effort` | which `ModelConfig.effort` levels a model accepts (`effortSupportOf(config)`) |
 | `structuredMode` | native `response_format` vs the forced-tool-call hack |
 | `toolChoice` / `responseFormat` | the provider-specific call shapes |
 | `patchSystem` | how the composed system blocks are rendered and where their cache breakpoints go |
@@ -64,12 +66,15 @@ hooks, through a predicate the package root exports:
 | Family | Rejects | Predicate |
 |---|---|---|
 | Claude 4.7+ and the 5 family | `temperature`, `top_p`, `top_k` | `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` |
-| OpenAI Responses API (`gpt-5*`, `codex-*`) | `temperature`, `top_p` | `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` |
+| OpenAI Responses API (`gpt-6*`, `gpt-5*`, `codex-*`) | `temperature`, `top_p` | `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` |
 
-Models below those lines keep the deterministic `temperature: 0` default. Each `refine` re-derives
-the family from the ACTIVE base instance it is handed — Anthropic from `modelName ?? model`, OpenAI
-from `model ?? lc_kwargs.model` plus a `useResponsesApi` already on `lc_kwargs` — so a same-family
-`fallback` rung is judged on its own id, not the primary's. Keep the predicate exported: consumers
+A new OpenAI family goes into `RESPONSES_API_PREFIXES` the day it is pinned: outside it the model
+goes through chat completions with `temperature` (a 400), and chat completions allows tools on
+`gpt-6*` only at `reasoning_effort: none`. Models below those lines keep the deterministic
+`temperature: 0` default. Each `refine` re-derives the family from the ACTIVE base instance it is
+handed — Anthropic from `modelName ?? model`, OpenAI from `model ?? lc_kwargs.model` plus a
+`useResponsesApi` already on `lc_kwargs` — so a `fallback` rung is judged on its own id, not the
+primary's. Keep the predicate exported: consumers
 pin presets against it (viable-agent's `tests/presets.test.ts` asserts no preset entry declares a
 parameter its model rejects), and a second hand-written copy drifts when a family is added.
 
@@ -189,10 +194,9 @@ inner loop at attempt 0, so the escalator's two rungs never move: same model, sa
 same deterministic answer, N times. Pass `escalation: <outer attempt>` in `LlmCallOptions` and the
 per-call escalator starts that far up its ladder instead — `maxTokens` doubling and the
 `FALLBACK_AFTER_ATTEMPTS` switch to `ModelConfig.fallback` both advance. It is clamped to
-`retries - 1`, moves the STARTING rung only, and never changes how many attempts the call makes. Two
-things it depends on, both preset data rather than code: the role must declare a `fallback`, and that
-fallback must be in the same plugin `family` (a cross-family one is skipped with a warning, because
-switching provider mid-call flips the structured-output shape). `LlmCallOptions.fatal` is the lever
+`retries - 1`, moves the STARTING rung only, and never changes how many attempts the call makes. The
+model switch depends on preset data rather than code: the role must declare a `fallback`.
+`LlmCallOptions.fatal` is the lever
 in the other direction — a per-call resolver consulted before the global ones and the plugin's
 `isFatal`, for an error the caller knows no retry can fix.
 
@@ -224,9 +228,60 @@ also clamps `maxTokens` to `maxOutput` and warns about a cap above it. For an ag
 can do elsewhere. `combinedWindow: true` marks a model whose window is shared between input and
 output (MiniMax M2.x, gpt-oss) — nothing enforces it at runtime; it keeps presets honest about
 leaving room for the prompt. **A `fallback` that changes `model` must restate
-`contextWindow`/`maxOutput`** (and reset `combinedWindow`): the fallback config is
-`{...primaryConfig, ...fallback}`, so every field the patch does not name is inherited from a
-different model.
+`contextWindow`/`maxOutput`** (and reset `combinedWindow`): on the same provider the fallback config
+is `{...rungAbove, ...fallback}`, so every field the patch does not name is inherited from a
+different model. `createModel` clamps `maxTokens` per rung, against that rung's own `maxOutput`.
+
+## Fallback chains and provider effort
+
+**A `fallback` may carry its own `fallback`; the chain is the escalation ladder.** `resolveFallbacks`
+(`helpers/fallback.ts`, exported) is the ONE merge: the service builds from it and hangs each rung
+off the one above as `__fallbackModel`; a consumer walking a preset (tests, a price list) calls it
+rather than re-spreading. Each rung gets `FALLBACK_AFTER_ATTEMPTS` attempts, the last keeps the rest
+(`utils/rungs.ts` — 8 retries over three rungs = 3 / 3 / 2).
+
+**A rung may name another `provider`.** It then inherits only `PROVIDER_NEUTRAL_FIELDS` (`maxTokens`,
+`maxTokensCap`, `streamTimeout`, `cacheKey`), so it must bring its own `secret`, `model`, capability,
+`disableThinking` and `effort`; a missing `secret` is `LlmMissconfiguredError` at `getModel`, not a
+401 mid-run. `makeLlmModel` takes EVERYTHING provider-shaped from the active rung — `refine`,
+`structuredMode`/`toolChoice`/`responseFormat`, the idle deadline — and re-runs `prepare` whenever
+the rung's `family` differs from the last one prepared (system blocks, cache markers and the
+thinking switch are provider dialect; the markers live on the caller's messages, so each rendering
+clears the last one's). Keying anything on the PRIMARY's plugin reintroduces the old single-family
+bug: another provider's rung asked in the primary's `tool_choice` spelling is a fatal 400.
+
+**`ModelConfig.effort` (`ModelEffort`, `@owlmeans/llm-common`) is the provider's own knob** —
+OpenAI `reasoning.effort`, Anthropic `output_config.effort` — and not `ExecutionEffort`, which is
+this package's token-budget tier. Plugin tables are the authority (`OPENAI_EFFORT_SUPPORT`,
+`ANTHROPIC_EFFORT_SUPPORT`, verified 2026-09-23 against developers.openai.com/api/docs/models/* and
+platform.claude.com/docs/en/build-with-claude/effort):
+
+| Model | Levels | Default |
+|---|---|---|
+| `gpt-6-sol`, `gpt-6-luna` | none, low, medium, high, xhigh, max | medium |
+| `gpt-6-astra` | low … max (`none` is a 400) | medium |
+| `gpt-5*` and older OpenAI | not sent — accepted sets vary per snapshot | — |
+| Claude Opus 5.5 | low … max | medium |
+| Claude Opus 5, Fable 5, Mythos 5, Opus 4.8/4.7, Sonnet 5 | low … max | high |
+| Claude Mythos Preview, Opus 4.6, Sonnet 4.6 | low, medium, high, max (no xhigh) | high |
+| Claude Opus 4.5 | low, medium, high | high |
+| Claude Haiku 4.5, Sonnet 4.5 and older | field rejected — never sent | — |
+
+A declared level the model lacks is clamped DOWN to the nearest accepted one (never a 400); an
+undeclared effort is not sent at all (omitting it is how the default is asked for). Opus 5 accepts
+`thinking: disabled` only at `high` or below, so under `disableThinking` its levels stop there
+(`thinkingOffCeiling`); Sonnet 5 takes `disabled` at every level, and effort still governs every
+output token with thinking off.
+
+**Effort climbs on retries, one level per attempt of the rung** (`LlmRefineParams.rungAttempt`), from
+the rung's declared level — or its model's default once it has retried — to the model's ceiling. So
+each fallback starts from its OWN level. A `TemperatureFactory` request climbs it too
+(`temperatureSteps`: one level per `TEMPERATURE_PER_EFFORT_STEP` = 0.3, at least one), because the
+models that take effort have mostly taken sampling away and "hotter" alone changes nothing on the
+wire. Effort is part of Anthropic's cached prefix, so a climbed retry writes a new cache entry.
+At `high` and above the OpenAI plugin floors the output budget at `REASONING_MIN_MAX_TOKENS` (25k,
+OpenAI's reasoning-guide reservation for reasoning + answer), clamped to the cap, like
+`ADAPTIVE_MIN_MAX_TOKENS` below.
 
 ### Reasoning is off unless a preset asks for it — and it is billed against the same budget
 
@@ -247,8 +302,9 @@ models with no request-level control (Qwen3). The Anthropic plugin answers `true
 `build`, which `refine` carries through `lc_kwargs` on every attempt. Below that line
 (`claude-haiku-4-5`, `claude-sonnet-4-6`) and under any plugin declaring no hook the flag injects
 prompt text instead, so set it where the wire honours it. **A preset must set the flag on every
-adaptive Anthropic role**; it reaches the `fallback` rung only by inheritance from the entry
-(viable-agent's `presets.test.ts` pins this). Turning reasoning ON is a per-role decision.
+adaptive Anthropic rung**: a same-provider `fallback` inherits it from the rung above, a rung that
+switches TO Anthropic inherits nothing and must name it (viable-agent's `presets.test.ts` walks every
+rung). Turning reasoning ON is a per-role decision.
 
 `ADAPTIVE_MIN_MAX_TOKENS` (32k) is the output floor the Anthropic plugin's `build` applies to every
 `rejectsSampling(model)` config — `disableThinking` is not consulted, so a role with reasoning turned
@@ -283,7 +339,8 @@ meant to carry a model must name one.
 ## Resilience already handled — do not reimplement
 
 Idle stream deadline · duplicate-final-chunk dedup · output-budget escalation · reasoning-cap shrink ·
-adaptive-thinking budget floor · same-family fallback model · caller-seeded ladder position
+adaptive-thinking budget floor · fallback chain across providers · effort climb per rung ·
+reasoning budget floor · caller-seeded ladder position
 (`escalation`) · schema coercion · JSON salvage from prose · `NullCapture` diagnostics · fatal-error
 short-circuit · blank-content sanitization (whitespace-only text blocks are dropped before every call
 — a blank block, e.g. an empty file read pasted into a prompt, is otherwise a fatal Anthropic 400;

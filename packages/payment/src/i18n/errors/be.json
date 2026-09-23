@@ -17,5 +17,13 @@
   "PaymentErrorSubscriptionUnknown": "Гэтая падпіска не існуе",
   "EntitlementRefusal": "Ваш тарыф гэтага не дазваляе",
   "EntitlementRefusalCapabilityRequired": "Гэтая функцыя не ўваходзіць у ваш тарыф",
-  "EntitlementRefusalLimitExhausted": "Дасягнуты ліміт вашага тарыфу"
+  "EntitlementRefusalLimitExhausted": "Дасягнуты ліміт вашага тарыфу",
+  "PaymentErrorConsumerRights": "Апрацоўка правоў спажыўца наладжана няправільна",
+  "PaymentErrorConsumerRightsRefusal": "Гэты запыт зараз нельга выканаць для гэтага ўліковага запісу",
+  "PaymentErrorConsumerRightsRefusalPerformanceConsentRequired": "Пацвердзіце, што хочаце пачаць карыстацца нядаўна набытымі крэдытамі",
+  "PaymentErrorConsumerRightsRefusalSubscriptionStartRequired": "Перад пераходам да аплаты пацвердзіце, што паслугі падпіскі павінны пачацца адразу",
+  "PaymentErrorConsumerRightsRefusalBillingCountryLocked": "Краіна выстаўлення рахункаў гэтага ўліковага запісу ўжо вызначана і не можа быць зменена тут",
+  "PaymentErrorConsumerRightsRefusalWithdrawalUnavailable": "Ад гэтага дагавора нельга адмовіцца тут",
+  "PaymentErrorConsumerRightsRefusalCancellationUnavailable": "Няма актыўнай падпіскі для растаргнення",
+  "PaymentErrorCheckoutLimitExceeded": "Гэта сума перавышае тое, што гэты ўліковы запіс можа набыць зараз"
 }

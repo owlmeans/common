@@ -7,6 +7,7 @@ import {
 } from '../consts.js'
 import { LimitDeclarationSchema, PlanCapabilitySchema } from './limit.js'
 import { AmountCheckoutPolicySchema, QuantityCheckoutPolicySchema } from './pricing.js'
+import { PlanWithdrawalComponentSchema } from './consumer.js'
 
 export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
   type: 'object',
@@ -45,6 +46,15 @@ export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
     pricingMode: { ...CheckoutPricingModeSchema, nullable: true },
     amountPolicy: { ...AmountCheckoutPolicySchema, nullable: true },
     quantityPolicy: { ...QuantityCheckoutPolicySchema, nullable: true },
+    withdrawal: {
+      type: 'object',
+      properties: {
+        components: { type: 'array', items: PlanWithdrawalComponentSchema, minItems: 1 },
+      },
+      required: ['components'],
+      additionalProperties: false,
+      nullable: true,
+    },
   },
   required: [
     'productSku', 'sku', 'status', 'duration',

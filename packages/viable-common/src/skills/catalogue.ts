@@ -1238,7 +1238,8 @@ file per entity: \`sources/api/src/app/<entity>/<action>.ts\`. It NEVER imports 
 NEVER calls \`handlers<Context>()\`; that belongs only in the file that BINDS it:
 
     // sources/api/src/app/task/create.ts — the handler module
-    export const handleTaskCreate = async (payload: TaskCreatePayload, ctx: Context) => {
+    import type { Task } from 'project-common/models/task/task'
+    export const handleTaskCreate = async (payload: Task, ctx: Context) => {
       const tasks = getTaskResource(ctx)
       return await tasks.create(payload)
     }
@@ -1286,6 +1287,12 @@ package, and every request to the route then fails with \`TypeError: handler is 
   \`api.body(p, (payload, ctx, request) => …)\` — the typed body first;
   \`api.params(p, (params, ctx, request) => …)\` — the typed route params first;
   \`api.request(p, (request, ctx) => …)\` — the whole request first.
+- The PROTOCOL decides the handler's types. The body, params and response its declaration in
+  \`sources/common/src/entrypoints.ts\` names are the handler's parameter and return types, imported
+  from the shared package. Never declare an input or record type in \`sources/api\` or
+  \`sources/backend\` (\`CreateTaskInput\`, \`TaskRecord\`, \`Task & { id: string }\`): the shared
+  package cannot import it, so the declaration can never name it, and the binding fails with
+  \`TS2345 "Argument of type '(payload: CreateTaskInput, ctx: Context) => …' is not assignable"\`.
   Only \`.request\` hands you the request as the FIRST argument. When you need to name its type,
   \`HandlerRequest\` comes from \`@owlmeans/entrypoint\` — \`@owlmeans/server-api\` does NOT export it.
 - Handlers are ENTITY-SCOPED: \`sources/api/src/app/<entity>/<action>.ts\`, named exports only.
@@ -1328,6 +1335,13 @@ says before rewriting anything.
   handler module. Left as a type error, this is also the runtime fingerprint of the same defect:
   a story reported \`completed\` whose every request to that route fails with
   \`TypeError: handler is not a function\` (\`execute is not a function\` for \`.request\`).
+- **\`TS2345 "Argument of type '(payload: X, …) => …' is not assignable to parameter of type
+  '(payload: Y, …) => …'"\` at a \`bind(...)\` line in \`sources/api/src/entrypoints.ts\` is the
+  HANDLER disagreeing with its protocol.** The declaration in \`sources/common/src/entrypoints.ts\`
+  is the authority: change the handler's parameter and return types to exactly the declared ones,
+  imported from the shared package. Never edit the declaration toward the handler, never declare a
+  type in \`sources/common/src/entrypoints.ts\` to match it, and never cast at the binding — each
+  of those moves the error into the other file and the loop never converges.
 - "Cannot find module" for \`postgres\`, \`@/lib/db.js\` or \`@/db/schema/...\` inside a
   \`resources/**\` file means the file was written against the REMOVED Drizzle-DDL layout.
   Rewrite it as an OwlMeans resource: an AJV schema on \`resource.schema\`, built with

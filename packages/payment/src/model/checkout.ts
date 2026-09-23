@@ -2,6 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import type { CreateCheckoutBody, CreateCheckoutResponse } from '../types.js'
 import { ResourceValueSchema, EntityValueSchema, IdValueSchema } from '@owlmeans/auth'
 import { schema } from '@owlmeans/entrypoint'
+import { CountrySchema } from '../countries.js'
 
 export const CreateCheckoutBodySchema = schema<CreateCheckoutBody>({
   type: 'object',
@@ -14,6 +15,8 @@ export const CreateCheckoutBodySchema = schema<CreateCheckoutBody>({
     subscriptionId: { ...IdValueSchema, nullable: true },
     successUrl: { ...ResourceValueSchema, minLength: 1, nullable: true },
     cancelUrl: { ...ResourceValueSchema, minLength: 1, nullable: true },
+    country: { ...CountrySchema, nullable: true },
+    startRequestId: { ...IdValueSchema, nullable: true },
   },
   required: ['productSku', 'entitySlug', 'service'],
   additionalProperties: false,

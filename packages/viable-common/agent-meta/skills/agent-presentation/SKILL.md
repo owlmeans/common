@@ -6,7 +6,7 @@ description: Shared, runtime-free taxonomy for presenting OwlMeans Viable agent 
 
 # Agent output presentation
 
-**Install:** `"@owlmeans/viable-common": "^0.0.32"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.33"` in `dependencies`
 
 `@owlmeans/viable-common`'s `agent/presentation.ts` owns the browser-safe vocabulary for agent
 output. Keep the server and every client on `classifyAgentMessage()`; consumers may refine a

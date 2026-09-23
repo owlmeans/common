@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/agent-common",
-  "version": "0.1.18-rc.39",
-  "generatedAt": "2026-09-22T22:24:39.524Z",
+  "version": "0.1.18-rc.40",
+  "generatedAt": "2026-09-23T19:57:40.669Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

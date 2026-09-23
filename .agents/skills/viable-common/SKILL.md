@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.32"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.33"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/resource`,
@@ -252,7 +252,7 @@ code, never as `minItems`/`maxItems`. The descriptions are what the planning mod
 state each field's purpose and bounds; `gate.target` is filled by code and described as such.
 
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.29` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.30` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
@@ -352,6 +352,14 @@ full-scale screen that reads and clears it. Every `ViableSkill` member has a bod
 `SKILL_ORDER`: the prompt service skips an alias it cannot resolve, so a missing body is a rule no
 model ever receives.
 
+`OwlMeansServer` and `FixerHeuristics` teach one rule from both ends: the PROTOCOL decides a
+handler's types. A handler's parameter and return types are exactly what its declaration in the
+target's shared entrypoints module names, imported from the shared package — never an input or
+record type declared in the api or backend package, which the shared package cannot import. The
+example handler therefore takes the shared `Task`, never an invented `…Payload`/`…Input` type
+(an example wins over the rule beside it), and a `TS2345` function-vs-function mismatch at a binding
+line is repaired in the HANDLER, never by bending the declaration toward it.
+
 ## Closed sets that mean something
 
 - **`ProjectArea`** — guest `/`, user `/frontoffice`, admin `/admin`, operator `/backoffice`. A
@@ -366,7 +374,7 @@ model ever receives.
   send, and no role but `Common` may resolve to the `common` directory.
 - **`ConversionStage`** — advanced only through `stageAfter` / `canEnter` / `decisionFor`. A stage
   transition computed at a call site is how a conversion re-enters a stage it already paid for.
-- **`ModerationCategory`** — a wire contract with seven languages of wording behind it. A fifth
+- **`ModerationCategory`** — a wire contract with eight languages of wording behind it. A fifth
   shape is PHRASED into one of the four, never added.
 
 ## The conversion vocabulary is shared with three executors that walk the same tree
@@ -403,8 +411,18 @@ actually gave. Never introduce a local cap; import the one that exists.
 ## Errors: declared here, phrased where they are read
 
 `ConnectError` and its family (`ConnectSessionNotFound`, `ConnectSessionGone`, `ConnectOpTimeout`,
-`ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`) are `ResilientError` classes with
-markers under `viable-connect:`. `ConnectSessionGone` is registered FATAL on the agent side: a run
+`ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`, `ConnectOutOfCredits`,
+`ConnectConsentRequired`) are `ResilientError` classes with markers under `viable-connect:`. The two
+refusals a connector turns into words for a person pack their fields into the message (only `type`
+and `message` survive a marshal) and rebuild them in `finalizeUnmarshal()`: `ConnectOutOfCredits`
+`out-of-credits:<gate>:<requiredUsd>:<balanceUsd>:<encodeURIComponent(topUpUrl)>` →
+`gate`, `requiredUsd`, `balanceUsd`, `topUpUrl`; `ConnectConsentRequired`
+`consent-required:<gate>:<deadline epoch ms | 0>:<encodeURIComponent(consentUrl)>` → `gate`,
+`deadline?` (the latest withdrawal deadline waiting for consent; `0` = unknown), `consentUrl` —
+build either with its `static encode(...)`. The deadline is epoch milliseconds and the URL goes
+last because an ISO date and a URL both contain colons. `ConnectConsentRequired` is the connector's
+face of the EU spend consent (`@owlmeans/payment` `PerformanceConsentRequired` on the web): only a
+PERSON can give it, in the browser at `consentUrl`. `ConnectSessionGone` is registered FATAL on the agent side: a run
 whose executor has gone away must stop at once rather than spend a retry ladder, and the step fails
 as an OUTCOME so the run row records where it stopped and `pipeline.resume` picks it up when a
 connector returns.
@@ -423,6 +441,7 @@ Every refusal here declares its HTTP status on its leaf class (the `error` skill
 | Status | Classes |
 |---|---|
 | 402 | `ConnectOutOfCredits` |
+| 428 | `ConnectConsentRequired` (a precondition only a person can meet) |
 | 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
 | 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported` (the project's target) |
 | 422 | `ConnectOpRefused` (the connector refused the operation) |
@@ -445,7 +464,8 @@ refusals' type names surviving a marshal), `scaffold.spec.ts` (an old-shape and 
 both passing the schema and the `scaffold` slot, `null` optionals accepted, no `minItems`),
 `blueprint.spec.ts` (each case's gate preference, the default, and the persona-skill unions),
 `branding.spec.ts` (the build env and the metadata vocabulary), `skills.spec.ts` (every skill has a
-body and a weight, the handler wrap-once teaching, the house style and the landing-gate skill),
+body and a weight, the handler wrap-once teaching, handler types taken from the protocol and the
+mismatch repaired in the handler, the house style and the landing-gate skill),
 `connect-entrypoints.spec.ts` (the tree's protocol count, no story route, the job-id round trip,
 the branding routes and their save body),
 `convert.spec.ts` (the three structural walks over the barrel, the
@@ -456,7 +476,8 @@ gate; capabilities accepting an executor kind this platform has never heard of; 
 resume bodies), `design.spec.ts` (the design aggregate, staleness ranking, and the design schema
 refusing an undeclared field or an area outside the closed set, and `userStoryOfDesign`),
 `error-status.spec.ts` (every exported refusal's declared status, and its class and status after a
-marshal round trip).
+marshal round trip), `connect-errors.spec.ts` (the packed fields of `ConnectOutOfCredits` and
+`ConnectConsentRequired` fresh and after a round trip, an unknown deadline as `0`).
 
 ## Depends On
 

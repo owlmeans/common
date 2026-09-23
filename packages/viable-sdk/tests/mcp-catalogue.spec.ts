@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { ResilientError } from '@owlmeans/error'
 import {
-  ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
+  ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
 } from '@owlmeans/viable-common'
 import { registerCatalogue } from '../src/tools/mcp.js'
 import type { McpServerLike } from '../src/tools/mcp.js'
@@ -69,6 +69,45 @@ describe('viable-sdk — an out-of-credits refusal, at the MCP boundary', () => 
     expect(notified).toHaveLength(1)
     expect(notified[0]![0]).toBe('warning')
     expect(notified[0]![1]).toBe(result.content[0]!.text)
+  })
+
+  test('a consent refusal tells the model to send the person to the URL, never to retry, and is notified', async () => {
+    const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
+    const deadline = new Date('2026-10-09T00:00:00.000Z')
+    const notified: Array<[string, string]> = []
+    const thrown = new ConnectConsentRequired(ConnectConsentRequired.encode('create', url, deadline))
+    const deps: ToolDeps = {
+      host,
+      api: {
+        project: {
+          // What the API client hands back in development exposure: the class, rebuilt by the registry.
+          create: async () => { throw ResilientError.ensure(thrown.marshal()) },
+        },
+      },
+      session: async () => ({} as never),
+      currentSession: () => null,
+      attached: () => null,
+      attach: () => undefined,
+      log: () => undefined,
+      notify: (level, text) => { notified.push([level, text]) },
+    } as unknown as ToolDeps
+
+    const { server, run } = fakeServer()
+    registerCatalogue(server, deps)
+
+    const result = await run('create_project', { prompt: 'a store finder' }) as {
+      content: Array<{ text: string }>
+      isError?: boolean
+    }
+    const text = result.content[0]!.text
+
+    expect(result.isError).toBe(true)
+    expect(text).not.toContain('consent-required:')
+    expect(text).toContain(url)
+    expect(text).toContain('2026-10-08')
+    expect(text).toContain('Nothing was started')
+    expect(text).toContain('Do not retry this call automatically')
+    expect(notified).toEqual([['warning', text]])
   })
 
   test('an ordinary error is reported as its own message, and never notified', async () => {

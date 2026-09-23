@@ -32,6 +32,10 @@ export interface UsePriceEstimateOptions {
  * in-flight request is shared. Uncontrolled (no `opts.country`): the first answer whose `source` is
  * `'customer'` preselects its `country`, once, so a returning buyer sees their own country without
  * picking it. Controlled (`opts.country` given): the country and its preselection are the caller's.
+ *
+ * An answer for a LOCKED billing country (`locked`, or `source: 'profile'`) wins over any pick: the
+ * hook adopts its country (controlled: through `opts.onCountryChange`, once), returns `locked:
+ * true`, and ignores `onCountryChange` from then on — the picker renders disabled.
  */
 export const usePriceEstimate = <Request extends PriceEstimateRequest>(
   entry: RegisteredEntrypoint<Request, PriceEstimate>, opts: UsePriceEstimateOptions,
@@ -49,6 +53,11 @@ export const usePriceEstimate = <Request extends PriceEstimateRequest>(
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
   const preselectedRef = useRef(false)
+  const lockedRef = useRef(false)
+  const locked = estimate != null && isLockedAnswer(estimate)
+  lockedRef.current = locked
+  const onCountryChangeRef = useRef(opts.onCountryChange)
+  onCountryChangeRef.current = opts.onCountryChange
 
   useEffect(() => {
     if (!opts.enabled) {
@@ -65,6 +74,16 @@ export const usePriceEstimate = <Request extends PriceEstimateRequest>(
       if (!active) return
       setEstimate(result)
       setLoading(false)
+      if (isLockedAnswer(result) && result.country != null && result.country !== country) {
+        // A locked billing country overrides whatever was picked: adopt it, once per country.
+        preselectedRef.current = true
+        if (controlled) {
+          onCountryChangeRef.current?.(result.country)
+        } else {
+          setInternalCountry(result.country)
+        }
+        return
+      }
       if (!controlled && !preselectedRef.current && country === '' && result.source === 'customer' && result.country != null) {
         preselectedRef.current = true
         setInternalCountry(result.country)
@@ -80,6 +99,9 @@ export const usePriceEstimate = <Request extends PriceEstimateRequest>(
   }, [opts.enabled, opts.ttlMs, bodyKey, country])
 
   const onCountryChange = useCallback((next: string) => {
+    if (lockedRef.current) {
+      return
+    }
     if (controlled) {
       opts.onCountryChange?.(next)
       return
@@ -89,5 +111,9 @@ export const usePriceEstimate = <Request extends PriceEstimateRequest>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlled, opts.onCountryChange])
 
-  return { estimate, country, loading, failed, onCountryChange }
+  return { estimate, country, loading, failed, locked, onCountryChange }
 }
+
+/** An answer computed for the entity's locked billing country, which no picker may change. */
+export const isLockedAnswer = (estimate: PriceEstimate): boolean =>
+  estimate.locked === true || estimate.source === 'profile'

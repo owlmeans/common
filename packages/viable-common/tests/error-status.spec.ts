@@ -18,6 +18,7 @@ const DECLARED: Record<string, number | undefined> = {
   LocalSlotUnsupported: 409,
   ConnectOpRefused: 422,
   ConnectOutOfCredits: 402,
+  ConnectConsentRequired: 428,
   ConnectOpTimeout: undefined,
   ProjectResourceError: undefined,
   ProjectNotFound: 404,
@@ -40,7 +41,7 @@ describe('viable-common refusals — declared HTTP statuses', () => {
     expect(classes.map(([name]) => name).sort()).toEqual(Object.keys(DECLARED).sort())
   })
 
-  test('balance 402, an absent target 404, a conflicting state 409, refused content 422; faults nothing', () => {
+  test('balance 402, an absent target 404, a conflicting state 409, refused content 422, a consent only a person gives 428; faults nothing', () => {
     for (const [name, Class] of classes) {
       expect([name, statusOf(new Class('x'))]).toEqual([name, DECLARED[name]])
     }
@@ -55,5 +56,9 @@ describe('viable-common refusals — declared HTTP statuses', () => {
       new connect.ConnectOutOfCredits(connect.ConnectOutOfCredits.encode('story', 1, 0, 'https://x.test')).marshal()
     )
     expect([statusOf(credits), (credits as connect.ConnectOutOfCredits).gate]).toEqual([402, 'story'])
+    const consent = ResilientError.ensure(
+      new connect.ConnectConsentRequired(connect.ConnectConsentRequired.encode('story', 'https://x.test/?consent=1')).marshal()
+    )
+    expect([statusOf(consent), (consent as connect.ConnectConsentRequired).consentUrl]).toEqual([428, 'https://x.test/?consent=1'])
   })
 })

@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
-import { ExecutionEffort, ExecutionLevel, UTILITY_ROLE } from '@owlmeans/llm-common'
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import {
+  ExecutionEffort, ExecutionLevel, ModelEffort, ModelProvider, UTILITY_ROLE,
+} from '@owlmeans/llm-common'
 import type { ExecutionState, ModelConfigPatch, TaskExecutionState } from '@owlmeans/llm-common'
 import { DEFAULT_EFFORT, EFFORT_TABLE, makeExecutionService, makeLlmService } from '@owlmeans/llm'
-import type { ExecutionService, ProjectExecution, TaskExecution } from '@owlmeans/llm'
+import type { ExecutionService, ModelConfig, ProjectExecution, TaskExecution } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
 
 let service: ExecutionService
@@ -373,5 +376,49 @@ describe('@owlmeans/llm — per-helper output sizing', () => {
   test('without output the override carries no token sizing', () => {
     service.forHelper(root, { role: Role.Analyst })
     expect(resolved.at(-1)!.override?.maxTokens).toBeUndefined()
+  })
+})
+
+describe('@owlmeans/llm — a temperature refinement climbs effort', () => {
+  const configs = (): ModelConfig[] => [
+    {
+      alias: 'declared', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-test',
+      effort: ModelEffort.Low,
+    },
+    { alias: 'undeclared', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-test' },
+  ]
+  const helperFor = (role: string) => {
+    const tag = `${role}-${Math.trunc(performance.now() * 1000)}`
+    const llm = makeLlmService({ models: configs }, `spec-temp-effort-llm-${tag}`)
+    const executions = makeExecutionService(`spec-temp-effort-${tag}`)
+    return executions.forHelper(executions.root({
+      models: () => llm, policy: { effort: DEFAULT_EFFORT }, purpose: { type: 'spec' },
+    }), { role })
+  }
+  const effortOf = (model: BaseChatModel): string | undefined =>
+    (model.lc_kwargs as { reasoning?: { effort?: string } }).reasoning?.effort
+
+  test('each 0.3 of temperature is one level above the declared effort', () => {
+    const helper = helperFor('declared')
+
+    expect(effortOf(helper.model)).toBe('low')
+    expect(effortOf(helper.temperatureFactory(0.3))).toBe('medium')
+    expect(effortOf(helper.temperatureFactory(0.6))).toBe('high')
+    expect(effortOf(helper.temperatureFactory(1))).toBe('xhigh')
+    expect(effortOf(helper.temperatureFactory(0))).toBe('low')
+  })
+
+  test('an undeclared effort climbs from the model\'s default', () => {
+    const helper = helperFor('undeclared')
+
+    expect(effortOf(helper.model)).toBeUndefined()
+    expect(effortOf(helper.temperatureFactory(0.3))).toBe('high')
+  })
+
+  test('a model that accepts no effort gets the temperature alone', () => {
+    const helper = service.forHelper(root, { role: Role.Analyst })
+    helper.temperatureFactory(0.6)
+
+    expect(resolved.at(-1)!.override).toEqual({ temperature: 0.6, topP: 0.8 })
   })
 })

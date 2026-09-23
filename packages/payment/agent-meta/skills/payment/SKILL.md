@@ -1,6 +1,6 @@
 ---
 name: payment
-description: "How to use @owlmeans/payment — provider-agnostic payment contracts, immutable payment protocols, amount/quantity checkout policies and pricing, catalogue records, and entitlement gates. Auto-invoked when importing payment types or errors, declaring paid routes, or creating checkout."
+description: "How to use @owlmeans/payment — provider-agnostic payment contracts, immutable payment protocols, amount/quantity checkout policies, per-entity checkout narrowing and pricing, catalogue records, entitlement gates, and the EU consumer-rights contracts (billing regions, the policy record, withdrawal/cancellation views, refund calculators, 428/409 refusals, the legal copy, protocol factories). Auto-invoked when importing payment types or errors, declaring paid routes, creating checkout, or touching consent, withdrawal or cancellation."
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,11 +8,13 @@ user-invocable: false
 # @owlmeans/payment
 
 **Layer:** Core
-**Install:** `"@owlmeans/payment": "^0.1.18-rc.37"` in `dependencies`
+**Install:** `"@owlmeans/payment": "^0.1.18-rc.38"` in `dependencies`
 
 The contracts half of payments: the catalogue (products, plans, localizations), amount- and
-quantity-priced checkout, and the entitlement model — plan capabilities, counted limits, promos,
-and the entitlement view the server gate and the browser both read. It talks to no paygate: a
+quantity-priced checkout, the entitlement model — plan capabilities, counted limits, promos,
+and the entitlement view the server gate and the browser both read — and the EU consumer-rights
+contracts (billing regions, the policy record, withdrawal and cancellation views, the refund
+calculators, the refusals, the legal copy, the protocol factories). It talks to no paygate: a
 server-side integration (`@owlmeans/server-payment`) implements against these, and
 `@owlmeans/client-payment` adapts the catalogue service for a browser. The model as a whole —
 admission, the usage ledger, the two gate services — is the `entitlements` skill.
@@ -22,8 +24,8 @@ admission, the usage ledger, the two gate services — is the `entitlements` ski
 | Export | Description |
 |---|---|
 | `makePaymentService(alias?)` · `appendPaymentService(ctx, alias?)` | The catalogue reader, registered under `DEFAULT_ALIAS` / `PAYMENT_SERVICE` (`'payment'`). |
-| `PaymentService` | `product(sku)` · `products()` · `plans(productSku, duration)` · `plan(planSku)` · `allPlans(productSku)` · `localize(lng, entity)` · `shallowAuthentication(token)`. |
-| `Product` · `ProductPlan` · `Localization` (+ schemas) | Catalogue records. `ProductPlan` carries `rank`, `free`, `gateways`, `suspendedAt`, `capabilities: PlanCapability[]`, `limits: { [key]: LimitDeclaration }`. |
+| `PaymentService` | `product(sku)` · `products()` · `plans(productSku, duration)` · `plan(planSku)` · `allPlans(productSku)` · `localize(lng, entity)` · `shallowAuthentication(token)` · `pricingPolicy()` · `consumerRightsPolicy()` (`null` when undeclared). |
+| `Product` · `ProductPlan` · `Localization` (+ schemas) | Catalogue records. `ProductPlan` carries `rank`, `free`, `gateways`, `suspendedAt`, `capabilities: PlanCapability[]`, `limits: { [key]: LimitDeclaration }`, `withdrawal.components` (§ Consumer rights). |
 | `PlanCapability` · `LimitDeclaration` · `PromoDeclaration` (+ schemas) | What a plan grants: a permission set, a counted allowance, a time box on either. |
 | `SubscriptionStatus` · `ENTITLING_STATUSES` · `TERMINAL_STATUSES` · `INTERNAL_PAYGATE` | Lifecycle vocabulary. `Active`/`Trial`/`PastDue` entitle; `Canceled`/`Expired`/`Ended`/`Blocked` are terminal; `Suspended` is revoked until resumed. |
 | `LimitKind` · `LimitWindow` · `PortalFlow` (+ schemas) | `window`/`lifetime`/`occupancy`; `day`/`month`; `manage`/`cancel`/`update`/`change`/`payment-method`. |
@@ -33,13 +35,22 @@ admission, the usage ledger, the two gate services — is the `entitlements` ski
 | `promoActive` · `promoViewOf` | Whether a promo is in force for one subscription at one instant. |
 | `EntitlementView` · `EntitlementPlanView` · `CapabilityView` · `LimitView` · `PromoView` · `LimitUsage` (+ wire schemas) | The entitlement view and its rows. |
 | `capabilityViewsOf` · `limitViewsOf` · `entitlementViewOf` · `reviveEntitlementView` · `capabilityOf` · `limitOf` · `hasLimitRoom` | Pure view builders and readers. |
-| `CreateCheckoutBody` (`planSku`) · `CreateCheckoutResponse` · `PortalLinkBody` · `PortalLinkResponse` (+ schemas) | Wire shapes an application's own checkout and portal protocols use. |
+| `CreateCheckoutBody` (`planSku`, `country`, `startRequestId`) · `CreateCheckoutResponse` · `PortalLinkBody` · `PortalLinkResponse` (+ schemas) | Wire shapes an application's own checkout and portal protocols use. |
 | `CheckoutPricingMode` · `AmountCheckoutPolicy` / `QuantityCheckoutPolicy` (+ schemas) · `assertAmountCheckoutPolicy` · `assertQuantityCheckoutPolicy` · `assertCheckoutAmount` · `chargeAmountMinor` | Checkout pricing policies and their validation. |
 | `PricingPolicy` (+ schema) · `DEFAULT_PRICING_POLICY` · `assertPricingPolicy` · `TaxBehavior` · `TaxEstimateStatus` · `TaxType` (+ schemas) | Declared tax/currency behaviour (see § Pricing policy and tax estimate). |
 | `PriceEstimate` · `PriceEstimateBody` · `TaxEstimate` · `TaxRateEstimate` (+ schemas) · `estimateOf` · `ratePpmOf` | The tax/local-currency estimate read model and its pure math. |
 | `COUNTRY_CURRENCIES` · `currencyOfCountry` · `COUNTRY_CODES` · `CountrySchema` | ISO 3166-1 → ISO 4217 reference map for a country picker. |
-| `EntitlementRefusal` · `CapabilityRequired` · `LimitExhausted` | Refusals — all `AuthForbidden`. |
-| `PaymentError` · `PaygateError` · `UnknownPaygate` · `PaygateMappingError` · `WebhookSetupError` · `PortalUnavailable` · `ProductError` · `UnknownProduct` · `UnknownPlan` · `PlanRequired` · `PlanRankConflict` · `LimitUnknown` · `LimitMisdeclared` · `PaymentIdentificationError` · `SubscriptionError` · `UnknownSubscription` | Faults (500), except `PortalUnavailable` (409). Importing the package registers every type's message under `errors.<type>` in the seven languages. |
+| `EntitlementRefusal` · `CapabilityRequired` · `LimitExhausted` | Entitlement refusals — all `AuthForbidden` (403). |
+| `PaymentError` · `PaygateError` · `UnknownPaygate` · `PaygateMappingError` · `WebhookSetupError` · `PortalUnavailable` · `ProductError` · `UnknownProduct` · `UnknownPlan` · `PlanRequired` · `PlanRankConflict` · `LimitUnknown` · `LimitMisdeclared` · `PaymentIdentificationError` · `SubscriptionError` · `UnknownSubscription` · `ConsumerRightsError` | Faults (500), except `PortalUnavailable` (409). Importing the package registers every type's message under `errors.<type>` in eight languages (the seven of `SUPPORTED_LNGS` plus `fr`). |
+| `ConsumerRightsRefusal` · `PerformanceConsentRequired` · `SubscriptionStartRequired` (428) · `BillingCountryLocked` · `WithdrawalUnavailable` · `CancellationUnavailable` · `CheckoutLimitExceeded` (409) · `consentRefusalOf` | Consumer-rights and checkout-limit refusals — declared statuses, never `AuthForbidden` (§ Consumer rights). |
+| `ConsumerRegion` · `PurchaseKind` · `ConsentKind` · `DeclarationKind` · `DeclarationChannel` · `CancellationKind` · `WithdrawalStatus` · `CancellationStatus` · `WithdrawalUnavailableReason` · `CancellationUnavailableReason` (+ schemas) | Consumer-rights vocabulary. |
+| `EU_COUNTRIES` · `EU_CONSUMER_TERRITORIES` · `EEA_EXTRA` · `CONSUMER_RIGHTS_TERRITORIES` · `COUNTRY_LANGUAGES` · `isEuCountry` · `isEeaCountry` · `regionOf` · `inScope` · `chargeCurrencyOf` · `billingLanguageOf` | Territories, region, scope, charge currency, legal language. |
+| `ConsumerRightsPolicy` (+ `Links`, `Mechanisms`, schemas) · `DEFAULT_CONSUMER_RIGHTS` · `makeConsumerRightsPolicy` · `assertConsumerRightsPolicy` · `linksOf` · `CONSUMER_RIGHTS_RECORD_TYPE`/`_ID` | The consumer-rights policy record. |
+| `BillingProfileView` · `PurchaseView`/`List` · `PerformanceConsentView`/`Body`/`Response` · `SubscriptionStartView`/`Query`/`Body`/`Response` · `WithdrawalEstimate` · `WithdrawalCandidate`/`List` · `WithdrawalBody` · `DeclarationReceipt` · `WithdrawalReceipt` · `CancellationBody` · `CancellationReceipt` · `ConsumerRightsPublicView` (+ schemas) · `revive*` | Consumer-rights wire shapes (ISO dates) and their revivers. |
+| `withdrawalDeadlineOf` · `lastWithdrawalDayOf` · `withdrawalOpen` · `oneTimeWithdrawalRefund` · `subscriptionWithdrawalRefund` · `splitByShares` · `allocateFifo` · `unitsUsedAfter` · `cancellationEffectiveAt` | Pure calculators. |
+| `CONSUMER_RIGHTS_RESOURCE` · `CONSUMER_RIGHTS_COPY_VERSION` · `consumerRightsCopy` · `consumerText` · `consentStatementOf` · `legalLabelsOf` · `placeholdersOf` | The legal copy. |
+| `makeConsumerRightsProtocols` · `makeCheckoutReadProtocols` | Protocol factories. |
+| `AmountNarrowing` · `narrowAmountPolicy` · `amountAllowed` · `CheckoutLimitView` · `AmountPolicyView`/`Query` · `PlanPriceView`/`List`/`PlanPricesQuery` (+ schemas) | Per-entity narrowing of an amount checkout, and synced plan prices. |
 
 Subpath: `./utils` — the `Config` / `Context` aliases to type your own context against.
 
@@ -172,6 +183,8 @@ A **limit** is counted: a `LimitDeclaration` under a key in `plan.limits`, asked
 - **Only `type` and `message` survive a marshal.** Both refusals pack their fields into the
   message and rebuild them in `finalizeUnmarshal()`; catch the class after
   `ResilientError.ensure`, never parse the text yourself.
+- **Consumer-rights and checkout-limit refusals are not entitlement refusals**: they declare
+  428/409 and never extend `AuthForbidden` (§ Consumer rights).
 - **Faults are not refusals**: `LimitUnknown` (a key no plan declares), `LimitMisdeclared`,
   `PlanRequired` (no plan resolvable, not even a free one), `PlanRankConflict`,
   `WebhookSetupError` are `PaymentError`s — a configuration or setup problem, not the user's plan
@@ -188,9 +201,12 @@ A **limit** is counted: a `LimitDeclaration` under a key in `plan.limits`, asked
 `CreateCheckoutBody` is the wire body of a checkout: `productSku`, `planSku` for a subscription,
 `entitySlug` (the only organization value on a public body — a server resolves the stable
 `entityId` before persisting anything), `service`, `amountMinor` for an amount checkout, return
-URLs. The package declares no protocols: an application declares its own checkout and portal
-protocols over `CreateCheckoutBodySchema` / `PortalLinkBodySchema`; `PortalLinkBody.flow` picks the portal flow and
-`planSku` names the target of a `change`.
+URLs, `country` (the declared billing country; a locked profile overrides it) and
+`startRequestId` (the subscription start request recorded just before). The package declares no
+fixed checkout protocols: an application declares its own checkout and portal protocols over
+`CreateCheckoutBodySchema` / `PortalLinkBodySchema`; `PortalLinkBody.flow` picks the portal flow
+and `planSku` names the target of a `change`. The read side and the consumer-rights surface come
+as factories (§ Protocol factories).
 
 ### Amount checkout
 
@@ -209,6 +225,29 @@ to `amountMinor`, not the adjusted checkout subtotal or tax-inclusive total.
 Quantity checkout remains supported. It uses its reusable unit price and quantity policy; do not
 infer a pricing mode from the presence of `amountMinor`.
 
+### Narrowing an amount checkout per entity
+
+The plan's `amountPolicy` is the same for everyone; what one entity may buy NOW is narrower when a
+checkout plugin (a spending tier, a rolling cap, a fraud hold) answers an `AmountNarrowing`
+`{ maximumMinor, reason, resetsAt?, remainingMinor? }`. `narrowAmountPolicy(base, narrowings,
+{ productSku?, planSku? })` is the one computation the server's refusal and the dialog's control
+share, so they cannot disagree:
+
+- the maximum is the smallest of the base maximum and every narrowing's (negative or fractional
+  values floor at 0); `reason`/`resetsAt`/`remainingMinor` come from the narrowing that set it,
+  the first on a tie;
+- presets above the maximum are dropped, the default is clamped into `[minimum, maximum]`;
+- `limit` is `null` when nothing lowered the base maximum — no note to show;
+- **`limit.blocked`** (`limit.maximumMinor < base.minimumMinor`) means no amount may be bought now.
+  The returned `policy` is then still a VALID policy (`assertAmountCheckoutPolicy` accepts it),
+  pinned to the minimum with no presets, so a validator never throws — but it is NOT an offer of
+  the minimum: a UI disables the input and the confirm button on `blocked`, and a server refuses
+  every amount with `CheckoutLimitExceeded`. `amountAllowed(view, amount)` answers exactly that.
+
+`CheckoutLimitExceeded` (409) packs `checkout-limit-exceeded:<encodeURIComponent(reason)>:
+<maximumMinor>:<currency>[:<resetsAt ISO>]` and rebuilds `reason`, `maximumMinor`, `currency`,
+`resetsAt`. It is a payment refusal, not an entitlement one.
+
 ## Pricing policy and tax estimate
 
 `PricingPolicy` (a `PRICING_POLICY_RECORD_ID` singleton config record, `declarePaymentPricing` in
@@ -223,7 +262,9 @@ or `DEFAULT_PRICING_POLICY` — the fixed behaviour every checkout had before th
 an application that declares nothing sees no change.
 
 `PriceEstimate` (built by `@owlmeans/server-payment`'s gateway, `estimatePrice`) is the read model:
-`country`/`source` (`'request'`/`'customer'`), `currency`, `behavior`, `tax: TaxEstimate` (`status`
+`country`/`source` (`'request'`/`'customer'`, or `'profile'` with `locked: true` when the entity's
+billing country is locked and overrides the request — a picker then shows it and does not change
+it), `region`, `currency`, `behavior`, `tax: TaxEstimate` (`status`
 one of `TaxEstimateStatus` — `taxed`/`reverse-charge`/`none`/`at-checkout`/`location-required` —
 plus `subtotalMinor`/`taxMinor`/`totalMinor`, `scalable`, and `rates: TaxRateEstimate[]` with
 `ratePpm` parsed by `ratePpmOf` from Stripe's `percentage_decimal`, never `Number(x) * 10_000`),
@@ -237,6 +278,169 @@ integration-currency ones — a UI shows one or the other, marking the local fig
 side by side. `COUNTRY_CURRENCIES` / `currencyOfCountry` / `COUNTRY_CODES` is a reference ISO 3166-1 →
 ISO 4217 map for a country picker and the local-currency lookup — not a Stripe list, and a country
 absent from it still gets a tax estimate, just no local-currency line.
+
+## Consumer rights (EU withdrawal, cancellation, country lock)
+
+The contracts behind the right of withdrawal (CRD Art. 9–16, the Art. 11a withdrawal function),
+the cancellation function (§ 312k BGB / L215-1-1) and a billing country fixed at the first
+purchase. `@owlmeans/server-payment` records, enforces and mails; `@owlmeans/web-payment` renders.
+Nothing here is product copy — the trader, plan and product names are placeholders.
+
+### Territories, region, scope
+
+- `EU_COUNTRIES` (27, Greece is `GR`), `EU_CONSUMER_TERRITORIES` (plus AX, GF, GP, MQ, RE, YT, MF —
+  consumer law applies there even where EU VAT does not), `EEA_EXTRA` (IS, LI, NO) and their union
+  `CONSUMER_RIGHTS_TERRITORIES`, the default `policy.countries`.
+- `regionOf(country, policy?)`: `Eu` inside the policy's territories, `Other` outside, `null` for no
+  country. `inScope(region, country, policy)`: a known country decides by the territories, else a
+  known region, else `unknownCountry` — `'protect'` by default, so an unknown buyer is protected.
+- `chargeCurrencyOf(region, policy, fallback)`: the policy's currency for the region; an unknown
+  region reads as `Eu`. The display currency is the charge currency, everywhere.
+- `billingLanguageOf(country, policy?, fallback?)`: `policy.languages`, then `COUNTRY_LANGUAGES`
+  (unambiguous countries only — BE, LU, CH are absent), then `fallback`, then
+  `policy.defaultLanguage`. Legal copy is shown in this language, with a toggle to the UI language.
+
+### The policy record
+
+`ConsumerRightsPolicy` is a singleton config record (`CONSUMER_RIGHTS_RECORD_ID`), declared by the
+server integration through `makeConsumerRightsPolicy(def)` — `DEFAULT_CONSUMER_RIGHTS` filled in
+(14 days, weekend rollover, margin 5 — a period ending on a public holiday runs to the next working
+day and holiday clusters need up to five, no per-country calendar is kept —, every mechanism OFF,
+`defaultLanguage: 'en'`, start requests
+usable 3600 s) — and `assertConsumerRightsPolicy` (non-empty `textVersion`, `^[A-Z]{2}$`
+countries, `withdrawalDays >= 14`, margin 0..7, lowercase currencies, https links, the default
+language present, `withdrawalInformation` required while `withdrawal` or `performanceConsent` is
+on; throws `ConsumerRightsError('policy:<field>')`). It carries only public links, territories
+and switches — mail options live in a backend-only plugin config — so it is ADVERTISED to the
+browser like the pricing policy. `PaymentService.consumerRightsPolicy()` answers `null` when none
+is declared: no consumer-rights behaviour at all. `linksOf(policy, lng)` merges a language's links
+field by field over the default language's (`de-AT` reads `de`).
+
+`ProductPlan.withdrawal.components: PlanWithdrawalComponent[]` (`{ key, basis: 'time' | 'units',
+shareMinor }`) states the separately priced parts of a subscription (CJEU C-641/19 PE Digital:
+without them the whole price is pro rata by time).
+
+### Wire views
+
+Every view schema carries dates as ISO strings (as `model/view.ts` does) and is revived with its
+`revive*` helper (`reviveConsentView`, `revivePurchase`/`List`, `reviveBillingProfile`,
+`reviveConsentResponse`, `reviveStartResponse`, `reviveWithdrawalList`, `reviveReceipt`,
+`reviveCheckoutLimit`, `reviveAmountPolicyView`) — idempotent. A nullable enum on the wire lists
+`null` in its enum (ajv rejects `null` otherwise). The consent and start views carry `trader`, the
+name the statement is rendered with, so the server's record and the dialog's text are identical.
+`WithdrawalBody` and `CancellationBody` ask only for name, contract and e-mail (plus the
+cancellation kind, reason and date) and accept an optional `honeypot` a person never fills. A
+public declaration answers `DeclarationReceipt` — what was declared and when, never whether a
+contract matched.
+
+### Calculators — always in the consumer's favour
+
+All amounts in BigInt; a deduction rounds DOWN, a refund rounds UP, a refund never exceeds what is
+still unrefunded.
+
+- `withdrawalDeadlineOf(purchasedAt, rule | policy)` → the EXCLUSIVE end: the purchase's UTC day +
+  `days`, a Saturday/Sunday last day moved to Monday, + `marginDays`, start of the next UTC day.
+  Wed 2026-09-23 → 2026-10-13T00:00Z; Sat 2026-09-26 → 2026-10-18T00:00Z; Sun 2026-12-20 →
+  2027-01-10T00:00Z (margin 5). `withdrawalOpen(window, at)` — before the deadline, not withdrawn,
+  not refunded. **A person is shown the last included day**, `lastWithdrawalDayOf(deadline)` (the
+  UTC day of `deadline − 1 ms`), phrased "until the end of <date>" — never the exclusive instant.
+- `oneTimeWithdrawalRefund({ paidMinor, refundedMinor?, unitsGranted, unitsUsed })` →
+  `min(paid − refunded, ceil(paid × (granted − used) / granted))`; `unitsUsed` is the deduction —
+  units used AFTER consent (none before it) plus debt settled from the lot plus units already
+  clawed back (`@owlmeans/server-payment` passes the meter's `usedAfter + settled + clawed`);
+  returns `unitsReturned`. 1256 paid, 125k of 500k used → 942.
+- `subscriptionWithdrawalRefund(...)` splits `netMinor` by the components (`splitByShares`, largest
+  remainder); a `time` part loses `floor(c × elapsedDays / periodDays)` counted from
+  `max(periodStart, servicesRequestedAt)` — NOTHING without a start request; a `units` part loses
+  `floor(c × used / granted)`; gross = `ceil(paid × refundNet / net)`. Net 2000 / paid 2460, 3 of 30
+  days and 100k of 500k used → 2091.
+- `allocateFifo(lots, spends)` — a spend takes the oldest lot granted at or before it; overflow is
+  `unallocated`. `unitsUsedAfter(lot, consentedAt)` counts slices strictly after the consent, `0`
+  without one.
+- `cancellationEffectiveAt(periodEnd, 'month' | 'year', requested?)` — the period end, or the first
+  boundary on or after a later requested date (end-of-month clamped from the anchor).
+
+### Refusals
+
+`ConsumerRightsRefusal` extends `ConsumerRightsError` (a `PaymentError`), NEVER `AuthForbidden`:
+an HTTP boundary tests that family first, and a 403 would hide the status a client acts on. Each
+refusal declares `static httpStatus`, packs its fields into the message and rebuilds them in
+`finalizeUnmarshal()` (the marker is read after its LAST occurrence, so a registry rebuild of a
+doubled prefix still parses):
+
+| Class | Status | Marker (after `payment:consumer-rights:`) | Fields |
+|---|---|---|---|
+| `PerformanceConsentRequired` | 428 | `performance-consent-required:<pending>[:<deadline ISO>]` | `pending`, `deadline` |
+| `SubscriptionStartRequired` | 428 | `subscription-start-required:<encodeURIComponent(planSku)>` | `planSku` (pass it raw) |
+| `BillingCountryLocked` | 409 | `billing-country-locked:<country>[:<requested>]` | `country`, `requested` |
+| `WithdrawalUnavailable` | 409 | `withdrawal-unavailable:<WithdrawalUnavailableReason>` | `reason` |
+| `CancellationUnavailable` | 409 | `cancellation-unavailable:<CancellationUnavailableReason>` | `reason` |
+
+`consentRefusalOf(e)` → `'performance' | 'subscription-start' | null`: the class after
+`ResilientError.ensure`, else the marker or type name in `message`/`type`. A production body
+carries only an incident id — a bare 428 is the caller's to read with `@owlmeans/api/status`.
+
+### The legal copy
+
+The i18n resource `payment-consumer-rights` (`CONSUMER_RIGHTS_RESOURCE`, library tier, `lib`
+namespace), in en pl ru be uk es de fr, versioned by `CONSUMER_RIGHTS_COPY_VERSION` (bump it on ANY
+change to a bundle). Branches: `performance-consent`, `subscription-start` (`title`, `intro`,
+`request`, `acknowledgement`, `checkbox` = request + space + acknowledgement, `confirm`,
+`decline`; the consent branch also `purchase`), `withdrawal`, `cancellation` (form labels and the
+statutory buttons `function` / `confirm`), `links`, `checkout` (`terms-acceptance.{in-scope,
+other}` markdown, `renewal.{month, year, after-submit}`, `price.{exclusive, inclusive, exclusive-tax}` (VAT wording for the territories, "applicable tax" for a buyer outside them), `top-up`,
+`top-up-note`), `email.{common, consent, start, purchase, withdrawal, cancellation}` (the purchase
+mail carries the CRD Annex I(A) withdrawal information with the function's address and the Annex
+I(B) model form, per language from the national models; there `{{trader}}` is the trader's whole
+identity — legal name, address, e-mail; a `review` withdrawal receipt promises the reimbursement
+within the statutory 14 days; `email.cancellation.review` answers an extraordinary cancellation,
+whose status is `CancellationStatus.Review`), `credit-note.memo`. In the consent and start
+STATEMENTS `{{trader}}` is the trader's short name.
+
+- Read it with `consumerRightsCopy(lng)` (any language, merged key by key over English, no i18next
+  instance, never drains a bundle — `resolveI18nResource`), `consumerText(lng, path, vars)` (fills
+  `{{name}}`; throws `ConsumerRightsError('copy:<path>[:<name>]')` on a missing text or value — a
+  legal text never goes out with a hole), `consentStatementOf(lng, kind, { trader, plan? })` (the
+  exact statement the dialog shows, the server records and the mail repeats) and
+  `legalLabelsOf(lng)`.
+- Statutory labels are pinned by a test: en "Withdraw from contract here" / "Confirm withdrawal",
+  "Cancel contracts here" / "Cancel now"; de "Vertrag widerrufen" / "Widerruf bestätigen",
+  "Verträge hier kündigen" / "Jetzt kündigen"; fr "Renoncer au contrat ici" / "Confirmer la
+  rétractation", "Résilier votre contrat" / "Notification de la résiliation"; pl "Odstąp od umowy
+  tutaj" / "Potwierdź odstąpienie od umowy", "Wypowiedz umowę tutaj" / "Wypowiedz teraz"; es
+  "Desistir del contrato aquí" / "Confirmar el desistimiento", "Cancelar contratos aquí" /
+  "Cancelar ahora"; uk/ru/be are courtesy translations.
+- The express request uses the statutory verbs (PL "Żądam i wyrażam wyraźną zgodę … Przyjmuję do
+  wiadomości …", DE "Ich verlange ausdrücklich und stimme ausdrücklich zu … Mir ist bekannt …", FR
+  "Je demande expressément et j’accepte expressément … Je reconnais perdre …").
+- Wording rule, enforced by a scan of every language: say "the right of withdrawal expires" and
+  "only unused credits are reimbursed" — never non-refundable / nicht erstattungsfähig / non
+  remboursable / bezzwrotny / no reembolsable / невозвратный / неповоротний / незваротны.
+- Paygate texts (`checkout.*`) stay within 1200 characters after interpolating long URLs.
+- An application overrides a text with `addI18nApp(lng, CONSUMER_RIGHTS_RESOURCE, data, { ns:
+  LIB_NAMESPACE })`; every placeholder of a text must match its English master.
+
+### Protocol factories
+
+`makeConsumerRightsProtocols({ prefix, parent | guards (+ gate), path = '/consumer-rights',
+public?: false | { path = '/public/consumer-rights', parent?, screens?: { withdrawal?,
+cancellation?, parent? } } })`, the `makeMarketingConsentProtocols` way:
+
+- account subtree under the app's GUARDED parent (its guards and gate inherited): `base`,
+  `profile` GET `/profile`, `purchases` GET `/purchases`, `consent` GET / `giveConsent` POST
+  `/consent`, `start` GET `/start?planSku` / `requestStart` POST `/start`, `withdrawals` GET /
+  `withdraw` POST `/withdrawal`, `cancel` POST `/cancellation`; aliases `<prefix>:<name>`
+  (`consent:give`, `start:request`);
+- `public` (only when declared): `base`, `policy` GET `/policy`, `withdraw` POST `/withdrawal`,
+  `cancel` POST `/cancellation` — NO guard and NO gate (like `paymentGate.webhook`; a public
+  `parent` must be unguarded), receipts typed `DeclarationReceipt`; `screens` declares BOTH sticky
+  frontend routes (`/legal/withdraw`, `/legal/cancel` by default); aliases `<prefix>:public:<name>`;
+- neither `parent` nor `guards` is a `SyntaxError`; absent parts are left OUT of the tree (never
+  `undefined`), so `protocols(tree)` and `mapProtocols` walk it as is.
+
+`makeCheckoutReadProtocols({ prefix, parent | guards })` → `base` (`/checkout`), `amountPolicy`
+GET `/amount-policy?productSku&planSku` (`AmountPolicyView`) and `planPrices` GET
+`/plan-prices?productSku` (`PlanPriceList`).
 
 ## `shallowAuthentication` identifies, it does not authorize
 

@@ -3,10 +3,11 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatOpenAI } from '@langchain/openai'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import { ContextOverflowError } from '@langchain/core/errors'
-import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
+import { ModelEffort, ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import {
-  anthropicPlugin, compatiblePlugin, makeLlmService, openAiPlugin, pluginFor, pluginOf,
-  registerLlmPlugin, resolvePlugin,
+  anthropicPlugin, compatiblePlugin, effortSupportOf, makeLlmService, openAiPlugin, pluginFor,
+  pluginOf, REASONING_MIN_MAX_TOKENS, registerLlmPlugin, resolveFallbacks, resolvePlugin,
+  usesResponsesApi,
 } from '@owlmeans/llm'
 import type { LlmPlugin, ModelConfig } from '@owlmeans/llm'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
@@ -14,6 +15,7 @@ import { DEFAULT_MAX_OUTPUT_CAP } from '@owlmeans/llm'
 import { offlineConfigs, Role } from './context.js'
 import { stripCacheMarkers } from '../src/utils/prompt.js'
 import { resolveOutputCap } from '../src/utils/config.js'
+import { rungAt, rungsOf } from '../src/utils/rungs.js'
 import { ADAPTIVE_MIN_MAX_TOKENS } from '../src/plugins/anthropic.js'
 
 const build = (plugin: LlmPlugin, config: Partial<ModelConfig> = {}) =>
@@ -188,9 +190,182 @@ describe('@owlmeans/llm — retry escalation behaviour', () => {
     expect(read(compatiblePlugin.refine({ base, attempt: 9, maxOutputCap: 32000 }))).toBe(256)
   })
 
-  test('the model families are distinct, which is what gates cross-provider fallback', () => {
+  test('the model families are distinct, which is what makes another provider\'s rung re-render its prompt', () => {
     expect(openAiPlugin.family).toBe(compatiblePlugin.family)
     expect(anthropicPlugin.family).not.toBe(openAiPlugin.family)
+  })
+})
+
+describe('@owlmeans/llm — provider effort', () => {
+  const openAiEffort = (model: BaseChatModel): string | undefined =>
+    ((model as ChatOpenAI).lc_kwargs as { reasoning?: { effort?: string } }).reasoning?.effort
+  const anthropicEffort = (model: BaseChatModel): string | undefined =>
+    ((model as ChatAnthropic).lc_kwargs as { outputConfig?: { effort?: string } }).outputConfig?.effort
+
+  test('the gpt-6 family goes through the Responses API', () => {
+    expect(usesResponsesApi('gpt-6-sol')).toBe(true)
+    expect(usesResponsesApi('gpt-6-luna')).toBe(true)
+    const sol = build(openAiPlugin, { model: 'gpt-6-sol' }) as ChatOpenAI
+    expect((sol.lc_kwargs as { useResponsesApi?: boolean }).useResponsesApi).toBe(true)
+    expect((sol.lc_kwargs as { topP?: number }).topP).toBeUndefined()
+  })
+
+  test('openai sends a declared effort as reasoning.effort, only to a model that accepts one', () => {
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6-sol', effort: ModelEffort.High }))).toBe('high')
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6-sol' }))).toBeUndefined()
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-5.4-mini', effort: ModelEffort.High }))).toBeUndefined()
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-4.1-mini', effort: ModelEffort.High }))).toBeUndefined()
+  })
+
+  test('a level the model does not accept is clamped to one it does, never sent as is', () => {
+    expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6-astra', effort: ModelEffort.None }))).toBe('low')
+    expect(anthropicEffort(build(anthropicPlugin, {
+      model: 'claude-sonnet-4-6', effort: ModelEffort.XHigh,
+    }))).toBe('high')
+    expect(anthropicEffort(build(anthropicPlugin, { model: 'claude-opus-4-5', effort: ModelEffort.Max }))).toBe('high')
+  })
+
+  test('high effort reserves room for the reasoning beside the answer', () => {
+    const high = build(openAiPlugin, {
+      model: 'gpt-6-luna', effort: ModelEffort.High, maxTokens: 8192, maxTokensCap: 64000, maxOutput: 128_000,
+    }) as ChatOpenAI
+    const low = build(openAiPlugin, { model: 'gpt-6-luna', effort: ModelEffort.Low, maxTokens: 8192 }) as ChatOpenAI
+    const capped = build(openAiPlugin, {
+      model: 'gpt-6-luna', effort: ModelEffort.High, maxTokens: 8192, maxTokensCap: 16000,
+    }) as ChatOpenAI
+
+    expect(high.maxTokens).toBe(REASONING_MIN_MAX_TOKENS)
+    expect(low.maxTokens).toBe(8192)
+    expect(capped.maxTokens).toBe(16000)
+  })
+
+  test('refine climbs one level per attempt of the rung, up to the model\'s ceiling', () => {
+    const base = build(openAiPlugin, {
+      model: 'gpt-6-sol', effort: ModelEffort.High, maxTokens: 1000, maxTokensCap: 64000,
+    })
+    const at = (rungAttempt: number) =>
+      openAiEffort(openAiPlugin.refine({ base, attempt: 6 + rungAttempt, rungAttempt, maxOutputCap: 64000 }))
+
+    expect([0, 1, 2, 5].map(at)).toEqual(['high', 'xhigh', 'max', 'max'])
+  })
+
+  test('an undeclared effort stays at the provider default until the rung retries', () => {
+    const base = build(openAiPlugin, { model: 'gpt-6-sol' })
+
+    expect(openAiEffort(openAiPlugin.refine({ base, attempt: 0, maxOutputCap: 32000 }))).toBeUndefined()
+    expect(openAiEffort(openAiPlugin.refine({ base, attempt: 1, maxOutputCap: 32000 }))).toBe('high')
+  })
+
+  test('the shared openai-family refine never adds effort to a compatible model', () => {
+    const base = build(compatiblePlugin, { model: 'gpt-6-sol', baseUrl: 'https://openrouter.ai/api/v1' })
+
+    expect(openAiEffort(compatiblePlugin.refine({ base, attempt: 2, maxOutputCap: 32000 }))).toBeUndefined()
+  })
+
+  test('anthropic sends output_config.effort and climbs it with thinking still off', () => {
+    const base = build(anthropicPlugin, {
+      model: 'claude-sonnet-5', disableThinking: true, effort: ModelEffort.XHigh,
+    })
+    const refined = anthropicPlugin.refine({ base, attempt: 1, rungAttempt: 1, maxOutputCap: 64000 })
+
+    expect(anthropicEffort(base)).toBe('xhigh')
+    expect(anthropicEffort(refined)).toBe('max')
+    expect((refined as unknown as { thinking: unknown }).thinking).toEqual({ type: 'disabled' })
+  })
+
+  test('anthropic sends no effort to a model that rejects the field', () => {
+    const base = build(anthropicPlugin, { model: 'claude-haiku-4-5', effort: ModelEffort.High })
+
+    expect(anthropicEffort(base)).toBeUndefined()
+    expect(anthropicEffort(anthropicPlugin.refine({ base, attempt: 2, maxOutputCap: 16000 }))).toBeUndefined()
+  })
+
+  // Opus 5 answers `thinking: disabled` combined with xhigh/max with a 400.
+  test('Opus 5 with thinking off never goes above high', () => {
+    const off = build(anthropicPlugin, { model: 'claude-opus-5', disableThinking: true, effort: ModelEffort.Max })
+    const on = build(anthropicPlugin, { model: 'claude-opus-5', effort: ModelEffort.Max })
+
+    expect(anthropicEffort(off)).toBe('high')
+    expect(anthropicEffort(anthropicPlugin.refine({ base: off, attempt: 2, rungAttempt: 2, maxOutputCap: 64000 })))
+      .toBe('high')
+    expect(anthropicEffort(on)).toBe('max')
+    expect(effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-opus-5-5' })?.default)
+      .toBe(ModelEffort.Medium)
+  })
+})
+
+describe('@owlmeans/llm — fallback chains', () => {
+  const coder = (): ModelConfig => ({
+    alias: 'coder', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-openai',
+    effort: ModelEffort.High, maxTokens: 8192, maxTokensCap: 64000, streamTimeout: 60_000,
+    contextWindow: 1_050_000, maxOutput: 128_000,
+    fallback: {
+      provider: ModelProvider.Anthropic, model: 'claude-sonnet-5', secret: 'sk-anthropic',
+      disableThinking: true, contextWindow: 1_000_000, maxOutput: 128_000,
+      fallback: {
+        provider: ModelProvider.OpenAI, model: 'gpt-6-sol', secret: 'sk-openai',
+        effort: ModelEffort.High, contextWindow: 1_050_000, maxOutput: 128_000,
+      },
+    },
+  })
+
+  test('resolveFallbacks returns every rung, primary first, none still chained', () => {
+    const rungs = resolveFallbacks(coder())
+
+    expect(rungs.map(rung => rung.model)).toEqual(['gpt-6-luna', 'claude-sonnet-5', 'gpt-6-sol'])
+    expect(rungs.every(rung => rung.fallback == null && rung.alias === 'coder')).toBe(true)
+  })
+
+  test('a rung on another provider inherits only the budgets, never the wiring', () => {
+    const [, sonnet, sol] = resolveFallbacks(coder())
+
+    expect(sonnet!.secret).toBe('sk-anthropic')
+    expect(sonnet!.effort).toBeUndefined()
+    expect(sonnet!.maxTokensCap).toBe(64000)
+    expect(sonnet!.streamTimeout).toBe(60_000)
+    expect(sol!.disableThinking).toBeUndefined()
+    expect(sol!.effort).toBe(ModelEffort.High)
+  })
+
+  test('a same-provider fallback still inherits every field it does not name', () => {
+    const [, fallback] = resolveFallbacks({
+      alias: 'a', provider: ModelProvider.OpenAI, model: 'gpt-6-luna', secret: 'sk-test',
+      headers: { 'x-spec': '1' }, effort: ModelEffort.Low, fallback: { model: 'gpt-6-sol' },
+    })
+
+    expect(fallback!.secret).toBe('sk-test')
+    expect(fallback!.headers).toEqual({ 'x-spec': '1' })
+    expect(fallback!.effort).toBe(ModelEffort.Low)
+  })
+
+  test('the service hangs every rung off the one above it, each with its own plugin', () => {
+    const service = makeLlmService({ models: () => [coder()] }, 'spec-chain-rungs')
+    const rungs = rungsOf(service.getModel('coder'))
+
+    expect(rungs.map(rung => rung.plugin?.type))
+      .toEqual([ModelProvider.OpenAI, ModelProvider.Anthropic, ModelProvider.OpenAI])
+    expect(rungs.map(rung => rung.config.model)).toEqual(['gpt-6-luna', 'claude-sonnet-5', 'gpt-6-sol'])
+  })
+
+  test('each rung gets three attempts and the last one keeps the rest', () => {
+    const service = makeLlmService({ models: () => [coder()] }, 'spec-chain-ladder')
+    const rungs = rungsOf(service.getModel('coder'))
+    const ladder = [0, 2, 3, 5, 6, 7, 20].map(attempt => {
+      const { rung, rungAttempt } = rungAt(rungs, attempt)
+      return [rung.index, rungAttempt]
+    })
+
+    expect(ladder).toEqual([[0, 0], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1], [2, 14]])
+  })
+
+  test('a rung on another provider without its own secret is a misconfiguration', () => {
+    const { fallback, ...primary } = coder()
+    const { secret: _secret, ...keyless } = fallback!
+    const service = makeLlmService(
+      { models: () => [{ ...primary, fallback: keyless }] }, 'spec-chain-keyless',
+    )
+
+    expect(() => service.getModel('coder')).toThrow()
   })
 })
 

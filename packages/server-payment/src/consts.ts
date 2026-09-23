@@ -33,6 +33,40 @@ export const RES_PAYMENT_USAGE = 'payment-usage'
 export const RES_PAYMENT_USAGE_COUNTER = 'payment-usage-counter'
 export const RES_PAYMENT_FINGERPRINT = 'payment-fingerprint'
 
+/** One per organization: the billing country fixed at the first purchase. */
+export const RES_BILLING_PROFILE = 'payment-billing-profile'
+/** One per paid checkout (a top-up, a subscription's first invoice): the contract and its window. */
+export const RES_PAYMENT_PURCHASE = 'payment-purchase'
+/** Append-only: express consents to early performance and subscription start requests. */
+export const RES_CONSUMER_CONSENT = 'payment-consumer-consent'
+/** Append-only: withdrawal and cancellation declarations. */
+export const RES_CONSUMER_DECLARATION = 'payment-consumer-declaration'
+/** Append-only: every execution and audit step of the consumer-rights flows. */
+export const RES_CONSUMER_EVENT = 'payment-consumer-event'
+
+export const CONSUMER_RIGHTS_SERVICE = 'payment-consumer-rights'
+/** The consumer-rights mail options (trader, sender, archive copies) — never advertised. */
+export const CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG = '_external:payment-consumer-mail'
+
+/** Stripe's own bounds of a Checkout Session's `expires_at`, from now. */
+export const STRIPE_SESSION_TTL_MIN_SECONDS = 30 * 60
+export const STRIPE_SESSION_TTL_MAX_SECONDS = 24 * 60 * 60
+
+/** How far back `reconcile` looks for completed sessions that have no purchase row. */
+export const PURCHASE_BACKFILL_DAYS = 16
+
+/** Top-level domains that never receive mail (RFC 2606 / 6761) — e2e addresses are recorded as skipped. */
+export const RESERVED_MAIL_TLDS: readonly string[] = Object.freeze(['test', 'example', 'invalid', 'localhost'])
+
+/** The purchase id prefix of a Stripe purchase: `stripe:<session id>` or `stripe:<subscription id>`. */
+export const PURCHASE_ID_PREFIX = 'stripe'
+
+/**
+ * The contract reference alphabet: digits and capitals without the look-alikes 0/O, 1/I/L, so a
+ * reference read aloud or typed from paper is never ambiguous.
+ */
+export const CONTRACT_REF_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
 /** Fingerprint sku prefix of a portal configuration: `portal:<service>`. */
 export const FINGERPRINT_PORTAL = 'portal'
 

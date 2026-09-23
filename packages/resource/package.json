@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/resource",
-  "version": "0.1.18-rc.34",
+  "version": "0.1.18-rc.35",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.34"
+    "@owlmeans/error": "^0.1.18-rc.35"
   },
   "peerDependencies": {
     "ajv": "*"

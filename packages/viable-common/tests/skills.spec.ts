@@ -40,6 +40,21 @@ describe('viable-common catalogue — handler wrap-once', () => {
     expect(body).toContain("project-backend/")
   })
 
+  it('OwlMeansServer types a handler with the shared type its protocol declares, never an invented payload type', () => {
+    const body = viableSkill(ViableSkill.OwlMeansServer).body
+
+    expect(body).not.toContain('TaskCreatePayload')
+    expect(body).toContain('payload: Task, ctx: Context')
+    expect(body).toContain('The PROTOCOL decides the handler\'s types')
+  })
+
+  it('FixerHeuristics repairs a handler/protocol mismatch in the HANDLER, never in the declaration', () => {
+    const body = viableSkill(ViableSkill.FixerHeuristics).body
+
+    expect(body).toContain('HANDLER disagreeing with its protocol')
+    expect(body).toContain('Never edit the declaration toward the handler')
+  })
+
   it('OwlmeansContext and OwlmeansState show no project-common/project-backend deep import with an extension', () => {
     for (const alias of [ViableSkill.OwlmeansContext, ViableSkill.OwlmeansState]) {
       expect(viableSkill(alias).body).not.toMatch(/project-(?:common|backend)\/[^\s'"`]*\.(?:js|type)\b/)

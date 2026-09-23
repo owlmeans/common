@@ -1,8 +1,10 @@
 import { ChatOpenAI } from '@langchain/openai'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
-import type { LlmPlugin, LlmRefineParams } from './types.js'
+import { ModelEffort, ModelProvider, StructuredMode } from '@owlmeans/llm-common'
+import type { EffortSupport, LlmPlugin, LlmRefineParams } from './types.js'
 import type { ModelConfig } from '../types.js'
+import { resolveOutputCap } from '../utils/config.js'
+import { effortAtLeast, effortFor } from '../utils/effort.js'
 import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
 
 /**
@@ -12,13 +14,53 @@ import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
  * is covered by its base id.
  *
  * This is the OpenAI counterpart of the anthropic plugin's `NO_SAMPLING_PREFIXES`, and it
- * gates BOTH hooks for the same reason: see `refine`.
+ * gates BOTH hooks for the same reason: see `refine`. The Responses API is also the only
+ * route that combines function calling with reasoning on `gpt-6*` — chat completions allows
+ * tools there only at `reasoning_effort: none`.
  */
-export const RESPONSES_API_PREFIXES = ['gpt-5', 'codex-']
+export const RESPONSES_API_PREFIXES = ['gpt-6', 'gpt-5', 'codex-']
 
 /** Whether this model id goes through the Responses API and therefore rejects sampling. */
 export const usesResponsesApi = (model: string | undefined): boolean =>
   model != null && RESPONSES_API_PREFIXES.some(prefix => model.startsWith(prefix))
+
+/**
+ * `reasoning.effort` levels per model, first prefix match wins. From OpenAI's model pages
+ * (2026-09-23): `gpt-6-sol` / `gpt-6-luna` accept `none`…`max` and default to `medium`;
+ * `gpt-6-astra` answers `none` with a 400. Ids not listed get no effort at all — the `gpt-5*`
+ * snapshots accept different sets, and a guessed level is a fatal 400.
+ */
+export const OPENAI_EFFORT_SUPPORT: ReadonlyArray<EffortSupport & { prefix: string }> = [
+  {
+    prefix: 'gpt-6-astra',
+    levels: [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max],
+    default: ModelEffort.Medium,
+  },
+  {
+    prefix: 'gpt-6',
+    levels: [
+      ModelEffort.None, ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh,
+      ModelEffort.Max,
+    ],
+    default: ModelEffort.Medium,
+  },
+]
+
+const openAiEffort = (model: string | undefined): EffortSupport | undefined => {
+  const entry = model != null ? OPENAI_EFFORT_SUPPORT.find(e => model.startsWith(e.prefix)) : undefined
+  return entry != null ? { levels: entry.levels, default: entry.default } : undefined
+}
+
+/**
+ * The smallest output budget a request at `high` effort or above is given. Reasoning tokens
+ * are billed against `max_output_tokens` together with the answer, and OpenAI's reasoning
+ * guide says to reserve at least 25k for the two; below that a hard problem comes back
+ * `incomplete` with no text. A floor, never an override, and clamped to the output cap.
+ */
+export const REASONING_MIN_MAX_TOKENS = 25_000
+
+const reasoningFloor = (maxTokens: number, effort: ModelEffort | undefined, cap: number): number =>
+  effortAtLeast(effort, ModelEffort.High) ? Math.max(maxTokens, Math.min(REASONING_MIN_MAX_TOKENS, cap)) : maxTokens
 
 export const OPENAI_FAMILY = 'openai'
 
@@ -57,15 +99,26 @@ export const openAiFamily = {
    */
   isFatal: (e: unknown): Error | null => isBadRequest(e) ? e as Error : null,
 
-  refine: ({ base, attempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
+  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
     const model = base as ChatOpenAI
     const currentTemperature = temperature ?? model.temperature ?? 0
-    const maxTokens = escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
     const baseKwargs = model.lc_kwargs as ConstructorParameters<typeof ChatOpenAI>[0] & {
       modelKwargs?: { reasoning?: { max_tokens?: number } } & Record<string, unknown>
     }
     const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
       || baseKwargs.useResponsesApi === true
+    // Effort only where `build` chose the Responses API itself — the `compatible` plugin
+    // shares this hook and speaks an aggregator's `reasoning` dialect instead.
+    const effort = baseKwargs.useResponsesApi === true
+      ? effortFor(
+        openAiEffort(model.model ?? baseKwargs.model),
+        baseKwargs.reasoning?.effort as ModelEffort | undefined,
+        rungAttempt ?? attempt,
+      )
+      : undefined
+    const maxTokens = reasoningFloor(
+      escalateMaxTokens(model.maxTokens, attempt, maxOutputCap), effort, maxOutputCap,
+    )
     // The dominant cause of an empty response is a reasoning model spending the whole
     // budget on hidden thinking (finish_reason=length, empty content). The retry already
     // raises maxTokens; ALSO shrink the absolute reasoning cap so the extra budget becomes
@@ -88,6 +141,7 @@ export const openAiFamily = {
         ...baseKwargs,
         maxTokens,
         ...(modelKwargs != null ? { modelKwargs } : {}),
+        ...(effort != null ? { reasoning: { ...baseKwargs.reasoning, effort } } : {}),
       }
       delete cfg.temperature
       delete cfg.topP
@@ -117,6 +171,8 @@ export const openAiPlugin: LlmPlugin = {
   structuredMode: (config: ModelConfig): StructuredMode =>
     config.structuredOutput === false ? StructuredMode.Tool : StructuredMode.Native,
 
+  effort: config => openAiEffort(config.model),
+
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'
     const configuration = makeConfiguration({ baseURL: undefined, headers: config.headers })
@@ -135,15 +191,17 @@ export const openAiPlugin: LlmPlugin = {
 
     // The Responses API models reject `temperature`/`topP`.
     if (usesResponsesApi(model)) {
+      const effort = effortFor(openAiEffort(model), config.effort, 0)
       return new ChatOpenAI({
         model,
         apiKey: secret,
-        maxTokens: config.maxTokens ?? 4096,
+        maxTokens: reasoningFloor(config.maxTokens ?? 4096, effort, resolveOutputCap(config)),
         maxRetries: 5,
         useResponsesApi: true,
         metadata: { config },
         callbacks,
         modelKwargs,
+        ...(effort != null ? { reasoning: { effort } } : {}),
         ...configuration,
       })
     }

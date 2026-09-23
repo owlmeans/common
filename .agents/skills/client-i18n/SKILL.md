@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-i18n
 
 **Layer:** Client (React)
-**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.38"` in `dependencies`
+**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.39"` in `dependencies`
 
 ## Purpose
 
@@ -36,21 +36,18 @@ The instance itself, for a host that has to configure i18next before the tree re
 | `useI18nInstance(config)` | The i18next instance for this application, memoised for the mount |
 | `getI18nInstance(config)` | The same instance outside React |
 | `setLanguage(lng)` | Persist and switch, without a component — what `useLanguage`'s setter calls |
+| `preferredLanguageOf(supportedLngs, preferred)` | Pure: the first preferred tag the config supports, exact or by base (`de-DE` → `de`), else `null` |
 
 **There is exactly one instance per document**, created on first request and reused by every later
 call whatever config is passed. So configuration is read once, at the first creation, and a plugin
-is installed on the instance rather than passed to a second factory:
+is installed on the instance rather than passed to a second factory.
 
-```tsx
-import { useI18nInstance } from '@owlmeans/client-i18n/utils'
-import detector from 'i18next-browser-languagedetector'
-
-const instance = useI18nInstance(context.cfg)
-instance.use(detector)
-```
-
-`@owlmeans/web-panel`'s `render` already does exactly this, so an application on the panel family
-needs none of it.
+**The instance is initialized at creation with an explicit `lng`**, which is why the language is
+resolved there and not by a plugin: the persisted choice (`owlmeans-lng`, when supported), else the
+browser's own language (`navigator.languages` through `preferredLanguageOf` — a first visit from a
+German browser opens in German), else `fallbackLng`. A language detector installed afterwards
+(`instance.use(detector)`, which `@owlmeans/web-panel`'s `render` still does) is never consulted —
+harmless, but not what detects. A detected language is not persisted; only an explicit choice is.
 
 ## Setup (app root)
 
@@ -72,8 +69,11 @@ function App() {
 
 The active language is persisted in `localStorage` under `owlmeans-lng` and restored on init — but
 only when it is in `supportedLngs`, so a stored value that a later release dropped falls back to
-`fallbackLng` instead of resolving nothing. Every storage access is guarded, so a browser that
-refuses site data still renders.
+the browser's language, then `fallbackLng`, instead of resolving nothing. Every storage and
+`navigator` access is guarded, so a browser that refuses site data (or no browser) still renders.
+
+`tests/instance.spec.ts` pins `preferredLanguageOf` (base matching, browser order, exact tag first,
+`null` when nothing matches).
 
 ```tsx
 function LangSwitch() {

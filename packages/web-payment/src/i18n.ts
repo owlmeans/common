@@ -8,11 +8,14 @@ import es from './i18n/es.json' with { type: 'json' }
 import de from './i18n/de.json' with { type: 'json' }
 import fr from './i18n/fr.json' with { type: 'json' }
 
-addI18nLib('en', 'web-payment', en)
-addI18nLib('pl', 'web-payment', pl)
-addI18nLib('ru', 'web-payment', ru)
-addI18nLib('be', 'web-payment', be)
-addI18nLib('uk', 'web-payment', uk)
-addI18nLib('es', 'web-payment', es)
-addI18nLib('de', 'web-payment', de)
-addI18nLib('fr', 'web-payment', fr)
+/** The library resource (`lib` namespace) every interface string of this package lives in. */
+export const WEB_PAYMENT_RESOURCE = 'web-payment'
+
+addI18nLib('en', WEB_PAYMENT_RESOURCE, en)
+addI18nLib('pl', WEB_PAYMENT_RESOURCE, pl)
+addI18nLib('ru', WEB_PAYMENT_RESOURCE, ru)
+addI18nLib('be', WEB_PAYMENT_RESOURCE, be)
+addI18nLib('uk', WEB_PAYMENT_RESOURCE, uk)
+addI18nLib('es', WEB_PAYMENT_RESOURCE, es)
+addI18nLib('de', WEB_PAYMENT_RESOURCE, de)
+addI18nLib('fr', WEB_PAYMENT_RESOURCE, fr)

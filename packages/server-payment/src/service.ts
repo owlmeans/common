@@ -10,6 +10,7 @@ import {
   ENTITLEMENT_SERVICE, GATEWAY_SERVICE, RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT,
   RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from './consts.js'
+import { registerConsumerRights } from './consumer/service.js'
 import { makeEntitlementService } from './entitlement.js'
 import { makeCapabilityGate } from './gate.js'
 import { makeLimitGate } from './limit.js'
@@ -18,17 +19,18 @@ import { findPlan, findProduct, planRank } from './plan.js'
 import { resyncStripeSubscription, resyncStripeSubscriptions } from './plugins/events.js'
 import { makeEstimateCache, estimateStripePrice } from './plugins/estimate.js'
 import { createPortalLink, ensurePortalConfiguration } from './plugins/portal.js'
-import { createCheckoutLink } from './plugins/stripe.js'
+import { makeCheckoutPluginRegistry, narrowAmountFor } from './plugins/checkout-plugins.js'
+import { consumablePlanOf, createCheckoutLink } from './plugins/stripe.js'
 import { ensureWebhookEndpoint } from './plugins/webhook-manager.js'
 import {
   makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource, makeSubscriptionResource,
   makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from './resource.js'
 import { commitSubscription } from './subscription.js'
-import { syncStripeProducts } from './sync.js'
-import { stripeClient, subscriptions } from './utils.js'
+import { syncedPlanPrices, syncStripeProducts } from './sync.js'
+import { consumerRightsOf, stripeClient, subscriptions } from './utils.js'
 import type {
-  Config, Context, GatewayService, GrantInternalPlanOptions, PaymentGatewayOptions,
+  Config, Context, GatewayService, GrantInternalPlanOptions, PaymentGatewayOptions, PaymentPlan,
   PaymentSubscriptionRecord,
 } from './types.js'
 
@@ -107,10 +109,22 @@ export const makeGatewayService = (
   // One estimate cache per gateway SERVICE instance, never module-level: several service
   // instances (several tests, several deployments in one process) must never share hits.
   const estimateCache = makeEstimateCache()
+  // Checkout plugins are seated per gateway instance, like the estimate cache.
+  const plugins = makeCheckoutPluginRegistry()
   const service = createService<GatewayService>(alias, {
     managed,
     createLink: async (ctx, params) => managed
-      ? await createCheckoutLink(ctx, await stripeClient(ctx), params) : unmanaged(),
+      ? await createCheckoutLink(ctx, await stripeClient(ctx), params, plugins.list()) : unmanaged(),
+    use: plugin => { plugins.use(plugin) },
+    checkoutPlugins: () => plugins.list(),
+    amountPolicy: async (ctx, entityId, productSku, planSku) => {
+      const { plan } = await consumablePlanOf(ctx, productSku, planSku)
+      if (plan.amountPolicy == null) throw new ProductError(`amount-policy:${plan.sku}`)
+      return await narrowAmountFor(ctx, plugins.list(), {
+        entityId, productSku, planSku: (plan as PaymentPlan).sku, base: plan.amountPolicy, at: new Date(),
+      })
+    },
+    planPrices: async (ctx, productSku) => await syncedPlanPrices(ctx, productSku),
     portalLink: async (ctx, entityId, link) => managed
       ? await createPortalLink(ctx, await stripeClient(ctx), entityId, link) : unmanaged(),
     grantInternalPlan: async (ctx, entityId, planSku, grant) => await grantInternalPlan(ctx, entityId, planSku, grant),
@@ -124,6 +138,9 @@ export const makeGatewayService = (
     const ctx = service.assertCtx() as unknown as ApiContext
     assertPlanDeclarations(ctx.cfg)
     service.initialized = true
+    // The consumer-rights service is lazy (reachable while the application is wired): initialize it
+    // with the gateway, so its boot checks run at boot.
+    consumerRightsOf(ctx)
     if (managed) {
       void ctx.waitForInitialized().then(async () => {
         await bootstrapStripe(ctx, await stripeClient(ctx))
@@ -136,7 +153,8 @@ export const makeGatewayService = (
 
 /**
  * Register the payment resources, the catalogue service, the completion observer, the gateway, both
- * gate services and the entitlement service — each only when not registered yet.
+ * gate services, the entitlement service and the consumer-rights records and service — each only
+ * when not registered yet.
  *
  * `manage: false` registers the same surface for a process that reads entitlements but never talks
  * to Stripe.
@@ -164,6 +182,10 @@ export const appendPaymentGatewayService = <C extends Config, T extends Context<
   if (!ctx.hasService(ENTITLEMENT_GATE)) ctx.registerService(makeCapabilityGate())
   if (!ctx.hasService(LIMIT_GATE)) ctx.registerService(makeLimitGate())
   if (!ctx.hasService(ENTITLEMENT_SERVICE)) ctx.registerService(makeEntitlementService())
+  // The consumer-rights records and service, with this gateway's `manage` unless the application
+  // gave its own (before or after this call): the webhook writes purchases and locks, and an
+  // unmanaged process still reads and asserts consent.
+  registerConsumerRights(ctx, { manage: opts?.manage, dbAlias: opts?.dbAlias, serviceAlias: opts?.serviceAlias }, 'gateway')
 
   return ctx
 }

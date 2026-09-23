@@ -1,8 +1,14 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/core/callbacks/base'
 import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import type { CacheTtl, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
+import type { CacheTtl, ModelEffort, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import type { ModelConfig } from '../types.js'
+
+/** The effort levels one model accepts, least work first, and the one it uses when unset. */
+export interface EffortSupport {
+  levels: ModelEffort[]
+  default: ModelEffort
+}
 
 export interface LlmBuildParams {
   /** Alias the config was registered under — used only for error reporting. */
@@ -22,6 +28,11 @@ export interface LlmRefineParams {
   base: BaseChatModel
   /** 0-based retry attempt; the output budget doubles with it. */
   attempt: number
+  /**
+   * 0-based attempt within the active rung (the primary or one fallback); effort climbs
+   * with it, so every rung starts from its own declared level. Omitted, it is `attempt`.
+   */
+  rungAttempt?: number
   /** Call-site temperature override (`invoke`). */
   temperature?: number | undefined
   /** Hard ceiling the doubled output budget is clamped to. */
@@ -100,6 +111,12 @@ export interface LlmPlugin {
    * control, and on a provider that has one it is nothing but text in the prompt.
    */
   suppressesThinking?: (config: Pick<ModelConfig, 'model' | 'disableThinking'>) => boolean
+
+  /**
+   * Which `ModelConfig.effort` levels this model accepts, given how the config treats
+   * thinking — or `undefined` when it accepts none, in which case no effort is sent.
+   */
+  effort?: (config: Pick<ModelConfig, 'model' | 'disableThinking'>) => EffortSupport | undefined
 
   /** How this provider should be asked for schema-conforming output. */
   structuredMode: (config: ModelConfig) => StructuredMode

@@ -17,5 +17,13 @@
   "PaymentErrorSubscriptionUnknown": "This subscription does not exist",
   "EntitlementRefusal": "Your plan does not allow this",
   "EntitlementRefusalCapabilityRequired": "This feature is not included in your plan",
-  "EntitlementRefusalLimitExhausted": "You have reached your plan's limit for this"
+  "EntitlementRefusalLimitExhausted": "You have reached your plan's limit for this",
+  "PaymentErrorConsumerRights": "Consumer-rights processing is not configured correctly",
+  "PaymentErrorConsumerRightsRefusal": "This request cannot be carried out for this account right now",
+  "PaymentErrorConsumerRightsRefusalPerformanceConsentRequired": "Please confirm that you want to start using your recently purchased credits",
+  "PaymentErrorConsumerRightsRefusalSubscriptionStartRequired": "Please confirm that the subscription services should start right away before you continue to payment",
+  "PaymentErrorConsumerRightsRefusalBillingCountryLocked": "The billing country of this account is already set and cannot be changed here",
+  "PaymentErrorConsumerRightsRefusalWithdrawalUnavailable": "This contract cannot be withdrawn from here",
+  "PaymentErrorConsumerRightsRefusalCancellationUnavailable": "There is no active subscription to cancel",
+  "PaymentErrorCheckoutLimitExceeded": "This amount is above what this account can buy right now"
 }

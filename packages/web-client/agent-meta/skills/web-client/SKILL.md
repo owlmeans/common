@@ -6,7 +6,7 @@ description: Bind OwlMeans shared entrypoint protocols in a browser application.
 
 # Browser protocol entrypoints
 
-**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.49`
+**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.50`
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.

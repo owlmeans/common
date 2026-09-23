@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { I18nContext } from '@owlmeans/client-i18n'
 import { AmountCheckoutDialog } from '../../src/index.js'
+import { ConsumerCase, isConsumerCase } from './consumer.js'
 import { EntitlementCase } from './entitlement.js'
 import { ESTIMATE_FIXTURES } from './estimate-fixtures.js'
 
@@ -31,8 +32,14 @@ const Dialog = () => {
   </>
 }
 
-const App = () => <I18nContext config={{ service: 'web-payment-test', i18n: { defaultLng: 'en' } } as never}>
-  {scenario == null ? <Dialog /> : <EntitlementCase name={scenario} />}
+/** `?ui=` is the interface language; `?lng=` (read by the consumer cases) the contract language. */
+const ui = params.get('ui') ?? 'en'
+const LANGUAGES = ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de', 'fr']
+
+const App = () => <I18nContext config={{ service: 'web-payment-test', i18n: { defaultLng: ui, supportedLngs: LANGUAGES } } as never}>
+  {scenario == null
+    ? <Dialog />
+    : isConsumerCase(scenario) ? <ConsumerCase name={scenario} /> : <EntitlementCase name={scenario} />}
 </I18nContext>
 
 createRoot(document.getElementById('root')!).render(<App />)

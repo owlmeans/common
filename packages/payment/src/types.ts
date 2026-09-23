@@ -1,8 +1,9 @@
 import type { InitializedService } from '@owlmeans/context'
 
 import type {
-  CheckoutPricingMode, LimitKind, LimitWindow, PaymentEntityType, PlanDuration, PlanStatus, PortalFlow,
-  ProductType, SubscriptionStatus, TaxBehavior, TaxEstimateStatus, TaxType
+  CancellationKind, CancellationStatus, CheckoutPricingMode, ConsumerRegion, LimitKind, LimitWindow,
+  PaymentEntityType, PlanDuration, PlanStatus, PortalFlow, ProductType, PurchaseKind, SubscriptionStatus,
+  TaxBehavior, TaxEstimateStatus, TaxType, WithdrawalStatus,
 } from './consts.js'
 import type { PermissionSet } from '@owlmeans/auth'
 
@@ -97,7 +98,26 @@ export interface ProductPlan {
   pricingMode?: CheckoutPricingMode
   amountPolicy?: AmountCheckoutPolicy
   quantityPolicy?: QuantityCheckoutPolicy
+  /**
+   * How the price of a subscription splits for a withdrawal (CJEU C-641/19 PE Digital: pro rata
+   * temporis unless the contract states a separately priced component). Absent: the whole price is
+   * one `time` component.
+   */
+  withdrawal?: { components: PlanWithdrawalComponent[] }
 }
+
+/**
+ * One separately priced part of a plan. A `time` part is deducted pro rata by the days elapsed
+ * since the services were requested; a `units` part by the units used after consent. The shares
+ * of a plan sum to its price in minor units.
+ */
+export interface PlanWithdrawalComponent {
+  key: string
+  basis: WithdrawalBasis
+  shareMinor: number
+}
+
+export type WithdrawalBasis = 'time' | 'units'
 
 export interface AmountCheckoutPolicy {
   currency: string
@@ -127,6 +147,10 @@ export interface CreateCheckoutBody {
   subscriptionId?: string
   successUrl?: string
   cancelUrl?: string
+  /** The billing country the buyer declared (ISO 3166-1 alpha-2). A locked profile overrides it. */
+  country?: string
+  /** The subscription start request recorded right before this checkout. */
+  startRequestId?: string
 }
 
 export interface CreateCheckoutResponse {
@@ -269,8 +293,15 @@ export interface TaxEstimate {
 export interface PriceEstimate {
   /** The billing country the estimate was computed for, when one was resolved. */
   country?: string
-  /** Where that country came from — absent when neither the request nor the customer named one. */
-  source?: 'request' | 'customer'
+  /**
+   * Where that country came from — absent when neither the request nor the customer named one;
+   * `profile` when the entity's billing country is locked, which overrides the request.
+   */
+  source?: 'request' | 'customer' | 'profile'
+  /** The country is the locked billing country; a picker shows it and does not change it. */
+  locked?: boolean
+  /** The consumer region of `country`. */
+  region?: ConsumerRegion
   /** The integration currency (lowercase ISO 4217) the amounts above and `tax` are stated in. */
   currency: string
   behavior: TaxBehavior
@@ -325,4 +356,327 @@ export interface PaymentService extends InitializedService {
 
   /** The declared `PricingPolicy`, or `DEFAULT_PRICING_POLICY` when none was declared. */
   pricingPolicy: () => Promise<PricingPolicy>
+
+  /** The declared `ConsumerRightsPolicy`, or `null` when the application declared none. */
+  consumerRightsPolicy: () => Promise<ConsumerRightsPolicy | null>
+}
+
+// --- Consumer rights --------------------------------------------------------------------------
+
+/** The legal documents and functions of one language. Every value is an absolute https URL. */
+export interface ConsumerRightsLinks {
+  billingTerms: string
+  withdrawalInformation?: string
+  withdrawalForm?: string
+  /** The public withdrawal function — the address the Billing Terms name. */
+  withdrawalFunction?: string
+  /** The public cancellation page. */
+  cancellation?: string
+}
+
+/** Which consumer-rights mechanisms an application runs. Each is a separate switch. */
+export interface ConsumerRightsMechanisms {
+  /** Fix the billing country at the first purchase. */
+  countryLock: boolean
+  /** The terms checkbox and text on every checkout (needs a terms URL at the paygate). */
+  checkoutTerms: boolean
+  /** Ask for express consent before credits bought inside their window are spent. */
+  performanceConsent: boolean
+  /** Ask for an express start request before a subscription checkout. */
+  subscriptionStart: boolean
+  /** The withdrawal function. */
+  withdrawal: boolean
+  /** Execute a withdrawal's refund at the paygate without an operator. */
+  automaticRefunds: boolean
+  /** The cancellation function. */
+  cancellation: boolean
+  /** The purchase confirmation e-mail with the withdrawal information. */
+  purchaseConfirmation: boolean
+}
+
+/**
+ * Declared once per configuration (a `CONSUMER_RIGHTS_RECORD_ID` singleton record). Carries no
+ * secret — it is advertised to the browser, which renders the same links and switches the server
+ * enforces.
+ */
+export interface ConsumerRightsPolicy {
+  /** The version of the application's Billing Terms and consent wording; a consent records it. */
+  textVersion: string
+  /** ISO 3166-1 alpha-2 countries whose consumers have the rights. */
+  countries: string[]
+  /** An unknown billing country is protected (treated as in scope) or ignored. */
+  unknownCountry: 'protect' | 'ignore'
+  withdrawalDays: number
+  deadline: { weekendRollover: boolean, marginDays: number }
+  mechanisms: ConsumerRightsMechanisms
+  /** The charge currency per region (lowercase ISO 4217), e.g. `{ eu: 'eur', other: 'usd' }`. */
+  currencies?: Partial<Record<ConsumerRegion, string>>
+  /** Country → language of the legal copy, over `COUNTRY_LANGUAGES`. */
+  languages?: Record<string, string>
+  defaultLanguage: string
+  /** Per language; `defaultLanguage` must be present. */
+  links: Record<string, ConsumerRightsLinks>
+  /** Whether a renewal opens a new withdrawal window. Off by default. */
+  renewalOpensWindow?: boolean
+  /** How long a subscription start request stays usable. */
+  startRequestTtlSeconds?: number
+  /** Whether a buyer with a business tax id is exempt. Off by default: everyone is protected. */
+  exemptBusinesses?: boolean
+}
+
+/** An entity's billing country, fixed at the first purchase. */
+export interface BillingProfileView {
+  country: string | null
+  region: ConsumerRegion | null
+  /** The charge currency, fixed with the country. */
+  currency: string | null
+  locked: boolean
+  lockedAt?: Date
+  /** The language of the legal copy for this country. */
+  language: string
+  inScope: boolean
+}
+
+/** One purchase — a contract — and its withdrawal window. */
+export interface PurchaseView {
+  purchaseId: string
+  /** The human contract reference a consumer quotes. */
+  contractRef: string
+  kind: PurchaseKind
+  purchasedAt: Date
+  /** Exclusive end of the withdrawal window; absent outside the consumer-rights territories. */
+  deadline?: Date
+  productSku: string
+  planSku?: string
+  amountTotalMinor: number
+  currency: string
+  consentedAt?: Date
+  withdrawnAt?: Date
+  /** Inside its window, not withdrawn, and something would be reimbursed. */
+  withdrawable: boolean
+}
+
+export interface PurchaseList {
+  purchases: PurchaseView[]
+}
+
+/** Whether billed work needs the consumer's express consent now, and what it would cover. */
+export interface PerformanceConsentView {
+  required: boolean
+  region: ConsumerRegion | null
+  country: string | null
+  /** The language of the legal copy (the billing country's). */
+  language: string
+  /** The trader named in the statement. */
+  trader: string
+  textVersion: string
+  copyVersion: string
+  links: ConsumerRightsLinks
+  /** The open, unconsented purchases the consent would cover. */
+  purchases: PurchaseView[]
+  /** The latest deadline among them. */
+  deadline?: Date
+  at: Date
+}
+
+export interface PerformanceConsentBody {
+  purchaseIds: string[]
+  textVersion: string
+  /** The language the statement was SHOWN in. */
+  language: string
+  acknowledged: true
+  uiLanguage?: string
+}
+
+export interface PerformanceConsentResponse {
+  consentId: string
+  consentedAt: Date
+  purchaseIds: string[]
+  mailed: boolean
+}
+
+export interface SubscriptionStartQuery {
+  planSku: string
+}
+
+/** Whether a subscription checkout needs an express start request first. */
+export interface SubscriptionStartView {
+  required: boolean
+  planSku: string
+  language: string
+  trader: string
+  textVersion: string
+  copyVersion: string
+  links: ConsumerRightsLinks
+  region: ConsumerRegion | null
+}
+
+export interface SubscriptionStartBody {
+  planSku: string
+  textVersion: string
+  language: string
+  acknowledged: true
+}
+
+export interface SubscriptionStartResponse {
+  startRequestId: string
+  requestedAt: Date
+  expiresAt: Date
+}
+
+/** What a withdrawal would reimburse now. */
+export interface WithdrawalEstimate {
+  refundMinor: number
+  currency: string
+  timeDeductionMinor: number
+  unitsDeductionMinor: number
+  elapsedDays?: number
+  periodDays?: number
+  unitsUsed?: number
+  unitsGranted?: number
+}
+
+export interface WithdrawalCandidate {
+  purchaseId: string
+  contractRef: string
+  kind: PurchaseKind
+  purchasedAt: Date
+  deadline: Date
+  amountTotalMinor: number
+  currency: string
+  /** `null` when it cannot be computed (no usage meter). */
+  estimate: WithdrawalEstimate | null
+  /** The refund is executed without an operator. */
+  automatic: boolean
+}
+
+export interface WithdrawalCandidateList {
+  candidates: WithdrawalCandidate[]
+  language: string
+  links: ConsumerRightsLinks
+  /** Prefill for the form. */
+  name?: string
+  email?: string
+}
+
+/**
+ * A withdrawal declaration. In-app it names `purchaseId`; on the public page `contractRef` (or an
+ * invoice number) plus the e-mail of the purchase. Only name, contract and e-mail are asked.
+ */
+export interface WithdrawalBody {
+  purchaseId?: string
+  contractRef?: string
+  name: string
+  email: string
+  language?: string
+  /** A field a person never fills — a filled one marks a bot on a public form. */
+  honeypot?: string
+}
+
+/** The receipt of a declaration: what was declared and when it arrived. */
+export interface DeclarationReceipt {
+  declarationId: string
+  receivedAt: Date
+  /** The declaration as received, field by field — echoed, never enriched with a match. */
+  content: Record<string, string>
+  mailed: boolean
+}
+
+export interface WithdrawalReceipt extends DeclarationReceipt {
+  status: WithdrawalStatus
+  refundMinor?: number
+  currency?: string
+  subscriptionCanceled?: boolean
+}
+
+export interface CancellationBody {
+  kind: CancellationKind
+  /** Required for an extraordinary cancellation. */
+  reason?: string
+  name: string
+  contractRef?: string
+  subscriptionId?: string
+  effective: 'earliest' | 'date'
+  /** `YYYY-MM-DD`, with `effective: 'date'`. */
+  date?: string
+  email: string
+  language?: string
+  /** A field a person never fills — a filled one marks a bot on a public form. */
+  honeypot?: string
+}
+
+export interface CancellationReceipt extends DeclarationReceipt {
+  status: CancellationStatus
+  effectiveAt?: Date
+}
+
+/** What the public legal pages need without a login. */
+export interface ConsumerRightsPublicView {
+  mechanisms: Pick<ConsumerRightsMechanisms, 'withdrawal' | 'cancellation'>
+  languages: string[]
+  links: Record<string, ConsumerRightsLinks>
+  textVersion: string
+}
+
+/**
+ * One narrowing of an amount checkout's maximum — what a checkout plugin (a spending tier, a
+ * rolling cap) answers for one entity at one instant.
+ */
+export interface AmountNarrowing {
+  /** The largest amount (net credit value, minor units) this narrowing allows now. */
+  maximumMinor: number
+  /** Why — a stable key a UI phrases (`per-purchase`, `window`, `hold` …). */
+  reason: string
+  /** When the narrowing lifts or widens. */
+  resetsAt?: Date
+  /** What is left of a rolling allowance, when that is the cause. */
+  remainingMinor?: number
+}
+
+/**
+ * The narrowed limit of an amount checkout, shared by the server's refusal and the dialog's
+ * control. `blocked` means no amount may be bought now.
+ */
+export interface CheckoutLimitView {
+  productSku: string
+  planSku?: string
+  currency: string
+  minimumMinor: number
+  /** The narrowed maximum — below `minimumMinor` when `blocked`. */
+  maximumMinor: number
+  narrowed: boolean
+  blocked: boolean
+  reason?: string
+  resetsAt?: Date
+  remainingMinor?: number
+}
+
+/** An amount policy as narrowed for one entity, and the limit that narrowed it (`null`: none). */
+export interface AmountPolicyView {
+  policy: AmountCheckoutPolicy
+  limit: CheckoutLimitView | null
+}
+
+export interface AmountPolicyQuery {
+  productSku: string
+  planSku?: string
+}
+
+/** One price of a plan in one currency, as the paygate charges it. */
+export interface PlanPriceView {
+  planSku: string
+  currency: string
+  unitAmountMinor: number
+  /** The price's default currency (the others are currency options). */
+  default: boolean
+  taxBehavior?: TaxBehavior
+  interval?: 'month' | 'year'
+}
+
+export interface PlanPriceList {
+  prices: PlanPriceView[]
+}
+
+export interface PlanPricesQuery {
+  productSku: string
 }

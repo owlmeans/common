@@ -5,15 +5,18 @@ import { DEFAULT_ALIAS as PAYMENT_SERVICE, ENTITLING_STATUSES, WebhookSetupError
 import type { PaymentService } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
-  ENTITLEMENT_SERVICE, GATEWAY_SERVICE, PAYMENT_OBSERVER, RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT,
-  RES_PAYMENT_FULFILLMENT, RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER,
-  RES_PAYMENT_WEBHOOK, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
+  CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG, CONSUMER_RIGHTS_SERVICE, ENTITLEMENT_SERVICE, GATEWAY_SERVICE,
+  PAYMENT_OBSERVER, RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT,
+  RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE,
+  RES_PAYMENT_SUBSCRIPTION, RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK, STRIPE_PLUGIN_CONFIG,
+  STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
 } from './consts.js'
 import type {
-  CompletionObserver, EntitlementService, FingerprintResource, GatewayService, PaygateCustomerResource,
-  PaymentFulfillmentResource, PaymentSubscriptionRecord, PaymentSubscriptionResource,
-  PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource, PortalBrandingConfig,
-  StripePluginConfig, StripePricingPluginConfig,
+  BillingProfileResource, CompletionObserver, ConsumerConsentResource, ConsumerDeclarationResource,
+  ConsumerEventResource, ConsumerMailPluginConfig, ConsumerRightsService, EntitlementService, FingerprintResource,
+  GatewayService, PaygateCustomerResource, PaymentFulfillmentResource, PaymentSubscriptionRecord,
+  PaymentSubscriptionResource, PaymentUsageCounterResource, PaymentUsageResource, PaymentWebhookResource,
+  PortalBrandingConfig, PurchaseResource, StripePluginConfig, StripePricingPluginConfig,
 } from './types.js'
 
 export const payment = (ctx: ApiContext): PaymentService => ctx.service<PaymentService>(PAYMENT_SERVICE)
@@ -36,6 +39,24 @@ export const usageCounters = (ctx: ApiContext): PaymentUsageCounterResource =>
   ctx.resource<PaymentUsageCounterResource>(RES_PAYMENT_USAGE_COUNTER)
 export const fingerprints = (ctx: ApiContext): FingerprintResource =>
   ctx.resource<FingerprintResource>(RES_PAYMENT_FINGERPRINT)
+export const billingProfiles = (ctx: ApiContext): BillingProfileResource =>
+  ctx.resource<BillingProfileResource>(RES_BILLING_PROFILE)
+export const purchases = (ctx: ApiContext): PurchaseResource => ctx.resource<PurchaseResource>(RES_PAYMENT_PURCHASE)
+export const consumerConsents = (ctx: ApiContext): ConsumerConsentResource =>
+  ctx.resource<ConsumerConsentResource>(RES_CONSUMER_CONSENT)
+export const consumerDeclarations = (ctx: ApiContext): ConsumerDeclarationResource =>
+  ctx.resource<ConsumerDeclarationResource>(RES_CONSUMER_DECLARATION)
+export const consumerEvents = (ctx: ApiContext): ConsumerEventResource =>
+  ctx.resource<ConsumerEventResource>(RES_CONSUMER_EVENT)
+
+/** The consumer-rights service. @throws when it is not registered */
+export const consumerRights = (ctx: ApiContext, alias: string = CONSUMER_RIGHTS_SERVICE): ConsumerRightsService =>
+  ctx.service<ConsumerRightsService>(alias)
+
+/** The consumer-rights service, or `null` in a process that registered none. */
+export const consumerRightsOf = (ctx: ApiContext, alias: string = CONSUMER_RIGHTS_SERVICE): ConsumerRightsService | null =>
+  (ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(alias) === true
+    ? ctx.service<ConsumerRightsService>(alias) : null
 
 type PluginReader = { getConfigResource: (alias: string) => {
   get: (id: string) => Promise<unknown>
@@ -48,6 +69,10 @@ export const stripeConfig = async (ctx: ApiContext): Promise<StripePluginConfig>
 /** The portal branding declared with `portalBranding`, or `null`. */
 export const portalBrandingConfig = async (ctx: ApiContext): Promise<PortalBrandingConfig | null> =>
   await (ctx as never as PluginReader).getConfigResource(PLUGINS).load(STRIPE_PORTAL_PLUGIN_CONFIG) as PortalBrandingConfig | null
+
+/** The consumer-rights mail options declared with `declareConsumerRights`, or `null`. */
+export const consumerMailConfig = async (ctx: ApiContext): Promise<ConsumerMailPluginConfig | null> =>
+  await (ctx as never as PluginReader).getConfigResource(PLUGINS).load(CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG) as ConsumerMailPluginConfig | null
 
 /** The Stripe-only pricing settings declared with `declarePaymentPricing`, or `null`. */
 export const stripePricingConfig = async (ctx: ApiContext): Promise<StripePricingPluginConfig | null> =>
@@ -99,3 +124,27 @@ export const activeSubscription = async (
 ): Promise<PaymentSubscriptionRecord | null> => await subscriptions(ctx).load({
   entityId, productSku, status: [...ENTITLING_STATUSES],
 }, { sort: [{ field: 'rank', order: 'desc' }, { field: 'createdAt', order: 'desc' }] })
+
+/** A conditional single-document `$set` — `true` when the filter matched (the guard held). */
+export const conditionalSet = async (
+  resource: { collection: unknown }, filter: Record<string, unknown>, set: Record<string, unknown>,
+): Promise<boolean> => {
+  const collection = resource.collection as {
+    updateOne: (filter: object, update: object) => Promise<{ matchedCount?: number, modifiedCount?: number }>
+  }
+  const result = await collection.updateOne(filter, { $set: set })
+
+  return (result.matchedCount ?? result.modifiedCount ?? 0) > 0
+}
+
+/** A conditional single-document delete — `true` when the filter matched (the guard held). */
+export const conditionalDelete = async (resource: { collection: unknown }, filter: Record<string, unknown>): Promise<boolean> => {
+  const collection = resource.collection as { deleteOne: (filter: object) => Promise<{ deletedCount?: number }> }
+  const result = await collection.deleteOne(filter)
+
+  return (result.deletedCount ?? 0) > 0
+}
+
+/** An error's message for an audit record, never a stack. */
+export const errorText = (error: unknown): string =>
+  (error instanceof Error ? error.message : String(error)).slice(0, 1000)

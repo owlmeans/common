@@ -1,4 +1,4 @@
-import type { ExecutionEffort, ExecutionLevel, PromptBlock } from './consts.js'
+import type { ExecutionEffort, ExecutionLevel, ModelEffort, PromptBlock } from './consts.js'
 import type { InquiryConfig } from './inquiry/types.js'
 
 /**
@@ -33,6 +33,8 @@ export interface ModelConfigPatch {
   maxTokensCap?: number
   topP?: number
   disableThinking?: boolean
+  /** Provider-native effort; clamped to what the model accepts, dropped where it accepts none. */
+  effort?: ModelEffort
   /** Total window the model accepts (input + output). Informational / validation only. */
   contextWindow?: number
   /** What the PROVIDER can emit in one request. Hard ceiling for `maxTokens`/`maxTokensCap`. */

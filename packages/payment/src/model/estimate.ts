@@ -3,7 +3,7 @@ import type { PriceEstimate, PriceEstimateBody, PricingPolicy, TaxEstimate, TaxR
 import { ResourceValueSchema } from '@owlmeans/auth'
 import { schema } from '@owlmeans/entrypoint'
 import { CountrySchema } from '../countries.js'
-import { TaxBehaviorSchema, TaxEstimateStatusSchema, TaxTypeSchema } from '../consts.js'
+import { ConsumerRegionSchema, TaxBehaviorSchema, TaxEstimateStatusSchema, TaxTypeSchema } from '../consts.js'
 
 export const PricingPolicySchema = schema<PricingPolicy>({
   type: 'object',
@@ -76,7 +76,9 @@ export const PriceEstimateSchema = schema<PriceEstimate>({
   type: 'object',
   properties: {
     country: { ...CountrySchema, nullable: true },
-    source: { type: 'string', enum: ['request', 'customer'], nullable: true },
+    source: { type: 'string', enum: ['request', 'customer', 'profile'], nullable: true },
+    locked: { type: 'boolean', nullable: true },
+    region: { ...ConsumerRegionSchema, nullable: true },
     currency: { type: 'string', minLength: 3, maxLength: 3 },
     behavior: TaxBehaviorSchema,
     tax: TaxEstimateSchema,

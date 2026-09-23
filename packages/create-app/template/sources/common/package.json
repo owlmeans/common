@@ -19,10 +19,10 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@owlmeans/config": "^0.1.18-rc.36",
-    "@owlmeans/entrypoint": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.34",
-    "@owlmeans/resource": "^0.1.18-rc.34",
+    "@owlmeans/config": "^0.1.18-rc.37",
+    "@owlmeans/entrypoint": "^0.1.18-rc.36",
+    "@owlmeans/error": "^0.1.18-rc.35",
+    "@owlmeans/resource": "^0.1.18-rc.35",
     "@owlmeans/route": "^0.1.18-rc.33",
     "ajv": "^8.17.1"
   },

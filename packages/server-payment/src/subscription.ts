@@ -14,6 +14,12 @@ export interface CommitOptions {
   invoiceId?: string
   /** The paygate announced the trial ends soon. */
   trialEnding?: boolean
+  /**
+   * Runs after the new state is written and BEFORE observers hear the change — what must exist
+   * before an observer grants anything (a subscription's purchase row). A throw propagates: the
+   * observers are not told and the paygate retries.
+   */
+  beforePropagate?: (record: PaymentSubscriptionRecord, change: SubscriptionChange) => Promise<void>
 }
 
 export interface CommitResult {
@@ -205,6 +211,7 @@ export const commitSubscription = async (
   }
 
   const stored = await write(next)
+  await opts.beforePropagate?.(stored, change)
   await observer(ctx).propagateSubscription({
     change,
     previous: prior != null && previous != null ? await snapshotOf(ctx, previous, prior) : null,

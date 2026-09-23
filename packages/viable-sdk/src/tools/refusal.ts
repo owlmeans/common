@@ -32,6 +32,39 @@ const MODERATION: Record<string, string> = {
     'abuse — unsolicited bulk messaging, credential stuffing or phishing kits',
 }
 
+/** The last day a purchase can still be withdrawn from — the day before its EXCLUSIVE deadline. */
+const lastDayOf = (deadline: Date | undefined): string | null => deadline != null && !Number.isNaN(deadline.getTime())
+  ? new Date(deadline.getTime() - 1).toISOString().slice(0, 10)
+  : null
+
+/**
+ * What the model tells a PERSON when a paid action waits for the EU spend consent. Only a person
+ * can give that express request, in the browser, so the sentence names the page and says outright
+ * that retrying first is pointless: a model that retries on its own gets the same refusal.
+ */
+export const consentRequiredPhrase = (url: string, deadline?: Date): string => {
+  const until = lastDayOf(deadline)
+
+  return 'Nothing was started. This organization bought credits less than 14 days ago, and under EU'
+    + ' consumer rules the platform may only start using them once a person has expressly asked it'
+    + ` to (until then the purchase can still be withdrawn from${until != null ? `, up to ${until}` : ''}).`
+    + ` Ask the user to open ${url !== '' ? url : 'Billing in the OwlMeans web application'}`
+    + ' and confirm there in the browser. Do not retry this call automatically — call it again only'
+    + ' after the user says they have confirmed.'
+}
+
+/** `<gate>:<deadline epoch ms | 0>:<encodeURIComponent(url)>` — `ConnectConsentRequired`'s packed body. */
+const consentDetail = (detail: string): { url: string, deadline?: Date } => {
+  const [, ms = '0', encoded = ''] = detail.split(':')
+  let url = encoded
+  try {
+    url = decodeURIComponent(encoded)
+  } catch { /* keep it as it came */ }
+  const at = Number(ms)
+
+  return { url, ...(Number.isFinite(at) && at > 0 ? { deadline: new Date(at) } : {}) }
+}
+
 /** ` (detail)`, or nothing at all: a phrase must read as a sentence when there is no detail. */
 const aside = (detail: string): string => detail !== '' ? ` (${detail})` : ''
 
@@ -228,6 +261,26 @@ export const REFUSALS: RefusalPhrase[] = [
       + ' build a story from. reinitialize_project restores it.',
   },
 
+  // ── A consent only a person can give ─────────────────────────────────────────────────────────
+  // Above the planning markers on purpose: a story start refused for the consent reaches a
+  // connector as `planning:commit-failed:<transition>:<the refusal>`, and it is the consent that
+  // the person has to act on. The thrown `ConnectConsentRequired` is phrased by `registerCatalogue`
+  // itself; this entry answers the same refusal stored as text on a run.
+  {
+    marker: 'viable-connect:consent-required:',
+    phrase: detail => {
+      const { url, deadline } = consentDetail(detail)
+
+      return consentRequiredPhrase(url, deadline)
+    },
+  },
+  {
+    // The web refusal (`@owlmeans/payment` `PerformanceConsentRequired`) reaching a connector
+    // through a stored run error or a planning commit: no URL travels with it.
+    marker: 'performance-consent-required',
+    phrase: () => consentRequiredPhrase(''),
+  },
+
   // ── A story refused by the platform's planning ───────────────────────────────────────────────
   // Stories are planning cards, and every change to one is a transition the platform validates:
   // the flow decides which move is open from a status, the head decides whether the story changed
@@ -378,6 +431,17 @@ export const REFUSALS: RefusalPhrase[] = [
     marker: 'api:client:forbidden',
     phrase: () => 'This token may not do that: the project belongs to another account, or the'
       + ' capability is not on this plan.',
+  },
+  // A production body carries only an incident id, so a refusal whose class never reaches this
+  // process is known by its STATUS alone (`@owlmeans/api` `ApiStatusError`).
+  {
+    marker: 'api:client:status:428',
+    phrase: () => consentRequiredPhrase(''),
+  },
+  {
+    marker: 'api:client:status:402',
+    phrase: () => 'Nothing was started: the account balance will not cover this. Ask the user to top up'
+      + ' in Billing in the OwlMeans web application, then call this tool again.',
   },
 ]
 

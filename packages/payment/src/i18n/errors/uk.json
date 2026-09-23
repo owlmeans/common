@@ -17,5 +17,13 @@
   "PaymentErrorSubscriptionUnknown": "Ця підписка не існує",
   "EntitlementRefusal": "Ваш тариф цього не дозволяє",
   "EntitlementRefusalCapabilityRequired": "Ця функція не входить до вашого тарифу",
-  "EntitlementRefusalLimitExhausted": "Досягнуто ліміту вашого тарифу"
+  "EntitlementRefusalLimitExhausted": "Досягнуто ліміту вашого тарифу",
+  "PaymentErrorConsumerRights": "Обробку прав споживача налаштовано неправильно",
+  "PaymentErrorConsumerRightsRefusal": "Цей запит зараз не можна виконати для цього облікового запису",
+  "PaymentErrorConsumerRightsRefusalPerformanceConsentRequired": "Підтвердьте, що бажаєте почати використовувати нещодавно придбані кредити",
+  "PaymentErrorConsumerRightsRefusalSubscriptionStartRequired": "Перед переходом до оплати підтвердьте, що послуги підписки мають розпочатися одразу",
+  "PaymentErrorConsumerRightsRefusalBillingCountryLocked": "Країну виставлення рахунків цього облікового запису вже встановлено, і її не можна змінити тут",
+  "PaymentErrorConsumerRightsRefusalWithdrawalUnavailable": "Від цього договору не можна відмовитися тут",
+  "PaymentErrorConsumerRightsRefusalCancellationUnavailable": "Немає активної підписки для розірвання",
+  "PaymentErrorCheckoutLimitExceeded": "Ця сума перевищує те, що цей обліковий запис може придбати зараз"
 }
