@@ -1,9 +1,9 @@
-import type { PropsWithChildren, FC, DependencyList } from 'react'
+import type { PropsWithChildren, FC, DependencyList, ComponentType, ReactNode } from 'react'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { ClientConfig, ClientContext as BasicClientContext } from '@owlmeans/client-context'
 import type { Criteria, ResourceRecord, Sort } from '@owlmeans/resource'
 import type { StateResourceAppend } from '@owlmeans/state'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import type { ClientEntrypoint, RefedEntrypointHandler } from '@owlmeans/client-entrypoint'
 import type { DebugServiceAppend, ModalServiceAppend } from './components/types.js'
 import type { ConfigResourceAppend } from '@owlmeans/config'
 import type { ConfigRecord, EntrypointReference } from '@owlmeans/context'
@@ -92,3 +92,33 @@ export interface UseStoreListOptions<T extends ResourceRecord = ResourceRecord> 
   /** Which state resource to read; the context's default one when omitted. */
   resource?: string
 }
+
+/** How a lazily-loaded component behaves while its chunk loads and when the load fails. */
+export interface LazyComponentOptions {
+  /** Shown while the chunk loads: a node, or a function of the props the component was given. */
+  fallback?: ReactNode | ((props: any) => ReactNode)
+  /**
+   * Rendered instead of throwing to the nearest boundary when the chunk fails to load: a node, or
+   * a function of the props and the error. Omit it to let the error propagate (no boundary is added).
+   */
+  error?: ReactNode | ((props: any, error: unknown) => ReactNode)
+}
+
+export interface LazyPreload<P = {}> {
+  /** Start (or join) the chunk load; resolves to the component once it is ready. */
+  preload: () => Promise<ComponentType<P>>
+}
+
+/** A lazily-loaded component: renders like the real one, and can be preloaded ahead of use. */
+export type LazyComponent<P = {}> = ComponentType<P> & LazyPreload<P>
+
+/** An entrypoint handler over a lazily-loaded component, carrying its `.preload()`. */
+export type LazyHandler<P = {}> = RefedEntrypointHandler<P> & LazyPreload<P>
+
+/** Names of a module's exports that are React components. */
+export type ComponentExport<M> = {
+  [K in keyof M]-?: M[K] extends ComponentType<any> ? K : never
+}[keyof M] & string
+
+/** The props of a module's component export. */
+export type ExportProps<M, K extends keyof M> = M[K] extends ComponentType<infer P> ? P : never

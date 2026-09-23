@@ -13,7 +13,8 @@ import { handler, useNavigate } from '@owlmeans/client'
 import { toast } from 'sonner'
 import type { PanelNavConfig, PanelNavLink } from '../../src/index.js'
 import {
-  makeContext, useContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster
+  makeContext, useContext, entrypoints as baseEntrypoints, NavLayout, PanelApp, Toaster,
+  lazyHandler, lazyComponent,
 } from '../../src/index.js'
 import { LoginScreen } from '../../src/components/login/index.js'
 import {
@@ -36,6 +37,8 @@ const alias = {
   prefs: `${SERVICE}:web:prefs`,
   login: `${SERVICE}:web:login`,
   socket: `${SERVICE}:web:socket`,
+  lazy: `${SERVICE}:web:lazy`,
+  lazyEntry: `${SERVICE}:web:lazy-entry`,
 }
 
 /** A harness id for the ONE tracked connection this screen simulates — a real `ws()`/`useWs()`
@@ -222,6 +225,37 @@ const ReportsIndex: FC = () => {
   </div>
 }
 
+/**
+ * Lazily-loaded screens, declared at MODULE SCOPE as the helpers require — the route renderer
+ * remounts a screen on every navigation, so a lazy object made during render would re-suspend
+ * each time. Both go through the package root, which is what an application imports.
+ *
+ * `flakyScreen` fails its first load on purpose: a rejected load must be retried, never cached.
+ * The globals let a spec drive `preload()` without a screen of its own.
+ */
+let flakyLoads = 0
+const lazyScreen = lazyHandler(
+  () => import('./lazy-screen.js'), 'LazyScreen', { fallback: <div id="lazy-fallback">loading</div> }
+)
+const flakyScreen = lazyComponent(async () => {
+  if (++flakyLoads === 1) throw new Error('first-load-fails')
+  return import('./lazy-screen.js')
+}, 'LazyScreen')
+;(globalThis as unknown as { __lazyPreload: () => Promise<boolean> }).__lazyPreload =
+  async () => typeof await lazyScreen.preload() === 'function'
+;(globalThis as unknown as { __flakyPreload: () => Promise<string> }).__flakyPreload =
+  () => flakyScreen.preload().then(() => 'loaded', (e: Error) => e.message)
+
+/** The lazy screen's way in: an in-app navigation, so the layout around it is already mounted. */
+const LazyEntry: FC = () => {
+  const nav = useNavigate()
+
+  return <div id="lazy-entry">
+    lazy-entry-screen
+    <button id="to-lazy" onClick={nav.press(alias.lazy)}>lazy</button>
+  </div>
+}
+
 // The panel context registers the api-config middleware, which resolves the advertise
 // entrypoint during init — that entrypoint needs a declared backend service route, so both
 // sides are declared here exactly as a real app declares them.
@@ -290,6 +324,8 @@ const protocols = {
   prefs: openProtocol(route(alias.prefs, '/prefs', frontend({ parent: BASE }))),
   login: openProtocol(route(alias.login, '/login', frontend({ parent: BASE }))),
   socket: openProtocol(route(alias.socket, '/socket', frontend({ parent: BASE }))),
+  lazy: openProtocol(route(alias.lazy, '/lazy', frontend({ parent: BASE }))),
+  lazyEntry: openProtocol(route(alias.lazyEntry, '/lazy-entry', frontend({ parent: BASE }))),
 }
 
 const entrypoints = [
@@ -308,6 +344,8 @@ const entrypoints = [
   bindScreen(protocols.prefs, handler(PrefsScreen)),
   bindScreen(protocols.login, handler(LoginHarness)),
   bindScreen(protocols.socket, handler(SocketStatusScreen)),
+  bindScreen(protocols.lazy, lazyScreen),
+  bindScreen(protocols.lazyEntry, handler(LazyEntry)),
 ]
 
 context.registerEntrypoints(entrypoints)

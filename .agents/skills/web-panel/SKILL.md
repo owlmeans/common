@@ -32,7 +32,7 @@ user-invocable: false
 | `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
 | `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
 | Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
 
 ## Subpath Exports

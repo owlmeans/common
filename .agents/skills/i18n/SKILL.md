@@ -1,6 +1,6 @@
 ---
 name: i18n
-description: How to use @owlmeans/i18n — the core localization registry (no runtime deps). Auto-invoked when adding translatable strings to a library package, importing from this package, or working with the tier/priority system.
+description: How to use @owlmeans/i18n — the core localization registry (no runtime deps). Auto-invoked when adding translatable strings to a library package, importing from this package, working with the tier/priority system, or deferring a language pack with addI18nLoader/loadI18nLanguage.
 user-invocable: false
 ---
 
@@ -11,7 +11,7 @@ user-invocable: false
 
 ## Purpose
 
-Global registration store that packages write into at import time. React clients drain it lazily via `@owlmeans/client-i18n`. The store is addressed by **(ns, resource, language)**.
+Global registration store that packages write into at import time — or, for an application's deferred language packs, from an async loader. React clients drain it lazily via `@owlmeans/client-i18n`. The store is addressed by **(ns, resource, language)**.
 
 ## Key Exports
 
@@ -20,6 +20,9 @@ Global registration store that packages write into at import time. React clients
 | `addI18nLib(lng, resource, data, opts?)` | Register library-owned strings (ns defaults to `'lib'`) |
 | `addI18nApp(lng, resource, data, opts?)` | Register app-owned strings (ns defaults to resource name) |
 | `initI18nResource(lng, resource, ns?)` | Drain a registered bundle for a language (called by client-i18n) |
+| `addI18nLoader(lng, loader)` | Register an async `I18nLoader` (`() => Promise<unknown>`, typically a dynamic `import()` of a module that calls `addI18nLib` / `addI18nApp`) for a language — see Deferred language packs |
+| `loadI18nLanguage(lng)` | Await every loader registered for `lng`; idempotent, retries a failed loader |
+| `isI18nLanguageLoaded(lng)` | Whether every loader of `lng` has completed; `true` for a language with none |
 | `SUPPORTED_LNGS` / `SupportedLng` | `['en','pl','ru','be','uk','es','de']` — the canonical language set, and its union type |
 | `DEFAULT_LNG` | `'en'` |
 | `LIB_NAMESPACE` | `'lib'` |
@@ -35,12 +38,14 @@ Global registration store that packages write into at import time. React clients
 
 - `./utils` — the store itself: `_OwlMeansI18nStorage` (`{ data }`, keyed ns → resource → language),
   `ensureStructure(lng, resource, ns?)` which creates and returns one slot, and `tierCost`, the
-  `I18nTier` → number map the sort is written against.
+  `I18nTier` → number map the sort is written against; plus the separate loader store
+  `_OwlMeansI18nLoaders` (`{ data }`, keyed by language) and `ensureLoaders(lng)`.
 
 Reach for `./utils` only to work around the drain-once rule below: assigning
 `_OwlMeansI18nStorage.data = {}` empties every slot including its `lngInitialized` marks, so a
-suite can register and drain the same resource repeatedly. This package's own tests do exactly
-that between cases. Application and library code registers through `addI18nLib` / `addI18nApp`.
+suite can register and drain the same resource repeatedly; `_OwlMeansI18nLoaders.data = {}`
+forgets every loader and request mark. This package's own tests reset both between cases.
+Application and library code registers through `addI18nLib` / `addI18nApp`.
 
 ## Tiers
 
@@ -68,11 +73,15 @@ it — so the **last** applied wins. A registration that states no `priority` so
 therefore beats every one that states a number: `priority` lowers a bundle in the stack rather than
 raising it. Leave it unset unless one library must lose to another.
 
-**A bundle only reaches i18next if it was registered before the first draw for its language.**
-`initI18nResource` marks the (ns, resource, language) slot drained and answers `null` for every
-later call, so an `import '@owlmeans/<pkg>'` evaluated after a screen has rendered adds nothing a
-component can read. Register at module load — a side-effect import at the top of the entry file,
-which is what re-exporting `./i18n.js` from `src/index.ts` achieves.
+**A bundle only reaches i18next if it was REGISTERED before its slot is first drained.**
+`initI18nResource` reads a (ns, resource, language) slot exactly once — it marks the slot drained
+and answers `null` for every later call — so a bundle registered through `addI18nLib` /
+`addI18nApp` after a screen has drawn that language adds nothing a component can read. Registering
+synchronously at import time is the simplest way to guarantee it — a side-effect import at the top
+of the entry file, which is what re-exporting `./i18n.js` from `src/index.ts` achieves. The loader
+API (`addI18nLoader` / `loadI18nLanguage`) lets an application defer registration to an async load
+instead, AS LONG AS it awaits `loadI18nLanguage` — or `@owlmeans/client-i18n`'s `prepareI18n` —
+before the first render that would drain that language.
 
 ## Per-package pattern
 
@@ -133,6 +142,34 @@ All packages **must** ship the 7 languages from `SUPPORTED_LNGS`. Adding a new k
 7 files in the same commit. An application may opt into an additional language without changing the
 global constant; a reusable package used by that application then ships and synchronously registers
 the same extra bundle, while other applications retain their existing selectable languages.
+
+### Deferred language packs (applications only)
+
+An application may keep a language's bundles out of its initial chunk and register them from a
+loader. The loader store is separate from the resource store: a loader only REGISTERS (it calls
+`addI18nLib` / `addI18nApp` once its module evaluates); draining stays `initI18nResource`'s, once
+per slot, unchanged.
+
+```typescript
+// app entry, module scope — each module calls addI18nApp('<lng>', …) when it evaluates
+addI18nLoader('de', () => import('./i18n/de.js'))
+addI18nLoader('pl', () => import('./i18n/pl.js'))
+```
+
+- A loader does not run until its language is requested by `loadI18nLanguage(lng)`; one registered
+  AFTER the language was requested starts at once, so a module evaluated late is never skipped.
+- `loadI18nLanguage(lng)` resolves once every loader of `lng` has completed — including loaders
+  added while the call is in flight; one added after a call resolved is awaited by the next call.
+  Concurrent and repeated calls share in-flight runs and never re-run a completed loader.
+- A failure rejects the call once the pass has settled; the failed loader alone is retried by the
+  next call, never cached as failed.
+- The app awaits the fallback and the initial language before its first render —
+  `@owlmeans/client-i18n`'s `prepareI18n` does both — and its `setLanguage` / `useLanguage` load a
+  language before switching to it. `@owlmeans/web-panel` re-exports neither the loader API nor
+  `prepareI18n` — import them from `@owlmeans/i18n` / `@owlmeans/client-i18n`.
+
+A library package never defers: it registers every language synchronously at import (Per-package
+pattern), because it cannot know the application it lands in awaits a boot step.
 
 ## Depends On
 

@@ -28,6 +28,15 @@ types. `bind(protocol)` is appropriate where one protocol must use a distinct cl
 `bindScreen` is for a frontend route and renderer; screens are addressed by `url` and reject
 `call`/`invoke`.
 
+`bindScreen` takes a `lazyHandler(...)` result (`@owlmeans/client`) directly, the same as
+`handler(Component)`: both return a `RefedEntrypointHandler`, the lazy one also carrying
+`.preload()`, so no different wiring is needed. Create it at module scope, never in a render.
+
+```ts
+const reports = lazyHandler(() => import('./reports.js'), 'Reports', { fallback: <Spinner /> })
+context.registerEntrypoint(bindScreen(projectProtocols.reports, reports))
+```
+
 `context.entrypoint(protocol)` derives `ClientProtocolEntrypoint<Protocol>` from the protocol. Do
 not add an explicit result generic. `entrypointRef<Request, Response>(alias)` is reserved for a
 dynamic remote declaration that cannot be imported.

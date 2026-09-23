@@ -105,9 +105,16 @@ When adding translatable strings to any package:
 3. Re-export from `src/index.ts`: `export * from './i18n.js'`
 4. In components, use `useI18nLib` (library package) or `useI18nApp` (app package) — never hardcode UI strings
 
+A library package (`@owlmeans/*`) always registers every language synchronously at import: it has
+no boot step that could await a loader, and a bundle registered after its slot was first drained
+never renders. An APPLICATION may instead defer a language's pack with `addI18nLoader`, provided it
+`await`s `prepareI18n(config)` before its first render (`i18n`, `client-i18n` skills).
+
 ## Language switcher
 
 Use `useLanguage()` from `@owlmeans/client-i18n`. The selection is persisted to `localStorage`.
+The setter is async — it loads a deferred pack before switching — and the returned language is
+i18next's own, so it changes only once the switch has happened.
 
 ```tsx
 import { useLanguage } from '@owlmeans/client-i18n'
