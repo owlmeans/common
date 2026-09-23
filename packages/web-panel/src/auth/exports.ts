@@ -1,6 +1,6 @@
 
-export { handler, useEntrypoint, useValue, useNavigate } from '@owlmeans/client'
-export type { Navigator } from '@owlmeans/client'
+export { handler, lazyHandler, lazyComponent, useEntrypoint, useValue, useNavigate } from '@owlmeans/client'
+export type { Navigator, LazyComponent, LazyComponentOptions, LazyHandler } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { EntrypointOutcome } from '@owlmeans/entrypoint'

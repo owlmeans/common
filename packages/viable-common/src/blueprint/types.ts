@@ -201,11 +201,11 @@ export interface PackagesLayer {
   /**
    * Skills added to ONE persona, rather than to every prompt of the blueprint.
    *
-   * The additive twin of {@link skillsForBlueprint}, which subtracts. `skills` above is what is
-   * true of the whole stack; this is what is true of one performer — the analyst who has to know
-   * that a game brief is a core loop rather than a numbered flow, the architect who has to know
-   * when a tool loop is warranted. Without it a case could only change what a CODER is told, and
-   * a case changes the product analysis first.
+   * The additive twin of `skillsForBlueprint` (in `@owlmeans/viable`), which subtracts. `skills`
+   * above is what is true of the whole stack; this is what is true of one performer — the analyst
+   * who has to know that a game brief is a core loop rather than a numbered flow, the architect who
+   * has to know when a tool loop is warranted. Without it a case could only change what a CODER is
+   * told, and a case changes the product analysis first.
    */
   personaSkills?: Partial<Record<ViablePersona, ViableSkill[]>>
   /** Extra dependencies a role's manifest carries, beyond what the overlay ships. */

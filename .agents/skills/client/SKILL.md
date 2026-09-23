@@ -1,6 +1,6 @@
 ---
 name: client
-description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
+description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, lazyComponent/lazyHandler code-splitting, the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
 user-invocable: false
 ---
 
@@ -35,6 +35,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `useEntrypoint<T>()` | The `EntrypointContextParams` of the screen currently rendering — `{ alias, path, params, context }` |
 | `RoutedComponent<Extra>` | Type of a component bound to a frontend protocol |
 | `handler(Component, preprender?)` | Wrap a React component as an entrypoint handler |
+| `lazyComponent(load, exportName, opts?)` / `lazyHandler(load, exportName, opts?)` | A code-split component with a static `.preload()`; and `handler(lazyComponent(...))` with `.preload` carried through. Types `LazyComponent`, `LazyHandler`, `LazyComponentOptions` — see Code-splitting |
 | `useStoreModel` / `useStoreList` | React hooks over a `@owlmeans/state` resource — one record by id, or a live query |
 | `useValue(loader, deps?, forceDefault?)` / `UseValueParams<T>` | Render an async result. The second argument is the **dependency list**, not a default — see Async values |
 | `useToggle(opened?)` / `Toggleable` | An open/close/toggle handle, which is what a modal surface binds to |
@@ -92,6 +93,44 @@ by naming a `parent`.
 A screen's guards are its own plus every ancestor's, taken from `getGuards()`. An empty list is an
 open screen; when the list is non-empty and no guard matches, the renderer throws
 `AuthorizationError('frontend-guard')`.
+
+## Code-splitting a screen or component
+
+`lazyComponent(load, exportName, opts?)` turns a dynamic `import()` into a component whose chunk
+loads on first render, with the `Suspense` boundary INSIDE it — the fallback replaces only this
+component and the layout around it stays mounted. `lazyHandler` is `handler(lazyComponent(...))`
+with `.preload` carried through, so it binds exactly like `handler(Component)`. Both are
+re-exported by `@owlmeans/web-client` and `@owlmeans/web-panel` next to `handler`.
+
+```tsx
+import { lazyComponent, lazyHandler } from '@owlmeans/client'
+
+// Module scope — never inside a render, a hook or an entrypoint handler factory.
+export const reportsScreen = lazyHandler(
+  () => import('./screens/reports.js'), 'ReportsScreen', { fallback: <Spinner /> }
+)
+const Chart = lazyComponent(() => import('./chart.js'), 'Chart', {
+  fallback: props => <Skeleton height={props.height} />,
+  error: <ChartUnavailable />,
+})
+
+// Prefetch on intent: the screen then renders without its fallback.
+<a onMouseEnter={() => void reportsScreen.preload()} onFocus={() => void reportsScreen.preload()}>
+```
+
+- **Module scope only.** The route renderer (`utils/route.tsx`) wraps the resolved screen in a
+  fresh `memo(...)` on every render, so the route subtree remounts on each navigation. A lazy
+  object made at module scope is already resolved by then and renders synchronously; one created
+  during a render or inside a handler factory is a new `React.lazy` each time and re-suspends — the
+  fallback flashes on every visit.
+- **`preload()`** starts or joins the load and resolves to the component. Once loaded, every later
+  render resolves in the same tick — no re-suspend.
+- **`fallback` / `error`** are each a node or a function: `fallback(props)`, `error(props, error)`.
+  Without `error` no boundary is added and a failed load propagates to the nearest one.
+- **A failed load is never cached** — the next render or `preload()` retries it for real. An
+  `exportName` the module does not export rejects with a `SyntaxError`.
+
+Source of truth: `packages/client/src/lazy.tsx`.
 
 ## Client state
 
