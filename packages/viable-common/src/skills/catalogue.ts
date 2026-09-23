@@ -245,6 +245,14 @@ in its own language, with no TypeScript syntax and no import statements it does 
   skill(ViableSkill.TsImports, 'Imports and path aliases', `
 - Import shared code as \`project-common/<path>\`, never as \`sources/common/src/<path>\`,
   and never with a \`.js\` extension.
+- From \`api\` and \`worker\`, reach the shared BACKEND library the same way — as the package, by
+  its path under \`src\`, with NO extension:
+  \`import { taskResource } from 'project-backend/resources/task/task'\`.
+  Both libraries publish \`"./*": "./build/*.js"\`, so \`project-backend/resources/task/task.js\`
+  looks for \`task.js.js\` and is \`TS2307: Cannot find module\`; \`project-backend/build/…\` doubles
+  the \`build/\`; and a relative \`../../resources/task/task.js\` stays inside YOUR package, where
+  no \`resources/\` exists. The \`.js\` suffix belongs ONLY to relative imports inside
+  \`sources/backend/\` (below) — never to a package specifier.
 - Inside a BUNDLED package — \`api\`, \`web\`, \`worker\` — \`@/\` is an alias for that package's own
   \`src\`; use it instead of chains of \`../\`.
 - **The shared backend library has NO \`@/\` alias.** It is built by \`tsc -b\`, not bundled, and
@@ -759,6 +767,11 @@ which records match, so a screen never recomputes ids and never re-subscribes.
     const open = useTaskList({ status: 'open' })   // StateModel<Task>[]
     open.map(model => model.record.title)
 
+The hook returns the ARRAY itself — there is no \`.list\`, \`.items\`, \`.records\` or \`.data\` on
+it, and each element is a MODEL, not a \`Task\`. Where plain records are wanted (a prop typed
+\`Task[]\`, a filter, a count), map them out: \`open.map(model => model.record)\`.
+An error saying \`StateModel<Task>[]\` is not assignable to \`Task[]\` means exactly that map is missing.
+
 \`useStoreModel(id)\` is one record — the model always exists so a screen has something to bind
 to, but nothing is invented to fill it. \`model.empty\` is what "not loaded yet" looks like:
 
@@ -934,13 +947,25 @@ file:
 
     pg: { references: { resource: 'other-alias' } }
 
+The referencing property has EXACTLY the type and format of the referenced resource's \`id\`. An
+\`id\` declared \`{ type: 'string', format: 'uuid' }\` is a \`uuid\` column, and an \`id\` left
+undeclared is \`text\` — so copy the referenced \`id\`'s declaration onto the reference:
+
+    bakeId: { type: 'string', format: 'uuid', pg: { references: { resource: 'bake' } } }
+
+A plain \`{ type: 'string' }\` pointing at a \`uuid\` id compiles, and then the backend refuses to
+start: \`42804 foreign key constraint … cannot be implemented — Key columns are of incompatible
+types\`.
+
 If the referenced resource does not exist, use a plain string property instead.
 `),
 
   skill(ViableSkill.ResourceResults, 'How resource methods are called, and what they return', `
-Reach data through the accessor from \`@/resources/{entity}/{type}.js\` and call the
-resource's own methods. Never write raw SQL in a route handler, never import a database
-connection, and never construct a resource yourself.
+Reach data through the resource's accessor and call the resource's own methods. Resources live
+in the shared backend library: from \`api\` and \`worker\` import the accessor as
+\`project-backend/resources/{entity}/{type}\` (no \`.js\`); inside \`sources/backend/\` import it
+relatively, with \`.js\` (\`../../resources/{entity}/{type}.js\`). Never write raw SQL in a route
+handler, never import a database connection, and never construct a resource yourself.
 
 A WRITE takes ONE argument — the record — and the id travels INSIDE it. There is no
 \`(id, changes)\` overload on any of them:
@@ -1257,6 +1282,12 @@ package, and every request to the route then fails with \`TypeError: handler is 
 - A handler is inert until the \`bind(protocols.api.<name>, api.body/params/request(protocols.api.<name>, handler))\`
   line in \`sources/api/src/entrypoints.ts\` binds it to its protocol. Without that line the
   endpoint answers 404 and nothing reports an error.
+- The wrap decides the handler's signature — match it exactly:
+  \`api.body(p, (payload, ctx, request) => …)\` — the typed body first;
+  \`api.params(p, (params, ctx, request) => …)\` — the typed route params first;
+  \`api.request(p, (request, ctx) => …)\` — the whole request first.
+  Only \`.request\` hands you the request as the FIRST argument. When you need to name its type,
+  \`HandlerRequest\` comes from \`@owlmeans/entrypoint\` — \`@owlmeans/server-api\` does NOT export it.
 - Handlers are ENTITY-SCOPED: \`sources/api/src/app/<entity>/<action>.ts\`, named exports only.
   The directory is what keeps two entities' \`list\` apart — the file name carries no marker.
 `),
@@ -1765,6 +1796,45 @@ player, rebuilding a leaderboard — is a job. No realtime anything.
   updates rather than snapped.
 - Anything the outcome depends on — damage, scoring, currency, who won — is decided on the
   server and nowhere else.
+  `),
+
+  skill(ViableSkill.MarketingConsent, 'Marketing consent — the eight standard keys', `
+This application ships \`@owlmeans/marketing-consent\` wired by \`@owlmeans/web-marketing-consent\`
+and \`@owlmeans/server-marketing-consent\`: a post-sign-in step, a "Privacy choices" settings
+screen, and a server-side ledger. Everything about consent already exists — never build a second
+one.
+
+**The eight standard keys**, each independently opt-in and unchecked until the person says
+otherwise: \`marketing.email\`, \`marketing.sms\`, \`marketing.phone\`, \`marketing.push\` (which
+channel may send promotional messages), \`data.profiling\` (personalising from behaviour),
+\`data.partners\` (sharing with another company for ITS OWN marketing), \`trackers.analytics\` and
+\`trackers.advertising\` (already bridged to the cookie-consent categories — never build a second
+cookie banner or duplicate that bridge).
+
+**Never build your own.** No new consent table, flag, checkbox, pre-ticked box, "I agree to
+marketing" toggle, or cookie dialog. No sign-in-time bundling of consent with the terms checkbox —
+they are two different questions with two different lawful bases, kept apart on purpose. Consent
+is never a condition of using the product: a person who declines everything still gets a working
+account.
+
+**Every send and every share checks the RECIPIENT's grant, at the moment it acts — never the
+sender's, never a cached value from earlier in the request.** A campaign email checks
+\`marketing.email\`; an SMS reminder checks \`marketing.sms\`; handing a record to another company
+checks \`data.partners\`. An absent record reads as NOT granted — never assume consent because a
+person signed up, imported a contact, or has not yet been asked. A withdrawal takes effect on the
+very next send; nothing already queued is exempt.
+
+**Service messages are never gated.** A password reset, a receipt, a delivery notice, an
+account-security alert, an invite the person themselves triggered — none of these are "marketing"
+and none of them ever consult this ledger. Gating a service message on marketing consent is itself
+a bug: it makes the product not work for someone who declined an unrelated choice.
+
+**Every marketing message links to Privacy choices**, the standing control that changes a decision
+at any time — reference it as an alias, never write a fresh URL.
+
+**A new channel or purpose the product genuinely needs** — a notification type this catalogue does
+not name — is one line in the target's marketing-consent config, above its own sentinel; it is
+never invented inline in a component or a handler.
   `),
 
   libraries(ViableSkill.LibrariesCommon, 'Libraries — shared code', commonLibraryList),

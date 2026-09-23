@@ -16,11 +16,15 @@
       "fallback": "Continue with {{method}}"
     },
     "terms": {
-      "agreement": "I have read and agree to the {{terms}} and the {{privacy}}.",
+      "accept": "I have read and agree to the {{documents}}.",
       "terms": "Terms & Conditions",
       "privacy": "Privacy Policy",
       "cookies": "Cookie Policy",
-      "required": "Please confirm the Terms & Conditions and the Privacy Policy to continue."
+      "billing": "Billing Terms",
+      "product": "{{product}} Product Terms",
+      "notice": "How we handle your personal data: {{notices}}.",
+      "revised": "Last updated: {{date}}",
+      "required": "Please confirm the {{documents}} to continue."
     },
     "consent": {
       "required": "Signing in stores a session cookie. Accept essential cookies to continue."

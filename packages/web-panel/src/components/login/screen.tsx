@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '../../@/components/ui/button.js'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../@/components/ui/card.js'
 import { cn } from '../../@/lib/utils.js'
-import { useI18nLib } from '@owlmeans/client-i18n'
+import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { useLoginMethods } from '@owlmeans/client-panel/auth'
 import { loginAttemptError } from '@owlmeans/client-auth/login'
 import type { LoginMethod, LoginScreenProps } from '@owlmeans/client-auth/login'
@@ -103,7 +103,7 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
             </Button>)}
           </div>}
 
-        {model.terms.required && <LoginTerms model={model.terms} translate={t} />}
+        {model.terms.required && <LoginTerms model={model.terms} translate={t} locale={props.locale} />}
 
         {/*
           A thrown message first, because it names the actual fault; otherwise whatever the
@@ -132,9 +132,11 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
  */
 export const LocalizedLoginScreen: FC<LoginScreenProps> = props => {
   const t = useI18nLib('auth')
+  const [lng] = useLanguage()
 
   return <LoginScreen
     {...props}
     translate={props.translate ?? ((key, defaultValue) => t(key, { defaultValue }))}
+    locale={props.locale ?? lng}
   />
 }

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-payment",
-  "version": "0.1.18-rc.15",
+  "version": "0.1.18-rc.20",
   "license": "MIT",
   "description": "Protocol-bound payment hooks and themed amount checkout UI for OwlMeans web applications.",
   "type": "module",
@@ -23,11 +23,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-i18n": "^0.1.18-rc.34",
-    "@owlmeans/client-payment": "^0.1.18-rc.40",
-    "@owlmeans/entrypoint": "^0.1.18-rc.31",
-    "@owlmeans/i18n": "^0.1.18-rc.31",
-    "@owlmeans/payment": "^0.1.18-rc.33"
+    "@owlmeans/client-i18n": "^0.1.18-rc.38",
+    "@owlmeans/client-payment": "^0.1.18-rc.45",
+    "@owlmeans/entrypoint": "^0.1.18-rc.35",
+    "@owlmeans/i18n": "^0.1.18-rc.35",
+    "@owlmeans/payment": "^0.1.18-rc.37"
   },
   "peerDependencies": {
     "@radix-ui/react-dialog": "*",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.33",
+    "@owlmeans/test-ui": "^0.1.18-rc.37",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-progress": "^1.1.0",

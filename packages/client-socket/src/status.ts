@@ -1,6 +1,6 @@
 import { createService } from '@owlmeans/context'
 import { useContext } from '@owlmeans/client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type {
   Config, Context, SocketConnectionState, SocketStatusService, SocketStatusServiceAppend
 } from './types.js'
@@ -17,7 +17,9 @@ const RANK: Record<SocketConnectionState, number> = { online: 0, reconnecting: 1
  */
 export const createSocketStatusService = (alias: string = SOCKET_STATUS): SocketStatusService => {
   const states = new Map<string, SocketConnectionState>()
+  const revivers = new Map<string, () => void>()
   const listeners = new Set<(state: SocketConnectionState) => void>()
+  const retryListeners = new Set<() => void>()
   let current: SocketConnectionState = 'online'
 
   const recompute = () => {
@@ -31,15 +33,49 @@ export const createSocketStatusService = (alias: string = SOCKET_STATUS): Socket
     }
   }
 
+  // Connections still retrying are nudged too, so one whose older budget is about to run out does
+  // not report `'lost'` right after its lost siblings were revived.
+  const retry = (): boolean => {
+    const pending = [...states].filter(([, state]) => state !== 'online')
+    pending.forEach(([id]) => revivers.get(id)?.())
+    if (!pending.some(([, state]) => state === 'lost')) return false
+    retryListeners.forEach(listener => listener())
+    return true
+  }
+
+  // A backgrounded tab is where sockets die unnoticed (throttled timers, a sleeping machine), so
+  // the moment it is looked at again is the moment to retry — before anyone reaches for a button.
+  const watchActivation = () => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') retry()
+    })
+    window.addEventListener('focus', () => { retry() })
+    window.addEventListener('online', () => { retry() })
+  }
+
   return createService<SocketStatusService>(alias, {
-    report: (id, state) => { states.set(id, state); recompute() },
-    release: (id) => { states.delete(id); recompute() },
+    report: (id, state, revive) => {
+      states.set(id, state)
+      if (revive != null) revivers.set(id, revive)
+      else revivers.delete(id)
+      recompute()
+    },
+    release: (id) => { states.delete(id); revivers.delete(id); recompute() },
     state: () => current,
     subscribe: listener => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }
     },
-  }, service => async () => { service.initialized = true })
+    retry,
+    onRetry: listener => {
+      retryListeners.add(listener)
+      return () => { retryListeners.delete(listener) }
+    },
+  }, service => async () => {
+    watchActivation()
+    service.initialized = true
+  })
 }
 
 /**
@@ -74,35 +110,55 @@ const readSocketStatusService = (
   }
 }
 
+/** The status service once the context can hand it out; `null` while it cannot, or never will. */
+const useStatusService = (): SocketStatusService | null => {
+  const ctx = useContext() as unknown as Context & Partial<SocketStatusServiceAppend>
+  const [service, setService] = useState<SocketStatusService | null>(() => readSocketStatusService(ctx))
+
+  useEffect(() => {
+    if (service != null) return
+    let cancelled = false
+    void ctx.waitForInitialized?.().then(() => { if (!cancelled) setService(readSocketStatusService(ctx)) })
+    return () => { cancelled = true }
+  }, [ctx, service])
+
+  return service
+}
+
 /**
  * The worst state across every live `ws()`/`useWs()` connection, or `'online'` if the app never
  * registered the status service (`appendSocketStatus`) or has not finished initializing yet.
  */
 export const useSocketStatus = (): SocketConnectionState => {
-  const ctx = useContext() as unknown as Context & Partial<SocketStatusServiceAppend>
-  const [state, setState] = useState<SocketConnectionState>(() => readSocketStatusService(ctx)?.state() ?? 'online')
+  const service = useStatusService()
+  const [state, setState] = useState<SocketConnectionState>(() => service?.state() ?? 'online')
 
   useEffect(() => {
-    let cancelled = false
-    let unsubscribe: (() => void) | null = null
-
-    const attach = (): boolean => {
-      const service = readSocketStatusService(ctx)
-      if (service == null) return false
-      setState(service.state())
-      unsubscribe = service.subscribe(next => { if (!cancelled) setState(next) })
-      return true
-    }
-
-    if (!attach()) {
-      void ctx.waitForInitialized?.().then(() => { if (!cancelled) attach() })
-    }
-
-    return () => {
-      cancelled = true
-      unsubscribe?.()
-    }
-  }, [ctx])
+    if (service == null) return
+    setState(service.state())
+    return service.subscribe(setState)
+  }, [service])
 
   return state
+}
+
+/**
+ * `retry` revives every lost connection now (`SocketStatusService.retry()`); `retrying` is true
+ * from any retry — this one, or the service's own on tab activation — until the aggregate settles
+ * back on `'online'` or `'lost'`.
+ */
+export const useSocketRetry = (): { retry: () => void, retrying: boolean } => {
+  const service = useStatusService()
+  const [retrying, setRetrying] = useState(false)
+
+  useEffect(() => {
+    if (service == null) return
+    const stopRetry = service.onRetry(() => setRetrying(service.state() === 'reconnecting'))
+    const stopState = service.subscribe(state => { if (state !== 'reconnecting') setRetrying(false) })
+    return () => { stopRetry(); stopState() }
+  }, [service])
+
+  const retry = useCallback(() => { service?.retry() }, [service])
+
+  return { retry, retrying }
 }

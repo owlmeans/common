@@ -44,7 +44,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.40 my-app
+npx @owlmeans/create-app@^0.1.18-rc.46 my-app
 ```
 
 This generates the three-workspace project below, installs dependencies, and — by default —
@@ -65,7 +65,7 @@ The harness guidance ships with the project itself (`agent-memory`, `memory-prom
 it is present even with `--no-install`, and the project can grow its own guidance from day one.
 
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
-`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.40 --help`.
+`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.46 --help`.
 
 Then run it:
 
@@ -502,7 +502,7 @@ bun run dev      # API :3000, web :3001
 Install the OwlMeans Claude Code skills and Copilot instructions into the project:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.32
+npx @owlmeans/agent-skills@^0.1.18-rc.37
 ```
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested

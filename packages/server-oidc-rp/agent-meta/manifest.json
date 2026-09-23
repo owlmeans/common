@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-oidc-rp",
-  "version": "0.1.18-rc.39",
-  "generatedAt": "2026-09-22T12:36:21.845Z",
+  "version": "0.1.18-rc.44",
+  "generatedAt": "2026-09-22T22:22:19.441Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

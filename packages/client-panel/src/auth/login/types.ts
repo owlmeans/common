@@ -1,4 +1,4 @@
-import type { LoginMethod, LoginOutcome } from '@owlmeans/client-auth/login'
+import type { LoginMethod, LoginOutcome, ResolvedTermsDocument } from '@owlmeans/client-auth/login'
 import type { LoginScreenConfig, LoginTermsConfig } from '@owlmeans/config'
 
 export interface UseLoginMethodsOptions {
@@ -14,7 +14,14 @@ export interface LoginTermsModel {
   accepted: boolean
   /** A blocked selection was attempted — render the explanation. */
   attempted: boolean
-  urls: { terms: string, privacy: string, cookies?: string }
+  /** What the checkbox agrees to — terms, then billing/product when configured, then custom. */
+  documents: ResolvedTermsDocument[]
+  /** What is merely disclosed, never consented to — privacy, plus cookies per its own rule. */
+  notices: ResolvedTermsDocument[]
+  /** The latest revision date among `documents`, only when the configuration asked to show it. */
+  revisedAt?: string
+  /** The digest acceptance is recorded against — changes whenever a document does. */
+  version: string
   accept: (value: boolean) => void
 }
 

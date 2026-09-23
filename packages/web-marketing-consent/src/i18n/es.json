@@ -1,0 +1,19 @@
+{
+  "screen": {
+    "title": "Tus opciones de privacidad",
+    "subtitle": "Elige qué podemos usar para contactarte y personalizar tu experiencia.",
+    "all": "Seleccionar todo",
+    "updated": "Actualizado",
+    "save": "Guardar y continuar",
+    "saving": "Guardando…",
+    "skip": "Continuar sin guardar",
+    "error": "No pudimos guardar tus elecciones.",
+    "gpc": "Respetado gracias a la señal Global Privacy Control de tu navegador",
+    "loading": "Cargando…"
+  },
+  "preferences": {
+    "save": "Guardar",
+    "saved": "Guardado",
+    "error": "No pudimos guardar tus elecciones."
+  }
+}

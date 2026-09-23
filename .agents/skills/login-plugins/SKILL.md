@@ -137,32 +137,46 @@ replace it with a throw.
 |---|---|
 | Ordinary tab, signing in | redirect plugin: `begin` prefers the caller's in-app `navigate`, else a full load |
 | Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE` |
-| Surrogate, signing in | forwards to `next` with `fresh=1` — the dispatcher owns the authorization round trip, and a session it finds on this origin is NOT the answer |
+| Surrogate, signing in | a session already on this origin is handed back via `resume()` immediately (no provider round trip); otherwise forwards to `next`, which owns the authorization round trip |
 | Framed, session already there | `resume` → `Passed`; the document simply uses it, and no window opens |
 | Framed, signing out | surrogate plugin opens the window FIRST, revokes locally **unconditionally**, then awaits `LOGIN_LOGOUT_MESSAGE` |
 
 ## Invariants — each one is a real failure when broken
 
-- **A completed sign-in lands on a suspended flow before it lands on `HOME`.** A screen that sends a
-  signed-out person to the dispatcher (an OAuth consent screen, say) parks where it was headed with
-  `suspendFlow` (`@owlmeans/client-flow`); whichever path finishes the sign-in then asks
-  `resumeSuspendedFlow` first — `DispatcherHOC`'s HOME branch (before `alias` is overwritten with
-  `HOME`, or the two cases cannot be told apart), the supervisor plugin (`web-auth`) and the Google
-  plugin (`web-oidc-rp`) — and navigates to the returned entrypoint alias and query, else to `HOME`.
-  The landing is one-shot and expiring, and a destination is always an alias, never a URL. A new
-  plugin that completes a sign-in with its own navigation must do the same, or a person who was
-  mid-consent is dropped on the home screen.
-- **An explicit login PRODUCES a session; it never recycles one.** The surrogate window is
-  first-party on the application's own origin, so it sees whatever the person's own tabs left
-  there — and a token being present says nothing about the record behind it still existing.
-  `authenticated()` reads storage and decodes an envelope; no client asks the server. So a
-  revoked, replaced or expired session was handed back to a window that had asked for a LOGIN, the
-  opener adopted it, every call it made failed, and the next press of the same button found the
-  same dead token and did it again. Nothing recovered but clearing site data, which is exactly how
-  it was reported. `LOGIN_FRESH_QUERY` travels from the surrogate to the dispatcher and both skip
-  the resume; the provider's own session normally answers the round trip without asking the person
-  anything, and what comes back has just been vouched for. It is also the only reason signing in as
-  somebody else works at all.
+- **A completed sign-in lands on a pending step, then a suspended flow, before it lands on `HOME`.**
+  `landAfterLogin`/`continueLogin` (`@owlmeans/client-auth/login`, `src/login/land.ts`) are the
+  WHOLE post-sign-in landing decision, and every plugin that completes a sign-in with its own
+  navigation goes through them rather than re-deriving the logic: `DispatcherHOC`'s null/`DISPATCHER`
+  branch (before `alias` is overwritten with `HOME`, or the two cases cannot be told apart), the
+  supervisor plugin (`web-auth`) and both Google plugins (`web-oidc-rp`, `mui-oidc-rp` — the latter
+  went straight to `HOME` before, with no suspended-landing check at all). The order is: a
+  registered `LoginStep` whose `pending(ctx)` resolves `true` (a marketing-consent screen, say —
+  registered via `login().registerStep(...)`, bounded by `LOGIN_STEP_TIMEOUT` and failing OPEN on a
+  throw or a timeout so a broken step never blocks sign-in), else a flow parked with `suspendFlow`
+  (`@owlmeans/client-flow`, read back once via `resumeSuspendedFlow`), else `HOME`. A step whose
+  `entrypoint` is not bound in this tree is skipped, never thrown. `landAfterLogin` also runs every
+  registered `LoginLandingHook` once per distinct authenticated token (tracked in `localStorage`
+  under `LOGIN_LANDED_STORAGE`, by the raw token string) before delegating to `continueLogin` for
+  the landing itself — each hook is independently bounded and swallowed, so one hook's failure never
+  blocks another's or the landing. **No step and no landing hook ever runs while `env().surrogate`
+  is true** — `landAfterLogin`/`continueLogin` both short-circuit to `{ alias: DISPATCHER }` before
+  touching either registry, because the surrogate popup has nothing of its own to collect and no
+  continuation to run (its own `DispatcherHOC` render has no `navigate() → HOME` at all). The
+  landing is one-shot and expiring, and a destination is always an entrypoint alias, never a URL.
+  `useContinueLogin()` is the hook a step's own screen calls once it is satisfied, to move the flow
+  on to the next step or the ordinary landing; `LandOptions.after` is how it skips past its own step
+  on re-entry.
+- **The surrogate hands back whatever local session it finds, unconditionally.** The surrogate
+  window is first-party on the application's own origin, so it sees whatever the person's own tabs
+  left there — and a token being present says nothing about the record behind it still existing.
+  `authenticated()` reads storage and decodes an envelope; no client asks the server. `SurrogateScreen`
+  (`web-client`) reads its own `authenticated()` first and, when it finds a token, calls `resume()`
+  and closes without ever reaching the provider — there is no query or flag that forces a fresh
+  round trip instead. (A prior revision of this skill described a `LOGIN_FRESH_QUERY` that skipped
+  this resume; no such constant, query param, or `fresh=1` value exists in the source — that
+  description was never implemented, or was removed without this doc following. If a stale/revoked
+  session being recycled this way turns out to matter in practice, that is a product decision for
+  a separate change, not something this skill should assert away.)
 - **A dispatcher's exchange must report every way it can end.** `oidc.dispatch(...)` had no
   `.catch`, so a provider refusal, an API 4xx or a missing stored request became an unhandled
   rejection: an ordinary tab went blank and a surrogate window sat on "Signing you in…" forever

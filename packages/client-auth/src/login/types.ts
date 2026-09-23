@@ -206,6 +206,13 @@ export interface LoginScreenProps {
    * reaches for an i18n provider crashes the whole render in an app mounted without one.
    */
   translate?: (key: string, defaultValue: string) => string
+  /**
+   * The current language, for `Intl.ListFormat` and a custom document's own locale-keyed label.
+   *
+   * A prop for the same reason `translate` is: a component that reaches for an i18n context
+   * directly crashes the whole render in an app mounted without one.
+   */
+  locale?: string
   /** Replace or reorder what the resolver produced. */
   methods?: LoginMethod[] | ((methods: LoginMethod[]) => LoginMethod[])
   terms?: LoginTermsConfig | false
@@ -258,6 +265,14 @@ export interface LoginService extends LazyService {
   screen: () => LoginScreenComponent | null
   /** See {@link LoginNotifier}. Replaces any previously registered notifier. */
   registerNotifier: (notifier: LoginNotifier) => void
+  /** Register a post-login step. Replace-by-alias, priority-sorted (higher first). */
+  registerStep: (step: LoginStep) => void
+  /** Every registered step, priority-sorted (higher first). */
+  steps: () => LoginStep[]
+  /** Register a hook that observes a freshly authenticated token. Replace-by-alias, priority-sorted. */
+  onLanded: (hook: LoginLandingHook) => void
+  /** Every registered landing hook, priority-sorted (higher first). */
+  landingHooks: () => LoginLandingHook[]
   // Facade — every method re-selects the plugin and delegates.
   // NOTE: these stay plain writable instance properties, never getters, so that alternative
   // implementations (e.g. a native login service) can monkey-patch them directly.
@@ -272,6 +287,73 @@ export interface LoginService extends LazyService {
   adopt: (token: string) => Promise<void>
   /** Drop this document's authentication. The single de-adoption path. */
   revoke: () => Promise<void>
+}
+
+/**
+ * A step to run after sign-in completes, before the ordinary landing.
+ *
+ * Registered by a package that must collect something from a freshly authenticated user before
+ * the application resumes wherever it was headed — the marketing-consent screen is the first
+ * consumer. `landAfterLogin`/`continueLogin` (./land.js) walk the registered steps in priority
+ * order and land on the first one whose `pending` resolves `true`.
+ */
+/**
+ * The value shape a landing's `params`/`query` carries.
+ *
+ * Matches `FlowPayload` (`@owlmeans/flow`) and the `AbstractRequest` params/query fields
+ * (`@owlmeans/entrypoint`) structurally, rather than the narrower `Record<string, string>`, so a
+ * `LoginLanding` can be built directly from either a `SuspendedLandingRecord`'s query or a
+ * dispatcher's own forwarded `params`/`query` without a lossy re-cast at every call site.
+ */
+export type LoginLandingParams = Record<string, string | number | boolean | undefined | null>
+
+export interface LoginStep {
+  alias: string
+  /** Higher runs first. Defaults to 0. */
+  priority?: number
+  /** Entrypoint alias to navigate to while this step is pending. */
+  entrypoint: string
+  /** Extra query parameters for the landing, alongside the step's own alias. */
+  query?: (ctx: LoginContext) => LoginLandingParams | undefined
+  /** Whether this step still has something to collect from the signed-in user. */
+  pending: (ctx: LoginContext) => Promise<boolean>
+}
+
+/** Where a finished sign-in (or a pending step) lands. */
+export interface LoginLanding {
+  alias: string
+  params?: LoginLandingParams
+  query?: LoginLandingParams
+  /** The step alias this landing came from, when it came from one. */
+  step?: string
+}
+
+/**
+ * Observes that a freshly authenticated token has landed — unlike {@link LoginStep}, it never
+ * blocks the landing, it only reacts to it, once per distinct token.
+ *
+ * MUST never throw uncaught: the caller (`landAfterLogin`) bounds and swallows every hook's
+ * failure, on a timeout as well as a rejection, so a broken hook can never block sign-in.
+ */
+export interface LoginLandingHook {
+  alias: string
+  priority?: number
+  landed: (ctx: LoginContext) => Promise<void>
+}
+
+/** Options for {@link LoginService.landAfterLogin}-shaped helpers (./land.js). */
+export interface LandOptions {
+  /** Where to land when nothing else claims the flow. Defaults to `{ alias: HOME }`. */
+  fallback?: LoginLanding
+  /** `false` skips `resumeSuspendedFlow` — the caller already has its own concrete destination. */
+  resume?: boolean
+  /** Skip every step up to and including this alias — the resume point for a step's re-entry. */
+  after?: string
+  /**
+   * Overrides the step/hook timeout for this call. Mainly for tests; production callers leave it
+   * at the default (`LOGIN_STEP_TIMEOUT`).
+   */
+  stepTimeout?: number
 }
 
 export interface LoginServiceAppend {

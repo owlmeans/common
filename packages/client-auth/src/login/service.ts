@@ -7,8 +7,8 @@ import { adoptToken, revokeToken } from './adopt.js'
 import { resolveLoginMethods } from './methods.js'
 import { LoginOutcome } from './types.js'
 import type {
-  LoginContext, LoginMethodSource, LoginNotifier, LoginPlugin, LoginPrecondition,
-  LoginScreenComponent, LoginService, LoginServiceAppend
+  LoginContext, LoginLandingHook, LoginMethodSource, LoginNotifier, LoginPlugin, LoginPrecondition,
+  LoginScreenComponent, LoginService, LoginServiceAppend, LoginStep
 } from './types.js'
 
 /**
@@ -33,6 +33,8 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
   const plugins: LoginPlugin[] = []
   const preconditions: LoginPrecondition[] = []
   const methodSources: LoginMethodSource[] = []
+  const steps: LoginStep[] = []
+  const hooks: LoginLandingHook[] = []
   let screen: LoginScreenComponent | null = null
   let notifier: LoginNotifier | null = null
 
@@ -76,6 +78,28 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
     screen: () => screen,
 
     registerNotifier: value => { notifier = value },
+
+    registerStep: (step: LoginStep) => {
+      const existing = steps.findIndex(candidate => candidate.alias === step.alias)
+      if (existing >= 0) {
+        steps.splice(existing, 1)
+      }
+      steps.push(step)
+      steps.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    },
+
+    steps: () => [...steps],
+
+    onLanded: (hook: LoginLandingHook) => {
+      const existing = hooks.findIndex(candidate => candidate.alias === hook.alias)
+      if (existing >= 0) {
+        hooks.splice(existing, 1)
+      }
+      hooks.push(hook)
+      hooks.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    },
+
+    landingHooks: () => [...hooks],
 
     plugin: env => {
       const environment = env ?? defaultLoginEnv()

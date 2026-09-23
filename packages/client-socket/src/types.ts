@@ -32,6 +32,10 @@ export interface ReconnectPolicy {
   /** Total time, in ms, the carrier keeps retrying before it reports the socket lost. Default
    *  600000 (10 minutes). */
   budget: number
+  /** Retry window, in ms, of an outage restarted on a lost socket by `SocketStatusService.retry()`
+   *  (a "Try again" press, the tab coming back) — short, so a retry that cannot succeed reports
+   *  `'lost'` again while someone is still looking. Default 15000. */
+  reviveBudget: number
   /** How long a reopened socket must stay open before the attempt count and the outage clock
    *  reset, in ms. Default 10000. */
   stableAfter: number
@@ -65,13 +69,20 @@ export interface WsOptions extends ConnectOptions {
 export type SocketConnectionState = 'online' | 'reconnecting' | 'lost'
 
 export interface SocketStatusService extends InitializedService {
-  /** Record this connection's current state under `id` — call again to update it. */
-  report: (id: string, state: SocketConnectionState) => void
+  /** Record this connection's current state under `id` — call again to update it. `revive` is
+   *  how `retry()` brings it back (`'lost'`) or hurries it (`'reconnecting'`); every report
+   *  replaces the previous one. */
+  report: (id: string, state: SocketConnectionState, revive?: () => void) => void
   /** Stop tracking `id` (the connection closed on purpose). */
   release: (id: string) => void
   /** The worst state across every tracked connection; `'online'` when none are tracked. */
   state: () => SocketConnectionState
   subscribe: (listener: (state: SocketConnectionState) => void) => () => void
+  /** Revive every `'lost'` connection and hurry every `'reconnecting'` one, then tell `onRetry`
+   *  listeners. `false` (and no listener call) when nothing was lost. Also fires by itself when a
+   *  browser tab becomes visible, its window gains focus, or the network comes back online. */
+  retry: () => boolean
+  onRetry: (listener: () => void) => () => void
 }
 
 export interface SocketStatusServiceAppend {

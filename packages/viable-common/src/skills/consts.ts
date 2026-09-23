@@ -74,6 +74,10 @@ export enum ViableSkill {
   LayoutDefinition = 'layout-definition',
   ScreenDefinition = 'screen-definition',
 
+  /** The marketing-consent ledger: the 8 standard keys, never build a custom consent UI, check
+   * the RECIPIENT's grant server-side before a send or a share. */
+  MarketingConsent = 'marketing-consent',
+
   LibrariesCommon = 'libraries-common',
   LibrariesUiState = 'libraries-ui-state',
   LibrariesUi = 'libraries-ui',
@@ -107,6 +111,10 @@ export const SKILL_ORDER: Record<ViableSkill, number> = {
   // After the frontend rules it builds on (entrypoints, nav, shadcn, form feedback, the store), and
   // before the backend block — it is only ever carried by analysis and frontend personas.
   [ViableSkill.LandingGate]: 56,
+  // Analysis and frontend read it the same way LandingGate is read — after the frontend rules it
+  // references (nav, shadcn) — and a backend coder reads it as a server-side check, so it sits
+  // just ahead of the backend block for either audience.
+  [ViableSkill.MarketingConsent]: 57,
   [ViableSkill.ResourceLayer]: 60,
   [ViableSkill.ResourceResults]: 62,
   [ViableSkill.ResourceMigrations]: 64,

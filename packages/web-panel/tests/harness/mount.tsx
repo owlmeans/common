@@ -1,6 +1,7 @@
 import '../../src/@/globals.css'
 
 import type { FC, PropsWithChildren } from 'react'
+import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { config } from '@owlmeans/client-context'
 import { AppType, service } from '@owlmeans/config'
@@ -110,6 +111,10 @@ const consentMode = new URLSearchParams(window.location.search).get('consent')
 const skipOff = new URLSearchParams(window.location.search).get('skip') === 'off'
 // `?themeToggle=1` asks for the footer's light/dark switcher. Absent, the prop is not passed.
 const themeToggle = new URLSearchParams(window.location.search).get('themeToggle') === '1'
+// `?terms=extended` adds billing/product/custom documents and a revision date to the terms
+// confirmation — the shape that pins the "still exactly one checkbox" and "documents render
+// outside the notice" rules even when there is more than terms+privacy to show.
+const extendedTerms = new URLSearchParams(window.location.search).get('terms') === 'extended'
 
 /**
  * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
@@ -180,11 +185,22 @@ const ReportsGroup: FC<PropsWithChildren> = ({ children }) => <div id="reports-g
  */
 const SocketStatusScreen: FC = () => {
   const context = useContext()
+  // A revive the way a real carrier's goes: the connection is retrying again the moment it is
+  // asked to. How that retry ends is up to the test — `#report-online` or `#report-lost`.
+  const [revived, setRevived] = useState(0)
+  const reportLost = () => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost', () => {
+    setRevived(n => n + 1)
+    context.socketStatus().report(HARNESS_SOCKET_ID, 'reconnecting')
+  })
 
   return <div id="socket-status">
     socket-status-screen
-    <button id="report-lost" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'lost')}>
+    <span id="revived">{revived}</span>
+    <button id="report-lost" onClick={reportLost}>
       lose connection
+    </button>
+    <button id="report-online" onClick={() => context.socketStatus().report(HARNESS_SOCKET_ID, 'online')}>
+      reconnected
     </button>
     <button id="release-lost" onClick={() => context.socketStatus().release(HARNESS_SOCKET_ID)}>
       restore connection
@@ -217,7 +233,18 @@ base.security = {
     login: {
       // Confirmation required, which is the case that matters: a method must be blocked until it
       // is given, and blocking must SAY so rather than swallow the click.
-      terms: { required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy' },
+      terms: {
+        required: true, terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
+        ...(extendedTerms ? {
+          billing: { href: 'https://example.test/billing', revisedAt: '2026-01-01' },
+          product: { name: 'Harness', href: 'https://example.test/product' },
+          documents: [
+            { key: 'custom-a', href: 'https://example.test/custom-a', label: 'Custom A' },
+            { key: 'custom-b', href: 'https://example.test/custom-b', label: 'Custom B' },
+          ],
+          showRevision: true,
+        } : {}),
+      },
       credit: { poweredBy: true, product: 'Harness', organization: 'Acme' },
     },
   },

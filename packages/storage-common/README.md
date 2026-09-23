@@ -12,7 +12,7 @@ Shared types and schemas for OwlMeans object storage — file metadata, instance
 ## Installation
 
 ```bash
-bun add @owlmeans/storage-common@^0.1.18-rc.28
+bun add @owlmeans/storage-common@^0.1.18-rc.32
 ```
 
 ## API
@@ -59,7 +59,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.32
+npx @owlmeans/agent-skills@^0.1.18-rc.36
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

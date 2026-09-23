@@ -65,6 +65,15 @@ export const oidcMethodSource: LoginMethodSource = {
 
           return await login.begin({
             url: `${dispatcher}?${LOGIN_METHOD_QUERY}=${encodeURIComponent(id)}`,
+            // Unlike `useLogin` (the header control), this chooser button had no continuation of
+            // its own: the surrogate hands the token back and adopts it, then calls this — and
+            // without it the framed application just sat where it was. Mirrors `useLogin`'s own
+            // pattern, navigating in-app to the dispatcher, whose own `navigate()`
+            // (`landAfterLogin`) then decides the real landing (a registered step, a suspended
+            // flow, or HOME).
+            ...(methodCtx.navigate != null
+              ? { navigate: () => methodCtx.navigate?.(DISPATCHER) }
+              : {}),
           })
         }
 

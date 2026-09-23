@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.54
+bun add @owlmeans/web-panel@^0.1.18-rc.59
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -86,7 +86,7 @@ import { commonConfig, MY_APP_WEB } from 'my-app-common'
 import type { Config } from './types.js'
 
 const cfg: Config = config(MY_APP_WEB, commonConfig as Config)
-// Block the screen with a "reload the page" prompt once every socket has given up reconnecting.
+// Block the screen with a "try again / reload the page" prompt once a socket has given up reconnecting.
 cfg.socket = { ...cfg.socket, reloadDialog: true }
 
 export default cfg
@@ -496,7 +496,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.32
+npx @owlmeans/agent-skills@^0.1.18-rc.36
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

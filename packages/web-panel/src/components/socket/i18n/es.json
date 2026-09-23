@@ -1,7 +1,9 @@
 {
   "reload": {
     "title": "Conexión perdida",
-    "description": "No se pudo restablecer la conexión tras varios intentos. Recarga la página para continuar.",
-    "action": "Recargar página"
+    "description": "No se pudo restablecer la conexión tras varios intentos. Vuelve a intentarlo o recarga la página para continuar.",
+    "action": "Recargar página",
+    "retry": "Reintentar",
+    "retrying": "Reconectando…"
   }
 }

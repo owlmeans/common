@@ -13,19 +13,24 @@ dependency range or content consequently changes. A package outside that affecte
 its current version and is not published. A package inside it receives an RC bump only when its
 declared version is already present on npm; a new, not-yet-published version is published as-is.
 
-The closure is ready to publish only after this order has converged:
+The release runs in this order, once:
 
-1. bump RC versions for changed packages and affected transitive dependents;
-2. rewrite those versions everywhere they are pinned, including manifests, templates, harnesses,
-   examples, install snippets and other documentation;
-3. install and align every affected lockfile, then rebuild sources from clean generated output;
-4. refresh the package-delivered `agent-meta` skills in **common and internal**, plus the
-   viable-agent template seed, after documentation and pins have their final versions;
-5. re-run the dry-run and consumer checks; only the affected closure may remain in the plan;
-6. with fresh operator approval, publish exactly that closure in dependency order.
+1. **bump** RC versions — the one place change detection runs: changed packages and their
+   transitive dependents (`publish.ts --bump rc`);
+2. **update dependencies and pins** — consumer manifests, template trees and their overrides,
+   fixtures (`bump-deps.ts --consumers-of common`);
+3. **update reference versions** in skills, docs, READMEs and install snippets
+   (`bump-deps.ts --pins-only --fix`);
+4. **update the injected skills** — the package-delivered `agent-meta` in **common and internal**
+   and the viable-agent template seed (`sync-agent-meta.ts`), then rebuild from clean output;
+5. **publish everything that was bumped** (`publish.ts --all`), with fresh operator approval.
 
-If any pin, lockfile, build output or delivered skill changes after the final plan, return to step
-1: that change alters publishable content and may expand the affected closure.
+Steps 2–4 write only into packages that step 1 bumped (their content ships with them) and into
+trees nothing publishes. A package outside the closure keeps every range that already admits the
+new versions — the harness enforces it — so propagation never expands the closure. Never re-plan
+with `--changed` after step 4 and bump what it reports: the doc and skill updates read as new
+changes, the second bump moves the docs again, and the release never converges. Install and align
+every consumer's lockfile after npm serves the new versions.
 
 ## Never publish without being told to
 
@@ -55,30 +60,28 @@ cd ../library-manager
 # 1. What would ship, and under which dist-tag? (safe, read-only)
 bun run scripts/publish.ts --project common --dry-run
 
-# 2. Converge locally BEFORE publishing — repeat until the plan shows no "needs rc", the
-#    consumer check reports every pin matching, and the pin audit has nothing failing.
-#    Consumers link this repo as workspaces, so the sweep may point at versions npm does not
-#    serve yet — hence --no-install. Docs are fixed before the agent-meta sync copies them, and
-#    before the publish: a fix afterwards rewrites shipped content (a package's own README
-#    install line) and forces another bump-and-publish round.
+# 2. Bump once — the closure is decided here and nowhere else.
 bun run scripts/publish.ts --project common --bump rc
 ( cd projects/common && bun install && bun run build )
-bun run scripts/bump-deps.ts --consumers-of common --no-install
+
+# 3. Propagate: pins (--no-install: npm does not serve the new versions yet), then reference
+#    versions in docs and skills, then the injected skills. Nothing outside the bump moves.
+bun run scripts/bump-deps.ts --consumers-of common --no-install --force     # step 1 left the tree dirty on purpose
 bun run scripts/bump-deps.ts --pins-only --fix
 bun run scripts/sync-agent-meta.ts --project common
 bun run scripts/sync-agent-meta.ts --project internal
 bun run scripts/sync-agent-meta.ts --project viable-agent --seed-only
 ( cd projects/common && bun run build )
-bun run scripts/publish.ts --project common --dry-run
+bun run scripts/publish.ts --project common --all --dry-run                   # checks, never a re-bump
 bun run scripts/bump-deps.ts --consumers-of common --check --skip-lock-check   # nothing installed yet
 
-# 3. Commit the bump, the consumer sweep and the agent-meta sync together.
+# 4. Commit the bump, the sweep, the docs and the agent-meta sync together.
 
-# 4. Publish — ONLY after the operator agreed to it. A refused package (403/409) aborts the
-#    run and every later batch: bump it through step 2 and publish again.
-bun run scripts/publish.ts --project common
+# 5. Publish everything bumped — ONLY after the operator agreed to it. A refused package
+#    (403/409) aborts the run and every later batch: re-run the same command.
+bun run scripts/publish.ts --project common --all
 
-# 5. Once npm serves the new versions, install every consumer, align the ranges each bun.lock
+# 6. Once npm serves the new versions, install every consumer, align the ranges each bun.lock
 #    records, and verify.
 for r in common internal viable-agent viable native static; do ( cd projects/"$r" && bun install ); done
 bun run scripts/align-lock.ts --project common,internal,viable-agent,viable,native,static
@@ -98,14 +101,14 @@ each consumer that tracks its `bun.lock` (`viable`, `native`).
 **An install never realigns a lockfile's recorded ranges.** `bun install` keeps the dependency
 ranges `bun.lock` records for a workspace — and, for a workspace linked by path, not reliably even
 its recorded `version` — so every range the sweep moved stays at its old value there and the next
-install churns the file. Step 5's `align-lock.ts` rewrites each recorded range to its manifest's
+install churns the file. Step 6's `align-lock.ts` rewrites each recorded range to its manifest's
 value where the resolution already recorded satisfies the new range, and each recorded workspace
 version or name where the lock resolves that package by path to that workspace (a path resolution
 consults no version) — never touching a resolution — and then validates every repo with
 `bun install --frozen-lockfile --dry-run`. That validation cannot see a stale range, so
 the proof is `bump-deps --check`, which compares every consumer lockfile with its manifests last
 (exit 13). A row the tool marks `bun install` is a resolution change: install that repo, then align
-again. The pre-publish check in step 2 passes `--skip-lock-check`, since consumers are swept
+again. The pre-publish check in step 3 passes `--skip-lock-check`, since consumers are swept
 `--no-install` there and no lockfile can agree yet.
 
 | Option | Effect |
@@ -155,12 +158,10 @@ it; clean `build/` and `tsconfig.tsbuildinfo` and rebuild before the plan so the
 shipping.
 
 A plan that lists most of the repo is expected when a few root packages (`basic-ids`, `context`,
-`config`, `flow`, `i18n`) are "changed" — every dependent follows. Post-release edits (README install
-lines, an `agent-meta` skill rename) count as changes. If the operator scopes a release to what one
-change touched, do it by hand — bump only those manifests (and the ranges among them), sweep
-consumers with `bump-deps.ts --filter '@owlmeans/<pkg>'` per package, then
-`npm publish --access public --tag <tag>` in dependency order — and say which pending packages were
-left out and why. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
+`config`, `flow`, `i18n`) really changed — every dependent follows. It is NOT expected from
+propagation: the harness no longer rewrites admitted pins in packages outside the release, nor
+hashes their `build/` — so a plan that widens after steps 2–4 means a real content edit landed in
+them. A `0.0.x` package needs every consumer pin moved (a caret on `0.0.n` is exact).
 
 ## How "changed" is decided
 
@@ -174,14 +175,19 @@ tarball.
 Two fields are excluded from that hash, and the tool is useless without the exclusion: a package's
 own `version` and its `@owlmeans/*` ranges. Both move mechanically on every bump, so counting them
 would report the entire graph as changed forever and collapse this back into a blanket release.
+`build/` is excluded as well whenever the package ships its `src/` (every package here does): build
+output is not reproducible byte for byte — an incremental build drops `//# sourceMappingURL`
+comments a clean one writes, and `tsc` orders union members in a `.d.ts` by check order — so
+hashing it reported untouched packages as changed and dragged in their dependents. A source edit
+still shows in `src/`.
 
 Consequences worth knowing:
 - A package **never published**, or one whose declared version is not on the registry, counts as
   changed — a staged release goes out on the next run.
 - A package whose local hash cannot be computed is treated as changed. Shipping something
   unnecessary is recoverable; silently skipping a real change is not.
-- Because `build/` is part of the published file set, **build before planning** — a stale `build/`
-  makes the plan describe the wrong thing.
+- `build/` still ships, so **build before publishing** — a stale `build/` ships stale code even
+  though the plan (which compares sources) calls the package right.
 
 ## Versions and dist-tags
 
@@ -223,22 +229,22 @@ text.
 
 ## A small release must not touch create-app or agent-skills
 
-Every package README carries `npx @owlmeans/agent-skills@^<version>`, and `--pins-only --fix`
-rewrites it. So an `agent-skills` bump changes EVERY package's shipped content, and the next plan is
-the whole repository. The usual way into that cascade is the consumer sweep: it moves the pins
-inside `create-app/template/**`, which makes `create-app` "changed", its install line in
-`agent-skills`' agent-meta follows, and `agent-skills` needs an rc. A one-package fix then became a
-whole-repo plan (2026-09, a `web-consent` accessibility fix).
+Every package README carries `npx @owlmeans/agent-skills@^<version>`, and `create-app`'s template
+pins most of the repo, so a release that moved either would change every package's shipped content.
+The harness keeps them out (library-manager `scripts/lib/release-scope.ts`): the sweep, the doc-pin
+fixer and the `--bump rc` realignment leave any range inside a package that is not being bumped —
+its README, its embedded skills, `create-app/template/**` — when it already admits the new version
+(a same-triple caret admits every later rc). They rewrite it only when it no longer admits it, and
+that package then ships for a real reason. So `agent-skills` and `create-app` enter a release only
+when their own content changed, and their bump no longer rewrites any other package.
 
-For a release scoped to a few packages: after `bump-deps --consumers-of common`, restore any
-`create-app/template` pin the sweep moved when the old caret still admits the new version (a
-same-triple rc does), so `create-app` stays equal to its published version. Re-plan. If a generated
-file (`agent-meta/manifest.json` `generatedAt`, a `build/` source-map comment) is the only difference
-left against the registry, restore the published copy rather than bumping. The pin check then
-reports that one template pin as trailing (exit 11); the next full release moves it. When the plan
-lists only the changed packages and their real dependents, publish. Otherwise publish just the
-changed package with `npm publish --access public --tag <tag>`, since its dependents' carets already
-admit it, and say which dependents were left out and why.
+Keep it that way when authoring: a shipped skill pins only its OWN package. An example of pinning
+another package writes `"@owlmeans/x": "^<version>"` — the sync leaves a placeholder as written,
+while a live version would be re-synced on every release of `x` and republish the skill's owner
+(`reuse-code` pinning `@owlmeans/queue` used to drag `agent-skills` into every `queue` release).
+
+A fix found after a publish is its own release: the fixed package and its dependents only. Do not
+fold unrelated edits into it — a canonical skill of a widely depended package widens it for nothing.
 
 ## Pre-flights and exit codes
 

@@ -1,0 +1,19 @@
+{
+  "screen": {
+    "title": "Ihre Datenschutzeinstellungen",
+    "subtitle": "Wählen Sie, was wir nutzen dürfen, um Sie zu erreichen und Ihre Erfahrung zu personalisieren.",
+    "all": "Alle auswählen",
+    "updated": "Aktualisiert",
+    "save": "Speichern und fortfahren",
+    "saving": "Wird gespeichert…",
+    "skip": "Ohne Speichern fortfahren",
+    "error": "Ihre Auswahl konnte nicht gespeichert werden.",
+    "gpc": "Berücksichtigt dank des Global-Privacy-Control-Signals Ihres Browsers",
+    "loading": "Wird geladen…"
+  },
+  "preferences": {
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "error": "Ihre Auswahl konnte nicht gespeichert werden."
+  }
+}

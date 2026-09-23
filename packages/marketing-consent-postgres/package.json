@@ -1,0 +1,50 @@
+{
+  "name": "@owlmeans/marketing-consent-postgres",
+  "version": "0.1.18-rc.3",
+  "license": "MIT",
+  "description": "Postgres-backed resources for @owlmeans/marketing-consent — the state and log tables of a generated target project, compiled from the shared AJV schema in @owlmeans/server-marketing-consent.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 2 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/context": "^0.1.18-rc.32",
+    "@owlmeans/marketing-consent": "^0.1.18-rc.2",
+    "@owlmeans/postgres-resource": "^0.1.18-rc.34",
+    "@owlmeans/resource": "^0.1.18-rc.34",
+    "@owlmeans/server-marketing-consent": "^0.1.18-rc.3"
+  },
+  "peerDependencies": {
+    "ajv": "*",
+    "pg": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/test": "^0.1.18-rc.32",
+    "@owlmeans/test-integration": "^0.1.18-rc.29",
+    "@types/bun": "^1.4.0",
+    "@types/pg": "^8.20.4",
+    "ajv": "^8.17.1",
+    "nodemon": "^3.1.14",
+    "pg": "^8.22.0",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
