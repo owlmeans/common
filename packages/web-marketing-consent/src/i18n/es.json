@@ -1,15 +1,23 @@
 {
   "screen": {
-    "title": "Tus opciones de privacidad",
-    "subtitle": "Elige qué podemos usar para contactarte y personalizar tu experiencia.",
+    "title": "Acuerdos y consentimientos",
+    "subtitle": "Elige cómo podemos contactarte y cómo pueden utilizarse tus datos.",
+    "subtitle-terms": "Confirma los términos y condiciones para continuar y elige cómo podemos contactarte y cómo pueden utilizarse tus datos.",
     "all": "Seleccionar todo",
     "updated": "Actualizado",
     "save": "Guardar y continuar",
     "saving": "Guardando…",
-    "skip": "Continuar sin guardar",
+    "skip": "Omitir por ahora",
+    "skip-note": "Te lo preguntaremos de nuevo la próxima vez que inicies sesión.",
     "error": "No pudimos guardar tus elecciones.",
+    "terms-error": "No pudimos confirmar los Términos. Inténtalo de nuevo.",
     "gpc": "Respetado gracias a la señal Global Privacy Control de tu navegador",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "hint": "Puedes continuar sin cambiar nada.",
+    "signout": "Cerrar sesión",
+    "last-updated": "Última actualización: {{date}}",
+    "required-note": "* Obligatorio",
+    "required": "obligatorio"
   },
   "preferences": {
     "save": "Guardar",

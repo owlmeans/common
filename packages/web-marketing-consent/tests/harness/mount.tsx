@@ -6,7 +6,7 @@ import { AppType, service } from '@owlmeans/config'
 import { HOME } from '@owlmeans/context'
 import { App, handler } from '@owlmeans/client'
 import type { RoutedComponent } from '@owlmeans/client'
-import { I18nContext } from '@owlmeans/client-i18n'
+import { I18nContext, setLanguage } from '@owlmeans/client-i18n'
 import { bindAll, bindScreen } from '@owlmeans/client-entrypoint'
 import type { EntrypointTree } from '@owlmeans/entrypoint'
 import { openProtocol } from '@owlmeans/entrypoint'
@@ -31,6 +31,10 @@ import type { MarketingConsentClientService } from '../../src/index.js'
  * Query switches (one harness process serves every case):
  *   `?bearer=<token>`  the person is signed in with this bearer before the app renders
  *   `?lng=<code>`      render in that language
+ *   `?terms=step`      the Terms confirmation moves to the marketing-consent step
+ *                       (`appendMarketingConsent({ terms: 'step' })`), with a terms configuration
+ *                       so `resolved != null` — a version, a required document, a privacy URL and
+ *                       the revision date the Terms row shows.
  */
 const params = new URLSearchParams(window.location.search)
 
@@ -38,6 +42,7 @@ const SERVICE = 'web-marketing-consent-test'
 const API = `${SERVICE}-api`
 const API_BASE = `${SERVICE}:api:base`
 const lng = params.get('lng') ?? 'en'
+const termsMode = params.get('terms') === 'step'
 
 const origin = window.location
 const base = service({
@@ -46,7 +51,20 @@ const base = service({
 service({
   type: AppType.Backend, service: API, host: origin.hostname, port: Number(origin.port), base: 'api',
 }, base)
-base.security = { unsecure: true }
+base.security = {
+  unsecure: true,
+  ...(termsMode ? {
+    auth: {
+      login: {
+        terms: {
+          required: true, version: 'harness-terms-v1',
+          terms: 'https://example.test/terms', privacy: 'https://example.test/privacy',
+          revisions: { terms: '2026-05-30', privacy: '2026-05-30' }, showRevision: true,
+        },
+      },
+    },
+  } : {}),
+}
 ;(base as { i18n?: unknown }).i18n = { defaultLng: lng, fallbackLng: lng }
 
 // `ready` stays false: the Router compiles the entrypoint tree into routes ONLY while the context
@@ -60,7 +78,7 @@ context.serviceRoute(API, true)
 const apiBase = openProtocol(route(API_BASE, '/', backend({ service: API })))
 const mcProtocols = makeMarketingConsentProtocols({ parent: API_BASE })
 
-appendMarketingConsent(context as never, { protocols: mcProtocols })
+appendMarketingConsent(context as never, { protocols: mcProtocols, terms: termsMode ? 'step' : true })
 
 const home = openProtocol(route(HOME, '/', frontend({ default: true })))
 const prefsRoute = openProtocol(route('prefs-screen', '/prefs', frontend()))
@@ -102,6 +120,9 @@ context.registerEntrypoints([
 // are not initialized yet — and must not be, or the router would compile no routes.
 const bearer = params.get('bearer')
 if (bearer != null && bearer !== '') await set(`${AUTH_RESOURCE}:${USER_ID}`, { id: USER_ID, token: bearer })
+
+// The instance starts in the language chosen before it exists, so this is what `?lng=` means.
+if (lng !== 'en') await setLanguage(lng)
 
 createRoot(document.getElementById('root')!).render(
   <I18nContext config={context.cfg}><App context={context as never} /></I18nContext>

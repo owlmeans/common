@@ -1,6 +1,6 @@
 ---
 name: login-plugins
-description: How OwlMeans login plugins work — the LoginPlugin contract and its seven stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, the resume fast path, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
+description: How OwlMeans login plugins work — the LoginPlugin contract and its seven stages, cascade selection by LoginEnv (embedded / surrogate), the surrogate window and its own route, the redirect and hand-back flows, why a sign-in surrogate never resumes a stored session, framed logout, preconditions, and wiring sign-in with useLogin/useLogout. Read before touching login wiring, an OIDC dispatcher, or sign-in from an embedded app.
 user-invocable: false
 metadata:
   scope: general
@@ -137,7 +137,7 @@ replace it with a throw.
 |---|---|
 | Ordinary tab, signing in | redirect plugin: `begin` prefers the caller's in-app `navigate`, else a full load |
 | Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE` |
-| Surrogate, signing in | a session already on this origin is handed back via `resume()` immediately (no provider round trip); otherwise forwards to `next`, which owns the authorization round trip |
+| Surrogate, signing in | a session already on this origin is dropped and the window forwards to `next`, which owns the authorization round trip; only without `next` is a stored session handed back via `resume()` |
 | Framed, session already there | `resume` → `Passed`; the document simply uses it, and no window opens |
 | Framed, signing out | surrogate plugin opens the window FIRST, revokes locally **unconditionally**, then awaits `LOGIN_LOGOUT_MESSAGE` |
 
@@ -152,7 +152,12 @@ replace it with a throw.
   went straight to `HOME` before, with no suspended-landing check at all). The order is: a
   registered `LoginStep` whose `pending(ctx)` resolves `true` (a marketing-consent screen, say —
   registered via `login().registerStep(...)`, bounded by `LOGIN_STEP_TIMEOUT` and failing OPEN on a
-  throw or a timeout so a broken step never blocks sign-in), else a flow parked with `suspendFlow`
+  throw or a timeout so a broken step never blocks sign-in — **unless the step set `required: true`,
+  in which case a throw or a timeout is read as PENDING instead**: the one deliberate exception, for
+  a step whose whole point is to gate the landing on something the person must actually do — a Terms
+  confirmation moved off the sign-in screen (`confirmsTerms`, `termsDeferred` — see `login-methods`)
+  is the shipped case, and a broken read there must show the step, never wave the confirmation
+  through), else a flow parked with `suspendFlow`
   (`@owlmeans/client-flow`, read back once via `resumeSuspendedFlow`), else `HOME`. A step whose
   `entrypoint` is not bound in this tree is skipped, never thrown. `landAfterLogin` also runs every
   registered `LoginLandingHook` once per distinct authenticated token (tracked in `localStorage`
@@ -166,17 +171,17 @@ replace it with a throw.
   `useContinueLogin()` is the hook a step's own screen calls once it is satisfied, to move the flow
   on to the next step or the ordinary landing; `LandOptions.after` is how it skips past its own step
   on re-entry.
-- **The surrogate hands back whatever local session it finds, unconditionally.** The surrogate
-  window is first-party on the application's own origin, so it sees whatever the person's own tabs
-  left there — and a token being present says nothing about the record behind it still existing.
-  `authenticated()` reads storage and decodes an envelope; no client asks the server. `SurrogateScreen`
-  (`web-client`) reads its own `authenticated()` first and, when it finds a token, calls `resume()`
-  and closes without ever reaching the provider — there is no query or flag that forces a fresh
-  round trip instead. (A prior revision of this skill described a `LOGIN_FRESH_QUERY` that skipped
-  this resume; no such constant, query param, or `fresh=1` value exists in the source — that
-  description was never implemented, or was removed without this doc following. If a stale/revoked
-  session being recycled this way turns out to matter in practice, that is a product decision for
-  a separate change, not something this skill should assert away.)
+- **A sign-in surrogate never recycles the session it finds.** The surrogate window is first-party on
+  the application's own origin while the embedded opener's storage is partitioned by the top-level
+  site, so the popup can hold a session the server has already refused (record gone after a
+  restart, revoked, fenced) and the opener cannot reach that storage to clear it. `authenticated()`
+  reads storage and decodes an envelope; no client asks the server. So `SurrogateScreen`
+  (`web-client`) decides with `surrogateLoginStep(token, next)`: with a dispatcher address (`next`)
+  a stored session is dropped from this window's storage (the store record only — the web auth
+  service's clearing path would navigate) and the round trip runs afresh, which costs only redirects
+  while the provider still has a session; only without `next` is a stored session handed back via
+  `resume()`. Handing back a refused session closes the popup at once — a "blink" — and the opener
+  fails its next request exactly as before, every time.
 - **A dispatcher's exchange must report every way it can end.** `oidc.dispatch(...)` had no
   `.catch`, so a provider refusal, an API 4xx or a missing stored request became an unhandled
   rejection: an ordinary tab went blank and a surrogate window sat on "Signing you in…" forever

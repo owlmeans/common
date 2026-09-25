@@ -3,8 +3,8 @@ import Ajv from 'ajv'
 import { validateSpecificationBody } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
 import { ViableSpecCategory, VIABLE_PROJECT_SLOTS } from '../src/planning/index.js'
-import { BENTO_FRAGMENT_KINDS, WidgetKind } from '../src/scaffold/consts.js'
-import { ScaffoldPlanSchema } from '../src/scaffold/schemas.js'
+import { BENTO_FRAGMENT_KINDS, LANDING_GATE_FIELD_KINDS, WidgetKind } from '../src/scaffold/consts.js'
+import { ScaffoldPlanAnswerSchema, ScaffoldPlanSchema } from '../src/scaffold/schemas.js'
 import type { ScaffoldPlan } from '../src/scaffold/types.js'
 
 /**
@@ -72,21 +72,31 @@ const newPlan = (): ScaffoldPlan => {
       gate: {
         story: 'US-ABC12',
         target: 'web:bake-finder',
-        question: "What's in your pantry?",
-        hint: 'No account needed',
-        label: 'Your pantry',
-        inputs: ['Bread flour', 'Rye flour', 'Butter', 'Eggs', 'Yeast'],
-        selected: ['Bread flour', 'Rye flour', 'Butter', 'Yeast'],
-        results: [{ title: 'Seeded rye loaf', meta: 'Uses all 3 · 3 h 20 min', needs: ['Bread flour', 'Rye flour', 'Yeast'] }],
-        count: { one: '{n} bake matches', many: '{n} bakes match', none: 'No matches yet' },
-        empty: 'Pick two or more ingredients.',
-        note: 'Sign in with your email. Your picks come with you.',
-        cta: 'Open recipes →',
-        lock: 'Full method after sign-in',
+        question: 'What are you baking?',
+        fields: [{ name: 'dish', label: 'What are you baking?', kind: 'text', placeholder: 'Rye sourdough' }],
+        cta: 'Start my bake →',
+        note: 'No account needed. What you enter comes with you.',
       },
     },
   }
 }
+
+/** The gate a plan stored BEFORE it became a form: chips, sample records, a live count. */
+const legacyGate = (): NonNullable<ScaffoldPlan['guestHome']['gate']> => ({
+  story: 'US-ABC12',
+  target: 'web:bake-finder',
+  question: "What's in your pantry?",
+  hint: 'No account needed',
+  label: 'Your pantry',
+  inputs: ['Bread flour', 'Rye flour', 'Butter', 'Eggs', 'Yeast'],
+  selected: ['Bread flour', 'Rye flour', 'Butter', 'Yeast'],
+  results: [{ title: 'Seeded rye loaf', meta: 'Uses all 3 · 3 h 20 min', needs: ['Bread flour', 'Rye flour', 'Yeast'] }],
+  count: { one: '{n} bake matches', many: '{n} bakes match', none: 'No matches yet' },
+  empty: 'Pick two or more ingredients.',
+  note: 'Sign in with your email. Your picks come with you.',
+  cta: 'Open recipes →',
+  lock: 'Full method after sign-in',
+})
 
 describe('viable-common - the scaffold plan schema', () => {
   const validate = new Ajv({ strict: false, allErrors: true }).compile(ScaffoldPlanSchema)
@@ -127,5 +137,55 @@ describe('viable-common - the scaffold plan schema', () => {
     expect(text).not.toContain('minItems')
     expect(text).not.toContain('maxItems')
     expect(BENTO_FRAGMENT_KINDS).toEqual(['list', 'note', 'people', 'steps'])
+  })
+
+  test('a plan stored under the chip-gate shape still validates', () => {
+    const stored = newPlan()
+    stored.guestHome.gate = legacyGate()
+
+    expect(validate(stored), JSON.stringify(validate.errors)).toBe(true)
+    expect(() => validateSpecificationBody(slot, JSON.stringify(stored))).not.toThrow()
+  })
+
+  test('a field kind nothing can draw is refused', () => {
+    const plan = newPlan()
+    plan.guestHome.gate!.fields![0] = { name: 'dish', label: 'Dish', kind: 'multiselect' as never }
+
+    expect(validate(plan)).toBe(false)
+    expect(LANDING_GATE_FIELD_KINDS).toEqual(['text', 'select', 'number', 'date'])
+  })
+})
+
+describe('viable-common - the scaffold plan the model answers', () => {
+  const answer = new Ajv({ strict: false, allErrors: true }).compile(ScaffoldPlanAnswerSchema)
+
+  test('accepts the form gate', () => {
+    expect(answer(newPlan()), JSON.stringify(answer.errors)).toBe(true)
+  })
+
+  test('accepts an unset optional written as null, and no gate at all', () => {
+    const nulled = newPlan()
+    ;(nulled.guestHome.gate!.fields![0] as unknown as Record<string, unknown>).options = null
+    expect(answer(nulled), JSON.stringify(answer.errors)).toBe(true)
+
+    const none = newPlan()
+    delete none.guestHome.gate
+    expect(answer(none), JSON.stringify(answer.errors)).toBe(true)
+  })
+
+  test('is never offered the chip-gate keys, and requires the form\'s fields', () => {
+    const chips = newPlan()
+    chips.guestHome.gate = legacyGate()
+    expect(answer(chips)).toBe(false)
+
+    const bare = newPlan()
+    delete bare.guestHome.gate!.fields
+    expect(answer(bare)).toBe(false)
+
+    const text = JSON.stringify(ScaffoldPlanAnswerSchema)
+    expect(text).not.toContain('"inputs"')
+    expect(text).not.toContain('"results"')
+    expect(text).not.toContain('minItems')
+    expect(text).not.toContain('maxItems')
   })
 })

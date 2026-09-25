@@ -1,6 +1,7 @@
 export * from './component.js'
 export * from './menu-widget.js'
 export * from './presence.js'
+export { installConsentLanguage } from './language.js'
 export { createConsentWidgetService, appendConsentWidgetService, CONSENT_WIDGET_STATE } from './service.js'
 export { CONSENT_WIDGET_SERVICE } from './consts.js'
 export type {
@@ -9,7 +10,8 @@ export type {
 export {
   useConsent, useConsentCategory, consentStore, openConsent, isConsented,
   readConsent, writeConsent, clearConsent, DEFAULT_CONSENT_CATEGORIES,
-  CONSENT_KEY, CONSENT_ESSENTIAL, CONSENT_ANALYTICS, CONSENT_MARKETING,
+  CONSENT_KEY, CONSENT_ESSENTIAL, CONSENT_FUNCTIONAL, CONSENT_ANALYTICS, CONSENT_MARKETING,
+  CONSENT_EVENT, CONSENT_LANGUAGE_EVENT, functionalGranted,
   consentBootstrapScript,
 } from '@owlmeans/web-consent'
 export type {

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useContext, useNavigate } from '@owlmeans/client'
 import type { CommonConfig } from '@owlmeans/config'
 import {
-  acceptTerms, primaryLoginMethod, resolveCredit, resolveTerms, termsAccepted,
+  acceptTerms, primaryLoginMethod, resolveCredit, resolveTerms, termsAccepted, termsDeferred,
   LoginOutcome, LOGIN_SERVICE,
 } from '@owlmeans/client-auth/login'
 import type { LoginContext, LoginMethod, LoginService } from '@owlmeans/client-auth/login'
@@ -43,7 +43,8 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
     ? opts.methods(all)
     : opts?.methods ?? all
 
-  const blocked = resolved != null && resolved.required && !accepted
+  const deferred = termsDeferred(context)
+  const blocked = resolved != null && resolved.required && !deferred && !accepted
 
   const select = useCallback((method: LoginMethod) => {
     if (blocked) {
@@ -83,6 +84,7 @@ export const useLoginMethods = (opts?: UseLoginMethodsOptions): LoginMethodsMode
     terms: {
       required: resolved?.required ?? false,
       accepted: resolved == null ? true : accepted,
+      deferred,
       attempted,
       documents: resolved?.documents ?? [],
       notices: resolved?.notices ?? [],

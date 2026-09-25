@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { OWLMEANS_COOKIES_URL, OWLMEANS_PRIVACY_URL, OWLMEANS_TERMS_URL } from '@owlmeans/config'
 import type { LoginTermsConfig } from '@owlmeans/config'
-import { resolveTerms, termsSentence } from '../src/login/terms.js'
+import { resolveTerms, termsAcceptanceOf, termsLabelResolver, termsSentence } from '../src/login/terms.js'
 import type { ResolvedTermsDocument } from '../src/login/terms.js'
 
 /**
@@ -198,5 +198,59 @@ describe('termsSentence', () => {
     const parts = termsSentence('{{documents}}', resolved, 'en', label)
 
     expect(parts).toEqual([{ text: 'Terms & Conditions', href: 'https://a.test/terms', documentKey: 'terms' }])
+  })
+})
+
+describe('termsLabelResolver', () => {
+  test('resolves a document label the same way the two renderers used to, by hand', () => {
+    const translate = (key: string, defaultValue: string) => key === 'login.terms.custom' ? 'Custom!' : defaultValue
+    const resolve = termsLabelResolver(translate, 'en')
+
+    expect(resolve({ key: 'terms', href: 'https://a.test/terms', i18nKey: 'login.terms.terms' }))
+      .toBe('Terms & Conditions')
+    expect(resolve({ key: 'x', href: 'https://a.test/x', i18nKey: 'login.terms.custom' })).toBe('Custom!')
+    expect(resolve({ key: 'x', href: 'https://a.test/x', label: 'Literal' })).toBe('Literal')
+    expect(resolve({ key: 'x', href: 'https://a.test/x', labelMap: { en: 'English', fr: 'Français' } }))
+      .toBe('English')
+    expect(resolve({
+      key: 'product', href: 'https://a.test/p', i18nKey: 'login.terms.product', params: { product: 'Acme' },
+    })).toBe('{{product}} Product Terms'.replace('{{product}}', 'Acme'))
+  })
+})
+
+describe('termsAcceptanceOf', () => {
+  test('keeps only key/href/revisedAt — never i18nKey, params or label', () => {
+    // A viable-shaped config: billing, a product document carrying `params`, and revisions —
+    // exactly what `termsRecorder`/a Terms-mode consent screen sends the server.
+    const resolved = resolveTerms({
+      terms: 'https://a.test/terms', privacy: 'https://a.test/privacy', cookies: 'https://a.test/cookies',
+      billing: { href: 'https://a.test/billing', revisedAt: '2026-02-01' },
+      product: { name: 'Acme', href: 'https://a.test/product' },
+      revisions: { terms: '2026-01-15', privacy: '2026-01-15' },
+    })!
+
+    const acceptance = termsAcceptanceOf(resolved, 'en')
+
+    expect(acceptance.version).toBe(resolved.version)
+    expect(acceptance.locale).toBe('en')
+    expect(acceptance.documents).toEqual([
+      { key: 'terms', href: 'https://a.test/terms', revisedAt: '2026-01-15' },
+      { key: 'billing', href: 'https://a.test/billing', revisedAt: '2026-02-01' },
+      { key: 'product', href: 'https://a.test/product', revisedAt: undefined },
+    ])
+    expect(acceptance.notices).toEqual([
+      { key: 'privacy', href: 'https://a.test/privacy', revisedAt: '2026-01-15' },
+      { key: 'cookies', href: 'https://a.test/cookies', revisedAt: undefined },
+    ])
+    // Every key is exactly {key, href, revisedAt} — no i18nKey, params or label leaked through.
+    for (const doc of [...acceptance.documents, ...acceptance.notices]) {
+      expect(Object.keys(doc).sort()).toEqual(['href', 'key', 'revisedAt'])
+    }
+  })
+
+  test('omits `locale` entirely when none is given', () => {
+    const resolved = resolveTerms({ terms: 'https://a.test/terms' })!
+
+    expect(termsAcceptanceOf(resolved)).not.toHaveProperty('locale')
   })
 })

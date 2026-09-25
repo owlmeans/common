@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.31"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through
@@ -131,6 +131,18 @@ The snippet is stamped **from HTML**, never from the application bundle:
 The snippet **reads the stored decision**, so the same `ConsentOptions` (categories, `storageKey`)
 must be passed here and to the dialog: two category sets in one page mean the snippet and the
 component disagree about what was asked.
+
+**Cross-domain consent needs nothing new here.** `GtmOptions`/`GoogleTagOptions` both extend
+`ConsentOptions`, so `linker` (see the `consent` skill's plugin-seam section) passed to either head
+script reaches `consentBootstrapScript` unchanged, which embeds the adopt-and-strip fragment right
+after `consent/default` when it is set:
+
+```typescript
+googleTagHeadScript({ id: 'GTM-XXXXXXX', linker: { domains: ['owlmeans.com', 'owlmeans.pl'] } })
+```
+
+An app that does not stamp a tag at all still gets the fragment from a bare
+`consentBootstrapScript({ linker: { domains } })`.
 
 ## Content Security Policy
 

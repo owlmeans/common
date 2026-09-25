@@ -1,13 +1,13 @@
 ---
 name: client
-description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, lazyComponent/lazyHandler code-splitting, the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
+description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, lazyComponent/lazyHandler code-splitting and chunk-failure recovery (retryImport, isChunkLoadError, recoverFromChunkError), the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
 user-invocable: false
 ---
 
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.18-rc.40"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.18-rc.42"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform
@@ -35,7 +35,9 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `useEntrypoint<T>()` | The `EntrypointContextParams` of the screen currently rendering — `{ alias, path, params, context }` |
 | `RoutedComponent<Extra>` | Type of a component bound to a frontend protocol |
 | `handler(Component, preprender?)` | Wrap a React component as an entrypoint handler |
-| `lazyComponent(load, exportName, opts?)` / `lazyHandler(load, exportName, opts?)` | A code-split component with a static `.preload()`; and `handler(lazyComponent(...))` with `.preload` carried through. Types `LazyComponent`, `LazyHandler`, `LazyComponentOptions` — see Code-splitting |
+| `lazyComponent(load, exportName, opts?)` / `lazyHandler(load, exportName, opts?)` | A code-split component with a static `.preload()`; and `handler(lazyComponent(...))` with `.preload` carried through. Types `LazyComponent`, `LazyHandler`, `LazyComponentOptions`, `LazyErrorRenderer` — see Code-splitting |
+| `retryImport(load, opts?)` / `isChunkLoadError(error)` | Run a dynamic `import()` again while it fails to FETCH; tell a fetch failure from a module that loaded and broke. `RetryImportOptions` — see Chunk failures |
+| `reloadOnce(key, windowMs)` / `recoverFromChunkError()` | The guarded page reload, and the one every chunk-failure path in a tab shares — see Chunk failures |
 | `useStoreModel` / `useStoreList` | React hooks over a `@owlmeans/state` resource — one record by id, or a live query |
 | `useValue(loader, deps?, forceDefault?)` / `UseValueParams<T>` | Render an async result. The second argument is the **dependency list**, not a default — see Async values |
 | `useToggle(opened?)` / `Toggleable` | An open/close/toggle handle, which is what a modal surface binds to |
@@ -43,7 +45,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `ModalBodyProps` / `useSetupModalNavigator()` | `{ modal?: ModalService }` — the props a modal body is rendered with; and the hook that lets a body navigate |
 | `appendDebugService` / `createDebugService` / `appendStateDebug(ctx, alias)` / `DebugService` | The debug menu — `context.debug()` |
 | `ClientError`, `ComponentError`, `ComponentPropError`, `ComponentPropUndefined` | The client error family, registered with `ResilientError` |
-| `DEF_MODAL_ALIAS` (`modal`), `DEF_DEBUG_ALIAS` (`debug`), `DEBUGGER_FLAG` / `DEBUG_CONFIG_KEY` (`debugger`) | Constants |
+| `DEF_MODAL_ALIAS` (`modal`), `DEF_DEBUG_ALIAS` (`debug`), `DEBUGGER_FLAG` / `DEBUG_CONFIG_KEY` (`debugger`), `DEF_IMPORT_RETRY_ATTEMPTS` (2), `DEF_IMPORT_RETRY_DELAYS_MS` (500, 1500), `CHUNK_RELOAD_KEY` (`owlmeans:chunk-reload`), `CHUNK_RELOAD_WINDOW_MS` (60 s) | Constants |
 
 ## Subpath Exports
 
@@ -100,7 +102,8 @@ open screen; when the list is non-empty and no guard matches, the renderer throw
 loads on first render, with the `Suspense` boundary INSIDE it — the fallback replaces only this
 component and the layout around it stays mounted. `lazyHandler` is `handler(lazyComponent(...))`
 with `.preload` carried through, so it binds exactly like `handler(Component)`. Both are
-re-exported by `@owlmeans/web-client` and `@owlmeans/web-panel` next to `handler`.
+re-exported by `@owlmeans/web-client` and `@owlmeans/web-panel` next to `handler`; the
+chunk-failure tools below by `@owlmeans/web-client`.
 
 ```tsx
 import { lazyComponent, lazyHandler } from '@owlmeans/client'
@@ -111,7 +114,7 @@ export const reportsScreen = lazyHandler(
 )
 const Chart = lazyComponent(() => import('./chart.js'), 'Chart', {
   fallback: props => <Skeleton height={props.height} />,
-  error: <ChartUnavailable />,
+  error: (props, error, retry) => <ChartUnavailable onRetry={retry} />,
 })
 
 // Prefetch on intent: the screen then renders without its fallback.
@@ -125,12 +128,58 @@ const Chart = lazyComponent(() => import('./chart.js'), 'Chart', {
   fallback flashes on every visit.
 - **`preload()`** starts or joins the load and resolves to the component. Once loaded, every later
   render resolves in the same tick — no re-suspend.
-- **`fallback` / `error`** are each a node or a function: `fallback(props)`, `error(props, error)`.
-  Without `error` no boundary is added and a failed load propagates to the nearest one.
-- **A failed load is never cached** — the next render or `preload()` retries it for real. An
-  `exportName` the module does not export rejects with a `SyntaxError`.
+- **`fallback`** is a node or `fallback(props)`. **`error`** is a node or a `LazyErrorRenderer`
+  `(props, error, retry) => ReactNode`; `retry()` resets the piece's boundary and renders the
+  recreated lazy, which loads the chunk again.
+- **`retry`** — the load runs through `retryImport` by default; pass `RetryImportOptions` to tune
+  it or `false` to load once.
+- **An `exportName` the module does not export** rejects with a `SyntaxError` — never retried.
 
-Source of truth: `packages/client/src/lazy.tsx`.
+### Chunk failures
+
+A lazy piece ALWAYS carries its own error boundary, so a failed chunk never unmounts what is around
+it:
+
+| The piece fails with | `error` given | `error` omitted |
+|---|---|---|
+| a chunk-load failure (`isChunkLoadError`), after `retryImport` gave up | with `reload` (default for `lazyHandler`): the guarded reload starts, `fallback` stays, and `error` renders once the guard refuses; without it: `error` renders in place | `recoverFromChunkError()` starts the guarded reload; `fallback` stays in place |
+| anything else (a module that loaded and broke, its own render) | `error` renders in place | propagates to the nearest boundary above, as if the piece had none |
+
+Give every piece a deliberate `error`: a leaf that has a plain rendering of the same content (a
+formatter, a highlighter) degrades to it; anything else shows a notice with a retry. A whole screen
+(`lazyHandler`) reloads once before its notice (`reload: true` by default) — it has nothing to
+degrade to.
+
+- **Retry scope.** `retryImport` covers a TRANSIENT fetch failure — a blip, an edge answering 404
+  or 5xx for a moment. Chromium keeps a failed module fetch for the document's lifetime and rejects
+  every later `import()` of that URL at once, so a retry imports the URL the error names with a
+  fresh `t` parameter (`chunkUrlOf` + `cacheBustedUrl`, `bustCache` on by default; same-origin
+  http(s) URLs only): a new URL, fetched again. That recovers a built chunk. It cannot recover a
+  DEV-served module: React Fast Refresh makes every module import itself by its own URL, so the
+  busted copy depends on the remembered failure — only a new document loads it, which is what
+  `reload` and the guarded reload are for. Safari names no URL; its retries repeat `load`.
+- **A failed load stays failed for the instance that saw it** until its `retry()`: React re-renders
+  that instance while recovering from the error, and a fresh load there would suspend again
+  forever. A NEW mount — a navigation back, another place in the tree — takes the recreated lazy and
+  loads again; so does `preload()`.
+- **`isChunkLoadError(error)`** is true for a browser's failed dynamic import (Chromium "Failed to
+  fetch dynamically imported module", Safari "Importing a module script failed", Firefox "error
+  loading dynamically imported module"), Vite's "Unable to preload CSS", webpack's `ChunkLoadError`,
+  a `vite:preloadError` event, and an element's `error` event. It is false for a `SyntaxError`
+  about a missing export and for a throw while the module evaluated — loading those again changes
+  nothing.
+- **`retryImport(load, opts?)`** runs `load` again while `shouldRetry(error)` (default
+  `isChunkLoadError`) holds, `attempts` (2) more times at most, pausing `delaysMs[i]` before retry
+  `i` (500 ms, 1500 ms; the last entry repeats), and rethrows the last failure.
+- **`reloadOnce(key, windowMs)`** reloads the page at most once per `windowMs` per tab, keeping the
+  time in `sessionStorage` under `key`; never while offline and never without storage (with no
+  guard kept, a failure that survives the reload would reload forever); a platform with no page to
+  reload does nothing. It answers whether a reload started.
+- **`recoverFromChunkError()`** is `reloadOnce(CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS)` — the ONE
+  guard a tab shares. An application that also reloads on `vite:preloadError` calls it rather than
+  keeping a guard of its own, so one failure never reloads twice.
+
+Source of truth: `src/lazy.tsx` and `src/lazy-retry.ts` in this package.
 
 ## Client state
 

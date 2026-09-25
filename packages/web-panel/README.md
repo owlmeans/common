@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.60
+bun add @owlmeans/web-panel@^0.1.18-rc.62
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -351,8 +351,8 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 | `SocketReloadDialog` | component | Blocking reload prompt for `'lost'` sockets |
 | `LoginScreen`, `LocalizedLoginScreen` | component | Identity-provider choice screen; the localized one binds `translate` to the app's resources |
 | `appendLoginScreen(ctx, setup?)`, `LoginScreenSetup` | function, type | Register the screen on the login service, with `Logo` and other `LoginScreenProps` |
-| `LoginTerms`, `LoginCredit`, `LoginMethodIcon` | component | The screen's terms sentence, credit line and method icons |
-| `LoginTermsProps`, `LoginCreditProps` | type | Their props |
+| `LoginTerms`, `LoginPrivacyNotice`, `LoginCredit`, `LoginMethodIcon` | component | The screen's terms confirmation, its privacy-only disclosure (rendered alone once `termsDeferred` moves the checkbox to a post-login step — see `@owlmeans/client-auth/login`), the credit line and method icons |
+| `LoginTermsProps`, `LoginPrivacyNoticeProps`, `LoginCreditProps` | type | Their props |
 | `scalingToStyles(horizontal?, vertical?)` | function | `BlockScaling` to Tailwind width/height classes |
 | `useBreakPoint()` | hook | The current Tailwind breakpoint name |
 | `useMapBreakpoint(map, def?, breakpoint?)` | hook | The map entry for the current breakpoint; throws `SyntaxError` when nothing matches and no `def` is given |
@@ -496,7 +496,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.38
+npx @owlmeans/agent-skills@^0.1.18-rc.39
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

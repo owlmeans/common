@@ -290,14 +290,6 @@ export interface LoginService extends LazyService {
 }
 
 /**
- * A step to run after sign-in completes, before the ordinary landing.
- *
- * Registered by a package that must collect something from a freshly authenticated user before
- * the application resumes wherever it was headed — the marketing-consent screen is the first
- * consumer. `landAfterLogin`/`continueLogin` (./land.js) walk the registered steps in priority
- * order and land on the first one whose `pending` resolves `true`.
- */
-/**
  * The value shape a landing's `params`/`query` carries.
  *
  * Matches `FlowPayload` (`@owlmeans/flow`) and the `AbstractRequest` params/query fields
@@ -307,6 +299,14 @@ export interface LoginService extends LazyService {
  */
 export type LoginLandingParams = Record<string, string | number | boolean | undefined | null>
 
+/**
+ * A step to run after sign-in completes, before the ordinary landing.
+ *
+ * Registered by a package that must collect something from a freshly authenticated user before
+ * the application resumes wherever it was headed — the marketing-consent screen is the first
+ * consumer. `landAfterLogin`/`continueLogin` (./land.js) walk the registered steps in priority
+ * order and land on the first one whose `pending` resolves `true`.
+ */
 export interface LoginStep {
   alias: string
   /** Higher runs first. Defaults to 0. */
@@ -317,6 +317,22 @@ export interface LoginStep {
   query?: (ctx: LoginContext) => LoginLandingParams | undefined
   /** Whether this step still has something to collect from the signed-in user. */
   pending: (ctx: LoginContext) => Promise<boolean>
+  /**
+   * This step is where the Terms confirmation lives instead of on the sign-in screen.
+   *
+   * `termsDeferred(ctx)` (`./terms.js`) is true only while a step with this flag is both
+   * registered AND bound (`ctx.hasEntrypoint(step.entrypoint)`) — an app that registers the step
+   * but never binds its screen keeps the sign-in checkbox, fail-closed.
+   */
+  confirmsTerms?: boolean
+  /**
+   * A `pending` that throws or times out counts as PENDING rather than "not pending".
+   *
+   * The default (`undefined`/`false`) keeps every existing step fail-open, exactly as before —
+   * this flag is for a step whose whole point is to gate the landing on something the person must
+   * do (Terms confirmation), where a broken read must show the step rather than let it through.
+   */
+  required?: boolean
 }
 
 /** Where a finished sign-in (or a pending step) lands. */

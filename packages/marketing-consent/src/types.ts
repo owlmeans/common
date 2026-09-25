@@ -3,7 +3,14 @@ import type { RouteParent } from '@owlmeans/route'
 
 export type MarketingConsentMode = 'opt-in' | 'opt-out'
 
-/** Where a decision was made — carried on every saved `MarketingConsentDecision`. */
+/**
+ * Where a decision was made — carried on every saved `MarketingConsentDecision`.
+ *
+ * `'cookie'` is HISTORICAL: rows written while a device's cookie decisions could seed an account
+ * still carry it, and an append-only ledger must stay readable, so the value is kept in the stored
+ * shapes. Nothing writes it any more and a save request cannot carry it
+ * (`SaveMarketingConsentRequest.source`).
+ */
 export type MarketingConsentSource = 'sign-in' | 'settings' | 'cookie' | 'api'
 
 export interface MarketingConsentLink {
@@ -22,14 +29,18 @@ export interface MarketingConsentDefinition {
    * application's own stamp for a `custom` entry). A saved decision whose `revisedAt` differs is
    * re-asked (`consentStatus`'s `'revised'` status). */
   revisedAt: string
+  /**
+   * The statement a person agrees to, and its detail — an i18n key in this domain's resource
+   * (`labelKey`/`descriptionKey`) or, for a custom entry with no key, per-language text
+   * (`label`/`description`, language code → text, `en` as the fallback). Either may carry the
+   * placeholders `{{link}}`, `{{link2}}`, … — the definition's `links` in order, drawn inline
+   * where the placeholder stands.
+   */
   labelKey?: string
   descriptionKey?: string
   label?: Record<string, string>
   description?: Record<string, string>
   links?: MarketingConsentLink[]
-  /** The `@owlmeans/consent` cookie category this consent is bound to, when it also gates a
-   * tracker (`CONSENT_ANALYTICS` / `CONSENT_MARKETING`). */
-  cookieCategory?: string
   /** An opt-out consent defaults to denied — never granted — when Global Privacy Control is set. */
   honorGpc?: boolean
   order?: number
@@ -89,25 +100,9 @@ export interface TermsAcceptance {
 
 export interface SaveMarketingConsentRequest {
   decisions: Array<{ key: string, granted: boolean }>
-  source: Exclude<MarketingConsentSource, 'api'>
+  source: Exclude<MarketingConsentSource, 'api' | 'cookie'>
   locale?: string
   gpc?: boolean
-}
-
-/**
- * A per-runtime seam for a consent already held somewhere outside the saved-decision store — a
- * browser cookie-consent widget (`@owlmeans/consent`), a native OS permission mirror, and so on.
- *
- * `read` answers the bridge's own current values (or `null` when it has none yet, e.g. a fresh
- * browser with no cookie-consent record); `write` pushes a saved decision back into it so the two
- * stay in sync; `subscribe` is optional, for a bridge whose own UI can change the value
- * independently (the cookie-consent dialog's reopen button).
- */
-export interface MarketingConsentBridge {
-  alias: string
-  read: (defs: MarketingConsentDefinition[]) => Record<string, boolean> | null
-  write: (decisions: Record<string, boolean>, defs: MarketingConsentDefinition[]) => void
-  subscribe?: (listener: (decisions: Record<string, boolean>) => void, defs: MarketingConsentDefinition[]) => () => void
 }
 
 // --- Protocol tree ---------------------------------------------------------------------------

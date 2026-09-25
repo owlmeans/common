@@ -81,6 +81,7 @@ const MarketingConsentDecisionSchema: JSONSchemaType<MarketingConsentDecision> =
     revisedAt: { type: 'string', minLength: 1 },
     mode: { type: 'string', enum: ['opt-in', 'opt-out'] },
     decidedAt: { type: 'string', minLength: 1 },
+    // `'cookie'` stays valid for the rows an earlier device-to-account seeding wrote; nothing writes it now.
     source: { type: 'string', enum: ['sign-in', 'settings', 'cookie', 'api'] },
   },
   required: ['key', 'granted', 'revisedAt', 'mode', 'decidedAt', 'source'],

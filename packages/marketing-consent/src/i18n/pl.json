@@ -7,54 +7,41 @@
     "data": {
       "title": "Wykorzystanie danych",
       "description": "Jak Twoje dane są wykorzystywane i udostępniane."
-    },
-    "trackers": {
-      "title": "Narzędzia śledzące",
-      "description": "Technologie analityczne i reklamowe."
     }
   },
   "consent": {
     "marketing": {
       "email": {
-        "label": "Oferty i aktualności e-mail",
-        "description": "Nowości o produkcie, oferty i aktualności e-mailem."
+        "label": "Potwierdzam, że wyrażam zgodę na otrzymywanie nowości o produkcie, ofert i aktualności e-mailem.",
+        "description": "Będziemy pisać na adres e-mail przypisany do Twojego konta w sprawie tego produktu i powiązanych ofert. Zgodę możesz wycofać w dowolnym momencie w ustawieniach konta, a każda wiadomość zawiera link do rezygnacji z subskrypcji. Sposób przetwarzania Twoich danych opisano w dokumencie: {{link}}."
       },
       "sms": {
-        "label": "Wiadomości SMS",
-        "description": "Oferty i aktualności w wiadomościach tekstowych."
+        "label": "Potwierdzam, że wyrażam zgodę na otrzymywanie ofert i aktualności w wiadomościach SMS.",
+        "description": "Będziemy wysyłać wiadomości SMS na podany przez Ciebie numer telefonu w sprawie tego produktu i powiązanych ofert. Zgodę możesz wycofać w dowolnym momencie w ustawieniach konta. Sposób przetwarzania Twoich danych opisano w dokumencie: {{link}}."
       },
       "phone": {
-        "label": "Połączenia telefoniczne",
-        "description": "Oferty i aktualności podczas rozmowy telefonicznej."
+        "label": "Potwierdzam, że wyrażam zgodę na kontakt telefoniczny w sprawie ofert i aktualności.",
+        "description": "Możemy dzwonić na podany przez Ciebie numer telefonu w sprawie tego produktu i powiązanych ofert. Zgodę możesz wycofać w dowolnym momencie w ustawieniach konta, a wtedy przestaniemy do Ciebie dzwonić. Sposób przetwarzania Twoich danych opisano w dokumencie: {{link}}."
       },
       "push": {
-        "label": "Powiadomienia push",
-        "description": "Oferty i aktualności w formie powiadomień push."
+        "label": "Potwierdzam, że wyrażam zgodę na otrzymywanie ofert i aktualności w powiadomieniach push.",
+        "description": "Będziemy wysyłać powiadomienia na urządzenia, na których je włączysz, w sprawie tego produktu i powiązanych ofert. Zgodę możesz wycofać w dowolnym momencie w ustawieniach konta lub w ustawieniach urządzenia. Sposób przetwarzania Twoich danych opisano w dokumencie: {{link}}."
       }
     },
     "data": {
       "profiling": {
-        "label": "Personalizacja",
-        "description": "Wykorzystanie Twojej aktywności do personalizacji tego, co widzisz."
+        "label": "Potwierdzam, że wyrażam zgodę na wykorzystywanie mojej aktywności w produkcie do personalizacji tego, co widzę.",
+        "description": "Odwiedzane przez Ciebie strony, podejmowane działania i Twoje preferencje są analizowane, aby dopasować do Ciebie rekomendacje, treści i oferty. Zgodę możesz wycofać w dowolnym momencie, a personalizacja zostanie wyłączona. Szczegóły znajdziesz w dokumencie: {{link}}."
       },
       "partners": {
-        "label": "Udostępnianie partnerom",
-        "description": "Udostępnianie Twoich danych wybranym partnerom do ich własnych celów marketingowych."
-      }
-    },
-    "trackers": {
-      "analytics": {
-        "label": "Pliki cookie analityczne",
-        "description": "Pliki cookie pomagające zrozumieć, jak korzysta się z produktu."
-      },
-      "advertising": {
-        "label": "Pliki cookie reklamowe",
-        "description": "Pliki cookie służące do mierzenia i personalizowania reklam."
+        "label": "Potwierdzam, że wyrażam zgodę na udostępnianie moich danych wybranym partnerom na potrzeby ich własnego marketingu.",
+        "description": "Twoje imię i nazwisko, adres e-mail oraz profil korzystania z produktu mogą zostać przekazane wybranym partnerom, aby mogli skontaktować się z Tobą w sprawie własnych produktów; każdy partner przetwarza Twoje dane zgodnie z własną polityką prywatności. Zgodę możesz wycofać w dowolnym momencie, a udostępnianie zostanie zakończone. Szczegóły znajdziesz w dokumencie: {{link}}."
       }
     }
   },
   "link": {
-    "default": "Dowiedz się więcej"
+    "default": "Dowiedz się więcej",
+    "privacy": "Polityka prywatności"
   },
   "errors": {
     "unknown": "Nieznana zgoda: {{key}}"

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.9"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.10"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the

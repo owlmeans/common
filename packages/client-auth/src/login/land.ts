@@ -13,8 +13,10 @@ import type { LandOptions, LoginContext, LoginLanding, LoginService } from './ty
 /**
  * Bound on a single step's `pending` check, or a landing hook's `landed` call.
  *
- * A step/hook that hangs must never hang sign-in itself — both `continueLogin` and
- * `landAfterLogin` treat a timeout exactly like a rejection: fail OPEN, never block.
+ * A step/hook that hangs must never HANG sign-in itself — both `continueLogin` and
+ * `landAfterLogin` treat a timeout exactly like a rejection, resolving within this budget either
+ * way. What that resolves TO is fail-open ("not pending") for an ordinary step, and fail-closed
+ * ("pending") for one that declared itself `required` — see `continueLogin`'s `onBroken`.
  */
 export const LOGIN_STEP_TIMEOUT = 5_000
 
@@ -22,17 +24,22 @@ export const LOGIN_STEP_TIMEOUT = 5_000
 export const LOGIN_LANDED_STORAGE = '_owlmeans-login-landed'
 
 /**
- * Race a promise against a bound, resolving `undefined` (never rejecting) on timeout.
+ * Race a promise against a bound, resolving to `onTimeout` (never rejecting) if the bound wins.
  *
  * A synchronous throw from the wrapped call is turned into a rejection by the caller before this
- * ever sees it, so the only two outcomes here are "settled in time" and "timed out".
+ * ever sees it, so the only two outcomes here are "settled in time" and "timed out". `onTimeout`
+ * defaults to `undefined` — every existing caller that omits it keeps its old fail-open meaning;
+ * `continueLogin` passes a step's own `required` flag through it so a step that hangs is read the
+ * same way as one that throws.
  */
-const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T | undefined> => {
+const withTimeout = async <T>(
+  promise: Promise<T>, ms: number, onTimeout?: T
+): Promise<T | undefined> => {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race<T | undefined>([
       promise,
-      new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) }),
+      new Promise<T | undefined>(resolve => { timer = setTimeout(() => resolve(onTimeout), ms) }),
     ])
   } finally {
     if (timer != null) {
@@ -117,10 +124,13 @@ export const continueLogin = async (ctx: LoginContext, opts?: LandOptions): Prom
         continue
       }
 
-      // A step that throws or hangs must never block sign-in: fail OPEN, i.e. "not pending".
+      // A step that throws or hangs fails OPEN ("not pending") by default — UNLESS it declared
+      // itself `required`, in which case a broken read must show the step rather than let the
+      // person through it unconfirmed (a Terms box moved here from the sign-in screen).
+      const onBroken = step.required === true
       const pending = await withTimeout(
-        Promise.resolve().then(() => step.pending(ctx)), timeout
-      ).catch(() => false)
+        Promise.resolve().then(() => step.pending(ctx)), timeout, onBroken
+      ).catch(() => onBroken)
 
       if (pending === true) {
         return { alias: step.entrypoint, query: await step.query?.(ctx), step: step.alias }

@@ -1,8 +1,8 @@
 import type { FC, ReactNode } from 'react'
 import { cn } from '../../@/lib/utils.js'
 import type { LoginTermsModel } from '@owlmeans/client-panel/auth'
-import { termsSentence } from '@owlmeans/client-auth/login'
-import type { ResolvedTermsDocument, TermsSentencePart } from '@owlmeans/client-auth/login'
+import { termsLabelResolver, termsSentence } from '@owlmeans/client-auth/login'
+import type { TermsSentencePart } from '@owlmeans/client-auth/login'
 
 export interface LoginTermsProps {
   model: LoginTermsModel
@@ -12,43 +12,7 @@ export interface LoginTermsProps {
   className?: string
 }
 
-/**
- * English fallbacks for a document's own translated label, keyed by `ResolvedTermsDocument.key`.
- *
- * Only the keys this package's own resolver ever produces need one — a custom document always
- * carries its own `label`/`labelMap`, or a caller's own `i18nKey` with its own bundle entry.
- */
-const DEFAULT_LABEL: Record<string, string> = {
-  terms: 'Terms & Conditions',
-  privacy: 'Privacy Policy',
-  cookies: 'Cookie Policy',
-  billing: 'Billing Terms',
-  product: '{{product}} Product Terms',
-}
-
-/**
- * A document's own label: a caller's literal `label`, else its `labelMap` for the current locale,
- * else its `i18nKey` translated — each with `params` (e.g. `{ product: 'Acme' }`) interpolated
- * afterwards, since the `translate` contract this whole package shares is a plain
- * `(key, defaultValue) => string` with no interpolation option of its own.
- */
-const resolveLabelFor = (
-  translate: (key: string, defaultValue: string) => string, locale: string | undefined
-) => (doc: ResolvedTermsDocument): string => {
-  const fromMap = doc.labelMap != null
-    ? (locale != null ? doc.labelMap[locale] : undefined) ?? Object.values(doc.labelMap)[0]
-    : undefined
-  let label = doc.label ?? fromMap
-    ?? (doc.i18nKey != null ? translate(doc.i18nKey, DEFAULT_LABEL[doc.key] ?? doc.key) : doc.key)
-
-  if (doc.params != null) {
-    for (const [key, value] of Object.entries(doc.params)) {
-      label = label.split(`{{${key}}}`).join(value)
-    }
-  }
-
-  return label
-}
+export type LoginPrivacyNoticeProps = LoginTermsProps
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
@@ -58,13 +22,32 @@ const renderParts = (parts: TermsSentencePart[]): ReactNode =>
     : <span key={index}>{part.text}</span>)
 
 /**
+ * The privacy disclosure alone — `notices` (privacy, plus cookies per its own rule), never
+ * consented to and never nested inside a checkbox's `<label>`.
+ *
+ * Split out of {@link LoginTerms} so a sign-in screen whose Terms confirmation has moved to a
+ * post-login step (`termsDeferred`, `@owlmeans/client-auth/login`) can still show this line on its
+ * own — the disclosure does not move just because the confirmation did.
+ */
+export const LoginPrivacyNotice: FC<LoginPrivacyNoticeProps> = ({ model, translate, locale, className }) => {
+  const resolveLabel = termsLabelResolver(translate, locale)
+
+  return <p data-login-privacy className={cn('text-xs text-muted-foreground', className)}>
+    {renderParts(termsSentence(
+      translate('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
+      model, locale, resolveLabel
+    ))}
+  </p>
+}
+
+/**
  * The sign-in screen's terms confirmation: one consented checkbox for `documents` (terms, plus
  * billing/product/custom when configured), and a SEPARATE, non-consented disclosure line for
  * `notices` (privacy, plus cookies per its own rule) — never nested inside the checkbox's label,
  * because nothing is being agreed to there.
  */
 export const LoginTerms: FC<LoginTermsProps> = ({ model, translate, locale, className }) => {
-  const resolveLabel = resolveLabelFor(translate, locale)
+  const resolveLabel = termsLabelResolver(translate, locale)
 
   // Centred, like every other row in the card. The checkbox stays at the start of the sentence
   // rather than above it, so `justify-center` centres the pair and `text-center` centres the
@@ -100,16 +83,7 @@ export const LoginTerms: FC<LoginTermsProps> = ({ model, translate, locale, clas
       {translate('login.terms.revised', 'Last updated: {{date}}').split('{{date}}').join(model.revisedAt)}
     </p>}
 
-    {/*
-      Outside the checkbox's `<label>` on purpose: a privacy disclosure is not something the
-      checkbox consents to, so it is a sibling paragraph rather than nested inside it.
-    */}
-    <p data-login-privacy className="text-xs text-muted-foreground">
-      {renderParts(termsSentence(
-        translate('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
-        model, locale, resolveLabel
-      ))}
-    </p>
+    <LoginPrivacyNotice model={model} translate={translate} locale={locale} />
 
     {model.attempted && !model.accepted && <p role="alert" className="text-sm text-destructive">
       {renderParts(termsSentence(

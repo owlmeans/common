@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client-payment",
-  "version": "0.1.18-rc.46",
+  "version": "0.1.18-rc.48",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,9 +21,9 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client-auth": "^0.1.18-rc.47",
+    "@owlmeans/client-auth": "^0.1.18-rc.49",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/payment": "^0.1.18-rc.38"
+    "@owlmeans/payment": "^0.1.18-rc.39"
   },
   "peerDependencies": {
     "react": "*"

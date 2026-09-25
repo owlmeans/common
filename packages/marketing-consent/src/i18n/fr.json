@@ -7,54 +7,41 @@
     "data": {
       "title": "Utilisation des données",
       "description": "Comment vos données sont utilisées et partagées."
-    },
-    "trackers": {
-      "title": "Traceurs",
-      "description": "Technologies d'analyse et de publicité."
     }
   },
   "consent": {
     "marketing": {
       "email": {
-        "label": "Offres et actualités par email",
-        "description": "Actualités produit, offres et mises à jour par email."
+        "label": "Je confirme accepter de recevoir des actualités du produit, des offres et des mises à jour par e-mail.",
+        "description": "Nous écrirons à l'adresse e-mail de votre compte à propos de ce produit et des offres associées. Vous pouvez retirer ce consentement à tout moment dans les paramètres de votre compte, et chaque message contient un lien de désabonnement. La manière dont nous traitons vos données est décrite dans la {{link}}."
       },
       "sms": {
-        "label": "Messages SMS",
-        "description": "Offres et mises à jour par message texte."
+        "label": "Je confirme accepter de recevoir des offres et des mises à jour par SMS.",
+        "description": "Nous vous enverrons des SMS au numéro de téléphone que vous indiquerez à propos de ce produit et des offres associées. Vous pouvez retirer ce consentement à tout moment dans les paramètres de votre compte. La manière dont nous traitons vos données est décrite dans la {{link}}."
       },
       "phone": {
-        "label": "Appels téléphoniques",
-        "description": "Offres et mises à jour par appel téléphonique."
+        "label": "Je confirme accepter que l'on me contacte par téléphone avec des offres et des mises à jour.",
+        "description": "Nous pouvons appeler le numéro de téléphone que vous indiquerez à propos de ce produit et des offres associées. Vous pouvez retirer ce consentement à tout moment dans les paramètres de votre compte, et nous cesserons de vous appeler. La manière dont nous traitons vos données est décrite dans la {{link}}."
       },
       "push": {
-        "label": "Notifications push",
-        "description": "Offres et mises à jour sous forme de notifications push."
+        "label": "Je confirme accepter de recevoir des offres et des mises à jour sous forme de notifications push.",
+        "description": "Nous enverrons des notifications aux appareils sur lesquels vous les autorisez, à propos de ce produit et des offres associées. Vous pouvez retirer ce consentement à tout moment dans les paramètres de votre compte ou de votre appareil. La manière dont nous traitons vos données est décrite dans la {{link}}."
       }
     },
     "data": {
       "profiling": {
-        "label": "Personnalisation",
-        "description": "Utiliser votre activité pour personnaliser ce que vous voyez."
+        "label": "Je confirme accepter que mon activité dans le produit soit utilisée pour personnaliser ce que je vois.",
+        "description": "Les pages que vous ouvrez, les actions que vous effectuez et vos préférences sont analysées afin d'adapter les recommandations, les contenus et les offres à votre profil. Vous pouvez retirer ce consentement à tout moment et la personnalisation cessera. Les détails figurent dans la {{link}}."
       },
       "partners": {
-        "label": "Partage avec des partenaires",
-        "description": "Partage de vos données avec des partenaires sélectionnés pour leur propre marketing."
-      }
-    },
-    "trackers": {
-      "analytics": {
-        "label": "Cookies analytiques",
-        "description": "Cookies qui nous aident à comprendre comment le produit est utilisé."
-      },
-      "advertising": {
-        "label": "Cookies publicitaires",
-        "description": "Cookies utilisés pour mesurer et personnaliser les publicités."
+        "label": "Je confirme accepter que mes données soient partagées avec des partenaires sélectionnés pour leur propre marketing.",
+        "description": "Votre nom, votre adresse e-mail et votre profil d'utilisation peuvent être transmis à des partenaires sélectionnés afin qu'ils vous contactent au sujet de leurs propres produits ; chaque partenaire traite vos données selon sa propre politique de confidentialité. Vous pouvez retirer ce consentement à tout moment et le partage cessera. Les détails figurent dans la {{link}}."
       }
     }
   },
   "link": {
-    "default": "En savoir plus"
+    "default": "En savoir plus",
+    "privacy": "Politique de confidentialité"
   },
   "errors": {
     "unknown": "Consentement inconnu : {{key}}"

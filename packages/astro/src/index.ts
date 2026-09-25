@@ -1,4 +1,4 @@
-import { consentBootstrapScript } from '@owlmeans/consent'
+import { consentAllowsScript, consentBootstrapScript, consentLinkerScript } from '@owlmeans/consent'
 import type { ConsentOptions } from '@owlmeans/consent'
 import { gtmHeadScript, gtmNoscriptFrame } from '@owlmeans/web-gtm'
 import type { GtmOptions } from '@owlmeans/web-gtm'
@@ -21,6 +21,23 @@ export interface HeadScripts {
   head: string
   /** `<noscript>` content for the top of `<body>`. Empty when no container is configured. */
   noscript: string
+  /**
+   * The standalone adopt-and-strip fragment (`consentLinkerScript`) — empty unless
+   * `consent.linker` is set. `head` already carries the SAME fragment when a tag is configured
+   * (`consentBootstrapScript` embeds it right after the consent defaults), so this exists for a
+   * page that has to adopt regardless of whether it also runs a tag: stamp it FIRST, ahead of
+   * `head`, on every page a layout renders — legal pages included, since adopting a cross-domain
+   * cookie choice is not itself tracking. A page that also stamps `head` runs this fragment twice
+   * with no double effect: the second attempt finds the parameter already stripped and does
+   * nothing.
+   */
+  adopt: string
+  /**
+   * Defines `window.owlConsentAllows(category)` (`consentAllowsScript`) — for the page's own inline
+   * scripts that remember something on the visitor's device (a chosen language) and must ask first.
+   * Stamp it after `adopt` (an adopted decision counts) and before those scripts. Always present.
+   */
+  allows: string
 }
 
 /**
@@ -29,10 +46,13 @@ export interface HeadScripts {
  * Pass no `gtm` and it is just the consent defaults — which a site still wants, because a stored
  * decision has to reach any tag the page loads later.
  */
-export const owlHeadScripts = (opts?: { gtm?: GtmOptions, consent?: ConsentOptions }): HeadScripts =>
-  opts?.gtm != null
+export const owlHeadScripts = (opts?: { gtm?: GtmOptions, consent?: ConsentOptions }): HeadScripts => ({
+  ...(opts?.gtm != null
     ? { head: gtmHeadScript({ ...opts.consent, ...opts.gtm }), noscript: gtmNoscriptFrame(opts.gtm) }
-    : { head: consentBootstrapScript(opts?.consent), noscript: '' }
+    : { head: consentBootstrapScript(opts?.consent), noscript: '' }),
+  adopt: consentLinkerScript(opts?.consent ?? {}),
+  allows: consentAllowsScript(opts?.consent),
+})
 
 /**
  * Whether this page must carry no tracking at all.

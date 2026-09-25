@@ -1,15 +1,23 @@
 {
   "screen": {
-    "title": "Your privacy choices",
-    "subtitle": "Choose what we may use to reach you and personalize your experience.",
+    "title": "Agreements and consents",
+    "subtitle": "Choose how we may contact you and how your data may be used.",
+    "subtitle-terms": "Confirm the terms and conditions to continue, and choose how we may contact you and how your data may be used.",
     "all": "Select all",
     "updated": "Updated",
     "save": "Save and continue",
     "saving": "Saving…",
-    "skip": "Continue without saving",
+    "skip": "Skip for now",
+    "skip-note": "We will ask again the next time you sign in.",
     "error": "We couldn't save your choices.",
+    "terms-error": "We couldn't confirm the Terms. Please try again.",
     "gpc": "Honored via your browser's Global Privacy Control signal",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "hint": "You can continue without changing anything.",
+    "signout": "Sign out",
+    "last-updated": "Last updated: {{date}}",
+    "required-note": "* Required",
+    "required": "required"
   },
   "preferences": {
     "save": "Save",

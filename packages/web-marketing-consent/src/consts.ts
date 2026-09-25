@@ -9,8 +9,15 @@ export const MARKETING_CONSENT_LOGIN_STEP = 'marketing-consent'
 /** `LoginLandingHook.alias` — records a fresh terms acceptance once, per landed token. */
 export const MARKETING_CONSENT_LANDING_HOOK_TERMS = 'marketing-consent:terms'
 
-/** `LoginLandingHook.alias` — reconciles every registered `MarketingConsentBridge` once, per landed token. */
-export const MARKETING_CONSENT_LANDING_HOOK_SYNC = 'marketing-consent:bridges'
+/**
+ * Where a browser records that THIS sign-in already skipped the marketing-consent step.
+ *
+ * Keyed by the sign-in's own session id (or the raw token when none), never a digest — it never
+ * leaves the browser, mirroring `@owlmeans/client-auth/login`'s `LOGIN_LANDED_STORAGE`. A skip is
+ * therefore honoured for the rest of THIS sign-in (a `/dispatcher` revisit included) and forgotten
+ * the moment a new one starts, which is what "shown again at the next sign-in" means.
+ */
+export const MARKETING_CONSENT_SKIP_STORAGE = '_owlmeans-marketing-consent-skipped'
 
 /**
  * The i18n resource this package's own screen/preferences strings register under.
@@ -29,3 +36,13 @@ export const MARKETING_CONSENT_LANDING_HOOK_SYNC = 'marketing-consent:bridges'
  * describe the same feature.
  */
 export const MARKETING_CONSENT_I18N = DOMAIN_I18N
+
+/**
+ * The i18n resource `@owlmeans/client-auth/login` registers its `login.terms.*` strings under
+ * (`addI18nLib(lng, 'auth', ...)` — no constant exported for it there; `@owlmeans/web-panel`'s own
+ * `LoginTerms` wiring hardcodes the same literal). The Terms box and the privacy notice this
+ * package renders on the consent screen read THIS resource, never `MARKETING_CONSENT_I18N` — those
+ * are the sign-in screen's own sentences, reused here verbatim so the wording never forks between
+ * the two places a person might see them.
+ */
+export const AUTH_I18N = 'auth'

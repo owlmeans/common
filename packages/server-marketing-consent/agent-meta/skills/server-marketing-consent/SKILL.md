@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-marketing-consent
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.4"` in `dependencies`
+**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.6"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `consentStatus`, the protocol tree, the error family
 
 ## Key Exports
@@ -55,7 +55,7 @@ exists under this alias before the first `status`/`save`/`terms` call" does).
 This is the single most important gotcha in this package. `MarketingConsentStateRecord.decisions`
 holds `MarketingConsentDecision[]`, one entry per key, folded down to the latest per key on read
 (`consentStatus`). It is never stored as `{ [key]: MarketingConsentDecision }`, because every
-standard consent key is DOTTED (`marketing.email`, `trackers.advertising`) and a dotted key inside
+standard consent key is DOTTED (`marketing.email`, `data.profiling`) and a dotted key inside
 an object field is read as a PATH by both Mongo's dot-notation queries (`{'decisions.marketing.email':
 ...}` reaches into a nested `email` field under a nested `marketing` field, not a literal key) and
 Postgres jsonb path operators (`->` chains on segments). An object-keyed shape works in a quick
@@ -121,13 +121,20 @@ the log keeps every decision and terms acceptance ever recorded, because that hi
 marketing-consent`'s own skill's legal matrix). A retention/erasure policy for the log itself is a
 product decision this package does not make.
 
+## Where a decision came from — `source`
+
+Each saved decision and each log row carries `source`: `'sign-in'` or `'settings'` from the two
+screens, `'api'` from a server-side write. The stored schemas also accept `'cookie'` — historical
+rows an earlier device-to-account seeding wrote. The ledger is append-only evidence and must stay
+readable, so the value stays valid in storage while nothing writes it and the save request schema
+refuses it.
+
 ## `observe`
 
 `save`/`recordTerms` call every registered listener, in registration order, each awaited and each
 wrapped in its own try/catch — one listener's failure never blocks the write or stops the next
 listener (the same shape `@owlmeans/server-auth-identity`'s `IdentityEventsService.
-propagateEntityCreated` uses). Use it to sync a `MarketingConsentBridge` (a cookie-consent widget) or
-to fan a decision out to a downstream system; never to do work the write itself depends on.
+propagateEntityCreated` uses). Use it to fan a decision out to a downstream system (a mailing list, a CRM); never to do work the write itself depends on.
 
 ## Testing
 

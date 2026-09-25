@@ -5,7 +5,7 @@ description: Bind OwlMeans shared entrypoint protocols in a browser application.
 
 # Browser protocol entrypoints
 
-**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.50`
+**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.52`
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.
@@ -33,7 +33,9 @@ const project = await context.entrypoint(projectProtocols.get).call({
 ## Lazily-loaded screens
 
 `lazyHandler` and `lazyComponent` (from `@owlmeans/client`) are re-exported here and by
-`@owlmeans/web-panel`, next to `handler`. A `lazyHandler(...)` result binds exactly like
+`@owlmeans/web-panel`, next to `handler`; so are, here only, the chunk-failure tools
+`retryImport`, `isChunkLoadError`, `reloadOnce` and `recoverFromChunkError` (types
+`LazyErrorRenderer`, `RetryImportOptions`). A `lazyHandler(...)` result binds exactly like
 `handler(Component)`; declare it at module scope, where the bindings live — never inside a render.
 
 ```tsx
@@ -50,7 +52,9 @@ export const clientBindings = [
 ```
 
 The fallback renders inside the screen's own `Suspense` boundary, so the layout around it stays
-mounted while the chunk loads. Rules and options: the `client` skill, Code-splitting.
+mounted while the chunk loads, and the screen's own error boundary keeps a failed chunk from
+unmounting it: a fetch failure is retried, then `error` renders — or, without one, the guarded
+reload starts. Rules and options: the `client` skill, Code-splitting and Chunk failures.
 
 ## Rendering after an async boot
 

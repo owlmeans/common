@@ -1,15 +1,23 @@
 {
   "screen": {
-    "title": "Ihre Datenschutzeinstellungen",
-    "subtitle": "Wählen Sie, was wir nutzen dürfen, um Sie zu erreichen und Ihre Erfahrung zu personalisieren.",
+    "title": "Vereinbarungen und Einwilligungen",
+    "subtitle": "Wählen Sie, wie wir Sie kontaktieren dürfen und wie Ihre Daten verwendet werden dürfen.",
+    "subtitle-terms": "Bestätigen Sie die Geschäftsbedingungen, um fortzufahren, und wählen Sie, wie wir Sie kontaktieren dürfen und wie Ihre Daten verwendet werden dürfen.",
     "all": "Alle auswählen",
     "updated": "Aktualisiert",
     "save": "Speichern und fortfahren",
     "saving": "Wird gespeichert…",
-    "skip": "Ohne Speichern fortfahren",
+    "skip": "Vorerst überspringen",
+    "skip-note": "Wir fragen beim nächsten Anmelden erneut.",
     "error": "Ihre Auswahl konnte nicht gespeichert werden.",
+    "terms-error": "Die Bedingungen konnten nicht bestätigt werden. Bitte versuchen Sie es erneut.",
     "gpc": "Berücksichtigt dank des Global-Privacy-Control-Signals Ihres Browsers",
-    "loading": "Wird geladen…"
+    "loading": "Wird geladen…",
+    "hint": "Sie können fortfahren, ohne etwas zu ändern.",
+    "signout": "Abmelden",
+    "last-updated": "Zuletzt aktualisiert: {{date}}",
+    "required-note": "* Pflichtfeld",
+    "required": "Pflichtfeld"
   },
   "preferences": {
     "save": "Speichern",

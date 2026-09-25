@@ -50,3 +50,22 @@ describe('centeredPopupFeatures', () => {
     expect(centeredPopupFeatures(520, 760)).toBe('popup=yes,width=520,height=760,left=0,top=0')
   })
 })
+
+describe('surrogateLoginStep', () => {
+  test('a stored session is forgotten when there is a dispatcher to authenticate through', async () => {
+    const { surrogateLoginStep, SurrogateLoginStep } = await import('../src/login/screen.js')
+    expect(surrogateLoginStep('OIDC-WRAPPED-TOKEN abc', '/dispatcher?x=1')).toBe(SurrogateLoginStep.Forget)
+  })
+
+  test('a stored session is handed back only when there is no dispatcher address', async () => {
+    const { surrogateLoginStep, SurrogateLoginStep } = await import('../src/login/screen.js')
+    expect(surrogateLoginStep('OIDC-WRAPPED-TOKEN abc', null)).toBe(SurrogateLoginStep.Resume)
+    expect(surrogateLoginStep('OIDC-WRAPPED-TOKEN abc', '')).toBe(SurrogateLoginStep.Resume)
+  })
+
+  test('nothing stored authenticates, with or without a dispatcher address', async () => {
+    const { surrogateLoginStep, SurrogateLoginStep } = await import('../src/login/screen.js')
+    expect(surrogateLoginStep(null, '/dispatcher')).toBe(SurrogateLoginStep.Authenticate)
+    expect(surrogateLoginStep('', null)).toBe(SurrogateLoginStep.Authenticate)
+  })
+})

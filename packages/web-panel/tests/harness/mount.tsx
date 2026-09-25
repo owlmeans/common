@@ -118,6 +118,15 @@ const themeToggle = new URLSearchParams(window.location.search).get('themeToggle
 // confirmation — the shape that pins the "still exactly one checkbox" and "documents render
 // outside the notice" rules even when there is more than terms+privacy to show.
 const extendedTerms = new URLSearchParams(window.location.search).get('terms') === 'extended'
+// `?defer=bound` registers a step that CONFIRMS the terms, bound to a real screen — the sign-in
+// screen must then show no checkbox, only the privacy notice, and block nothing.
+// `?defer=unbound` registers the same step but never binds its entrypoint — the checkbox must
+// stay (fail-closed): a step nobody can reach must never silently remove the confirmation.
+const defer = new URLSearchParams(window.location.search).get('defer')
+// `?domains=1` passes `linker` through to `PanelCookieConsent` — proving the prop reaches
+// `@owlmeans/web-consent`'s `CookieConsent` with nothing lost in between (the props already just
+// spread through; this is what pins that they keep doing so).
+const withDomains = new URLSearchParams(window.location.search).get('domains') === '1'
 
 /**
  * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
@@ -314,6 +323,19 @@ ensureLoginService(context as never).registerMethodSource({
   ],
 })
 
+if (defer != null) {
+  ensureLoginService(context as never).registerStep({
+    alias: 'harness-terms-step',
+    // "bound" points at a real screen of this harness (`/prefs`, already registered below) —
+    // `termsDeferred` only reads `ctx.hasEntrypoint`, so any bound alias proves the point.
+    // "unbound" points nowhere: `hasEntrypoint` answers false and the step stays unreachable.
+    entrypoint: defer === 'bound' ? alias.prefs : 'harness-terms-step-nowhere',
+    confirmsTerms: true,
+    required: true,
+    pending: async () => false,
+  })
+}
+
 const protocols = {
   base: openProtocol(route(BASE, '/', frontend())),
   home: openProtocol(route(HOME, '/', frontend({ default: true, parent: BASE }))),
@@ -353,5 +375,8 @@ context.registerEntrypoints(entrypoints)
 // The consent dialog is a sibling of the Router, as in an application — and only on the consent
 // branches, since its first-visit overlay covers the page every other test clicks through.
 createRoot(document.getElementById('root')!).render(<PanelApp context={context as never}>
-  {consentMode != null && <PanelCookieConsent policyHref="/cookies" />}
+  {consentMode != null && <PanelCookieConsent
+    policyHref="/cookies"
+    {...(withDomains ? { linker: { domains: ['harness-partner.test'] } } : {})}
+  />}
 </PanelApp>)

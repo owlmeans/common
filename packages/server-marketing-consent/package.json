@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-marketing-consent",
-  "version": "0.1.18-rc.4",
+  "version": "0.1.18-rc.6",
   "license": "MIT",
   "description": "The server half of @owlmeans/marketing-consent — a database-agnostic MarketingConsentService (status/save/terms/purge over resources resolved by alias) plus the guarded status/save/terms entrypoint handlers.",
   "type": "module",
@@ -23,26 +23,26 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.35",
-    "@owlmeans/auth-common": "^0.1.18-rc.37",
+    "@owlmeans/auth": "^0.1.18-rc.36",
+    "@owlmeans/auth-common": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.36",
-    "@owlmeans/error": "^0.1.18-rc.35",
-    "@owlmeans/marketing-consent": "^0.1.18-rc.3",
-    "@owlmeans/resource": "^0.1.18-rc.35",
-    "@owlmeans/server-api": "^0.1.18-rc.41",
-    "@owlmeans/server-auth-token": "^0.1.18-rc.22",
-    "@owlmeans/server-context": "^0.1.18-rc.36",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.35"
+    "@owlmeans/entrypoint": "^0.1.18-rc.37",
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/marketing-consent": "^0.1.18-rc.5",
+    "@owlmeans/resource": "^0.1.18-rc.36",
+    "@owlmeans/server-api": "^0.1.18-rc.42",
+    "@owlmeans/server-auth-token": "^0.1.18-rc.23",
+    "@owlmeans/server-context": "^0.1.18-rc.37",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.36"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/static-resource": "^0.1.18-rc.34",
+    "@owlmeans/static-resource": "^0.1.18-rc.35",
     "@owlmeans/test": "^0.1.18-rc.32",
-    "@owlmeans/test-auth": "^0.1.18-rc.36",
+    "@owlmeans/test-auth": "^0.1.18-rc.37",
     "@types/bun": "^1.4.0",
     "ajv": "^8.17.1",
     "nodemon": "^3.1.14",

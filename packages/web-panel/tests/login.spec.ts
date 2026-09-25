@@ -168,8 +168,11 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       await page.waitForSelector('[data-login-method]')
 
       expect(await page.locator('[data-login-terms]').isChecked()).toBe(true)
+      // Omitted rather than `"false"`: `aria-disabled={blocked || undefined}` drops the attribute
+      // entirely once unblocked, which is what lets a deferred screen (no `blocked` state at all)
+      // render the same way with no special case.
       expect(await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled'))
-        .toBe('false')
+        .toBeNull()
     } finally {
       await close()
     }
@@ -254,6 +257,51 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
 
         expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
           .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
+
+  describe('the Terms confirmation deferred to a step', () => {
+    test('bound: no checkbox, the privacy notice still renders, and methods are never blocked', async () => {
+      const { page, close } = await open('?defer=bound')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+        expect(await page.locator('[role="alert"]').count()).toBe(0)
+
+        const disabled = await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled')
+        expect(disabled).not.toBe('true')
+
+        await page.locator('[data-login-method="primary"]').click()
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('bound + extended documents: still no checkbox, still no blocking', async () => {
+      const { page, close } = await open('?defer=bound&terms=extended')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(0)
+        expect(await page.locator('[data-login-privacy]').count()).toBe(1)
+
+        await page.locator('[data-login-method="primary"]').click()
+        expect(await page.evaluate(() => (window as never as { __loginStarted: string[] }).__loginStarted))
+          .toEqual(['primary'])
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('unbound: the checkbox stays — a step nobody can reach never removes the confirmation', async () => {
+      const { page, close } = await open('?defer=unbound')
+      try {
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+        expect(await page.locator('[data-login-method="primary"]').getAttribute('aria-disabled'))
+          .toBe('true')
       } finally {
         await close()
       }

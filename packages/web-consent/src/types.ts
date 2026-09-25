@@ -1,5 +1,5 @@
 import type {
-  ConsentCategory, ConsentReason, ConsentRecord, ConsentService,
+  ConsentCategory, ConsentLinkerOptions, ConsentReason, ConsentRecord, ConsentService,
 } from '@owlmeans/consent'
 
 export interface ConsentLink {
@@ -27,6 +27,14 @@ export interface CookieConsentProps {
   /** Hide the persistent re-open button, for an app that offers a footer link instead. */
   noReopenButton?: boolean
   className?: string
+  /** Cross-domain consent — see `ConsentLinkerOptions`. Passed through to `consentStore.init`. */
+  linker?: ConsentLinkerOptions
+  /**
+   * The `localStorage` keys this application keeps its functional preferences under — removed
+   * whenever the visitor has not granted `functional`. Passed through to `consentStore.init`;
+   * defaults to the interface-language key. See `ConsentOptions.functionalKeys`.
+   */
+  functionalKeys?: string[]
 }
 
 export interface CookiePolicyProps {
@@ -47,6 +55,8 @@ export interface CookiePolicyProps {
    */
   services?: ConsentService[]
   className?: string
+  /** Cross-domain consent — see `ConsentLinkerOptions`. Names the domains the policy discloses. */
+  linker?: ConsentLinkerOptions
 }
 
 export interface ConsentMenuWidgetProps {

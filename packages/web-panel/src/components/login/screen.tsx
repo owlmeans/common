@@ -9,7 +9,7 @@ import { useLoginMethods } from '@owlmeans/client-panel/auth'
 import { loginAttemptError } from '@owlmeans/client-auth/login'
 import type { LoginMethod, LoginScreenProps } from '@owlmeans/client-auth/login'
 import { LoginMethodIcon } from './icons.js'
-import { LoginTerms } from './terms.js'
+import { LoginPrivacyNotice, LoginTerms } from './terms.js'
 import { LoginCredit } from './credit.js'
 
 const VARIANT: Record<string, 'default' | 'outline' | 'link'> = {
@@ -84,7 +84,7 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
               // who has not confirmed the terms would press it and be told nothing at all — the
               // screen would simply seem broken. Blocking happens in the handler, which then says
               // why.
-              aria-disabled={model.blocked}
+              aria-disabled={model.blocked || undefined}
               data-blocked={model.blocked ? 'true' : undefined}
               // `cursor-pointer` explicitly: the package's private shadcn button stays compatible
               // with the older primitive style too. Stating it here keeps the sign-in control
@@ -103,7 +103,11 @@ export const LoginScreen: FC<LoginScreenProps> = props => {
             </Button>)}
           </div>}
 
-        {model.terms.required && <LoginTerms model={model.terms} translate={t} locale={props.locale} />}
+        {/* Terms mode: the checkbox lives on a post-login step instead (`termsDeferred`) — this
+            screen shows the privacy disclosure alone and blocks nothing on it. */}
+        {model.terms.required && (model.terms.deferred
+          ? <LoginPrivacyNotice model={model.terms} translate={t} locale={props.locale} />
+          : <LoginTerms model={model.terms} translate={t} locale={props.locale} />)}
 
         {/*
           A thrown message first, because it names the actual fault; otherwise whatever the

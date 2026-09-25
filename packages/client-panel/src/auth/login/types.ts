@@ -12,6 +12,13 @@ export interface UseLoginMethodsOptions {
 export interface LoginTermsModel {
   required: boolean
   accepted: boolean
+  /**
+   * A registered, bound `LoginStep` confirms the terms instead of this screen — see
+   * `termsDeferred` (`@owlmeans/client-auth/login`). While true, `required` and `accepted` still
+   * carry their ordinary values (for a renderer that wants them), but nothing is EVER blocked on
+   * them here, and a renderer should show the privacy notice only, no checkbox.
+   */
+  deferred: boolean
   /** A blocked selection was attempted — render the explanation. */
   attempted: boolean
   /** What the checkbox agrees to — terms, then billing/product when configured, then custom. */

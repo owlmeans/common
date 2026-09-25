@@ -20,7 +20,7 @@ abstraction that resolves models from an inheritable policy.
 ## Installation
 
 ```bash
-bun add @owlmeans/llm@^0.1.18-rc.37 @owlmeans/llm-common@^0.1.18-rc.36
+bun add @owlmeans/llm@^0.1.18-rc.38 @owlmeans/llm-common@^0.1.18-rc.36
 bun add @langchain/core @langchain/openai @langchain/anthropic   # peer dependencies
 ```
 
@@ -185,7 +185,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.38
+npx @owlmeans/agent-skills@^0.1.18-rc.39
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

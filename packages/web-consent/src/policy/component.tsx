@@ -4,7 +4,7 @@ import {
   defaultConsentTranslate, interpolate, openConsent,
 } from '@owlmeans/consent'
 import type { ConsentService } from '@owlmeans/consent'
-import { cn } from '../lib/utils.js'
+import { cn, disclosedDomains } from '../lib/utils.js'
 import type { CookiePolicyProps } from '../types.js'
 
 type Translate = (key: string, defaultValue: string) => string
@@ -82,6 +82,7 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
   const keys = new Set(categories.map(category => category.key))
   const other = services.filter(service => !keys.has(service.category))
   const otherLabel = t('policyOtherServices', 'Other services')
+  const domains = disclosedDomains(props.linker)
 
   return <article className={cn('prose prose-sm max-w-2xl', props.className)} data-cookie-policy>
     <h1>{t('policyTitle', 'Cookie Policy')}</h1>
@@ -112,6 +113,14 @@ export const CookiePolicy: FC<CookiePolicyProps> = props => {
       t('policyStorage', 'Your choice is stored in this browser under "{{key}}", both in local storage and as a cookie.'),
       { key: storageKey }
     )}</p>
+
+    {domains.length > 1 && <>
+      <p>{t('policyDomains', 'This choice applies across these domains:')}</p>
+      <ul data-cookie-policy-domains>
+        {domains.map(domain => <li key={domain}>{domain}</li>)}
+      </ul>
+    </>}
+
     <p>{interpolate(
       t('policyRetention', 'The record is kept for {{days}} days, after which you will be asked again.'),
       { days }

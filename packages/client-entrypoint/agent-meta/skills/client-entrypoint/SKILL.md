@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/client-entrypoint
 
-**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.37`
+**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.38`
 
 Bind a declaration from `@owlmeans/entrypoint`; never construct or replace a contextual
 entrypoint by alias.
@@ -28,6 +28,15 @@ const href = await context.entrypoint(projectProtocols.edit).url({ params: { id 
 types. `bind(protocol)` is appropriate where one protocol must use a distinct client option.
 `bindScreen` is for a frontend route and renderer; screens are addressed by `url` and reject
 `call`/`invoke`.
+
+`bindScreen` takes a `lazyHandler(...)` result (`@owlmeans/client`) directly, the same as
+`handler(Component)`: both return a `RefedEntrypointHandler`, the lazy one also carrying
+`.preload()`, so no different wiring is needed. Create it at module scope, never in a render.
+
+```ts
+const reports = lazyHandler(() => import('./reports.js'), 'Reports', { fallback: <Spinner /> })
+context.registerEntrypoint(bindScreen(projectProtocols.reports, reports))
+```
 
 `context.entrypoint(protocol)` derives `ClientProtocolEntrypoint<Protocol>` from the protocol. Do
 not add an explicit result generic. `entrypointRef<Request, Response>(alias)` is reserved for a

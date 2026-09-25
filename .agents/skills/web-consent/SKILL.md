@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.31"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.33"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 Consent Mode signalling — is `@owlmeans/consent`, and this package re-exports a **named selection**
@@ -40,7 +40,7 @@ components — see below.
 | `useConsent(opts?)` | This document's consent state and the actions over it (`UseConsentModel`) — **it also initialises the store on mount**, see below |
 | `useConsentCategory(key)` | Whether one category is granted, for a component gating a single thing |
 | `CookieConsentProps` / `CookiePolicyProps` / `ConsentLink` | The component props |
-| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale` |
+| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, the plugin seam (`registerConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `startConsentPlugins`, `adoptConsentLanguage`), the linker (`consentLinker`, `encodeConsentLink`, `decodeConsentLink`, `stripConsentLinkParam`, `consentLinkerScript`, `writeConsentLanguage`, `CONSENT_LANGUAGE_KEY`, `CONSENT_FUNCTIONAL`, `CONSENT_EVENT`, `CONSENT_LANGUAGE_EVENT`, `CONSENT_PENDING_LANGUAGE`, `functionalGranted`, `functionalKeysOf`, `purgeFunctionalStorage`, `writeFunctionalPreference`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW`), and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload` |
 
 ## Mounting the dialog
 
@@ -73,6 +73,19 @@ import { CookieConsent } from '@owlmeans/web-consent'
   for as long as a visitor stays and must read as a small fixture rather than compete with the
   page's own controls. The pictogram is 20px (`h-5 w-5`) inside an invisible 44px hit area
   (`h-11 w-11`). `[data-consent-reopen]` is what any test or CSS override keys on.
+- **`linker` (`ConsentLinkerOptions`)** turns on cross-domain consent (see the `consent` skill's
+  plugin-seam section): `<CookieConsent linker={{ domains: ['owlmeans.com', 'owlmeans.pl'] }} />`
+  passes it straight to `useConsent`, which registers `consentLinker` on mount. With it set and
+  more than just the current host to disclose, a domain line renders right after the description
+  (`[data-consent-domains]`, added to the dialog's `aria-describedby`) — computed DIRECTLY from
+  `linker.domains` plus the current host, not through the plugin registry, so it never depends on
+  registration having finished yet. Omit `linker` and nothing here changes at all. The same object
+  carries `language` (`{}` to send the page's language, `{ supported }` to adopt one — the `consent`
+  skill's language section): the dialog only forwards it to the store and discloses nothing extra.
+- **`functionalKeys`** names the `localStorage` keys the application keeps its functional preferences
+  under (default: the language key). Forwarded to `consentStore.init`, which removes them whenever
+  `functional` is not granted. The default category set renders a "Functional cookies" toggle after
+  the required one, with its copy in the built-in bundle (8 languages).
 
 ## The look — flat, from the host's tokens
 
@@ -201,6 +214,11 @@ The structure stays one `h1` and lists: categories are `li`s, a category's servi
 Never add headings for categories or services — they would skip a level under the `h1`. Test and
 CSS hooks: `[data-cookie-policy-category="<key>"]`, `[data-cookie-policy-services]`,
 `[data-cookie-policy-service]`, `[data-cookie-policy-other]`.
+
+**`linker`**, same shape as `CookieConsent`'s, adds a plain `[data-cookie-policy-domains]` LIST
+(never a heading) right after the storage-key paragraph — the current host plus every domain
+`linker.domains` names, computed the same direct way the dialog computes it. Omitted or with
+nothing beyond the current host to disclose, nothing here renders.
 
 The service labels (`policyProvider`, `policyPurpose`, `policyCookies`, `policyServicesOf`,
 `policyServicePrivacy`, `policyOtherServices`, `policyOtherServicesDesc`) go through `translate`

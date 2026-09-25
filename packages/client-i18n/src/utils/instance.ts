@@ -16,6 +16,61 @@ let preparedLng: string | undefined
 /** The language of the latest `setLanguage` call — an earlier call that finishes later yields to it. */
 let requestedLng: string | undefined
 
+/**
+ * Whether an explicit language choice may be written to storage right now. Unset, storage is always
+ * allowed — an application with no notion of consent behaves exactly as before. A host that asks its
+ * visitors (`@owlmeans/web-panel/consent`'s `installConsentLanguage`) installs one that answers
+ * "has the visitor allowed functional storage?", so a language is not remembered on a device nobody
+ * asked about.
+ */
+let persistenceGuard: (() => boolean) | null = null
+
+/** The latest explicit choice that storage refused; written the moment storage is allowed. */
+let refusedChoice: string | null = null
+
+/** The latest language a person chose explicitly in this page's life, stored or not. */
+let explicitChoice: string | null = null
+
+/**
+ * The language a person chose explicitly since this page loaded (`setLanguage`), or `null`. What a
+ * host asks before it applies a language that arrived some other way — a link — which must never
+ * override what the person just picked.
+ */
+export const getExplicitLanguage = (): string | null => explicitChoice
+
+const persistenceAllowed = (): boolean => persistenceGuard == null || persistenceGuard()
+
+/**
+ * Install (or, with `null`, remove) the guard that decides whether a language choice may be
+ * remembered. Call it BEFORE `prepareI18n`: the initial language is resolved from storage, and a
+ * guard that says no makes a stored value count as absent.
+ */
+export const setLanguagePersistence = (guard: (() => boolean) | null): void => {
+  persistenceGuard = guard
+  // A new guard starts a new account of what this page's visitor has chosen and what storage refused.
+  refusedChoice = null
+  explicitChoice = null
+}
+
+/**
+ * Write the explicit choice storage refused earlier, now that it may be — call it when the guard's
+ * answer turns to yes (the visitor granted functional storage). `false` when there was nothing
+ * waiting, storage is still refused, or the write failed.
+ */
+export const persistLanguage = (): boolean => {
+  if (refusedChoice == null || !persistenceAllowed()) {
+    return false
+  }
+  try {
+    localStorage.setItem(LNG_STORAGE_KEY, refusedChoice)
+    refusedChoice = null
+
+    return true
+  } catch (_) {
+    return false
+  }
+}
+
 export const useI18nInstance = (config: ClientConfig): i18n => {
   const instance = useMemo(() => createI18nInstance(config), [])
 
@@ -43,9 +98,16 @@ const switchLanguage = async (lng: string, persist: boolean): Promise<void> => {
     return
   }
   if (persist) {
-    try {
-      localStorage.setItem(LNG_STORAGE_KEY, lng)
-    } catch (_) { /* noop in non-browser environments */ }
+    explicitChoice = lng
+    if (persistenceAllowed()) {
+      refusedChoice = null
+      try {
+        localStorage.setItem(LNG_STORAGE_KEY, lng)
+      } catch (_) { /* noop in non-browser environments */ }
+    } else {
+      // Not remembered — but not forgotten either: the visitor may allow it a moment later.
+      refusedChoice = lng
+    }
   }
   if (i18nInstance == null) {
     preparedLng = lng
@@ -97,6 +159,9 @@ const resolveFallbackLanguage = (config: ClientConfig): string =>
   config.i18n?.fallbackLng ?? config.i18n?.defaultLng ?? DEFAULT_LNG
 
 const getPersistedLanguage = (): string | null => {
+  if (!persistenceAllowed()) {
+    return null
+  }
   try {
     return localStorage.getItem(LNG_STORAGE_KEY)
   } catch (_) {

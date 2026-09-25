@@ -11,7 +11,7 @@ export const UXScreenListSchema: JSONSchemaType<UXScreenList> = {
       type: "array",
       items: { 
         type: "string",
-        description: "Technical screen name, no spaces, kebab-case notation with slashes allowed"
+        description: "Technical screen name, no spaces, kebab-case notation with slashes allowed; every part is one or two words"
       },
       description: "List of screens"
     },
@@ -29,7 +29,7 @@ export const UXComponentListSchema: JSONSchemaType<UXComponentList> = {
       type: "array",
       items: {
         type: "string",
-        description: "Technical component name, no spaces, kebab-case notation with slashes allowed"
+        description: "Technical component name, no spaces, kebab-case notation with slashes allowed; every part is one or two words"
       },
       description: "List of components"
     },

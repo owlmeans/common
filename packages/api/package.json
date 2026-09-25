@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/api",
-  "version": "0.1.18-rc.37",
+  "version": "0.1.18-rc.38",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,13 +29,13 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth-common": "^0.1.18-rc.37",
-    "@owlmeans/client-config": "^0.1.18-rc.37",
-    "@owlmeans/client-route": "^0.1.18-rc.38",
-    "@owlmeans/config": "^0.1.18-rc.37",
+    "@owlmeans/auth-common": "^0.1.18-rc.38",
+    "@owlmeans/client-config": "^0.1.18-rc.38",
+    "@owlmeans/client-route": "^0.1.18-rc.39",
+    "@owlmeans/config": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.35",
-    "@owlmeans/entrypoint": "^0.1.18-rc.36",
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/entrypoint": "^0.1.18-rc.37",
     "@owlmeans/route": "^0.1.18-rc.33",
     "axios": "^1.7.7",
     "qs": "^6.13.0"

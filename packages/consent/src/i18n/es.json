@@ -3,6 +3,8 @@
   "description": "Utilizamos cookies para mejorar tu experiencia de navegación, ofrecer anuncios o contenido personalizados y analizar nuestro tráfico. Al hacer clic en «Aceptar todo», aceptas nuestro uso de cookies.",
   "essential": "Cookies esenciales",
   "essentialDesc": "Necesarias para que el sitio funcione: inicio de sesión, seguridad y recordar estas preferencias. No se pueden desactivar.",
+  "functional": "Cookies funcionales",
+  "functionalDesc": "Recuerdan tus preferencias, como el idioma de la interfaz, para que no tengas que elegirlas de nuevo.",
   "analytics": "Cookies analíticas",
   "analyticsDesc": "Nos ayudan a mejorar nuestro sitio web recopilando e informando sobre su uso.",
   "marketing": "Cookies de marketing",
@@ -30,5 +32,7 @@
   "policyCookies": "Cookies",
   "policyServicePrivacy": "Política de privacidad de {{provider}}",
   "privacy": "Política de privacidad",
-  "terms": "Términos y condiciones"
+  "terms": "Términos y condiciones",
+  "domains": "Esta elección se aplica a {{domains}}.",
+  "policyDomains": "Esta elección se aplica a los siguientes dominios:"
 }

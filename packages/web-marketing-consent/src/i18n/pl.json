@@ -1,15 +1,23 @@
 {
   "screen": {
-    "title": "Twoje wybory dotyczące prywatności",
-    "subtitle": "Wybierz, czego możemy używać, aby się z Tobą kontaktować i personalizować Twoje doświadczenie.",
+    "title": "Zgody i oświadczenia",
+    "subtitle": "Wybierz, w jaki sposób możemy się z Tobą kontaktować i w jaki sposób mogą być wykorzystywane Twoje dane.",
+    "subtitle-terms": "Potwierdź regulamin, aby kontynuować, i wybierz, w jaki sposób możemy się z Tobą kontaktować i w jaki sposób mogą być wykorzystywane Twoje dane.",
     "all": "Zaznacz wszystko",
     "updated": "Zaktualizowano",
     "save": "Zapisz i kontynuuj",
     "saving": "Zapisywanie…",
-    "skip": "Kontynuuj bez zapisywania",
+    "skip": "Pomiń na razie",
+    "skip-note": "Zapytamy ponownie przy następnym logowaniu.",
     "error": "Nie udało się zapisać Twoich wyborów.",
+    "terms-error": "Nie udało się potwierdzić Regulaminu. Spróbuj ponownie.",
     "gpc": "Uwzględnione dzięki sygnałowi Global Privacy Control Twojej przeglądarki",
-    "loading": "Wczytywanie…"
+    "loading": "Wczytywanie…",
+    "hint": "Możesz kontynuować, nic nie zmieniając.",
+    "signout": "Wyloguj się",
+    "last-updated": "Ostatnia aktualizacja: {{date}}",
+    "required-note": "* Wymagane",
+    "required": "wymagane"
   },
   "preferences": {
     "save": "Zapisz",

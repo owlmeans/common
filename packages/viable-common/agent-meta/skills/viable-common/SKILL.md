@@ -1,6 +1,6 @@
 ---
 name: viable-common
-description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate fields), project/story refusals, slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, conversion vocabulary, blueprint layers and cases, the persona/skill catalogue and its design house style, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
+description: How to use @owlmeans/viable-common — the runtime-free contract package of the OwlMeans Viable platform. Covers planning cards and flows (including the landing-gate fields), project/story refusals, slot commands and layouts, slot metadata keys, target integrity, connector domain statuses and routes, the intent-first hand-off (`./intent`), conversion vocabulary, blueprint layer types and the case vocabulary, the ViableSkill/ViablePersona names (never the catalogue behind them), what belongs here versus in @owlmeans/viable, generated-project analysis/design/scaffold/metadata shapes, StoryDesignPort, schema conventions, and wire-version rules. Auto-invoked when importing a viable card type or flow, a slot command, a connector or conversion type, a target-integrity helper, or any *Schema this package exports.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,12 +8,13 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.33"` in `dependencies`
-**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity`
+**Install:** `"@owlmeans/viable-common": "^0.0.35"` in `dependencies`
+**Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent`
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
 tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/resource`,
-`@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/error`, `@owlmeans/agent-common` and
-`@owlmeans/llm-common` and on nothing else.
+`@owlmeans/entrypoint`, `@owlmeans/route`, `@owlmeans/error`, `@owlmeans/agent-common`,
+`@owlmeans/llm-common` and — for `./intent` alone — `@owlmeans/flow`, `@owlmeans/auth` and
+`@owlmeans/context`, and on nothing else.
 
 Every name the OwlMeans Viable platform puts on a wire, on a volume or in a prompt is declared
 here once, and the four runtimes that must agree about it — the manager API, the agent, the
@@ -21,15 +22,24 @@ publisher/production runtime, and the connector SDK on somebody's laptop — all
 declaration. A vocabulary copied instead of imported is how one tree gets two totals, one
 refusal two spellings, and one ceiling two values.
 
+**Names, not agent-only data.** This package is imported by the BROWSER too, so everything in it
+ships in every visitor's bundle. Prompt, persona and blueprint-case DATA that only the AI agent
+library ever reads — never the browser or another server package — belongs in `@owlmeans/viable`
+instead: the skill bodies and their order, the persona prompt
+policies, the blueprint case table and resolution, the BA model-answer schemas. What stays here is
+what another package's contract references by type — the `ViableSkill` / `ViablePersona` enums and
+the `Blueprint` types and vocabulary that execution state and card fields name.
+
 ## Key Exports
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; `ViableSkill` / `ViablePersona` / `VIABLE_SKILLS`; the blueprint, its cases and `landingGatePreferenceOf`; the BA, dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums (names only); the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY` and `landingGatePreferenceOf`; the BA shapes and helpers (`mergeConnectingStories`), the dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` sets, `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`Shape`/`State`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`Reason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
+| `./intent` | The intent-first hand-off from the public site to the platform: `intent` (the four aliases), `makeIntentProtocols(opts?)` (two GUEST API routes + the `/start` landing screen), `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants (TTL, prompt cap, reference pattern, draft and suspend windows), `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
 
 ## The planning module
 
@@ -253,7 +263,7 @@ code, never as `minItems`/`maxItems`. The descriptions are what the planning mod
 state each field's purpose and bounds; `gate.target` is filled by code and described as such.
 
 **A field that crosses a version skew carries no `enum`.** Users run
-`npx -y @owlmeans/viable-mcp@^0.1.18-rc.30` (the moving prerelease tag) against a separately deployed
+`npx -y @owlmeans/viable-mcp@^0.1.18-rc.32` (the moving prerelease tag) against a separately deployed
 platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind must stay an unused capability on an older platform, never
 a refused session. Apply the same reasoning to anything else a newer connector may send an older
@@ -295,6 +305,45 @@ pending inquiry and `waitingFor` reason; none exposes a generic technical operat
 new long-running domain by extending its status view and endpoint, not by adding a parallel polling
 vocabulary.
 
+## The intent-first hand-off (`./intent`)
+
+A prompt typed on the PUBLIC site (owlmeans.com, a static Astro app that cannot import the platform
+repo) reaches the platform through this one subpath, which is why it lives here and not in viable:
+the site, the manager API and the manager web must agree on every address, schema and step.
+
+- **Two guest routes and one screen, no guard, no gate, no service.** `makeIntentProtocols()` declares
+  `stash` (POST `/public/intent`, body `{ prompt 1..8192, consent: const true }` → `{ ref, expiresAt }`),
+  `pickup` (POST `/public/intent/pickup`, body `{ ref }` where `ref` is exactly `createIdOfLength(24)`
+  Base58 → `{ prompt }`) and `landing` (`frontend()` at `/start`, `sticky`). A consumer mounts the
+  tree OUTSIDE any guarded parent — a route inherits every ancestor's guard, so under the account
+  base a visitor with no account would be refused — and fills `service` itself (the site binds
+  `landing` with `{ routeOptions: { overrides: { service } } }`, which is also what makes its `url()`
+  absolute). `consent` is a schema constant so a request without the data-processing confirmation
+  cannot exist on the wire.
+- **The prompt never travels in a URL or a flow token.** The server keeps it `INTENT_TTL_SECONDS`
+  (120) under the unguessable `ref`, and collects it with one `GETDEL` (`pickup`); only `?ref=`
+  crosses. The flow payload is CSV-joined without escaping and the token is unsigned, so the flow
+  carries the reference or nothing.
+- **`intentFlow` is walked on both sides and never becomes the live flow model.** `compose`
+  (initial, the site) →`handoff`→ `land` (initial, module = the landing) →`review`→ `review`
+  (module `HOME`), plus the EXPLICIT `land` →`sign-in`→ `sign-in` (module `DISPATCHER`) →`next`→
+  `review`. The site does `transit('handoff', true, { ref })` and redirects to `land`'s module URL
+  with the payload as query; the landing enters at `land` fresh, and a signed-out visitor is parked
+  with `suspendFlow` at `sign-in`, whose `next()` is the home screen. The parameter is `?ref=` —
+  never `?flow=`, which `web-flow`'s `lazyInit` parses on every page load of an app that registered
+  the flow service, and never `?intent=`, which the login surrogate window owns.
+- **CORS is not declared here.** The routes ride the framework's global `origin: '*'` (no
+  credentials); `makeIntentProtocols` carries a `TODO(cors)` naming the origins to keep allowed if a
+  deployment ever restricts them globally.
+- **The browser draft is IndexedDB, per origin.** `IntentDraft` (`id`, `ref`, `prompt`, `expiresAt`) is
+  what the platform's own browser keeps between pickup and the decision (`INTENT_DRAFT_TTL_MS`, 24 h,
+  checked on read — a client resource has no TTL). The public site cannot write it; that is the whole
+  reason for the server detour.
+
+Tests: `tests/intent.spec.ts` (the four declarations and their absence of guards, the schema
+accept/reject cases including crafted references, the flow walk both sides and what `suspendFlow`
+would persist, the error statuses).
+
 ## Slot metadata keys: optional means omitted
 
 `SlotMetadata` is what the platform signs and pushes into a slot, and a slot publisher validates it
@@ -311,55 +360,36 @@ an owner setting, so it is declared on the type and kept out of them. The Google
 never travel in it: the publisher derives them from `brandingGoogleTag` itself (and from the record a
 production build writes), so the tag and the hosts it needs cannot disagree.
 
-## Blueprint layers and the case table
+## Blueprint types and the case vocabulary
 
-A `Blueprint` has five REQUIRED build layers (`technology`, `stack`, `template`, `createApp`,
-`packages`) and one OPTIONAL `experience` layer — what the product should do for its users,
-changing no dependency and no coder prompt. Read it only through a helper that answers the default
-for an absent layer: `landingGatePreferenceOf(blueprint)` answers `LandingGatePreference.Allow` for
-no layer, no key or a value this deploy does not know. `freezeBlueprint` freezes the layer when
-present and never adds it when absent.
+`src/blueprint/` holds only types and constants. A `Blueprint` has five REQUIRED build layers
+(`technology`, `stack`, `template`, `createApp`, `packages`) and one OPTIONAL `experience` layer —
+what the product should do for its users, changing no dependency and no coder prompt. Read it only
+through a helper that answers the default for an absent layer: `landingGatePreferenceOf(blueprint)`
+answers `LandingGatePreference.Allow` for no layer, no key or a value this deploy does not know.
+An execution carries a `BlueprintRef` — an id, an optional `case` and an override patch — never a
+resolved blueprint.
 
-The preference is a PRIOR for the model that decides the landing gate, never the decision:
+`BlueprintCase` (`web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`) and `GameKind` are the
+vocabulary a project card's `fields.blueprintCase` / `fields.gameKind` carry. What a case MEANS —
+the `BLUEPRINT_CASES` table with each case's patch, landing-gate prior and persona skills,
+`applyBlueprintCase`, `applyBlueprintPatch` / `freezeBlueprint`, `joinPersonaSkills` and the
+classification schema — lives in `@owlmeans/viable` (its `blueprints` / `blueprint-cases` skills).
+That table is typed `Record<BlueprintCase, …>`, so a member added here fails to compile there until
+it has a row.
 
-| Case | `experience.landingGate` | `ViableSkill.LandingGate` added to |
-|---|---|---|
-| `web`, `ai-pipeline`, `ai-agent` | `encourage` | `BusinessAnalyst`, `UxDesigner`, `LayoutArchitect`, `ComponentArchitect`, `UiViewCoder`, `UiNavCoder` |
-| `scalable` | `allow` | — |
-| `game` | `discourage` | — |
+## Skill and persona names
 
-A case's `personaSkills` are composed with `joinPersonaSkills`, which UNIONS a persona two maps
-both name — an object spread keeps only the last list and silently drops the other case's skill.
-`applyBlueprintCase` then unions the case's persona skills with the base blueprint's.
-
-## The design house style in the catalogue
-
-The `VisualDesigner` persona and the `ShadcnUi` skill teach one house style, and the template seed
-ships the same values: a white ground (black in dark mode) on `bg-background`; colour from ONE
-product accent, never from a background; depth only from a hairline, the neutral tile (`bg-muted`)
-and one `shadow-floating`; a heavy grotesk display face with tight tracking; motion that belongs
-to the illustration. The older classes (`gradient-heading`, `glass-card`, `eyebrow`, `glow-orb`,
-the soft/raised/glow shadows, `pulse-soft`, `spin-slow`) stay DEFINED because existing targets use
-them, are repainted flat, and are never taught as decoration. Any of it changes only when the
-customer's specification explicitly asks — a named background colour, a dark-only or coloured
-theme, a brand palette, gradients; the product's subject matter is not a request.
-`tests/skills.spec.ts` pins both texts against drifting back.
-
-`ViableSkill.LandingGate` teaches the gate-worthy story, the gate card, the synchronous handoff
-(`useLandingStart(target)` from the seed's `@/lib/handoff`: write, then navigate when signed in or
-start the plain sign-in; the guest home's `useLandingContinuation` sends the visitor on after
-sign-in — never `useLogin(target)`, whose continuation lands on the guarded screen) and the
-full-scale screen that reads and clears it. Every `ViableSkill` member has a body in `VIABLE_SKILLS` and a weight in
-`SKILL_ORDER`: the prompt service skips an alias it cannot resolve, so a missing body is a rule no
-model ever receives.
-
-`OwlMeansServer` and `FixerHeuristics` teach one rule from both ends: the PROTOCOL decides a
-handler's types. A handler's parameter and return types are exactly what its declaration in the
-target's shared entrypoints module names, imported from the shared package — never an input or
-record type declared in the api or backend package, which the shared package cannot import. The
-example handler therefore takes the shared `Task`, never an invented `…Payload`/`…Input` type
-(an example wins over the rule beside it), and a `TS2345` function-vs-function mismatch at a binding
-line is repaired in the HANDLER, never by bending the declaration toward it.
+`src/skills/` holds two enums and nothing else: `ViableSkill` (prompt-skill aliases) and
+`ViablePersona` (who a helper's model is told it is). They are here because a `Blueprint`'s
+`stack.skills` / `packages.skills` / `personaSkills` name them. The catalogue behind them — every
+skill body (`VIABLE_SKILLS`) and weight (`SKILL_ORDER`), `FRAMEWORK_OWNED_SKILLS` /
+`skillsForBlueprint`, each persona's prompt policy (`VIABLE_PERSONAS`), the design house style and
+the landing-gate teaching — lives in `@owlmeans/viable` `src/skills/` (its `personas-and-skills`
+skill). Adding a member here is half a change: `SKILL_ORDER` and `VIABLE_PERSONAS` are total records
+and fail to compile until the new member has a weight or a policy, but `VIABLE_SKILLS` is a list,
+and the prompt service skips an alias it cannot resolve — a missing body is a rule no model ever
+receives.
 
 ## Closed sets that mean something
 
@@ -463,10 +493,8 @@ the field schemas accepting `null` and refusing an undeclared field or a value o
 set, the landing fields and the landing sentence, the card helpers, the `follows` anchor, and the
 refusals' type names surviving a marshal), `scaffold.spec.ts` (an old-shape and a new-shape plan
 both passing the schema and the `scaffold` slot, `null` optionals accepted, no `minItems`),
-`blueprint.spec.ts` (each case's gate preference, the default, and the persona-skill unions),
-`branding.spec.ts` (the build env and the metadata vocabulary), `skills.spec.ts` (every skill has a
-body and a weight, the handler wrap-once teaching, handler types taken from the protocol and the
-mismatch repaired in the handler, the house style and the landing-gate skill),
+`blueprint.spec.ts` (`landingGatePreferenceOf` — the default for an absent layer or an unknown
+value), `branding.spec.ts` (the build env and the metadata vocabulary),
 `connect-entrypoints.spec.ts` (the tree's protocol count, no story route, the job-id round trip,
 the branding routes and their save body),
 `convert.spec.ts` (the three structural walks over the barrel, the
@@ -486,14 +514,17 @@ marshal round trip), `connect-errors.spec.ts` (the packed fields of `ConnectOutO
 - `@owlmeans/resource` — the `ResourceError` base of the project refusals
 - `@owlmeans/entrypoint`, `@owlmeans/route` — the entrypoint declarations
 - `@owlmeans/error` — the `Connect*` error family
-- `@owlmeans/llm-common` — `ExecutionEffort`/`ExecutionLevel`, `PromptPolicy`, `LlmPurpose`, and the
-  inquiry ceilings this package's copies are pinned to
+- `@owlmeans/llm-common` — `ExecutionEffort`/`ExecutionLevel`, `LlmPurpose`, the spectator
+  contracts, and the inquiry ceilings this package's copies are pinned to
 - `@owlmeans/agent-common` — the run and pipeline contracts a conversion's runs are declared against
+- `@owlmeans/flow`, `@owlmeans/auth`, `@owlmeans/context` — `./intent` only: `ShallowFlow`/`UnknownFlow`,
+  the `DISPATCHER` alias and the `HOME` alias its flow steps address
 
 ## Related
 
 - [[viable-sdk]] — the connector SDK written entirely against these contracts
 - [[viable-mcp]] — the npx stdio server built on that SDK
+- [[flow]] · [[client-flow]] — the model `intentFlow` is walked with, and `suspendFlow`, which parks it across sign-in
 - [[inquiry]] — the primitive `InquiryPayload` mirrors, and the one answer ceiling
 - [[llm-common]] — the contracts half of the model runtime
 - [[planning]] — the workcard model, flows, fold and protocol tree the planning module builds on

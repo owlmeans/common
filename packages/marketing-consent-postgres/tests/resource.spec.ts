@@ -61,7 +61,7 @@ describe('@owlmeans/marketing-consent-postgres — resources against a real cont
           mode: 'opt-in', decidedAt: '2026-01-01T00:00:00.000Z', source: 'settings'
         },
         {
-          key: 'trackers.advertising', granted: false, revisedAt: '2026-01-01T00:00:00.000Z',
+          key: 'data.profiling', granted: false, revisedAt: '2026-01-01T00:00:00.000Z',
           mode: 'opt-out', decidedAt: '2026-01-01T00:00:00.000Z', source: 'settings'
         }
       ],
@@ -77,7 +77,7 @@ describe('@owlmeans/marketing-consent-postgres — resources against a real cont
         mode: 'opt-in', decidedAt: '2026-01-01T00:00:00.000Z', source: 'settings'
       },
       {
-        key: 'trackers.advertising', granted: false, revisedAt: '2026-01-01T00:00:00.000Z',
+        key: 'data.profiling', granted: false, revisedAt: '2026-01-01T00:00:00.000Z',
         mode: 'opt-out', decidedAt: '2026-01-01T00:00:00.000Z', source: 'settings'
       }
     ])

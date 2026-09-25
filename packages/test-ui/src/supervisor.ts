@@ -80,7 +80,9 @@ export const loginViaDispatcher = async (
   // Wait until the dispatcher has navigated away (token consumed).
   await page.waitForURL(u => !u.pathname.startsWith(path), { timeout: 30_000 })
 
-  if (opts?.marketingConsent !== 'ignore') await answerMarketingConsent(page, { accept: 'all' })
+  if (opts?.marketingConsent !== 'ignore') {
+    await answerMarketingConsent(page, { accept: 'all', timeout: 30_000 })
+  }
 }
 
 export interface SupervisorApiAuthOptions {
@@ -283,5 +285,9 @@ export const loginViaSupervisorForm = async (
     await page.waitForURL(url => !url.pathname.startsWith(path), { timeout })
   }
 
-  if (opts.marketingConsent !== 'ignore') await answerMarketingConsent(page, { accept: 'all' })
+  // Carries the CALLER's own budget rather than the helper's smaller internal default — a slow
+  // cold environment (vite re-optimizing, a stage pod still warming) can easily spend most of a
+  // short fixed timeout just getting here, leaving too little for the two extra POSTs (terms, then
+  // items) a Terms-mode step now makes.
+  if (opts.marketingConsent !== 'ignore') await answerMarketingConsent(page, { accept: 'all', timeout })
 }

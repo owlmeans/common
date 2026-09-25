@@ -43,6 +43,30 @@ describe('@owlmeans/astro — head scripts', () => {
 
     expect(head).toContain(JSON.stringify('custom_consent_key'))
   })
+
+  test('adopt is empty with no linker configured, on either shape', async () => {
+    expect(owlHeadScripts({ gtm: { id: 'GTM-ASTRO01' } }).adopt).toBe('')
+    expect(owlHeadScripts().adopt).toBe('')
+  })
+
+  test('adopt carries the standalone linker fragment when consent.linker is set', async () => {
+    const { adopt, head } = owlHeadScripts({
+      gtm: { id: 'GTM-ASTRO01' },
+      consent: { linker: { domains: ['owlmeans.com', 'owlmeans.pl'] } },
+    })
+
+    expect(adopt).toContain('URLSearchParams')
+    expect(adopt).toContain(JSON.stringify('owlmeans.com'))
+    // `head` (via `consentBootstrapScript`) carries the SAME fragment for a page that also runs
+    // the tag — `adopt` is the standalone copy for a page (or an early stamp) that does not.
+    expect(head).toContain('URLSearchParams')
+  })
+
+  test('adopt is stamped even with no gtm container at all', async () => {
+    const { adopt } = owlHeadScripts({ consent: { linker: { domains: ['owlmeans.com'] } } })
+
+    expect(adopt).toContain('URLSearchParams')
+  })
 })
 
 describe('@owlmeans/astro — legal paths', () => {
@@ -78,5 +102,14 @@ describe('@owlmeans/astro — locale', () => {
 
   test('a real locale is passed through', async () => {
     expect(owlLocale('uk', 'pl')).toBe('uk')
+  })
+
+  test('`allows` defines window.owlConsentAllows for the page\'s own scripts, with or without a container', () => {
+    for (const opts of [undefined, { gtm: { id: 'GTM-ASTRO01' } }, { consent: { storageKey: 'my_consent' } }]) {
+      const { allows } = owlHeadScripts(opts)
+
+      expect(allows).toContain('owlConsentAllows')
+    }
+    expect(owlHeadScripts({ consent: { storageKey: 'my_consent' } }).allows).toContain('my_consent')
   })
 })

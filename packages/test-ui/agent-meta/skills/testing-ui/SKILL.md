@@ -6,7 +6,7 @@ description: Category-D component-level acceptance tests for OwlMeans Common UI 
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.38"` in `devDependencies`
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.40"` in `devDependencies`
 
 `@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
 `playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
@@ -72,7 +72,7 @@ sits behind auth without hand-rolling a token:
 | `authenticateViaSupervisorApi(opts)` | Drive the live PK supervisor flow over the backend API (init → sign → authenticate → dispatch), registering the user on first use. Options: `{ apiBaseUrl, userId, pk, paths?, fetchImpl? }`. |
 | `loginViaDispatcher(page, baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route, wait for the app to navigate away, then answer marketing consent (see below). Options: `{ dispatcherPath?, waitUntil?, marketingConsent? }`. |
 | `loginViaSupervisorForm(page, opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
-| `answerMarketingConsent(page, opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none', timeout? }`, default `accept: 'all'`. Returns whether the step was actually shown and answered — `false` means it never appeared. |
+| `answerMarketingConsent(page, opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
 
 These need a project whose backend trusts the private key they sign with, so they belong to specs
 that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
@@ -314,16 +314,23 @@ dialog itself.
 ## `answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
 
 `loginViaSupervisorForm` and `loginViaDispatcher` both call `answerMarketingConsent(page, { accept:
-'all' })` right after they confirm the app has navigated away from login/dispatch, and both default
-`marketingConsent` (their own option, not `answerMarketingConsent`'s) to `'save'` — pass
-`'ignore'` to skip the call in a spec that drives the step itself. `@owlmeans/web-marketing-consent`
-renders a full-page step, when shown, with `[data-marketing-consent]` (root),
-`[data-marketing-consent-all]` (select-all), `[data-marketing-consent-item="<key>"]` (per-consent),
-`[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown only after a save error) and
-`[data-marketing-consent-error]`.
+'all', timeout })` right after they confirm the app has navigated away from login/dispatch, passing
+their **own** `timeout` through explicitly rather than relying on this helper's internal default —
+both of them already budget more than one round trip (login + terms + items) into the value they
+pick. Both also default `marketingConsent` (their own option, not `answerMarketingConsent`'s) to
+`'save'` — pass `'ignore'` to skip the call in a spec that drives the step itself.
+`@owlmeans/web-marketing-consent` renders a full-page step, when shown, with `[data-marketing-consent]`
+(root, carrying `data-state="loading"` while its status read is outstanding and `"ready"` once it can
+render), `[data-marketing-consent-terms]` (the Terms checkbox, Terms mode only, with `data-version`),
+`[data-marketing-consent-terms-error]` (Terms record failed — the person stays and retries),
+`[data-marketing-consent-all]` (select-all, never ticks Terms), `[data-marketing-consent-item="<key>"]`
+(per-consent), `[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown whenever the
+step is optional-only — i.e. `!loading && !terms.needed` — not only after a failed save),
+`[data-marketing-consent-skip-note]`, `[data-marketing-consent-signout]` (shown while a Terms box or
+the loading state is up) and `[data-marketing-consent-error]`.
 
 Unlike `acceptConsent`, whose `false` return deliberately costs the full wait (see above),
-`answerMarketingConsent` does NOT pay the full `timeout` (default `6_000`) when the step is absent.
+`answerMarketingConsent` does NOT pay the full `timeout` (default `30_000`) when the step is absent.
 The screen is opt-in per app and most applications and environments don't have it wired in yet, and this helper
 is called unconditionally by both login helpers — a full-timeout tax on every login, on every app,
 whether or not the screen exists, would be an unacceptable regression to every existing suite. It
@@ -333,7 +340,27 @@ instead races `[data-marketing-consent]` against the generic "the app has alread
 `loginViaSupervisorForm` uses for its own dialog-vs-form race. By the time a login helper calls this,
 one of those markers has typically already rendered, so on an app without the screen the race
 resolves as soon as it does — no fixed sleep, and no meaningful added latency over what the login
-helper already paid to get there. Returns `false` when the step never appeared; `true` when it did,
-whether the save succeeded or fell back to clicking `[data-marketing-consent-skip]` after a save
-error (logged as a console warning, never thrown) — the step is "answered" either way, so a spec is
-never permanently blocked behind a flaky save.
+helper already paid to get there.
+
+Once the step's root is present, it may still be `data-state="loading"` (its own status read is
+outstanding) — the helper races that attribute clearing against the whole root detaching on its own
+(nothing was pending, so it auto-continued while this waited), via two `page.waitForSelector` calls
+rather than an in-page `waitForFunction`/`evaluate` (this package's `tsconfig` has no `lib: dom`, so
+no TS runs inside the browser context here). An older `web-marketing-consent` that predates
+`data-state` entirely satisfies the "not loading" selector immediately, so this costs nothing there.
+
+When a Terms box is present, `opts.terms` (default `'accept'`) ticks it before saving; `'leave'`
+keeps it unticked, for a spec that means to exercise the blocked state itself — the confirm click
+still fires (with `{ force: true }`, since the control is never natively `disabled`), and the helper
+then *expects* the box to still be up afterward. `opts.accept` (default `'all'`) additionally clicks
+select-all when present, `'none'` saves with every item unchecked, and `'skip'` clicks
+`[data-marketing-consent-skip]` instead of saving — valid only when no Terms box is on screen.
+
+Returns `false` when the step never appeared. Otherwise it **throws** in two cases rather than
+silently swallowing them: a `[data-marketing-consent-terms-error]` after attempting to confirm
+Terms, and a Terms box still on screen after a failed/blocked confirm (Skip is never offered there
+on purpose, so there is no fallback and no honest way to report success). Short of those, it returns
+`true` whether the save succeeded outright or fell back to clicking
+`[data-marketing-consent-skip]` after a save error on an optional-only screen (logged as a console
+warning, never thrown) — the step is "answered" either way, so a spec is never permanently blocked
+behind a flaky save.

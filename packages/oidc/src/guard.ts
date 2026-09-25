@@ -59,10 +59,19 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
       }
 
       const ctx = guard.assertCtx()
-      const envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
       const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
 
-      if (!await envelope.verify(trusted.key)) {
+      // A token that cannot even be decoded is a credential this server does not accept — the
+      // same answer as one whose signature does not verify (401), never a server failure (500).
+      let envelope: ReturnType<typeof makeEnvelopeModel<Auth>>
+      let verified = false
+      try {
+        envelope = makeEnvelopeModel<Auth>(authorization, EnvelopeKind.Token)
+        verified = await envelope.verify(trusted.key)
+      } catch {
+        verified = false
+      }
+      if (!verified) {
         return false as T
       }
 
@@ -94,7 +103,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
 
         res.resolve(envelope.message())
       } else {
-        res.resolve(envelope.message())
+        res.resolve(envelope!.message())
       }
 
       return true as T

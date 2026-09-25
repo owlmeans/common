@@ -1,7 +1,7 @@
-import { resolveTerms, termsAccepted } from '@owlmeans/client-auth/login'
+import { resolveTerms, termsAccepted, termsAcceptanceOf, termsDeferred } from '@owlmeans/client-auth/login'
 import type { LoginLandingHook } from '@owlmeans/client-auth/login'
-import type { LoginTermsConfig } from '@owlmeans/config'
-import { MARKETING_CONSENT_LANDING_HOOK_SYNC, MARKETING_CONSENT_LANDING_HOOK_TERMS } from './consts.js'
+import type { CommonConfig } from '@owlmeans/config'
+import { MARKETING_CONSENT_LANDING_HOOK_TERMS } from './consts.js'
 import type { MarketingConsentClientService } from './service.js'
 
 /**
@@ -9,72 +9,29 @@ import type { MarketingConsentClientService } from './service.js'
  * `@owlmeans/client-auth`'s own sign-in screen already confirmed locally (`termsAccepted`,
  * `localStorage`) before the flow was ever allowed to start. A config with terms disabled, or a
  * person who has not (yet) locally accepted, records nothing.
+ *
+ * No-ops once `termsDeferred(ctx)` is true: the confirmation lives on the marketing-consent step
+ * in that mode, and recording it — with the server's own evidence, not a browser-only marker — is
+ * that step's job, not this hook's. Reads `ctx.cfg` fresh on every landing rather than a value
+ * captured once at `appendMarketingConsent` time, because `apiConfigMiddleware` can still be
+ * merging the terms configuration in when this hook is registered.
  */
 export const termsRecorder = (
-  loginTermsConfig: LoginTermsConfig | false | undefined,
   client: MarketingConsentClientService,
   locale?: string,
 ): LoginLandingHook => ({
   alias: MARKETING_CONSENT_LANDING_HOOK_TERMS,
   priority: 100,
-  landed: async () => {
-    const resolved = resolveTerms(loginTermsConfig)
+  landed: async ctx => {
+    if (termsDeferred(ctx)) {
+      return
+    }
+
+    const resolved = resolveTerms((ctx.cfg as CommonConfig).security?.auth?.login?.terms)
     if (resolved == null || !resolved.required || !termsAccepted(resolved)) {
       return
     }
 
-    await client.recordTerms({
-      documents: resolved.documents.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
-      notices: resolved.notices.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
-      version: resolved.version,
-      locale,
-    })
-  },
-})
-
-/**
- * Reconciles every registered `MarketingConsentBridge` once a sign-in lands:
- *
- * - A device that already has cookie decisions but no saved account decisions SEEDS the account
- *   (`client.save` with `source: 'cookie'`).
- * - An account that already has decisions but a fresh device with none SEEDS the device
- *   (`bridge.write`).
- * - Both present (and possibly differing), or neither present: nothing is overwritten — the safer
- *   of two wrong guesses is to leave two already-made choices alone rather than silently pick one.
- */
-export const landingSync = (client: MarketingConsentClientService): LoginLandingHook => ({
-  alias: MARKETING_CONSENT_LANDING_HOOK_SYNC,
-  priority: 90,
-  landed: async () => {
-    const status = await client.status({ fresh: true })
-    if (status == null) {
-      return
-    }
-
-    const defs = status.items.map(item => item.definition)
-
-    for (const bridge of client.bridges()) {
-      const device = bridge.read(defs)
-      const deviceHasAny = device != null && Object.keys(device).length > 0
-
-      const accountDecisions: Record<string, boolean> = {}
-      let accountHasAny = false
-      for (const item of status.items) {
-        if (item.definition.cookieCategory != null && item.saved != null) {
-          accountDecisions[item.definition.key] = item.saved.granted
-          accountHasAny = true
-        }
-      }
-
-      if (!deviceHasAny && accountHasAny) {
-        bridge.write(accountDecisions, defs)
-      } else if (deviceHasAny && !accountHasAny) {
-        await client.save({
-          decisions: Object.entries(device).map(([key, granted]) => ({ key, granted })),
-          source: 'cookie',
-        })
-      }
-      // Both present, or neither: nothing here overwrites the other.
-    }
+    await client.recordTerms(termsAcceptanceOf(resolved, locale))
   },
 })

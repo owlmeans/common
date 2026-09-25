@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-i18n
 
 **Layer:** Client (React)
-**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.39"` in `dependencies`
+**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.41"` in `dependencies`
 
 ## Purpose
 
@@ -36,13 +36,16 @@ The instance itself, for a host that has to configure i18next before the tree re
 |---|---|
 | `useI18nInstance(config)` | The i18next instance for this application, memoised for the mount |
 | `getI18nInstance(config)` | The same instance outside React |
-| `setLanguage(lng)` | Async: load `lng`'s pack (`loadI18nLanguage`), then persist and switch — what `useLanguage`'s setter calls |
+| `setLanguage(lng)` | Async: load `lng`'s pack (`loadI18nLanguage`), then persist (if the persistence guard allows) and switch — what `useLanguage`'s setter calls |
+| `setLanguagePersistence(guard \| null)` | Install the guard that decides whether an explicit choice may be written to storage; `null` removes it. Call BEFORE `prepareI18n` |
+| `persistLanguage()` | Write the explicit choice storage refused earlier, now that the guard allows; `false` when nothing waits or storage is still refused |
+| `getExplicitLanguage()` | The language a person chose explicitly since this page loaded (stored or not), else `null` — what a host asks before applying a language that arrived some other way |
 | `prepareI18n(config)` | Await the fallback language's loaders, then the initial language's; resolves to the language the instance will start in. Call once, before the first render |
 | `resolveInitialLanguage(config)` | The persisted `owlmeans-lng` when it is in `supportedLngs`, else the browser's language (`preferredLanguageOf`), else `fallbackLng ?? defaultLng ?? DEFAULT_LNG` |
 | `preferredLanguageOf(supportedLngs, preferred)` | Pure: the first preferred tag the config supports, exact or by base (`de-DE` → `de`), else `null` |
 
-All six live in `src/utils/instance.ts`; the package root re-exports `prepareI18n`,
-`resolveInitialLanguage` and `setLanguage`.
+All of these live in `src/utils/instance.ts`; the package root re-exports `prepareI18n`,
+`resolveInitialLanguage`, `setLanguage` and the three persistence functions above.
 
 **There is exactly one instance per document**, created on first request and reused by every later
 call whatever config is passed. So configuration is read once, at the first creation, and a plugin
@@ -100,7 +103,17 @@ the browser's language, then `fallbackLng`, instead of resolving nothing. Every 
 `navigator` access is guarded, so a browser that refuses site data (or no browser) still renders.
 
 `tests/instance.spec.ts` pins `preferredLanguageOf` (base matching, browser order, exact tag first,
-`null` when nothing matches).
+`null` when nothing matches) and the persistence guard.
+
+**Persistence is guarded, not assumed.** With no guard installed every explicit choice is written, as
+always. An application that asks its visitors before remembering anything installs one
+(`setLanguagePersistence(() => allowed)`; `@owlmeans/web-panel/consent`'s `installConsentLanguage()` is
+the ready-made one for the cookie dialog's `functional` category — see the `consent` skill). While it
+says no: `setLanguage` still switches the UI but writes nothing and remembers the refused choice
+(`persistLanguage()` writes it when storage becomes allowed), and a value already in storage counts
+as ABSENT at start-up (`resolveInitialLanguage`), so a language nobody was allowed to remember is not
+used. Installing a guard also resets what this page has chosen so far — install it before anything
+calls `setLanguage`.
 
 `setLanguage(lng)` is async: it awaits `loadI18nLanguage(lng)`, then persists and calls i18next's
 `changeLanguage` — before the instance exists it records the language the instance will start in

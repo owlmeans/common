@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.21`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.22`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage

@@ -2,6 +2,7 @@ import {
   CONSENT_EVENT, CONSENT_KEY, CONSENT_SETUP_FLAG, CONSENT_SIGNAL_DEFAULTS,
   DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
+import { consentLinkerScript } from './linker.js'
 import type { ConsentCategory, ConsentOptions, ConsentRecord } from './types.js'
 
 interface ConsentWindow {
@@ -148,10 +149,17 @@ export const consentBootstrapScript = (opts?: ConsentOptions): string => {
   })))
   const storageKey = JSON.stringify(opts?.storageKey ?? CONSENT_KEY)
   const flag = JSON.stringify(CONSENT_SETUP_FLAG)
+  // Right after the default is pushed and before EITHER storage read below (this one, and the
+  // `consentGateScript` that is concatenated after this whole IIFE) — an adopted decision must
+  // already be in storage by the time anything reads it, so `gtm.js`'s own `page_view` never sees
+  // the parameter and a granted decision loads the tag on arrival. A page with no `opts.linker`
+  // gets an empty string here, unchanged from before this existed.
+  const linker = opts?.linker != null ? `${consentLinkerScript(opts)};` : ''
 
   return `(function(w,d){` +
     `w.dataLayer=w.dataLayer||[];function g(){w.dataLayer.push(arguments)}` +
     `if(w[${flag}])return;g('consent','default',${defaults});w[${flag}]=true;` +
+    linker +
     `var raw=null;try{raw=w.localStorage.getItem(${storageKey})}catch(e){}` +
     `if(!raw){var p=('; '+d.cookie).split('; '+${storageKey}+'=');` +
     `if(p.length===2){raw=p.pop().split(';').shift()}}` +
