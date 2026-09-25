@@ -35,7 +35,7 @@ describe('@owlmeans/marketing-consent-mongo — resources against a real Mongo',
       // A dotted key ("marketing.email") is illegal as a Mongo FIELD name but fine as a plain
       // STRING VALUE inside an array element — the exact reason `decisions` is an array and not
       // an object keyed by consent key (see @owlmeans/server-marketing-consent's model.ts).
-      decisions: [decision('marketing.email'), decision('trackers.advertising')],
+      decisions: [decision('marketing.email'), decision('data.profiling')],
       createdAt: now,
       updatedAt: now,
     })
@@ -46,7 +46,7 @@ describe('@owlmeans/marketing-consent-mongo — resources against a real Mongo',
     expect(reread.subject).toBe('subject-1')
     expect(reread.userId).toBe('user-1')
     expect(reread.decisions).toHaveLength(2)
-    expect(reread.decisions.map(d => d.key)).toEqual(['marketing.email', 'trackers.advertising'])
+    expect(reread.decisions.map(d => d.key)).toEqual(['marketing.email', 'data.profiling'])
     expect(reread.decisions[0]).toMatchObject(decision('marketing.email'))
     expect(reread.createdAt).toBe(now)
     expect(reread.updatedAt).toBe(now)

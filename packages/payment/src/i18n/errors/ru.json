@@ -17,5 +17,13 @@
   "PaymentErrorSubscriptionUnknown": "Эта подписка не существует",
   "EntitlementRefusal": "Ваш тариф этого не позволяет",
   "EntitlementRefusalCapabilityRequired": "Эта функция не входит в ваш тариф",
-  "EntitlementRefusalLimitExhausted": "Достигнут лимит вашего тарифа"
+  "EntitlementRefusalLimitExhausted": "Достигнут лимит вашего тарифа",
+  "PaymentErrorConsumerRights": "Обработка прав потребителя настроена неправильно",
+  "PaymentErrorConsumerRightsRefusal": "Этот запрос сейчас нельзя выполнить для этого аккаунта",
+  "PaymentErrorConsumerRightsRefusalPerformanceConsentRequired": "Подтвердите, что хотите начать использовать недавно купленные кредиты",
+  "PaymentErrorConsumerRightsRefusalSubscriptionStartRequired": "Перед переходом к оплате подтвердите, что услуги подписки должны начаться сразу",
+  "PaymentErrorConsumerRightsRefusalBillingCountryLocked": "Страна выставления счетов этого аккаунта уже установлена и не может быть изменена здесь",
+  "PaymentErrorConsumerRightsRefusalWithdrawalUnavailable": "От этого договора нельзя отказаться здесь",
+  "PaymentErrorConsumerRightsRefusalCancellationUnavailable": "Нет активной подписки для расторжения",
+  "PaymentErrorCheckoutLimitExceeded": "Эта сумма превышает то, что этот аккаунт может купить сейчас"
 }

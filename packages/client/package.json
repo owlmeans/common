@@ -1,12 +1,13 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.39",
+  "version": "0.1.18-rc.42",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 54 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -28,17 +29,17 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.34",
-    "@owlmeans/client-context": "^0.1.18-rc.37",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.36",
-    "@owlmeans/client-resource": "^0.1.18-rc.36",
-    "@owlmeans/config": "^0.1.18-rc.36",
+    "@owlmeans/auth": "^0.1.18-rc.36",
+    "@owlmeans/client-context": "^0.1.18-rc.39",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.38",
+    "@owlmeans/client-resource": "^0.1.18-rc.38",
+    "@owlmeans/config": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.34",
-    "@owlmeans/entrypoint": "^0.1.18-rc.35",
-    "@owlmeans/resource": "^0.1.18-rc.34",
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/entrypoint": "^0.1.18-rc.37",
+    "@owlmeans/resource": "^0.1.18-rc.36",
     "@owlmeans/router": "^0.1.18-rc.31",
-    "@owlmeans/state": "^0.1.18-rc.33"
+    "@owlmeans/state": "^0.1.18-rc.35"
   },
   "peerDependencies": {
     "@remix-run/router": "*",
@@ -51,9 +52,15 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/test-ui": "^0.1.18-rc.40",
     "@types/react": "^19.2.17",
+    "@vitejs/plugin-react": "^6.0.3",
     "nodemon": "^3.1.14",
-    "typescript": "^7.0.2"
+    "playwright": "^1.61.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.2"
   },
   "publishConfig": {
     "access": "public"

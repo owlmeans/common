@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-flow
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.45"` in `dependencies`
 
 Two objects, with different lifetimes. The **service** lives on the context and owns the flow
 definitions and the one live `FlowModel`. The **client** is built per screen, wraps that model with
@@ -138,6 +138,11 @@ which is IndexedDB in a browser and so survives a full-page Google round trip.
   later sign-in. `null` covers no resource, no record, a failed read and an expired record.
 - **Destinations are entrypoint aliases from a registered flow definition, never stored URLs**, so a
   landing cannot become an open redirect. Consumers navigate to the alias with the query.
+
+Two flows use it today: the OAuth consent screen (`oauthFlow`, a signed-out person on a consent link) and
+viable's intent-first landing (`intentFlow` from `@owlmeans/viable-common/intent`, a visitor who arrives
+from the public site with `?ref=` and no account) — both enter their flow FRESH on an `initial` screen
+and never carry `?flow=`.
 
 Every sign-in completion asks `resumeSuspendedFlow` before it navigates home: `DispatcherHOC`'s HOME
 branch (`@owlmeans/client-auth`, so the `/dispatcher?token=` and resume paths are covered) and the

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/astro
 
 **Layer:** Web (Astro)
-**Install:** `"@owlmeans/astro": "^0.1.18-rc.29"` in `dependencies`
+**Install:** `"@owlmeans/astro": "^0.1.18-rc.31"` in `dependencies`
 
 ## Why it exists
 
@@ -26,8 +26,8 @@ unusable outside one, and everything it needs is a value the caller already hold
 
 | Export | Description |
 |--------|-------------|
-| `owlHeadScripts(opts?)` | `{ head, noscript }` — everything a page puts in its head, in the one order that works |
-| `HeadScripts` | That result shape: `head` is inline `<script>` content, `noscript` is `<body>` content |
+| `owlHeadScripts(opts?)` | `{ head, noscript, adopt }` — everything a page puts in its head, in the one order that works |
+| `HeadScripts` | That result shape: `head` is inline `<script>` content, `noscript` is `<body>` content, `adopt` is the standalone cross-domain-consent fragment — see below |
 | `isLegalPath(pathname, segment?)` | Whether this page must carry no tracking at all |
 | `owlLocale(currentLocale, fallback?)` | `Astro.currentLocale` as this framework's locale |
 | `GtmOptions` (re-export) | The container options from `@owlmeans/web-gtm` |
@@ -79,6 +79,43 @@ does not run until a visitor's stored or later decision grants a signal-bearing 
 storage key passes them here as well as to the dialog — otherwise the inline snippet and the
 component disagree about what is being asked.
 
+## Cross-domain consent: `adopt`, stamped first
+
+`consent.linker` (`ConsentLinkerOptions` — see the `consent` skill's plugin-seam section) turns on
+sharing a decision between first-party domains through a decorated link:
+
+```astro
+const tags = owlHeadScripts({
+  gtm: { id: SITE.gtmId },
+  consent: { linker: { domains: SITE.consentDomains, language: {} } },
+})
+```
+
+`language: {}` makes every link to a listed domain also carry the page's `<html lang>`. A site that
+also RECEIVES a language (a platform link back to the site) passes `language: { supported: [...] }`,
+and `tags.adopt` then writes it before anything else runs — but only while that site holds a cookie
+decision (stored, or carried by the same link).
+Give the consent island the same object (`linker={SITE.consentLinker}`) so head and island agree.
+
+`tags.adopt` is the STANDALONE adopt-and-strip fragment (`consentLinkerScript`) — present whenever
+`consent.linker` is set, empty string otherwise, regardless of whether `gtm` is also configured.
+Stamp it **first**, above `tags.head` and above everything else in `<head>` (the locale-redirect
+script included — its own `?lc=1` handling must not race the linker for the URL):
+
+```astro
+<head>
+  {tags.adopt !== '' && <script is:inline set:html={tags.adopt} />}
+  <script is:inline set:html={tags.head} />
+</head>
+```
+
+**Stamp it on every page, legal ones included.** `tags.head` already carries the SAME fragment
+(embedded by `consentBootstrapScript` right after `consent/default`) for a page that also runs a
+tag, so the two runs on such a page are harmless — the second finds the parameter already gone and
+does nothing. `adopt` on its own is what a legal page needs, since it stamps no `head` at all (see
+below): adopting a cross-domain cookie-consent CHOICE sets no tracking cookie and pushes nothing to
+`dataLayer`, so it is not the tracking this rule exists to keep off a legal page.
+
 ## Legal pages carry no tracking
 
 A legal page is where a visitor goes to READ what is being collected; collecting there while they
@@ -93,7 +130,8 @@ isLegalPath('/policies/privacy', 'policies')   // true — the segment is config
 ```
 
 Feed the result back into `owlHeadScripts`: drop the `gtm` option on a legal page and the page
-still declares its consent defaults while loading no container.
+still declares its consent defaults while loading no container. `tags.adopt` is unaffected by this
+— see above — and is stamped there too.
 
 ## Locale
 

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FC } from 'react'
 import { Cookie } from 'lucide-react'
 import {
-  DEFAULT_CONSENT_CATEGORIES, defaultConsentTranslate, readConsent,
+  DEFAULT_CONSENT_CATEGORIES, defaultConsentTranslate, interpolate, readConsent,
 } from '@owlmeans/consent'
 import type { ConsentRecord } from '@owlmeans/consent'
-import { cn } from '../lib/utils.js'
+import { cn, disclosedDomains } from '../lib/utils.js'
 import { useConsent } from '../hooks.js'
 import { ConsentToggle } from './toggle.js'
 import type { CookieConsentProps } from '../types.js'
@@ -46,13 +46,17 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
   const categories = props.categories ?? DEFAULT_CONSENT_CATEGORIES
   const t = props.translate ?? defaultConsentTranslate(props.locale)
 
-  const consent = useConsent({
+  const consentOpts = {
     categories,
     ...(props.storageKey != null ? { storageKey: props.storageKey } : {}),
     ...(props.cookieDays != null ? { cookieDays: props.cookieDays } : {}),
     ...(props.cookieDomain != null ? { cookieDomain: props.cookieDomain } : {}),
     ...(props.silent != null ? { silent: props.silent } : {}),
-  })
+    ...(props.linker != null ? { linker: props.linker } : {}),
+    ...(props.functionalKeys != null ? { functionalKeys: props.functionalKeys } : {}),
+  }
+  const consent = useConsent(consentOpts)
+  const domains = disclosedDomains(props.linker)
 
   const optional = categories.filter(category => category.required !== true)
   const [draft, setDraft] = useState<Record<string, boolean>>({})
@@ -91,7 +95,8 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
   return <>
     {consent.open && <div
       className="fixed inset-0 z-[999998] flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6"
-      aria-modal="true" role="dialog" aria-labelledby="cc-title" aria-describedby="cc-desc"
+      aria-modal="true" role="dialog" aria-labelledby="cc-title"
+      aria-describedby={domains.length > 1 ? 'cc-desc cc-domains' : 'cc-desc'}
       data-consent-dialog
     >
       <div className={cn(
@@ -110,6 +115,13 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
         <p id="cc-desc" className="mb-6 text-pretty text-sm leading-relaxed text-muted-foreground">
           {t('description', 'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic.')}
         </p>
+
+        {domains.length > 1 && <p
+          id="cc-domains" data-consent-domains
+          className="mb-6 -mt-3 text-pretty text-xs text-muted-foreground"
+        >
+          {interpolate(t('domains', 'This choice applies to {{domains}}.'), { domains: domains.join(', ') })}
+        </p>}
 
         <div className="space-y-3">
           {categories.map(category => <ConsentToggle

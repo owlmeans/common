@@ -1,7 +1,7 @@
-import { ConnectOutOfCredits } from '@owlmeans/viable-common'
+import { ConnectConsentRequired, ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
-import { refusalMessage, refusalPhrase } from './refusal.js'
+import { consentRequiredPhrase, refusalMessage, refusalPhrase } from './refusal.js'
 import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
 import type { ToolDeps } from './types.js'
 
@@ -16,6 +16,13 @@ const phraseOutOfCredits = (e: ConnectOutOfCredits): string =>
   `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
   + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
   + `${e.topUpUrl} — then retry.`
+
+/**
+ * Turn a consent refusal into what the model has to tell a PERSON — the page to open and that
+ * retrying first is pointless. The URL and the deadline travel packed into the message, like the
+ * out-of-credits fields.
+ */
+const phraseConsentRequired = (e: ConnectConsentRequired): string => consentRequiredPhrase(e.consentUrl, e.deadline)
 
 /** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
 export interface McpServerLike {
@@ -72,9 +79,12 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
           }
         } catch (e) {
           const isOutOfCredits = e instanceof ConnectOutOfCredits
-          const text = isOutOfCredits ? phraseOutOfCredits(e) : refusalPhrase(e)
+          const isConsent = e instanceof ConnectConsentRequired
+          const text = isOutOfCredits
+            ? phraseOutOfCredits(e)
+            : isConsent ? phraseConsentRequired(e) : refusalPhrase(e)
           deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
-          if (isOutOfCredits) {
+          if (isOutOfCredits || isConsent) {
             deps.notify?.('warning', text)
           }
 

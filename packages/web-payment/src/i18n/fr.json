@@ -15,28 +15,59 @@
     "cancel": "Annuler",
     "continue": "Continuer vers Stripe",
     "pending": "Ouverture du paiement…",
-    "close": "Fermer"
+    "close": "Fermer",
+    "above-limit": "Le maximum que vous pouvez ajouter actuellement est de {{amount}}."
   },
   "entitlement": {
-    "plan": { "current": "Plan actuel" },
+    "plan": {
+      "current": "Plan actuel"
+    },
     "status": {
-      "trial": "Essai", "trial-on": "L’essai se termine le {{date}}", "past-due": "Paiement en retard",
-      "cancel-scheduled": "Annulation programmée", "cancel-scheduled-on": "Annulé le {{date}}",
-      "paused": "En pause", "paused-on": "En pause depuis le {{date}}", "suspended": "Suspendu",
-      "free": "Plan gratuit", "renews-on": "Se renouvelle le {{date}}", "active": "Actif",
-      "created": "En attente d’activation", "canceled": "Annulé", "expired": "Expiré", "ended": "Terminé", "blocked": "Bloqué"
+      "trial": "Essai",
+      "trial-on": "L’essai se termine le {{date}}",
+      "past-due": "Paiement en retard",
+      "cancel-scheduled": "Annulation programmée",
+      "cancel-scheduled-on": "Annulé le {{date}}",
+      "paused": "En pause",
+      "paused-on": "En pause depuis le {{date}}",
+      "suspended": "Suspendu",
+      "free": "Plan gratuit",
+      "renews-on": "Se renouvelle le {{date}}",
+      "active": "Actif",
+      "created": "En attente d’activation",
+      "canceled": "Annulé",
+      "expired": "Expiré",
+      "ended": "Terminé",
+      "blocked": "Bloqué"
     },
     "limit": {
-      "usage": "{{used}} sur {{limit}}", "usage-unit": "{{used}} sur {{limit}} {{unit}}", "not-included": "Non inclus",
-      "exhausted": "Limite atteinte", "resets-on": "Se renouvelle le {{date}}"
+      "usage": "{{used}} sur {{limit}}",
+      "usage-unit": "{{used}} sur {{limit}} {{unit}}",
+      "not-included": "Non inclus",
+      "exhausted": "Limite atteinte",
+      "resets-on": "Se renouvelle le {{date}}"
     },
-    "promo": { "free-until": "Gratuit jusqu’au {{date}}", "grandfathered": "Inclus dans votre plan", "ended": "Promotion terminée" },
-    "capability": { "included": "Inclus", "not-included": "Non inclus" }
+    "promo": {
+      "free-until": "Gratuit jusqu’au {{date}}",
+      "grandfathered": "Inclus dans votre plan",
+      "ended": "Promotion terminée"
+    },
+    "capability": {
+      "included": "Inclus",
+      "not-included": "Non inclus"
+    }
   },
   "estimate": {
-    "country": "Pays de facturation", "country-placeholder": "Choisissez un pays",
-    "tax-type": { "vat": "TVA", "gst": "GST", "sales-tax": "Taxe de vente", "tax": "Taxe" },
-    "rate": "{{type}} ({{percentage}} %)", "total": "Total estimé",
+    "country": "Pays de facturation",
+    "country-placeholder": "Choisissez un pays",
+    "tax-type": {
+      "vat": "TVA",
+      "gst": "GST",
+      "sales-tax": "Taxe de vente",
+      "tax": "Taxe"
+    },
+    "rate": "{{type}} ({{percentage}} %)",
+    "total": "Total estimé",
     "converted-note": "Conversion au taux de change actuel de Stripe ; le montant exact et les éventuels frais de conversion sont confirmés lors du paiement.",
     "status": {
       "taxed": "La taxe est incluse dans le total estimé ci-dessous.",
@@ -45,6 +76,70 @@
       "at-checkout": "La taxe exacte est calculée lors du paiement.",
       "location-required": "Choisissez votre pays de facturation pour voir une estimation."
     },
-    "loading": "Vérification de la taxe…", "failed": "La taxe ne peut pas être vérifiée pour le moment."
+    "loading": "Vérification de la taxe…",
+    "failed": "La taxe ne peut pas être vérifiée pour le moment.",
+    "country-locked": "Votre pays de facturation a été fixé lors de votre premier achat et ne peut pas être modifié ici."
+  },
+  "checkout-limit": {
+    "note": "Vous pouvez actuellement ajouter jusqu’à {{amount}}.",
+    "blocked": "Vous ne pouvez pas ajouter de crédits pour le moment.",
+    "resets": "Davantage sera disponible le {{date}}.",
+    "reason": {
+      "per-purchase": "Les recharges individuelles de votre organisation sont limitées pour l’instant ; la limite augmente à mesure que vous utilisez vos crédits.",
+      "window": "Vos recharges récentes comptent dans une limite sur les derniers jours.",
+      "hold": "Les recharges de votre organisation sont suspendues. Veuillez contacter le support.",
+      "other": "Une limite de recharge s’applique à votre organisation."
+    }
+  },
+  "consumer": {
+    "show-in": "Afficher en {{language}}",
+    "purchases": "Achats dans leur délai de rétractation",
+    "continue": "Continuer",
+    "back": "Retour",
+    "close": "Fermer",
+    "print": "Imprimer ou enregistrer",
+    "pending": "Envoi…",
+    "required": "Veuillez remplir ce champ.",
+    "email-invalid": "Saisissez une adresse e-mail valide.",
+    "date-invalid": "Choisissez une date à partir d’aujourd’hui.",
+    "failed": "Cela n’a pas abouti. Veuillez réessayer.",
+    "review": "Vérifiez vos informations",
+    "receipt": "Accusé de réception",
+    "received-at": "Reçu le",
+    "reference": "Référence",
+    "status": "Statut",
+    "not-mailed": "Conservez cette page : l’e-mail de confirmation n’a pas encore été envoyé.",
+    "website": "Site web"
+  },
+  "withdrawal": {
+    "none": "Aucun contrat ne peut faire l’objet d’une rétractation pour le moment.",
+    "purchased": "Acheté le {{date}}",
+    "paid": "Payé : {{amount}}",
+    "until": "Rétractation possible jusqu’au {{date}} inclus",
+    "estimate": "Remboursement estimé : {{amount}}",
+    "estimate-unknown": "Le remboursement est calculé lors du traitement de votre rétractation.",
+    "refund": "Remboursement",
+    "subscription-canceled": "L’abonnement a pris fin.",
+    "kind": {
+      "top-up": "Crédits",
+      "subscription": "Abonnement"
+    },
+    "status": {
+      "received": "Reçue",
+      "processing": "En cours de traitement",
+      "refunded": "Remboursée",
+      "review": "En cours d’examen",
+      "failed": "Remboursement retardé — nouvelle tentative en cours",
+      "expired": "Reçue après le délai de rétractation"
+    }
+  },
+  "cancellation": {
+    "effective-at": "Votre contrat prend fin le {{date}}.",
+    "status": {
+      "received": "Reçue",
+      "scheduled": "Résiliation programmée",
+      "already-scheduled": "Résiliation déjà programmée",
+      "review": "Reçue — nous l’examinerons et la confirmerons par e-mail"
+    }
   }
 }

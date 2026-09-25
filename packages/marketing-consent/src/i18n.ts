@@ -11,10 +11,13 @@ import de from './i18n/de.json' with { type: 'json' }
 import fr from './i18n/fr.json' with { type: 'json' }
 
 /**
- * Group and consent labels under `lib:marketing-consent.*`, in the 8 languages this domain shares
- * with `@owlmeans/consent` (`CONSENT_LOCALES` — one more than `@owlmeans/i18n`'s own
- * `SUPPORTED_LNGS`, because the sibling cookie-consent bundle already carries `fr` and this
- * catalogue's `trackers.*` rows describe the same cookies).
+ * Group titles, consent statements and their descriptions under `lib:marketing-consent.*`, in the
+ * 8 languages the OwlMeans consent packages share (en, pl, ru, be, uk, es, de, fr).
+ *
+ * A statement (`consent.<key>.label`) begins "I confirm that I agree to …" and a description
+ * carries the policy link INSIDE its text as the `{{link}}` placeholder — the web screen splits the
+ * translated string on it and draws the definition's own link there (`link.privacy` is the label
+ * viable-style configurations point their links at).
  */
 const LANGUAGES = { en, pl, ru, be, uk, es, de, fr }
 

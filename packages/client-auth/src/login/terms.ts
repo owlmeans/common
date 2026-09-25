@@ -1,6 +1,7 @@
 import { OWLMEANS_COOKIES_URL, OWLMEANS_PRIVACY_URL, OWLMEANS_TERMS_URL } from '@owlmeans/config'
 import type { LoginTermsConfig } from '@owlmeans/config'
-import { LOGIN_TERMS_STORAGE } from './consts.js'
+import { LOGIN_SERVICE, LOGIN_TERMS_STORAGE } from './consts.js'
+import type { LoginContext, LoginService } from './types.js'
 import './terms-config.js'
 
 /** One document (or notice) a sign-in screen links to. */
@@ -179,6 +180,83 @@ export const acceptTerms = (resolved: ResolvedTerms | null, accepted: boolean): 
     }
   } catch { /* nothing to remember if storage was never available */ }
 }
+
+/** The same English fallback a document's `i18nKey` translates to when nothing else names it. */
+const DEFAULT_LABEL: Record<string, string> = {
+  terms: 'Terms & Conditions',
+  privacy: 'Privacy Policy',
+  cookies: 'Cookie Policy',
+  billing: 'Billing Terms',
+  product: '{{product}} Product Terms',
+}
+
+/**
+ * A document's own label: a caller's literal `label`, else its `labelMap` for the current locale,
+ * else its `i18nKey` translated — each with `params` (e.g. `{ product: 'Acme' }`) interpolated
+ * afterwards, since the `translate` contract every renderer shares is a plain
+ * `(key, defaultValue) => string` with no interpolation option of its own.
+ *
+ * The one label resolver every renderer of a terms sentence uses — `FallbackLoginScreen` here, and
+ * `@owlmeans/web-panel`'s `LoginTerms` — so the English fallbacks and the resolution order live in
+ * exactly one place instead of two hand-kept copies.
+ */
+export const termsLabelResolver = (
+  translate: (key: string, defaultValue: string) => string, locale: string | undefined
+) => (doc: ResolvedTermsDocument): string => {
+  const fromMap = doc.labelMap != null
+    ? (locale != null ? doc.labelMap[locale] : undefined) ?? Object.values(doc.labelMap)[0]
+    : undefined
+  let label = doc.label ?? fromMap
+    ?? (doc.i18nKey != null ? translate(doc.i18nKey, DEFAULT_LABEL[doc.key] ?? doc.key) : doc.key)
+
+  if (doc.params != null) {
+    for (const [key, value] of Object.entries(doc.params)) {
+      label = label.split(`{{${key}}}`).join(value)
+    }
+  }
+
+  return label
+}
+
+/** One document as `@owlmeans/marketing-consent`'s `TermsDocumentRef` shape — structurally, with
+ * no dependency on that package (client-auth is a layer below it). */
+export interface TermsAcceptanceRef {
+  key: string
+  href: string
+  revisedAt?: string
+}
+
+/**
+ * What a sign-in-time terms acceptance sends the server — structurally
+ * `@owlmeans/marketing-consent`'s `TermsAcceptance`, so `client.recordTerms(termsAcceptanceOf(...))`
+ * type-checks with no dependency in this direction. Shared by `termsRecorder` (the sign-in screen's
+ * own local acceptance, copied at landing) and a Terms-mode consent screen recording the box it
+ * just showed.
+ */
+export const termsAcceptanceOf = (
+  resolved: Pick<ResolvedTerms, 'documents' | 'notices' | 'version'>, locale?: string
+): { documents: TermsAcceptanceRef[], notices: TermsAcceptanceRef[], version: string, locale?: string } => ({
+  documents: resolved.documents.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
+  notices: resolved.notices.map(doc => ({ key: doc.key, href: doc.href, revisedAt: doc.revisedAt })),
+  version: resolved.version,
+  ...(locale != null ? { locale } : {}),
+})
+
+/**
+ * Whether the Terms confirmation has been moved off the sign-in screen onto a registered step.
+ *
+ * True only when a step both DECLARES `confirmsTerms` and is BOUND (`ctx.hasEntrypoint`) — an app
+ * that registers the step (e.g. `appendMarketingConsent({ terms: 'step' })`) but never binds its
+ * screen (an older target, a partial import) keeps the sign-in checkbox, fail-closed: a person must
+ * never find the confirmation missing from both places at once.
+ *
+ * Reads the service directly (`ctx.hasService`), never `ensureLoginService` — that registers an
+ * empty host as a side effect, which a render-time check must not do.
+ */
+export const termsDeferred = (ctx: LoginContext): boolean =>
+  ctx.hasService(LOGIN_SERVICE)
+  && ctx.service<LoginService>(LOGIN_SERVICE).steps()
+    .some(step => step.confirmsTerms === true && ctx.hasEntrypoint(step.entrypoint))
 
 /** One fragment of an interpolated terms sentence — plain text, or a link to a document. */
 export interface TermsSentencePart {

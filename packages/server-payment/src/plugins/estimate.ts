@@ -1,14 +1,16 @@
 import type Stripe from 'stripe'
 import {
-  chargeAmountMinor, CheckoutPricingMode, currencyOfCountry, ProductError, ratePpmOf, TaxBehavior,
-  TaxEstimateStatus, TaxType, UnknownProduct,
+  chargeAmountMinor, chargeCurrencyOf, CheckoutPricingMode, currencyOfCountry, ProductError, ratePpmOf,
+  regionOf, TaxBehavior, TaxEstimateStatus, TaxType, UnknownProduct,
 } from '@owlmeans/payment'
 import type { PriceEstimate, TaxEstimate, TaxRateEstimate } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_FX_QUOTES_API_VERSION, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import { findProduct } from '../plan.js'
 import { isSoldThrough } from '../sync.js'
-import { isMissingObject, paygateCustomers, payment, stripePricingConfig } from '../utils.js'
+import {
+  consumerRightsOf, fingerprints, isMissingObject, paygateCustomers, payment, stripePricingConfig,
+} from '../utils.js'
 import type { PaymentPlan, PaymentProduct, PriceEstimateParams } from '../types.js'
 import { stripeFxRate } from './fx.js'
 
@@ -158,6 +160,30 @@ const referenceOf = (plan: PaymentPlan): { subtotalMinor: number; currency: stri
   return { subtotalMinor: Math.round(plan.price * 100), currency: (plan.currency ?? 'usd').toLowerCase() }
 }
 
+/**
+ * The reference amount in the currency the buyer is charged in: a recurring or quantity plan's
+ * synced price in that currency (its default or an option — no paygate call), else the plan's own
+ * catalogue reference. An amount plan keeps its policy currency.
+ */
+const chargedReferenceOf = async (
+  ctx: ApiContext, product: PaymentProduct, plan: PaymentPlan, chargeCurrency: string | null,
+): Promise<{ subtotalMinor: number; currency: string }> => {
+  const reference = referenceOf(plan)
+  if (chargeCurrency == null || plan.pricingMode === CheckoutPricingMode.Amount || chargeCurrency === reference.currency && plan.currencyPrices == null) {
+    return reference
+  }
+  const synced = (await fingerprints(ctx).bySku(product.sku))?.prices?.find(price => price.planSku === plan.sku)
+  if (synced == null) {
+    return reference
+  }
+  if (synced.currency === chargeCurrency) {
+    return { subtotalMinor: synced.unitAmount, currency: chargeCurrency }
+  }
+  const option = synced.options.find(entry => entry.currency === chargeCurrency)
+
+  return option != null ? { subtotalMinor: option.unitAmount, currency: chargeCurrency } : reference
+}
+
 /** A placeholder estimate — no known tax, shown by its `status`, never by its zeroed numbers. */
 const unresolvedEstimate = (status: TaxEstimateStatus, subtotalMinor: number): TaxEstimate => ({
   status, subtotalMinor, taxMinor: 0, totalMinor: subtotalMinor, scalable: false, rates: [],
@@ -214,10 +240,13 @@ export const estimateStripePrice = async (
 
   const pricing = await payment(ctx).pricingPolicy()
   const behavior = pricing.tax.behavior ?? TaxBehavior.Exclusive
-  const { subtotalMinor, currency } = referenceOf(plan)
+  const rights = await payment(ctx).consumerRightsPolicy()
+  // A locked billing country overrides whatever the request names: a picker shows it, locked.
+  const profile = rights != null ? await consumerRightsOf(ctx)?.profile(params.entityId) ?? null : null
+  const locked = profile?.locked === true && profile.country != null
 
-  let country = params.country?.toUpperCase()
-  let source: 'request' | 'customer' | undefined = country != null ? 'request' : undefined
+  let country = locked ? profile.country as string : params.country?.toUpperCase()
+  let source: 'request' | 'customer' | 'profile' | undefined = locked ? 'profile' : country != null ? 'request' : undefined
   let matchingTaxIds: Array<{ type: string; value: string }> = []
   let taxabilityOverride: 'customer_exempt' | 'reverse_charge' | undefined
 
@@ -236,8 +265,16 @@ export const estimateStripePrice = async (
     }
   }
 
+  const region = rights != null ? regionOf(country, rights) : null
+  const settlementCurrency = (await stripePricingConfig(ctx))?.settlementCurrency?.toLowerCase()
+  const { subtotalMinor, currency } = await chargedReferenceOf(ctx, product, plan, rights != null && rights.currencies != null
+    && Object.keys(rights.currencies).length > 0
+    ? (profile?.currency ?? chargeCurrencyOf(region, rights, settlementCurrency ?? (plan.currency ?? 'usd'))).toLowerCase()
+    : null)
+  const where = { ...(region != null ? { region } : {}), ...(locked ? { locked: true } : {}) }
+
   if (country == null) {
-    return { currency, behavior, tax: unresolvedEstimate(TaxEstimateStatus.LocationRequired, subtotalMinor) }
+    return { currency, behavior, tax: unresolvedEstimate(TaxEstimateStatus.LocationRequired, subtotalMinor), ...where }
   }
 
   const cacheKey = JSON.stringify([
@@ -276,9 +313,12 @@ export const estimateStripePrice = async (
     ? taxEstimateOf(outcome.calculation, behavior, subtotalMinor)
     : unresolvedEstimate(TaxEstimateStatus.AtCheckout, subtotalMinor)
 
-  const result: PriceEstimate = { country, source, currency, behavior, tax }
+  const result: PriceEstimate = { country, source, currency, behavior, tax, ...where }
+  // Adaptive Pricing — and so a local-currency line — applies only to a session charged in the
+  // settlement currency; a forced region currency (exact USD) is shown as it is.
+  const adaptive = rights?.currencies == null || currency === (settlementCurrency ?? currency)
 
-  if (pricing.currency.estimate && pricing.currency.adaptive === true) {
+  if (pricing.currency.estimate && pricing.currency.adaptive === true && adaptive) {
     const localCurrency = currencyOfCountry(country)
     if (localCurrency != null && localCurrency !== currency) {
       const stripePricing = await stripePricingConfig(ctx)

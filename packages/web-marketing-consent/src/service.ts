@@ -4,8 +4,7 @@ import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type {
-  MarketingConsentBridge, MarketingConsentEntrypoints, MarketingConsentStatusView,
-  SaveMarketingConsentRequest, TermsAcceptance,
+  MarketingConsentEntrypoints, MarketingConsentStatusView, SaveMarketingConsentRequest, TermsAcceptance,
 } from '@owlmeans/marketing-consent'
 import { MARKETING_CONSENT_CLIENT_SERVICE } from './consts.js'
 
@@ -25,14 +24,12 @@ export interface MarketingConsentClientService extends LazyService {
   recordTerms: (acceptance: TermsAcceptance) => Promise<boolean>
   /** The most recent successful `status`/`save` result, cached in memory. */
   last: () => MarketingConsentStatusView | null
-  bridges: () => MarketingConsentBridge[]
   /** The entrypoint alias of the "Privacy choices" settings screen, when one was configured. */
   preferences: () => string | undefined
 }
 
 export interface MakeMarketingConsentClientOptions {
   alias?: string
-  bridges?: MarketingConsentBridge[]
   preferences?: string
 }
 
@@ -47,7 +44,6 @@ export const makeMarketingConsentClient = (
   protocols: MarketingConsentEntrypoints, opts: MakeMarketingConsentClientOptions = {},
 ): MarketingConsentClientService => {
   const alias = opts.alias ?? MARKETING_CONSENT_CLIENT_SERVICE
-  const bridges = opts.bridges ?? []
 
   let lastView: MarketingConsentStatusView | null = null
 
@@ -110,8 +106,6 @@ export const makeMarketingConsentClient = (
     },
 
     last: () => lastView,
-
-    bridges: () => bridges,
 
     preferences: () => opts.preferences,
   })

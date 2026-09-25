@@ -50,6 +50,28 @@ export enum ExecutionEffort {
 }
 
 /**
+ * The PROVIDER's own effort knob — OpenAI `reasoning.effort`, Anthropic
+ * `output_config.effort`. Not {@link ExecutionEffort}: that is this package's tier, which
+ * sizes token budgets; this is a value sent on the wire. Which levels a model accepts is a
+ * provider-plugin fact in `@owlmeans/llm`.
+ */
+export enum ModelEffort {
+  None = 'none',
+  Minimal = 'minimal',
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
+  XHigh = 'xhigh',
+  Max = 'max',
+}
+
+/** {@link ModelEffort} from least to most work — the order an escalation climbs. */
+export const MODEL_EFFORT_ORDER: readonly ModelEffort[] = [
+  ModelEffort.None, ModelEffort.Minimal, ModelEffort.Low, ModelEffort.Medium,
+  ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max,
+]
+
+/**
  * How a model is asked to produce a schema-conforming object.
  *
  * - `Native` — the provider's own JSON-schema mode

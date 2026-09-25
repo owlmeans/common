@@ -1,5 +1,6 @@
 
-export { handler, useNavigate, useValue, useEntrypoint } from '@owlmeans/client'
+export { handler, lazyHandler, lazyComponent, useNavigate, useValue, useEntrypoint } from '@owlmeans/client'
+export type { LazyComponent, LazyComponentOptions, LazyHandler } from '@owlmeans/client'
 export { config } from '@owlmeans/client-context'
 export { service } from '@owlmeans/config'
 export { addWebService } from '@owlmeans/client-config'

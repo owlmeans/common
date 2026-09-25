@@ -29,7 +29,7 @@ export const SaveMarketingConsentSchema: JSONSchemaType<SaveMarketingConsentRequ
         additionalProperties: false,
       },
     },
-    source: { type: 'string', enum: ['sign-in', 'settings', 'cookie'] },
+    source: { type: 'string', enum: ['sign-in', 'settings'] },
     locale: { type: 'string', maxLength: 16, nullable: true },
     gpc: { type: 'boolean', nullable: true },
   },

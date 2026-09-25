@@ -1,21 +1,27 @@
 import type Stripe from 'stripe'
 import { Mutex } from 'async-mutex'
 import {
-  CheckoutPricingMode, PaygateError, SubscriptionStatus, TERMINAL_STATUSES,
+  CheckoutPricingMode, ENTITLING_STATUSES, PaygateError, SubscriptionStatus, TERMINAL_STATUSES,
 } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { STRIPE_PAYGATE_ALIAS } from '../consts.js'
+import { GATEWAY_SERVICE, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import { findPlan, planRank } from '../plan.js'
 import { commitSubscription } from '../subscription.js'
 import type { CommitResult } from '../subscription.js'
 import {
-  compact, dateOf, fulfillments, idOf, isDuplicateKey, isMissingObject, observer, paygateCustomers,
-  subscriptions,
+  compact, dateOf, fulfillments, gateway, idOf, isDuplicateKey, isMissingObject, observer, paygateCustomers,
+  purchases, subscriptions,
 } from '../utils.js'
+import {
+  capturePaymentPurchase, captureSubscriptionPurchase, completeSubscriptionPurchase, sessionEvidenceOf,
+} from '../consumer/capture.js'
+import { patchPurchase, purchaseIdOf } from '../consumer/records.js'
+import { settleCheckout } from './checkout-plugins.js'
 import { resolvePaymentTarget, retrieveCharge } from './refunds.js'
 import type { PaymentTarget } from './refunds.js'
 import type {
-  DisputePhase, PaymentFulfillmentRecord, PaymentSubscriptionRecord, SubscriptionRef, TopUpCompletion,
+  CheckoutOutcome, CheckoutPlugin, DisputePhase, PaymentFulfillmentRecord, PaymentSubscriptionRecord,
+  SubscriptionRef, TopUpCompletion,
 } from '../types.js'
 
 const customerMutex: Record<string, Mutex> = {}
@@ -82,6 +88,8 @@ export interface ApplyOptions {
   trialEnding?: boolean
   /** Store this status whatever the payload says (a deleted subscription is canceled). */
   forced?: SubscriptionStatus
+  /** The paygate client — lets the first commit read the first invoice for its purchase row. */
+  stripe?: Stripe
 }
 
 const secondsFloor = (at: Date): Date => new Date(Math.floor(at.getTime() / 1000) * 1000)
@@ -152,6 +160,7 @@ export const applySubscription = async (
     trialEnd: dateOf(subscription.trial_end),
     latestInvoiceId: opts.invoiceId ?? idOf(subscription.latest_invoice) ?? previous?.latestInvoiceId,
     customerId,
+    currency: subscription.currency?.toLowerCase() ?? previous?.currency,
     createdAt: previous?.createdAt ?? dateOf(subscription.created) ?? now,
     updatedAt: now,
     syncedAt,
@@ -160,6 +169,12 @@ export const applySubscription = async (
 
   return await commitSubscription(ctx, previous, next, {
     eventId: opts.eventId, renewal: opts.renewal, invoiceId: opts.invoiceId, trialEnding: opts.trialEnding,
+    // The first invoice is a purchase: its window exists before an observer grants the bundle.
+    beforePropagate: async (record, change) => {
+      if (change === 'created') {
+        await captureSubscriptionPurchase(ctx, opts.stripe ?? null, subscription, record)
+      }
+    },
   })
 }
 
@@ -211,7 +226,7 @@ export const resyncStripeSubscription = async (
     const subscription = await retrieveSubscription(stripe, id)
     const customerId = subscription != null ? idOf(subscription.customer) : undefined
     const result = await withCustomerLock(customerId, async () => subscription != null
-      ? await applySubscription(ctx, subscription, { source: 'resync' })
+      ? await applySubscription(ctx, subscription, { source: 'resync', stripe })
       : await cancelMissing(ctx, id))
     if (result.updated) {
       updated++
@@ -267,6 +282,11 @@ const DISPUTE_PHASES: Record<string, DisputePhase> = {
 
 type EventHandler = (event: Stripe.Event) => Promise<void>
 
+/** The registered checkout plugins — none in a context without a gateway service. */
+const checkoutPluginsOf = (ctx: ApiContext): readonly CheckoutPlugin[] =>
+  (ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(GATEWAY_SERVICE) === true
+    ? gateway(ctx).checkoutPlugins?.() ?? [] : []
+
 /**
  * The Stripe event dispatch table. `process` runs the handler of an event type and ignores every
  * other type; a throw escapes so Stripe delivers the event again.
@@ -279,6 +299,8 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       const data = compact({
         email: customer.email ?? undefined, name: customer.name ?? undefined,
         taxId: customer.tax_ids?.data?.[0]?.value ?? undefined,
+        country: customer.address?.country?.toUpperCase() ?? undefined,
+        currency: customer.currency?.toLowerCase() ?? undefined,
         entityId: customer.metadata?.entityId ?? existing?.entityId ?? undefined,
         profileId: customer.metadata?.profileId ?? existing?.profileId ?? undefined,
       })
@@ -303,7 +325,22 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
     }
   }
 
+  const settle = async (session: Stripe.Checkout.Session, outcome: CheckoutOutcome, entityId?: string): Promise<void> => {
+    const metadata = session.metadata ?? {}
+    const owner = entityId ?? metadata.entityId
+    if (owner == null) return
+    const amount = Number(metadata.amountMinor)
+    await settleCheckout(ctx, checkoutPluginsOf(ctx), compact({
+      entityId: owner, productSku: metadata.productSku, planSku: metadata.planSku, sessionId: session.id, outcome,
+      amountMinor: Number.isSafeInteger(amount) && amount > 0 ? amount : undefined, at: new Date(),
+    }))
+  }
+
   const fulfillPayment = async (session: Stripe.Checkout.Session): Promise<void> => {
+    if (session.mode === 'subscription') {
+      await completeSubscriptionCheckout(session)
+      return
+    }
     if (session.mode !== 'payment' || session.payment_status !== 'paid') return
     const metadata = session.metadata ?? {}
     if (metadata.entityId == null || metadata.service == null || metadata.productSku == null) {
@@ -353,23 +390,90 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
         completion = { ...base, mode: 'quantity', units }
       }
 
+      // The purchase — the withdrawal window and the contract — exists BEFORE the credits do; the
+      // billing country is locked with it.
+      const captured = await capturePaymentPurchase(ctx, stripe, session, compact({
+        netAmountMinor: completion.mode === 'amount' ? completion.amountMinor : undefined,
+        amountCurrency: completion.mode === 'amount' ? completion.amountCurrency : undefined,
+        units: completion.mode === 'quantity' ? completion.units : undefined,
+      }))
+      const evidence = sessionEvidenceOf(session)
       const identifiers = compact({
         paymentIntentId: idOf(session.payment_intent), invoiceId: idOf(session.invoice),
       })
+      const evidenceFields = compact({
+        country: evidence.country, email: evidence.email, profileId: metadata.profileId,
+        amountTotalMinor: session.amount_total ?? undefined, amountTaxMinor: session.total_details?.amount_tax ?? undefined,
+        termsAccepted: evidence.termsAccepted, purchaseId: captured?.purchase.purchaseId,
+      })
       if (stored == null) {
         try {
-          stored = await ledger.create(compact({ ...base, ...record, ...identifiers, createdAt: new Date() }) as PaymentFulfillmentRecord)
+          stored = await ledger.create(compact({ ...base, ...record, ...identifiers, ...evidenceFields, createdAt: new Date() }) as PaymentFulfillmentRecord)
         } catch (error) {
           if (!isDuplicateKey(error)) throw error
           stored = await ledger.byExternalId(session.id, STRIPE_PAYGATE_ALIAS)
           if (stored == null || stored.fulfilledAt != null) return
         }
-      } else if (stored.paymentIntentId == null && identifiers.paymentIntentId != null) {
-        stored = await ledger.update({ ...stored, ...identifiers })
+      } else if ((stored.paymentIntentId == null && identifiers.paymentIntentId != null)
+        || (stored.purchaseId == null && evidenceFields.purchaseId != null)) {
+        stored = await ledger.update({ ...stored, ...identifiers, ...evidenceFields })
       }
       await observer(ctx).propagateTopUp(completion, ctx)
       await ledger.update({ ...stored, fulfilledAt: new Date() })
     })
+    await settle(session, 'paid')
+  }
+
+  /**
+   * A completed SUBSCRIPTION checkout: the subscription is applied if no webhook applied it yet
+   * (its first commit writes the purchase before the `created` observers), then the purchase is
+   * refined with the buyer's own country and totals, the billing country is locked, the evidence is
+   * stored on the subscription row and the confirmation mailed.
+   */
+  const completeSubscriptionCheckout = async (session: Stripe.Checkout.Session): Promise<void> => {
+    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') return
+    const subscriptionId = idOf(session.subscription)
+    if (subscriptionId == null) return
+    await withCustomerLock(idOf(session.customer), async () => {
+      let row = await subscriptions(ctx).byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS)
+      let subscription: Stripe.Subscription | null = null
+      if (row?.propagated == null) {
+        subscription = await retrieveSubscription(stripe, subscriptionId)
+        if (subscription != null) {
+          row = (await applySubscription(ctx, subscription, { source: 'webhook', stripe })).record ?? row
+        }
+      }
+      if (row == null) {
+        console.warn(`[payment] completed checkout "${session.id}" names an unknown subscription "${subscriptionId}"`)
+        return
+      }
+      let purchase = await purchases(ctx).byPurchaseId(purchaseIdOf(subscriptionId))
+      if (purchase == null && ENTITLING_STATUSES.includes(row.status)) {
+        subscription = subscription ?? await retrieveSubscription(stripe, subscriptionId)
+        purchase = subscription != null
+          ? (await captureSubscriptionPurchase(ctx, stripe, subscription, row))?.purchase ?? null : null
+      }
+      if (purchase != null) {
+        purchase = await completeSubscriptionPurchase(ctx, stripe, session, purchase)
+      }
+      const evidence = sessionEvidenceOf(session)
+      const metadata = session.metadata ?? {}
+      const current = await subscriptions(ctx).byExternalId(subscriptionId, STRIPE_PAYGATE_ALIAS) ?? row
+      await subscriptions(ctx).update(compact({
+        ...current,
+        checkoutSessionId: session.id,
+        purchaseId: purchase?.purchaseId ?? current.purchaseId,
+        firstInvoiceId: current.firstInvoiceId ?? idOf(session.invoice),
+        currency: current.currency ?? (evidence.currency !== '' ? evidence.currency : undefined),
+        country: evidence.country ?? current.country,
+        email: evidence.email ?? current.email,
+        amountTotalMinor: evidence.totalMinor,
+        amountTaxMinor: evidence.taxMinor,
+        termsAccepted: evidence.termsAccepted ?? current.termsAccepted,
+        startRequestId: metadata.startRequestId ?? purchase?.startRequestId ?? current.startRequestId,
+      }))
+    })
+    await settle(session, 'paid')
   }
 
   const checkoutFailed = async (session: Stripe.Checkout.Session): Promise<void> => {
@@ -403,17 +507,19 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       entityId, kind: 'checkout' as const, externalId: session.id,
       subscriptionId: idOf(session.subscription), eventKey: `payment-failed:${session.id}:0`,
     }), ctx)
+    await settle(session, 'failed', entityId)
   }
 
   const purgeExpiredCheckout = async (session: Stripe.Checkout.Session): Promise<void> => {
     await fulfillments(ctx).purge({ paygate: STRIPE_PAYGATE_ALIAS, externalId: session.id, fulfilledAt: null })
+    await settle(session, 'expired')
   }
 
   const applyFromEvent = (opts: Partial<ApplyOptions> = {}): EventHandler => async event => {
     const subscription = event.data.object as Stripe.Subscription
     await withCustomerLock(idOf(subscription.customer), async () => {
       await applySubscription(ctx, subscription, {
-        source: 'webhook', eventId: event.id, eventCreated: event.created, ...opts,
+        source: 'webhook', eventId: event.id, eventCreated: event.created, stripe, ...opts,
       })
     })
   }
@@ -429,7 +535,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
     }
 
     return await withCustomerLock(idOf(subscription.customer), async () =>
-      await applySubscription(ctx, subscription, { source: 'webhook', eventId: event.id, ...opts }))
+      await applySubscription(ctx, subscription, { source: 'webhook', eventId: event.id, stripe, ...opts }))
   }
 
   const invoicePaid: EventHandler = async event => {
@@ -488,6 +594,19 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       planSku: target.record.planSku, externalId: target.record.externalId,
     })
 
+  /** A refund of a purchase's payment moves its refunded total; a whole refund closes its window. */
+  const refundPurchase = async (target: PaymentTarget, refundedTotal: number, paid: number | undefined): Promise<void> => {
+    const purchaseId = purchaseIdOf(target.record.externalId)
+    const purchase = await purchases(ctx).byPurchaseId(purchaseId)
+    if (purchase == null || (target.kind === 'subscription' && purchase.invoiceId != null && purchase.invoiceId !== target.invoiceId)) {
+      return
+    }
+    await patchPurchase(ctx, purchaseId, compact({
+      refundedMinor: Math.max(purchase.refundedMinor ?? 0, refundedTotal),
+      refundedAt: purchase.refundedAt ?? (paid != null && refundedTotal >= paid ? new Date() : undefined),
+    }))
+  }
+
   const processRefund = async (refund: Stripe.Refund, charge?: Stripe.Charge | null): Promise<void> => {
     if (refund.status !== 'succeeded') return
     const target = await resolvePaymentTarget(ctx, stripe, {
@@ -507,6 +626,8 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
         refundedAt: new Date(), chargeId: target.record.chargeId ?? refunded?.id,
       }))
     }
+    await refundPurchase(target, refundedTotal, paid)
+    const metadata = { ...(refund.metadata ?? {}) } as Record<string, string>
     await observer(ctx).propagateRefund(compact({
       ...targetFields(target),
       refundId: refund.id,
@@ -518,6 +639,9 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       currency: refund.currency,
       partial: paid != null ? refundedTotal < paid : false,
       eventKey: `refund:${refund.id}`,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      // Set by a withdrawal's own refund: its observer takes back the unused units, `onRefund` must not.
+      withdrawalId: metadata.withdrawalId != null && metadata.withdrawalId !== '' ? metadata.withdrawalId : undefined,
     }) as Parameters<ReturnType<typeof observer>['propagateRefund']>[0], ctx)
   }
 

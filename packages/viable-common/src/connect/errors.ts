@@ -137,6 +137,60 @@ export class ConnectOutOfCredits extends ConnectError {
   }
 }
 
+/**
+ * The action would spend credits bought less than 14 days ago under EU consumer rules, and a person
+ * has not yet expressly asked the platform to start using them (the purchase can still be
+ * withdrawn from). Only a person can give that request — in the browser, at `consentUrl`.
+ *
+ * Packed like `ConnectOutOfCredits`, because only `type` and `message` survive a marshal:
+ * `consent-required:<gate>:<deadline epoch ms | 0>:<encodeURIComponent(consentUrl)>`. The deadline
+ * is epoch milliseconds and the URL goes last, because an ISO date and a URL both contain colons.
+ */
+export class ConnectConsentRequired extends ConnectError {
+  public static override typeName = `ConsentRequired${ConnectError.typeName}`
+  /** A precondition only a person can meet, not a fault: answered 428. */
+  public static httpStatus = 428
+
+  public gate = ''
+  /** The latest withdrawal deadline of the purchases waiting for consent, when known. */
+  public deadline?: Date
+  public consentUrl = ''
+
+  /** Build the packed message a caller passes to the constructor. */
+  static encode(gate: string, consentUrl: string, deadline?: Date | null): string {
+    const at = deadline != null && !Number.isNaN(deadline.getTime()) ? deadline.getTime() : 0
+
+    return `${gate}:${at}:${encodeURIComponent(consentUrl)}`
+  }
+
+  constructor(message: string = 'error') {
+    super(`consent-required:${message}`)
+    this.type = ConnectConsentRequired.typeName
+    this.applyFields()
+  }
+
+  private applyFields(): void {
+    const marker = 'consent-required:'
+    const at = this.message.lastIndexOf(marker)
+    if (at < 0) return
+    const [gate, deadline, encodedUrl] = this.message.slice(at + marker.length).split(':')
+    this.gate = gate ?? ''
+    const ms = Number(deadline ?? 0)
+    this.deadline = Number.isFinite(ms) && ms > 0 ? new Date(ms) : undefined
+    let url = ''
+    try {
+      url = encodedUrl != null && encodedUrl !== '' ? decodeURIComponent(encodedUrl) : ''
+    } catch {
+      url = encodedUrl ?? ''
+    }
+    this.consentUrl = url
+  }
+
+  override finalizeUnmarshal(): void {
+    this.applyFields()
+  }
+}
+
 ResilientError.registerErrorClass(ConnectError)
 ResilientError.registerErrorClass(ConnectSessionNotFound)
 ResilientError.registerErrorClass(ConnectSessionGone)
@@ -145,3 +199,4 @@ ResilientError.registerErrorClass(ConnectOpRefused)
 ResilientError.registerErrorClass(LocalSlotUnsupported)
 ResilientError.registerErrorClass(ConnectOpUnknown)
 ResilientError.registerErrorClass(ConnectOutOfCredits)
+ResilientError.registerErrorClass(ConnectConsentRequired)

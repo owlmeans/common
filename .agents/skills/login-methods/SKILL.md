@@ -213,9 +213,38 @@ interpolates a translated sentence around either list — `{{documents}}`/`{{not
 legacy `{{terms}}`/`{{privacy}}`/`{{cookies}}` placeholders for an older template string — via
 `Intl.ListFormat` when available, falling back to a plain join. `web-panel`'s `LoginTerms` renders
 the notice as its own `[data-login-privacy]` paragraph, a SIBLING of the checkbox's `<label>`, never
-nested inside it. **`[data-login-terms]` marks exactly one element** — an e2e suite elsewhere in the
-platform treats it as a strict, exactly-one-match locator, so a new document must never add a second
-checkbox.
+nested inside it. **`[data-login-terms]` marks exactly one element unless the confirmation is
+deferred to a step (below), in which case it marks NONE** — an e2e suite elsewhere in the platform
+treats it as a strict, at-most-one-match locator, so a new document must never add a second
+checkbox on the sign-in screen itself.
+
+### Deferring the confirmation to a post-login step
+
+`termsDeferred(ctx)` (`@owlmeans/client-auth/login`) is true once a registered AND BOUND `LoginStep`
+declares `confirmsTerms: true` (`ctx.hasEntrypoint(step.entrypoint)` — a step whose screen is not
+bound in this tree does not count, fail-closed). While it holds:
+
+- the sign-in screen (`FallbackLoginScreen`, `web-panel`'s `LoginScreen`) renders **no**
+  `[data-login-terms]` checkbox and blocks **no** method — `blocked` is computed with an explicit
+  `!deferred` term in both;
+- `[data-login-privacy]` still renders, unconditionally — a disclosure was never something the
+  removed checkbox consented to, so removing the checkbox does not remove the notice; `web-panel`
+  splits this into its own exported `LoginPrivacyNotice` for exactly this reason;
+- `[data-login-revised]` does NOT render here either — that date belongs to the DOCUMENT the
+  checkbox agreed to, and there is no checkbox on this screen to attach it to.
+
+`@owlmeans/web-marketing-consent`'s post-sign-in step is the one shipped consumer
+(`appendMarketingConsent({ terms: 'step' })` — see that package's own skill for the step's side:
+the Terms box that appears there instead, and why it is STRICT rather than fail-open). A
+`LoginStep` that sets `confirmsTerms` should also set `required: true` (see `login-plugins`) — the
+whole point of moving the checkbox off this screen is that the destination never waves it through
+unconfirmed, including when its own status read is broken.
+
+`termsLabelResolver(translate, locale)` and `termsAcceptanceOf(resolved, locale?)` (also
+`@owlmeans/client-auth/login`) are the ONE label resolver and ONE wire-shape builder every
+renderer/recorder of a terms sentence now shares — `FallbackLoginScreen`, `web-panel`'s
+`LoginTerms`/`LoginPrivacyNotice`, and `web-marketing-consent`'s own Terms box and `termsRecorder`
+all import them rather than keeping a second hand-copied `DEFAULT_LABEL`/`resolveLabelFor`.
 
 **`billing`, `product`, custom `documents`, per-document `revisions` and `showRevision`** are
 `LoginTermsConfig` fields added by TypeScript module augmentation in

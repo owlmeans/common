@@ -1,6 +1,6 @@
 ---
 name: marketing-consent
-description: How to use @owlmeans/marketing-consent — the standard 8-key marketing/data/tracker consent catalogue, revision-aware status resolution (new/revised/current, GPC honoring), terms acceptance, and the guarded consent-surface protocol tree (makeMarketingConsentProtocols). Auto-invoked when importing marketing-consent constants/types/schemas, resolving or displaying a person's consent status, saving consent decisions, or reasoning about which legal basis a marketing/tracking consent needs.
+description: How to use @owlmeans/marketing-consent — the standard 6-key marketing/data consent catalogue, revision-aware status resolution (new/revised/current, GPC honoring), terms acceptance, and the guarded consent-surface protocol tree (makeMarketingConsentProtocols). Auto-invoked when importing marketing-consent constants/types/schemas, resolving or displaying a person's consent status, saving consent decisions, or reasoning about which legal basis a marketing/tracking consent needs.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,13 +8,14 @@ user-invocable: false
 # @owlmeans/marketing-consent
 
 **Layer:** Domain (beside `consent`, `payment`, `planning`)
-**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.2"` in `dependencies`
-**Sibling:** `@owlmeans/consent` — the cookie-consent widget. This package's two `trackers.*` keys
-carry a `cookieCategory` pointing at that package's `CONSENT_ANALYTICS`/`CONSENT_MARKETING` keys,
-so the two surfaces describe the SAME cookies from two angles: a banner (broad, cookie-law-shaped)
-and a per-purpose settings screen (granular, marketing-shaped). A runtime wiring both must keep a
-`trackers.*` decision and the matching cookie-consent category in sync — this package supplies the
-seam (`MarketingConsentBridge`) but not the wiring itself, which is server- or client-specific.
+**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.5"` in `dependencies`
+**Cookies are not part of this package.** `@owlmeans/consent` is the cookie dialog — a device-level
+ePrivacy choice with its own storage and its own cross-domain linker — and this catalogue neither
+reads nor writes it: no `trackers.*` keys, no cookie category on a definition, no bridge, no seeding
+either way. A person who already decided in the cookie dialog (on this app or, through the linker,
+on another) is never asked again, because nothing here can ask the same question. The two surfaces
+stay apart on purpose: a banner "yes" is not a valid person-level Art. 6(1)(a) consent for this
+ledger's different purposes (EDPB Guidelines 05/2020 §§56/58, 75/79).
 
 Pure contracts, like `@owlmeans/oauth`: constants, types, AJV schemas, an immutable protocol-tree
 factory, pure resolution functions and an error family. No server, no storage, no React — a
@@ -22,27 +23,38 @@ factory, pure resolution functions and an error family. No server, no storage, n
 `@owlmeans/web-marketing-consent` (settings screen, sign-in step) are separate, unbuilt packages
 that would depend on this one.
 
-## The 8 standard keys
+## The 6 standard keys
 
-`STANDARD_MARKETING_CONSENTS` — every key `opt-in`, ordered 10..80, grouped under
-`MC_GROUP_COMMUNICATIONS` / `MC_GROUP_DATA` / `MC_GROUP_TRACKERS`:
+`STANDARD_MARKETING_CONSENTS` — every key `opt-in`, ordered 10..60, grouped under
+`MC_GROUP_COMMUNICATIONS` / `MC_GROUP_DATA`:
 
-| Constant | Key | Group | `cookieCategory` | `honorGpc` |
-|---|---|---|---|---|
-| `MC_EMAIL` | `marketing.email` | communications | — | — |
-| `MC_SMS` | `marketing.sms` | communications | — | — |
-| `MC_PHONE` | `marketing.phone` | communications | — | — |
-| `MC_PUSH` | `marketing.push` | communications | — | — |
-| `MC_PROFILING` | `data.profiling` | data | — | — |
-| `MC_PARTNERS` | `data.partners` | data | — | yes |
-| `MC_ANALYTICS` | `trackers.analytics` | trackers | `CONSENT_ANALYTICS` | — |
-| `MC_ADVERTISING` | `trackers.advertising` | trackers | `CONSENT_MARKETING` | yes |
+| Constant | Key | Group | `honorGpc` |
+|---|---|---|---|
+| `MC_EMAIL` | `marketing.email` | communications | — |
+| `MC_SMS` | `marketing.sms` | communications | — |
+| `MC_PHONE` | `marketing.phone` | communications | — |
+| `MC_PUSH` | `marketing.push` | communications | — |
+| `MC_PROFILING` | `data.profiling` | data | — |
+| `MC_PARTNERS` | `data.partners` | data | yes |
 
-`STANDARD_REVISION` is the wording revision every standard definition is stamped with. Bump it (an
-ISO date) whenever the standard wording changes — a saved decision under the old revision becomes
-`'revised'` and is re-asked. Each `labelKey`/`descriptionKey` is `consent.<key>.label` /
-`consent.<key>.description` — the key's own dots, e.g. `consent.trackers.advertising.label` — and
-resolves through `MARKETING_CONSENT_I18N` (`'marketing-consent'`).
+`STANDARD_REVISION` is the wording revision every standard definition is stamped with, and the date
+a screen prints under each row ("Last updated: …"). Bump it (an ISO date) whenever the standard
+wording changes — a saved decision under the old revision becomes `'revised'` and is re-asked. An
+application overrides it per key (`standard[key].revisedAt`) or for its custom entries
+(`cfg.revisedAt`).
+
+**Wording.** Each definition's `labelKey`/`descriptionKey` is `consent.<key>.label` /
+`consent.<key>.description` — the key's own dots — resolving through `MARKETING_CONSENT_I18N`
+(`'marketing-consent'`). The label is the statement a person agrees to and always begins "I confirm
+that I agree to …" (never with the channel); the description is its detail. **A link is part of the
+sentence**: either string may carry the i18next placeholders `{{link}}`, `{{link2}}`, … — the
+definition's `links` in order — and the screen draws the anchor where the placeholder stands, in
+whichever position the language wants. A link names itself with `label` (per language) or
+`labelKey` (`link.privacy` is "Privacy Policy" in all eight languages, `link.default` "Learn more");
+a configuration whose links carry neither reads "…described in the Learn more". A definition with
+no links loses the sentence that points at one. Custom entries with no i18n keys give `label` /
+`description` as per-language records (`en` is the fallback) and the screen renders them the same
+way.
 
 ## Resolving an application's catalogue — `resolveMarketingConsents(cfg?)`
 
@@ -92,8 +104,8 @@ treating a first-ever visitor specially. `view.pending` is `true` iff any item i
 
 **GPC (`honorGpc`)** only ever suppresses a grant — it never grants something the definition itself
 would deny, and it never overrides an opt-in default (which starts denied anyway). Only
-`data.partners` and `trackers.advertising` carry it in the standard set: those are the two rows
-with a real US "sale/share"/cross-context-advertising opt-out analogue.
+`data.partners` carries it in the standard set: it is the row with a real US "sale/share" opt-out
+analogue.
 
 ## Protocol tree — `makeMarketingConsentProtocols(opts?)`
 
@@ -115,7 +127,7 @@ a `parent` inherits that route's guards/gate; no `parent` means the base MUST ca
 — status/save/terms always act on the caller's own saved decisions, so there is no ungated shape.
 Passing neither throws `SyntaxError` at declaration time (a wiring mistake, not a runtime one).
 `save`'s request body is schema-checked (`SaveMarketingConsentSchema` — 1..64 decisions, `source`
-one of `'sign-in' | 'settings' | 'cookie'`, never `'api'`); `terms`'s is `TermsAcceptanceSchema`.
+one of `'sign-in' | 'settings'`, never `'api'` or `'cookie'`); `terms`'s is `TermsAcceptanceSchema`.
 
 ## Errors
 
@@ -139,8 +151,6 @@ below into `consentStatus`'s decision table.
 | `marketing.push` | ePrivacy Art.5(3)/13; PKE art.398/399; DE TDDDG §25 | OS-level permission is separate; this consent gates the SEND, not the OS permission |
 | `data.profiling` | GDPR Art.6(1)(a) taken as the lawful basis (worst case vs. legitimate interest), Art.21(2)-(3) right to object, Art.22 no solely-automated decisions | state privacy laws' opt-out of profiling/targeted advertising |
 | `data.partners` | GDPR Art.6(1)(a) + Art.13(1)(e) recipients disclosure; CNIL 2022 guidance on partner lists for e-prospecting | CCPA/CPRA "sale/share" opt-out; honor Global Privacy Control (`honorGpc`) |
-| `trackers.analytics` | ePrivacy Art.5(3); PL PKE art.399; DE TDDDG §25; CNIL cookie guidance; Planet49 (CJEU C-673/17) bars pre-ticked boxes | CCPA "sharing" definition can include analytics cookies |
-| `trackers.advertising` | same as analytics, plus Google's EU User Consent Policy / Consent Mode v2 (`ad_user_data`, `ad_personalization`) | CCPA cross-context behavioral-advertising opt-out; GPC |
 
 Consent must be freely given (GDPR Art.7(4) — nothing here may be a condition of using the
 product), granular per purpose (EDPB Guidelines 05/2020), an active opt-in with no pre-ticked boxes
@@ -152,8 +162,8 @@ log rather than overwriting `MarketingConsentDecision` rows in place).
 
 | Export | Description |
 |---|---|
-| `MC_EMAIL` … `MC_ADVERTISING` | The 8 standard consent keys |
-| `MC_GROUP_COMMUNICATIONS` · `MC_GROUP_DATA` · `MC_GROUP_TRACKERS` | The 3 groups |
+| `MC_EMAIL` … `MC_PARTNERS` | The 6 standard consent keys |
+| `MC_GROUP_COMMUNICATIONS` · `MC_GROUP_DATA` | The 2 groups |
 | `STANDARD_REVISION` · `STANDARD_MARKETING_CONSENTS` | The wording revision and the standard catalogue |
 | `MARKETING_CONSENT_SERVICE` · `MARKETING_CONSENT_I18N` · `MARKETING_CONSENT_API_PATH` · `MARKETING_CONSENT_SCREEN_PATH` | Service/i18n/wire identifiers |
 | `MARKETING_CONSENT_BASE` · `MARKETING_CONSENT_STATUS` · `MARKETING_CONSENT_SAVE` · `MARKETING_CONSENT_TERMS` · `MARKETING_CONSENT_SCREEN` | Protocol-tree aliases |
@@ -161,9 +171,8 @@ log rather than overwriting `MarketingConsentDecision` rows in place).
 | `makeMarketingConsentProtocols(opts?)` | The protocol tree |
 | `SaveMarketingConsentSchema` · `TermsAcceptanceSchema` | AJV request schemas |
 | `MarketingConsentError` · `UnknownMarketingConsentError` | Errors |
-| Types | `MarketingConsentDefinition`, `MarketingConsentConfig`, `MarketingConsentDecision`, `MarketingConsentStatusView`/`Item`, `TermsAcceptance`, `SaveMarketingConsentRequest`, `MarketingConsentBridge`, `MarketingConsentEntrypointOptions`/`Entrypoints` |
+| Types | `MarketingConsentDefinition`, `MarketingConsentConfig`, `MarketingConsentDecision`, `MarketingConsentStatusView`/`Item`, `TermsAcceptance`, `SaveMarketingConsentRequest`, `MarketingConsentEntrypointOptions`/`Entrypoints` |
 
 Importing `@owlmeans/marketing-consent` also registers its 8-language i18n bundle
-(`en`/`pl`/`ru`/`be`/`uk`/`es`/`de`/`fr` — `CONSENT_LOCALES`, one more than `@owlmeans/i18n`'s own
-`SUPPORTED_LNGS` because it shares `fr` with `@owlmeans/consent`) as a side effect, the same as
-`@owlmeans/payment` and `@owlmeans/planning` do.
+(`en`/`pl`/`ru`/`be`/`uk`/`es`/`de`/`fr`, one more than `@owlmeans/i18n`'s own `SUPPORTED_LNGS`) as a
+side effect, the same as `@owlmeans/payment` and `@owlmeans/planning` do.

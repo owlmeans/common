@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.40`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.42`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -58,15 +58,15 @@ that one route with `HandlerMisconfiguredError`, instead of the opaque
 
 ## The status a thrown error answers
 
-A thrown error (or a rejected response) is answered with the marshalled `ResilientError` as the
-body and a status from `errorStatus(error)` (`./utils`), resolved in this order:
+A thrown error (or a rejected response) is answered with a body chosen by the exposure (§ Error
+exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this order:
 
 | Error | Status |
 |---|---|
 | `AuthForbidden`, `AccessError` or a subclass — by class or registered type name | 403 |
 | `AuthorizationError`, `AuthFailedError` or a subclass — by class or registered type name | 401 |
-| a class declaring `static httpStatus` as an integer 400–499 | that status |
-| anything else, including a declaration outside 400–499 | 500 |
+| a class declaring `static httpStatus` as an integer 400–499, or 500–599 with `static allowServerErrorStatus = true` | that status |
+| anything else, including a 5xx declared without the opt-in | 500 |
 
 - **A refusal of the caller's condition declares its status; a fault declares nothing.** 400 a
   malformed request, 402 an unpaid balance or plan, 404 an addressed target that does not exist
@@ -85,7 +85,7 @@ body and a status from `errorStatus(error)` (`./utils`), resolved in this order:
   (`ResilientError.ensure`) error only when that answers 500. The thrown object is the one whose
   class is certainly what was raised; the rebuild is what gives a status to a marshalled error that
   crossed a hop as a plain `Error`. `ensure` returns an error from any `@owlmeans/error` copy
-  untouched, so the body keeps the thrown class's `type` (`AuthFailedError|||api:auth:…`) even in a
+  untouched, so a development body keeps the thrown class's `type` (`AuthFailedError|||api:auth:…`) even in a
   process holding duplicate module copies (`bun --preserve-symlinks`). `executeResponse` ensures
   nothing and answers the rejected error's status. `@owlmeans/server-socket` answers an upgrade
   through the same `handleError`.
@@ -94,10 +94,11 @@ body and a status from `errorStatus(error)` (`./utils`), resolved in this order:
   answers the same status. Match whole names, never substrings: a subclass's `typeName` does not
   reliably embed its parent's (`EntitlementRefusal` extends `AuthForbidden`). A declared
   `httpStatus` is a structural static read and survives duplicate copies as it is.
-- The status never changes what a client rebuilds: `@owlmeans/api` rehydrates the class from the
-  body for any non-2xx answer, so a caller branches on the class, never on the number. Nothing in
-  the framework treats a 404 specially — a missing route is a Fastify JSON body the client turns
-  into `ApiClientError('404')`, a refusal is a marshalled string rebuilt as its class.
+- **The status is what a production client can act on.** Only a development body is rebuilt into
+  its class; a production body is the incident id alone, so a client knows a refusal by its status
+  (§ Error exposure) — give a refusal the client must act on its own distinct 4xx. Nothing in the
+  framework treats a 404 specially — a missing route is a Fastify JSON body the client turns into
+  a 404 `ApiStatusError`.
 
 `uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
 than reaching through `request.original` in application code.
@@ -105,9 +106,17 @@ than reaching through `request.original` in application code.
 ## Error exposure
 
 `handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
-`X-Incident-ID` response header (exposed through CORS). A production response body contains only
-that id; an explicit `cfg.http.errors.exposure = 'development'` uses the typed marshalled form with
-message and stack. Keep the default production-safe, and tell a client to report the incident id.
+`X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value
+`@owlmeans/api` exports; exposed through CORS).
+
+- **Production (the default):** a non-2xx body carries ONLY that incident id, under the resolved
+  HTTP status. A typed refusal is never exposed — its class, message and packed fields stay in the
+  server log under the id.
+- **Development** (an explicit `cfg.http.errors.exposure = 'development'`): the typed marshalled
+  form with message and stack, which the client rebuilds into its class.
+- A client reads a production failure with `@owlmeans/api`'s `./status` subpath: `httpStatusOf(e)`
+  (the status a 428 or 409 is acted on by) and `incidentIdOf(e)` (the id a person reports). Keep
+  the default production-safe, and tell a client to report the incident id.
 
 Do not use unbound compatibility handler wrappers. For a WebSocket route use
 `@owlmeans/server-socket`'s `connection(protocol, callback)`.

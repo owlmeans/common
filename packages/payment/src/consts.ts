@@ -120,6 +120,133 @@ export enum TaxType {
 /** The paygate alias of subscriptions the application grants itself (a free plan, a comp). */
 export const INTERNAL_PAYGATE = 'internal'
 
+/**
+ * Where a billing country sits for consumer rights and the charge currency: inside the declared
+ * consumer-rights territories (`ConsumerRightsPolicy.countries`) or outside them.
+ */
+export enum ConsumerRegion {
+  Eu = 'eu',
+  Other = 'other',
+}
+
+/** What a purchase — a window of the right of withdrawal — was. */
+export enum PurchaseKind {
+  /** A paid one-time checkout of an amount or quantity plan (prepaid credits). */
+  TopUp = 'top-up',
+  /** The FIRST invoice of a subscription. Renewals are not purchases. */
+  Subscription = 'subscription',
+}
+
+/** What a consumer expressly requested. */
+export enum ConsentKind {
+  /** Start performing now, before the withdrawal period of a credit purchase ends. */
+  Performance = 'performance',
+  /** Start a subscription's services now — given before its checkout. */
+  SubscriptionStart = 'subscription-start',
+}
+
+/** What a consumer declared through a statutory function. */
+export enum DeclarationKind {
+  Withdrawal = 'withdrawal',
+  Cancellation = 'cancellation',
+}
+
+/** Where a declaration was made: signed in, or through the public page without a login. */
+export enum DeclarationChannel {
+  InApp = 'in-app',
+  Public = 'public',
+}
+
+export enum CancellationKind {
+  Ordinary = 'ordinary',
+  /** For cause; carries a reason. */
+  Extraordinary = 'extraordinary',
+}
+
+export enum WithdrawalStatus {
+  /** Recorded; nothing is disclosed yet (a public declaration always answers this). */
+  Received = 'received',
+  Processing = 'processing',
+  Refunded = 'refunded',
+  /** Recorded, and left to an operator: no usage meter, or automatic refunds are off. */
+  Review = 'review',
+  Failed = 'failed',
+  /** Received after the withdrawal period ended; recorded, not executed. */
+  Expired = 'expired',
+}
+
+export enum CancellationStatus {
+  Received = 'received',
+  Scheduled = 'scheduled',
+  AlreadyScheduled = 'already-scheduled',
+  /** Recorded and left to an operator — an extraordinary cancellation (for cause). */
+  Review = 'review',
+}
+
+export enum WithdrawalUnavailableReason {
+  NotInScope = 'not-in-scope',
+  Expired = 'expired',
+  Withdrawn = 'withdrawn',
+  /** Fully performed after consent: the right of withdrawal has expired, nothing would be reimbursed. */
+  Performed = 'performed',
+  Unknown = 'unknown',
+}
+
+export enum CancellationUnavailableReason {
+  NoSubscription = 'no-subscription',
+  Ended = 'ended',
+}
+
+export const ConsumerRegionSchema: JSONSchemaType<ConsumerRegion> = {
+  type: 'string',
+  enum: Object.values(ConsumerRegion),
+}
+
+export const PurchaseKindSchema: JSONSchemaType<PurchaseKind> = {
+  type: 'string',
+  enum: Object.values(PurchaseKind),
+}
+
+export const ConsentKindSchema: JSONSchemaType<ConsentKind> = {
+  type: 'string',
+  enum: Object.values(ConsentKind),
+}
+
+export const DeclarationKindSchema: JSONSchemaType<DeclarationKind> = {
+  type: 'string',
+  enum: Object.values(DeclarationKind),
+}
+
+export const DeclarationChannelSchema: JSONSchemaType<DeclarationChannel> = {
+  type: 'string',
+  enum: Object.values(DeclarationChannel),
+}
+
+export const CancellationKindSchema: JSONSchemaType<CancellationKind> = {
+  type: 'string',
+  enum: Object.values(CancellationKind),
+}
+
+export const WithdrawalStatusSchema: JSONSchemaType<WithdrawalStatus> = {
+  type: 'string',
+  enum: Object.values(WithdrawalStatus),
+}
+
+export const CancellationStatusSchema: JSONSchemaType<CancellationStatus> = {
+  type: 'string',
+  enum: Object.values(CancellationStatus),
+}
+
+export const WithdrawalUnavailableReasonSchema: JSONSchemaType<WithdrawalUnavailableReason> = {
+  type: 'string',
+  enum: Object.values(WithdrawalUnavailableReason),
+}
+
+export const CancellationUnavailableReasonSchema: JSONSchemaType<CancellationUnavailableReason> = {
+  type: 'string',
+  enum: Object.values(CancellationUnavailableReason),
+}
+
 export const ProductTypeSchema: JSONSchemaType<ProductType> = {
   type: 'string',
   enum: Object.values(ProductType)
@@ -204,6 +331,19 @@ export const L10N_RECORD_PREFIX = L10N_RECORD_TYPE
 /** A singleton record: at most one per configuration, at this fixed id. */
 export const PRICING_POLICY_RECORD_TYPE = 'pricing-policy'
 export const PRICING_POLICY_RECORD_ID = PRICING_POLICY_RECORD_TYPE
+
+/** A singleton record: the declared `ConsumerRightsPolicy`, at this fixed id. */
+export const CONSUMER_RIGHTS_RECORD_TYPE = 'consumer-rights-policy'
+export const CONSUMER_RIGHTS_RECORD_ID = CONSUMER_RIGHTS_RECORD_TYPE
+
+/** The i18n resource (library tier, `lib` namespace) holding the consumer-rights legal copy. */
+export const CONSUMER_RIGHTS_RESOURCE = 'payment-consumer-rights'
+
+/**
+ * The version of the legal copy this package ships. Bumped on ANY change to a
+ * `payment-consumer-rights` bundle, so a consent recorded against an older wording is told apart.
+ */
+export const CONSUMER_RIGHTS_COPY_VERSION = '2026-09-23.2'
 
 export const DEFAULT_ALIAS = 'payment'
 

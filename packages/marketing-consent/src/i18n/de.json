@@ -7,54 +7,41 @@
     "data": {
       "title": "Datennutzung",
       "description": "Wie Ihre Daten verwendet und weitergegeben werden."
-    },
-    "trackers": {
-      "title": "Tracker",
-      "description": "Analyse- und Werbetechnologien."
     }
   },
   "consent": {
     "marketing": {
       "email": {
-        "label": "Angebote und Neuigkeiten per E-Mail",
-        "description": "Produktneuigkeiten, Angebote und Updates per E-Mail."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, Produktneuigkeiten, Angebote und Updates per E-Mail zu erhalten.",
+        "description": "Wir schreiben an die E-Mail-Adresse Ihres Kontos zu diesem Produkt und zugehörigen Angeboten. Sie können diese Einwilligung jederzeit in Ihren Kontoeinstellungen widerrufen, und jede Nachricht enthält einen Abmeldelink. Wie wir Ihre Daten verarbeiten, ist in der {{link}} beschrieben."
       },
       "sms": {
-        "label": "SMS-Nachrichten",
-        "description": "Angebote und Updates per Textnachricht."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, Angebote und Updates per SMS zu erhalten.",
+        "description": "Wir senden Textnachrichten an die von Ihnen angegebene Telefonnummer zu diesem Produkt und zugehörigen Angeboten. Sie können diese Einwilligung jederzeit in Ihren Kontoeinstellungen widerrufen. Wie wir Ihre Daten verarbeiten, ist in der {{link}} beschrieben."
       },
       "phone": {
-        "label": "Telefonanrufe",
-        "description": "Angebote und Updates per Telefonanruf."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, telefonisch mit Angeboten und Updates kontaktiert zu werden.",
+        "description": "Wir dürfen Sie unter der von Ihnen angegebenen Telefonnummer zu diesem Produkt und zugehörigen Angeboten anrufen. Sie können diese Einwilligung jederzeit in Ihren Kontoeinstellungen widerrufen, dann rufen wir Sie nicht mehr an. Wie wir Ihre Daten verarbeiten, ist in der {{link}} beschrieben."
       },
       "push": {
-        "label": "Push-Benachrichtigungen",
-        "description": "Angebote und Updates als Push-Benachrichtigungen."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, Angebote und Updates als Push-Benachrichtigungen zu erhalten.",
+        "description": "Wir senden Benachrichtigungen an die Geräte, auf denen Sie sie zulassen, zu diesem Produkt und zugehörigen Angeboten. Sie können diese Einwilligung jederzeit in Ihren Kontoeinstellungen oder in den Geräteeinstellungen widerrufen. Wie wir Ihre Daten verarbeiten, ist in der {{link}} beschrieben."
       }
     },
     "data": {
       "profiling": {
-        "label": "Personalisierung",
-        "description": "Nutzung Ihrer Aktivität, um Inhalte für Sie zu personalisieren."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, dass meine Aktivität im Produkt genutzt wird, um das Angezeigte zu personalisieren.",
+        "description": "Die Seiten, die Sie öffnen, Ihre Aktionen und Ihre Präferenzen werden analysiert, um Empfehlungen, Inhalte und Angebote auf Sie zuzuschneiden. Sie können diese Einwilligung jederzeit widerrufen, dann endet die Personalisierung. Einzelheiten finden Sie in der {{link}}."
       },
       "partners": {
-        "label": "Weitergabe an Partner",
-        "description": "Weitergabe Ihrer Daten an ausgewählte Partner für deren eigenes Marketing."
-      }
-    },
-    "trackers": {
-      "analytics": {
-        "label": "Analyse-Cookies",
-        "description": "Cookies, die uns helfen zu verstehen, wie das Produkt genutzt wird."
-      },
-      "advertising": {
-        "label": "Werbe-Cookies",
-        "description": "Cookies zur Messung und Personalisierung von Werbung."
+        "label": "Ich bestätige, dass ich damit einverstanden bin, dass meine Daten an ausgewählte Partner für deren eigenes Marketing weitergegeben werden.",
+        "description": "Ihr Name, Ihre E-Mail-Adresse und Ihr Nutzungsprofil können an ausgewählte Partner weitergegeben werden, damit diese Sie zu ihren eigenen Produkten kontaktieren können; jeder Partner verarbeitet Ihre Daten nach seiner eigenen Datenschutzerklärung. Sie können diese Einwilligung jederzeit widerrufen, dann endet die Weitergabe. Einzelheiten finden Sie in der {{link}}."
       }
     }
   },
   "link": {
-    "default": "Mehr erfahren"
+    "default": "Mehr erfahren",
+    "privacy": "Datenschutzerklärung"
   },
   "errors": {
     "unknown": "Unbekannte Einwilligung: {{key}}"

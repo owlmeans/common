@@ -1,8 +1,8 @@
 {
   "name": "@owlmeans/viable-common",
-  "version": "0.0.32",
+  "version": "0.0.35",
   "license": "MIT",
-  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary.",
+  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
@@ -48,6 +48,13 @@
       "default": "./build/integrity/index.js",
       "module": "./build/integrity/index.js",
       "types": "./build/integrity/index.d.ts"
+    },
+    "./intent": {
+      "import": "./build/intent/index.js",
+      "require": "./build/intent/index.js",
+      "default": "./build/intent/index.js",
+      "module": "./build/intent/index.js",
+      "types": "./build/intent/index.d.ts"
     }
   },
   "devDependencies": {
@@ -59,12 +66,15 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.39",
-    "@owlmeans/entrypoint": "^0.1.18-rc.35",
-    "@owlmeans/error": "^0.1.18-rc.34",
-    "@owlmeans/llm-common": "^0.1.18-rc.35",
-    "@owlmeans/planning": "^0.1.18-rc.8",
-    "@owlmeans/resource": "^0.1.18-rc.34",
+    "@owlmeans/agent-common": "^0.1.18-rc.41",
+    "@owlmeans/auth": "^0.1.18-rc.36",
+    "@owlmeans/context": "^0.1.18-rc.32",
+    "@owlmeans/entrypoint": "^0.1.18-rc.37",
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/flow": "^0.1.18-rc.39",
+    "@owlmeans/llm-common": "^0.1.18-rc.36",
+    "@owlmeans/planning": "^0.1.18-rc.10",
+    "@owlmeans/resource": "^0.1.18-rc.36",
     "@owlmeans/route": "^0.1.18-rc.33"
   },
   "publishConfig": {

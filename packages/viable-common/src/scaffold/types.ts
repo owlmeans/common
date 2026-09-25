@@ -120,41 +120,82 @@ export interface BentoFragment {
 }
 
 /**
+ * What kind of control a landing-gate field is. A CLOSED set of the simplest native inputs: each
+ * value is one plain element, so there is nothing here a visitor has to learn, and nothing that
+ * can grow into a picker, a chip group or a preview.
+ */
+export type LandingGateFieldKind = 'text' | 'select' | 'number' | 'date'
+
+/** One simple, non-sensitive field of the landing gate. */
+export interface LandingGateField {
+  /** The camelCase key the entered value travels under in the landing handoff: "dish". */
+  name: string
+  /** The visible label, in the end user's words: "What are you baking?". */
+  label: string
+  kind: LandingGateFieldKind
+  /** An example value shown inside an empty text or number field — never a personal one. */
+  placeholder?: string
+  /** `select` only: 2–6 plain options. */
+  options?: string[]
+}
+
+/**
  * The landing gate — the working entry into the product's key END-USER workflow, drawn in the
  * hero where the call-to-action pills would otherwise be.
  *
- * A guest makes a few non-sensitive choices on the landing page, sees sample results ranked
- * against them, and signs in to continue on the story's full-scale screen with those choices
- * carried over. Every field is copy or sample data in the end user's own words; nothing here is
- * an address the model invented — `target` is filled by code.
+ * A guest fills in one to three simple non-sensitive fields on the landing page and signs in to
+ * continue on the story's full-scale screen with what they entered already in place. It is a small
+ * form and nothing more: no choices to browse, no sample results, no counts. Every text is copy in
+ * the end user's own words; nothing here is an address the model invented — `target` is filled by
+ * code.
+ *
+ * The keys after `note` are the shape a plan had before the gate became a form (chips, sample
+ * records, a live count). They stay so a plan STORED under the old shape still validates and
+ * still reads; nothing writes them and nothing draws from them, and a gate that carries no
+ * `fields` is drawn as no gate at all.
  */
 export interface LandingGatePlan {
   /** The key end-user story's code — never rendered. */
   story: string
   /** Entrypoint ALIAS of the story's full-scale screen in the user area (filled by code, not the model). */
   target?: string
-  /** The question the gate asks, in the end user's words: "What's in your pantry?". */
+  /** The heading of the form, in the end user's words: "What are you baking?". */
   question: string
-  /** The reassurance beside it: "No account needed". */
-  hint: string
-  /** The accessible name of the chip group: "Your pantry". */
-  label: string
-  /** 5–8 chip labels the guest picks from. */
-  inputs: string[]
-  /** 4–5 of `inputs`, pre-selected so the first view already shows results. */
-  selected: string[]
-  /** 3–4 sample records; `needs` is the subset of `inputs` each one uses. */
-  results: { title: string, meta: string, needs: string[] }[]
-  /** The live count label; `{n}` is replaced by the number ("{n} bakes match"). */
-  count: { one: string, many: string, none: string }
-  /** The line shown when nothing matches the picks. */
-  empty: string
-  /** The line beside the CTA: "Sign in with your email. Your picks come with you.". */
-  note: string
-  /** The CTA label: "Open recipes →". */
+  /** The fields, one to three — one whenever one is enough. Absent only on a plan stored under the old shape. */
+  fields?: LandingGateField[]
+  /** The one button's label: "Start my post →". */
   cta: string
-  /** The accessible name of a result row's lock icon: "Full method after sign-in". */
-  lock: string
+  /** The muted line under the form: "No account needed. What you enter comes with you.". */
+  note: string
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  hint?: string
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  label?: string
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  inputs?: string[]
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  selected?: string[]
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  results?: { title: string, meta: string, needs: string[] }[]
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  count?: { one: string, many: string, none: string }
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  empty?: string
+  /** @deprecated Pre-form shape, kept for stored plans only. */
+  lock?: string
+}
+
+/**
+ * The gate as the planning MODEL answers it: the form, and none of the pre-form keys. Assignable
+ * to {@link LandingGatePlan}, which is what a plan stores.
+ */
+export interface LandingGateAnswer {
+  story: string
+  target?: string
+  question: string
+  fields: LandingGateField[]
+  cta: string
+  note: string
 }
 
 /** The guest area's landing page — the product's public face. */

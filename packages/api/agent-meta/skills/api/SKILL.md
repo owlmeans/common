@@ -1,6 +1,6 @@
 ---
 name: api
-description: How to use @owlmeans/api — the axios-based HTTP client service that carries entrypoint calls between services, its status-to-outcome mapping, typed transport errors and per-request timeout/abort. Auto-invoked when importing the API client, or when ctx.entrypoint(...).call() under the hood is involved.
+description: How to use @owlmeans/api — the axios-based HTTP client service that carries entrypoint calls between services, its status-to-outcome mapping, typed transport errors that keep the HTTP status and incident id (the ./status subpath), and per-request timeout/abort. Auto-invoked when importing the API client, reading a failed call's status, or when ctx.entrypoint(...).call() under the hood is involved.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.1.18-rc.38"` in `dependencies`
 
 ## Key Exports
 
@@ -17,8 +17,13 @@ user-invocable: false
 | `createApiService(alias?)` | Factory for the HTTP client service (axios) |
 | `appendApiClient(ctx, alias?)` | Register it and make it the context's default `webService` when none is set |
 | `ApiClient` | Service interface — a single `handler(req, reply)` |
-| `ApiError`, `ApiClientError`, `ServerCrashedError`, `ServerAuthError` | Typed transport errors |
-| Constants | Status codes (`OK`, `CREATED`, `ACCEPTED`, `FINISHED`, `UNAUTHORIZED_ERROR`, `FORBIDDEN_ERROR`, `SERVER_ERROR`), `DEFAULT_ALIAS` (`web-client`) |
+| `ApiError`, `ApiClientError`, `ServerCrashedError`, `ServerAuthError`, `ApiStatusError` | Typed transport errors; an `ApiClientError` carries the answered `status` and the server's `incidentId` |
+| `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status and incident id (also the `./status` subpath) |
+| Constants | Status codes (`OK`, `CREATED`, `ACCEPTED`, `FINISHED`, `UNAUTHORIZED_ERROR`, `FORBIDDEN_ERROR`, `SERVER_ERROR`), `INCIDENT_ID_HEADER` (`X-Incident-ID`), `DEFAULT_ALIAS` (`web-client`) |
+
+Subpath `./status` — `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, the
+markers and `INCIDENT_ID_HEADER`, importing only `@owlmeans/error`: a browser package reads a
+status without pulling axios in.
 
 ## How a call is carried
 
@@ -56,10 +61,25 @@ included, comes back and is mapped here.
 | 201 / 204 | Resolves with the body, or with the response headers when the body is empty |
 | any other | Rejects |
 
-A rejection prefers the server's own error: a text body is rehydrated into the original
-`ResilientError`, so a `handleError` reply on the far side arrives as the same class it was thrown
-as. Failing that it becomes `ServerCrashedError` (500), `ServerAuthError` (401) or `ApiClientError`
-(403 and the rest).
+Every rejection keeps the HTTP status and, when the server sent one, its incident id (the
+`X-Incident-ID` header, read from `AxiosHeaders` or a plain object, else a bare UUID body — a
+browser reads that header cross-origin only when the server exposes it, the body covers the rest):
+
+| Body | Rejects with |
+|---|---|
+| Development — the marshaled `ResilientError` (carries the separator) | The original class, rebuilt through the registry, stamped `responseStatus` and `incidentId` |
+| Production — a bare incident UUID; also proxy HTML, framework JSON, anything else | `ServerCrashedError` `api:client:crashed:<id>` (500) · `ServerAuthError` `api:client:auth:<id>` (401) · `ApiClientError` `api:client:forbidden[:<id>]` (403) · `ApiStatusError` `api:client:status:<n>[:<id>]` (every other status) |
+
+An `@owlmeans/server-api` boundary in production exposure sends ONLY the incident id, so a typed
+refusal's class never reaches the browser — its status does. Read it with `httpStatusOf(e)`: the
+stamped `responseStatus`, else an `ApiClientError`'s parsed `status`, else a class's declared
+`httpStatus` (a 4xx; a 5xx only with `allowServerErrorStatus`, exactly what the server answers),
+else an `api:client:*` marker in the message or type; `null` when nothing states one. A consumer
+that acts on a refusal checks the class/marker AND the status (`consentRefusalOf(e) ||
+httpStatusOf(e) === 428`). Markers without an id stay as they were (`api:client:crashed:error`,
+`api:client:forbidden`). The status and id are rebuilt from the marker in `finalizeUnmarshal()`,
+so they survive a marshal. No class of this family declares a static `httpStatus`: a server that
+rethrows one still answers 500.
 
 **A failure with no answer at all is a different family.** Suppressing status errors does not wrap
 the call: an expired `timeout` (`ECONNABORTED`), an aborted `signal` (`CanceledError` /

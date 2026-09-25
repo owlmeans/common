@@ -27,6 +27,20 @@ describe('@owlmeans/web-marketing-consent — translations', () => {
     expect(englishKeys).toContain('screen.save')
     expect(englishKeys).toContain('screen.gpc')
     expect(englishKeys).toContain('preferences.save')
+    expect(englishKeys).toContain('screen.last-updated')
+    expect(englishKeys).toContain('screen.required-note')
+    expect(englishKeys).toContain('screen.required')
+  })
+
+  test('no cookie wording is left — the marketing screen has no cookie integration', () => {
+    expect(englishKeys).not.toContain('screen.cookie-linked')
+    expect(englishKeys).not.toContain('screen.from-cookies')
+  })
+
+  test('the last-updated line keeps its date placeholder in every language', () => {
+    for (const resource of [en, ...Object.values(LANGUAGES)] as Array<{ screen: Record<string, string> }>) {
+      expect(resource.screen['last-updated']).toContain('{{date}}')
+    }
   })
 
   for (const [lang, resource] of Object.entries(LANGUAGES)) {
@@ -44,7 +58,7 @@ describe('@owlmeans/web-marketing-consent — translations', () => {
 
   test('every literal screen.*/preferences.* key used by the components has an English entry', () => {
     const componentsDir = join(import.meta.dir, '../src/components')
-    const sources = ['screen.tsx', 'preferences.tsx', 'fields.tsx']
+    const sources = ['screen.tsx', 'preferences.tsx', 'fields.tsx', 'terms.tsx', 'row.tsx', 'inline.tsx']
       .map(file => readFileSync(join(componentsDir, file), 'utf8'))
 
     const used = new Set<string>()

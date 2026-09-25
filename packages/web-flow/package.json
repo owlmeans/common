@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-flow",
-  "version": "0.1.18-rc.41",
+  "version": "0.1.18-rc.44",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,14 +21,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/client": "^0.1.18-rc.39",
-    "@owlmeans/client-context": "^0.1.18-rc.37",
-    "@owlmeans/client-flow": "^0.1.18-rc.42",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.36",
-    "@owlmeans/client-resource": "^0.1.18-rc.36",
+    "@owlmeans/client": "^0.1.18-rc.42",
+    "@owlmeans/client-context": "^0.1.18-rc.39",
+    "@owlmeans/client-flow": "^0.1.18-rc.45",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.38",
+    "@owlmeans/client-resource": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/error": "^0.1.18-rc.34",
-    "@owlmeans/flow": "^0.1.18-rc.37"
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/flow": "^0.1.18-rc.39"
   },
   "peerDependencies": {
     "react": "*"

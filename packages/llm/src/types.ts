@@ -4,7 +4,7 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  FileProviderRef, LlmPurpose, ModelProvider, NullCapture, SpectatorArgument,
+  FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture, SpectatorArgument,
   SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
@@ -276,6 +276,14 @@ export interface ModelConfig {
     enabled?: boolean
   }
   /**
+   * The provider's native effort level — OpenAI `reasoning.effort`, Anthropic
+   * `output_config.effort`. The plugin clamps it to the levels the model accepts and drops it
+   * for a model that accepts none. Unset, the provider's own default applies. The retry
+   * escalator raises it one level per attempt within a rung, from this value (or the model's
+   * default) up to the model's ceiling.
+   */
+  effort?: ModelEffort
+  /**
    * Force how `invoke`/`request` obtain structured output, overriding the provider
    * plugin's default: `true` → the provider's NATIVE JSON-schema mode, `false` → the
    * forced-`tool_choice` tool-calling hack. Plugins that support only one mode
@@ -288,11 +296,14 @@ export interface ModelConfig {
    */
   streamTimeout?: number
   /**
-   * Stronger model the retry escalator switches to once the primary has failed
-   * {@link FALLBACK_AFTER_ATTEMPTS} times. Specified inline as a partial config merged
-   * over the base config, so it inherits `secret`, `headers`, etc. The escalation only
-   * happens when the fallback belongs to the SAME plugin family as the primary —
-   * rotating providers mid-call would flip the structured-output format.
+   * Stronger model the retry escalator switches to once the current rung has failed
+   * {@link FALLBACK_AFTER_ATTEMPTS} times. A partial config merged over the rung above it; it
+   * may carry its own `fallback`, which makes a chain of rungs.
+   *
+   * Same provider: it inherits every field it does not name (`secret`, `headers`, …).
+   * Different `provider`: it inherits only the provider-neutral budget fields
+   * (`maxTokens`, `maxTokensCap`, `streamTimeout`, `cacheKey`) and must bring its own
+   * `secret`, `model` and capability — see `resolveFallbacks`.
    */
   fallback?: Partial<ModelConfig>
   /**

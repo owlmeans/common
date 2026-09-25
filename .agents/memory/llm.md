@@ -31,14 +31,18 @@ model factory service and the generic execution service. Related: [[versioning]]
 - Plugin **registration order is load-bearing**: `pluginFor` returns the first `owns` match, so
   `compatible` is registered before `openai` — both build a `ChatOpenAI`, and assuming tool-calling
   for an unlabelled model is safe everywhere while assuming native JSON-schema support is not.
-- Retry escalation switches to `ModelConfig.fallback` only WITHIN one plugin `family`: a
-  cross-provider switch mid-call would change the structured-output call shape.
+- A `fallback` chain may cross providers: every provider-shaped decision (`refine`, structured
+  mode, `tool_choice`, prompt rendering) comes from the ACTIVE rung's plugin, and `prepare`
+  re-runs on a family change. Keyed on the primary's plugin, another provider's rung 400s on
+  the first switched call. `resolveFallbacks` is the one merge (cross-provider rungs inherit
+  only budgets). Detail: skill `llm`, "Fallback chains and provider effort".
 - **`refine` runs on EVERY call, attempt 0 included** — it is the instance the provider is
   actually asked with, not a retry-only rebuild. A parameter a model rejects must therefore be
   gated in `build` AND `refine`: gating only `build` put `temperature` back on every request and
   400'd the whole `gpt-5*` family (`Unsupported parameter: 'temperature'`) — fatal by `isFatal`,
   so the first call of a run died. Predicates are exported, one per family, never re-typed by a
-  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-5*`/`codex-*`).
+  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`).
+  The same both-hooks rule holds for `effort`: `build` clamps it, `refine` climbs it per rung.
 - The ladder is per CALL, so a caller whose own loop validates the OUTPUT must pass
   `LlmCallOptions.escalation` (its outer attempt) or every call restarts at rung 0 — same
   model, same budget, same deterministic answer. Clamped to `retries - 1`; start rung only.

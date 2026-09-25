@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-auth
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.46"` in `dependencies`
+**Install:** `"@owlmeans/client-auth": "^0.1.18-rc.49"` in `dependencies`
 
 Five subpaths, five jobs:
 
@@ -88,9 +88,11 @@ browsing context the round trip can complete at all.
 | `registerMethodSource`, `listMethodSources`, `resolveLoginMethods`, `primaryLoginMethod` | Which sign-in methods are offered — see `login-methods` |
 | `LoginMethod`, `LoginMethodSource`, `LoginMethodContext` | Method types |
 | `landAfterLogin(ctx, opts?)`, `continueLogin(ctx, opts?)`, `landingUrl(ctx, landing)`, `useContinueLogin()` | The post-login landing decision (`src/login/land.ts`) — see `login-plugins`. `landAfterLogin` runs due landing hooks then delegates to `continueLogin`, which walks pending `LoginStep`s, then `resumeSuspendedFlow`, then `LandOptions.fallback ?? { alias: HOME }`; `landingUrl` builds the absolute URL a plugin's own `window.location.href` needs; `useContinueLogin()` is what a step's own screen calls once satisfied |
-| `LoginStep`, `LoginLanding`, `LoginLandingHook`, `LandOptions`, `LoginLandingParams` | Landing-seam types. `registerStep`/`steps`/`onLanded`/`landingHooks` on `LoginService` are the same replace-by-alias, priority-sorted registries as `registerPlugin` |
+| `LoginStep`, `LoginLanding`, `LoginLandingHook`, `LandOptions`, `LoginLandingParams` | Landing-seam types. `registerStep`/`steps`/`onLanded`/`landingHooks` on `LoginService` are the same replace-by-alias, priority-sorted registries as `registerPlugin`. `LoginStep` also carries `confirmsTerms?: boolean` (this step is where the Terms confirmation lives — see `termsDeferred` below) and `required?: boolean` (a throw/timeout in `pending` reads as PENDING, not "not pending" — see `login-plugins`) |
 | `LOGIN_STEP_TIMEOUT`, `LOGIN_LANDED_STORAGE` | A step's `pending`/a hook's `landed` is bounded by the former; the latter is where the last-landed token is recorded (the raw string, never a digest) |
 | `resolveTerms`, `termsAccepted`, `acceptTerms`, `termsSentence`, `ResolvedTerms`, `ResolvedTermsDocument`, `TermsSentencePart` | The confirmation. `resolveTerms` produces `documents` (what the checkbox agrees to: terms, then billing/product/custom when configured) and `notices` (what is only disclosed: privacy, plus cookies per its own inclusion rule) — see the terms-confirmation section of `login-methods`. The extra `LoginTermsConfig` fields (`billing`, `product`, `documents`, `revisions`, `showRevision`) are added by module augmentation in `src/login/terms-config.ts`, never by editing `@owlmeans/config` — importing anything from `@owlmeans/client-auth/login` pulls it in |
+| `termsLabelResolver(translate, locale)`, `termsAcceptanceOf(resolved, locale?)`, `TermsAcceptanceRef` | The ONE document-label resolver and ONE wire-shape builder every terms renderer/recorder shares (`FallbackLoginScreen`, `web-panel`'s `LoginTerms`, `web-marketing-consent`'s Terms box and `termsRecorder`) — no more hand-kept duplicate `DEFAULT_LABEL`/`resolveLabelFor` per package. `termsAcceptanceOf` keeps only `{key, href, revisedAt}` per document — structurally `@owlmeans/marketing-consent`'s `TermsAcceptance`, with no dependency on that package |
+| `termsDeferred(ctx)` | True once a registered AND BOUND `LoginStep` declares `confirmsTerms` — see the "Deferring the confirmation" section of `login-methods`. Reads `ctx.hasService`/`.hasEntrypoint` directly, never `ensureLoginService` (which has the side effect of registering an empty host) |
 | `resolveCredit`, `ResolvedCredit` | The credit and copyright line |
 | `FallbackLoginScreen`, `LoginScreenProps` (now also carries `locale?: string`, for `Intl.ListFormat` and a custom document's locale-keyed label), `LoginScreenComponent` | The plain sign-in screen a relying party renders when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | Where a surrogate login window opens; `null` on an older entrypoint list |

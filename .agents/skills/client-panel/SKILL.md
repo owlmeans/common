@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-panel
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.46"` in `dependencies`
+**Install:** `"@owlmeans/client-panel": "^0.1.18-rc.49"` in `dependencies`
 
 ## Key Exports
 
@@ -56,6 +56,11 @@ is gone; nothing in the repo read it outside this model and its one renderer, so
 rather than kept alongside the replacement. It also carries `revisedAt?` and `version`. A renderer
 turns `documents`/`notices` into markup with `termsSentence` (`@owlmeans/client-auth/login`), never
 by re-deriving link/label pairs itself.
+
+`LoginTermsModel.deferred` mirrors `termsDeferred(ctx)`: true once a registered, bound `LoginStep`
+confirms the terms instead of this screen. `LoginMethodsModel.blocked` folds it in
+(`required && !deferred && !accepted`) — a renderer never blocks on `required`/`accepted` alone,
+or it would re-block a screen whose confirmation moved elsewhere.
 
 ## Usage
 

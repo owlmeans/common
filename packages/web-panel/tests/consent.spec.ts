@@ -44,4 +44,19 @@ describe('@owlmeans/web-panel/consent — the dialog and the menu widget', () =>
       await close()
     }
   }, TIMEOUT)
+
+  test('linker passes through to the underlying dialog unchanged', async () => {
+    // `?domains=1` hands `PanelCookieConsent` a `linker` — nothing here re-derives it, so seeing
+    // the domain line pins that `{...props}` still carries it all the way to `CookieConsent`.
+    const { page, close } = await open('/prefs?consent=bare&footer=node&domains=1')
+    try {
+      await page.waitForSelector('#prefs')
+      await page.locator('[data-consent-dialog]').waitFor()
+      const domains = page.locator('[data-consent-domains]')
+      await domains.waitFor()
+      expect(await domains.textContent()).toContain('harness-partner.test')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
 })

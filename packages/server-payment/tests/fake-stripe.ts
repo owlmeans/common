@@ -9,23 +9,30 @@ import type { PlanCapability } from '@owlmeans/payment'
 import { applyQuery, firstMatch, matchCriteria, RecordExists, UnknownRecordError } from '@owlmeans/resource'
 import type { Criteria, ListOptions, ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
+import { makeConsoleMailerService, MAILER_SERVICE } from '@owlmeans/mailer'
+import type { MailMessage } from '@owlmeans/mailer'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
-  declarePaymentPlan, declarePaymentPricing, declarePaymentProduct, portalBranding, stripeSecrets,
+  declareConsumerRights, declarePaymentPlan, declarePaymentPricing, declarePaymentProduct, portalBranding,
+  stripeSecrets,
 } from '../src/config.js'
 import {
-  RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_SUBSCRIPTION,
+  RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT, RES_PAYGATE_CUSTOMER,
+  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE, RES_PAYMENT_SUBSCRIPTION,
   RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from '../src/consts.js'
+import { appendConsumerRights } from '../src/consumer/service.js'
 import {
-  makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource, makeSubscriptionResource,
-  makeUsageCounterResource, makeUsageResource, makeWebhookResource,
+  makeBillingProfileResource, makeConsumerConsentResource, makeConsumerDeclarationResource,
+  makeConsumerEventResource, makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource,
+  makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from '../src/resource.js'
 import { appendPaymentGatewayService } from '../src/service.js'
 import { observer } from '../src/utils.js'
 import type {
-  Config, DisputeEvent, PaymentFailedEvent, PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent,
-  SubscriptionEvent, TopUpCompletion,
+  CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions, DisputeEvent, PaymentFailedEvent,
+  PaymentPlanDef, PortalBrandingDef, PricingDef, RefundEvent, SubscriptionEvent, TopUpCompletion, UsageMeter,
+  WithdrawalEvent,
 } from '../src/types.js'
 
 // -----------------------------------------------------------------------------------------------
@@ -121,6 +128,8 @@ export const declareTestCatalogue = (cfg: Config, opts: CatalogueOptions = {}): 
 
 type Rec = Record<string, any>
 
+export type FakeFailure = string | Error
+
 export interface FakeStripeState {
   apiVersion: string
   /** Every SDK method called, in order: `webhookEndpoints.create`, … */
@@ -154,6 +163,21 @@ export interface FakeStripeState {
   fxRates: Record<string, { exchangeRate: number, baseRate?: number, referenceRate?: number, fxFeeRate?: number }>
   /** Every `rawRequest` to `/v1/fx_quotes` throws. */
   fxUnavailable: boolean
+  /** Completed or open checkout sessions `checkout.sessions.list` answers. */
+  listedSessions: Rec[]
+  creditNotes: Rec[]
+  /** Every `creditNotes.preview` params. */
+  creditNotePreviews: Rec[]
+  /** Every call's request options (`idempotencyKey`), by method. */
+  requestOptions: Record<string, Rec[]>
+  /**
+   * Methods that throw on their next call: name → an error message (a Stripe invalid-request
+   * error), an error to throw as it is, or a list of those — one per call, in order.
+   */
+  failures: Record<string, FakeFailure | FakeFailure[]>
+  /** Every `subscriptions.update` / `.cancel` params, in order. */
+  subscriptionChanges: Rec[]
+  expiredSessions: string[]
 }
 
 /** The API version the installed SDK defaults to, read from a real client. */
@@ -188,10 +212,21 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
     taxCalculations: [], taxRates: {}, taxInvalidCountries: [], taxUnsupportedCountries: [],
     taxSettings: { defaults: { tax_behavior: null, tax_code: null }, head_office: null, status: 'active', status_details: {} },
     rawRequests: [], fxRates: {}, fxUnavailable: false,
+    listedSessions: [], creditNotes: [], creditNotePreviews: [], requestOptions: {}, failures: {},
+    subscriptionChanges: [], expiredSessions: [],
     ...initial,
   }
   const next = (prefix: string): string => `${prefix}_${++state.seq}`
-  const call = (name: string): void => { state.calls.push(name) }
+  const call = (name: string, options?: Rec): void => {
+    state.calls.push(name)
+    if (options != null) (state.requestOptions[name] = state.requestOptions[name] ?? []).push(options)
+    const failure = state.failures[name]
+    if (failure != null) {
+      const next = Array.isArray(failure) ? failure.shift() : failure
+      if (!Array.isArray(failure) || failure.length === 0) delete state.failures[name]
+      if (next != null) throw typeof next === 'string' ? invalidRequest(next) : next
+    }
+  }
   const find = (list: Rec[], id: string, what: string): Rec => {
     const found = list.find(item => item.id === id)
     if (found == null) throw missing(what)
@@ -272,6 +307,52 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
         if (subscription == null) throw missing('subscription')
         return structuredClone(subscription)
       },
+      update: async (id: string, params: Rec, options?: Rec) => {
+        call('subscriptions.update', options)
+        const subscription = state.subscriptions[id]
+        if (subscription == null) throw missing('subscription')
+        state.subscriptionChanges.push({ id, method: 'update', ...structuredClone(params) })
+        Object.assign(subscription, params)
+        return structuredClone(subscription)
+      },
+      cancel: async (id: string, params: Rec = {}, options?: Rec) => {
+        call('subscriptions.cancel', options)
+        const subscription = state.subscriptions[id]
+        if (subscription == null) throw missing('subscription')
+        state.subscriptionChanges.push({ id, method: 'cancel', ...structuredClone(params) })
+        subscription.status = 'canceled'
+        return structuredClone(subscription)
+      },
+    },
+    creditNotes: {
+      preview: async (params: Rec) => {
+        call('creditNotes.preview')
+        state.creditNotePreviews.push(structuredClone(params))
+        const invoice = state.invoices[params.invoice]
+        if (invoice == null) throw missing('invoice')
+        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
+        const tax = Math.round(amount * rate)
+        return { id: 'cnpreview', object: 'credit_note', amount: amount + tax, total: amount + tax, subtotal: amount, currency: invoice.currency }
+      },
+      create: async (params: Rec, options?: Rec) => {
+        call('creditNotes.create', options)
+        const invoice = state.invoices[params.invoice]
+        if (invoice == null) throw missing('invoice')
+        const rate = invoice.subtotal > 0 ? (invoice.tax ?? 0) / invoice.subtotal : 0
+        const amount = params.lines.reduce((sum: number, line: Rec) => sum + (line.amount ?? 0), 0)
+        const note = {
+          id: next('cn'), object: 'credit_note', invoice: params.invoice, refund: params.refund, status: 'issued',
+          total: amount + Math.round(amount * rate), currency: invoice.currency, memo: params.memo,
+          metadata: { ...params.metadata }, lines: structuredClone(params.lines),
+        }
+        state.creditNotes.push(note)
+        return structuredClone(note)
+      },
+      list: async (params: Rec = {}) => {
+        call('creditNotes.list')
+        return page(state.creditNotes.filter(note => params.invoice == null || note.invoice === params.invoice), params)
+      },
     },
     invoices: {
       retrieve: async (id: string) => {
@@ -292,7 +373,17 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
     refunds: {
       list: async (params: Rec = {}) => {
         call('refunds.list')
-        return page(state.refunds.filter(refund => params.charge == null || refund.charge === params.charge), params)
+        return page(state.refunds.filter(refund => (params.charge == null || refund.charge === params.charge)
+          && (params.payment_intent == null || refund.payment_intent === params.payment_intent)), params)
+      },
+      create: async (params: Rec, options?: Rec) => {
+        call('refunds.create', options)
+        const refund = {
+          id: next('re'), object: 'refund', amount: params.amount, currency: params.currency ?? 'eur', status: 'succeeded',
+          payment_intent: params.payment_intent, charge: null, reason: params.reason, metadata: { ...params.metadata },
+        }
+        state.refunds.push(refund)
+        return structuredClone(refund)
       },
     },
     prices: {
@@ -348,13 +439,14 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
       },
       create: async (params: Rec) => {
         call('customers.create')
-        const customer = { id: next('cus'), object: 'customer', ...structuredClone(params) }
+        const customer = { id: next('cus'), object: 'customer', address: null, ...structuredClone(params) }
         state.customers[customer.id] = customer
         return structuredClone(customer)
       },
       update: async (id: string, params: Rec) => {
         call('customers.update')
-        const customer = find(state.customers, id, 'customer')
+        const customer = state.customers[id]
+        if (customer == null) throw missing('customer')
         Object.assign(customer, params)
         return structuredClone(customer)
       },
@@ -365,6 +457,16 @@ export const makeFakeStripe = (initial: Partial<FakeStripeState> = {}): { stripe
           call('checkout.sessions.create')
           state.checkoutSessions.push(structuredClone(params))
           return { id: next('cs'), url: `https://checkout.example.test/${state.seq}` }
+        },
+        expire: async (id: string) => {
+          call('checkout.sessions.expire')
+          state.expiredSessions.push(id)
+          return { id, status: 'expired' }
+        },
+        list: async (params: Rec = {}) => {
+          call('checkout.sessions.list')
+          return page(state.listedSessions.filter(session => (params.status == null || session.status === params.status)
+            && (params.created?.gte == null || session.created >= params.created.gte)), params)
         },
         listLineItems: async () => {
           call('checkout.sessions.listLineItems')
@@ -564,13 +666,15 @@ export interface MemoryStore {
 export const memoryResource = <T extends ResourceRecord>(resource: MongoResource<T>): MemoryStore => {
   const store: MemoryStore = { rows: [], failing: new Set() }
   const unique = (resource.indexes ?? []).filter(index => index.options?.unique === true)
-    .map(index => Object.keys(index.index as Rec))
+    .map(index => ({ keys: Object.keys(index.index as Rec), sparse: index.options?.sparse === true }))
   let seq = 0
   const guard = (method: string): void => {
     if (store.failing.has(method)) throw new Error(`${resource.alias}.${method} unavailable`)
   }
-  const violates = (doc: Rec, self?: Rec): boolean => unique.some(keys => store.rows.some(row =>
-    row !== self && keys.every(key => plain(row[key] ?? null) === plain(doc[key] ?? null))))
+  // A sparse unique index ignores a document that carries none of its keys (as Mongo does).
+  const violates = (doc: Rec, self?: Rec): boolean => unique.some(({ keys, sparse }) =>
+    !(sparse && keys.every(key => doc[key] == null)) && store.rows.some(row =>
+      row !== self && keys.every(key => plain(row[key] ?? null) === plain(doc[key] ?? null))))
   const out = (row: Rec): T => structuredClone(row) as T
   const byId = (id: string) => store.rows.find(row => row.id === id)
 
@@ -653,6 +757,13 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
     },
     updateOne: async (filter: Rec, update: Rec, opts: Rec = {}) => {
       guard('updateOne')
+      // Like Mongo: an update is checked against the unique indexes before it lands.
+      const found = matchRaw(filter)
+      if (found != null) {
+        const candidate = structuredClone(found)
+        applyUpdate(candidate, update, false)
+        if (violates(candidate, found)) throw duplicate()
+      }
       const { doc, inserted } = upsert(filter, update, opts)
       return { matchedCount: doc != null && !inserted ? 1 : 0, upsertedCount: inserted ? 1 : 0 }
     },
@@ -710,6 +821,20 @@ export interface FakeContextOptions {
   portal?: PortalBrandingDef
   pricing?: PricingDef
   stripe?: Partial<FakeStripeState>
+  /** Declare a consumer-rights policy (with trader and mail options). */
+  consumerRights?: ConsumerRightsDef
+  /** The consumer-rights usage meter. */
+  meter?: UsageMeter
+  /** Register a console mailer under `MAILER_SERVICE` (default true). */
+  mailer?: boolean
+  /** Register the gateway before the application's consumer-rights call (default: after). */
+  gatewayFirst?: boolean
+  /** The application's consumer-rights options (default: managed through the fake, with `meter`). */
+  rights?: (stripe: Stripe) => ConsumerRightsOptions
+  /** The gateway's `manage` (default false). */
+  gatewayManage?: boolean
+  /** Run on the context after the registrations, before it is configured and initialized. */
+  wire?: (ctx: ApiContext) => void
 }
 
 export interface Observed {
@@ -718,9 +843,16 @@ export interface Observed {
   refund: RefundEvent[]
   dispute: DisputeEvent[]
   paymentFailed: PaymentFailedEvent[]
+  consent: ConsentEvent[]
+  withdrawal: WithdrawalEvent[]
+  cancellation: CancellationEvent[]
   /** Throw from the next `n` subscription callbacks. */
   failSubscription: number
   failTopUp: number
+  failWithdrawal: number
+  /** Run inside every top-up / subscription callback, before it records the event. */
+  onTopUp?: (event: TopUpCompletion) => Promise<void>
+  onSubscription?: (event: SubscriptionEvent) => Promise<void>
 }
 
 export interface FakeContext {
@@ -729,6 +861,10 @@ export interface FakeContext {
   state: FakeStripeState
   stores: Record<string, MemoryStore>
   observed: Observed
+  /** Every mail the console mailer took. */
+  mails: MailMessage[]
+  /** The console mailer — replace its `send` to simulate a transport failure. */
+  mailer: ReturnType<typeof makeConsoleMailerService>
 }
 
 /**
@@ -753,6 +889,9 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   if (opts.pricing != null) {
     declarePaymentPricing(cfg, opts.pricing)
   }
+  if (opts.consumerRights != null) {
+    declareConsumerRights(cfg, opts.consumerRights)
+  }
 
   const ctx = makeServerContext(cfg as unknown as ServerConfig) as unknown as ApiContext
   const stores: Record<string, MemoryStore> = {}
@@ -764,17 +903,39 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
     [RES_PAYMENT_USAGE, makeUsageResource()],
     [RES_PAYMENT_USAGE_COUNTER, makeUsageCounterResource()],
     [RES_PAYMENT_FINGERPRINT, makeFingerprintResource()],
+    [RES_BILLING_PROFILE, makeBillingProfileResource()],
+    [RES_PAYMENT_PURCHASE, makePurchaseResource()],
+    [RES_CONSUMER_CONSENT, makeConsumerConsentResource()],
+    [RES_CONSUMER_DECLARATION, makeConsumerDeclarationResource()],
+    [RES_CONSUMER_EVENT, makeConsumerEventResource()],
   ] as const
   for (const [alias, resource] of resources) {
     stores[alias] = memoryResource(resource as unknown as MongoResource<ResourceRecord>)
     ctx.registerResource(resource as never)
   }
-  appendPaymentGatewayService(ctx as never, { manage: false })
+  const { stripe, state } = makeFakeStripe(opts.stripe)
+  const mailer = makeConsoleMailerService(MAILER_SERVICE)
+  if (opts.mailer !== false) {
+    ctx.registerService(mailer)
+  }
+  // The consumer-rights service manages the paygate through the fake; the gateway stays unmanaged.
+  const rights = opts.rights?.(stripe)
+    ?? { manage: true, stripe: async () => stripe, ...(opts.meter != null ? { usage: opts.meter } : {}) }
+  const gatewayOpts = { manage: opts.gatewayManage ?? false }
+  if (opts.gatewayFirst === true) {
+    appendPaymentGatewayService(ctx as never, gatewayOpts)
+    appendConsumerRights(ctx as never, rights)
+  } else {
+    appendConsumerRights(ctx as never, rights)
+    appendPaymentGatewayService(ctx as never, gatewayOpts)
+  }
+  opts.wire?.(ctx)
   ctx.configure()
   await ctx.init()
 
   const observed: Observed = {
-    topUp: [], subscription: [], refund: [], dispute: [], paymentFailed: [], failSubscription: 0, failTopUp: 0,
+    topUp: [], subscription: [], refund: [], dispute: [], paymentFailed: [], consent: [], withdrawal: [],
+    cancellation: [], failSubscription: 0, failTopUp: 0, failWithdrawal: 0,
   }
   const completions = observer(ctx)
   await completions.ready()
@@ -783,6 +944,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
       observed.failTopUp--
       throw new Error('ledger unavailable')
     }
+    await observed.onTopUp?.(event)
     observed.topUp.push(event)
   })
   completions.onSubscription(async event => {
@@ -790,13 +952,21 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
       observed.failSubscription--
       throw new Error('observer unavailable')
     }
+    await observed.onSubscription?.(event)
     observed.subscription.push(event)
   })
   completions.onRefund(async event => { observed.refund.push(event) })
   completions.onDispute(async event => { observed.dispute.push(event) })
   completions.onPaymentFailed(async event => { observed.paymentFailed.push(event) })
+  completions.onConsent(async event => { observed.consent.push(event) })
+  completions.onWithdrawal(async event => {
+    if (observed.failWithdrawal > 0) {
+      observed.failWithdrawal--
+      throw new Error('ledger unavailable')
+    }
+    observed.withdrawal.push(event)
+  })
+  completions.onCancellation(async event => { observed.cancellation.push(event) })
 
-  const { stripe, state } = makeFakeStripe(opts.stripe)
-
-  return { ctx, stripe, state, stores, observed }
+  return { ctx, stripe, state, stores, observed, mails: mailer.captured, mailer }
 }

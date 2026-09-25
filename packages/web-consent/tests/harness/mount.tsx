@@ -14,8 +14,15 @@ import type { ConsentCategory, ConsentService } from '../../src/index.js'
  * - `?services=1` — with `view=policy`, disclose {@link SERVICES} on it.
  * - `?styled=1` — compile a real theme (`styled.css`), for the accessibility spec only.
  * - `?theme=dark` — with `styled=1`, the dark scheme.
+ * - `?linker=1` — cross-domain consent, `linker={{ domains: LINKER_DOMAINS }}` on both the dialog
+ *   and the policy page.
+ * - `?anchors=1` — renders a handful of `<a>` elements (a listed partner, a foreign host, and one
+ *   with `rel="noreferrer"`) for the decoration specs to click/inspect.
  */
 const params = new URLSearchParams(window.location.search)
+
+/** The one partner domain every `?linker=1` case shares — never the harness's own origin. */
+export const LINKER_DOMAINS = ['partner.test']
 
 if (params.get('styled') != null) {
   await import('./styled.css')
@@ -65,6 +72,9 @@ const translate = params.get('categories') === 'custom'
     : key === 'consent.telemetry.description' ? 'Product telemetry.' : defaultValue
   : undefined
 
+const withLinker = params.get('linker') != null
+const withAnchors = params.get('anchors') != null
+
 const App: FC = () => {
   // Re-mounting on demand proves a decision SURVIVES a mount rather than merely a render — the
   // migration case is meaningless otherwise.
@@ -73,6 +83,11 @@ const App: FC = () => {
   return <div>
     <button id="remount" onClick={() => setGeneration(g => g + 1)}>remount</button>
     <span id="generation">{generation}</span>
+    {withAnchors && <nav>
+      <a id="partner-link" href="https://partner.test/legal/cookies">A listed partner</a>
+      <a id="foreign-link" href="https://elsewhere.test/">An unlisted host</a>
+      <a id="noreferrer-link" href="https://partner.test/legal/terms" rel="noreferrer">A listed partner, noreferrer</a>
+    </nav>}
     {params.get('view') === 'policy' && <CookiePolicy
       key={`policy-${generation}`}
       locale={params.get('locale') ?? undefined}
@@ -81,6 +96,7 @@ const App: FC = () => {
       privacyHref="https://example.test/privacy"
       termsHref="https://example.test/terms"
       services={params.get('services') != null ? SERVICES : undefined}
+      {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
     />}
     {/*
       Mounted in EVERY view, including alongside the policy page — that is how an application
@@ -94,6 +110,7 @@ const App: FC = () => {
       translate={translate}
       policyHref="/cookies"
       links={[{ href: 'https://example.test/privacy', labelKey: 'consent.privacy', defaultLabel: 'Privacy Policy' }]}
+      {...(withLinker ? { linker: { domains: LINKER_DOMAINS } } : {})}
     />
   </div>
 }

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.35"` in `dependencies`
+**Install:** `"@owlmeans/llm-common": "^0.1.18-rc.36"` in `dependencies`
 
 The contracts half of the LLM stack. **No `@langchain/*` runtime dependency** — importable
 from a browser bundle, a queue worker, or any package that must not pull an inference SDK.
@@ -22,6 +22,7 @@ The dependency direction is one-way: a domain contracts package extends these;
 | `ModelProvider` | `OpenAI` · `Anthropic` · `Compatible`. Each value is an `LlmPlugin.type` in `@owlmeans/llm`. |
 | `ExecutionLevel` | `Project` → `Task` → `Helper`. Refinement is downward only. |
 | `ExecutionEffort` | `Economy` · `Standard` · `High` · `Max` — the single "how hard should this run" axis. |
+| `ModelEffort` · `MODEL_EFFORT_ORDER` | The PROVIDER's effort value (`none` … `max`) sent as OpenAI `reasoning.effort` / Anthropic `output_config.effort`; `ModelConfigPatch.effort`. Not `ExecutionEffort`, which only sizes budgets. Which levels a model accepts is the `llm` plugins' table. |
 | `StructuredMode` | `Native` (provider JSON-schema mode) vs `Tool` (forced tool call). |
 | `SpectatorContentType`, `SPECTATOR_GENERAL` | Observability record enums/defaults. |
 | `ModelRole` | Open `string` — declare your own enum, its values stay assignable. |

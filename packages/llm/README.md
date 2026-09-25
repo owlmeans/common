@@ -20,7 +20,7 @@ abstraction that resolves models from an inheritable policy.
 ## Installation
 
 ```bash
-bun add @owlmeans/llm@^0.1.18-rc.36 @owlmeans/llm-common@^0.1.18-rc.35
+bun add @owlmeans/llm@^0.1.18-rc.38 @owlmeans/llm-common@^0.1.18-rc.36
 bun add @langchain/core @langchain/openai @langchain/anthropic   # peer dependencies
 ```
 
@@ -137,7 +137,8 @@ spectator entry), `filter` (reject a result and force a retry), `useCache` / `ca
 | Provider accepts the request and never streams | Idle (per-token) deadline aborts and retries — `ModelConfig.streamTimeout` |
 | Duplicate final SSE chunk corrupts tool-call arguments | Stream breaks at the first non-empty `finish_reason` |
 | Reasoning eats the whole output budget | Retry doubles `maxTokens` toward `maxTokensCap` **and** shrinks an absolute reasoning cap |
-| A weak cheap model keeps failing | Escalates to `ModelConfig.fallback` after `FALLBACK_AFTER_ATTEMPTS`, within one plugin family |
+| A weak cheap model keeps failing | Walks the `ModelConfig.fallback` chain, `FALLBACK_AFTER_ATTEMPTS` attempts per rung; a rung may be another provider, called in its own dialect |
+| The same model keeps giving the same weak answer | Climbs `ModelConfig.effort` one level per attempt of the rung, up to the model's ceiling; a `TemperatureFactory` request climbs it too |
 | Model stringifies arrays / over-wraps scalars | `coerceToSchema` reconciles the answer with the schema before validation |
 | Model ignores the tool and answers in prose | `parseJsonContent` salvages JSON from fences and surrounding text |
 | A blank message poisons the request (Anthropic 400 `text content blocks must contain non-whitespace text`, typically an empty file read pasted into a prompt) | Whitespace-only text blocks are dropped before every call; blank tool results are stubbed to keep their `tool_use` pairing, and an all-blank input becomes one stub user message |
@@ -147,7 +148,7 @@ spectator entry), `filter` (reject a result and force a retry), `useCache` / `ca
 ### Helpers (usable alongside a model)
 
 `withRetry` · `registerFatalError` · `spectate` · `normalizeInput` · `parseJsonContent` ·
-`coerceToSchema`. Also exported from `@owlmeans/llm/helpers`.
+`coerceToSchema` · `resolveFallbacks`. Also exported from `@owlmeans/llm/helpers`.
 
 Everything under `src/utils/` is library-private and deliberately not exported.
 
@@ -184,7 +185,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.36
+npx @owlmeans/agent-skills@^0.1.18-rc.39
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

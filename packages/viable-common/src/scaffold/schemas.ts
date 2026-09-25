@@ -1,9 +1,9 @@
 import type { JSONSchemaType } from 'ajv'
 
 import { ProjectArea } from '../areas/consts.js'
-import { BENTO_FRAGMENT_KINDS, WidgetKind } from './consts.js'
+import { BENTO_FRAGMENT_KINDS, LANDING_GATE_FIELD_KINDS, WidgetKind } from './consts.js'
 import type {
-  BentoFragment, GuestHomePlan, LandingGatePlan, ProductIdentity,
+  BentoFragment, GuestHomePlan, LandingGateAnswer, LandingGateField, LandingGatePlan, ProductIdentity,
   ScaffoldAreaPlan, ScaffoldPlan, ScaffoldStoryPlan, SketchContent,
 } from './types.js'
 
@@ -83,7 +83,8 @@ const ScaffoldStoryPlanSchema: JSONSchemaType<ScaffoldStoryPlan> = {
     screen: {
       type: 'string',
       description: 'The main screen this story will need, named "{section}/{purpose}" -'
-        + ' e.g. "Requests/Submit a request". The section part must equal the section above'
+        + ' e.g. "Requests/Submit request". The purpose is one or two words, never a sentence.'
+        + ' The section part must equal the section above'
     },
     widget: {
       type: 'object',
@@ -225,99 +226,129 @@ const BentoFragmentSchema: JSONSchemaType<BentoFragment> = {
   additionalProperties: false,
 }
 
+const LandingGateFieldSchema: JSONSchemaType<LandingGateField> = {
+  type: 'object',
+  title: 'LandingGateField',
+  description: 'One simple, non-sensitive field of the landing gate',
+  properties: {
+    name: {
+      type: 'string',
+      description: 'The camelCase key its value travels under, one word - e.g. "dish"'
+    },
+    label: {
+      type: 'string',
+      description: 'The visible label in the end user\'s words, 2-5 words - e.g. "What are you baking?"'
+    },
+    kind: {
+      type: 'string',
+      enum: LANDING_GATE_FIELD_KINDS,
+      description: 'text (a short line, the default), select (ONE choice out of 2-6 plain options),'
+        + ' number, or date. Nothing else exists: no chips, no toggles, no multiple choice'
+    },
+    placeholder: {
+      type: 'string', nullable: true,
+      description: 'text or number only: an example value, e.g. "Rye sourdough". Never personal'
+    },
+    options: {
+      type: 'array', nullable: true,
+      items: { type: 'string' },
+      description: 'select only: 2 to 6 plain options, 1-3 words each'
+    },
+  },
+  required: ['name', 'label', 'kind'],
+  additionalProperties: false,
+}
+
+/** What the gate's texts tell the planning model — one place, shared by the answer and stored schemas. */
+const GATE_TEXT = {
+  description: 'The working entry into the key end-user workflow, drawn in the hero instead of the'
+    + ' call-to-action buttons: ONE SMALL FORM - a heading, one to three simple non-sensitive'
+    + ' fields, one button. A guest fills it in, signs in, and continues with what they entered.'
+    + ' No choices to browse, no sample results, no counts, no previews. Every text is in the end'
+    + ' user\'s words',
+  story: 'The code of the landing story, copied EXACTLY as given to you. Never shown',
+  target: 'Leave it out - the platform fills it',
+  question: 'The heading of the form, 3-6 words, in the end user\'s words - e.g. "What are you'
+    + ' baking?"',
+  fields: 'The fields, AS FEW AS POSSIBLE: one whenever one is enough, never more than three. They'
+    + ' are the first things the story\'s own screen asks for, in the same words',
+  cta: 'The button label, a verb first, 2-3 words and an arrow - e.g. "Start my post →"',
+  note: 'One short muted line under the form: no account is needed yet and what was entered comes'
+    + ' along - e.g. "No account needed. What you enter comes with you."',
+}
+
+/** The pre-form keys of a stored gate: optional, described as history, never offered to the model. */
+const LEGACY_GATE_NOTE = 'Pre-form shape, never written'
+
+/**
+ * What the planning MODEL answers for the gate: the form and nothing older. The stored schema below
+ * adds the pre-form keys as optional, so a plan written before the gate became a form still
+ * validates; the model is never offered them.
+ */
+const LandingGateAnswerSchema: JSONSchemaType<LandingGateAnswer> = {
+  type: 'object',
+  title: 'LandingGatePlan',
+  description: GATE_TEXT.description,
+  properties: {
+    story: { type: 'string', description: GATE_TEXT.story },
+    target: { type: 'string', nullable: true, description: GATE_TEXT.target },
+    question: { type: 'string', description: GATE_TEXT.question },
+    fields: { type: 'array', items: LandingGateFieldSchema, description: GATE_TEXT.fields },
+    cta: { type: 'string', description: GATE_TEXT.cta },
+    note: { type: 'string', description: GATE_TEXT.note },
+  },
+  required: ['story', 'question', 'fields', 'cta', 'note'],
+  additionalProperties: false,
+}
+
+/**
+ * The gate as a plan may STORE it: the form, plus the pre-form keys (chips, sample records, a live
+ * count) as optional. A schema that validates a stored document only ever grows optional.
+ */
 const LandingGatePlanSchema: JSONSchemaType<LandingGatePlan> = {
   type: 'object',
   title: 'LandingGatePlan',
-  description: 'The working entry into the key end-user workflow, drawn in the hero instead of the'
-    + ' call-to-action buttons: a guest makes a few picks, sees sample results ranked against them,'
-    + ' and signs in to continue with the picks carried over. Every text is in the end user\'s words',
+  description: GATE_TEXT.description,
   properties: {
-    story: {
-      type: 'string',
-      description: 'The code of the landing story, copied EXACTLY as given to you. Never shown'
-    },
-    target: {
-      type: 'string', nullable: true,
-      description: 'Leave it out - the platform fills it'
-    },
-    question: {
-      type: 'string',
-      description: 'The question the gate asks, 3-6 words, in the end user\'s words - e.g. "What\'s'
-        + ' in your pantry?"'
-    },
-    hint: { type: 'string', description: 'A short reassurance beside it, e.g. "No account needed"' },
-    label: {
-      type: 'string',
-      description: 'The accessible name of the group of choices, 2-3 words - e.g. "Your pantry"'
-    },
-    inputs: {
-      type: 'array',
-      items: { type: 'string' },
-      description: '5 to 8 things a guest can pick, 1-3 words each, from the story\'s own domain.'
-        + ' Nothing personal, nothing sensitive, nothing that needs an account'
-    },
-    selected: {
-      type: 'array',
-      items: { type: 'string' },
-      description: '4 or 5 of the inputs above, copied exactly, pre-selected so the first view'
-        + ' already shows results'
-    },
+    story: { type: 'string', description: GATE_TEXT.story },
+    target: { type: 'string', nullable: true, description: GATE_TEXT.target },
+    question: { type: 'string', description: GATE_TEXT.question },
+    fields: { type: 'array', nullable: true, items: LandingGateFieldSchema, description: GATE_TEXT.fields },
+    cta: { type: 'string', description: GATE_TEXT.cta },
+    note: { type: 'string', description: GATE_TEXT.note },
+    hint: { type: 'string', nullable: true, description: LEGACY_GATE_NOTE },
+    label: { type: 'string', nullable: true, description: LEGACY_GATE_NOTE },
+    inputs: { type: 'array', nullable: true, items: { type: 'string' }, description: LEGACY_GATE_NOTE },
+    selected: { type: 'array', nullable: true, items: { type: 'string' }, description: LEGACY_GATE_NOTE },
     results: {
-      type: 'array',
+      type: 'array', nullable: true,
       items: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'A realistic record title, 2-4 words' },
-          meta: {
-            type: 'string',
-            description: 'One short line: how well it fits and one fact, e.g. "Uses all 3 · 3 h 20 min"'
-          },
-          needs: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '2-4 of the inputs above, copied exactly, that this record uses'
-          },
+          title: { type: 'string' },
+          meta: { type: 'string' },
+          needs: { type: 'array', items: { type: 'string' } },
         },
         required: ['title', 'meta', 'needs'],
         additionalProperties: false,
       },
-      description: '3 or 4 sample records the picks are ranked against - illustrative, never real data'
+      description: LEGACY_GATE_NOTE
     },
     count: {
-      type: 'object',
+      type: 'object', nullable: true,
       properties: {
-        one: { type: 'string', description: 'The count for one match, with {n}: "{n} bake matches"' },
-        many: { type: 'string', description: 'The count for several, with {n}: "{n} bakes match"' },
-        none: { type: 'string', description: 'The count for none, e.g. "No matches yet"' },
+        one: { type: 'string' },
+        many: { type: 'string' },
+        none: { type: 'string' },
       },
       required: ['one', 'many', 'none'],
       additionalProperties: false,
-      description: 'The live count label; write the literal token {n} where the number goes'
+      description: LEGACY_GATE_NOTE
     },
-    empty: {
-      type: 'string',
-      description: 'One line shown when nothing matches, saying what to pick - e.g. "Pick two or more'
-        + ' ingredients to see what you can bake."'
-    },
-    note: {
-      type: 'string',
-      description: 'One short line beside the button: signing in is by email and the picks come'
-        + ' along - e.g. "Sign in with your email. Your picks come with you."'
-    },
-    cta: {
-      type: 'string',
-      description: 'The button label, a verb first, 2-3 words and an arrow - e.g. "Open recipes →"'
-    },
-    lock: {
-      type: 'string',
-      description: 'What unlocks after sign-in, as the accessible name of a lock icon - e.g. "Full'
-        + ' method after sign-in"'
-    },
+    empty: { type: 'string', nullable: true, description: LEGACY_GATE_NOTE },
+    lock: { type: 'string', nullable: true, description: LEGACY_GATE_NOTE },
   },
-  required: [
-    'story', 'question', 'hint', 'label', 'inputs', 'selected', 'results', 'count', 'empty',
-    'note', 'cta', 'lock',
-  ],
+  required: ['story', 'question', 'cta', 'note'],
   additionalProperties: false,
 }
 
@@ -535,3 +566,28 @@ export const ScaffoldPlanSchema: JSONSchemaType<ScaffoldPlan> = {
   required: ['identity', 'guestHome', 'areas', 'stories', 'motifs'],
   additionalProperties: false,
 }
+
+/**
+ * The plan as the planning MODEL answers it — {@link ScaffoldPlanSchema} with the gate held to the
+ * form. The stored schema keeps the pre-form gate keys optional so an old plan still validates;
+ * offering them to the model would let it write a chip picker again. Typed as the stored plan
+ * because every answer is one: the answer's gate is a subset of the stored gate.
+ */
+export const ScaffoldPlanAnswerSchema = {
+  ...ScaffoldPlanSchema,
+  properties: {
+    ...ScaffoldPlanSchema.properties,
+    guestHome: {
+      ...GuestHomePlanSchema,
+      properties: {
+        ...GuestHomePlanSchema.properties,
+        gate: {
+          ...LandingGateAnswerSchema,
+          nullable: true,
+          description: 'ONLY when you were given a landing story; omit it otherwise. '
+            + LandingGateAnswerSchema.description,
+        },
+      },
+    },
+  },
+} as unknown as JSONSchemaType<ScaffoldPlan>

@@ -141,6 +141,10 @@ reads the view through the pure selectors rather than polling it a second time.
   and rebuild them on unmarshal. Catch the class after `ResilientError.ensure`.
 - A UI phrases a refusal from `errors.<type>` and its fields (the reset date of an exhausted
   window), never from the message text.
+- Not entitlement refusals: the consumer-rights refusals (`PerformanceConsentRequired`,
+  `SubscriptionStartRequired` 428; `BillingCountryLocked`, `WithdrawalUnavailable`,
+  `CancellationUnavailable` 409) and `CheckoutLimitExceeded` (409) declare their status and never
+  extend `AuthForbidden` — the `payment` skill, § Consumer rights.
 
 ## Related
 

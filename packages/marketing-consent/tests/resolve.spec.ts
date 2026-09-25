@@ -1,22 +1,29 @@
 import { describe, expect, test } from 'bun:test'
-import { CONSENT_ANALYTICS, CONSENT_MARKETING } from '@owlmeans/consent'
 import { resolveMarketingConsents } from '../src/resolve.js'
-import { MC_ADVERTISING, MC_ANALYTICS, MC_EMAIL, MC_PARTNERS, STANDARD_MARKETING_CONSENTS } from '../src/consts.js'
+import { MC_EMAIL, MC_PARTNERS, STANDARD_MARKETING_CONSENTS } from '../src/consts.js'
 
 describe('resolveMarketingConsents', () => {
-  test('the standard set has all 8 entries, in order, with no config', () => {
+  test('the standard set has its 6 entries, in order, with no config', () => {
     const defs = resolveMarketingConsents()
 
-    expect(defs).toHaveLength(8)
+    expect(defs).toHaveLength(6)
     expect(defs.map(def => def.key)).toEqual(STANDARD_MARKETING_CONSENTS.map(def => def.key))
-    expect(defs.find(def => def.key === MC_ANALYTICS)?.cookieCategory).toBe(CONSENT_ANALYTICS)
-    expect(defs.find(def => def.key === MC_ADVERTISING)?.cookieCategory).toBe(CONSENT_MARKETING)
+    expect(defs.map(def => def.key)).toEqual([
+      'marketing.email', 'marketing.sms', 'marketing.phone', 'marketing.push', 'data.profiling', 'data.partners',
+    ])
+  })
+
+  test('no standard consent is bound to a cookie category — cookie choices live in the cookie dialog alone', () => {
+    for (const def of STANDARD_MARKETING_CONSENTS) {
+      expect(def).not.toHaveProperty('cookieCategory')
+      expect(def.group).not.toBe('trackers')
+    }
   })
 
   test('a `standard: { key: false }` override drops that definition entirely', () => {
     const defs = resolveMarketingConsents({ standard: { [MC_EMAIL]: false } })
 
-    expect(defs).toHaveLength(7)
+    expect(defs).toHaveLength(5)
     expect(defs.find(def => def.key === MC_EMAIL)).toBeUndefined()
   })
 
@@ -37,7 +44,7 @@ describe('resolveMarketingConsents', () => {
     })
     const custom = defs.find(def => def.key === 'custom.survey')
 
-    expect(defs).toHaveLength(9)
+    expect(defs).toHaveLength(7)
     expect(custom).toMatchObject({ key: 'custom.survey', group: 'custom', mode: 'opt-in', enabled: true })
     expect(custom?.revisedAt).toBeString()
   })

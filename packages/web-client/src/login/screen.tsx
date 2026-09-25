@@ -6,6 +6,7 @@ import {
   LoginIntent, LoginOutcome, LOGIN_INTENT_QUERY, LOGIN_METHOD_QUERY, LOGIN_NEXT_QUERY,
 } from '@owlmeans/client-auth/login'
 import type { LoginService } from '@owlmeans/client-auth/login'
+import { USER_ID } from '@owlmeans/client-auth'
 import type { AppContext } from '../types.js'
 import { LoginSurrogateView, SurrogateStage } from './view.js'
 
@@ -17,10 +18,43 @@ import { LoginSurrogateView, SurrogateStage } from './view.js'
  * application, with its navigation, inside itself. This screen has no continuation at all — it
  * either hands something back and closes, or it says what it is waiting for.
  *
- * It also never runs the authorization machine. When there is already a session here, that is the
- * answer, and it goes back to the opener immediately — no provider round trip, no PKCE exchange.
- * When there is not, it forwards to the dispatcher (`next`), which owns that flow.
+ * It also never runs the authorization machine itself: it forwards to the dispatcher (`next`),
+ * which owns that flow, and hands back what the dispatcher issued — see {@link surrogateLoginStep}
+ * for why a session already stored in this window is not simply handed back.
  */
+/** What a surrogate window opened to SIGN IN does with the session it may already hold. */
+export enum SurrogateLoginStep {
+  /** Drop the stored session and authenticate afresh through the dispatcher. */
+  Forget = 'forget',
+  /** Hand the stored session to the opener — there is no dispatcher to authenticate through. */
+  Resume = 'resume',
+  /** Nothing stored: authenticate through the dispatcher. */
+  Authenticate = 'authenticate',
+}
+
+/**
+ * A sign-in request never reuses the session this window happens to hold.
+ *
+ * The opener asks for a sign-in only when it has no session its server accepts — and the window it
+ * opens does not share its storage: an embedded application's storage is partitioned by the top
+ * level site, the popup's is first-party. So the popup can hold a session the server has already
+ * REFUSED (its record gone after a restart, revoked, fenced). Handing that back closes the popup
+ * at once — a blink — and the opener fails its next request exactly as before, forever, because
+ * nothing in the opener can reach the popup's storage to clear it. A fresh round trip costs only
+ * redirects while the provider still has a session, and always yields a session the server holds.
+ *
+ * Only without a dispatcher address is the stored session handed back as it is: there is nothing
+ * to authenticate through, and the opener's own 401 handling drops it if it is refused.
+ */
+export const surrogateLoginStep = (token: string | null | undefined, next: string | null): SurrogateLoginStep => {
+  const stored = token != null && token !== ''
+  if (!stored) {
+    return SurrogateLoginStep.Authenticate
+  }
+
+  return next != null && next !== '' ? SurrogateLoginStep.Forget : SurrogateLoginStep.Resume
+}
+
 export const SurrogateScreen: FC = () => {
   const context = useContext() as unknown as AppContext
   const [query] = context.router().useSearchParams()
@@ -78,9 +112,20 @@ export const SurrogateScreen: FC = () => {
         return
       }
 
-      if (token != null && token !== '') {
-        // Already signed in here. The framed application is the one that asked, so the session
-        // goes to it rather than being displayed to this window.
+      const next = query.get(LOGIN_NEXT_QUERY)
+      const step = surrogateLoginStep(token, next)
+
+      if (step === SurrogateLoginStep.Forget) {
+        // Dropped from this window's storage only — the web auth service's own clearing path
+        // navigates to the dispatcher, and `next` below is exactly where this window goes anyway.
+        const auth = context.auth()
+        await auth.store().delete(USER_ID)
+        auth.token = undefined
+        auth.auth = undefined
+      }
+
+      if (step === SurrogateLoginStep.Resume && token != null) {
+        // Signed in here and nowhere to authenticate afresh: hand what there is to the opener.
         const outcome = await login.resume(token)
         setStage(
           outcome === LoginOutcome.Handled ? SurrogateStage.Handing
@@ -90,10 +135,9 @@ export const SurrogateScreen: FC = () => {
         return
       }
 
-      // Nothing here yet — the dispatcher owns the authorization round trip, and the provider's
-      // callback lands there rather than on this route. The method the user already chose travels
-      // with it, so the dispatcher does not ask a second time in a window with no one to ask.
-      const next = query.get(LOGIN_NEXT_QUERY)
+      // The dispatcher owns the authorization round trip, and the provider's callback lands there
+      // rather than on this route. The method the user already chose travels with it, so the
+      // dispatcher does not ask a second time in a window with no one to ask.
       if (next == null || next === '') {
         setStage(SurrogateStage.Gesture)
         return

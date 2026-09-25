@@ -12,7 +12,7 @@ legacy). The server-side counterpart is `@owlmeans/server-auth`.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-auth@^0.1.18-rc.46
+bun add @owlmeans/client-auth@^0.1.18-rc.49
 ```
 
 ## Concepts
@@ -259,6 +259,8 @@ The plugin-authoring surface, with no registration side effect.
 | `registerMethodSource`, `listMethodSources`, `resolveLoginMethods(ctx, cfg?, extra?)`, `primaryLoginMethod(methods)` | function | Global method sources and resolution |
 | `LoginMethod`, `LoginMethodSource`, `LoginMethodContext` | type | Method contract |
 | `resolveTerms(cfg?)`, `termsAccepted(resolved)`, `acceptTerms(resolved, accepted)`, `ResolvedTerms` | function, type | Terms confirmation, stored in `localStorage` against a version derived from the URLs |
+| `termsLabelResolver(translate, locale)`, `termsAcceptanceOf(resolved, locale?)`, `TermsAcceptanceRef` | function, type | The one document-label resolver every terms renderer shares; the wire shape a sign-in-time acceptance sends the server (structurally `@owlmeans/marketing-consent`'s `TermsAcceptance`, no dependency on it) |
+| `termsDeferred(ctx)` | function | True once a registered AND bound `LoginStep` declares `confirmsTerms` — the sign-in screen then renders no checkbox and blocks nothing, because the confirmation lives on that step instead |
 | `resolveCredit(cfg?, brand?, service?)`, `ResolvedCredit` | function, type | The credit and copyright line |
 | `FallbackLoginScreen`, `LoginScreenProps`, `LoginScreenComponent` | component, type | The plain screen used when no UI family registered one |
 | `surrogatePath(ctx, target)`, `SurrogateTarget` | function, type | Where a surrogate window opens; `null` on an entrypoint list without the surrogate route |
@@ -319,7 +321,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.36
+npx @owlmeans/agent-skills@^0.1.18-rc.39
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

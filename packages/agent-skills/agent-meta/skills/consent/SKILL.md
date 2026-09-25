@@ -77,10 +77,24 @@ interface ConsentCategory {
 }
 ```
 
-The default set is `essential` (required), `analytics`, `marketing` — what owlmeans.com already
-asked, plus the essential row the original widget left implicit. Making it explicit is what lets a
-flow require an acknowledgement before it sets a session cookie, and what tells a visitor what is
-stored regardless.
+The default set is `essential` (required), `functional`, `analytics`, `marketing` — what owlmeans.com
+already asked, plus the essential row the original widget left implicit (what lets a flow require an
+acknowledgement before it sets a session cookie, and tells a visitor what is stored regardless), plus
+`functional`: the visitor's own remembered preferences — today the interface language.
+
+**`functional` drives NO Consent Mode signal, on purpose.** A signal would make `trackingGranted`
+count it (an optional category with a signal is "tracking"), and a visitor who only allowed their
+language to be remembered would load the tag container. Anything that stores a preference asks
+`functionalGranted(opts)` (or writes through `writeFunctionalPreference`) — never `analytics`, never
+"a decision exists": a refusal is an answer, and tying a language to analytics would bundle purposes.
+
+**A record saved before the category existed has no `functional` key, and that is NOT a grant** — the
+visitor was never asked. It is not re-asked either (a new question is not worth the dialog re-opening
+for everyone); `granted('functional')` is `false`, "Accept all" and the preferences dialog grant it.
+`functionalKeys` (default: the language key) lists the `localStorage` keys that may exist only while
+it is granted: `init` and `save` remove them the moment it is not, so a preference never outlives the
+consent to remember it. A category set of your own with no `functional` key can therefore never store
+a preference — deliberately: the safe failure.
 
 `globalVar` is the seam for anything that cannot subscribe: a GTM custom-HTML tag reading a flag, a
 hand-placed pixel, a script that runs once. Globals are written **before** the signal update, so a
@@ -194,6 +208,160 @@ reach the stamped snippet: `consentBootstrapScript` ignores the flag, and the st
 still pushes `consent/default` and, for a stored record, `consent/update`. A surface that must emit
 nothing at all does not stamp the bootstrap.
 
+**`consentStore.save` has a second, non-dialog writer.** `@owlmeans/marketing-consent`'s
+`MarketingConsentBridge` seam (`@owlmeans/web-marketing-consent`'s `cookieConsentBridge`) calls
+`consentStore.save` whenever a person changes a cookie-LINKED item (`trackers.analytics`/
+`trackers.advertising`) on that package's own privacy-choices screen or settings card — not only
+when the cookie dialog itself is used. Read `web-marketing-consent`'s skill for the direction this
+runs (marketing screen → cookie consent, unconditional) and the one it deliberately does NOT run by
+default (cookie consent → the saved marketing-consent ledger, `cookieSeed`) — the two are legally
+different acts, and only the first is safe to automate unconditionally.
+
+## The plugin seam and cross-domain consent (`consentLinker`)
+
+`ConsentPlugin` (`plugins.ts`) is the extension seam the core package needed to share a decision
+between DOMAINS without knowing anything about the mechanism: `{ alias, priority?, start?, adopt?,
+adoptLanguage?, decorate?, domains? }`, registered module-globally through `registerConsentPlugin` (replace by
+alias, priority-sorted higher first — the same registry shape `client-auth/login`'s method/step
+registries use). Nothing here is specific to the one built-in plugin; a host could register its own
+for a different sharing mechanism entirely.
+
+`consentLinker()` (`linker.ts`) is that one built-in plugin: it shares a decision between the
+domains named in `opts.linker.domains` through a decorated link, so a visitor who already decided
+on one first-party domain is not asked again on another. The same link also carries the interface
+LANGUAGE (see "Language rides the same link" below).
+
+- **The wire format.** `owlcc` (configurable via `linker.param`) = base64url JSON `{ v: 2, c: {
+  <optional category>: 0|1 }, t: <unix seconds>, l?: <language> }` — `encodeConsentLink`/
+  `decodeConsentLink`. Only the OPTIONAL categories travel; a required one is always forced `true`
+  on the receiving side regardless of what the payload says. `c` is `{}` while the sender has no
+  decision yet, and `l` (a lower-cased BCP 47 tag) is present only when `linker.language` is set.
+  Both are optional additions to `v: 2`, so an older receiver reads the same payload and ignores
+  what it does not know.
+- **Decorate** (`start`, installed once per `consentStore.init`): a capture-phase `click` /
+  `auxclick` / `contextmenu` listener on `document`, so it decides before the click's own
+  navigation — or a framework router intercepting it — reads `href`. It decorates an `<a href>`
+  only while a LOCAL decision exists (or, with `linker.language` set, always — the receiver may hold
+  a decision of its own, and it alone decides whether the language is stored), only when the target
+  host is LISTED and is not the
+  current host, and never when the anchor's `rel` carries `noreferrer` — a link that refuses to
+  disclose the referrer is refusing exactly the signal the receiving side's trust rule needs. A stale
+  parameter already on the link is replaced, never appended twice. `decorateConsentUrl(url, record,
+  opts)` applies every registered plugin's `decorate` to a bare `URL` (no DOM) — the same call a
+  programmatic navigation makes, and what `start`'s click handler itself calls after its own
+  DOM-only `rel` check.
+- **Adopt — every one of these must hold, or the plugin defers (`adopt` returns `null`, meaning
+  "ask as today"):**
+  - the parameter decodes and its `v` matches;
+  - the request's referrer host is a LISTED domain (`document.referrer`, never trusted from the
+    parameter itself);
+  - `now − t ≤ maxAge` (default 300 s), and `t − now ≤ 60 s` of allowed clock skew the other way;
+  - every LOCAL optional category is present in the payload's `c` — a partial payload (fewer
+    categories than this site actually asks about) is refused rather than partially applied. A
+    sender built before `functional` existed carries no such key, so a receiver that asks about it
+    refuses that decision and asks again rather than guess: release the packages of both ends
+    together.
+
+  `consentStore.init` calls `adoptConsent(opts)` **only when this document has no stored record
+  yet** — an existing decision always wins, the same rule the ordinary "ask" path already follows.
+  On success it `writeConsent`s the adopted record before ever publishing/applying — the dialog
+  never flashes open for a decision that is about to be adopted.
+- **Stripping is unconditional and separate from the trust decision.** Whether or not adoption
+  succeeded, the parameter is removed from the address bar with `history.replaceState`
+  (`stripConsentLinkParam`), keeping every other query parameter and the hash. A refused parameter
+  (foreign referrer, stale, partial) is exactly as much noise in the URL as an adopted one.
+- **`consentDomains(opts)`** — every domain the current decision is disclosed as applying to:
+  the current host plus every registered plugin's own `domains(opts)`, deduplicated. A component
+  that already has `opts.linker.domains` in hand (most do) computes the same list directly instead
+  of depending on plugin-registration timing; this helper is for a caller that does not.
+
+## Language rides the same link (`linker.language`)
+
+A visitor who read the marketing site in Polish should meet the platform in Polish. The language
+travels in the same `owlcc` payload (`l`), under the same trust decision, and is configured on the
+same `linker`:
+
+```typescript
+interface ConsentLinkerLanguage {
+  supported?: string[]   // RECEIVING side: what this app can render. Omit → this site only SENDS.
+  storageKey?: string    // RECEIVING side: where an explicit choice lives. Default `owlmeans-lng`.
+}
+```
+
+- **Sending** is switched on by the mere presence of `linker.language` (`{}` is enough). The value
+  is the page's `<html lang>` — the one signal every page has — lower-cased and shape-checked; a page
+  with none carries no `l`. Sending needs no decision on the sending side: `decorate`'s `record` is
+  `null` before the visitor has decided, and a link with a language but no decision carries `c: {}`
+  (the receiver may hold a decision of its own — see the next rule).
+  `encodeConsentLink(record | null, opts)` and `decorateConsentUrl(url, record | null, opts)` take
+  that `null`; a plugin's `decorate` receives it.
+- **Receiving** is switched on by `language.supported`. `adoptLanguage` (`ConsentPlugin`) shares
+  `trustedPayload` with `adopt` — parameter decodes, fresh, referrer host LISTED — so there is one
+  trust rule, not two. The carried code must be one of `supported`, exactly or by its base tag
+  (`de-AT` → `de`), and the answer is the receiver's own spelling. A code the app cannot render
+  changes nothing.
+- **It is stored ONLY while `functional` is granted on the receiving document** — by a stored
+  record, or by the record adopted from the very link that carries the language. No decision, a
+  "reject all", or a record saved before the category existed all mean no: `writeConsentLanguage`
+  writes nothing and returns `false`, and the inline fragment skips its write. `adoptLanguage` only
+  names a candidate; the gate is in the writer, so no caller can forget it. A stored record still
+  wins over a carried decision, and does not stop the language when it grants `functional`.
+- **A language that cannot be stored yet is HELD, in memory, and stored when the grant arrives.** The
+  inline fragment leaves it on `window[CONSENT_PENDING_LANGUAGE]` (the URL parameter is already
+  stripped); `consentStore.init` takes it from there (or from the URL, on a page with no fragment)
+  into `pendingLanguage()`. `save()` settles it: a record that grants `functional` writes it and
+  dispatches `CONSENT_LANGUAGE_EVENT` (`detail.language`) so the app can switch this very page;
+  one that does not leaves it waiting — the visitor may grant later in this page's life — and
+  removes every `functionalKeys` entry. It dies with the page: nothing is ever stored, not even in
+  `sessionStorage`, before the grant.
+- **The application decides how to react.** `@owlmeans/client-i18n` takes a persistence guard
+  (`setLanguagePersistence`) — while it says no, `setLanguage` switches the UI but writes nothing,
+  remembers the refused choice, and a stored language counts as absent at start-up — and
+  `persistLanguage()` writes the refused choice once storage is allowed. `web-panel/consent`'s
+  `installConsentLanguage()` wires all of it: guard = `functionalGranted`, `CONSENT_EVENT` →
+  `persistLanguage`, `CONSENT_LANGUAGE_EVENT` → `setLanguage` (unless the person already picked one in
+  this page's life: what they chose outranks what a link carried). Call it BEFORE `prepareI18n`.
+  A page with no bundle at all (owlmeans.com's inline language switcher) asks
+  `consentAllowsScript()`'s `window.owlConsentAllows('functional')` before it writes.
+- **It overwrites.** `writeConsentLanguage` replaces whatever the receiver stored under
+  `storageKey`: the carried language is the one the visitor was just reading, which outranks a
+  choice made on this domain some other day. That is `CONSENT_LANGUAGE_KEY` (`owlmeans-lng`) by
+  default — `@owlmeans/client-i18n`'s `LNG_STORAGE_KEY`, repeated here because this package has no
+  dependencies and the fragment below must run before any bundle exists.
+- **When it runs matters more than what it does.** `client-i18n` resolves the initial language from
+  storage before the first render, so the write has to land BEFORE that: the inline fragment
+  (`consentLinkerScript`) does it in `<head>`. `consentStore.init` repeats it in TypeScript
+  (`adoptConsentLanguage` + `writeConsentLanguage`, before the strip) for a host that calls it ahead
+  of its own i18n bootstrap — but an app that only mounts the dialog, after `prepareI18n`, gets
+  its language from the fragment or not at all. So a build with no tag manager must still stamp the
+  fragment on its own: `consentLinkerScript({ linker })` (viable's `vite.config.ts` does, when
+  `GTM_ID` is empty).
+- The fragment mirrors `supportedLanguage` + `writeConsentLanguage` in hand-rolled JS and runs
+  AFTER its consent part, guarded by `fg` — a parseable stored record with `functional` true, or the
+  record the fragment itself just adopted with it true — so the gate holds before any bundle exists;
+  otherwise it leaves the candidate on `window`. An unparseable stored record is no grant (and is not
+  adopted over). Without `language.supported` no language code is emitted.
+
+## Order: adopt-and-strip runs before either storage read
+
+**The inline head script adopts and strips BEFORE it reads storage — placed right after `consent
+default`, inside the same idempotency flag `consentBootstrapScript` already guards with.**
+`consentBootstrapScript(opts)` embeds `consentLinkerScript(opts)` (hand-rolled JS, the same
+discipline `consentGateScript` already follows, mirroring `consentLinker().adopt` exactly) right
+there when `opts.linker` is set — an empty string, and no change to the emitted script, otherwise.
+Because the linker fragment WRITES an adopted record into the same `localStorage`/cookie pair
+`writeConsent` uses, the bootstrap's own storage read (right after it) and `consentGateScript`'s
+separate storage read (concatenated after the whole bootstrap IIFE) both pick the adopted decision
+up for free — neither needed its own adoption logic.
+
+`consentStore.init` repeats the same adopt-then-strip dance in real TS for a page that carries no
+head script at all (`stripConsentLinkParam`, called unconditionally whenever `opts.linker` is set,
+whether or not anything was adopted) — idempotent with the inline fragment: whichever ran first
+already stripped the parameter, so the second finds nothing and does nothing.
+
+`@owlmeans/astro`'s `owlHeadScripts` also returns the SAME fragment standalone, as `adopt` — for a
+page that does not (or must not) stamp `head` at all. See `/astro` and `/web-gtm`.
+
 ## Services
 
 A category says WHY something is stored; a `ConsentService` says WHO receives it — the part a
@@ -236,6 +404,14 @@ and terms.
 A legal page is where a visitor goes to READ what is collected; collecting there while they read is
 the one thing it must not do. `isLegalPath` (`@owlmeans/astro`) is the test; the rule predates this
 package and stays.
+
+**The linker's standalone `adopt` fragment is the one exception, and it is not really an
+exception.** owlmeans.com stamps `owlHeadScripts(...).adopt` first in `<head>` on every page,
+legal ones included — see `/astro`. Adopting a cross-domain cookie-consent CHOICE sets no tracking
+cookie of its own and pushes nothing to `dataLayer`; it only mirrors a decision the visitor already
+made elsewhere into this document's own consent-state storage, which the site's own cookie policy
+already classifies as functional/necessary. `tags.head` (the tag container itself) stays suppressed
+on a legal page exactly as before.
 
 ## Related
 

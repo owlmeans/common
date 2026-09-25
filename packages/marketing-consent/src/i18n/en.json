@@ -7,54 +7,41 @@
     "data": {
       "title": "Data use",
       "description": "How your data is used and shared."
-    },
-    "trackers": {
-      "title": "Trackers",
-      "description": "Analytics and advertising technologies."
     }
   },
   "consent": {
     "marketing": {
       "email": {
-        "label": "Email offers and updates",
-        "description": "Product news, offers and updates by email."
+        "label": "I confirm that I agree to receive product news, offers and updates by email.",
+        "description": "We will write to the email address of your account about this product and related offers. You can withdraw this consent at any time in your account settings, and every message contains an unsubscribe link. How we handle your data is described in the {{link}}."
       },
       "sms": {
-        "label": "SMS messages",
-        "description": "Offers and updates by text message."
+        "label": "I confirm that I agree to receive offers and updates by text message.",
+        "description": "We will send text messages to the phone number you provide about this product and related offers. You can withdraw this consent at any time in your account settings. How we handle your data is described in the {{link}}."
       },
       "phone": {
-        "label": "Phone calls",
-        "description": "Offers and updates by phone call."
+        "label": "I confirm that I agree to be contacted by phone with offers and updates.",
+        "description": "We may call the phone number you provide about this product and related offers. You can withdraw this consent at any time in your account settings, and we will stop calling you. How we handle your data is described in the {{link}}."
       },
       "push": {
-        "label": "Push notifications",
-        "description": "Offers and updates as push notifications."
+        "label": "I confirm that I agree to receive offers and updates as push notifications.",
+        "description": "We will send notifications to the devices where you allow them, about this product and related offers. You can withdraw this consent at any time in your account settings or in your device settings. How we handle your data is described in the {{link}}."
       }
     },
     "data": {
       "profiling": {
-        "label": "Personalization",
-        "description": "Using your activity to personalize what you see."
+        "label": "I confirm that I agree that my activity in the product may be used to personalize what I see.",
+        "description": "The pages you open, the actions you take and your preferences are analyzed to tailor recommendations, content and offers to you. You can withdraw this consent at any time and the personalization stops. Details are in the {{link}}."
       },
       "partners": {
-        "label": "Sharing with partners",
-        "description": "Sharing your data with selected partners for their own marketing."
-      }
-    },
-    "trackers": {
-      "analytics": {
-        "label": "Analytics cookies",
-        "description": "Cookies that help us understand how the product is used."
-      },
-      "advertising": {
-        "label": "Advertising cookies",
-        "description": "Cookies used to measure and personalize ads."
+        "label": "I confirm that I agree that my data may be shared with selected partners for their own marketing.",
+        "description": "Your name, email address and usage profile may be passed to selected partners so that they can contact you about their own products; each partner handles your data under its own privacy policy. You can withdraw this consent at any time, and sharing stops. Details are in the {{link}}."
       }
     }
   },
   "link": {
-    "default": "Learn more"
+    "default": "Learn more",
+    "privacy": "Privacy Policy"
   },
   "errors": {
     "unknown": "Unknown consent: {{key}}"

@@ -31,12 +31,19 @@ export const DEFAULT_MODEL_RETRIES = 8
 export const MODEL_STREAM_TIMEOUT_MS = 3 * 60 * 1000
 
 /**
- * Number of failed attempts after which the retry escalator switches from a role's
- * cheap primary model to its configured `fallback` (stronger) model. With
- * {@link DEFAULT_MODEL_RETRIES} = 8 the primary runs attempts 0..2 and the fallback
- * runs attempts 3..7.
+ * Attempts each rung of a role's fallback chain gets before the retry escalator moves to the
+ * next one; the last rung keeps whatever attempts remain. With {@link DEFAULT_MODEL_RETRIES} =
+ * 8 and two fallbacks, the primary runs attempts 0..2, the first fallback 3..5 and the second
+ * 6..7.
  */
 export const FALLBACK_AFTER_ATTEMPTS = 3
+
+/**
+ * Temperature a `TemperatureFactory` caller asks for, per `ModelConfig.effort` level it is
+ * turned into. 0.3 is the step of the consumers' own "try something different" ladders, so
+ * each rung of those climbs one effort level on a model that accepts effort.
+ */
+export const TEMPERATURE_PER_EFFORT_STEP = 0.3
 
 /**
  * Output-token ceiling used by the retry escalator when a model config declares no

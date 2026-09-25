@@ -1,0 +1,123 @@
+{
+  "performance-consent": {
+    "title": "Start using your credits now?",
+    "intro": "Purchases still within the withdrawal period: {{count}}. The last withdrawal period ends on {{deadline}}.",
+    "purchase": "Credits bought on {{date}} ({{amount}}): as a consumer in the EU you may withdraw from this purchase until the end of {{deadline}}.",
+    "request": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends.",
+    "acknowledgement": "I acknowledge that for the credits I use, my right of withdrawal expires once that work has been performed, and that if I withdraw, only the credits I have not used are reimbursed.",
+    "checkbox": "I expressly request and agree that {{trader}} starts performing the paid service — the AI work and the digital content it produces — now, before the withdrawal period ends. I acknowledge that for the credits I use, my right of withdrawal expires once that work has been performed, and that if I withdraw, only the credits I have not used are reimbursed.",
+    "confirm": "Start now",
+    "decline": "Not now"
+  },
+  "subscription-start": {
+    "title": "Start the {{plan}} services now?",
+    "intro": "As a consumer in the EU you may withdraw from this subscription within 14 days. We start the services before that period ends only at your express request.",
+    "request": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends.",
+    "acknowledgement": "I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
+    "checkbox": "I expressly request and agree that {{trader}} starts the {{plan}} platform services now and performs the AI work paid with the included credits whenever I start it, before the 14-day withdrawal period ends. I acknowledge that if I withdraw, I pay for the platform services provided until then, pro rata by time, and that my right of withdrawal expires for the included credits I have used; everything else is reimbursed.",
+    "confirm": "Continue to payment",
+    "decline": "Cancel"
+  },
+  "withdrawal": {
+    "function": "Withdraw from contract here",
+    "confirm": "Confirm withdrawal",
+    "title": "Withdrawal from a contract",
+    "intro": "Here you can withdraw from a contract during its withdrawal period. Enter your name, the contract and the e-mail address to which we send the acknowledgement of receipt.",
+    "name": "Name",
+    "contract": "Contract",
+    "email": "E-mail address",
+    "review": "Please check your details. Your withdrawal is sent when you confirm it.",
+    "received": "Your withdrawal was received on {{date}} (UTC). An acknowledgement of receipt has been sent to {{email}}.",
+    "deadline": "You may withdraw until the end of {{deadline}}."
+  },
+  "cancellation": {
+    "function": "Cancel contracts here",
+    "confirm": "Cancel now",
+    "title": "Cancel a contract",
+    "intro": "Here you can give notice of termination of a subscription contract. Enter the details below; we send an acknowledgement of receipt to the e-mail address you enter.",
+    "kind": "Type of cancellation",
+    "kind-ordinary": "Ordinary cancellation",
+    "kind-extraordinary": "Extraordinary cancellation (for good cause)",
+    "reason": "Reason for the extraordinary cancellation",
+    "name": "Name",
+    "contract": "Contract or customer reference",
+    "effective": "Date of termination",
+    "effective-earliest": "At the earliest possible date",
+    "effective-date": "On a specific date",
+    "email": "E-mail address",
+    "summary": "Please check your cancellation before you send it.",
+    "received": "Your cancellation was received on {{date}} (UTC). An acknowledgement of receipt has been sent to {{email}}."
+  },
+  "links": {
+    "billing-terms": "Billing Terms",
+    "withdrawal-information": "Withdrawal information",
+    "withdrawal-form": "Model withdrawal form",
+    "withdrawal-function": "Withdraw from contract here",
+    "cancellation": "Cancel contracts here"
+  },
+  "checkout": {
+    "terms-acceptance": {
+      "in-scope": "I agree to the [Billing Terms]({{billingTerms}}) and have read the [withdrawal information]({{withdrawalInformation}}).",
+      "other": "I agree to the [Billing Terms]({{billingTerms}})."
+    },
+    "renewal": {
+      "month": "{{price}} per month. Renews monthly until cancelled; cancel any time, effective at the end of the billing period.",
+      "year": "{{price}} per year. Renews yearly until cancelled; cancel any time, effective at the end of the billing period.",
+      "after-submit": "Cancel any time: [Cancel contracts here]({{cancelUrl}})"
+    },
+    "price": {
+      "exclusive": "{{amount}} plus VAT",
+      "inclusive": "{{amount}} incl. VAT",
+      "exclusive-tax": "{{amount}} plus applicable tax"
+    },
+    "top-up": "Prepaid {{product}}, usable only by this organization's account (billing country {{country}}). EU consumers may withdraw within 14 days; the right expires for credits used after you ask us to start.",
+    "top-up-note": "EU consumers may withdraw from a credit purchase within 14 days. Once you ask us to start using the credits, the right of withdrawal expires for the credits used; unused credits are reimbursed."
+  },
+  "email": {
+    "common": {
+      "greeting": "Hello,",
+      "greeting-named": "Hello {{name}},",
+      "received-at": "Received on: {{date}} (UTC)",
+      "contract-ref": "Contract: {{contractRef}}",
+      "trader": "Trader: {{trader}}",
+      "link": "{{label}}: {{url}}",
+      "footer": "Please keep this e-mail. It confirms the above on a durable medium."
+    },
+    "consent": {
+      "subject": "Confirmation: your request to start using your credits",
+      "body": "On {{date}} (UTC) you gave us the following statement:\n\n\"{{statement}}\"\n\nThe statement covers these purchases:\n{{purchases}}",
+      "purchase": "- {{contractRef}} of {{date}} ({{amount}}): unused credits remain withdrawable until the end of {{deadline}}.",
+      "unused": "Credits you have not used remain withdrawable until the end of the withdrawal period of their purchase. If you withdraw, only the credits you have not used are reimbursed."
+    },
+    "start": {
+      "subject": "Confirmation: your request to start the {{plan}} services",
+      "body": "On {{date}} (UTC), before subscribing to {{plan}}, you gave us the following statement:\n\n\"{{statement}}\"",
+      "rule": "If you withdraw within the withdrawal period, you pay for the platform services provided until then, pro rata by time, and your right of withdrawal expires for the included credits you have used; everything else is reimbursed."
+    },
+    "purchase": {
+      "subject": "Order confirmation {{contractRef}}",
+      "body": "Thank you for your order.\n\nContract: {{contractRef}}\nDate: {{date}} (UTC)\nProduct: {{product}}\nPrice including tax: {{total}} (tax: {{tax}})",
+      "start-request": "Before this purchase you expressly requested that we start the services right away:\n\n\"{{statement}}\"",
+      "withdrawal-information": "Right of withdrawal\n\nYou have the right to withdraw from this contract within 14 days without giving any reason. The withdrawal period will expire after 14 days from the day of the conclusion of the contract.\n\nTo exercise the right of withdrawal, you must inform us ({{trader}}) of your decision to withdraw from this contract by an unequivocal statement (e.g. a letter sent by post or e-mail). You may use the model withdrawal form below, but it is not obligatory. You can also withdraw online with the withdrawal function on our website: {{withdrawalFunction}}. If you use this option, we will communicate to you an acknowledgement of receipt of such a withdrawal on a durable medium (e.g. by e-mail) without delay.\n\nTo meet the withdrawal deadline, it is sufficient for you to send your communication concerning your exercise of the right of withdrawal before the withdrawal period has expired.\n\nEffects of withdrawal\n\nIf you withdraw from this contract, we shall reimburse to you all payments received from you without undue delay and in any event not later than 14 days from the day on which we are informed about your decision to withdraw from this contract. We will carry out such reimbursement using the same means of payment as you used for the initial transaction, unless you have expressly agreed otherwise; in any event, you will not incur any fees as a result of such reimbursement.\n\nIf you requested to begin the performance of services during the withdrawal period, you shall pay us an amount which is in proportion to what has been provided until you have communicated us your withdrawal from this contract, in comparison with the full coverage of the contract.\n\nYour right of withdrawal expires for services and digital content that have been fully performed after you expressly requested us to begin performance during the withdrawal period and acknowledged that you thereby lose your right of withdrawal. For prepaid credits, performance begins only when you ask us to start using them: the right of withdrawal expires for the credits used after that request, and the credits you have not used are reimbursed.",
+      "model-form": "Model withdrawal form\n\n(complete and return this form only if you wish to withdraw from the contract)\n\n— To {{trader}}:\n— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*) / for the supply of the following digital content (*):\n— Ordered on (*) / received on (*):\n— Name of consumer(s):\n— Address of consumer(s):\n— Signature of consumer(s) (only if this form is notified on paper):\n— Date:\n\n(*) Delete as appropriate."
+    },
+    "withdrawal": {
+      "subject": "Acknowledgement of receipt of your withdrawal",
+      "body": "We have received your withdrawal from a contract.\n\nReceived on: {{date}} (UTC)\nName: {{name}}\nContract: {{contract}}\nE-mail address: {{email}}",
+      "refund": "We reimburse {{amount}} using the means of payment you used for the purchase, and in any event within 14 days.",
+      "review": "We are processing your withdrawal. We will reimburse the amount due using the means of payment you used for the purchase, without undue delay and in any event not later than 14 days from the day on which we received your withdrawal, and will tell you the amount.",
+      "expired": "Your withdrawal was received after the withdrawal period of this contract ended on {{deadline}}. Your statutory rights, including your rights in case of defects, remain unaffected.",
+      "unmatched": "If these details match one of our contracts, we carry out the withdrawal and inform you of the reimbursement."
+    },
+    "cancellation": {
+      "subject": "Acknowledgement of receipt of your cancellation",
+      "body": "We have received your cancellation.\n\nReceived on: {{date}} (UTC)\nName: {{name}}\nContract: {{contract}}\nType of cancellation: {{kind}}\nRequested date of termination: {{requested}}\nE-mail address: {{email}}",
+      "effective": "Your contract ends on {{effectiveAt}}.",
+      "unmatched": "If these details match one of our contracts, we end it at the requested date or, failing that, at the earliest possible date, and confirm that date to you.",
+      "review": "Your extraordinary cancellation has been recorded. We examine the reason you gave and confirm to you in writing whether and when the contract ends."
+    }
+  },
+  "credit-note": {
+    "memo": "Withdrawal from contract {{contractRef}}, received on {{date}}."
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "performance-consent": {
+    "title": "Rozpocząć korzystanie z kredytów teraz?",
+    "intro": "Zakupy nadal objęte terminem do odstąpienia od umowy: {{count}}. Ostatni termin upływa {{deadline}}.",
+    "purchase": "Kredyty kupione {{date}} ({{amount}}): jako konsument w UE możesz odstąpić od tego zakupu do końca dnia {{deadline}}.",
+    "request": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy.",
+    "acknowledgement": "Przyjmuję do wiadomości, że w odniesieniu do wykorzystanych przeze mnie kredytów utracę prawo odstąpienia od umowy po wykonaniu tej pracy, a w razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty.",
+    "checkbox": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w odniesieniu do wykorzystanych przeze mnie kredytów utracę prawo odstąpienia od umowy po wykonaniu tej pracy, a w razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty.",
+    "confirm": "Rozpocznij teraz",
+    "decline": "Nie teraz"
+  },
+  "subscription-start": {
+    "title": "Rozpocząć usługi {{plan}} teraz?",
+    "intro": "Jako konsument w UE możesz odstąpić od tej subskrypcji w terminie 14 dni. Przed upływem tego terminu rozpoczynamy świadczenie usług wyłącznie na Twoje wyraźne żądanie.",
+    "request": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy.",
+    "acknowledgement": "Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
+    "checkbox": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
+    "confirm": "Przejdź do płatności",
+    "decline": "Anuluj"
+  },
+  "withdrawal": {
+    "function": "Odstąp od umowy tutaj",
+    "confirm": "Potwierdź odstąpienie od umowy",
+    "title": "Odstąpienie od umowy",
+    "intro": "Tutaj możesz odstąpić od umowy w terminie do odstąpienia od umowy. Podaj imię i nazwisko, umowę oraz adres e-mail, na który wyślemy potwierdzenie otrzymania.",
+    "name": "Imię i nazwisko",
+    "contract": "Umowa",
+    "email": "Adres e-mail",
+    "review": "Sprawdź swoje dane. Oświadczenie o odstąpieniu od umowy zostanie wysłane po jego potwierdzeniu.",
+    "received": "Twoje oświadczenie o odstąpieniu od umowy otrzymaliśmy {{date}} (UTC). Potwierdzenie otrzymania wysłaliśmy na adres {{email}}.",
+    "deadline": "Możesz odstąpić od umowy do końca dnia {{deadline}}."
+  },
+  "cancellation": {
+    "function": "Wypowiedz umowę tutaj",
+    "confirm": "Wypowiedz teraz",
+    "title": "Wypowiedzenie umowy",
+    "intro": "Tutaj możesz wypowiedzieć umowę subskrypcji. Wpisz poniższe dane; potwierdzenie otrzymania wyślemy na podany adres e-mail.",
+    "kind": "Rodzaj wypowiedzenia",
+    "kind-ordinary": "Zwykłe wypowiedzenie",
+    "kind-extraordinary": "Wypowiedzenie z ważnej przyczyny",
+    "reason": "Ważna przyczyna wypowiedzenia",
+    "name": "Imię i nazwisko",
+    "contract": "Umowa lub numer klienta",
+    "effective": "Termin rozwiązania umowy",
+    "effective-earliest": "Z najbliższym możliwym terminem",
+    "effective-date": "Z określonym dniem",
+    "email": "Adres e-mail",
+    "summary": "Sprawdź wypowiedzenie przed wysłaniem.",
+    "received": "Twoje wypowiedzenie otrzymaliśmy {{date}} (UTC). Potwierdzenie otrzymania wysłaliśmy na adres {{email}}."
+  },
+  "links": {
+    "billing-terms": "Regulamin płatności",
+    "withdrawal-information": "Pouczenie o odstąpieniu od umowy",
+    "withdrawal-form": "Wzór formularza odstąpienia od umowy",
+    "withdrawal-function": "Odstąp od umowy tutaj",
+    "cancellation": "Wypowiedz umowę tutaj"
+  },
+  "checkout": {
+    "terms-acceptance": {
+      "in-scope": "Akceptuję [Regulamin płatności]({{billingTerms}}) i potwierdzam zapoznanie się z [pouczeniem o odstąpieniu od umowy]({{withdrawalInformation}}).",
+      "other": "Akceptuję [Regulamin płatności]({{billingTerms}})."
+    },
+    "renewal": {
+      "month": "{{price}} miesięcznie. Odnawia się co miesiąc do czasu wypowiedzenia; możesz wypowiedzieć w dowolnym momencie ze skutkiem na koniec okresu rozliczeniowego.",
+      "year": "{{price}} rocznie. Odnawia się co roku do czasu wypowiedzenia; możesz wypowiedzieć w dowolnym momencie ze skutkiem na koniec okresu rozliczeniowego.",
+      "after-submit": "Możesz wypowiedzieć w dowolnym momencie: [Wypowiedz umowę tutaj]({{cancelUrl}})"
+    },
+    "price": {
+      "exclusive": "{{amount}} + VAT",
+      "inclusive": "{{amount}} z VAT",
+      "exclusive-tax": "{{amount}} + należne podatki"
+    },
+    "top-up": "Przedpłata: {{product}}, do wykorzystania wyłącznie na koncie tej organizacji (kraj rozliczenia {{country}}). Konsumenci w UE mogą odstąpić od umowy w terminie 14 dni; prawo to wygasa w odniesieniu do kredytów wykorzystanych po tym, jak poprosisz nas o rozpoczęcie.",
+    "top-up-note": "Konsumenci w UE mogą odstąpić od zakupu kredytów w terminie 14 dni. Gdy poprosisz nas o rozpoczęcie korzystania z kredytów, prawo odstąpienia od umowy wygasa w odniesieniu do wykorzystanych kredytów; niewykorzystane kredyty podlegają zwrotowi."
+  },
+  "email": {
+    "common": {
+      "greeting": "Dzień dobry,",
+      "greeting-named": "Dzień dobry {{name}},",
+      "received-at": "Data otrzymania: {{date}} (UTC)",
+      "contract-ref": "Umowa: {{contractRef}}",
+      "trader": "Przedsiębiorca: {{trader}}",
+      "link": "{{label}}: {{url}}",
+      "footer": "Prosimy zachować tę wiadomość. Potwierdza ona powyższe na trwałym nośniku."
+    },
+    "consent": {
+      "subject": "Potwierdzenie: żądanie rozpoczęcia korzystania z kredytów",
+      "body": "W dniu {{date}} (UTC) otrzymaliśmy od Ciebie następujące oświadczenie:\n\n„{{statement}}”\n\nOświadczenie dotyczy następujących zakupów:\n{{purchases}}",
+      "purchase": "- {{contractRef}} z {{date}} ({{amount}}): od niewykorzystanych kredytów można odstąpić do końca dnia {{deadline}}.",
+      "unused": "Od niewykorzystanych kredytów można odstąpić do końca terminu do odstąpienia od umowy ich zakupu. W razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty."
+    },
+    "start": {
+      "subject": "Potwierdzenie: żądanie rozpoczęcia usług {{plan}}",
+      "body": "W dniu {{date}} (UTC), przed zakupem subskrypcji {{plan}}, otrzymaliśmy od Ciebie następujące oświadczenie:\n\n„{{statement}}”",
+      "rule": "W razie odstąpienia od umowy w terminie do odstąpienia zapłacisz za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, a prawo odstąpienia od umowy wygasa w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi."
+    },
+    "purchase": {
+      "subject": "Potwierdzenie zamówienia {{contractRef}}",
+      "body": "Dziękujemy za zamówienie.\n\nUmowa: {{contractRef}}\nData: {{date}} (UTC)\nProdukt: {{product}}\nCena z podatkiem: {{total}} (w tym podatek: {{tax}})",
+      "start-request": "Przed tym zakupem otrzymaliśmy od Ciebie wyraźne żądanie natychmiastowego rozpoczęcia świadczenia usług:\n\n„{{statement}}”",
+      "withdrawal-information": "Pouczenie o odstąpieniu od umowy\n\nPrawo odstąpienia od umowy\n\nMają Państwo prawo odstąpić od niniejszej umowy w terminie 14 dni bez podania jakiejkolwiek przyczyny. Termin do odstąpienia od umowy wygasa po upływie 14 dni od dnia zawarcia umowy.\n\nAby skorzystać z prawa odstąpienia od umowy, muszą Państwo poinformować nas ({{trader}}) o swojej decyzji o odstąpieniu od niniejszej umowy w drodze jednoznacznego oświadczenia (na przykład pismo wysłane pocztą lub pocztą elektroniczną). Mogą Państwo skorzystać z zamieszczonego poniżej wzoru formularza odstąpienia od umowy, jednak nie jest to obowiązkowe. Mogą Państwo również odstąpić od umowy online za pomocą funkcji odstąpienia od umowy na naszej stronie internetowej: {{withdrawalFunction}}. Jeżeli skorzystają Państwo z tej możliwości, prześlemy Państwu niezwłocznie potwierdzenie otrzymania oświadczenia o odstąpieniu od umowy na trwałym nośniku (na przykład pocztą elektroniczną).\n\nAby zachować termin do odstąpienia od umowy, wystarczy, aby wysłali Państwo informację dotyczącą wykonania przysługującego Państwu prawa odstąpienia od umowy przed upływem terminu do odstąpienia od umowy.\n\nSkutki odstąpienia od umowy\n\nW przypadku odstąpienia od niniejszej umowy zwracamy Państwu wszystkie otrzymane od Państwa płatności niezwłocznie, a w każdym przypadku nie później niż 14 dni od dnia, w którym zostaliśmy poinformowani o Państwa decyzji o wykonaniu prawa odstąpienia od niniejszej umowy. Zwrotu płatności dokonamy przy użyciu takich samych sposobów płatności, jakie zostały przez Państwa użyte w pierwotnej transakcji, chyba że wyraźnie zgodzili się Państwo na inne rozwiązanie; w każdym przypadku nie poniosą Państwo żadnych opłat w związku z tym zwrotem.\n\nJeżeli zażądali Państwo rozpoczęcia świadczenia usług przed upływem terminu do odstąpienia od umowy, zapłacą nam Państwo kwotę proporcjonalną do zakresu świadczeń spełnionych do chwili, w której poinformowali nas Państwo o odstąpieniu od niniejszej umowy.\n\nPrawo odstąpienia od umowy wygasa w odniesieniu do usług i treści cyfrowych w pełni wykonanych po tym, jak wyraźnie zażądali Państwo rozpoczęcia świadczenia przed upływem terminu do odstąpienia od umowy i przyjęli Państwo do wiadomości, że tym samym utracą Państwo prawo odstąpienia od umowy. W przypadku kredytów przedpłaconych świadczenie rozpoczyna się dopiero wtedy, gdy poproszą nas Państwo o ich wykorzystanie: prawo odstąpienia od umowy wygasa w odniesieniu do kredytów wykorzystanych po tej prośbie, a niewykorzystane kredyty podlegają zwrotowi.",
+      "model-form": "Wzór formularza odstąpienia od umowy\n\n(formularz ten należy wypełnić i odesłać tylko w przypadku chęci odstąpienia od umowy)\n\n— Adresat: {{trader}}\n— Ja/My (*) niniejszym informuję/informujemy (*) o moim/naszym (*) odstąpieniu od umowy o świadczenie następującej usługi (*) / o dostarczanie następujących treści cyfrowych (*):\n— Data zawarcia umowy (*) / odbioru (*):\n— Imię i nazwisko konsumenta(-ów):\n— Adres konsumenta(-ów):\n— Podpis konsumenta(-ów) (tylko jeżeli formularz jest przesyłany w wersji papierowej):\n— Data:\n\n(*) Niepotrzebne skreślić."
+    },
+    "withdrawal": {
+      "subject": "Potwierdzenie otrzymania oświadczenia o odstąpieniu od umowy",
+      "body": "Otrzymaliśmy Twoje oświadczenie o odstąpieniu od umowy.\n\nData otrzymania: {{date}} (UTC)\nImię i nazwisko: {{name}}\nUmowa: {{contract}}\nAdres e-mail: {{email}}",
+      "refund": "Zwracamy {{amount}} przy użyciu sposobu płatności użytego przy zakupie, w każdym przypadku w terminie 14 dni.",
+      "review": "Rozpatrujemy Twoje oświadczenie o odstąpieniu od umowy. Zwrócimy należną kwotę niezwłocznie, a w każdym przypadku nie później niż 14 dni od dnia, w którym otrzymaliśmy Twoje oświadczenie, przy użyciu takiego samego sposobu płatności, jakiego użyłeś przy zakupie, i poinformujemy Cię o tej kwocie.",
+      "expired": "Twoje oświadczenie wpłynęło po upływie terminu do odstąpienia od tej umowy, który zakończył się {{deadline}}. Twoje uprawnienia ustawowe, w tym z tytułu niezgodności z umową, pozostają nienaruszone.",
+      "unmatched": "Jeżeli te dane odpowiadają jednej z naszych umów, wykonamy odstąpienie od umowy i poinformujemy Cię o zwrocie."
+    },
+    "cancellation": {
+      "subject": "Potwierdzenie otrzymania wypowiedzenia",
+      "body": "Otrzymaliśmy Twoje wypowiedzenie.\n\nData otrzymania: {{date}} (UTC)\nImię i nazwisko: {{name}}\nUmowa: {{contract}}\nRodzaj wypowiedzenia: {{kind}}\nWskazany termin rozwiązania: {{requested}}\nAdres e-mail: {{email}}",
+      "effective": "Twoja umowa ulega rozwiązaniu {{effectiveAt}}.",
+      "unmatched": "Jeżeli te dane odpowiadają jednej z naszych umów, rozwiążemy ją we wskazanym terminie, a w przeciwnym razie z najbliższym możliwym terminem, i potwierdzimy Ci tę datę.",
+      "review": "Twoje wypowiedzenie z ważnej przyczyny zostało zarejestrowane. Rozpatrzymy podaną przyczynę i potwierdzimy Ci na piśmie, czy i kiedy umowa się kończy."
+    }
+  },
+  "credit-note": {
+    "memo": "Odstąpienie od umowy {{contractRef}}, otrzymane {{date}}."
+  }
+}

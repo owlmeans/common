@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FC } from 'react'
-import { useI18nLib } from '@owlmeans/client-i18n'
+import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { MARKETING_CONSENT_I18N } from '../consts.js'
 import { useMarketingConsent } from '../hooks/use-marketing-consent.js'
 import { Button } from '../@/components/ui/button.js'
@@ -22,13 +22,16 @@ export interface MarketingConsentPreferencesProps {
  *
  * Unlike the sign-in screen, there is no `useContinueLogin` here at all — this is not a step in a
  * login flow, so nothing navigates on save, and there is no "skip" — a settings card is always
- * revisitable.
+ * revisitable. `useMarketingConsent({ source: 'settings' })` is what makes that true: it loads the
+ * WHOLE catalogue unconditionally, never only the currently-pending items, so a fully-decided
+ * account still shows every item here to change or withdraw.
  */
 export const MarketingConsentPreferences: FC<MarketingConsentPreferencesProps> = ({
   translate, className, onSaved,
 }) => {
   const libT = useI18nLib(MARKETING_CONSENT_I18N)
   const t = translate ?? libT
+  const [locale] = useLanguage()
   const model = useMarketingConsent({ source: 'settings' })
   const [saved, setSaved] = useState(false)
 
@@ -47,7 +50,7 @@ export const MarketingConsentPreferences: FC<MarketingConsentPreferencesProps> =
         <p>{t('screen.loading', 'Loading…')}</p>
       ) : (
         <>
-          <ConsentFields t={t} model={model} />
+          <ConsentFields t={t} model={model} locale={locale} />
 
           {model.error != null && (
             <p role="alert">{t('preferences.error', "We couldn't save your choices.")}</p>

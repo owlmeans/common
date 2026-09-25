@@ -1,18 +1,22 @@
 import type { ResourceMaker } from '@owlmeans/resource'
 import { makeMongoResource } from '@owlmeans/mongo-resource'
 import {
-  RES_PAYGATE_CUSTOMER, RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_SUBSCRIPTION,
+  RES_BILLING_PROFILE, RES_CONSUMER_CONSENT, RES_CONSUMER_DECLARATION, RES_CONSUMER_EVENT, RES_PAYGATE_CUSTOMER,
+  RES_PAYMENT_FINGERPRINT, RES_PAYMENT_FULFILLMENT, RES_PAYMENT_PURCHASE, RES_PAYMENT_SUBSCRIPTION,
   RES_PAYMENT_USAGE, RES_PAYMENT_USAGE_COUNTER, RES_PAYMENT_WEBHOOK,
 } from './consts.js'
 import {
-  FingerprintSchema, PaygateCustomerSchema, PaymentFulfillmentSchema, PaymentSubscriptionSchema,
-  PaymentUsageCounterSchema, PaymentUsageSchema, PaymentWebhookSchema,
+  BillingProfileSchema, ConsumerConsentSchema, ConsumerDeclarationSchema, ConsumerEventSchema, FingerprintSchema,
+  PaygateCustomerSchema, PaymentFulfillmentSchema, PaymentSubscriptionSchema, PaymentUsageCounterSchema,
+  PaymentUsageSchema, PaymentWebhookSchema, PurchaseSchema,
 } from './model.js'
 import type {
+  BillingProfileRecord, BillingProfileResource, ConsumerConsentRecord, ConsumerConsentResource,
+  ConsumerDeclarationRecord, ConsumerDeclarationResource, ConsumerEventRecord, ConsumerEventResource,
   FingerprintRecord, FingerprintResource, PaygateCustomerRecord, PaygateCustomerResource,
   PaymentFulfillmentRecord, PaymentFulfillmentResource, PaymentSubscriptionRecord,
   PaymentSubscriptionResource, PaymentUsageCounterRecord, PaymentUsageCounterResource, PaymentUsageRecord,
-  PaymentUsageResource, PaymentWebhookRecord, PaymentWebhookResource,
+  PaymentUsageResource, PaymentWebhookRecord, PaymentWebhookResource, PurchaseRecord, PurchaseResource,
 } from './types.js'
 
 export const makePaygateCustomerResource: ResourceMaker<PaygateCustomerRecord, PaygateCustomerResource> = (
@@ -111,3 +115,82 @@ export const makeFingerprintResource: ResourceMaker<FingerprintRecord, Fingerpri
   resource.index('sku', { sku: 1 }, { unique: true })
   return resource
 }
+
+export const makeBillingProfileResource: ResourceMaker<BillingProfileRecord, BillingProfileResource> = (
+  dbAlias, serviceAlias,
+) => {
+  const resource = makeMongoResource<BillingProfileRecord, BillingProfileResource>(
+    RES_BILLING_PROFILE, dbAlias, serviceAlias,
+  )
+  resource.byEntity = async entityId => await resource.load({ entityId })
+  resource.schema = BillingProfileSchema
+  // One profile per organization: the unique index is what makes the first lock the only one.
+  resource.index('entity', { entityId: 1 }, { unique: true })
+  resource.index('customer', { paygate: 1, customerId: 1 }, { sparse: true })
+  return resource
+}
+
+export const makePurchaseResource: ResourceMaker<PurchaseRecord, PurchaseResource> = (dbAlias, serviceAlias) => {
+  const resource = makeMongoResource<PurchaseRecord, PurchaseResource>(RES_PAYMENT_PURCHASE, dbAlias, serviceAlias)
+  resource.byPurchaseId = async purchaseId => await resource.load({ purchaseId })
+  resource.schema = PurchaseSchema
+  resource.index('purchase', { purchaseId: 1 }, { unique: true })
+  resource.index('contract', { contractRef: 1 }, { unique: true })
+  resource.index('entityDeadline', { entityId: 1, deadline: -1 })
+  resource.index('entityPurchased', { entityId: 1, purchasedAt: -1 })
+  // Single-field on purpose: a compound sparse index still indexes rows missing only `sessionId`
+  // (subscription purchases before their checkout is captured), and unique would collide on them.
+  resource.index('session', { sessionId: 1 }, { unique: true, sparse: true })
+  resource.index('subscription', { paygate: 1, subscriptionId: 1 }, { sparse: true })
+  resource.index('invoice', { invoiceId: 1 }, { sparse: true })
+  resource.index('invoiceNumber', { invoiceNumber: 1 }, { sparse: true })
+  resource.index('paymentIntent', { paygate: 1, paymentIntentId: 1 }, { sparse: true })
+  return resource
+}
+
+export const makeConsumerConsentResource: ResourceMaker<ConsumerConsentRecord, ConsumerConsentResource> = (
+  dbAlias, serviceAlias,
+) => {
+  const resource = makeMongoResource<ConsumerConsentRecord, ConsumerConsentResource>(
+    RES_CONSUMER_CONSENT, dbAlias, serviceAlias,
+  )
+  resource.schema = ConsumerConsentSchema
+  resource.index('entityDecided', { entityId: 1, decidedAt: -1 })
+  resource.index('kindPlan', { kind: 1, entityId: 1, planSku: 1, decidedAt: -1 })
+  return resource
+}
+
+export const makeConsumerDeclarationResource: ResourceMaker<ConsumerDeclarationRecord, ConsumerDeclarationResource> = (
+  dbAlias, serviceAlias,
+) => {
+  const resource = makeMongoResource<ConsumerDeclarationRecord, ConsumerDeclarationResource>(
+    RES_CONSUMER_DECLARATION, dbAlias, serviceAlias,
+  )
+  resource.schema = ConsumerDeclarationSchema
+  resource.index('kindReceived', { kind: 1, receivedAt: -1 })
+  resource.index('entityReceived', { entityId: 1, receivedAt: -1 }, { sparse: true })
+  resource.index('purchase', { purchaseId: 1 }, { sparse: true })
+  return resource
+}
+
+export const makeConsumerEventResource: ResourceMaker<ConsumerEventRecord, ConsumerEventResource> = (
+  dbAlias, serviceAlias,
+) => {
+  const resource = makeMongoResource<ConsumerEventRecord, ConsumerEventResource>(
+    RES_CONSUMER_EVENT, dbAlias, serviceAlias,
+  )
+  resource.schema = ConsumerEventSchema
+  resource.index('record', { recordId: 1, at: 1 })
+  resource.index('entityAt', { entityId: 1, at: -1 }, { sparse: true })
+  resource.index('actionOk', { action: 1, ok: 1, at: 1 })
+  return resource
+}
+
+/** The consumer-rights resources, alias → maker — registered by the gateway, each only when absent. */
+export const CONSUMER_RIGHTS_RESOURCE_MAKERS = [
+  [RES_BILLING_PROFILE, makeBillingProfileResource],
+  [RES_PAYMENT_PURCHASE, makePurchaseResource],
+  [RES_CONSUMER_CONSENT, makeConsumerConsentResource],
+  [RES_CONSUMER_DECLARATION, makeConsumerDeclarationResource],
+  [RES_CONSUMER_EVENT, makeConsumerEventResource],
+] as const

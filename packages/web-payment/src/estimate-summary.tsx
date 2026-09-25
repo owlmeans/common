@@ -1,14 +1,11 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, type ReactNode } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { COUNTRY_CODES, TaxEstimateStatus, estimateOf } from '@owlmeans/payment'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { money } from './format.js'
 import type { PriceEstimateControl } from './types.js'
-
-const money = (minor: number, currency: string, locale: string): string => new Intl.NumberFormat(locale, {
-  style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: 2,
-}).format(minor / 100)
 
 const localMoney = (amount: number, currency: string, locale: string): string => {
   try {
@@ -36,6 +33,10 @@ export interface CountrySelectProps {
   label?: string
   id?: string
   className?: string
+  /** The country cannot be changed here — a billing country locked by the first purchase. */
+  disabled?: boolean
+  /** A line under the picker — why it is disabled, typically. */
+  note?: ReactNode
 }
 
 /**
@@ -43,25 +44,32 @@ export interface CountrySelectProps {
  * self-contained estimate, and what a shared picker (several estimates, one country — a plan
  * comparison table) renders once and drives every `usePriceEstimate({ country, onCountryChange })`
  * with. Country names are the viewer's own language, alphabetically ordered.
+ *
+ * `[data-country-select]` carries `data-locked` (`"true"` while disabled) and the chosen
+ * `data-country`; the note is `[data-country-note]`.
  */
-export const CountrySelect = ({ value, onChange, label, id = 'price-estimate-country', className }: CountrySelectProps) => {
+export const CountrySelect = ({
+  value, onChange, label, id = 'price-estimate-country', className, disabled = false, note,
+}: CountrySelectProps) => {
   const t = useI18nLib('web-payment', 'estimate')
   const [locale] = useLanguage()
   const countries = useCountryOptions(locale)
   const text = label ?? t('country')
 
-  return <div className={cn('grid gap-2', className)}>
+  return <div className={cn('grid gap-2', className)} data-country-select="" data-locked={disabled ? 'true' : 'false'}
+    data-country={value}>
     <Label htmlFor={id}>{text}</Label>
     {/* Always controlled, `''` included (no `SelectItem` ever has that value) — switching to
         `undefined` once a country is chosen is what trips React's controlled/uncontrolled warning. */}
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} aria-label={text}>
+    <Select value={value} onValueChange={next => { if (!disabled) onChange(next) }} disabled={disabled}>
+      <SelectTrigger id={id} aria-label={text} aria-describedby={note != null ? `${id}-note` : undefined}>
         <SelectValue placeholder={t('country-placeholder')} />
       </SelectTrigger>
       <SelectContent>
         {countries.map(({ code, name }) => <SelectItem key={code} value={code}>{name}</SelectItem>)}
       </SelectContent>
     </Select>
+    {note != null && <p id={`${id}-note`} className="text-muted-foreground text-xs" data-country-note="">{note}</p>}
   </div>
 }
 
@@ -153,10 +161,12 @@ export interface PriceEstimateSummaryProps {
  * estimates sharing one picker (a plan comparison table) compose the two pieces separately instead.
  */
 export const PriceEstimateSummary = ({ control, subtotalMinor, currency, suffix, className }: PriceEstimateSummaryProps) => {
-  const { country, onCountryChange } = control
+  const t = useI18nLib('web-payment', 'estimate')
+  const { country, onCountryChange, locked = false } = control
 
   return <div className={cn('grid gap-3', className)}>
-    <CountrySelect value={country} onChange={onCountryChange} />
+    <CountrySelect value={country} onChange={onCountryChange} disabled={locked}
+      note={locked ? t('country-locked') : undefined} />
     <PriceEstimateAmount control={control} subtotalMinor={subtotalMinor} currency={currency} suffix={suffix} />
   </div>
 }

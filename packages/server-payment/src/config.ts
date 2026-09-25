@@ -1,17 +1,19 @@
 import { toConfigRecord } from '@owlmeans/server-app'
-import { plugin } from '@owlmeans/config'
+import { plugin, PLUGIN_RECORD } from '@owlmeans/config'
 import {
   assertAmountCheckoutPolicy, assertPricingPolicy, assertQuantityCheckoutPolicy, CAPABILITY_LIMIT_SCOPE,
-  CheckoutPricingMode, LimitKind, LimitMisdeclared, LimitWindow, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE,
-  PaymentError, PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
-  PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE,
+  CheckoutPricingMode, CONSUMER_RIGHTS_RECORD_ID, CONSUMER_RIGHTS_RECORD_TYPE, ConsumerRightsError, LimitKind,
+  LimitMisdeclared, LimitWindow, makeConsumerRightsPolicy, PLAN_RECORD_PREFIX, PLAN_RECORD_TYPE, PaymentError,
+  PlanDuration, PlanRankConflict, PlanStatus, PRICING_POLICY_RECORD_ID, PRICING_POLICY_RECORD_TYPE,
+  PRODUCT_RECORD_PREFIX, PRODUCT_RECORD_TYPE, ProductError,
 } from '@owlmeans/payment'
-import type { LimitDeclaration } from '@owlmeans/payment'
+import type { ConsumerRightsPolicy, LimitDeclaration, PlanWithdrawalComponent } from '@owlmeans/payment'
 import {
-  STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG, STRIPE_PRICING_PLUGIN_CONFIG,
+  CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG, STRIPE_PAYGATE_ALIAS, STRIPE_PLUGIN_CONFIG, STRIPE_PORTAL_PLUGIN_CONFIG,
+  STRIPE_PRICING_PLUGIN_CONFIG,
 } from './consts.js'
 import type {
-  Config, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PortalBrandingDef,
+  Config, ConsumerRightsDef, PaymentPlan, PaymentPlanDef, PaymentProduct, PaymentProductDef, PortalBrandingDef,
   PricingDef, StripeSecretsDef,
 } from './types.js'
 
@@ -91,6 +93,8 @@ export const declarePaymentPlan = (cfg: Config, def: PaymentPlanDef): void => {
       : undefined
   )
   if (quantityPolicy != null) assertQuantityCheckoutPolicy(quantityPolicy)
+  const currencyPrices = currencyPricesOf(def)
+  assertWithdrawalComponents(def)
 
   cfg.records = cfg.records ?? []
   const plan: PaymentPlan = {
@@ -103,8 +107,56 @@ export const declarePaymentPlan = (cfg: Config, def: PaymentPlanDef): void => {
     quantityPolicy,
     minQuantity: quantityPolicy?.minimum, maxQuantity: quantityPolicy?.maximum,
     defaultQuantity: quantityPolicy?.default,
+    ...(currencyPrices != null ? { currencyPrices } : {}),
+    ...(def.withdrawal != null ? { withdrawal: { components: def.withdrawal.components.map(item => ({ ...item })) } } : {}),
   }
   cfg.records.push({ ...toConfigRecord(plan), recordType: PLAN_RECORD_TYPE, id: `${PLAN_RECORD_PREFIX}:${def.sku}` })
+}
+
+const CURRENCY = /^[a-z]{3}$/
+
+/** `currencyPrices` normalized to lowercase codes; each a positive amount of whole minor units. */
+const currencyPricesOf = (def: PaymentPlanDef): Record<string, number> | undefined => {
+  if (def.currencyPrices == null) {
+    return undefined
+  }
+  if (def.pricingMode === CheckoutPricingMode.Amount || def.free === true) {
+    throw new ProductError(`currency-prices:${def.sku}:mode`)
+  }
+  const prices: Record<string, number> = {}
+  for (const [raw, amount] of Object.entries(def.currencyPrices)) {
+    const currency = raw.toLowerCase()
+    const minor = Math.round(amount * 100)
+    if (!CURRENCY.test(currency) || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(minor)
+      || Math.abs(minor - amount * 100) > 1e-6 || prices[currency] != null) {
+      throw new ProductError(`currency-prices:${def.sku}:${raw}`)
+    }
+    prices[currency] = amount
+  }
+
+  return prices
+}
+
+/** The components' shares must add up to the plan's price in minor units. */
+const assertWithdrawalComponents = (def: PaymentPlanDef): void => {
+  const components: PlanWithdrawalComponent[] | undefined = def.withdrawal?.components
+  if (components == null) {
+    return
+  }
+  const keys = new Set<string>()
+  let sum = 0
+  for (const component of components) {
+    if (typeof component.key !== 'string' || component.key === '' || keys.has(component.key)
+      || (component.basis !== 'time' && component.basis !== 'units')
+      || !Number.isSafeInteger(component.shareMinor) || component.shareMinor < 0) {
+      throw new ProductError(`withdrawal:${def.sku}:component`)
+    }
+    keys.add(component.key)
+    sum += component.shareMinor
+  }
+  if (components.length === 0 || sum !== Math.round(def.price * 100)) {
+    throw new ProductError(`withdrawal:${def.sku}:shares`)
+  }
 }
 
 /** Every plan declared into a configuration. */
@@ -202,4 +254,56 @@ export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
       ...(subscriptionPaymentMethodTypes != null ? { subscriptionPaymentMethodTypes } : {}),
     }, STRIPE_PRICING_PLUGIN_CONFIG)
   }
+}
+
+/**
+ * Declare the consumer-rights policy (EU withdrawal, spend consent, start requests, cancellation,
+ * country lock) — a singleton config record like the pricing policy: `DEFAULT_CONSUMER_RIGHTS`
+ * filled in, asserted, and replacing any earlier declaration. It is ADVERTISED to the browser; the
+ * `mail` options (mailer alias, sender, archive copies) go to a backend-only plugin config.
+ *
+ * `trader` (who the consumer contracts with: `name` for the statements, `legalName`/`address`/`email`
+ * for the mails and the withdrawal information) is backend-only as well.
+ *
+ * @throws ConsumerRightsError (`policy:<field>`) — see `assertConsumerRightsPolicy`; `policy:trader`
+ * when a mechanism is on and no trader `name` and `legalName` are declared.
+ */
+export const declareConsumerRights = (cfg: Config, def: ConsumerRightsDef): ConsumerRightsPolicy => {
+  const { mail, trader, ...declaration } = def
+  const policy = makeConsumerRightsPolicy(declaration)
+  const anyMechanism = Object.values(policy.mechanisms).some(on => on === true)
+  if (anyMechanism && (trader?.name == null || trader.name.trim() === '' || trader.legalName == null
+    || trader.legalName.trim() === '')) {
+    throw new ConsumerRightsError('policy:trader')
+  }
+  if (mail?.bcc?.some(address => !/^[^\s@]+@[^\s@]+$/.test(address)) === true) {
+    throw new ConsumerRightsError('policy:mail-bcc')
+  }
+  cfg.records = (cfg.records ?? []).filter(record => record.id !== CONSUMER_RIGHTS_RECORD_ID)
+  cfg.records.push({
+    ...toConfigRecord(policy), recordType: CONSUMER_RIGHTS_RECORD_TYPE, id: CONSUMER_RIGHTS_RECORD_ID,
+  })
+  const plugins = (cfg as unknown as Record<string, Array<{ id?: string }> | undefined>)[PLUGIN_RECORD]
+  if (plugins != null) {
+    (cfg as unknown as Record<string, unknown>)[PLUGIN_RECORD] = plugins
+      .filter(record => record.id !== CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG)
+  }
+  if (mail != null || trader != null) {
+    plugin(cfg, {
+      ...(trader != null ? {
+        trader: {
+          name: trader.name.trim(), legalName: trader.legalName.trim(),
+          ...(trader.address != null && trader.address.trim() !== '' ? { address: trader.address.trim() } : {}),
+          ...(trader.email != null && trader.email.trim() !== '' ? { email: trader.email.trim() } : {}),
+          ...(trader.website != null && trader.website.trim() !== '' ? { website: trader.website.trim() } : {}),
+        },
+      } : {}),
+      ...(mail?.alias != null ? { alias: mail.alias } : {}),
+      ...(mail?.from != null ? { from: mail.from } : {}),
+      ...(mail?.replyTo != null ? { replyTo: mail.replyTo } : {}),
+      ...(mail?.bcc != null && mail.bcc.length > 0 ? { bcc: [...mail.bcc] } : {}),
+    }, CONSUMER_RIGHTS_MAIL_PLUGIN_CONFIG)
+  }
+
+  return policy
 }

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.59"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.62"` in `dependencies`
 
 ## Key Exports
 
@@ -33,7 +33,7 @@ user-invocable: false
 | `useBreakPoint()` | The current Tailwind breakpoint name, tracked on `resize` (`lg` when there is no `window`) |
 | `useMapBreakpoint(map, def?, breakpoint?)` | The `map` entry for the current breakpoint (or for the `breakpoint` passed), falling back to `def`. It **throws a `SyntaxError`** when neither yields a value, so give it a `def` or cover every breakpoint |
 | Re-exports from `@owlmeans/client-panel` | Cross-platform panel primitives, incl. `usePanelNav` and the `PanelNav*` types |
-| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
+| Re-exports from `@owlmeans/client` / `@owlmeans/client-entrypoint` / `@owlmeans/route` | `bind`, `bindAll`, `bindScreen`, `handler`, `lazyHandler` / `lazyComponent` (+ `LazyHandler` / `LazyComponent` / `LazyComponentOptions` types — see the `client` skill), `provideRequest`, `stab`, `route`, `croute`, `frontend`, `useNavigate`, `useEntrypoint`, `useValue` |
 | Re-exports from the surrounding layers | `config`, `service`, `addWebService`, `AppType` / `HOME` / `ROOT` / `BASE` / `GUEST`, `DISPATCHER`, `CAUTHEN_FLOW_ENTER`, `DAUTH_GUARD`, `bindExternalAuthentication`, `Dispatcher`, `appendWebAuthService`, `flow` / `configureFlows` / `useFlow` / `FLOW_PARAM` / `SERVICE_PARAM`, `useI18n*` / `useLanguage` / `composePrefix`, `addI18nApp` / `addI18nLib` / `SUPPORTED_LNGS` |
 
 ## Subpath Exports
@@ -421,20 +421,28 @@ import { Form, TextInput, SubmitButton, Button } from '@owlmeans/web-panel'
   `contained` and the rest `outlined`, calling `onSelect(option)`. `name` prefixes each option's
   label key as `<name>.<option>`.
 
-### The terms confirmation — `LoginTerms`
+### The terms confirmation — `LoginTerms`, `LoginPrivacyNotice`
 
 `components/login/terms.tsx` renders `LoginTermsModel` (`@owlmeans/client-panel/auth`) via
-`termsSentence` (`@owlmeans/client-auth/login`) rather than re-deriving link/label pairs itself.
-**`[data-login-terms]` marks exactly one checkbox, always** — an e2e suite elsewhere in the platform
-treats it as a strict locator, so a change here must never add a second one, whatever
+`termsSentence` + `termsLabelResolver` (`@owlmeans/client-auth/login`) rather than re-deriving
+link/label pairs itself. **`[data-login-terms]` marks exactly one checkbox — or NONE, once
+`model.terms.deferred` is true** (`LoginScreen` renders `LoginTerms` when not deferred,
+`LoginPrivacyNotice` when it is): an e2e suite elsewhere in the platform treats the checkbox as a
+strict, at-most-one-match locator, so a change here must never add a second one, whatever
 billing/product/custom documents a configuration adds. `[data-login-privacy]` is a SIBLING
 paragraph of the checkbox's `<label>`, never nested inside it — a privacy disclosure is not
-something the checkbox consents to. A linked document/notice fragment carries
-`data-login-document="<key>"`. `[data-login-revised]` renders only when the resolved terms carry a
-`revisedAt` (i.e. the configuration set `showRevision: true` and at least one document has its own
-revision date). `LoginTerms` takes `locale?: string` — from `LoginScreen`'s own `locale` prop, never
-read from context directly — for `Intl.ListFormat` and a custom document's locale-keyed `labelMap`.
-Pinned by `tests/login.spec.ts` → the "with billing, product and custom documents configured" block.
+something the checkbox consents to — and it is exported ON ITS OWN as `LoginPrivacyNotice`: it
+still renders while deferred, since the disclosure was never the checkbox's to remove. A linked
+document/notice fragment carries `data-login-document="<key>"`. `[data-login-revised]` renders only
+when NOT deferred and the resolved terms carry a `revisedAt` (i.e. the configuration set
+`showRevision: true` and at least one document has its own revision date) — deferred, that date
+belongs to the document the checkbox agreed to, and there is no checkbox on this screen to attach it
+to. `LoginTerms`/`LoginPrivacyNotice` take `locale?: string` — from `LoginScreen`'s own `locale`
+prop, never read from context directly — for `Intl.ListFormat` and a custom document's locale-keyed
+`labelMap`. Method buttons carry `aria-disabled={model.blocked || undefined}`, never a literal
+`"false"` — a deferred screen (which never sets `blocked`) then renders identically to an unblocked
+ordinary one, with no special case. Pinned by `tests/login.spec.ts` → the "with billing, product and
+custom documents configured" and "the Terms confirmation deferred to a step" blocks.
 
 ## Subpath: `./consent`
 
@@ -491,6 +499,7 @@ menu has already mounted) and because React 18 StrictMode double-invokes mount/c
 | Job | Import from `@owlmeans/web-panel/consent` | Where it goes |
 |---|---|---|
 | The consent dialog (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
+| Remember the language only while the visitor granted `functional` cookies | `installConsentLanguage()` | Once, in the bootstrap, BEFORE `prepareI18n` — wires `client-i18n`'s persistence guard, and applies a language that arrived with a link from another OwlMeans domain once the grant is saved |
 | The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `openConsent('reopen')`) | Inside the host's own footer/menu |
 | Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control |
 | Registering the presence service | `appendConsentWidgetService(context)` | The app's `context.ts` |

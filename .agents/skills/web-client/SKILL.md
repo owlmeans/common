@@ -1,11 +1,11 @@
 ---
 name: web-client
-description: Bind OwlMeans shared entrypoint protocols in a browser application. Use when registering client routes, attaching React screens, calling API protocols, or configuring the browser context.
+description: Bind OwlMeans shared entrypoint protocols in a browser application. Use when registering client routes, attaching React screens (including lazily-loaded ones), calling API protocols, or configuring the browser context.
 ---
 
 # Browser protocol entrypoints
 
-**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.49`
+**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.52`
 
 Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
 then bind frontend declarations to screens.
@@ -30,11 +30,53 @@ const project = await context.entrypoint(projectProtocols.get).call({
 })
 ```
 
+## Lazily-loaded screens
+
+`lazyHandler` and `lazyComponent` (from `@owlmeans/client`) are re-exported here and by
+`@owlmeans/web-panel`, next to `handler`; so are, here only, the chunk-failure tools
+`retryImport`, `isChunkLoadError`, `reloadOnce` and `recoverFromChunkError` (types
+`LazyErrorRenderer`, `RetryImportOptions`). A `lazyHandler(...)` result binds exactly like
+`handler(Component)`; declare it at module scope, where the bindings live — never inside a render.
+
+```tsx
+import { bindScreen, lazyHandler } from '@owlmeans/web-client'
+
+const reportsScreen = lazyHandler(() => import('./screens/reports.js'), 'ReportsScreen', {
+  fallback: <Spinner />,
+})
+
+export const clientBindings = [
+  bindScreen(webProtocols.reports, reportsScreen),
+]
+// reportsScreen.preload() on hover/focus of a link renders the screen without its fallback.
+```
+
+The fallback renders inside the screen's own `Suspense` boundary, so the layout around it stays
+mounted while the chunk loads, and the screen's own error boundary keeps a failed chunk from
+unmounting it: a fetch failure is retried, then `error` renders — or, without one, the guarded
+reload starts. Rules and options: the `client` skill, Code-splitting and Chunk failures.
+
+## Rendering after an async boot
+
+If your app awaits something (e.g. `prepareI18n`) before calling `render()`, this is handled
+correctly — the render helper checks `document.readyState` rather than unconditionally waiting for
+an event that may already have fired. It waits for `DOMContentLoaded` only while the document is
+still `loading` and mounts at once otherwise; `renderApp` and `@owlmeans/web-panel`'s `render` both
+go through it.
+
+```ts
+import { prepareI18n } from '@owlmeans/client-i18n'
+
+await prepareI18n(context.cfg)
+renderApp(context)            // or @owlmeans/web-panel's render(context)
+```
+
 ## Rules
 
 - Declare paths, guards, gates and contracts once in the shared protocol tree.
 - Bind every API declaration the browser calls, including route parents.
-- Use `bindScreen(protocol, handler(Component))` only for frontend route declarations.
+- Use `bindScreen(protocol, handler(Component))` — or `lazyHandler(...)` — only for frontend route
+  declarations.
 - Do not replace request/response typing at a call site; update the shared contract instead.
 - Keep framework entrypoints and application entrypoints in one registered array, without mutating a
   shared declaration collection.

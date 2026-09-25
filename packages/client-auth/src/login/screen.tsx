@@ -5,36 +5,11 @@ import type { CommonConfig } from '@owlmeans/config'
 import type { LoginContext, LoginMethod, LoginScreenProps, LoginService } from './types.js'
 import { LOGIN_SERVICE } from './consts.js'
 import { primaryLoginMethod } from './methods.js'
-import { acceptTerms, resolveTerms, termsAccepted, termsSentence } from './terms.js'
-import type { ResolvedTermsDocument, TermsSentencePart } from './terms.js'
+import {
+  acceptTerms, resolveTerms, termsAccepted, termsDeferred, termsLabelResolver, termsSentence,
+} from './terms.js'
+import type { TermsSentencePart } from './terms.js'
 import { resolveCredit } from './credit.js'
-
-/** The same English fallbacks `@owlmeans/web-panel`'s `LoginTerms` uses, kept in sync by hand. */
-const DEFAULT_LABEL: Record<string, string> = {
-  terms: 'Terms & Conditions',
-  privacy: 'Privacy Policy',
-  cookies: 'Cookie Policy',
-  billing: 'Billing Terms',
-  product: '{{product}} Product Terms',
-}
-
-const resolveLabelFor = (
-  translate: (key: string, defaultValue: string) => string, locale: string | undefined
-) => (doc: ResolvedTermsDocument): string => {
-  const fromMap = doc.labelMap != null
-    ? (locale != null ? doc.labelMap[locale] : undefined) ?? Object.values(doc.labelMap)[0]
-    : undefined
-  let label = doc.label ?? fromMap
-    ?? (doc.i18nKey != null ? translate(doc.i18nKey, DEFAULT_LABEL[doc.key] ?? doc.key) : doc.key)
-
-  if (doc.params != null) {
-    for (const [key, value] of Object.entries(doc.params)) {
-      label = label.split(`{{${key}}}`).join(value)
-    }
-  }
-
-  return label
-}
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
@@ -89,7 +64,8 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
   const env = login.env()
   const resolved = resolveTerms(props.terms ?? cfg?.terms)
   const credit = resolveCredit(cfg?.credit, brand, context.cfg.service)
-  const resolveLabel = resolveLabelFor(t, props.locale)
+  const resolveLabel = termsLabelResolver(t, props.locale)
+  const deferred = termsDeferred(context)
 
   const [accepted, setAccepted] = useState(() => termsAccepted(resolved))
   const [attempted, setAttempted] = useState(false)
@@ -100,7 +76,7 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
     : props.methods ?? all
   const primary = primaryLoginMethod(methods)
 
-  const blocked = resolved != null && resolved.required && !accepted
+  const blocked = resolved != null && resolved.required && !deferred && !accepted
 
   const select = useCallback((method: LoginMethod) => {
     if (blocked) {
@@ -138,7 +114,11 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
         {method.label ?? t(`login.method.${method.i18nKey ?? method.id}`, method.id)}
       </button>)}
 
-    {resolved != null && <p style={{ marginTop: '1rem', fontSize: '.875rem' }}>
+    {/* When a registered, bound step confirms the terms instead, this screen shows neither the
+        checkbox nor its "last updated" line — that document is agreed to over there, and this
+        screen is never `blocked` on it. The privacy notice below still renders either way: it was
+        never inside the consented label, so deferring the checkbox does not touch it. */}
+    {resolved != null && !deferred && <p style={{ marginTop: '1rem', fontSize: '.875rem' }}>
       {/* The ONLY place `data-login-terms` appears — never duplicated onto a second control. */}
       <label>
         <input
@@ -152,7 +132,7 @@ export const FallbackLoginScreen: FC<LoginScreenProps> = props => {
       </label>
     </p>}
 
-    {resolved?.revisedAt != null && <p data-login-revised style={{ fontSize: '.75rem', opacity: .7 }}>
+    {resolved?.revisedAt != null && !deferred && <p data-login-revised style={{ fontSize: '.75rem', opacity: .7 }}>
       {t('login.terms.revised', 'Last updated: {{date}}').split('{{date}}').join(resolved.revisedAt)}
     </p>}
 

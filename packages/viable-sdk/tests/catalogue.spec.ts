@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthenPayloadError } from '@owlmeans/auth'
+import { ApiStatusError } from '@owlmeans/api'
 import { ResilientError } from '@owlmeans/error'
 import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
 import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
@@ -1346,6 +1347,38 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     // marshalling, so nothing outside it is cut.
     const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'
     expect(refusalPhrase(warning)).toBe(warning)
+  })
+
+  test('a consent refusal is phrased from its marker, its production status, or inside a planning commit', () => {
+    const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
+    const stored = `viable-connect:consent-required:story:${Date.parse('2026-10-09T00:00:00Z')}:${encodeURIComponent(url)}`
+
+    const fromMarker = refusalPhrase(stored)
+    expect(fromMarker).toContain(url)
+    expect(fromMarker).toContain('2026-10-08')
+    expect(fromMarker).toContain('Do not retry this call automatically')
+    expect(fromMarker).not.toContain('consent-required')
+
+    // A production body is only an incident id: the status is all that is left of the refusal.
+    const production = refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    expect(production).toContain('Billing in the OwlMeans web application')
+    expect(production).not.toContain('api:client:status')
+
+    // The web refusal, when a story start failed on it at commit time.
+    const committed = refusalPhrase(asThrown(
+      'planning:commit-failed:t1:payment:consumer-rights:performance-consent-required:1',
+      'PlanningErrorCommitFailed',
+    ))
+    expect(committed).toContain('expressly asked')
+    expect(committed).not.toContain('commit-failed')
+  })
+
+  test('a balance refusal that reached production as a bare 402 still reads as the balance', () => {
+    const phrase = refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+
+    expect(phrase).toContain('balance')
+    expect(phrase).toContain('top up')
+    expect(phrase).not.toContain('api:client:status')
   })
 
   test('no marker in the table shadows a more specific one below it', () => {

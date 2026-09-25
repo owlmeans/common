@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mongo",
-  "version": "0.1.18-rc.34",
+  "version": "0.1.18-rc.36",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -31,11 +31,11 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",
-    "@owlmeans/basic-keys": "^0.1.18-rc.37",
+    "@owlmeans/basic-keys": "^0.1.18-rc.39",
     "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.35",
-    "@owlmeans/resource": "^0.1.18-rc.34",
-    "@owlmeans/server-context": "^0.1.18-rc.35",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.37",
+    "@owlmeans/resource": "^0.1.18-rc.36",
+    "@owlmeans/server-context": "^0.1.18-rc.37",
     "@scure/base": "^2.3.0",
     "mongodb": "^7.5.0"
   },

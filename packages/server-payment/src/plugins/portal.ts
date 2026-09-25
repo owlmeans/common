@@ -37,6 +37,8 @@ const recurringCatalog = async (ctx: ApiContext): Promise<Array<{ product: Payme
       hashable: recurring.map(plan => ({
         sku: plan.sku, price: plan.price, currency: plan.currency ?? 'usd', interval: plan.recurring?.interval,
         rank: planRank(plan), behavior,
+        // A changed currency option replaces the Price — the portal's price list must follow it.
+        ...(plan.currencyPrices != null ? { currencyPrices: plan.currencyPrices } : {}),
       })).sort((a, b) => a.sku.localeCompare(b.sku)),
     })
   }
@@ -114,9 +116,15 @@ export const ensurePortalConfiguration = async (
   const sku = portalFingerprintSku(service)
   const branding = await portalBrandingConfig(ctx)
   const catalog = await recurringCatalog(ctx)
+  const rights = await payment(ctx).consumerRightsPolicy()
+  // A locked billing country is never edited in the portal: tax follows the saved address.
+  const countryLock = rights?.mechanisms.countryLock === true
+  const regionCurrencies = Object.values(rights?.currencies ?? {}).filter(code => code != null).sort()
   const hash = createHash('sha256').update(JSON.stringify({
     service,
     deployment,
+    ...(countryLock ? { countryLock } : {}),
+    ...(regionCurrencies.length > 0 ? { regionCurrencies } : {}),
     branding: branding != null ? {
       headline: branding.headline ?? null, privacyPolicyUrl: branding.privacyPolicyUrl ?? null,
       termsOfServiceUrl: branding.termsOfServiceUrl ?? null, returnUrl: branding.returnUrl ?? null,
@@ -141,7 +149,9 @@ export const ensurePortalConfiguration = async (
   const metadata = { [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service, [STRIPE_DEPLOYMENT_KEY]: deployment }
   const params: ConfigurationParams = {
     features: {
-      customer_update: { enabled: true, allowed_updates: ['email', 'address', 'tax_id'] },
+      customer_update: {
+        enabled: true, allowed_updates: countryLock ? ['email', 'tax_id'] : ['email', 'address', 'tax_id'],
+      },
       invoice_history: { enabled: true },
       payment_method_update: { enabled: true },
       subscription_cancel: cancelable

@@ -12,9 +12,10 @@ import type {
   Execution, ExecutionPlugin, ExecutionService, ExecutionServiceOptions, ExecutionShape,
   HelperExecution, TaskExecution, WithExecutionService,
 } from './types.js'
+import { temperatureSteps } from '../utils/effort.js'
 import {
   composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
-  mergePrompt, resolveRole,
+  mergePrompt, raisedEffort, resolveRole,
 } from './utils.js'
 
 /**
@@ -148,14 +149,22 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
     },
 
     temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
-      temperature =>
-        self().model(exec, role, {
-          // A budget the helper was built with survives a temperature refinement — the
-          // work is the same size whether or not it is being retried creatively.
-          ...(typeof baseOverride === 'object' ? baseOverride : {}),
+      temperature => {
+        // A budget the helper was built with survives a temperature refinement — the
+        // work is the same size whether or not it is being retried creatively.
+        const sizing = typeof baseOverride === 'object' ? baseOverride : {}
+        // Most models that take effort have taken sampling away, so "hotter" alone would
+        // change nothing on the wire. The same request climbs effort alongside it.
+        const steps = temperatureSteps(temperature)
+        const effort = steps > 0 ? raisedEffort(self().model(exec, role, sizing), steps) : undefined
+
+        return self().model(exec, role, {
+          ...sizing,
           ...(temperature != null ? { temperature } : {}),
           ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
-        }),
+          ...(effort != null ? { effort } : {}),
+        })
+      },
 
     use: plugin => {
       // Seated by alias when it has one: mixins compose, and a layer wired twice would otherwise

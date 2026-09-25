@@ -7,8 +7,11 @@ import { LimitKind, LimitWindow, PlanDuration } from '@owlmeans/payment'
 import { config, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig } from '@owlmeans/server-context'
 import type { Context as ApiContext } from '@owlmeans/server-api'
+import type Stripe from 'stripe'
+import { declareConsumerRights, declarePaymentPricing } from '../src/config.js'
+import { appendConsumerRights } from '../src/consumer/service.js'
 import { appendPaymentGatewayService } from '../src/service.js'
-import type { Config } from '../src/types.js'
+import type { Config, ConsumerRightsDef, PricingDef, UsageMeter } from '../src/types.js'
 import { declareTestCatalogue, HOST, PLANS_PRODUCT, SERVICE } from './fake-stripe.js'
 
 /**
@@ -31,7 +34,15 @@ export interface MongoSuite {
   teardown: () => Promise<void>
 }
 
-export const makeSuite = (label: string): MongoSuite => {
+export interface SuiteOptions {
+  consumerRights?: ConsumerRightsDef
+  pricing?: PricingDef
+  /** The paygate the consumer-rights service manages (a fake); without it the service is unmanaged. */
+  stripe?: Stripe
+  meter?: UsageMeter
+}
+
+export const makeSuite = (label: string, opts: SuiteOptions = {}): MongoSuite => {
   const prefix = process.env.MONGO_TEST_DB_PREFIX ?? 'omt'
   const database = randomNamespace(`${prefix}_${label}`)
   const booted: MongoDbService[] = []
@@ -60,8 +71,15 @@ export const makeSuite = (label: string): MongoSuite => {
       }],
     })
 
+    if (opts.pricing != null) declarePaymentPricing(cfg as unknown as Config, opts.pricing)
+    if (opts.consumerRights != null) declareConsumerRights(cfg as unknown as Config, opts.consumerRights)
+
     const context = makeServerContext(cfg)
     appendMongo(context)
+    if (opts.stripe != null) {
+      const stripe = opts.stripe
+      appendConsumerRights(context as never, { manage: true, stripe: async () => stripe, ...(opts.meter != null ? { usage: opts.meter } : {}) })
+    }
     appendPaymentGatewayService(context as never, { manage: false })
     context.configure()
     const mongo = context.service<MongoDbService>('mongo')

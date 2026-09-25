@@ -17,5 +17,13 @@
   "PaymentErrorSubscriptionUnknown": "Dieses Abonnement existiert nicht",
   "EntitlementRefusal": "Ihr Tarif erlaubt das nicht",
   "EntitlementRefusalCapabilityRequired": "Diese Funktion ist in Ihrem Tarif nicht enthalten",
-  "EntitlementRefusalLimitExhausted": "Sie haben das Limit Ihres Tarifs erreicht"
+  "EntitlementRefusalLimitExhausted": "Sie haben das Limit Ihres Tarifs erreicht",
+  "PaymentErrorConsumerRights": "Die Verarbeitung der Verbraucherrechte ist nicht richtig konfiguriert",
+  "PaymentErrorConsumerRightsRefusal": "Diese Anfrage kann für dieses Konto derzeit nicht ausgeführt werden",
+  "PaymentErrorConsumerRightsRefusalPerformanceConsentRequired": "Bitte bestätigen Sie, dass Sie mit der Nutzung Ihrer kürzlich gekauften Credits beginnen möchten",
+  "PaymentErrorConsumerRightsRefusalSubscriptionStartRequired": "Bitte bestätigen Sie vor der Zahlung, dass die Leistungen des Abonnements sofort beginnen sollen",
+  "PaymentErrorConsumerRightsRefusalBillingCountryLocked": "Das Rechnungsland dieses Kontos ist bereits festgelegt und kann hier nicht geändert werden",
+  "PaymentErrorConsumerRightsRefusalWithdrawalUnavailable": "Dieser Vertrag kann hier nicht widerrufen werden",
+  "PaymentErrorConsumerRightsRefusalCancellationUnavailable": "Es gibt kein aktives Abonnement, das gekündigt werden kann",
+  "PaymentErrorCheckoutLimitExceeded": "Dieser Betrag liegt über dem, was dieses Konto derzeit kaufen kann"
 }

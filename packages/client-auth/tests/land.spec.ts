@@ -171,6 +171,59 @@ describe('continueLogin — steps', () => {
   })
 })
 
+describe('continueLogin — a `required` step', () => {
+  test('a `required` step whose `pending` throws is treated as PENDING — fail closed', async () => {
+    const [context, login] = await bootstrap({ authenticated: true })
+    allowEntrypoints(context, 'required-screen')
+
+    login.registerStep(step({
+      alias: 'required-broken', entrypoint: 'required-screen', required: true,
+      pending: async () => { throw new Error('boom') },
+    }))
+
+    expect(await continueLogin(context)).toEqual({
+      alias: 'required-screen', query: undefined, step: 'required-broken',
+    })
+  })
+
+  test('a `required` step whose `pending` never resolves is treated as PENDING after the timeout', async () => {
+    const [context, login] = await bootstrap({ authenticated: true })
+    allowEntrypoints(context, 'required-hanging-screen')
+
+    login.registerStep(step({
+      alias: 'required-hanging', entrypoint: 'required-hanging-screen', required: true,
+      pending: () => new Promise<boolean>(() => { /* never settles */ }),
+    }))
+
+    expect(await continueLogin(context, { stepTimeout: 20 })).toEqual({
+      alias: 'required-hanging-screen', query: undefined, step: 'required-hanging',
+    })
+  })
+
+  test('a `required` but UNBOUND step is still skipped, never blocks', async () => {
+    const [context, login] = await bootstrap({ authenticated: true })
+    let called = false
+
+    login.registerStep(step({
+      alias: 'required-unbound', entrypoint: 'nowhere', required: true,
+      pending: async () => { called = true; return true },
+    }))
+
+    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(called).toBe(false)
+  })
+
+  test('a `required` step that answers false, or true, still behaves ordinarily', async () => {
+    const [context, login] = await bootstrap({ authenticated: true })
+    allowEntrypoints(context, 'required-screen')
+
+    login.registerStep(step({
+      alias: 'required-ok', entrypoint: 'required-screen', required: true, pending: async () => false,
+    }))
+    expect(await continueLogin(context)).toEqual({ alias: HOME })
+  })
+})
+
 describe('landAfterLogin — the surrogate short circuit', () => {
   test('returns DISPATCHER immediately; no step or hook ever runs', async () => {
     const [context, login] = await bootstrap({ authenticated: true })

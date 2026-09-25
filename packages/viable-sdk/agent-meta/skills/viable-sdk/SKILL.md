@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.30"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.33"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -243,17 +243,33 @@ same facts in one sentence, because it is read at the same moment by a parent th
 `describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
 a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
-## An out-of-credits refusal is phrased, and pushed through `notify`
+## A balance or consent refusal is phrased for a person, and pushed through `notify`
 
-`registerCatalogue`'s catch special-cases `ConnectOutOfCredits` (`@owlmeans/viable-common`
-`connect/errors.ts`): rather than the raw `viable-connect:out-of-credits:...` marker, the tool
-result reads as a sentence — what it needed, what the account has, and a link to top up — because
-only `type` and `message` survive the platform's internal HTTP hop, so those three fields travel
-packed into the message and are read back out with `finalizeUnmarshal()`. The same refusal is also
-handed to the optional `ToolDeps.notify?(level, text)`, which a host wires to its own out-of-band
-channel — the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless
-`/mcp` host has no channel and omits it, so `notify` is always best-effort and optional. Every other
-error still returns as its own `.message`, unphrased, and never calls `notify`.
+`registerCatalogue`'s catch special-cases the two refusals only a PERSON can resolve
+(`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`:
+
+- `ConnectOutOfCredits` — rather than the raw `viable-connect:out-of-credits:...` marker, the tool
+  result reads as a sentence: what it needed, what the account has, and a link to top up.
+- `ConnectConsentRequired` — the EU spend consent: "Nothing was started", why (credits bought less
+  than 14 days ago may only be used once a person expressly asks, the purchase still withdrawable up
+  to the last day), the `consentUrl` to open and confirm in the browser, and that the call must NOT
+  be retried automatically — only after the user says they confirmed (`consentRequiredPhrase(url,
+  deadline)` in `tools/refusal.ts`, shared with the stored-text entry below).
+
+Their fields travel packed into the message (only `type` and `message` survive the platform's
+internal HTTP hop) and are read back with `finalizeUnmarshal()`. Both are also handed to the
+optional `ToolDeps.notify?('warning', text)`, which a host wires to its own out-of-band channel —
+the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless `/mcp`
+host has no channel and omits it, so `notify` is always best-effort and optional. Every other
+error returns through `refusalPhrase` and never calls `notify`.
+
+The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
+`viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the
+detail), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
+stored error — no URL, so "Billing in the OwlMeans web application") — both ABOVE the planning
+markers, because the consent is what the person acts on — and, for a production body that carries
+only an incident id (`@owlmeans/api` `ApiStatusError`), `api:client:status:428` (the consent
+sentence) and `api:client:status:402` (the balance sentence).
 
 ## The session loop: serial, and free to redeliver
 
@@ -489,8 +505,9 @@ reader looking for a database that was never configured.
 ## Tests
 
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
-the `registerCatalogue` out-of-credits and planning-refusal phrasing and `notify` wiring
-(`mcp-catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
+the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
+(`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
+commit failure in `catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
 the landing mark included; the settings tools over a recorded `ConnectorApi` (order of session and
