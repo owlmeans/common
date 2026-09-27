@@ -1,0 +1,13 @@
+{
+  "title": "Action denied",
+  "description": "The server denied this action under the current permission rules. If you expected access, ask an administrator.",
+  "technical-details": "Technical details",
+  "endpoint": "Endpoint",
+  "status": "Status",
+  "incident": "Incident ID",
+  "area-title": "Access denied",
+  "area-description": "Your account cannot open this area. Ask an administrator if you expected access.",
+  "area": "Area",
+  "required-permissions": "Required permissions",
+  "logout": "Log out"
+}

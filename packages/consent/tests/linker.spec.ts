@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
 import {
-  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_FUNCTIONAL, CONSENT_KEY, CONSENT_LANGUAGE_EVENT,
-  CONSENT_LANGUAGE_KEY, CONSENT_MARKETING, CONSENT_PENDING_LANGUAGE, DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_ANALYTICS, CONSENT_ESSENTIAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_MARKETING,
+  DEFAULT_CONSENT_CATEGORIES,
 } from '../src/consts.js'
 import { consentBootstrapScript } from '../src/gtm.js'
 import {
@@ -10,7 +10,6 @@ import {
 } from '../src/linker.js'
 import { adoptConsentLanguage, consentDomains, decorateConsentUrl, registerConsentPlugin } from '../src/plugins.js'
 import { makeConsentStore } from '../src/store.js'
-import { consentAllowsScript, functionalGranted, functionalKeysOf, writeFunctionalPreference } from '../src/functional.js'
 import { readConsent, writeConsent } from '../src/storage.js'
 import type { ConsentRecord } from '../src/types.js'
 
@@ -74,7 +73,6 @@ beforeEach(() => {
   env.goto('https://platform.test/dispatcher')
   delete (globalThis as any).dataLayer
   delete (globalThis as any).cookieConsentSetup
-  delete (globalThis as any)[CONSENT_PENDING_LANGUAGE]
 })
 
 describe('encodeConsentLink / decodeConsentLink', () => {
@@ -84,7 +82,7 @@ describe('encodeConsentLink / decodeConsentLink', () => {
     const decoded = decodeConsentLink(encoded)
 
     expect(decoded?.v).toBe(2)
-    expect(decoded?.c).toEqual({ [CONSENT_FUNCTIONAL]: 0, [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
+    expect(decoded?.c).toEqual({ [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
     expect(decoded?.t).toBeGreaterThan(0)
   })
 
@@ -359,12 +357,11 @@ describe('every category the built-in bundle carries', () => {
     expect(DEFAULT_CONSENT_CATEGORIES.filter(c => c.required === true).map(c => c.key)).toEqual([CONSENT_ESSENTIAL])
   })
 
-  test('functional is an optional category that drives no Consent Mode signal', () => {
-    const functional = DEFAULT_CONSENT_CATEGORIES.find(c => c.key === CONSENT_FUNCTIONAL)
-
-    expect(functional).toBeDefined()
-    expect(functional?.required).not.toBe(true)
-    expect(functional?.signals ?? []).toEqual([])
+  test('the optional categories are analytics and marketing — nothing asks about the language', () => {
+    // The interface language is strictly necessary storage: no category governs it, so the default
+    // set has no "functional" row that would offer a choice which changes nothing.
+    expect(DEFAULT_CONSENT_CATEGORIES.filter(c => c.required !== true).map(c => c.key))
+      .toEqual([CONSENT_ANALYTICS, CONSENT_MARKETING])
   })
 })
 
@@ -376,7 +373,7 @@ describe('language: the link parameter', () => {
     const decoded = decodeConsentLink(encodeConsentLink({ [CONSENT_ANALYTICS]: true }, withLanguage))
 
     expect(decoded?.l).toBe('pl')
-    expect(decoded?.c).toEqual({ [CONSENT_FUNCTIONAL]: 0, [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
+    expect(decoded?.c).toEqual({ [CONSENT_ANALYTICS]: 1, [CONSENT_MARKETING]: 0 })
   })
 
   test('carries no `l` when the sender did not turn it on, whatever the page says', () => {
@@ -537,7 +534,7 @@ describe('language: consentLinker().adoptLanguage', () => {
   })
 })
 
-describe('language: only while functional storage is granted', () => {
+describe('language: strictly necessary, stored whatever the cookie decision is', () => {
   const receiving = { silent: true, linker: { domains: DOMAINS, language: { supported: ['en', 'pl', 'de'] } } }
   const arrive = (lang: string, record: ConsentRecord | null = null, referrer = 'https://site.test/') => {
     env.lang(lang)
@@ -545,99 +542,48 @@ describe('language: only while functional storage is granted', () => {
     env.goto(`https://platform.test/dispatcher?owlcc=${owlcc}`, referrer)
     env.lang('en')
   }
-  /** A decision that allows remembering a preference, and one that refuses everything optional. */
-  const granted: ConsentRecord = { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false }
-  const refused: ConsentRecord = { [CONSENT_FUNCTIONAL]: false, [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false }
-  const legacy: ConsentRecord = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
+  const accepted: ConsentRecord = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true }
+  const refused: ConsentRecord = { [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false }
+  /** Saved before the `functional` category was retired: an extra key nobody reads any more. */
+  const withRetiredKey: ConsentRecord = { functional: false, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
 
-  test('writeConsentLanguage writes only on a functional grant, and says so', () => {
-    expect(writeConsentLanguage('pl', receiving)).toBe(false)
-
-    writeConsent(refused)
-    expect(writeConsentLanguage('pl', receiving)).toBe(false)
-
-    writeConsent(legacy)
-    expect(writeConsentLanguage('pl', receiving)).toBe(false)
-    expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-
-    writeConsent(granted)
-    expect(writeConsentLanguage('pl', receiving)).toBe(true)
-    expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+  test('writeConsentLanguage writes with no decision, a refusal, an acceptance or an old record', () => {
+    for (const record of [null, refused, accepted, withRetiredKey]) {
+      env.reset()
+      if (record != null) {
+        writeConsent(record)
+      }
+      expect(writeConsentLanguage('pl', receiving)).toBe(true)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+    }
   })
 
-  test('a grant that survives only in the cookie counts; a corrupt record does not', () => {
-    env.store.set(CONSENT_KEY, '{not json')
-    expect(writeConsentLanguage('pl', receiving)).toBe(false)
-
-    env.reset()
-    ;(globalThis as any).document.cookie = `${CONSENT_KEY}=${JSON.stringify({ v: 2, essential: true, ...granted })}`
-    expect(writeConsentLanguage('pl', receiving)).toBe(true)
-    expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
-  })
-
-  test('functionalGranted, writeFunctionalPreference and functionalKeysOf agree with the record', () => {
-    expect(functionalGranted()).toBe(false)
-    expect(writeFunctionalPreference('theme-choice', 'dark')).toBe(false)
-
-    writeConsent(granted)
-    expect(functionalGranted()).toBe(true)
-    expect(writeFunctionalPreference('theme-choice', 'dark')).toBe(true)
-    expect(env.store.get('theme-choice')).toBe('dark')
-
-    expect(functionalKeysOf()).toEqual([CONSENT_LANGUAGE_KEY])
-    expect(functionalKeysOf({ functionalKeys: ['a', 'b'], linker: { domains: DOMAINS, language: { storageKey: 'a' } } }))
-      .toEqual(['a', 'b'])
+  test('storage that refuses the write is not an error', () => {
+    const storage = (globalThis as any).localStorage
+    const setItem = storage.setItem
+    storage.setItem = () => { throw new Error('blocked') }
+    try {
+      expect(writeConsentLanguage('pl', receiving)).toBe(false)
+    } finally {
+      // The mock storage is shared by every test in the file.
+      storage.setItem = setItem
+    }
   })
 
   describe('the store', () => {
-    test('with no decision the language is NOT stored — it is held in memory, the dialog asks, the parameter is stripped', () => {
+    test('with no decision the language is stored at once, the dialog asks, the parameter is stripped', () => {
       arrive('pl')
 
       const store = makeConsentStore()
       store.init(receiving)
 
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(store.pendingLanguage()).toBe('pl')
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
       expect(store.get().open).toBe(true)
       expect(env.href()).toBe('https://platform.test/dispatcher')
     })
 
-    test('answering the dialog AFTER arrival stores the waiting language on a grant, and tells the app', () => {
-      arrive('pl')
-      const store = makeConsentStore()
-      store.init(receiving)
-      const heard: string[] = []
-      // Process-wide globals: put them back, whatever the assertions do (bun shares them across files).
-      const saved = { dispatch: (globalThis as any).dispatchEvent, custom: (globalThis as any).CustomEvent }
-      ;(globalThis as any).dispatchEvent = (e: any) => { if (e.type === CONSENT_LANGUAGE_EVENT) heard.push(e.detail.language) }
-      ;(globalThis as any).CustomEvent = class { constructor(public type: string, public init: any) {} get detail() { return this.init.detail } }
-      try {
-        store.save(granted)
-      } finally {
-        (globalThis as any).dispatchEvent = saved.dispatch
-        ;(globalThis as any).CustomEvent = saved.custom
-      }
-
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
-      expect(store.pendingLanguage()).toBeNull()
-      expect(heard).toEqual(['pl'])
-    })
-
-    test('answering with a refusal stores nothing, and the language keeps waiting for a later grant', () => {
-      arrive('pl')
-      const store = makeConsentStore()
-      store.init(receiving)
-
-      store.save(refused)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(store.pendingLanguage()).toBe('pl')
-
-      store.save(granted)
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
-    })
-
-    test('a decision carried by the link that grants functional stores decision and language together', () => {
-      arrive('de', { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+    test('a decision carried by the link is stored together with the language', () => {
+      arrive('de', { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
 
       const store = makeConsentStore()
       store.init(receiving)
@@ -647,20 +593,33 @@ describe('language: only while functional storage is granted', () => {
       expect(store.get().record?.[CONSENT_ANALYTICS]).toBe(true)
     })
 
-    test('a carried "reject all" stores the decision but NOT the language', () => {
+    test('a carried "reject all" stores the decision AND the language', () => {
       arrive('de', refused)
 
       const store = makeConsentStore()
       store.init(receiving)
 
       expect(store.get().open).toBe(false)
-      expect(store.get().record?.[CONSENT_FUNCTIONAL]).toBe(false)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(store.pendingLanguage()).toBe('de')
+      expect(store.get().record?.[CONSENT_ANALYTICS]).toBe(false)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
     })
 
-    test('a functional grant stored here is enough for a link that carries only the language', () => {
-      writeConsent(granted)
+    test('a stored decision of any kind lets the link\'s language through, and still wins over its decision', () => {
+      for (const stored of [refused, accepted, withRetiredKey]) {
+        env.reset()
+        writeConsent(stored)
+        arrive('pl', { [CONSENT_ANALYTICS]: !stored[CONSENT_ANALYTICS], [CONSENT_MARKETING]: true })
+
+        const store = makeConsentStore()
+        store.init(receiving)
+
+        expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+        expect(store.get().record?.[CONSENT_ANALYTICS]).toBe(stored[CONSENT_ANALYTICS])
+      }
+    })
+
+    test('the carried language outranks one chosen here earlier', () => {
+      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
       arrive('pl')
 
       makeConsentStore().init(receiving)
@@ -668,59 +627,28 @@ describe('language: only while functional storage is granted', () => {
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
     })
 
-    test('the carried language outranks one chosen here earlier, while a stored decision still wins', () => {
-      writeConsent(granted)
-      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
-      arrive('pl', { [CONSENT_FUNCTIONAL]: false, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true })
-
-      const store = makeConsentStore()
-      store.init(receiving)
-
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
-      expect(store.get().record?.[CONSENT_ANALYTICS]).toBe(false)
-    })
-
-    test('no functional grant removes a language stored earlier — on init, and on a refusal', () => {
-      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
-      const store = makeConsentStore()
-      store.init(receiving)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-
-      store.save(granted)
-      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
-      store.save(refused)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-    })
-
-    test('a grant keeps what is stored, and every functional key is purged when it is withdrawn', () => {
-      writeConsent(granted)
-      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
-      env.store.set('locale_chosen', '1')
-      const opts = { ...receiving, functionalKeys: [CONSENT_LANGUAGE_KEY, 'locale_chosen'] }
-      const store = makeConsentStore()
-      store.init(opts)
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
-      expect(env.store.get('locale_chosen')).toBe('1')
-
-      store.save(refused)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(env.store.has('locale_chosen')).toBe(false)
-    })
-
-    test('a record saved before the category existed is not a grant', () => {
-      writeConsent(legacy)
-      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
+    test('answering the dialog never touches the language, in either direction', () => {
       arrive('pl')
-
       const store = makeConsentStore()
       store.init(receiving)
 
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(store.pendingLanguage()).toBe('pl')
+      store.save(refused)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+
+      store.save(accepted)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+    })
+
+    test('a language stored earlier survives every decision', () => {
+      env.store.set(CONSENT_LANGUAGE_KEY, 'de')
+      const store = makeConsentStore()
+      store.init(receiving)
+      store.save(refused)
+
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
     })
 
     test('honours a custom storage key', () => {
-      writeConsent(granted)
       arrive('pl')
 
       makeConsentStore().init({ ...receiving, linker: { ...receiving.linker, language: { supported: ['pl'], storageKey: 'app-lng' } } })
@@ -729,31 +657,14 @@ describe('language: only while functional storage is granted', () => {
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
     })
 
-    test('writes nothing for an unsupported language or an untrusted referrer, grant or not', () => {
-      writeConsent(granted)
+    test('writes nothing for an unsupported language or an untrusted referrer', () => {
       arrive('ja')
       makeConsentStore().init(receiving)
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
 
       arrive('pl', null, 'https://evil.test/')
-      const store = makeConsentStore()
-      store.init(receiving)
+      makeConsentStore().init(receiving)
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect(store.pendingLanguage()).toBeNull()
-    })
-
-    test('picks up what the inline fragment left on window, and clears it', () => {
-      ;(globalThis as any)[CONSENT_PENDING_LANGUAGE] = 'pl'
-      env.goto('https://platform.test/dispatcher')
-
-      const store = makeConsentStore()
-      store.init(receiving)
-
-      expect(store.pendingLanguage()).toBe('pl')
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBeUndefined()
-
-      store.save(granted)
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
     })
   })
 
@@ -764,75 +675,54 @@ describe('language: only while functional storage is granted', () => {
     }
     const all = { linker: { domains: DOMAINS, language: { supported: ['en', 'pl', 'de', 'fr'] } } }
 
-    test('with no decision anywhere it writes NO language, leaves it on window, adopts nothing, and still strips', () => {
-      arrive('pl')
-      run()
-
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBe('pl')
-      expect(readConsent()).toBeNull()
-      expect(env.href()).toBe('https://platform.test/dispatcher')
-    })
-
-    test('a link that grants functional writes decision and language together', () => {
-      arrive('fr', { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
-      run(all)
-
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('fr')
-      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBeUndefined()
-    })
-
-    test('a link that carries "reject all" adopts the decision but keeps the language in memory only', () => {
-      arrive('fr', refused)
-      run(all)
-
-      expect(readConsent()?.[CONSENT_FUNCTIONAL]).toBe(false)
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBe('fr')
-    })
-
-    test('a functional grant stored here is enough, and the link\'s own decision never overwrites it', () => {
-      writeConsent({ ...granted, [CONSENT_ANALYTICS]: false })
-      arrive('de', { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true })
-      run()
-
-      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
-      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
-    })
-
-    test('a functional grant stored here is enough for a link that carries only the language', () => {
-      writeConsent(granted)
+    test('with no decision anywhere it stores the language, adopts nothing, and still strips', () => {
       arrive('pl')
       run()
 
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
+      expect(readConsent()).toBeNull()
+      expect(env.href()).toBe('https://platform.test/dispatcher')
     })
 
-    test('a stored refusal or a legacy record is not a grant: nothing written, language kept in memory', () => {
-      for (const record of [refused, legacy]) {
+    test('a link that carries a decision writes decision and language together', () => {
+      arrive('fr', { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+      run(all)
+
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('fr')
+      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(true)
+    })
+
+    test('a link that carries "reject all" adopts the decision and stores the language', () => {
+      arrive('fr', refused)
+      run(all)
+
+      expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(false)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('fr')
+    })
+
+    test('a stored record of any kind lets the language through, and the link\'s decision never overwrites it', () => {
+      for (const stored of [refused, accepted, withRetiredKey]) {
         env.reset()
-        delete (globalThis as any)[CONSENT_PENDING_LANGUAGE]
-        writeConsent(record)
-        arrive('pl')
+        writeConsent(stored)
+        arrive('de', { [CONSENT_ANALYTICS]: !stored[CONSENT_ANALYTICS], [CONSENT_MARKETING]: true })
         run()
 
-        expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-        expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBe('pl')
+        expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
+        expect(readConsent()?.[CONSENT_ANALYTICS]).toBe(stored[CONSENT_ANALYTICS])
       }
     })
 
-    test('an unparseable stored record is no grant: nothing is written, and nothing is adopted over it', () => {
+    test('an unparseable stored record still lets the language through, and nothing is adopted over it', () => {
       env.store.set(CONSENT_KEY, '{not json')
-      arrive('pl', { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true })
+      arrive('pl', { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true })
       run()
 
-      expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
+      expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('pl')
       expect(env.store.get(CONSENT_KEY)).toBe('{not json')
     })
 
     test('matches by base tag and by the receiver\'s spelling, like the TypeScript path', () => {
-      const grant = { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
+      const grant = { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false }
       arrive('de-CH', grant)
       run()
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('de')
@@ -843,26 +733,22 @@ describe('language: only while functional storage is granted', () => {
       expect(env.store.get(CONSENT_LANGUAGE_KEY)).toBe('PL')
     })
 
-    test('agrees with the TypeScript path on what it refuses, grant or not', () => {
-      writeConsent(granted)
+    test('agrees with the TypeScript path on what it refuses', () => {
       arrive('ja')
       run()
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
 
-      delete (globalThis as any)[CONSENT_PENDING_LANGUAGE]
       arrive('pl', null, 'https://evil.test/')
       run()
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBeUndefined()
 
       arrive('pl', null, '')
       run()
       expect(env.store.has(CONSENT_LANGUAGE_KEY)).toBe(false)
-      expect((globalThis as any)[CONSENT_PENDING_LANGUAGE]).toBeUndefined()
     })
 
     test('honours a custom storage key', () => {
-      arrive('pl', { [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
+      arrive('pl', { [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: false })
       run({ linker: { domains: DOMAINS, language: { supported: ['pl'], storageKey: 'app-lng' } } })
 
       expect(env.store.get('app-lng')).toBe('pl')
@@ -872,16 +758,15 @@ describe('language: only while functional storage is granted', () => {
       const script = consentLinkerScript({ linker: { domains: DOMAINS, language: {} } })
 
       expect(script).not.toContain(CONSENT_LANGUAGE_KEY)
-      expect(script).not.toContain(CONSENT_PENDING_LANGUAGE)
       expect(consentLinkerScript(linkerOpts)).toBe(script)
     })
 
-    test('the bootstrap embeds it, after the decision is settled and before its own storage read', () => {
+    test('the bootstrap embeds it, after the defaults and before its own storage read', () => {
       const script = consentBootstrapScript(receiving)
 
       expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeGreaterThan(script.indexOf("'consent','default'"))
-      // The fragment reads storage itself (to know what is granted) before it writes the language;
-      // the bootstrap's own read is the LAST one, after the whole fragment.
+      // The fragment reads storage itself (to know whether a decision exists) before it writes the
+      // language; the bootstrap's own read is the LAST one, after the whole fragment.
       expect(script.indexOf(CONSENT_LANGUAGE_KEY)).toBeLessThan(script.lastIndexOf('w.localStorage.getItem'))
     })
 
@@ -891,49 +776,5 @@ describe('language: only while functional storage is granted', () => {
       expect(script).not.toContain('<b>')
       expect(script).not.toContain('<k>')
     })
-  })
-})
-
-describe('consentAllowsScript, executed', () => {
-  const run = (opts?: Parameters<typeof consentAllowsScript>[0]) => {
-    // eslint-disable-next-line no-new-func
-    new Function(consentAllowsScript(opts))()
-
-    return (globalThis as any).owlConsentAllows as (category: string) => boolean
-  }
-  afterEach(() => { delete (globalThis as any).owlConsentAllows })
-
-  test('answers from the stored record, category by category', () => {
-    writeConsent({ [CONSENT_FUNCTIONAL]: true, [CONSENT_ANALYTICS]: false, [CONSENT_MARKETING]: false })
-    const allows = run()
-
-    expect(allows(CONSENT_FUNCTIONAL)).toBe(true)
-    expect(allows(CONSENT_ANALYTICS)).toBe(false)
-    expect(allows('unknown')).toBe(false)
-  })
-
-  test('no record, a legacy record and a corrupt one are all a no', () => {
-    const allows = run()
-    expect(allows(CONSENT_FUNCTIONAL)).toBe(false)
-
-    writeConsent({ [CONSENT_ANALYTICS]: true, [CONSENT_MARKETING]: true })
-    expect(allows(CONSENT_FUNCTIONAL)).toBe(false)
-
-    env.store.set(CONSENT_KEY, '{not json')
-    expect(allows(CONSENT_FUNCTIONAL)).toBe(false)
-  })
-
-  test('reads the cookie when localStorage has nothing, and honours a custom key', () => {
-    ;(globalThis as any).document.cookie = `${CONSENT_KEY}=${JSON.stringify({ v: 2, functional: true })}`
-    expect(run()(CONSENT_FUNCTIONAL)).toBe(true)
-
-    env.reset()
-    env.store.set('my_consent', JSON.stringify({ v: 2, functional: true }))
-    expect(run({ storageKey: 'my_consent' })(CONSENT_FUNCTIONAL)).toBe(true)
-    expect(run()(CONSENT_FUNCTIONAL)).toBe(false)
-  })
-
-  test('escapes "<" in the key', () => {
-    expect(consentAllowsScript({ storageKey: '<k>' })).not.toContain('<k>')
   })
 })

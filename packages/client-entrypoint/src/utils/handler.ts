@@ -10,6 +10,8 @@ import { PARAM, RouteMethod, RouteProtocols } from '@owlmeans/route'
 import { stringify } from 'qs'
 import { assertContext } from '@owlmeans/context'
 import { makeSecurityHelper } from '@owlmeans/config'
+import { ENTRYPOINT_FAILURE_SERVICE } from '../failure.js'
+import type { EntrypointFailureService } from '../failure.js'
 
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
@@ -106,9 +108,15 @@ export const apiInvoke: <
     if (ctx == null && ep.ctx == null) {
       throw new SyntaxError(`Use entrypoint ${ep.alias} without context`)
     }
-    await apiHandler(ref)(request, reply)
-    if (reply.error != null) {
-      throw reply.error
+    try {
+      await apiHandler(ref)(request, reply)
+      if (reply.error != null) throw reply.error
+    } catch (error) {
+      if (ctx.hasService(ENTRYPOINT_FAILURE_SERVICE)) {
+        await ctx.service<EntrypointFailureService>(ENTRYPOINT_FAILURE_SERVICE)
+          .notify({ alias: ep.alias, request, error })
+      }
+      throw error
     }
 
     return { value: reply.value ?? null, outcome: reply.outcome ?? EntrypointOutcome.Ok }

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.1.18-rc.38"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.1.18-rc.39"` in `dependencies`
 
 ## Key Exports
 
@@ -18,12 +18,16 @@ user-invocable: false
 | `appendApiClient(ctx, alias?)` | Register it and make it the context's default `webService` when none is set |
 | `ApiClient` | Service interface — a single `handler(req, reply)` |
 | `ApiError`, `ApiClientError`, `ServerCrashedError`, `ServerAuthError`, `ApiStatusError` | Typed transport errors; an `ApiClientError` carries the answered `status` and the server's `incidentId` |
-| `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status and incident id (also the `./status` subpath) |
+| `httpStatusOf`, `incidentIdOf`, `isAccessDenied`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status, incident id and IAM denial marker (also the `./status` subpath) |
 | Constants | Status codes (`OK`, `CREATED`, `ACCEPTED`, `FINISHED`, `UNAUTHORIZED_ERROR`, `FORBIDDEN_ERROR`, `SERVER_ERROR`), `INCIDENT_ID_HEADER` (`X-Incident-ID`), `DEFAULT_ALIAS` (`web-client`) |
 
 Subpath `./status` — `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, the
 markers and `INCIDENT_ID_HEADER`, importing only `@owlmeans/error`: a browser package reads a
 status without pulling axios in.
+
+`isAccessDenied(error)` requires the server's `X-OwlMeans-Denial: access-denied` marker and a 403.
+Do not classify all 403 responses as IAM denials: entitlement and other refusals use that status
+too. The API client stamps the marker on its rejection even under production error exposure.
 
 ## How a call is carried
 

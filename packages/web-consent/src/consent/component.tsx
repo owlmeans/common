@@ -53,7 +53,6 @@ export const CookieConsent: FC<CookieConsentProps> = props => {
     ...(props.cookieDomain != null ? { cookieDomain: props.cookieDomain } : {}),
     ...(props.silent != null ? { silent: props.silent } : {}),
     ...(props.linker != null ? { linker: props.linker } : {}),
-    ...(props.functionalKeys != null ? { functionalKeys: props.functionalKeys } : {}),
   }
   const consent = useConsent(consentOpts)
   const domains = disclosedDomains(props.linker)

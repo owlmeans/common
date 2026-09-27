@@ -7,6 +7,7 @@ import { provideResponse } from '@owlmeans/entrypoint'
 import { errorExposure, errorStatus, handleError, INCIDENT_ID_HEADER } from '../src/utils/error.js'
 import { executeResponse } from '../src/utils/payload.js'
 import { AccessError, AuthFailedError } from '../src/errors.js'
+import { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND } from '@owlmeans/api'
 
 class OutOfCredit extends ResilientError {
   public static override typeName = 'ServerApiSpecOutOfCredit'
@@ -181,6 +182,7 @@ const answer = async (error: unknown, path: string = '/handle') => {
     body: reply.body,
     incidentId: reply.headers[INCIDENT_ID_HEADER.toLowerCase()],
     retryAfter: reply.headers['retry-after'],
+    denialKind: reply.headers[DENIAL_KIND_HEADER.toLowerCase()],
   }
 }
 
@@ -218,6 +220,10 @@ describe('@owlmeans/server-api — handleError status', () => {
     expect((await answer(new AuthorizationError('x'))).status).toBe(401)
     expect((await answer(new AuthFailedError())).status).toBe(401)
     expect((await answer(new DeclaringForbidden())).status).toBe(403)
+    expect((await answer(new AuthForbidden('permission'))).denialKind).toBe(ACCESS_DENIED_KIND)
+    expect((await answer(new AccessError())).denialKind).toBe(ACCESS_DENIED_KIND)
+    expect((await answer(new DeclaringForbidden())).denialKind).toBeUndefined()
+    expect((await answer(new ForeignEntitlementRefusal())).denialKind).toBeUndefined()
   })
 
   test('honours a 4xx a class declares — inherited, redeclared, or after a marshal hop', async () => {

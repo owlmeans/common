@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/marketing-consent-mongo",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.7",
   "license": "MIT",
   "description": "Mongo storage for @owlmeans/server-marketing-consent's two resources (marketing-consent-state, marketing-consent-log) — schemas imported, never duplicated. For the platform; generated target projects use @owlmeans/marketing-consent-postgres.",
   "type": "module",
@@ -27,7 +27,7 @@
     "@owlmeans/marketing-consent": "^0.1.18-rc.5",
     "@owlmeans/mongo-resource": "^0.1.18-rc.37",
     "@owlmeans/resource": "^0.1.18-rc.36",
-    "@owlmeans/server-marketing-consent": "^0.1.18-rc.6"
+    "@owlmeans/server-marketing-consent": "^0.1.18-rc.7"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/mongo": "^0.1.18-rc.36",
+    "@owlmeans/mongo": "^0.1.18-rc.37",
     "@owlmeans/server-context": "^0.1.18-rc.37",
     "@owlmeans/test": "^0.1.18-rc.32",
     "@owlmeans/test-integration": "^0.1.18-rc.29",

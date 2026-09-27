@@ -103,13 +103,4 @@ describe('@owlmeans/astro — locale', () => {
   test('a real locale is passed through', async () => {
     expect(owlLocale('uk', 'pl')).toBe('uk')
   })
-
-  test('`allows` defines window.owlConsentAllows for the page\'s own scripts, with or without a container', () => {
-    for (const opts of [undefined, { gtm: { id: 'GTM-ASTRO01' } }, { consent: { storageKey: 'my_consent' } }]) {
-      const { allows } = owlHeadScripts(opts)
-
-      expect(allows).toContain('owlConsentAllows')
-    }
-    expect(owlHeadScripts({ consent: { storageKey: 'my_consent' } }).allows).toContain('my_consent')
-  })
 })

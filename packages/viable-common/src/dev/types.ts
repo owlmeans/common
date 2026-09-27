@@ -31,6 +31,8 @@ export interface AccessBlock {
    */
   permissions: string[]
   level: AccessLevel
+  /** Gate params safe for every newly signed-in user; a subset of permissions. */
+  defaultEnabledPermissions?: string[]
 }
 
 /**

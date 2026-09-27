@@ -1,4 +1,4 @@
-import { consentAllowsScript, consentBootstrapScript, consentLinkerScript } from '@owlmeans/consent'
+import { consentBootstrapScript, consentLinkerScript } from '@owlmeans/consent'
 import type { ConsentOptions } from '@owlmeans/consent'
 import { gtmHeadScript, gtmNoscriptFrame } from '@owlmeans/web-gtm'
 import type { GtmOptions } from '@owlmeans/web-gtm'
@@ -32,12 +32,6 @@ export interface HeadScripts {
    * nothing.
    */
   adopt: string
-  /**
-   * Defines `window.owlConsentAllows(category)` (`consentAllowsScript`) — for the page's own inline
-   * scripts that remember something on the visitor's device (a chosen language) and must ask first.
-   * Stamp it after `adopt` (an adopted decision counts) and before those scripts. Always present.
-   */
-  allows: string
 }
 
 /**
@@ -51,7 +45,6 @@ export const owlHeadScripts = (opts?: { gtm?: GtmOptions, consent?: ConsentOptio
     ? { head: gtmHeadScript({ ...opts.consent, ...opts.gtm }), noscript: gtmNoscriptFrame(opts.gtm) }
     : { head: consentBootstrapScript(opts?.consent), noscript: '' }),
   adopt: consentLinkerScript(opts?.consent ?? {}),
-  allows: consentAllowsScript(opts?.consent),
 })
 
 /**

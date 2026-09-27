@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.42"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.11.1` (exact), `jose@6.2.5` (exact), `@types/oidc-provider@9.5.0`
 
 Use this only when your service **is** the identity provider. For consuming someone else's issuer,
@@ -100,6 +100,25 @@ so the JWKS export succeeds:
 const key = await jose.importPKCS8(pkcs8Pem, 'RS256', { extractable: true })
 const jwk = await jose.exportJWK(key)
 ```
+
+## A refused account is a login, not a crash
+
+`loadById` answering `undefined` refuses an account (another organization's subject, a disabled or
+expired profile). The provider does not treat that as "not logged in": its `no_session` check reads
+the raw `session.accountId`, so the login prompt is skipped, `loadGrant` builds no grant for an
+unloaded account, and the consent prompt throws `TypeError … oidc.grant.getOIDCScopeEncountered` — the
+relying party gets `server_error` / "oops! something went wrong".
+
+The service therefore installs `makeInteractionPolicy()` (`src/utils/policy.ts`) as
+`interactions.policy`: the provider's default policy plus an `account_refused` check on the login
+prompt that requests a login whenever the session names an account the provider could not load. After
+that login the provider's resume step signs the stale session out and continues the interrupted
+request. A login that has just completed and is refused again (`oidc.result.login`) throws
+`access_denied` instead of prompting, so a refusal can never loop. A consumer's own
+`customConfiguration.interactions` is not merged — the service sets `policy` and `url` itself.
+`tests/policy.spec.ts` drives a real provider through the whole sequence, including the upstream
+crash as a canary: when a bump of `oidc-provider` makes that first test fail, the upstream fixed it
+and the check may go.
 
 ## Response headers the hardened defaults get wrong
 

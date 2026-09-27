@@ -109,6 +109,11 @@ export const AccessBlockSchema: JSONSchemaType<AccessBlock> = {
 - admin - means the project owner only: authenticated and holding the admin marker
       `
     },
+    defaultEnabledPermissions: {
+      type: 'array', nullable: true, items: { type: 'string' },
+      description: 'Subset of permissions safe to grant to every signed-in end user by default. '
+        + 'Only include a permission when all matching routes enforce the intended public or own-record visibility.',
+    },
   },
   required: ["permissions", "level"],
   additionalProperties: false

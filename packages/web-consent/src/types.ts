@@ -29,12 +29,6 @@ export interface CookieConsentProps {
   className?: string
   /** Cross-domain consent — see `ConsentLinkerOptions`. Passed through to `consentStore.init`. */
   linker?: ConsentLinkerOptions
-  /**
-   * The `localStorage` keys this application keeps its functional preferences under — removed
-   * whenever the visitor has not granted `functional`. Passed through to `consentStore.init`;
-   * defaults to the interface-language key. See `ConsentOptions.functionalKeys`.
-   */
-  functionalKeys?: string[]
 }
 
 export interface CookiePolicyProps {
