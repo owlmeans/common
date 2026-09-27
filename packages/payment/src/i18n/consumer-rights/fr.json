@@ -1,0 +1,123 @@
+{
+  "performance-consent": {
+    "title": "Commencer à utiliser vos crédits maintenant ?",
+    "intro": "Achats encore dans le délai de rétractation : {{count}}. Le dernier délai de rétractation prend fin le {{deadline}}.",
+    "purchase": "Crédits achetés le {{date}} ({{amount}}) : en tant que consommateur dans l’UE, vous pouvez vous rétracter de cet achat jusqu’au {{deadline}} inclus.",
+    "request": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit.",
+    "acknowledgement": "Je reconnais perdre mon droit de rétractation pour les crédits que j’utilise dès que ce travail a été exécuté ; je reconnais aussi qu’en cas de rétractation, seuls les crédits que je n’ai pas utilisés me sont remboursés.",
+    "checkbox": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant, avant la fin du délai de rétractation, l’exécution du service payant — le travail d’IA et le contenu numérique qu’il produit. Je reconnais perdre mon droit de rétractation pour les crédits que j’utilise dès que ce travail a été exécuté ; je reconnais aussi qu’en cas de rétractation, seuls les crédits que je n’ai pas utilisés me sont remboursés.",
+    "confirm": "Commencer maintenant",
+    "decline": "Pas maintenant"
+  },
+  "subscription-start": {
+    "title": "Commencer les services {{plan}} maintenant ?",
+    "intro": "En tant que consommateur dans l’UE, vous pouvez vous rétracter de cet abonnement dans un délai de 14 jours. Nous ne commençons les services avant la fin de ce délai qu’à votre demande expresse.",
+    "request": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours.",
+    "acknowledgement": "Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
+    "checkbox": "Je demande expressément et j’accepte expressément que {{trader}} commence dès maintenant les services de plateforme {{plan}} et exécute le travail d’IA payé avec les crédits inclus chaque fois que je le lance, avant la fin du délai de rétractation de 14 jours. Je reconnais qu’en cas de rétractation, je paie les services de plateforme fournis jusque-là, au prorata du temps écoulé, et je reconnais perdre mon droit de rétractation pour les crédits inclus que j’ai utilisés ; tout le reste m’est remboursé.",
+    "confirm": "Continuer vers le paiement",
+    "decline": "Annuler"
+  },
+  "withdrawal": {
+    "function": "Renoncer au contrat ici",
+    "confirm": "Confirmer la rétractation",
+    "title": "Rétractation d’un contrat",
+    "intro": "Vous pouvez ici vous rétracter d’un contrat pendant son délai de rétractation. Indiquez votre nom, le contrat et l’adresse électronique à laquelle nous envoyons l’accusé de réception.",
+    "name": "Nom",
+    "contract": "Contrat",
+    "email": "Adresse électronique",
+    "review": "Veuillez vérifier vos informations. Votre rétractation est envoyée lorsque vous la confirmez.",
+    "received": "Votre rétractation a été reçue le {{date}} (UTC). Un accusé de réception a été envoyé à {{email}}.",
+    "deadline": "Vous pouvez vous rétracter jusqu’au {{deadline}} inclus."
+  },
+  "cancellation": {
+    "function": "Résilier votre contrat",
+    "confirm": "Notification de la résiliation",
+    "title": "Résiliation d’un contrat",
+    "intro": "Vous pouvez ici résilier un contrat d’abonnement. Saisissez les informations ci-dessous ; nous envoyons un accusé de réception à l’adresse électronique indiquée.",
+    "kind": "Type de résiliation",
+    "kind-ordinary": "Résiliation ordinaire",
+    "kind-extraordinary": "Résiliation pour motif grave",
+    "reason": "Motif de la résiliation pour motif grave",
+    "name": "Nom",
+    "contract": "Contrat ou référence client",
+    "effective": "Date de fin du contrat",
+    "effective-earliest": "À la date la plus proche possible",
+    "effective-date": "À une date précise",
+    "email": "Adresse électronique",
+    "summary": "Veuillez vérifier votre résiliation avant de l’envoyer.",
+    "received": "Votre résiliation a été reçue le {{date}} (UTC). Un accusé de réception a été envoyé à {{email}}."
+  },
+  "links": {
+    "billing-terms": "Conditions de facturation",
+    "withdrawal-information": "Informations sur la rétractation",
+    "withdrawal-form": "Formulaire type de rétractation",
+    "withdrawal-function": "Renoncer au contrat ici",
+    "cancellation": "Résilier votre contrat"
+  },
+  "checkout": {
+    "terms-acceptance": {
+      "in-scope": "J’accepte les [Conditions de facturation]({{billingTerms}}) et j’ai lu les [informations sur la rétractation]({{withdrawalInformation}}).",
+      "other": "J’accepte les [Conditions de facturation]({{billingTerms}})."
+    },
+    "renewal": {
+      "month": "{{price}} par mois. Renouvelé chaque mois jusqu’à résiliation ; résiliable à tout moment, avec effet à la fin de la période de facturation.",
+      "year": "{{price}} par an. Renouvelé chaque année jusqu’à résiliation ; résiliable à tout moment, avec effet à la fin de la période de facturation.",
+      "after-submit": "Résiliable à tout moment : [Résilier votre contrat]({{cancelUrl}})"
+    },
+    "price": {
+      "exclusive": "{{amount}} HT",
+      "inclusive": "{{amount}} TTC",
+      "exclusive-tax": "{{amount}} hors taxes applicables"
+    },
+    "top-up": "Achat prépayé : {{product}}, utilisable uniquement par le compte de cette organisation (pays de facturation {{country}}). Les consommateurs de l’UE peuvent se rétracter dans un délai de 14 jours ; ce droit prend fin pour les crédits utilisés après que vous nous avez demandé de commencer.",
+    "top-up-note": "Les consommateurs de l’UE peuvent se rétracter d’un achat de crédits dans un délai de 14 jours. Dès que vous nous demandez de commencer à utiliser les crédits, le droit de rétractation prend fin pour les crédits utilisés ; les crédits non utilisés sont remboursés."
+  },
+  "email": {
+    "common": {
+      "greeting": "Bonjour,",
+      "greeting-named": "Bonjour {{name}},",
+      "received-at": "Reçu le : {{date}} (UTC)",
+      "contract-ref": "Contrat : {{contractRef}}",
+      "trader": "Professionnel : {{trader}}",
+      "link": "{{label}} : {{url}}",
+      "footer": "Veuillez conserver ce courrier électronique. Il confirme ce qui précède sur un support durable."
+    },
+    "consent": {
+      "subject": "Confirmation : votre demande de commencer l’utilisation de vos crédits",
+      "body": "Le {{date}} (UTC), vous nous avez fait la déclaration suivante :\n\n« {{statement}} »\n\nLa déclaration couvre ces achats :\n{{purchases}}",
+      "purchase": "- {{contractRef}} du {{date}} ({{amount}}) : les crédits non utilisés peuvent faire l’objet d’une rétractation jusqu’au {{deadline}} inclus.",
+      "unused": "Les crédits que vous n’avez pas utilisés peuvent faire l’objet d’une rétractation jusqu’à la fin du délai de rétractation de leur achat. En cas de rétractation, seuls les crédits que vous n’avez pas utilisés sont remboursés."
+    },
+    "start": {
+      "subject": "Confirmation : votre demande de commencer les services {{plan}}",
+      "body": "Le {{date}} (UTC), avant de souscrire à {{plan}}, vous nous avez fait la déclaration suivante :\n\n« {{statement}} »",
+      "rule": "Si vous vous rétractez pendant le délai de rétractation, vous payez les services de plateforme fournis jusque-là, au prorata du temps écoulé, et votre droit de rétractation prend fin pour les crédits inclus que vous avez utilisés ; tout le reste vous est remboursé."
+    },
+    "purchase": {
+      "subject": "Confirmation de commande {{contractRef}}",
+      "body": "Merci pour votre commande.\n\nContrat : {{contractRef}}\nDate : {{date}} (UTC)\nProduit : {{product}}\nPrix TTC : {{total}} (dont taxes : {{tax}})",
+      "start-request": "Avant cet achat, vous avez expressément demandé que nous commencions les services immédiatement :\n\n« {{statement}} »",
+      "withdrawal-information": "Droit de rétractation\n\nVous avez le droit de vous rétracter du présent contrat sans donner de motif dans un délai de quatorze jours. Le délai de rétractation expire quatorze jours après le jour de la conclusion du contrat.\n\nPour exercer le droit de rétractation, vous devez nous notifier ({{trader}}) votre décision de rétractation du présent contrat au moyen d’une déclaration dénuée d’ambiguïté (par exemple, lettre envoyée par la poste ou courrier électronique). Vous pouvez utiliser le modèle de formulaire de rétractation ci-dessous, mais ce n’est pas obligatoire. Vous pouvez également vous rétracter en ligne au moyen de la fonctionnalité de rétractation de notre site : {{withdrawalFunction}}. Si vous utilisez cette option, nous vous enverrons sans délai un accusé de réception de la rétractation sur un support durable (par exemple, par courrier électronique).\n\nPour que le délai de rétractation soit respecté, il suffit que vous transmettiez votre communication relative à l’exercice du droit de rétractation avant l’expiration du délai de rétractation.\n\nEffets de rétractation\n\nEn cas de rétractation de votre part du présent contrat, nous vous rembourserons tous les paiements reçus de vous, sans retard excessif et, en tout état de cause, au plus tard quatorze jours à compter du jour où nous sommes informés de votre décision de rétractation du présent contrat. Nous procéderons au remboursement en utilisant le même moyen de paiement que celui que vous aurez utilisé pour la transaction initiale, sauf si vous convenez expressément d’un moyen différent ; en tout état de cause, ce remboursement n’occasionnera pas de frais pour vous.\n\nSi vous avez demandé de commencer la prestation de services pendant le délai de rétractation, vous devrez nous payer un montant proportionnel à ce qui vous a été fourni jusqu’au moment où vous nous avez informés de votre rétractation du présent contrat, par rapport à l’ensemble des prestations prévues par le contrat.\n\nVotre droit de rétractation prend fin pour les services et les contenus numériques pleinement exécutés après que vous avez expressément demandé que l’exécution commence pendant le délai de rétractation et reconnu perdre ainsi votre droit de rétractation. Pour les crédits prépayés, l’exécution ne commence que lorsque vous nous demandez de les utiliser : le droit de rétractation prend fin pour les crédits utilisés après cette demande, et les crédits que vous n’avez pas utilisés vous sont remboursés.",
+      "model-form": "Modèle de formulaire de rétractation\n\n(Veuillez compléter et renvoyer le présent formulaire uniquement si vous souhaitez vous rétracter du contrat.)\n\n— À l’attention de {{trader}} :\n— Je/nous (*) vous notifie/notifions (*) par la présente ma/notre (*) rétractation du contrat portant sur la prestation de services (*) / la fourniture de contenu numérique (*) ci-dessous :\n— Commandé le (*) / reçu le (*) :\n— Nom du (des) consommateur(s) :\n— Adresse du (des) consommateur(s) :\n— Signature du (des) consommateur(s) (uniquement en cas de notification du présent formulaire sur papier) :\n— Date :\n\n(*) Rayez la mention inutile."
+    },
+    "withdrawal": {
+      "subject": "Accusé de réception de votre rétractation",
+      "body": "Nous avons reçu votre rétractation d’un contrat.\n\nReçue le : {{date}} (UTC)\nNom : {{name}}\nContrat : {{contract}}\nAdresse électronique : {{email}}",
+      "refund": "Nous vous remboursons {{amount}} par le moyen de paiement utilisé pour l’achat, et en tout état de cause dans un délai de 14 jours.",
+      "review": "Nous traitons votre rétractation. Nous vous rembourserons le montant dû sans retard excessif et, en tout état de cause, au plus tard quatorze jours à compter du jour où nous avons reçu votre rétractation, en utilisant le même moyen de paiement que celui que vous avez utilisé pour l’achat, et vous indiquerons ce montant.",
+      "expired": "Votre rétractation a été reçue après l’expiration, le {{deadline}}, du délai de rétractation de ce contrat. Vos droits légaux, notamment la garantie légale de conformité, ne sont pas affectés.",
+      "unmatched": "Si ces informations correspondent à l’un de nos contrats, nous procédons à la rétractation et vous informons du remboursement."
+    },
+    "cancellation": {
+      "subject": "Accusé de réception de votre résiliation",
+      "body": "Nous avons reçu votre résiliation.\n\nReçue le : {{date}} (UTC)\nNom : {{name}}\nContrat : {{contract}}\nType de résiliation : {{kind}}\nDate de fin souhaitée : {{requested}}\nAdresse électronique : {{email}}",
+      "effective": "Votre contrat prend fin le {{effectiveAt}}.",
+      "unmatched": "Si ces informations correspondent à l’un de nos contrats, nous y mettons fin à la date souhaitée ou, à défaut, à la date la plus proche possible, et vous confirmons cette date.",
+      "review": "Votre résiliation pour motif grave a été enregistrée. Nous examinons le motif indiqué et vous confirmons par écrit si et quand le contrat prend fin."
+    }
+  },
+  "credit-note": {
+    "memo": "Rétractation du contrat {{contractRef}}, reçue le {{date}}."
+  }
+}

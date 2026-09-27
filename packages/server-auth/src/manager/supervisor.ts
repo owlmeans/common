@@ -43,7 +43,7 @@ export interface SupervisorAuthOptions {
   enabled?: boolean
   /**
    * Also accept internal owlmeans `Ed25519BasicToken`s even when another guard
-   * (e.g. OIDC) is the primary guard on protected modules. Default: true.
+   * (e.g. OIDC) is the primary guard on protected entrypoints. Default: true.
    */
   acceptInternalTokens?: boolean
   /** The internal-token guard to add as a coguard. Default: DEFAULT_GUARD ('auth'). */
@@ -57,15 +57,15 @@ const isDevelopment = (context: { cfg: { debug?: { all?: boolean, supervisor?: b
 
 /**
  * Ensure the internal `Ed25519BasicToken` guard is accepted as a coguard on every
- * already-guarded backend module, so internal owlmeans tokens keep working even
+ * already-guarded backend entrypoint, so internal owlmeans tokens keep working even
  * when another guard (e.g. OIDC) is the primary guard. The primary guard stays
  * first; the internal guard is appended as a fallback (its `match` only fires for
  * an `Ed25519BasicToken` authorization header).
  */
 export const setupInternalTokenCoguard = (
-  modules: Array<{ guards?: string[] }>, guard: string = DEFAULT_GUARD
+  entrypoints: Array<{ guards?: string[] }>, guard: string = DEFAULT_GUARD
 ): void => {
-  modules.forEach(module => {
+  entrypoints.forEach(module => {
     if (module.guards != null && module.guards.length > 0 && !module.guards.includes(guard)) {
       module.guards.push(guard)
     }
@@ -78,7 +78,7 @@ export const setupInternalTokenCoguard = (
  *
  * It registers the supervisor auth plugin (verifies a front-end signature against
  * the allowlisted trusted keys, then resolves/registers the target user) and -
- * unless disabled - makes protected modules also accept internal owlmeans tokens
+ * unless disabled - makes protected entrypoints also accept internal owlmeans tokens
  * (requirement: understand internal tokens even when OIDC is the primary guard).
  */
 export const appendSupervisorAuth = <C extends AppConfig, T extends AppContext<C>>(

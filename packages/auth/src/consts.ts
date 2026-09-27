@@ -118,6 +118,15 @@ export const AuthRoleSchema: JSONSchemaType<AuthRole> = { type: 'string', enum: 
 export const DISPATCHER = 'dispatcher'
 export const DISPATCHER_AUTHEN = `${DISPATCHER}:authentication`
 
+/**
+ * The login window opened one level up by an application that cannot complete the flow where it is.
+ *
+ * A separate entrypoint from {@link DISPATCHER} because it is never a `redirect_uri` — the provider
+ * always returns to the dispatcher, whatever page opened the window — and because a logout has to
+ * run somewhere that does not start the authorization machine.
+ */
+export const DISPATCHER_SURROGATE = `${DISPATCHER}:surrogate`
+
 export const AUTHEN_RELY = `${AUTHEN}-rely`
 
 export const AUTH_HEADER = 'authorization'

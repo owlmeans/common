@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Carte",
+    "project": "Projet",
+    "specification": "Spécification"
+  },
+  "intrinsic": {
+    "planned": "Planifié",
+    "in-progress": "En cours",
+    "closed": "Fermé"
+  },
+  "action": {
+    "create": "Créé",
+    "update": "Mis à jour",
+    "transit": "Statut modifié",
+    "link": "Lié",
+    "unlink": "Délié",
+    "delete": "Supprimé"
+  },
+  "commit": {
+    "pending": "Enregistrement…",
+    "committed": "Enregistré",
+    "failed": "Non enregistré"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Texte brut"
+  },
+  "errors": {
+    "PlanningError": "La demande de planification n’a pas pu être traitée",
+    "PlanningErrorWorkcardNotFound": "Cet élément n’existe pas ou ne vous est pas accessible",
+    "PlanningErrorUnknownWorkcardType": "Ce type d’élément est inconnu",
+    "PlanningErrorUnknownStatusFlow": "Ce flux de statut est inconnu",
+    "PlanningErrorParentNotFound": "L’élément parent n’existe pas",
+    "PlanningErrorCardTypeNotAllowed": "Ce type d’élément ne peut pas être ajouté ici",
+    "PlanningErrorRefused": "La modification a été refusée",
+    "PlanningErrorIllegalTransition": "Ce changement de statut n’est pas autorisé depuis le statut actuel",
+    "PlanningErrorFieldsInvalid": "Certains champs ont des valeurs non valides",
+    "PlanningErrorLabelNotAllowed": "Cette étiquette n’est pas autorisée ici",
+    "PlanningErrorSpecificationSlotUnknown": "Ce type de document n’est pas autorisé ici",
+    "PlanningErrorSpecificationRevisionConflict": "Ce document existe déjà : modifiez-le plutôt",
+    "PlanningErrorRelationshipRefused": "Ce lien n’est pas autorisé",
+    "PlanningErrorCodeTaken": "Ce code est déjà utilisé",
+    "PlanningErrorWorkcardConflict": "Quelqu’un a modifié cet élément entre-temps. Actualisez la page puis réessayez.",
+    "PlanningErrorCommitTimeout": "La modification est encore en cours d’enregistrement. Vérifiez de nouveau dans un instant.",
+    "PlanningErrorCommitFailed": "La modification n’a pas pu être enregistrée",
+    "PlanningErrorScopeMismatch": "Cet élément n’existe pas ou ne vous est pas accessible",
+    "PlanningErrorUnsupported": "Cette opération n’est pas prise en charge pour cet élément"
+  }
+}

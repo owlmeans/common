@@ -1,5 +1,4 @@
 import { useEffect, useState, type FC } from 'react'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { useStoreList } from '@owlmeans/client'
 import { session, type SessionItem } from '__APP_SLUG__-common'
 import { SESSION_STATE, useContext } from '../context.js'
@@ -33,15 +32,15 @@ export const SessionScreen: FC = () => {
    */
   const items = useStoreList<SessionItem>({ query: {}, resource: SESSION_STATE })
 
-  // The server is the source of truth; the store is what the screen reads. Fetch once, write
-  // what came back into the store, and let the subscription render it.
+  // The server is the source of truth; the store is what the screen reads. Fetch once, install
+  // what came back, and let the subscription render it. `replace` rather than a save per item:
+  // the endpoint answers with the session's whole set, so an item removed on another tab has to
+  // leave the store too, and one write wakes the subscribers once instead of once per record.
   const load = async () => {
-    const [data] = await ctx
-      .entrypoint<ClientEntrypoint<SessionItem[]>>(session.list)
+    const data = await ctx
+      .entrypoint(session.list)
       .call({ params: { sid } })
-    for (const item of data ?? []) {
-      await store.save(item)
-    }
+    await store.replace(data ?? [])
   }
 
   useEffect(() => { void load() }, [])
@@ -50,8 +49,8 @@ export const SessionScreen: FC = () => {
     if (text.trim() === '') return
     setBusy(true)
     try {
-      const [item] = await ctx
-        .entrypoint<ClientEntrypoint<SessionItem>>(session.add)
+      const item = await ctx
+        .entrypoint(session.add)
         .call({ params: { sid }, body: { text } })
       setText('')
       if (item != null) {
@@ -64,7 +63,7 @@ export const SessionScreen: FC = () => {
 
   const remove = async (id: string) => {
     await ctx
-      .entrypoint<ClientEntrypoint<{ removed: boolean }>>(session.remove)
+      .entrypoint(session.remove)
       .call({ params: { sid, id } })
     await store.delete(id)
   }

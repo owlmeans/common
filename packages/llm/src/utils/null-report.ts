@@ -45,6 +45,7 @@ export const buildNullReport = (p: NullReportParams): NullCapture => {
     finish_reason?: string
     usage?: { prompt_tokens?: number; completion_tokens?: number; reasoning_tokens?: number }
   } | undefined
+  const stopReason = (raw?.additional_kwargs as { stop_reason?: string } | undefined)?.stop_reason
   const usageMeta = raw?.usage_metadata as { input_tokens?: number; output_tokens?: number } | undefined
   const toolCalls = (raw as unknown as { tool_calls?: unknown[] } | null)?.tool_calls
 
@@ -81,7 +82,14 @@ export const buildNullReport = (p: NullReportParams): NullCapture => {
       tool_calls: toolCalls,
     } : null,
     diagnostics: {
-      finishReason: responseMeta?.finish_reason,
+      // Two providers, two places. OpenAI-compatible APIs put it on `response_metadata`;
+      // Anthropic never does — it arrives on the `message_delta` event and langchain spreads it
+      // into `additional_kwargs.stop_reason`. Reading only the first printed `undefined` for
+      // every Anthropic null, hiding the `max_tokens` that explains most of them.
+      finishReason: responseMeta?.finish_reason ?? stopReason,
+      /** No text block at all — the shape of a completion that was all reasoning. */
+      thinkingOnly: Array.isArray(raw?.content) && raw.content.length > 0
+        && !raw.content.some(part => (part as { type?: string }).type === 'text'),
       inputTokens: usageMeta?.input_tokens ?? responseMeta?.usage?.prompt_tokens,
       outputTokens: usageMeta?.output_tokens ?? responseMeta?.usage?.completion_tokens,
       reasoningTokens: responseMeta?.usage?.reasoning_tokens,

@@ -1,5 +1,6 @@
 import { appendContextual } from '@owlmeans/context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { Criteria } from '@owlmeans/resource'
 import type { EntityResolverService, OrgEntityRef } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER, ENTITY_SLUG_PATTERN } from '@owlmeans/auth-common'
 import { generateWordSlug, nextSlugCandidate } from '@owlmeans/basic-ids'
@@ -17,9 +18,6 @@ type Context = ServerContext<ServerConfig>
  * resolving through `formerSlugs` rather than failing.
  */
 const CACHE_TTL = 30_000
-
-/** What a stored record id looks like. Anything else can only be a slug or a frozen key. */
-const RECORD_ID = /^[0-9a-f]{24}$/i
 
 /** A stored record as the contract exposes it. Persisted records always carry an id. */
 const toRef = (entity: OrgEntity | null): OrgEntityRef | null =>
@@ -72,18 +70,19 @@ export const makeEntityResolverService = (
 
     const res = resource()
     // Id first: an id is authoritative, so a slug that happens to look like some other entity's
-    // id can never shadow it. Then the current slug, then the names it has retired, then the
-    // frozen key external systems still quote.
-    //
-    // The shape test is not an optimisation. `load` reads its argument as a record id, and the
-    // store turns that into an ObjectId unconditionally — so handing it a slug throws a driver
-    // error out of what is meant to be a lookup that simply misses.
-    const byId = RECORD_ID.test(value) ? await res.load(value) : null
+    // id can never shadow it. A value that is not a record id simply misses. Then the current
+    // slug, then the names it has retired, then the frozen key external systems still quote.
+    const byId = await res.load(value)
     if (byId != null) return remember(byId, value)
 
-    for (const field of ['slug', 'formerSlugs', 'iamKey'] as const) {
-      const { items } = await res.list({ criteria: { [field]: value } as never, pager: { size: 1 } })
-      if (items[0] != null) return remember(items[0], value)
+    const candidates: Criteria<OrgEntity>[] = [
+      { slug: value },
+      { formerSlugs: { $contains: [value] } },
+      { iamKey: value },
+    ]
+    for (const where of candidates) {
+      const found = await res.load(where)
+      if (found != null) return remember(found, value)
     }
 
     return remember(null, value)
@@ -92,11 +91,7 @@ export const makeEntityResolverService = (
   const service: EntityResolverService = appendContextual<EntityResolverService>(alias, {
     resolve: async value => toRef(await load(value)),
 
-    byId: async id => {
-      const entity = RECORD_ID.test(id) ? await resource().load(id) : null
-
-      return toRef(remember(entity, id))
-    },
+    byId: async id => toRef(remember(await resource().load(id), id)),
 
     mintSlug: async () => {
       const res = resource()
@@ -107,11 +102,10 @@ export const makeEntityResolverService = (
         const base = generateWordSlug()
         for (let suffix = 1; suffix <= 3; ++suffix) {
           const candidate = nextSlugCandidate(base, suffix)
-          const { items } = await res.list({
-            criteria: { $or: [{ slug: candidate }, { formerSlugs: candidate }] } as never,
-            pager: { size: 1 },
+          const taken = await res.load({
+            $or: [{ slug: candidate }, { formerSlugs: { $contains: [candidate] } }],
           })
-          if (items.length === 0) return candidate
+          if (taken == null) return candidate
         }
       }
 
@@ -131,10 +125,10 @@ export const makeEntityResolverService = (
 
       // A slug another entity has ever answered to cannot be taken: tokens and third-party records
       // quoting it would start resolving to the wrong organization.
-      const { items: taken } = await res.list({
-        criteria: { $or: [{ slug }, { formerSlugs: slug }] } as never, pager: { size: 1 },
+      const taken = await res.load({
+        $or: [{ slug }, { formerSlugs: { $contains: [slug] } }],
       })
-      if (taken[0] != null && taken[0].id !== id) {
+      if (taken != null && taken.id !== id) {
         throw new SyntaxError(`entity:slug-taken:${slug}`)
       }
 

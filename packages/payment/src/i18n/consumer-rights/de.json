@@ -1,0 +1,123 @@
+{
+  "performance-consent": {
+    "title": "Jetzt mit der Nutzung Ihrer Credits beginnen?",
+    "intro": "Käufe, die sich noch in der Widerrufsfrist befinden: {{count}}. Die letzte Widerrufsfrist endet am {{deadline}}.",
+    "purchase": "Credits gekauft am {{date}} ({{amount}}): Als Verbraucher in der EU können Sie diesen Kauf bis einschließlich {{deadline}} widerrufen.",
+    "request": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt.",
+    "acknowledgement": "Mir ist bekannt, dass mein Widerrufsrecht für die von mir verwendeten Credits erlischt, sobald diese Arbeit ausgeführt wurde, und dass mir bei einem Widerruf nur die nicht verwendeten Credits erstattet werden.",
+    "checkbox": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} mit der Ausführung der kostenpflichtigen Leistung – der KI-Arbeit und der dabei erstellten digitalen Inhalte – jetzt, vor Ablauf der Widerrufsfrist, beginnt. Mir ist bekannt, dass mein Widerrufsrecht für die von mir verwendeten Credits erlischt, sobald diese Arbeit ausgeführt wurde, und dass mir bei einem Widerruf nur die nicht verwendeten Credits erstattet werden.",
+    "confirm": "Jetzt beginnen",
+    "decline": "Nicht jetzt"
+  },
+  "subscription-start": {
+    "title": "Die Leistungen von {{plan}} jetzt beginnen?",
+    "intro": "Als Verbraucher in der EU können Sie dieses Abonnement binnen 14 Tagen widerrufen. Vor Ablauf dieser Frist beginnen wir mit den Leistungen nur auf Ihr ausdrückliches Verlangen.",
+    "request": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist.",
+    "acknowledgement": "Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
+    "checkbox": "Ich verlange ausdrücklich und stimme ausdrücklich zu, dass {{trader}} die Plattformleistungen von {{plan}} jetzt beginnt und die mit den enthaltenen Credits bezahlte KI-Arbeit ausführt, sobald ich sie starte – vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass ich bei einem Widerruf die bis dahin erbrachten Plattformleistungen zeitanteilig bezahle und dass mein Widerrufsrecht für die von mir verwendeten enthaltenen Credits erlischt; alles Übrige wird erstattet.",
+    "confirm": "Weiter zur Zahlung",
+    "decline": "Abbrechen"
+  },
+  "withdrawal": {
+    "function": "Vertrag widerrufen",
+    "confirm": "Widerruf bestätigen",
+    "title": "Widerruf eines Vertrags",
+    "intro": "Hier können Sie einen Vertrag innerhalb der Widerrufsfrist widerrufen. Geben Sie Ihren Namen, den Vertrag und die E-Mail-Adresse an, an die wir die Eingangsbestätigung senden.",
+    "name": "Name",
+    "contract": "Vertrag",
+    "email": "E-Mail-Adresse",
+    "review": "Bitte prüfen Sie Ihre Angaben. Ihr Widerruf wird abgesendet, sobald Sie ihn bestätigen.",
+    "received": "Ihr Widerruf ist am {{date}} (UTC) bei uns eingegangen. Eine Eingangsbestätigung wurde an {{email}} gesendet.",
+    "deadline": "Sie können bis einschließlich {{deadline}} widerrufen."
+  },
+  "cancellation": {
+    "function": "Verträge hier kündigen",
+    "confirm": "Jetzt kündigen",
+    "title": "Vertrag kündigen",
+    "intro": "Hier können Sie einen Abonnementvertrag kündigen. Geben Sie die folgenden Angaben ein; wir senden eine Eingangsbestätigung an die von Ihnen angegebene E-Mail-Adresse.",
+    "kind": "Art der Kündigung",
+    "kind-ordinary": "Ordentliche Kündigung",
+    "kind-extraordinary": "Außerordentliche Kündigung (aus wichtigem Grund)",
+    "reason": "Grund der außerordentlichen Kündigung",
+    "name": "Name",
+    "contract": "Vertrag oder Kundennummer",
+    "effective": "Zeitpunkt der Beendigung",
+    "effective-earliest": "Zum nächstmöglichen Zeitpunkt",
+    "effective-date": "Zu einem bestimmten Datum",
+    "email": "E-Mail-Adresse",
+    "summary": "Bitte prüfen Sie Ihre Kündigung, bevor Sie sie absenden.",
+    "received": "Ihre Kündigung ist am {{date}} (UTC) bei uns eingegangen. Eine Eingangsbestätigung wurde an {{email}} gesendet."
+  },
+  "links": {
+    "billing-terms": "Abrechnungsbedingungen",
+    "withdrawal-information": "Widerrufsbelehrung",
+    "withdrawal-form": "Muster-Widerrufsformular",
+    "withdrawal-function": "Vertrag widerrufen",
+    "cancellation": "Verträge hier kündigen"
+  },
+  "checkout": {
+    "terms-acceptance": {
+      "in-scope": "Ich akzeptiere die [Abrechnungsbedingungen]({{billingTerms}}) und habe die [Widerrufsbelehrung]({{withdrawalInformation}}) gelesen.",
+      "other": "Ich akzeptiere die [Abrechnungsbedingungen]({{billingTerms}})."
+    },
+    "renewal": {
+      "month": "{{price}} pro Monat. Verlängert sich monatlich bis zur Kündigung; jederzeit kündbar zum Ende des Abrechnungszeitraums.",
+      "year": "{{price}} pro Jahr. Verlängert sich jährlich bis zur Kündigung; jederzeit kündbar zum Ende des Abrechnungszeitraums.",
+      "after-submit": "Jederzeit kündbar: [Verträge hier kündigen]({{cancelUrl}})"
+    },
+    "price": {
+      "exclusive": "{{amount}} zzgl. MwSt.",
+      "inclusive": "{{amount}} inkl. MwSt.",
+      "exclusive-tax": "{{amount}} zzgl. anfallender Steuern"
+    },
+    "top-up": "Vorauszahlung: {{product}}, nur für das Konto dieser Organisation nutzbar (Rechnungsland {{country}}). Verbraucher in der EU können binnen 14 Tagen widerrufen; das Widerrufsrecht erlischt für Credits, die verwendet werden, nachdem Sie uns um den Beginn gebeten haben.",
+    "top-up-note": "Verbraucher in der EU können einen Kauf von Credits binnen 14 Tagen widerrufen. Sobald Sie uns bitten, mit der Nutzung der Credits zu beginnen, erlischt das Widerrufsrecht für die verwendeten Credits; nicht verwendete Credits werden erstattet."
+  },
+  "email": {
+    "common": {
+      "greeting": "Guten Tag,",
+      "greeting-named": "Guten Tag {{name}},",
+      "received-at": "Eingegangen am: {{date}} (UTC)",
+      "contract-ref": "Vertrag: {{contractRef}}",
+      "trader": "Unternehmer: {{trader}}",
+      "link": "{{label}}: {{url}}",
+      "footer": "Bitte bewahren Sie diese E-Mail auf. Sie bestätigt das Obenstehende auf einem dauerhaften Datenträger."
+    },
+    "consent": {
+      "subject": "Bestätigung: Ihr Verlangen, mit der Nutzung Ihrer Credits zu beginnen",
+      "body": "Am {{date}} (UTC) haben Sie uns gegenüber folgende Erklärung abgegeben:\n\n„{{statement}}“\n\nDie Erklärung betrifft diese Käufe:\n{{purchases}}",
+      "purchase": "- {{contractRef}} vom {{date}} ({{amount}}): nicht verwendete Credits können bis einschließlich {{deadline}} widerrufen werden.",
+      "unused": "Credits, die Sie nicht verwendet haben, können bis zum Ende der Widerrufsfrist ihres Kaufs widerrufen werden. Bei einem Widerruf werden nur die nicht verwendeten Credits erstattet."
+    },
+    "start": {
+      "subject": "Bestätigung: Ihr Verlangen, die Leistungen von {{plan}} zu beginnen",
+      "body": "Am {{date}} (UTC) haben Sie uns vor dem Abschluss des Abonnements {{plan}} folgende Erklärung abgegeben:\n\n„{{statement}}“",
+      "rule": "Widerrufen Sie innerhalb der Widerrufsfrist, bezahlen Sie die bis dahin erbrachten Plattformleistungen zeitanteilig, und Ihr Widerrufsrecht erlischt für die verwendeten enthaltenen Credits; alles Übrige wird erstattet."
+    },
+    "purchase": {
+      "subject": "Bestellbestätigung {{contractRef}}",
+      "body": "Vielen Dank für Ihre Bestellung.\n\nVertrag: {{contractRef}}\nDatum: {{date}} (UTC)\nProdukt: {{product}}\nPreis inklusive Steuern: {{total}} (Steuern: {{tax}})",
+      "start-request": "Vor diesem Kauf haben Sie ausdrücklich verlangt, dass wir sofort mit den Leistungen beginnen:\n\n„{{statement}}“",
+      "withdrawal-information": "Widerrufsbelehrung\n\nWiderrufsrecht\n\nSie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.\n\nUm Ihr Widerrufsrecht auszuüben, müssen Sie uns ({{trader}}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das unten stehende Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist. Sie können den Vertrag auch online über die Widerrufsfunktion auf unserer Webseite widerrufen: {{withdrawalFunction}}. Machen Sie von dieser Möglichkeit Gebrauch, so werden wir Ihnen unverzüglich (z. B. per E-Mail) eine Bestätigung über den Eingang eines solchen Widerrufs auf einem dauerhaften Datenträger übermitteln.\n\nZur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.\n\nFolgen des Widerrufs\n\nWenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.\n\nHaben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen sollen, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.\n\nIhr Widerrufsrecht erlischt für Dienstleistungen und digitale Inhalte, die vollständig erbracht wurden, nachdem Sie ausdrücklich verlangt haben, dass wir vor Ablauf der Widerrufsfrist mit der Ausführung beginnen, und bestätigt haben, dass Ihnen bekannt ist, dass Sie dadurch Ihr Widerrufsrecht verlieren. Bei vorausbezahlten Credits beginnt die Ausführung erst, wenn Sie uns bitten, sie zu verwenden: Das Widerrufsrecht erlischt für die danach verwendeten Credits, und die nicht verwendeten Credits werden erstattet.",
+      "model-form": "Muster-Widerrufsformular\n\n(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)\n\n— An {{trader}}:\n— Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung (*) / die Bereitstellung der folgenden digitalen Inhalte (*):\n— Bestellt am (*) / erhalten am (*):\n— Name des/der Verbraucher(s):\n— Anschrift des/der Verbraucher(s):\n— Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier):\n— Datum:\n\n(*) Unzutreffendes streichen."
+    },
+    "withdrawal": {
+      "subject": "Eingangsbestätigung Ihres Widerrufs",
+      "body": "Wir haben Ihren Widerruf eines Vertrags erhalten.\n\nEingegangen am: {{date}} (UTC)\nName: {{name}}\nVertrag: {{contract}}\nE-Mail-Adresse: {{email}}",
+      "refund": "Wir erstatten {{amount}} über das Zahlungsmittel, das Sie beim Kauf verwendet haben, in jedem Fall binnen 14 Tagen.",
+      "review": "Wir bearbeiten Ihren Widerruf. Wir zahlen Ihnen den geschuldeten Betrag unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurück, an dem Ihr Widerruf bei uns eingegangen ist, und verwenden dafür dasselbe Zahlungsmittel, das Sie beim Kauf eingesetzt haben. Den Betrag teilen wir Ihnen mit.",
+      "expired": "Ihr Widerruf ist nach Ablauf der Widerrufsfrist dieses Vertrags am {{deadline}} eingegangen. Ihre gesetzlichen Rechte, einschließlich Ihrer Mängelrechte, bleiben unberührt.",
+      "unmatched": "Wenn diese Angaben zu einem unserer Verträge passen, führen wir den Widerruf aus und informieren Sie über die Erstattung."
+    },
+    "cancellation": {
+      "subject": "Eingangsbestätigung Ihrer Kündigung",
+      "body": "Wir haben Ihre Kündigung erhalten.\n\nEingegangen am: {{date}} (UTC)\nName: {{name}}\nVertrag: {{contract}}\nArt der Kündigung: {{kind}}\nGewünschter Beendigungszeitpunkt: {{requested}}\nE-Mail-Adresse: {{email}}",
+      "effective": "Ihr Vertrag endet am {{effectiveAt}}.",
+      "unmatched": "Wenn diese Angaben zu einem unserer Verträge passen, beenden wir ihn zum gewünschten, andernfalls zum nächstmöglichen Zeitpunkt und bestätigen Ihnen dieses Datum.",
+      "review": "Ihre außerordentliche Kündigung wurde erfasst. Wir prüfen den angegebenen Grund und bestätigen Ihnen schriftlich, ob und wann der Vertrag endet."
+    }
+  },
+  "credit-note": {
+    "memo": "Widerruf des Vertrags {{contractRef}}, eingegangen am {{date}}."
+  }
+}

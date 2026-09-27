@@ -2,7 +2,7 @@ import type { CSSProperties, FC } from 'react'
 import { useEffect, useState } from 'react'
 import { Toaster as Sonner } from 'sonner'
 import type { ToasterProps } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn } from '../@/lib/utils.js'
 
 const DARK_CLASS = 'dark'
 

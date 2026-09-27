@@ -75,10 +75,16 @@ const auditEntrypoint = (ctx: Context, req: AbstractRequest, params: string[]): 
       return
     }
 
+    let routePath: string | undefined
+    try {
+      routePath = entrypoint.mount()
+    } catch {
+      // The mount needs a service with an address; an entrypoint that has none still has a filter
+      // worth auditing.
+    }
+
     const audit: GateParamAudit = {
-      ...(typeof (entrypoint as any).getPath === 'function'
-        ? { routePath: (entrypoint as any).getPath() as string }
-        : {}),
+      ...(routePath != null ? { routePath } : {}),
       ...(entrypoint.filter != null ? { filter: entrypoint.filter as GateParamAudit['filter'] } : {})
     }
 
@@ -89,7 +95,7 @@ const auditEntrypoint = (ctx: Context, req: AbstractRequest, params: string[]): 
       )
     }
   } catch {
-    // An entrypoint that cannot be resolved is not this gate's problem to report.
+    // An entrypoint that cannot be looked up is not this gate's problem to report.
   }
 }
 

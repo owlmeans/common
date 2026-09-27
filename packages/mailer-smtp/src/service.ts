@@ -6,7 +6,7 @@ import type { Transporter } from 'nodemailer'
 import type SMTPTransport from 'nodemailer/lib/smtp-transport/index.js'
 import type Mail from 'nodemailer/lib/mailer/index.js'
 import { SMTP_DEFAULT_PORT, SMTP_MAILER } from './consts.js'
-import type { SmtpConfig, SmtpMailerService, SmtpSettings } from './types.js'
+import type { SmtpConfig, SmtpMailerOptions, SmtpMailerService, SmtpSettings } from './types.js'
 
 const toNumber = (value: number | string | undefined, def: number): number => {
   if (value == null || value === '') return def
@@ -56,6 +56,20 @@ export const toMailOptions = (smtp: SmtpSettings, message: MailMessage): Mail.Op
   }
 }
 
+/** Validate the settings required by an authenticated production relay. */
+export const assertSmtpSettings = (
+  smtp: SmtpSettings | undefined, alias: string, opts: SmtpMailerOptions = {}
+): SmtpSettings => {
+  const required: Array<keyof Pick<SmtpSettings, 'host' | 'from' | 'user' | 'pass'>> =
+    opts.authenticated === true ? ['host', 'from', 'user', 'pass'] : ['host']
+  const missing = required.filter(key => smtp?.[key] == null || String(smtp[key]).trim() === '')
+  if (missing.length > 0) {
+    throw new SyntaxError(`${alias}: cfg.smtp.${missing.join(', cfg.smtp.')} is not configured`)
+  }
+
+  return smtp as SmtpSettings
+}
+
 /**
  * SMTP transport for the `MailerService` contract. Reads `cfg.smtp` and keeps one
  * nodemailer transporter per service instance.
@@ -63,18 +77,14 @@ export const toMailOptions = (smtp: SmtpSettings, message: MailMessage): Mail.Op
  * Register it under `MAILER_SERVICE` so callers — the email-OTP plugin above all —
  * resolve it without knowing which transport is in play.
  */
-export const makeSmtpMailerService = (alias = SMTP_MAILER): SmtpMailerService => {
+export const makeSmtpMailerService = (
+  alias = SMTP_MAILER, opts: SmtpMailerOptions = {}
+): SmtpMailerService => {
   let transport: Transporter<SMTPTransport.SentMessageInfo> | null = null
 
   const settings = (): SmtpSettings => {
     const ctx = service.assertCtx<SmtpConfig, ServerContext<SmtpConfig>>(alias)
-    const smtp = ctx.cfg.smtp
-
-    if (smtp?.host == null || smtp.host === '') {
-      throw new SyntaxError(`${alias}: cfg.smtp.host is not configured`)
-    }
-
-    return smtp
+    return assertSmtpSettings(ctx.cfg.smtp, alias, opts)
   }
 
   const transporter = (): Transporter<SMTPTransport.SentMessageInfo> =>
@@ -114,6 +124,12 @@ export const makeSmtpMailerService = (alias = SMTP_MAILER): SmtpMailerService =>
       transport?.close()
       transport = null
     },
+  }, current => async () => {
+    // `configure()` resolves mounted config files before services initialize, so this validates
+    // the resolved values and, when requested, verifies the relay without sending a message.
+    settings()
+    if (opts.verifyOnInit === true) await current.verify()
+    current.initialized = true
   })
 
   return service

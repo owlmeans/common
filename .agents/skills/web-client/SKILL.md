@@ -1,93 +1,82 @@
 ---
 name: web-client
-description: How to use @owlmeans/web-client — browser entry point with renderApp(), elevate() to attach React components to entrypoint declarations, context.registerEntrypoints() and context.serviceRoute() for routing. Auto-invoked when working with the web app entry point or attaching React components to entrypoints.
-user-invocable: false
+description: Bind OwlMeans shared entrypoint protocols in a browser application. Use when registering client routes, attaching React screens (including lazily-loaded ones), calling API protocols, or configuring the browser context.
 ---
 
-# @owlmeans/web-client
+# Browser protocol entrypoints
 
-**Layer:** Web (React)
-**Install:** `"@owlmeans/web-client": "^0.1.18-rc.13"` in `dependencies`
+**Install:** `bun add @owlmeans/web-client@^0.1.18-rc.53`
 
-## Key Exports
+Shared protocol declarations are immutable. Bind a complete protocol tree for callable API routes,
+then bind frontend declarations to screens.
 
-| Export | Description |
-|--------|-------------|
-| `renderApp<C, T>(context)` | Mount the React app (routing via the active router plugin — OwlMeans by default) |
-| `elevate(entrypoints, alias, handler)` | Attach a React component (or `handler(Component)`) to an entrypoint |
-| `handler(Component)` | Wrap a React component as an entrypoint handler |
-| `context.registerEntrypoints(entrypoints)` | Register the full entrypoint list on the context |
-| `context.serviceRoute(alias, isDefault?)` | Mark a service's routing root |
-| `makeContext(cfg)` | Build the browser context — auth, web db, client resource, router and login are all appended here |
-| `appendWebLogin(context)` | Register the login host plus the redirect and surrogate-window plugins |
-| `router`, `components`, `service`, `i18n`, `helpers`, `errors` | Web-specific helpers |
-| Constants | Default aliases (BASE, HOME), `REDIRECT_LOGIN`, `SURROGATE_LOGIN` |
+```ts
+import { bindAll, bindScreen, entrypoints as frameworkEntrypoints, handler } from '@owlmeans/web-panel'
+import { projectProtocols, webProtocols } from 'project-common'
+import { ProjectScreen } from './screens/project.js'
 
-## Usage
-
-### Entry point
-```typescript
-// index.tsx
-import { renderApp } from '@owlmeans/web-client'
-import { makeContext } from './context.js'
-import { appEntrypoints } from './entrypoints.js'
-import { MANAGER, MANAGER_API } from 'my-common'
-import config from './config.js'
-
-const context = makeContext(config)
-context.registerEntrypoints(appEntrypoints)
-context.serviceRoute(MANAGER, true)
-context.serviceRoute(MANAGER_API, true)
-renderApp<Config, Context>(context)
+export const clientBindings = [
+  ...frameworkEntrypoints,
+  ...bindAll(projectProtocols),
+  bindScreen(webProtocols.project, handler(ProjectScreen)),
+]
 ```
 
-### Entrypoint elevation with React components
-```typescript
-import { elevate, route, frontend, handler, entrypoint } from '@owlmeans/web-client'
-import { HomeScreen, ProjectDashboardScreen } from './screens/index.js'
+Call a protocol directly. Its request and response types come from its shared contract.
 
-elevate(entrypoints, manager.front.project.dashboard, handler(ProjectDashboardScreen))
-
-entrypoints.push(
-  entrypoint(route(HOME, '/', frontend({ default: true, parent: BASE })), handler(HomeScreen))
-)
+```ts
+const project = await context.entrypoint(projectProtocols.get).call({
+  params: { id: projectId },
+})
 ```
 
-A **backend** alias the client calls needs a bare `elevate(entrypoints, alias)` — no handler. That
-makes `context.entrypoint<ClientEntrypoint<T>>(alias).call({ params, body, query })` work; the auth
-header is attached automatically for guarded entrypoints.
+## Lazily-loaded screens
 
-### Login comes with the context
+`lazyHandler` and `lazyComponent` (from `@owlmeans/client`) are re-exported here and by
+`@owlmeans/web-panel`, next to `handler`; so are, here only, the chunk-failure tools
+`retryImport`, `isChunkLoadError`, `reloadOnce` and `recoverFromChunkError` (types
+`LazyErrorRenderer`, `RetryImportOptions`). A `lazyHandler(...)` result binds exactly like
+`handler(Component)`; declare it at module scope, where the bindings live — never inside a render.
 
-`makeContext` calls `appendWebLogin`, which registers the login host (`@owlmeans/client-auth/login`)
-and both browser plugins on it — redirect (`REDIRECT_LOGIN`, priority 0, applies always) and
-surrogate window (`SURROGATE_LOGIN`, priority 100, applies in a frame or in the surrogate itself).
-So every web app — and everything built on `web-panel` or `mui-panel` — has working sign-in,
-including from an embedded app, with nothing registered by hand:
+```tsx
+import { bindScreen, lazyHandler } from '@owlmeans/web-client'
 
-```typescript
-import { useLogin, useLogout } from '@owlmeans/client-auth/login'
+const reportsScreen = lazyHandler(() => import('./screens/reports.js'), 'ReportsScreen', {
+  fallback: <Spinner />,
+})
 
-const [, onLogIn] = useLogin()   // one control, one handler, no environment checks
+export const clientBindings = [
+  bindScreen(webProtocols.reports, reportsScreen),
+]
+// reportsScreen.preload() on hover/focus of a link renders the screen without its fallback.
 ```
 
-An app that needs a different mechanic registers its own plugin at a higher priority after building
-the base context (`context.login().registerPlugin(...)`); it never replaces these. The contract, the
-cascade and the invariants are the `login-plugins` skill.
+The fallback renders inside the screen's own `Suspense` boundary, so the layout around it stays
+mounted while the chunk loads, and the screen's own error boundary keeps a failed chunk from
+unmounting it: a fetch failure is retried, then `error` renders — or, without one, the guarded
+reload starts. Rules and options: the `client` skill, Code-splitting and Chunk failures.
 
-### Navigation
-```typescript
-import { useNavigate } from '@owlmeans/client'   // not re-exported by web-client
-import { useStoreList, useStoreModel } from '@owlmeans/client'   // client state — also not re-exported
+## Rendering after an async boot
 
-const nav = useNavigate()
-<Button onClick={nav.press(manager.front.project.dashboard, { params: { projectId } })}>Open</Button>
-await nav.go(alias, { params })   // programmatic; nav.back() to go back
+If your app awaits something (e.g. `prepareI18n`) before calling `render()`, this is handled
+correctly — the render helper checks `document.readyState` rather than unconditionally waiting for
+an event that may already have fired. It waits for `DOMContentLoaded` only while the document is
+still `loading` and mounts at once otherwise; `renderApp` and `@owlmeans/web-panel`'s `render` both
+go through it.
+
+```ts
+import { prepareI18n } from '@owlmeans/client-i18n'
+
+await prepareI18n(context.cfg)
+renderApp(context)            // or @owlmeans/web-panel's render(context)
 ```
 
-## Depends On
+## Rules
 
-- `@owlmeans/client`, `@owlmeans/web-router` (default OwlMeans browser routing), `@owlmeans/web-panel` (typically), `@owlmeans/client-i18n`
-- `@owlmeans/client-auth` — `AUTH_RESOURCE` and the `./login` host the browser plugins register on
-- `@owlmeans/entrypoint`, `@owlmeans/route`
-- `react`, `react-dom` (peer). No longer depends on `react-router` — opt into it with `@owlmeans/web-router-react-router` (`appendReactRouter`). The former `provide` export is a deprecated `undefined`.
+- Declare paths, guards, gates and contracts once in the shared protocol tree.
+- Bind every API declaration the browser calls, including route parents.
+- Use `bindScreen(protocol, handler(Component))` — or `lazyHandler(...)` — only for frontend route
+  declarations.
+- Do not replace request/response typing at a call site; update the shared contract instead.
+- Keep framework entrypoints and application entrypoints in one registered array, without mutating a
+  shared declaration collection.

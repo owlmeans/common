@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-auth-token",
+  "version": "0.1.18-rc.25",
+  "generatedAt": "2026-09-25T21:19:38.011Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-auth-token",
+      "category": "package-specific",
+      "file": "skills/web-auth-token/SKILL.md",
+      "canonicalPath": ".agents/skills/web-auth-token/SKILL.md"
+    }
+  ]
+}

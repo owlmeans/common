@@ -7,6 +7,9 @@ metadata:
 
 # Using `@owlmeans/mailer-smtp`
 
+**Install:** `"@owlmeans/mailer-smtp": "^0.1.18-rc.37"` in `dependencies` — it depends on
+`nodemailer` itself, so a consumer declares nothing extra
+
 SMTP transport implementing `@owlmeans/mailer`'s `MailerService`, built on `nodemailer` (the
 zero-dependency de-facto standard for Node SMTP). Reads `ctx.cfg.smtp`. Works against any relay —
 Mailgun, SES, Postmark all expose SMTP.
@@ -58,15 +61,19 @@ context.registerService(makeSmtpMailerService(MAILER_SERVICE))
 ```
 
 Register under `MAILER_SERVICE` so platform code — `OtpService` above all — resolves the mailer
-without knowing the transport. Select between transports on config, not on a build flag:
+without knowing the transport. A local-only console transport is an explicit mode; it is never a
+production fallback:
 
 ```ts
-context.registerService(
-  cfg.smtp?.host != null && cfg.smtp.host !== ''
-    ? makeSmtpMailerService(MAILER_SERVICE)
-    : makeConsoleMailerService(MAILER_SERVICE)
-)
+if (cfg.iamMailer.mode !== 'smtp') throw new SyntaxError('production requires smtp mode')
+context.registerService(makeSmtpMailerService(MAILER_SERVICE, {
+  authenticated: true,
+  verifyOnInit: true,
+}))
 ```
+
+Authenticated SMTP requires a host, from address, user and password; `verifyOnInit` makes an
+unusable relay fail context startup rather than exposing a later login code through a console log.
 
 ## Ports and TLS
 
@@ -83,10 +90,14 @@ context.registerService(
 - The `From` domain must be verified with the relay; the local part is free-form.
 - Deliberately **unpooled** — a pooled transport holds its socket and keeps a short-lived process
   alive. Add pooling only with a matching lifecycle.
-- Errors are rethrown prefixed with the service alias and the server's own reply
-  (`code`/`responseCode`/`response`). The password never reaches a message or a log.
+- Relay errors are rethrown prefixed with the service alias and the server's own reply
+  (`code`/`responseCode`/`response`). The password never reaches a message or a log. A missing
+  `cfg.smtp.host` is the other failure and it is a `SyntaxError`, raised before any socket.
 - `verify()` authenticates without submitting a message — right for health checks; not proof that
   the relay accepts *a message* from your sender.
+- Production mail selection must be explicit and use `authenticated: true, verifyOnInit: true`.
+  Console mail is for local fixtures/development and must never be selected because SMTP settings
+  were absent or malformed.
 - Never register this in unit tests — use `makeConsoleMailerService`. `toMailOptions` plus
   nodemailer's own `jsonTransport` cover envelope assertions without a socket.
 - **Never authenticate with a deliberately wrong password against a live relay.** Repeated failed
@@ -94,8 +105,10 @@ context.registerService(
   environment using it — Mailgun then answers `535 Authentication failed` to the correct password
   too, and the credential has to be reset in its dashboard. Provoke transport errors with an
   unreachable socket (`host: '127.0.0.1', port: '1'`) instead.
-- The live spec (`tests/send.spec.ts`) is gated on the SMTP block in `/.env.example` and **delivers
-  real mail** when the gate is open. Empty variables = skip, never a failure.
+- The live spec (`tests/send.spec.ts`) is gated by `smtpGate()` from `@owlmeans/test-integration` on
+  `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TEST_TO` (with `SMTP_PORT` and
+  `SMTP_SECURE` optional), and **delivers real mail** when the gate is open. Empty variables = skip
+  with a printed reason, never a failure.
 - Rollup-bundling for a container image works with the default `preferBuiltins: true` node-resolve
   setup; nodemailer's dynamic requires do not need to be externalized.
 
@@ -104,10 +117,14 @@ context.registerService(
 - [nodemailer](https://www.npmjs.com/package/nodemailer) — v9.x, MIT-0, **zero dependencies**, the
   de-facto standard (~10.8k dependents). Ships no types; `@types/nodemailer` (v8.x) supplies them.
   CJS — import the default (`import nodemailer from 'nodemailer'`), not named members, so both Bun
-  and Rollup's commonjs interop resolve it. Verified working under Bun and inside a Rollup CJS
-  bundle (2026-08).
+  and Rollup's commonjs interop resolve it; it works under Bun and inside a Rollup CJS bundle.
 - [Mailgun — Send via SMTP](https://documentation.mailgun.com/docs/mailgun/user-manual/sending-messages/send-smtp)
   — hosts `smtp.mailgun.org` / `smtp.eu.mailgun.org`; port 465 requires TLS, ports 25/587/2525 start
   plain and upgrade via STARTTLS. Credentials are **per sending domain**, managed under that domain's
   SMTP settings — not the account login. `X-Mailgun-Drop-Message: yes` submits in test mode (accepted,
   never delivered); other `X-Mailgun-*` headers cover tagging, DKIM, tracking and required TLS.
+
+## Related
+
+- [[mailer]] — the `MailerService` contract and the console transport
+- [[server-mailer-mailgun]] — the same contract over Mailgun's HTTP API instead of SMTP

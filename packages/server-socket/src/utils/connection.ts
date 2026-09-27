@@ -17,10 +17,16 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   if (request.body == null) {
     throw new SocketInitializationError('request')
   }
-  let auth: Auth | AuthCredentials | null | undefined = undefined
+  let auth: Auth | AuthCredentials | null | undefined = request.auth
   const conn = request.body
 
   const model = createBasicConnection()
+  model.requiresAuthentication = true
+  if (request.auth != null) {
+    // The HTTP guard already authenticated this upgrade. In-band authentication remains required
+    // for unguarded socket routes before any call, request, event, or message can be dispatched.
+    model.stage = AuthenticationStage.Authenticated
+  }
 
   model.close = async () => {
     await conn.close()
@@ -97,7 +103,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     return message
   }
 
-  const messageHandler = async (_message: Buffer | Buffer[]) => {
+  const receiveMessage = async (_message: Buffer | Buffer[]) => {
     _message = Array.isArray(_message) ? _message : [_message]
     const message = _message.map(msg => msg.toString('utf8')).join('')
 
@@ -105,20 +111,28 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       try {
         const parsed = JSON.parse(message)
         if (parsed.type === 'ping') {
-          console.log("Received soft ping, sending pong.")
           conn.pong()
           conn.send(JSON.stringify({ type: 'pong' }))
+          return
         }
-      } catch (e) {
-        console.error(e)
+      } catch {
+        // The shared parser below returns the typed malformed-frame error.
       }
     }
 
     await model.receive(message)
   }
 
+  // EventEmitter does not consume a returned promise. Keep the registered callback synchronous
+  // and terminate only this socket when parsing, staging, or dispatch rejects.
+  const messageHandler = (_message: Buffer | Buffer[]) => {
+    void receiveMessage(_message).catch(error => {
+      console.error('WebSocket message rejected:', error)
+      conn.close(1008)
+    })
+  }
+
   conn.on("ping", () => {
-    console.log("Received hard ping, sending pong.")
     conn.pong()
   })
 
@@ -133,7 +147,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     })
   })
 
-  const closeHandler = async (code: number) => {
+  const handleClose = async (code: number) => {
     const msg: EventMessage<{ code: number }> = {
       type: MessageType.System,
       event: 'close',
@@ -142,9 +156,21 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
     if (model.prepare != null) {
       model.prepare(msg)
     }
-    await Promise.all(model.getListeners().map(async listener => listener(msg)))
+    await Promise.all(model.getListeners().map(async listener => {
+      try {
+        await listener(msg)
+      } catch (error) {
+        console.error('Socket close listener error:', error)
+      }
+    }))
     conn.off('message', messageHandler)
     conn.off('close', closeHandler)
+  }
+
+  const closeHandler = (code: number) => {
+    void handleClose(code).catch(error => {
+      console.error('WebSocket close handling failed:', error)
+    })
   }
 
   conn.on('message', messageHandler)

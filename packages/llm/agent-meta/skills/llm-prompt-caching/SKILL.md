@@ -23,7 +23,7 @@ into a single system message:
 |---|-------|----------------|---------|-----------|
 | 0 | `Role` | `rolePlugin` ← `PromptPolicy.role` | per role | — |
 | 1 | `Skills` | `skillsPlugin` ← registry + `inline` | per helper | ✅ closes role+skills |
-| 2 | `Packages` | app plugins (e.g. `owlmeansPackagesPlugin`) | per request | ✅ its own |
+| 2 | `Packages` | application plugins (`owlmeansPackagesPlugin`) | per request | ✅ its own |
 | 3 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
 
 A caller's own leading `SystemMessage` is detached by `makeLlmModel` and re-emitted as
@@ -87,6 +87,34 @@ reproduce byte-for-byte breaks the prefix for everyone sharing it. Register by a
 re-registering the same alias replaces rather than appends, so double-wiring cannot
 double-emit.
 
+### `ctx.claim(key)` — one emitter per thing, per composition
+
+Two plugins can each be ABLE to render the same skill (a static catalogue and a detector
+that notices the request mentions it). `ctx.claim(key)` returns `true` to the first caller
+and `false` to every later one within the same `compose`, so exactly one of them emits.
+
+The claim set is per composition, never per service — a claim that outlived the call would
+silently delete the content from every later prompt sharing the service. It is also free:
+a composition where no plugin claims renders byte-identical output, so adding the seam
+invalidated no prefix.
+
+Claim on a STABLE key (`skill:<alias>`, `pkg:@owlmeans/llm`). A key derived from the
+request makes the winner vary per call, and with it the cached block.
+
+### `ctx.utility()` — a cheap model, for the volatile blocks only
+
+`PromptComposeParams.utility` is a resolver for the cheap tier
+(`ExecutionService.utility` → `ModelPolicy.utilityRole ?? UTILITY_ROLE` at
+`ExecutionEffort.Economy`) that a plugin may spend ONE call on while composing — picking
+which of a hundred candidate skills a request is about. It may yield `undefined`: most
+deployments configure no cheap tier, and a plugin that cannot get one degrades rather
+than fails.
+
+**What it returns must never land in `Role` or `Skills`.** A model's answer is not
+reproducible byte-for-byte, so a selection made this way belongs in `Packages` or
+`Context`, which carry their own breakpoint or none. Wiring: `makeLlmModel`'s `utility`
+option (beside `files`) and `AgentOptions.utility`; unwired, the field is simply absent.
+
 ## Package skills in a prompt (`@owlmeans/agent-skills/llm`)
 
 `owlmeansPackagesPlugin(options)` notices which `@owlmeans/*` packages a request mentions
@@ -98,9 +126,15 @@ sandbox or remote workspace) → an installed copy under `node_modules` → the 
 repository over HTTPS. Every failure is a miss, never a throw. Results, including misses,
 are cached per plugin instance.
 
+A cache keyed on the file provider keys on `LlmFileProvider.key` — the provider's stable
+identity (a project root, a sandbox id). Providers are late-bound and often rebuilt per
+request, so object identity says nothing, and one bucket shared across projects serves the
+first project's files to the second. A provider that declares no `key` is uncacheable, not
+one more anonymous member of the shared bucket.
+
 ```typescript
 ctx.prompts().use(owlmeansPackagesPlugin({
-  files: () => ctx.files(),      // tried first
+  files: () => fileProvider,     // the host's own LlmFileProvider, tried first
   exclude: ['@owlmeans/llm'],    // already covered by the static Skills block
   fetch: false,                  // air-gapped: skip the repository fallback
 }))
@@ -132,4 +166,4 @@ role); the `compatible` plugin deliberately does not, because aggregators runnin
 
 - [[llm]] — the runtime and the provider-plugin seam
 - [[llm-common]] — `SkillDefinition`, `PromptPolicy`, `PromptBlock`, `LlmFileProvider`
-- [[agent-skills]] — `@owlmeans/agent-skills/llm`, the package-skills plugin
+- [[agent-skills]] — `@owlmeans/agent-skills/llm` package-skill resolver and parser

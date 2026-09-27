@@ -1,4 +1,5 @@
 import { hasEnv, requireEnv } from '@owlmeans/test'
+import { unreachableReason } from './reachability.js'
 
 export interface IntegrationGate<E> {
   skip: boolean
@@ -14,14 +15,31 @@ const collect = <E>(keys: (keyof E & string)[]): Partial<E> => {
   return env as Partial<E>
 }
 
+/**
+ * A connection-string variable whose server must answer a TCP connect for the gate to open.
+ *
+ * Only for a service a developer reaches through a local address that can go away — a
+ * port-forward, a container. A populated variable pointing at nothing then closes the gate with
+ * a printed reason instead of failing every suite behind it on a refused connection.
+ */
+interface Reachable<E> {
+  key: keyof E & string
+  defaultPort: number
+}
+
 const toIntegrationGate = <E>(
   required: (keyof E & string)[],
-  optional: (keyof E & string)[] = []
+  optional: (keyof E & string)[] = [],
+  reachable?: Reachable<E>
 ): IntegrationGate<E> => {
   const gate = requireEnv(required)
   const env = collect<E>([...required, ...optional])
-  if ('ok' in gate) return { skip: false, env }
-  return { skip: true, reason: gate.reason, env }
+  if (!('ok' in gate)) return { skip: true, reason: gate.reason, env }
+  if (reachable != null) {
+    const reason = unreachableReason(reachable.key, process.env[reachable.key] as string, reachable.defaultPort)
+    if (reason != null) return { skip: true, reason, env }
+  }
+  return { skip: false, env }
 }
 
 export interface MongoEnv {
@@ -30,7 +48,7 @@ export interface MongoEnv {
 }
 
 export const mongoGate = (): IntegrationGate<MongoEnv> =>
-  toIntegrationGate<MongoEnv>(['MONGO_URL'], ['MONGO_TEST_DB_PREFIX'])
+  toIntegrationGate<MongoEnv>(['MONGO_URL'], ['MONGO_TEST_DB_PREFIX'], { key: 'MONGO_URL', defaultPort: 27017 })
 
 export interface RedisEnv {
   REDIS_URL: string
@@ -38,7 +56,7 @@ export interface RedisEnv {
 }
 
 export const redisGate = (): IntegrationGate<RedisEnv> =>
-  toIntegrationGate<RedisEnv>(['REDIS_URL'], ['REDIS_TEST_KEY_PREFIX'])
+  toIntegrationGate<RedisEnv>(['REDIS_URL'], ['REDIS_TEST_KEY_PREFIX'], { key: 'REDIS_URL', defaultPort: 6379 })
 
 export interface S3Env {
   S3_ENDPOINT: string
@@ -68,7 +86,7 @@ export interface PostgresEnv {
 }
 
 export const postgresGate = (): IntegrationGate<PostgresEnv> =>
-  toIntegrationGate<PostgresEnv>(['POSTGRES_URL'], ['POSTGRES_TEST_DB_PREFIX'])
+  toIntegrationGate<PostgresEnv>(['POSTGRES_URL'], ['POSTGRES_TEST_DB_PREFIX'], { key: 'POSTGRES_URL', defaultPort: 5432 })
 
 export interface SmtpEnv {
   SMTP_HOST: string

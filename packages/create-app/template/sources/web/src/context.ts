@@ -15,9 +15,5 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   // the app in a module of its own.
   appendStateResource<C, T>(context, SESSION_STATE)
 
-  // A child context has to inherit THIS factory, not the layer's. Without the line, a derived
-  // context is built without the resource registered above and every lookup on it throws.
-  context.makeContext = makeContext as typeof context.makeContext
-
   return context
 }

@@ -1,9 +1,9 @@
 import type { FC } from 'react'
 import { defaultNavTranslate, resolveNavLabel, usePanelNav } from '@owlmeans/client-panel'
-import { cn } from '@/lib/utils'
+import { cn } from '../../@/lib/utils.js'
 import {
   NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList
-} from '@/components/ui/navigation-menu'
+} from '../../@/components/ui/navigation-menu.js'
 
 import type { TopNavProps } from './types.js'
 

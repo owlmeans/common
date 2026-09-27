@@ -23,8 +23,17 @@ Upgrades consult the `oidc-versions` skill. Viable-side usage: [[auth]].
   `TokenEndpointResponse`.
 - After any common OIDC change, verify downstream (`viable`, `viable-agent`, `internal`):
   `bun install && build && test`; check their root `overrides` for stale third-party pins.
+- OIDC entrypoints are split by ownership: `withOidcGuard(tree)` decorates immutable shared
+  declarations; server `oidcEntrypoints` and browser `oidcEntrypoints()` return local bindings;
+  `makeAuthServiceEntrypoints()` returns declarations that the serving application binds. IAM
+  re-exports the browser equivalents as `withIamGuard` and `iamEntrypoints`.
 
 ## Gotchas
+
+- `findAccount` → `undefined` for a session's account does NOT re-prompt login in oidc-provider 9.11.1
+  (`no_session` reads `session.accountId`); the consent prompt then throws on `oidc.grant` →
+  `server_error` at the RP. `makeInteractionPolicy()` adds the `account_refused` login check;
+  bumping the pin means re-running `tests/policy.spec.ts` (its first case is the upstream canary).
 
 - oidc-provider v9: `oidc.use()` post-`next()` no longer runs after a matched route — CSP header
   rewrites and debug logging must live at the Fastify layer (`onSend` scoped to the OIDC base

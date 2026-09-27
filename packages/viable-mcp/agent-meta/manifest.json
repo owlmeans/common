@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/viable-mcp",
+  "version": "0.1.18-rc.33",
+  "generatedAt": "2026-09-25T21:19:38.004Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "viable-mcp",
+      "category": "package-specific",
+      "file": "skills/viable-mcp/SKILL.md",
+      "canonicalPath": ".agents/skills/viable-mcp/SKILL.md"
+    }
+  ]
+}

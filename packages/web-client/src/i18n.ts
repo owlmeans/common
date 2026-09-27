@@ -7,6 +7,7 @@ import authBe from './i18n/auth-be.json' with { type: 'json' }
 import authUk from './i18n/auth-uk.json' with { type: 'json' }
 import authEs from './i18n/auth-es.json' with { type: 'json' }
 import authDe from './i18n/auth-de.json' with { type: 'json' }
+import authFr from './i18n/auth-fr.json' with { type: 'json' }
 
 addI18nLib('en', 'auth', authEn)
 addI18nLib('pl', 'auth', authPl)
@@ -15,3 +16,4 @@ addI18nLib('be', 'auth', authBe)
 addI18nLib('uk', 'auth', authUk)
 addI18nLib('es', 'auth', authEs)
 addI18nLib('de', 'auth', authDe)
+addI18nLib('fr', 'auth', authFr)

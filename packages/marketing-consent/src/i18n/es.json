@@ -1,0 +1,49 @@
+{
+  "group": {
+    "communications": {
+      "title": "Comunicaciones",
+      "description": "Cómo nos ponemos en contacto contigo."
+    },
+    "data": {
+      "title": "Uso de datos",
+      "description": "Cómo se usan y comparten tus datos."
+    }
+  },
+  "consent": {
+    "marketing": {
+      "email": {
+        "label": "Confirmo que acepto recibir novedades del producto, ofertas y actualizaciones por correo electrónico.",
+        "description": "Te escribiremos a la dirección de correo electrónico de tu cuenta sobre este producto y ofertas relacionadas. Puedes retirar este consentimiento en cualquier momento en los ajustes de tu cuenta, y cada mensaje incluye un enlace para darte de baja. Cómo tratamos tus datos se describe en la {{link}}."
+      },
+      "sms": {
+        "label": "Confirmo que acepto recibir ofertas y actualizaciones por mensaje de texto.",
+        "description": "Te enviaremos mensajes de texto al número de teléfono que indiques sobre este producto y ofertas relacionadas. Puedes retirar este consentimiento en cualquier momento en los ajustes de tu cuenta. Cómo tratamos tus datos se describe en la {{link}}."
+      },
+      "phone": {
+        "label": "Confirmo que acepto que me contacten por teléfono con ofertas y actualizaciones.",
+        "description": "Podremos llamar al número de teléfono que indiques para hablarte de este producto y de ofertas relacionadas. Puedes retirar este consentimiento en cualquier momento en los ajustes de tu cuenta y dejaremos de llamarte. Cómo tratamos tus datos se describe en la {{link}}."
+      },
+      "push": {
+        "label": "Confirmo que acepto recibir ofertas y actualizaciones como notificaciones push.",
+        "description": "Te enviaremos notificaciones a los dispositivos en los que las permitas, sobre este producto y ofertas relacionadas. Puedes retirar este consentimiento en cualquier momento en los ajustes de tu cuenta o de tu dispositivo. Cómo tratamos tus datos se describe en la {{link}}."
+      }
+    },
+    "data": {
+      "profiling": {
+        "label": "Confirmo que acepto que mi actividad en el producto se utilice para personalizar lo que veo.",
+        "description": "Las páginas que abres, las acciones que realizas y tus preferencias se analizan para adaptar a ti las recomendaciones, el contenido y las ofertas. Puedes retirar este consentimiento en cualquier momento y la personalización se detendrá. Encontrarás los detalles en la {{link}}."
+      },
+      "partners": {
+        "label": "Confirmo que acepto que mis datos se compartan con socios seleccionados para su propio marketing.",
+        "description": "Tu nombre, tu dirección de correo electrónico y tu perfil de uso pueden transmitirse a socios seleccionados para que se pongan en contacto contigo sobre sus propios productos; cada socio trata tus datos conforme a su propia política de privacidad. Puedes retirar este consentimiento en cualquier momento y el intercambio se detendrá. Encontrarás los detalles en la {{link}}."
+      }
+    }
+  },
+  "link": {
+    "default": "Más información",
+    "privacy": "Política de privacidad"
+  },
+  "errors": {
+    "unknown": "Consentimiento desconocido: {{key}}"
+  }
+}

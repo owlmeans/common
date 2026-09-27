@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Картка",
+    "project": "Праект",
+    "specification": "Спецыфікацыя"
+  },
+  "intrinsic": {
+    "planned": "Запланавана",
+    "in-progress": "У працы",
+    "closed": "Закрыта"
+  },
+  "action": {
+    "create": "Створана",
+    "update": "Абноўлена",
+    "transit": "Статус зменены",
+    "link": "Звязана",
+    "unlink": "Сувязь выдалена",
+    "delete": "Выдалена"
+  },
+  "commit": {
+    "pending": "Захаванне…",
+    "committed": "Захавана",
+    "failed": "Не захавана"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Звычайны тэкст"
+  },
+  "errors": {
+    "PlanningError": "Не ўдалося выканаць запыт планавання",
+    "PlanningErrorWorkcardNotFound": "Гэты элемент не існуе або недаступны вам",
+    "PlanningErrorUnknownWorkcardType": "Гэты тып элемента невядомы",
+    "PlanningErrorUnknownStatusFlow": "Гэты паток статусаў невядомы",
+    "PlanningErrorParentNotFound": "Бацькоўскі элемент не існуе",
+    "PlanningErrorCardTypeNotAllowed": "Элемент гэтага тыпу нельга дадаць сюды",
+    "PlanningErrorRefused": "Змяненне адхілена",
+    "PlanningErrorIllegalTransition": "Такая змена статусу недапушчальная з бягучага статусу",
+    "PlanningErrorFieldsInvalid": "Некаторыя палі маюць недапушчальныя значэнні",
+    "PlanningErrorLabelNotAllowed": "Гэтая метка тут недапушчальная",
+    "PlanningErrorSpecificationSlotUnknown": "Гэты від дакумента тут недапушчальны",
+    "PlanningErrorSpecificationRevisionConflict": "Гэты дакумент ужо існуе — адрэдагуйце яго",
+    "PlanningErrorRelationshipRefused": "Гэтая сувязь недапушчальная",
+    "PlanningErrorCodeTaken": "Гэты код ужо заняты",
+    "PlanningErrorWorkcardConflict": "Хтосьці змяніў гэты элемент за гэты час — абнавіце і паспрабуйце зноў",
+    "PlanningErrorCommitTimeout": "Змяненне яшчэ захоўваецца — праверце крыху пазней",
+    "PlanningErrorCommitFailed": "Не ўдалося захаваць змяненне",
+    "PlanningErrorScopeMismatch": "Гэты элемент не існуе або недаступны вам",
+    "PlanningErrorUnsupported": "Гэтая аперацыя не падтрымліваецца для гэтага элемента"
+  }
+}

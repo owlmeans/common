@@ -6,7 +6,9 @@ import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint
 import { canServerModule } from './utils/server.js'
 import { fastifyWebsocket } from '@fastify/websocket'
 import type { WebSocket } from '@fastify/websocket'
-import { authorize, executeResponse, extractContext, handleError, populateContext, provideRequest } from '@owlmeans/server-api/utils'
+import {
+  authorize, errorExposure, executeResponse, extractContext, handleError, populateContext, provideRequest
+} from '@owlmeans/server-api/utils'
 import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
@@ -27,9 +29,8 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             .filter(module => canServerModule(context, module) && !module.route.isIntermediate())
             .reduce<Promise<Context>>(async (ctx, module) => {
               let context = await ctx
-              await module.resolve()
 
-              if (!module.route.match(req)) {
+              if (!module.route.match(req, module.mount())) {
                 return context
               }
 
@@ -55,12 +56,11 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                   executeResponse(response, reply, true)
                 }
               } catch (error) {
-                console.error(error)
                 if (module.fixer != null) {
                   const fixer: FixerService = context.service(module.fixer)
                   fixer.handle(reply, ResilientError.ensure(error as Error))
                 } else {
-                  handleError(error as Error, reply)
+                  handleError(error as Error, reply, errorExposure(context.cfg))
                 }
               }
 
@@ -68,15 +68,14 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             }, Promise.resolve(context))
         })
 
-        await Promise.all(ctx.entrypoints<ServerEntrypoint<Request>>().filter(
+        ctx.entrypoints<ServerEntrypoint<Request>>().filter(
           module => canServerModule(ctx, module) && !module.route.isIntermediate()
-        ).map(async module => {
-          await module.resolve()
+        ).forEach(module => {
           if (module.handle == null) {
             return
           }
 
-          server.get(module.getPath(), {
+          server.get(module.mount(), {
             schema: {
               querystring: module.filter?.query ?? {},
               params: module.filter?.params ?? {},
@@ -111,7 +110,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
               }
             })
           })
-        }))
+        })
       })
     }
   }, service => async () => {

@@ -2,11 +2,14 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { BadRequestError } from '@anthropic-ai/sdk'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MessageContent, MessageFieldWithRole } from '@langchain/core/messages'
-import { ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
+import { ModelEffort, ModelProvider, PromptBlock, StructuredMode } from '@owlmeans/llm-common'
 import type { CacheTtl } from '@owlmeans/llm-common'
-import type { LlmPlugin } from './types.js'
+import type { EffortSupport, LlmPlugin } from './types.js'
+import type { ModelConfig } from '../types.js'
 import { CHARS_PER_TOKEN, MAX_CACHE_BREAKPOINTS, MIN_CACHEABLE_TOKENS } from '../consts.js'
+import { resolveOutputCap } from '../utils/config.js'
 import { readConfig } from '../utils/config.js'
+import { effortFor, effortRank } from '../utils/effort.js'
 import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
 
 /** Model-name prefix that supports prompt caching through `cache_control` markers. */
@@ -35,6 +38,105 @@ export const NO_SAMPLING_PREFIXES = [
 /** Whether this model id rejects `temperature`/`top_p`/`top_k`. */
 export const rejectsSampling = (model: string | undefined): boolean =>
   model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
+
+/**
+ * Whether the request has to say, on the wire, that the model must not reason.
+ *
+ * The adaptive family reasons unless told otherwise: an absent `thinking` parameter means
+ * "adaptive", and langchain forwards the parameter only when a caller sets it — so a config
+ * that asks for no thinking is only honoured if the plugin sends `thinking: disabled` itself.
+ * Silent reasoning is what the request pays for twice: its tokens bill as output, and the
+ * summarised stream delivers them in bursts minutes apart, which an idle deadline reads as a
+ * dead connection and retries from scratch. Older models reason only when asked and get nothing.
+ */
+export const suppressesThinking = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): boolean =>
+  config.disableThinking === true && rejectsSampling(config.model)
+
+const ALL_EFFORTS = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max]
+const NO_XHIGH = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.Max]
+const UP_TO_HIGH = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High]
+
+/**
+ * `output_config.effort` levels per model, first prefix match wins. From Anthropic's effort
+ * page (2026-09-23): `max` on every model below except Opus 4.5, `xhigh` only on the first
+ * seven, `medium` the default on Opus 5.5 and `high` everywhere else. A model not listed
+ * (Haiku 4.5, Sonnet 4.5 and older) rejects the field, so it is never sent there.
+ *
+ * `thinkingOffCeiling`: Opus 5 accepts `thinking: disabled` only at `high` or below — the
+ * combination with `xhigh`/`max` is a 400 — so a config that suppresses thinking stops there.
+ */
+export const ANTHROPIC_EFFORT_SUPPORT: ReadonlyArray<
+  EffortSupport & { prefix: string, thinkingOffCeiling?: ModelEffort }
+> = [
+  { prefix: 'claude-opus-5-5', levels: ALL_EFFORTS, default: ModelEffort.Medium },
+  { prefix: 'claude-opus-5', levels: ALL_EFFORTS, default: ModelEffort.High, thinkingOffCeiling: ModelEffort.High },
+  { prefix: 'claude-fable-5', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-mythos-5', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-opus-4-8', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-opus-4-7', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-sonnet-5', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-mythos-preview', levels: NO_XHIGH, default: ModelEffort.High },
+  { prefix: 'claude-opus-4-6', levels: NO_XHIGH, default: ModelEffort.High },
+  { prefix: 'claude-sonnet-4-6', levels: NO_XHIGH, default: ModelEffort.High },
+  { prefix: 'claude-opus-4-5', levels: UP_TO_HIGH, default: ModelEffort.High },
+]
+
+const anthropicEffort = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): EffortSupport | undefined => {
+  const model = config.model
+  const entry = model != null ? ANTHROPIC_EFFORT_SUPPORT.find(e => model.startsWith(e.prefix)) : undefined
+  if (entry == null) {
+    return undefined
+  }
+  const ceiling = entry.thinkingOffCeiling
+  const levels = ceiling != null && suppressesThinking(config)
+    ? entry.levels.filter(level => effortRank(level) <= effortRank(ceiling))
+    : entry.levels
+
+  return { levels, default: entry.default }
+}
+
+type AnthropicKwargs = Omit<Partial<ChatAnthropic>, 'outputConfig' | 'thinking'> & {
+  outputConfig?: { effort?: ModelEffort } & Record<string, unknown>
+  thinking?: { type?: string }
+}
+
+/** langchain types the wire values as a literal union; `ModelEffort` holds the same strings. */
+type WireOutputConfig = NonNullable<ConstructorParameters<typeof ChatAnthropic>[0]>['outputConfig']
+
+/**
+ * The `outputConfig` for one attempt, or `undefined` to leave it as `build` wrote it. The model
+ * and thinking switch are read back off the instance, since `refine` has no config — and the
+ * thinking switch decides Opus 5's ceiling.
+ */
+const escalatedOutputConfig = (
+  model: ChatAnthropic, kwargs: AnthropicKwargs, steps: number,
+): AnthropicKwargs['outputConfig'] => {
+  const effort = effortFor(
+    anthropicEffort({
+      model: model.modelName ?? model.model,
+      disableThinking: kwargs.thinking?.type === 'disabled',
+    }),
+    kwargs.outputConfig?.effort,
+    steps,
+  )
+  return effort != null ? { ...kwargs.outputConfig, effort } : undefined
+}
+
+/**
+ * The smallest output budget an always-reasoning model is given.
+ *
+ * The same models that took the sampling knobs away also think ADAPTIVELY unless the request
+ * turns it off (`disableThinking` → `thinking: disabled`, see `suppressesThinking`), and by
+ * default that thinking is not shown — it arrives as thinking blocks with empty text. Reasoning is billed against the same `max_tokens` as the answer, so a budget
+ * sized for the answer alone can be spent entirely on thinking: the response is a well-formed
+ * completion carrying no text at all, `stop_reason: "max_tokens"`, and every retry at the same
+ * budget draws from the same distribution.
+ *
+ * The floor buys room for the reasoning AND the answer. It is a floor, not an override — a preset
+ * asking for more keeps it — and it is clamped to what the provider accepts, so it can never turn
+ * a retryable empty answer into a 400.
+ */
+export const ADAPTIVE_MIN_MAX_TOKENS = 32_000
 
 export const ANTHROPIC_FAMILY = 'anthropic'
 
@@ -115,6 +217,10 @@ export const anthropicPlugin: LlmPlugin = {
    */
   toolChoice: (toolName: string): unknown => ({ type: 'tool', name: toolName }),
 
+  suppressesThinking: config => suppressesThinking(config),
+
+  effort: config => anthropicEffort(config),
+
   build: ({ config, secret, callbacks }) => {
     const model = config.model ??= 'claude-haiku-4-5'
     // Claude 4.7+ took the sampling knobs away: not "ignored", a 400. A configured
@@ -128,14 +234,27 @@ export const anthropicPlugin: LlmPlugin = {
         ...(config.temperature != null ? { temperature: config.temperature } : {}),
         ...(config.topP != null && config.temperature == null ? { topP: config.topP } : {}),
       }
+    // Room for the reasoning these models always do, and for the answer after it.
+    const requested = config.maxTokens ?? 4096
+    const maxTokens = rejectsSampling(model)
+      ? Math.min(Math.max(requested, ADAPTIVE_MIN_MAX_TOKENS), resolveOutputCap(config))
+      : requested
+    const effort = effortFor(
+      anthropicEffort({ model, disableThinking: config.disableThinking }), config.effort, 0,
+    )
+
     const cfg = {
       model,
       apiKey: secret,
-      maxTokens: config.maxTokens ?? 4096,
+      maxTokens,
       maxRetries: 5,
       metadata: { config },
       callbacks,
       ...sampling,
+      ...(suppressesThinking({ model, disableThinking: config.disableThinking })
+        ? { thinking: { type: 'disabled' as const } }
+        : {}),
+      ...(effort != null ? { outputConfig: { effort } as WireOutputConfig } : {}),
       ...makeClientOptions({ headers: config.headers }),
     }
     // Anthropic rejects temperature and top_p together.
@@ -146,22 +265,27 @@ export const anthropicPlugin: LlmPlugin = {
     return new ChatAnthropic(cfg)
   },
 
-  refine: ({ base, attempt, temperature, maxOutputCap }): BaseChatModel => {
+  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }): BaseChatModel => {
     const model = base as ChatAnthropic
     const currentTemperature = temperature ?? model.temperature ?? 0
     const maxTokens = escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
+    const kwargs = model.lc_kwargs as AnthropicKwargs
+    // Effort is part of the cached prefix, so a climbed retry pays a cache write. A retry is
+    // already the rare path, and the answer it buys is the point of retrying.
+    const outputConfig = escalatedOutputConfig(model, kwargs, rungAttempt ?? attempt)
+    const escalated = outputConfig != null ? { outputConfig } : {}
     // `lc_kwargs` carries whatever `build` put there, so a no-sampling model arrives clean;
     // what has to be suppressed is the escalator's own re-application of a temperature.
     if (rejectsSampling(model.modelName ?? model.model)) {
-      const cfg = { ...(model.lc_kwargs as Partial<ChatAnthropic>), maxTokens }
+      const cfg = { ...kwargs, maxTokens, ...escalated }
       delete cfg.temperature
       delete cfg.topP
 
       return new ChatAnthropic(cfg as Partial<ChatAnthropic>)
     }
     const cfg: Partial<ChatAnthropic> = {
-      ...(model.lc_kwargs as Partial<ChatAnthropic>), temperature: currentTemperature, maxTokens,
-    }
+      ...kwargs, temperature: currentTemperature, maxTokens, ...escalated,
+    } as Partial<ChatAnthropic>
     if (cfg.temperature != null && cfg.temperature > 0 && cfg.topP != null) {
       delete cfg.topP
     } else if (cfg.temperature != null && cfg.temperature <= 0 && cfg.topP != null) {

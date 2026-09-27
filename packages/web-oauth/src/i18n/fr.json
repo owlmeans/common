@@ -1,0 +1,35 @@
+{
+  "consent": {
+    "checking": "Vérification de votre session…",
+    "loading": "Chargement de la demande…",
+    "framed": "Cet écran ne peut pas s’afficher dans une autre page. Ouvrez-le directement.",
+    "error": "Une erreur est survenue. Réessayez depuis l’application qui vous a envoyé ici.",
+    "title": "{{client}} souhaite accéder à votre compte",
+    "known": "Vous avez déjà utilisé cette application.",
+    "known-by-host": "Demande provenant de {{host}}.",
+    "unverified": "Cette application s’est enregistrée elle-même et n’a pas été vérifiée.",
+    "device-code": "Code : {{code}}",
+    "device-name": "Appareil : {{name}}",
+    "redirect-host": "Vous retournerez vers {{host}}.",
+    "localhost-warning": "Cette application n’a enregistré que des adresses de votre ordinateur. N’approuvez que si vous venez de démarrer vous-même la connexion.",
+    "scope": "Accès demandé : {{scopes}}",
+    "approve": "Autoriser",
+    "deny": "Refuser",
+    "error-missing": "Il n’y a rien à autoriser ici. Redémarrez la connexion depuis l’application.",
+    "error-not-found": "Cette demande est inconnue ou a déjà été utilisée. Redémarrez la connexion depuis l’application.",
+    "error-expired": "Cette demande a expiré. Redémarrez la connexion depuis l’application.",
+    "error-forbidden": "Ce type de compte ne peut pas autoriser l’accès. Connectez-vous avec le compte que vous utilisez pour OwlMeans puis réessayez.",
+    "switch-account": "Utiliser un autre compte"
+  },
+  "device": {
+    "title": "Connecter un appareil",
+    "description": "Saisissez le code affiché par l’application que vous connectez.",
+    "code-label": "Code",
+    "continue": "Continuer"
+  },
+  "done": {
+    "title": "Vous êtes connecté",
+    "message": "Vous pouvez fermer cette fenêtre et continuer dans l’application qui vous a envoyé ici.",
+    "device-message": "Vous pouvez fermer cette fenêtre. L’application poursuivra automatiquement."
+  }
+}

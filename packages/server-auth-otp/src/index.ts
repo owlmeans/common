@@ -1,4 +1,7 @@
-export type * from './types.js'
+export * from './types.js'
 export * from './consts.js'
 export * from './service.js'
 export * from './plugin.js'
+export * from './errors.js'
+export * from './throttle.js'
+export * from './challenge.js'

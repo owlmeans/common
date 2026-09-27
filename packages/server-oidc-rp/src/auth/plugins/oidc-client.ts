@@ -95,8 +95,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       const verifier = base64.encode(randomBytes(32))
       const challenge = base64.encode(sha256(verifier))
 
-      console.log("\n\n We create verifierID (2): ", verifierId(challenge), verifier, " with client: ", entityId, "\n\n")
-
       await cache<C, T>(context).create({
         id: verifierId(challenge), 
         verifier, 
@@ -126,7 +124,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     },
 
     authenticate: async credential => {
-      console.log('000000000000000')
       const [cfg, tokenSet, exchangeToken] = await authenticate(credential)
 
       if (tokenSet.id_token == null || tokenSet.access_token == null) {
@@ -162,7 +159,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       // managable, so this condition isn't enough to cover described cases.
       let details: OidcUserDetails
       if (cfg.apiClientId != null) {
-        console.log(1)
         const apiClient = await oidc.getClient(cfg.apiClientId)
         const adminTokens = await apiClient.grantWithCredentials()
         if (adminTokens.access_token == null) {
@@ -186,7 +182,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
         // Fix profile if it's not linked properly to OwlMeans Id
         || (details.did != null && details.isOwlMeansId && !profile.profileId?.startsWith(KEY_OWL + ':'))
       ) {
-        console.log(2)
         details.isOwlMeansId ??= cfg.entityId != null && cfg.entityId === context.cfg.defaultEntityId
         if (details.isOwlMeansId && context.cfg.defaultEntityId == null) {
           throw new AuthManagerError('iam.governance')
@@ -197,9 +192,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // right now. Probably we should. Probably there are some cases when we have to.
           throw new AuthManagerError('iam.entity')
         }
-
-
-        console.log('Supper attention ~%~: ', details.entityId, cfg.entityId, context.cfg.defaultEntityId)
 
         // We relink existing profile only if it's not yet did bound
         // and the orgnaization is owlmeans.net
@@ -216,7 +208,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           // only with owlmeans.net idp that is managed by ours. 
           && details.entityId === cfg.entityId
         )) {
-          console.log(3, details)
           profile = await store.linkProfile({
             ...details,
             service: cfg.service,
@@ -229,7 +220,6 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
           })
         }
       }
-      console.log(4)
 
       credential.scopes = [ALL_SCOPES]
       credential.source = cfg.clientId

@@ -1,23 +1,34 @@
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { ExecutionLevel } from '@owlmeans/llm-common'
 import type {
-  ExecutionEffort, ExecutionState, ModelConfigOverride, ModelConfigPatch,
+  ExecutionEffort, ExecutionState, ModelConfigOverride, ModelConfigPatch, ModelEffort,
   ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import { EFFORT_TABLE } from '../consts.js'
+import { effortSupportOf } from '../plugins/index.js'
+import { readConfig } from '../utils/config.js'
+import { raiseEffort } from '../utils/effort.js'
 import type { Execution, TaskExecution } from './types.js'
 
 export const freeze = <T extends object>(o: T): Readonly<T> => Object.freeze(o)
 
 /** Overlay a partial policy onto a base one. Override maps are merged, not replaced. */
-export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): ModelPolicy => ({
-  effort: patch.effort ?? base.effort,
-  roleOverrides: patch.roleOverrides != null || base.roleOverrides != null
-    ? { ...base.roleOverrides, ...patch.roleOverrides }
-    : undefined,
-  modelOverrides: patch.modelOverrides != null || base.modelOverrides != null
-    ? { ...base.modelOverrides, ...patch.modelOverrides }
-    : undefined,
-})
+export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): ModelPolicy => {
+  const utilityRole = patch.utilityRole ?? base.utilityRole
+
+  return {
+    effort: patch.effort ?? base.effort,
+    roleOverrides: patch.roleOverrides != null || base.roleOverrides != null
+      ? { ...base.roleOverrides, ...patch.roleOverrides }
+      : undefined,
+    modelOverrides: patch.modelOverrides != null || base.modelOverrides != null
+      ? { ...base.modelOverrides, ...patch.modelOverrides }
+      : undefined,
+    // Added only when it exists, unlike the maps above: a project that never names a
+    // cheap tier must not gain a `utilityRole` key it would then carry into every snapshot.
+    ...(utilityRole != null ? { utilityRole } : {}),
+  }
+}
 
 /**
  * Overlay a prompt policy onto the one inherited from the parent level.
@@ -51,6 +62,16 @@ export const resolveRole = (policy: ModelPolicy, role: ModelRole): ModelRole =>
   (policy.roleOverrides?.[role] as ModelRole | undefined) ?? role
 
 export const effortPatch = (effort: ExecutionEffort): ModelConfigPatch => EFFORT_TABLE[effort]
+
+/**
+ * The effort `steps` levels above what `model` was built with (its model's default when it
+ * declares none), or `undefined` when that model accepts no effort.
+ */
+export const raisedEffort = (model: BaseChatModel, steps: number): ModelEffort | undefined => {
+  const config = readConfig(model)
+  const support = effortSupportOf(config)
+  return support != null ? raiseEffort(support, config.effort, steps) : undefined
+}
 
 /** Normalize a {@link ModelConfigOverride} (alias or patch) to a patch. */
 export const resolveModelConfig = (override: ModelConfigOverride): ModelConfigPatch =>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { generateKeyPairSync } from 'node:crypto'
-import { AppType, Layer, makeBasicContext } from '@owlmeans/context'
+import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicContext } from '@owlmeans/context'
 import { combineConfig } from '../src/utils/config.js'
 import type { Config } from '../src/types.js'
@@ -12,7 +12,6 @@ const makeTestContext = () => {
   const cfg: Config = {
     ready: false,
     service: 'server-oidc-provider-tests',
-    layer: Layer.Service,
     type: AppType.Backend,
     services: {},
     debug: { all: false },

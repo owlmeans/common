@@ -95,7 +95,7 @@ UI route or calling a service handler.
 ### Unchanged names
 
 The following are **not** "module"-named and stay as-is (only call-sites get updated imports):
-`parent`, `clone`, `filter`, `guard`, `gate`, `provideResponse`, `elevate`, `stab`,
+`parent`, `clone`, `filter`, `guard`, `gate`, `provideResponse`, `replaceEntrypoint`, `stab`,
 `provideRequest`, `pickPerSchema`, `apiHandler`, `apiCall`, `urlCall`, `createBasicGuard`;
 types `GuardService`, `GateService`, `FixerService`, `Filter`, `AbstractRequest`,
 `AbstractResponse`, `ClientRequest`, `ClientValidationError`.
@@ -301,7 +301,7 @@ Rename directories and update content:
 - `client-module/SKILL.md` → `client-entrypoint/SKILL.md`
 
 Update content (not renamed but mention modules heavily):
-- `server-app/SKILL.md` — `elevate`/`celevate` examples, module registration patterns
+- `server-app/SKILL.md` — `replaceEntrypoint` examples, module registration patterns
 - `route/SKILL.md`, `server-route/SKILL.md`, `client-route/SKILL.md` — examples using `entrypoint()` + `route()`
 - `web-router/SKILL.md`, `router/SKILL.md` — entrypoint→route binding
 - `context/SKILL.md`, `server-context/SKILL.md` — `ctx.entrypoint(alias)` pattern
@@ -360,7 +360,7 @@ Update the concept-defining text in:
 5. Run `bun run build` — green.
 6. **Metadata updates:**
    - `CLAUDE.md` — architecture layers, DI patterns
-   - `.github/copilot-instructions.md` — DI system section, `elevate()`, `wlInfoModules` naming
+   - `.github/copilot-instructions.md` — DI system section, `replaceEntrypoint()`, `wlInfoModules` naming
    - `.github/instructions/*.instructions.md` — any that reference modules (WL, keycloak instructions)
    - `.claude/skills/` — update any skills that document module patterns
 

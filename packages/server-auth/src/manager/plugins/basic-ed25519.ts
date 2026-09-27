@@ -23,8 +23,8 @@ export const basicEd25519 = <C extends AppConfig, T extends AppContext<C>>(conte
       /**
        * @TODO We need to find users in some db not just in static
        */
-      const systemUser = await context.getConfigResource(TRUSTED)
-        .load<TrustedRecord>(credential.userId)
+      const systemUser = await context.getConfigResource<TrustedRecord>(TRUSTED)
+        .load(credential.userId)
 
       if (systemUser == null) {
         throw new AuthenFailed()

@@ -90,6 +90,8 @@ export interface OidcClientAdapter {
   grantWithCode: (currentUrl: string, checks: OidcGrantChecks, params: Record<string, string>) => Promise<OidcTokenSet>
   refresh: (tokenSet: OidcTokenSetParameters | string) => Promise<OidcTokenSetParameters>
   introspect: (tokenSet: OidcTokenSetParameters, type?: string) => Promise<OidcIntrospectionResponse>
+  /** Read current claims for an active access token and bind them to its subject. */
+  userinfo: (tokenSet: OidcTokenSetParameters, expectedSubject: string) => Promise<Record<string, unknown>>
 }
 
 export interface OidcRpConfig extends OidcSharedConfig {
@@ -120,4 +122,3 @@ export interface ProviderApiService extends InitializedService {
   getUserDetails: (token: string, userId: string) => Promise<OidcUserDetails>
   getSettings: (token: string, realm: string) => Promise<OidcProviderSettings>
 }
-

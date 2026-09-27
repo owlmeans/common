@@ -1,7 +1,7 @@
 ---
 node: llm
 scope: "packages/llm/**, packages/llm-common/**"
-updated: 2026-08
+updated: 2026-09
 ---
 
 # LLM (inference runtime + execution abstraction)
@@ -31,14 +31,18 @@ model factory service and the generic execution service. Related: [[versioning]]
 - Plugin **registration order is load-bearing**: `pluginFor` returns the first `owns` match, so
   `compatible` is registered before `openai` — both build a `ChatOpenAI`, and assuming tool-calling
   for an unlabelled model is safe everywhere while assuming native JSON-schema support is not.
-- Retry escalation switches to `ModelConfig.fallback` only WITHIN one plugin `family`: a
-  cross-provider switch mid-call would change the structured-output call shape.
+- A `fallback` chain may cross providers: every provider-shaped decision (`refine`, structured
+  mode, `tool_choice`, prompt rendering) comes from the ACTIVE rung's plugin, and `prepare`
+  re-runs on a family change. Keyed on the primary's plugin, another provider's rung 400s on
+  the first switched call. `resolveFallbacks` is the one merge (cross-provider rungs inherit
+  only budgets). Detail: skill `llm`, "Fallback chains and provider effort".
 - **`refine` runs on EVERY call, attempt 0 included** — it is the instance the provider is
   actually asked with, not a retry-only rebuild. A parameter a model rejects must therefore be
   gated in `build` AND `refine`: gating only `build` put `temperature` back on every request and
   400'd the whole `gpt-5*` family (`Unsupported parameter: 'temperature'`) — fatal by `isFatal`,
   so the first call of a run died. Predicates are exported, one per family, never re-typed by a
-  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-5*`/`codex-*`).
+  consumer: `rejectsSampling` (Claude 4.7+/5) and `usesResponsesApi` (`gpt-6*`/`gpt-5*`/`codex-*`).
+  The same both-hooks rule holds for `effort`: `build` clamps it, `refine` climbs it per rung.
 - The ladder is per CALL, so a caller whose own loop validates the OUTPUT must pass
   `LlmCallOptions.escalation` (its outer attempt) or every call restarts at rung 0 — same
   model, same budget, same deterministic answer. Clamped to `retries - 1`; start rung only.
@@ -49,9 +53,18 @@ model factory service and the generic execution service. Related: [[versioning]]
 - `createModel` layers `presetOf(base.preset) < base < presetOf(override.preset) < override`.
   A preset is a BASE; assigning it last (the old order) silently voided a role's own fields
   and the caller's override, including effort-tier caps. One level deep, never a chain.
-- `ExecutionPlugin` has `onCheckpoint`/`onRestore` AND `advise`; `checkpoint` dispatches on
-  plugins declaring `onCheckpoint`, never on the plugin count, so an advise-only plugin does
-  not start composing unused snapshots.
+- `ExecutionPlugin` is **`advise`-only**. The `onCheckpoint`/`onRestore` pair and
+  `ExecutionService.checkpoint` are gone: an execution is a COLLABORATOR rebuilt per run, not a
+  thing that is restored, and resumability belongs to `@owlmeans/agent`'s pipeline runner, whose
+  run row is the authority. `TaskExecutionState.{phase,completed,cursor}` survive as LABELS for
+  traces and prompts — never as a position anything resumes from.
+- The inquiry transport registry is module-level and keyed, exactly like the provider-plugin and
+  delegate registries beside it, and its accessor is named `inquiryTransportFor` — `@owlmeans/llm`
+  and `@owlmeans/llm-delegate` are re-exported into one namespace by `@owlmeans/viable`, so a bare
+  `transportFor` collides. A transport that cannot serve a question THROWS (`InquiryUnavailable`,
+  registered fatal beside the throw); a declined answer is a decision and is not fatal.
+- `use()` seats a plugin **by alias**, replacing rather than appending. A layer wired twice
+  otherwise answers twice, silently, since the first usable answer wins.
 - `composeExecState` excludes `state` itself. Without it every `derive`/`escalate`/`withPurpose`
   on a task nests another copy of the previous state (regression-tested in `execution.spec.ts`).
 - `@langchain/*` are **peer** dependencies: model instances cross the package boundary and two
@@ -68,8 +81,23 @@ model factory service and the generic execution service. Related: [[versioning]]
 - The `gpt-5*` / `codex-*` families go through the Responses API, which rejects
   `temperature`/`topP` — an offline spec asserting on sampling params must not use them.
 
+- Claude 5-series models reason ADAPTIVELY whether or not the request asks, and it is billed from
+  the same `max_tokens` as the answer — a budget sized for the answer alone comes back as a
+  thinking-only completion with `stop_reason: "max_tokens"` and no text block. `ADAPTIVE_MIN_MAX_TOKENS`
+  (32k, clamped through `resolveOutputCap`) is the floor that prevents it. Escalating `maxTokens`
+  alone does not: the retry redraws from an unchanged distribution.
+- Anthropic never sets `response_metadata.finish_reason`; langchain puts the stop reason in
+  `additional_kwargs.stop_reason`. Reading only the former printed `finishReason: undefined` on
+  every Anthropic null report, hiding the cause above.
+- An empty completion is classified as a null result BEFORE the caller's filter runs. Every shipped
+  filter returns null only for empty input, so letting one run first blamed the caller and skipped
+  `reportNull` — losing the only diagnostics that explain the failure.
+
 ## Pointers
 
 - `packages/llm/README.md` — the resilience table (what the package already handles) and the
   plugin-authoring example; skills `llm` / `llm-common`.
+- Skills: `llm`, `llm-common` and `inquiry` (the transport registry and `ExecutionService.ask`).
+  The `ModelProvider.Delegated` runtime is `@owlmeans/llm-delegate` in the `internal` monorepo —
+  contracts here, runtime there; consumers reach it through `@owlmeans/viable`.
 - Consumer side: `viable-agent` skills `/llm-model` and `/execution`.

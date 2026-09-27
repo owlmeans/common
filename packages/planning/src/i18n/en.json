@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Card",
+    "project": "Project",
+    "specification": "Specification"
+  },
+  "intrinsic": {
+    "planned": "Planned",
+    "in-progress": "In progress",
+    "closed": "Closed"
+  },
+  "action": {
+    "create": "Created",
+    "update": "Updated",
+    "transit": "Status changed",
+    "link": "Linked",
+    "unlink": "Unlinked",
+    "delete": "Deleted"
+  },
+  "commit": {
+    "pending": "Saving…",
+    "committed": "Saved",
+    "failed": "Not saved"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Plain text"
+  },
+  "errors": {
+    "PlanningError": "The planning request could not be completed",
+    "PlanningErrorWorkcardNotFound": "This item does not exist or is not available to you",
+    "PlanningErrorUnknownWorkcardType": "This item type is not known",
+    "PlanningErrorUnknownStatusFlow": "This status flow is not known",
+    "PlanningErrorParentNotFound": "The parent item does not exist",
+    "PlanningErrorCardTypeNotAllowed": "This item type cannot be added here",
+    "PlanningErrorRefused": "The change was refused",
+    "PlanningErrorIllegalTransition": "This status change is not allowed from the current status",
+    "PlanningErrorFieldsInvalid": "Some fields have invalid values",
+    "PlanningErrorLabelNotAllowed": "This label is not allowed here",
+    "PlanningErrorSpecificationSlotUnknown": "This kind of document is not allowed here",
+    "PlanningErrorSpecificationRevisionConflict": "This document already exists — edit it instead",
+    "PlanningErrorRelationshipRefused": "This link is not allowed",
+    "PlanningErrorCodeTaken": "This code is already taken",
+    "PlanningErrorWorkcardConflict": "Someone changed this item in the meantime — reload and try again",
+    "PlanningErrorCommitTimeout": "The change is still being saved — check again shortly",
+    "PlanningErrorCommitFailed": "The change could not be saved",
+    "PlanningErrorScopeMismatch": "This item does not exist or is not available to you",
+    "PlanningErrorUnsupported": "This operation is not supported for this item"
+  }
+}

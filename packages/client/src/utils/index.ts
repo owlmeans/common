@@ -1,4 +1,4 @@
 
 export * from './router.js'
 export * from './route.js'
-export * from './module.js'
+export * from './entrypoint.js'

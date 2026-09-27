@@ -27,7 +27,5 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
     appendStaticResource<C, T>(context, AUTH_CACHE)
   }
 
-  context.makeContext = (cfg => makeContext(cfg, customize)) as typeof context.makeContext
-
   return context as T
 }

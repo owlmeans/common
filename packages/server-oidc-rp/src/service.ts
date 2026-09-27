@@ -132,6 +132,14 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
           return client.tokenIntrospection(descriptor, tokenValue as string) as Promise<OidcIntrospectionResponse>
         },
 
+        userinfo: async (tokenSet, expectedSubject) => {
+          if (tokenSet.access_token == null) {
+            throw new AuthManagerError('access-token')
+          }
+          const claims = await client.fetchUserInfo(descriptor, tokenSet.access_token, expectedSubject)
+          return claims as Record<string, unknown>
+        },
+
       } satisfies OidcClientAdapter
     },
 

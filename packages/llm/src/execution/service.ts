@@ -1,16 +1,21 @@
 import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { ExecutionLevel } from '@owlmeans/llm-common'
+import {
+  capAnswer, defaultAnswerFor, ExecutionEffort, ExecutionLevel, InquiryPolicy, UTILITY_ROLE,
+} from '@owlmeans/llm-common'
 import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
+import { InquiryDeclined } from '../inquiry/errors.js'
+import { inquiryTransportFor } from '../inquiry/transport.js'
 import type { TemperatureFactory } from '../types.js'
 import type {
   Execution, ExecutionPlugin, ExecutionService, ExecutionServiceOptions, ExecutionShape,
   HelperExecution, TaskExecution, WithExecutionService,
 } from './types.js'
+import { temperatureSteps } from '../utils/effort.js'
 import {
   composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
-  mergePrompt, resolveRole,
+  mergePrompt, raisedEffort, resolveRole,
 } from './utils.js'
 
 /**
@@ -52,6 +57,9 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       purpose: { ...input.purpose },
       policy: { ...input.policy },
       ...(input.prompt != null ? { prompt: { ...input.prompt } } : {}),
+      // Copied like every other piece of state, and NOT listed in `COLLABORATOR_KEYS`: a resumed
+      // run has to ask through the channel and policy it was started with.
+      ...(input.inquiry != null ? { inquiry: { ...input.inquiry } } : {}),
     }) as S['project'],
 
     forTask: (parent, input) => {
@@ -129,28 +137,46 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       return exec.models().getModel(effectiveRole, clean)
     },
 
-    temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
-      temperature =>
-        self().model(exec, role, {
-          // A budget the helper was built with survives a temperature refinement — the
-          // work is the same size whether or not it is being retried creatively.
-          ...(typeof baseOverride === 'object' ? baseOverride : {}),
-          ...(temperature != null ? { temperature } : {}),
-          ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
-        }),
+    utility: (exec, override) => {
+      // Delegated to `model` rather than re-resolved here: the utility tier has to obey
+      // the same roleOverride/modelOverride precedence as any other role, and a second
+      // copy of that ladder drifts from the first the moment one of them changes.
+      const scoped = {
+        ...exec, policy: mergePolicy(exec.policy, { effort: ExecutionEffort.Economy }),
+      } as S['exec']
 
-    use: plugin => {
-      plugins.push(plugin)
+      return self().model(scoped, exec.policy.utilityRole ?? UTILITY_ROLE, override)
     },
 
-    checkpoint: async (exec, key) => {
-      // Guarded on the HOOK, not on the plugin count: a plugin registered for `advise`
-      // alone must not make checkpointing start composing snapshots nobody consumes.
-      if (!plugins.some(plugin => plugin.onCheckpoint != null)) {
-        return
+    temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
+      temperature => {
+        // A budget the helper was built with survives a temperature refinement — the
+        // work is the same size whether or not it is being retried creatively.
+        const sizing = typeof baseOverride === 'object' ? baseOverride : {}
+        // Most models that take effort have taken sampling away, so "hotter" alone would
+        // change nothing on the wire. The same request climbs effort alongside it.
+        const steps = temperatureSteps(temperature)
+        const effort = steps > 0 ? raisedEffort(self().model(exec, role, sizing), steps) : undefined
+
+        return self().model(exec, role, {
+          ...sizing,
+          ...(temperature != null ? { temperature } : {}),
+          ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
+          ...(effort != null ? { effort } : {}),
+        })
+      },
+
+    use: plugin => {
+      // Seated by alias when it has one: mixins compose, and a layer wired twice would otherwise
+      // answer twice — silently, since the first usable answer wins.
+      const at = plugin.alias != null
+        ? plugins.findIndex(entry => entry.alias === plugin.alias)
+        : -1
+      if (at < 0) {
+        plugins.push(plugin)
+      } else {
+        plugins[at] = plugin
       }
-      const state = self().snapshot(exec)
-      await Promise.all(plugins.map(plugin => plugin.onCheckpoint?.(state, exec, key)))
     },
 
     advise: async (exec, request) => {
@@ -168,6 +194,15 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       }
 
       return null
+    },
+
+    ask: async (exec, inquiry, signal) => {
+      const policy = exec.inquiry?.policy ?? InquiryPolicy.Default
+      // No channel was ever configured, so there is nobody to wait for: assume and carry on.
+      if (policy === InquiryPolicy.Default) return defaultAnswerFor(inquiry)
+      if (policy === InquiryPolicy.Refuse) throw new InquiryDeclined(inquiry.id)
+
+      return capAnswer(await inquiryTransportFor(exec.inquiry?.transport).ask(inquiry, signal))
     },
 
     snapshot: exec => {

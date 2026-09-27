@@ -10,3 +10,6 @@ export {
   DEFAULT_MEMORY_EVENT_CHARS, MEMORY_EVENTS_PLUGIN, memoryEvents, memoryEventsPlugin,
 } from './memory-events.js'
 export type { MemoryEventsApi, MemoryEventsOptions } from './memory-events.js'
+
+export { ASK_USER_TOOL, INQUIRY_PLUGIN, inquiryPlugin } from './inquiry.js'
+export type { InquiryPluginOptions } from './inquiry.js'

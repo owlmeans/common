@@ -9,6 +9,7 @@ import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { PARAM, SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
+import { makeInteractionPolicy } from './utils/policy.js'
 
 let _initializedOidc: Provider | undefined = undefined
 export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcProviderService => {
@@ -41,19 +42,20 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         },
 
         interactions: {
+          policy: makeInteractionPolicy(),
           url: async (_, interaction) => {
             // The interaction screen is a FRONTEND route, and this is a server context — the
-            // entrypoint registered here has no `call()` (that helper is attached by
-            // `@owlmeans/client-entrypoint` only). So the URL is assembled the way `urlCall` does
-            // it in the browser: resolve the route, substitute the path params, then qualify it
-            // with the frontend service's host.
+            // entrypoint registered here has no `url()` (that helper is attached by
+            // `@owlmeans/client-entrypoint` only). So the URL is assembled the way `entrypointUrl`
+            // does it in the browser: take the entrypoint's path, substitute the path params, then
+            // qualify it with the address the entrypoint answers on — the FRONTEND service's, not
+            // this one's.
             const entry = context.entrypoint<CommonEntrypoint>(INTERACTION)
-            const route = await entry.route.resolve<Config, Context>(context)
-            const path = entry.getPath().split(SEP)
+            const path = entry.path().split(SEP)
               .map(part => part === `${PARAM}${INTERACTION_UID}` ? interaction.uid : part)
               .join(SEP)
 
-            return helper.makeUrl(route, path)
+            return helper.makeUrl(entry.address(), path)
           }
         }
       })

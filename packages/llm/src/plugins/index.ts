@@ -1,6 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { LlmPluginError } from '../errors.js'
-import type { LlmPlugin } from './types.js'
+import type { ModelConfig } from '../types.js'
+import type { EffortSupport, LlmPlugin } from './types.js'
 import { anthropicPlugin } from './anthropic.js'
 import { compatiblePlugin } from './compatible.js'
 import { openAiPlugin } from './openai.js'
@@ -31,6 +32,11 @@ registerLlmPlugin(openAiPlugin)
 /** The plugin registered for `provider`, or `undefined`. */
 export const pluginOf = (provider: string | undefined): LlmPlugin | undefined =>
   provider != null ? plugins[provider] : undefined
+
+/** The `ModelConfig.effort` levels this config's model accepts, or `undefined` for none. */
+export const effortSupportOf = (
+  config: Pick<ModelConfig, 'provider' | 'model' | 'disableThinking'>,
+): EffortSupport | undefined => pluginOf(config.provider)?.effort?.(config)
 
 /** The first registered plugin that recognises this model instance, or `undefined`. */
 export const pluginFor = (model: BaseChatModel): LlmPlugin | undefined =>

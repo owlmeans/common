@@ -1,0 +1,123 @@
+{
+  "performance-consent": {
+    "title": "¿Empezar a usar sus créditos ahora?",
+    "intro": "Compras todavía dentro del plazo de desistimiento: {{count}}. El último plazo de desistimiento finaliza el {{deadline}}.",
+    "purchase": "Créditos comprados el {{date}} ({{amount}}): como consumidor en la UE puede desistir de esta compra hasta el {{deadline}} inclusive.",
+    "request": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento.",
+    "acknowledgement": "Reconozco que, respecto de los créditos que utilice, mi derecho de desistimiento se extingue una vez realizado ese trabajo, y que, si desisto, solo se me reembolsan los créditos que no haya utilizado.",
+    "checkbox": "Solicito expresamente y acepto expresamente que {{trader}} comience a prestar ahora el servicio de pago —el trabajo de IA y el contenido digital que produce— antes de que finalice el plazo de desistimiento. Reconozco que, respecto de los créditos que utilice, mi derecho de desistimiento se extingue una vez realizado ese trabajo, y que, si desisto, solo se me reembolsan los créditos que no haya utilizado.",
+    "confirm": "Empezar ahora",
+    "decline": "Ahora no"
+  },
+  "subscription-start": {
+    "title": "¿Empezar ahora los servicios {{plan}}?",
+    "intro": "Como consumidor en la UE puede desistir de esta suscripción en un plazo de 14 días. Solo comenzamos los servicios antes de que finalice ese plazo si usted lo solicita expresamente.",
+    "request": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días.",
+    "acknowledgement": "Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
+    "checkbox": "Solicito expresamente y acepto expresamente que {{trader}} comience ahora los servicios de plataforma {{plan}} y realice el trabajo de IA pagado con los créditos incluidos cada vez que yo lo inicie, antes de que finalice el plazo de desistimiento de 14 días. Reconozco que, si desisto, pago los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y que mi derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se me reembolsa.",
+    "confirm": "Continuar al pago",
+    "decline": "Cancelar"
+  },
+  "withdrawal": {
+    "function": "Desistir del contrato aquí",
+    "confirm": "Confirmar el desistimiento",
+    "title": "Desistimiento de un contrato",
+    "intro": "Aquí puede desistir de un contrato durante su plazo de desistimiento. Indique su nombre, el contrato y la dirección de correo electrónico a la que enviaremos el acuse de recibo.",
+    "name": "Nombre",
+    "contract": "Contrato",
+    "email": "Correo electrónico",
+    "review": "Compruebe sus datos. Su desistimiento se envía cuando lo confirme.",
+    "received": "Su desistimiento se recibió el {{date}} (UTC). Se ha enviado un acuse de recibo a {{email}}.",
+    "deadline": "Puede desistir hasta el {{deadline}} inclusive."
+  },
+  "cancellation": {
+    "function": "Cancelar contratos aquí",
+    "confirm": "Cancelar ahora",
+    "title": "Cancelar un contrato",
+    "intro": "Aquí puede notificar la resolución de un contrato de suscripción. Introduzca los datos siguientes; enviaremos un acuse de recibo a la dirección de correo electrónico indicada.",
+    "kind": "Tipo de cancelación",
+    "kind-ordinary": "Cancelación ordinaria",
+    "kind-extraordinary": "Cancelación extraordinaria (por causa justificada)",
+    "reason": "Motivo de la cancelación extraordinaria",
+    "name": "Nombre",
+    "contract": "Contrato o referencia de cliente",
+    "effective": "Fecha de finalización",
+    "effective-earliest": "En la fecha más próxima posible",
+    "effective-date": "En una fecha concreta",
+    "email": "Correo electrónico",
+    "summary": "Compruebe su cancelación antes de enviarla.",
+    "received": "Su cancelación se recibió el {{date}} (UTC). Se ha enviado un acuse de recibo a {{email}}."
+  },
+  "links": {
+    "billing-terms": "Condiciones de facturación",
+    "withdrawal-information": "Información sobre el desistimiento",
+    "withdrawal-form": "Modelo de formulario de desistimiento",
+    "withdrawal-function": "Desistir del contrato aquí",
+    "cancellation": "Cancelar contratos aquí"
+  },
+  "checkout": {
+    "terms-acceptance": {
+      "in-scope": "Acepto las [Condiciones de facturación]({{billingTerms}}) y he leído la [información sobre el desistimiento]({{withdrawalInformation}}).",
+      "other": "Acepto las [Condiciones de facturación]({{billingTerms}})."
+    },
+    "renewal": {
+      "month": "{{price}} al mes. Se renueva mensualmente hasta su cancelación; puede cancelarse en cualquier momento con efecto al final del período de facturación.",
+      "year": "{{price}} al año. Se renueva anualmente hasta su cancelación; puede cancelarse en cualquier momento con efecto al final del período de facturación.",
+      "after-submit": "Cancelación en cualquier momento: [Cancelar contratos aquí]({{cancelUrl}})"
+    },
+    "price": {
+      "exclusive": "{{amount}} + IVA",
+      "inclusive": "{{amount}} IVA incluido",
+      "exclusive-tax": "{{amount}} + impuestos aplicables"
+    },
+    "top-up": "Prepago: {{product}}, utilizable solo por la cuenta de esta organización (país de facturación {{country}}). Los consumidores de la UE pueden desistir en un plazo de 14 días; el derecho se extingue para los créditos utilizados después de que nos pida comenzar.",
+    "top-up-note": "Los consumidores de la UE pueden desistir de una compra de créditos en un plazo de 14 días. En cuanto nos pida que empecemos a utilizar los créditos, el derecho de desistimiento se extingue para los créditos utilizados; los créditos no utilizados se reembolsan."
+  },
+  "email": {
+    "common": {
+      "greeting": "Hola:",
+      "greeting-named": "Hola, {{name}}:",
+      "received-at": "Recibido el: {{date}} (UTC)",
+      "contract-ref": "Contrato: {{contractRef}}",
+      "trader": "Empresario: {{trader}}",
+      "link": "{{label}}: {{url}}",
+      "footer": "Conserve este correo electrónico. Confirma lo anterior en un soporte duradero."
+    },
+    "consent": {
+      "subject": "Confirmación: su solicitud de empezar a usar sus créditos",
+      "body": "El {{date}} (UTC) nos hizo la siguiente declaración:\n\n«{{statement}}»\n\nLa declaración se refiere a estas compras:\n{{purchases}}",
+      "purchase": "- {{contractRef}} del {{date}} ({{amount}}): puede desistir respecto de los créditos no utilizados hasta el {{deadline}} inclusive.",
+      "unused": "Puede desistir respecto de los créditos que no haya utilizado hasta el final del plazo de desistimiento de su compra. Si desiste, solo se reembolsan los créditos que no haya utilizado."
+    },
+    "start": {
+      "subject": "Confirmación: su solicitud de empezar los servicios {{plan}}",
+      "body": "El {{date}} (UTC), antes de suscribirse a {{plan}}, nos hizo la siguiente declaración:\n\n«{{statement}}»",
+      "rule": "Si desiste dentro del plazo de desistimiento, paga los servicios de plataforma prestados hasta ese momento, de forma proporcional al tiempo transcurrido, y su derecho de desistimiento se extingue respecto de los créditos incluidos que haya utilizado; todo lo demás se le reembolsa."
+    },
+    "purchase": {
+      "subject": "Confirmación del pedido {{contractRef}}",
+      "body": "Gracias por su pedido.\n\nContrato: {{contractRef}}\nFecha: {{date}} (UTC)\nProducto: {{product}}\nPrecio con impuestos: {{total}} (impuestos: {{tax}})",
+      "start-request": "Antes de esta compra, nos solicitó expresamente que comenzáramos los servicios de inmediato:\n\n«{{statement}}»",
+      "withdrawal-information": "Derecho de desistimiento\n\nTiene usted derecho a desistir del presente contrato en un plazo de 14 días naturales sin necesidad de justificación. El plazo de desistimiento expirará a los 14 días naturales del día de la celebración del contrato.\n\nPara ejercer el derecho de desistimiento, deberá usted notificarnos ({{trader}}) su decisión de desistir del contrato a través de una declaración inequívoca (por ejemplo, una carta enviada por correo postal o correo electrónico). Podrá utilizar el modelo de formulario de desistimiento que figura a continuación, aunque su uso no es obligatorio. También puede desistir en línea mediante la función de desistimiento de nuestro sitio web: {{withdrawalFunction}}. Si utiliza esta opción, le comunicaremos sin demora en un soporte duradero (por ejemplo, por correo electrónico) la recepción de dicho desistimiento.\n\nPara cumplir el plazo de desistimiento, basta con que la comunicación relativa al ejercicio por su parte de este derecho sea enviada antes de que venza el plazo correspondiente.\n\nConsecuencias del desistimiento\n\nEn caso de desistimiento por su parte, le devolveremos todos los pagos recibidos de usted sin ninguna demora indebida y, en todo caso, a más tardar 14 días naturales a partir de la fecha en la que se nos informe de su decisión de desistir del presente contrato. Procederemos a efectuar dicho reembolso utilizando el mismo medio de pago empleado por usted para la transacción inicial, a no ser que haya usted dispuesto expresamente lo contrario; en todo caso, no incurrirá en ningún gasto como consecuencia del reembolso.\n\nSi usted ha solicitado que la prestación de servicios dé comienzo durante el período de desistimiento, nos abonará un importe proporcional a la parte ya prestada del servicio en el momento en que nos haya comunicado su desistimiento, en relación con el objeto total del contrato.\n\nSu derecho de desistimiento se extingue respecto de los servicios y contenidos digitales completamente ejecutados después de que usted haya solicitado expresamente que su ejecución comience durante el plazo de desistimiento y haya reconocido que, en consecuencia, pierde su derecho de desistimiento. En el caso de los créditos prepagados, la ejecución solo comienza cuando nos pide que los utilicemos: el derecho de desistimiento se extingue para los créditos utilizados después de esa solicitud, y los créditos que no haya utilizado se le reembolsan.",
+      "model-form": "Modelo de formulario de desistimiento\n\n(solo debe cumplimentar y enviar el presente formulario si desea desistir del contrato)\n\n— A la atención de {{trader}}:\n— Por la presente le comunico/comunicamos (*) que desisto de mi/desistimos de nuestro (*) contrato de prestación del siguiente servicio (*) / suministro del siguiente contenido digital (*):\n— Pedido el (*) / recibido el (*):\n— Nombre del consumidor o de los consumidores:\n— Domicilio del consumidor o de los consumidores:\n— Firma del consumidor o de los consumidores (solo si el presente formulario se presenta en papel):\n— Fecha:\n\n(*) Táchese lo que no proceda."
+    },
+    "withdrawal": {
+      "subject": "Acuse de recibo de su desistimiento",
+      "body": "Hemos recibido su desistimiento de un contrato.\n\nRecibido el: {{date}} (UTC)\nNombre: {{name}}\nContrato: {{contract}}\nCorreo electrónico: {{email}}",
+      "refund": "Le reembolsamos {{amount}} mediante el medio de pago que utilizó en la compra y, en todo caso, en un plazo de 14 días.",
+      "review": "Estamos tramitando su desistimiento. Le reembolsaremos el importe debido sin ninguna demora indebida y, en todo caso, a más tardar 14 días naturales a partir de la fecha en la que recibimos su desistimiento, utilizando el mismo medio de pago empleado por usted para la compra, y le comunicaremos el importe.",
+      "expired": "Su desistimiento se recibió después de que finalizara, el {{deadline}}, el plazo de desistimiento de este contrato. Sus derechos legales, incluidos los derechos por falta de conformidad, no se ven afectados.",
+      "unmatched": "Si estos datos corresponden a uno de nuestros contratos, tramitaremos el desistimiento y le informaremos del reembolso."
+    },
+    "cancellation": {
+      "subject": "Acuse de recibo de su cancelación",
+      "body": "Hemos recibido su cancelación.\n\nRecibida el: {{date}} (UTC)\nNombre: {{name}}\nContrato: {{contract}}\nTipo de cancelación: {{kind}}\nFecha de finalización solicitada: {{requested}}\nCorreo electrónico: {{email}}",
+      "effective": "Su contrato finaliza el {{effectiveAt}}.",
+      "unmatched": "Si estos datos corresponden a uno de nuestros contratos, lo finalizaremos en la fecha solicitada o, en su defecto, en la fecha más próxima posible, y le confirmaremos esa fecha.",
+      "review": "Su cancelación extraordinaria ha quedado registrada. Examinaremos el motivo indicado y le confirmaremos por escrito si el contrato termina y en qué fecha."
+    }
+  },
+  "credit-note": {
+    "memo": "Desistimiento del contrato {{contractRef}}, recibido el {{date}}."
+  }
+}

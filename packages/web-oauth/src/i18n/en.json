@@ -1,0 +1,35 @@
+{
+  "consent": {
+    "checking": "Checking your session…",
+    "loading": "Loading the request…",
+    "framed": "This screen cannot be shown inside another page. Open it directly.",
+    "error": "Something went wrong. Try again from the application that sent you here.",
+    "title": "{{client}} wants to access your account",
+    "known": "You've used this application before.",
+    "known-by-host": "Requesting from {{host}}.",
+    "unverified": "This application registered itself and has not been verified.",
+    "device-code": "Code: {{code}}",
+    "device-name": "Device: {{name}}",
+    "redirect-host": "You will return to {{host}}.",
+    "localhost-warning": "This application only registered addresses on your own computer. Only approve this if you started the sign-in yourself, just now.",
+    "scope": "Access requested: {{scopes}}",
+    "approve": "Approve",
+    "deny": "Deny",
+    "error-missing": "There is nothing to approve here. Start the sign-in again from the application.",
+    "error-not-found": "This request is unknown or has already been used. Start the sign-in again from the application.",
+    "error-expired": "This request has expired. Start the sign-in again from the application.",
+    "error-forbidden": "This kind of account cannot approve access. Sign in with the account you use for OwlMeans and try again.",
+    "switch-account": "Use another account"
+  },
+  "device": {
+    "title": "Connect a device",
+    "description": "Enter the code shown by the application you're connecting.",
+    "code-label": "Code",
+    "continue": "Continue"
+  },
+  "done": {
+    "title": "You're signed in",
+    "message": "You may close this window and continue in the application that sent you here.",
+    "device-message": "You may close this window. The application will pick this up automatically."
+  }
+}

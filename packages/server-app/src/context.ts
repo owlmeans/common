@@ -21,7 +21,5 @@ export const makeContext = <C extends AppConfig, T extends AppContext<C>>(cfg: C
     appendAuthService<C, T>(context)
   }
 
-  context.makeContext = cfg => makeContext(cfg, customize) as any
-
   return context
 }

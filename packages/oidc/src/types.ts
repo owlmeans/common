@@ -45,6 +45,26 @@ export interface OidcProviderDescriptor {
   idOverride?: string
   // This flag works only on client side. It specifies a default relying party
   def?: boolean
+  /**
+   * Require a live authorization-server decision before accepting a wrapped
+   * session. `required` is for applications whose provider is their authority
+   * for account disablement and permission changes.
+   */
+  sessionValidation?: 'required' | 'optional'
+  /**
+   * How this provider presents itself on the sign-in screen.
+   *
+   * A provider list is configuration, so the only place its human-readable name can come from is
+   * the configuration itself — the client never talks to the issuer directly and has no discovery
+   * document to read a name out of.
+   */
+  label?: string
+  /** Icon registry NAME, never markup — this package must stay free of an icon library. */
+  icon?: string
+  /** Ascending. Absent means "after the default one". */
+  order?: number
+  /** Registered, but never offered as a choice. */
+  hidden?: boolean
 }
 
 

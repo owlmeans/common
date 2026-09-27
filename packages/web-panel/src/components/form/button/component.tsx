@@ -7,8 +7,8 @@ import { Loader2 } from 'lucide-react'
 import { I18nProps, useI18nApp, useI18nLib } from '@owlmeans/client-i18n'
 import { useContext } from '@owlmeans/client'
 import { useFormI18n, usePanelI18n } from '@owlmeans/client-panel'
-import { Button as UIButton } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Button as UIButton } from '../../../@/components/ui/button.js'
+import { cn } from '../../../@/lib/utils.js'
 
 /**
  * MUI → shadcn variant mapping:

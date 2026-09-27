@@ -58,6 +58,8 @@ export const AuthSchema: JSONSchemaType<Auth> = {
     token: { type: 'string', minLength: 32, maxLength: 1024 },
     isUser: { type: 'boolean' },
     createdAt: DateSchema,
+    sessionId: { type: 'string', minLength: 16, maxLength: 128, nullable: true },
+    authorizationVersion: { type: 'integer', minimum: 1, nullable: true },
     expiresAt: { ...DateSchema, nullable: true },
     ...AuthPayloadSchema.properties,
   },

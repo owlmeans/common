@@ -1,32 +1,92 @@
 ---
 node: entrypoints
-scope: "packages/entrypoint/**, packages/server-entrypoint/**, packages/client-entrypoint/**, packages/context/**"
-updated: 2026-08
+scope: "packages/entrypoint/**, packages/server-entrypoint/**, packages/client-entrypoint/**, packages/route/**, packages/server-route/**, packages/client-route/**, packages/context/**"
+updated: 2026-09
 ---
 
-# Entrypoints (module → entrypoint rename)
+# Entrypoints
 
-The "module" concept (registered, addressable server-handler and/or UI route) is named
-**entrypoint** — "module" collided with ES-module vocabulary and routinely confused agents.
-Full design: `entrypoint.md` at repo root. Route trees build on this model ([[routing]]).
+A registered, addressable server-handler and/or UI route is an **entrypoint** — "module" collides
+with ES-module vocabulary and routinely confuses agents, so it is never the name of this concept.
+Full design: `entrypoint.md` at repo root. Route trees build on this model ([[routing]]); the
+registry that holds them is [[context]].
 
 ## Facts
 
+- Public declarations are immutable `EntrypointProtocol` objects made with `protocol(route,
+  contract, opts)`. `contract` carries exact request/reply types and branded AJV schemas;
+  `protocols(tree)` flattens a nested exported tree without replacing object identity.
+- Materialized protocol replies use a status-keyed serializer: an ordinary contract reply is
+  `200`, and explicitly status-keyed replies retain that key. Fastify rejects a bare schema.
+- A protocol tree keeps alias literals private. Consumers pass the object itself:
+  `ctx.entrypoint(tree.action)`, clients register `bindAll(tree)`, and servers bind each protocol
+  with `bind(protocol, handler)`. `protocol.alias` is reserved for string-keyed adapters
+  such as registries and brokers.
+- Server implementations come from `handlers<Context>().body/params/request(protocol, callback)`.
+  Handler association is exact-object identity, so an equal alias on another declaration does not
+  bind. Request and response types are inferred from the protocol.
 - Canonical packages: `@owlmeans/entrypoint`, `@owlmeans/server-entrypoint`,
-  `@owlmeans/client-entrypoint`. The old `@owlmeans/*module` shim packages are DELETED from the
-  repo (published shim versions remain on npm; external consumers must migrate).
-- Context methods: `ctx.entrypoint(alias)`, `ctx.entrypoints()`, `ctx.registerEntrypoint(s)`,
-  `ctx.hasEntrypoint`, `BasicEntrypoint` — old `ctx.module*` names kept as delegating deprecated
-  aliases.
-- Marker interop: the factory sets both `_entrypoint: true` and `_module: true`;
-  `isEntrypoint()` accepts either marker.
-- Rename status: common code + docs migrated; internal / viable-agent / viable phases pending
-  (aliases keep old imports working).
+  `@owlmeans/client-entrypoint`. There are no `@owlmeans/*module` packages in the repo (published
+  shim versions remain on npm; external consumers must migrate).
+- Documentation and new scaffolds name exported declaration trees `*Protocols` and runtime-local
+  materialized arrays `*Bindings`. A package may retain an established `entrypoints` export only
+  for its own local bindings; never describe it as a shared declaration list.
+- Context API: `ctx.entrypoint(protocol)`, `ctx.entrypoints()`, `ctx.registerEntrypoint(ep)`,
+  `ctx.registerEntrypoints(eps)`, `ctx.hasEntrypoint(alias)`, `BasicEntrypoint`. These are the only
+  names — there is no `ctx.module*` alias.
+- Marker: the factory sets `_entrypoint: true` and nothing else; `isEntrypoint()` tests exactly
+  that one marker.
+- A `RouteDeclaration` is plain immutable data that `RouteModel` only wraps. Its `path` is the
+  SEGMENT the route contributes under its parent and is never rewritten — there is no resolution
+  step and no resolved flag to check.
+- Every address question is therefore computed on demand from the declaration plus the asking
+  context, which is what lets one declaration answer differently in a server and in a client:
+  `segment()`, `path()`, `mount()` (base + path), `service()`, `address()`, `isLocal()`,
+  `parent()`, `getGuards()`, `getGates()`. Guard and gate inheritance is walked afresh on every
+  call and never memoised, so a guard added to an ancestor later still counts.
+- Three verbs address an entrypoint: `call(req?)` resolves to the VALUE and throws the reply's
+  error, `invoke(req?)` resolves to `{ value, outcome }`, and `url(req?, { absolute? })` builds the
+  URL string. Underneath they are `apiInvoke(ref, opts?)` and `entrypointUrl(ref, req, opts?)`.
+- The registry is flat and keyed by alias, so registering an alias twice replaces the earlier
+  entrypoint — spread lists resolve to the last declaration ([[context]]).
+
+## Invariants
+
+- A protocol declaration is immutable. Bind it with `bind(protocol, handler?)` on the server,
+  `bind(protocol)`/`bindAll(tree)` for client calls, or `bindScreen(protocol, component)` for a
+  browser screen; binding never mutates or replaces a declaration.
+- Keep declarations as a named protocol tree and local bindings as a separate immutable list.
+  Do not flatten declarations into a serving list or transform a tree into a registry before
+  binding; decorators such as `withOidcGuard` operate on the tree, and each runtime then binds its
+  own local handlers or callers.
+- Client-side callability is an explicit opt-in. A backend protocol becomes callable from client
+  code only through a client binding, and the browser binds the exact imported protocol object.
+- An entrypoint that RENDERS a screen is addressed by URL and never over the wire: `call()` and
+  `invoke()` on one throw, naming `url()`.
+- How a call travels is the route protocol's business, never the caller's. A service registered
+  under `transportAlias(protocol)` (`transport:<protocol>`) implementing
+  `EntrypointTransport { protocol, handle }` takes the call; HTTP carries it when no such service
+  is registered. Consumers write `ep.call(...)` either way and learn nothing about the carrier.
+
+- `Object.freeze` on an exported protocol tree is a manual template/application convention, not
+  something `protocol()`/`contract()`/`openProtocol()` enforce themselves. An application's
+  `entrypoints.ts` is expected to export `appProtocols` (and each of its top-level members) wrapped
+  in `Object.freeze(...)` — one freeze per member plus the outer tree — but the library does not
+  freeze on your behalf, so a hand-rolled tree that skips it still compiles and runs; it is a
+  convention to copy from a known-good template (viable-agent's scaffold, `create-app`'s own
+  template), not something the type system catches.
 
 ## Gotchas
 
+- A package's OWN `parent`-accepting option can lag the library's `RouteParent` (`string |
+  EntrypointReference`, `@owlmeans/route`) even after the rest of the codebase has moved to passing
+  a protocol object. `@owlmeans/auth-token`'s `AuthTokenEntrypointOptions.parent` was still typed
+  bare `string`, forcing every caller to pass `someProtocol.alias` instead of `someProtocol` — the
+  fix is widening that option's own type to `RouteParent`, not adding `.alias` at more call sites.
+  Check a helper's own option types before assuming a `.alias` extraction is required.
+
 - `package.json` top-level `"module"` field and the `exports` `"module"` condition are bundler
   fields — a find/replace on "module" must never touch them.
-- When migrating a shim import, also confirm `package.json` declares the canonical package and
-  rebuild so `build/` matches src — a straggler once shipped with its built output importing
-  undeclared shim deps, breaking clean installs.
+- When an import is repointed at another package, confirm `package.json` declares that package and
+  rebuild so `build/` matches src — built output importing an undeclared dep breaks clean installs
+  while the workspace still resolves it locally.

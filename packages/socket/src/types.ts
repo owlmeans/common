@@ -9,6 +9,12 @@ export interface Connection {
 
   stage: AuthenticationStage
 
+  /**
+   * When enabled by a server carrier, only authentication frames are accepted until the
+   * connection reaches `AuthenticationStage.Authenticated`.
+   */
+  requiresAuthentication?: boolean
+
   notify: <T>(event: string, payload: T) => Promise<void>
   observe: <T>(event: string, handler: (event: EventMessage<T>) => Promise<void>) => () => void
 

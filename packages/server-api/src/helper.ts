@@ -8,8 +8,17 @@ import type { Config, Context } from './types.js'
 import type { FastifyRequest } from 'fastify'
 import type { MultipartFile } from '@fastify/multipart'
 
+/**
+ * The context a handler runs against.
+ *
+ * The HTTP boundary hangs the request-scoped context on the raw Fastify request, so a handler
+ * reached that way gets it from there. A request that did not come from Fastify has no `original`
+ * at all — a queued call is rebuilt from an envelope, and a socket frame carries its own — so this
+ * has to fall back rather than dereference: these handlers are the same functions on every
+ * transport, and only the way they were reached differs.
+ */
 const _castContextFromOriginal = <C extends BasicConfig, T extends BasicContext<C> = BasicContext<C>>(req: AbstractRequest, def: T): T => {
-  return req.original._ctx ?? def
+  return req.original?._ctx ?? def
 }
 
 export const handleBody: <T>(

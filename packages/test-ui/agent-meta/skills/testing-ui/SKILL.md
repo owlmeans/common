@@ -1,16 +1,29 @@
 ---
 name: testing-ui
-description: Category-D component-level acceptance tests for OwlMeans Common UI packages (web-panel, web-client, client-panel, client-wl, web-flow, web-wl, client, client-i18n) and new shadcn UI + Tailwind v4 packages. Run under bun test, drive a real chromium via Playwright as a library — not the Playwright runner. Auto-invoked when writing tests in those packages.
+description: Category-D component-level acceptance tests for OwlMeans Common UI packages (web-panel, web-client, web-consent, web-router, mui-panel, client-panel, client-wl, web-flow, web-wl, client, client-i18n) and shadcn UI + Tailwind v4 packages. Run under bun test, drive a real chromium via Playwright as a library — not the Playwright runner. Auto-invoked when writing tests in those packages.
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
 # UI Acceptance Tests — Category D (bun test + Playwright as a library)
 
-Category D applies to packages that ship rendered React UI: `client`, `client-i18n`, `client-panel`, `client-wl`, `web-client`, `web-flow`, `web-panel`, `web-wl`. Tests are **component-level acceptance** — they mount one component in a real browser and assert against rendered DOM. They are **not** end-to-end tests (no router-deep navigation, no live backend).
+**Install:** `"@owlmeans/test-ui": "^0.1.18-rc.41"` in `devDependencies`
+
+`@owlmeans/test-ui` depends on `playwright`, so the browser library arrives with it; add
+`playwright` to `devDependencies` as well when a spec imports a launcher itself. The Vite harness
+below is the consuming package's own, so a package that builds one also declares `vite` and
+`@vitejs/plugin-react`, plus `@tailwindcss/vite` and `tailwindcss` for a shadcn package. A
+smoke-only package that serves a `data:` URL needs none of those.
+
+Category D applies to packages that ship a rendered surface: `client`, `client-i18n`, `client-panel`, `client-wl`, `mui-panel`, `web-client`, `web-consent`, `web-flow`, `web-oauth`, `web-panel`, `web-router`, `web-wl`. Tests are **component-level acceptance** — they mount one component in a real browser and assert against rendered DOM. They are **not** end-to-end tests (no live backend).
 
 The runner is **`bun test`** — same as categories A/B/C — kept consistent so contributors only learn one harness. Playwright is consumed as a **library** (`playwright` package, not `@playwright/test`). The `playwright` library exposes `chromium`, `firefox`, `webkit` browser launchers; specs drive them directly from inside `bun:test` blocks.
 
-Service-only "client-*" packages (`client-flow`, `client-socket`, `web-router`, `web-db`) belong to category A — they have no rendered UI.
+A client-side package that ships no component belongs to category A, however browser-flavoured its
+name — `client-config`, `client-context`, `client-entrypoint`, `client-flow`, `client-job`,
+`client-resource`, `client-route`, `client-socket`, `web-db`, `web-gtm` and
+`web-router-react-router` are all services, models and adapters. `@owlmeans/web-router` is the one
+that is not: it drives the real History API, so its routing behaviour is only observable in a
+browser and its specs mount a full harness here.
 
 Auth-related UI packages (`web-oidc-rp`, `web-oidc-provider`, `client-auth`, `client-payment`) belong to category B and use `bun test` + `@owlmeans/test-auth`, not the chromium harness.
 
@@ -20,9 +33,9 @@ Auth-related UI packages (`web-oidc-rp`, `web-oidc-provider`, `client-auth`, `cl
 <your-package>/
 ├── src/...
 └── tests/
-    ├── harness/              # per-package: components registry + mount config
+    ├── harness/              # per-package: the app the specs drive
     │   ├── index.html        # copy of @owlmeans/test-ui/harness/index.html
-    │   └── mount.tsx         # registers components, reads ?component= and ?props=
+    │   └── mount.tsx         # boots the package's real surface into #root
     ├── context.ts            # one place that boots the harness server, exports HARNESS_URL
     └── <area>.spec.ts        # *.spec.ts only
 ```
@@ -42,8 +55,28 @@ Downloads the chromium binary the `playwright` library drives. CI installs it in
 | `launchBrowser(opts?)` | Return the shared chromium for this `bun test` process. Idempotent. |
 | `closeBrowser()` | Tear it down. Call from `afterAll`. |
 | `withPage(fn)` | Lease a fresh context+page for the duration of `fn`, dispose context on completion. |
-| `mountComponent({ url, component?, props? })` | Open a fresh context, navigate to the harness URL with `?component=` and `?props=` set, return `{ page, close }`. |
+| `mountComponent(opts)` | Open a fresh context, navigate to `opts.url`, return `Mounted` = `{ page, close }`. `component` and `props`, when given, are appended as `?component=` and `?props=`; omit them when the harness mounts a fixed root, which is what every harness here does. |
+| `MountOptions` | `{ url, component?, props?, waitUntil?, timeout? }` — `waitUntil` defaults to `domcontentloaded`, see below. |
+| `acceptConsent(page, { timeout? })` | Wait up to `timeout` (default 5s) for `[data-consent-dialog]`, accept all, wait for it to detach. Returns whether it answered one — and costs that whole wait when it does not. |
+| `saveScreenshot(page, dir, name)` | Full-page PNG to `<dir>/<name>.png`, creating `dir`. Returns the absolute path. |
 | Re-exports: `Browser`, `BrowserContext`, `Page`, `Locator` | Playwright types — no direct `playwright` import needed. |
+
+### Authenticated specs
+
+`@owlmeans/test-ui` also carries the supervisor-login helpers, so a spec can reach a screen that
+sits behind auth without hand-rolling a token:
+
+| Helper | Purpose |
+|---|---|
+| `pregenerateAuthToken(opts)` | Mint an `ED25519-BASIC-TOKEN …` bearer offline from a trusted private key — no browser, no round trip. Options: `{ userId, pk, scopes?, role?, entityId?, profileId?, source? }`. |
+| `authenticateViaSupervisorApi(opts)` | Drive the live PK supervisor flow over the backend API (init → sign → authenticate → dispatch), registering the user on first use. Options: `{ apiBaseUrl, userId, pk, paths?, fetchImpl? }`. |
+| `loginViaDispatcher(page, baseUrl, token, opts?)` | Inject a bearer through the standard `/dispatcher?token=…` route, wait for the app to navigate away, then answer marketing consent (see below). Options: `{ dispatcherPath?, waitUntil?, marketingConsent? }`. |
+| `loginViaSupervisorForm(page, opts)` | Drive the real login form end-to-end — navigate, answer consent, fill user id + key, submit, wait for the landing, then answer marketing consent (see below). Options: `{ baseUrl, userId, pk, path?, expectPath?, timeout?, waitUntil?, consent?, screenshotDir?, marketingConsent? }`. |
+| `answerMarketingConsent(page, opts?)` | Answer the `@owlmeans/web-marketing-consent` full-page step if it is shown right after login. Options: `{ accept?: 'all' \| 'none' \| 'skip', terms?: 'accept' \| 'leave', timeout? }`, default `accept: 'all'`, `terms: 'accept'`, `timeout: 30_000`. Returns whether the step was actually shown and answered — `false` means it never appeared. Throws if a Terms box could not be confirmed. |
+
+These need a project whose backend trusts the private key they sign with, so they belong to specs
+that run against a real app rather than a mounted component. See `[[supervisor-auth]]` for the
+server and web wiring they assume.
 
 ## Spec shape
 
@@ -52,24 +85,34 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
+// Browser work does not fit bun's 5s default: a cold harness compiles the app on first request,
+// and the first test to run pays for the Vite boot happening in the same process.
+const TIMEOUT = 30_000
+
 afterAll(async () => { await closeBrowser() })
+
+// The harness is a real app, so a spec picks its case by opening a path on it.
+const open = async (path: string) =>
+  mountComponent({ url: `${HARNESS_URL.replace(/\/$/, '')}${path}` })
 
 describe('<package> — <component>', () => {
   test('renders the SKILL.md happy-path example', async () => {
-    const { page, close } = await mountComponent({
-      url: HARNESS_URL,
-      component: 'LoginForm',
-      props: { redirect: '/' },
-    })
+    const { page, close } = await open('/login')
     try {
       expect(await page.locator('h1').textContent()).toBe('Sign in')
       expect(await page.getByRole('button', { name: /sign in/i }).isVisible()).toBe(true)
     } finally {
       await close()
     }
-  })
+  }, TIMEOUT)
 })
 ```
+
+**Every chromium test carries its own timeout** — the third argument to `test`. Bun's default is
+5s, which a cold harness blows through before the first assertion, and `bunfig.toml`'s
+`[test] timeout` does not raise it (bun 1.4.0 reads the section but ignores that key). 30s covers a
+mounted component against a Vite harness; a suite that drives a login form or a consent gate needs
+60s. `bun test --timeout=<ms>` raises a whole run from the command line.
 
 Use `bun:test`'s `expect` against awaited Playwright DOM queries (`textContent()`, `isVisible()`, `getAttribute()`). Don't import `expect` from `@playwright/test` — that would pull in the full runner and create two parallel test toolchains.
 
@@ -93,7 +136,12 @@ export const getHarnessUrl = async (): Promise<string> => {
     configFile: false,
     root: resolve(here, './harness'),
     plugins: [react()],
+    // Pre-bundle the third-party runtime deps the mounted components pull in. A dependency
+    // discovered mid-transform makes Vite re-optimize and reload the page underneath the
+    // navigation, and the first `goto` of a cold run pays for that as a timeout.
+    optimizeDeps: { include: ['<runtime dep the components import>'] },
     server: { port: 0 },
+    logLevel: 'warn',
   })
   await server.listen()
   const local = server.resolvedUrls?.local?.[0]
@@ -105,7 +153,19 @@ export const getHarnessUrl = async (): Promise<string> => {
 export const HARNESS_URL = await getHarnessUrl()
 ```
 
-The per-package `tests/harness/mount.tsx` reads `?component=<name>` and `?props=<json>`, dynamic-imports the component from the consumer's `src/`, and renders it via `react-dom/client` inside `<div id="root">`. Each consuming UI package wires its own providers (MUI theme for legacy packages, or Tailwind CSS + `@` alias for shadcn packages; plus i18n, router) the way the real app does — that's why mount.tsx is per-package, not in `@owlmeans/test-ui`.
+List in `optimizeDeps.include` every non-`@owlmeans` runtime package the components reach — the
+toast library, the icon set, a form library. It is the difference between a cold run that passes
+and one that times out on its first navigation for no visible reason.
+
+The per-package `tests/harness/mount.tsx` statically imports what the package ships and renders it
+via `react-dom/client` into the `<div id="root">` that `index.html` provides. It builds a real
+application — `@owlmeans/web-panel` wires a context, the framework entrypoints and a `NavLayout`
+over its screens; `@owlmeans/web-router` compiles a route tree behind the browser router plugin —
+so a spec selects its case by the path it opens rather than by naming a component. A harness that
+needs variants of one surface reads its own query string for them, the way `@owlmeans/web-consent`
+picks a locale, a category set or the policy view. `mountComponent`'s `component` and `props`
+options are the ready-made form of that convention, for a harness written to read them.
+Each consuming UI package wires its own providers (a theme provider for the `mui-*` packages, or Tailwind CSS + the `@` alias for shadcn packages; plus i18n, router) the way the real app does — that's why mount.tsx is per-package, not in `@owlmeans/test-ui`.
 
 ## Smoke-only baseline
 
@@ -124,9 +184,12 @@ describe('chromium smoke', () => {
     const { page, close } = await mountComponent({ url: harness })
     try { expect(await page.locator('#t').textContent()).toBe('hello') }
     finally { await close() }
-  })
+  }, 30_000)
 })
 ```
+
+A smoke spec needs the same explicit timeout as any other: bun runs every spec file of a package
+in one process, so the first test to start pays for whatever harness the sibling files boot.
 
 ## Wiring `bun test`
 
@@ -156,7 +219,9 @@ const server = await createServer({
     alias: { '@': resolve(here, '../src/@') },     // resolve @/ to the package's local copy
     dedupe: ['react', 'react-dom'],                // one React across the workspace links
   },
+  optimizeDeps: { include: ['sonner'] },           // pre-bundle, never discover mid-navigation
   server: { port: 0 },
+  logLevel: 'warn',
 })
 ```
 
@@ -176,7 +241,7 @@ A spec that exercises navigation opens a **path** on the harness origin instead 
 - **Leave the context un-initialized** (`ready` false). The Router compiles the entrypoint tree into routes only while the context is un-initialized; a pre-readied context renders a blank page.
 - **Give every entrypoint that has children one child declared `default: true`**, or the parent's own path renders blank.
 
-Include the framework's own `modules` in the harness entrypoint list: the panel context registers the api-config middleware, which resolves one of them during init and throws before any route is compiled if they are missing.
+Spread the framework's own `entrypoints` (exported by the panel package) into the harness list: the panel context registers the api-config middleware, which resolves one of them during init and throws before any route is compiled if they are missing.
 
 Shadcn components are plain React — no theme provider needed. Assert via `getByRole` / text as usual. To verify that Tailwind classes took visual effect, read computed styles:
 
@@ -194,5 +259,108 @@ See `[[shadcn-web]]` for the full `@` alias contract and `tests/context.ts` patt
 - **No mocks.** Render the real component with real client-context wiring (state, i18n, router) the way the app does. For network calls, use Playwright's `page.route(...)` to a static fixture — never point at a live backend.
 - **Cover SKILL.md and README.md cases first.** Each component the package documents gets at least one acceptance spec for its happy path.
 - **Max 3-4 tests per component**: render, primary interaction, one edge case.
+- **Always pass a timeout as `test`'s third argument.** 30s for a mounted component, 60s for a
+  suite that drives a login or a consent gate. Bun's 5s default is for in-process work, and
+  `bunfig.toml`'s `[test] timeout` is not a way to change it.
 - **Always `close()` the page and `closeBrowser()` in `afterAll`.** A leaked context blocks the bun process from exiting.
 - **Chromium only by default.** Add `firefox` or `webkit` per package only when the feature has documented cross-browser concerns — call `chromium.launch` / `firefox.launch` explicitly in that case.
+
+## `mountComponent` waits for `domcontentloaded`, not `load`
+
+Playwright's own default is `load`, and it is wrong for any page that is a real application:
+`load` waits for EVERY subresource, so one analytics beacon, long-poll or third-party pixel that
+never settles holds the navigation open until it times out — with the page fully rendered and
+working the whole time. The failure reads as "the site is down", and the first instinct is to go
+looking at the server.
+
+`mountComponent` therefore navigates with `domcontentloaded` and lets the spec wait for the
+selector it actually needs. That wait IS the assertion; the load event never was. Pass
+`waitUntil` explicitly for the rare case that wants otherwise.
+
+The rule is not `mountComponent`'s alone — **every** navigation helper here follows it, including
+`loginViaSupervisorForm` and `loginViaDispatcher`. A helper that navigates on playwright's default
+turns "someone added a tag manager" into "the whole login-driven suite times out", with the browser
+showing a working login form the entire time. Any new helper that calls `page.goto` passes
+`domcontentloaded` and takes a `waitUntil` override.
+
+`saveScreenshot(page, dir, name)` is the fastest way to see what the browser actually had on
+screen when an assertion timed out; `loginViaSupervisorForm` takes a `screenshotDir` that captures
+the filled form just before submit.
+
+## The consent dialog blocks the login form, and the failure blames the button
+
+An OwlMeans app asks for cookie consent **before** it will start an authentication flow, and the
+dialog is a modal with no dismissal — a decision is what the gate is waiting for. Until it is
+answered the overlay intercepts pointer events, so a login form renders, resolves, reports itself
+`visible, enabled and stable`, and still cannot be clicked. Playwright retries for the full timeout
+and then reports `click: Timeout … waiting for getByTestId('supervisor-submit')`, naming the
+button. Nothing is wrong with the button; read the `subtree intercepts pointer events` line, which
+names `[data-consent-dialog]`.
+
+`loginViaSupervisorForm` therefore calls `acceptConsent(page)` after navigating. `acceptConsent` is
+exported for specs that drive their own login: it waits for `[data-consent-dialog]` to become
+visible, clicks `[data-consent-accept-all]`, waits for the dialog to detach, and reports whether it
+answered one. It accepts **all** categories deliberately — a spec asserting a narrower decision must
+make that decision itself rather than inherit a silent minimum.
+
+**The `false` return costs the full wait.** It is what the visibility wait rejects into, not a cheap
+probe, so a page with no dialog pays the timeout — 5s by `acceptConsent`'s own default, but
+`loginViaSupervisorForm` passes its `timeout` straight through and that defaults to `60_000`. On an
+app that ships no consent widget the login helper therefore sits for a full minute before it fills
+the first field, with nothing on screen to explain it. Drive such an app with `consent: 'ignore'`,
+which skips the call entirely; that is also the switch a spec flips when it wants to answer the
+dialog itself.
+
+## `answerMarketingConsent` — cheap absence detection, unlike the cookie dialog
+
+`loginViaSupervisorForm` and `loginViaDispatcher` both call `answerMarketingConsent(page, { accept:
+'all', timeout })` right after they confirm the app has navigated away from login/dispatch, passing
+their **own** `timeout` through explicitly rather than relying on this helper's internal default —
+both of them already budget more than one round trip (login + terms + items) into the value they
+pick. Both also default `marketingConsent` (their own option, not `answerMarketingConsent`'s) to
+`'save'` — pass `'ignore'` to skip the call in a spec that drives the step itself.
+`@owlmeans/web-marketing-consent` renders a full-page step, when shown, with `[data-marketing-consent]`
+(root, carrying `data-state="loading"` while its status read is outstanding and `"ready"` once it can
+render), `[data-marketing-consent-terms]` (the Terms checkbox, Terms mode only, with `data-version`),
+`[data-marketing-consent-terms-error]` (Terms record failed — the person stays and retries),
+`[data-marketing-consent-all]` (select-all, never ticks Terms), `[data-marketing-consent-item="<key>"]`
+(per-consent), `[data-marketing-consent-save]`, `[data-marketing-consent-skip]` (shown whenever the
+step is optional-only — i.e. `!loading && !terms.needed` — not only after a failed save),
+`[data-marketing-consent-skip-note]`, `[data-marketing-consent-signout]` (shown while a Terms box or
+the loading state is up) and `[data-marketing-consent-error]`.
+
+Unlike `acceptConsent`, whose `false` return deliberately costs the full wait (see above),
+`answerMarketingConsent` does NOT pay the full `timeout` (default `30_000`) when the step is absent.
+The screen is opt-in per app and most applications and environments don't have it wired in yet, and this helper
+is called unconditionally by both login helpers — a full-timeout tax on every login, on every app,
+whether or not the screen exists, would be an unacceptable regression to every existing suite. It
+instead races `[data-marketing-consent]` against the generic "the app has already landed" /
+"still on the login screen" markers the login helpers themselves already rely on (`#app-prompt`,
+`[data-login-method]`) via the same `locator('a, b, c').first().waitFor({ state: 'visible' })` idiom
+`loginViaSupervisorForm` uses for its own dialog-vs-form race. By the time a login helper calls this,
+one of those markers has typically already rendered, so on an app without the screen the race
+resolves as soon as it does — no fixed sleep, and no meaningful added latency over what the login
+helper already paid to get there.
+
+Once the step's root is present, it may still be `data-state="loading"` (its own status read is
+outstanding) — the helper races that attribute clearing against the whole root detaching on its own
+(nothing was pending, so it auto-continued while this waited), via two `page.waitForSelector` calls
+rather than an in-page `waitForFunction`/`evaluate` (this package's `tsconfig` has no `lib: dom`, so
+no TS runs inside the browser context here). An older `web-marketing-consent` that predates
+`data-state` entirely satisfies the "not loading" selector immediately, so this costs nothing there.
+
+When a Terms box is present, `opts.terms` (default `'accept'`) ticks it before saving; `'leave'`
+keeps it unticked, for a spec that means to exercise the blocked state itself — the confirm click
+still fires (with `{ force: true }`, since the control is never natively `disabled`), and the helper
+then *expects* the box to still be up afterward. `opts.accept` (default `'all'`) additionally clicks
+select-all when present, `'none'` saves with every item unchecked, and `'skip'` clicks
+`[data-marketing-consent-skip]` instead of saving — valid only when no Terms box is on screen.
+
+Returns `false` when the step never appeared. Otherwise it **throws** in two cases rather than
+silently swallowing them: a `[data-marketing-consent-terms-error]` after attempting to confirm
+Terms, and a Terms box still on screen after a failed/blocked confirm (Skip is never offered there
+on purpose, so there is no fallback and no honest way to report success). Short of those, it returns
+`true` whether the save succeeded outright or fell back to clicking
+`[data-marketing-consent-skip]` after a save error on an optional-only screen (logged as a console
+warning, never thrown) — the step is "answered" either way, so a spec is never permanently blocked
+behind a flaky save.

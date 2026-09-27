@@ -6,8 +6,7 @@ import type { AuthToken } from '@owlmeans/auth'
 import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import { useContext } from '@owlmeans/client'
-import { HOME } from '@owlmeans/web-client'
-import type { Module } from '@owlmeans/web-client'
+import { landAfterLogin, landingUrl } from '@owlmeans/client-auth/login'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 
@@ -25,6 +24,11 @@ import { createIdOfLength } from '@owlmeans/basic-ids'
  */
 export const supervisorClientPlugin: AuthenticationPlugin = {
   type: AuthenticationType.Supervisor,
+
+  // `restricted`, so registering the plugin is not enough to put an operator login on the sign-in
+  // screen of a production application — the configuration has to name it. Last in the order and
+  // rendered as a link, because it is a tool, not a way in.
+  method: { order: 900, icon: 'key', emphasis: 'link', restricted: true },
 
   Implementation: () => ({ type, control }) => {
     const context = useContext()
@@ -49,8 +53,11 @@ export const supervisorClientPlugin: AuthenticationPlugin = {
           await authService.authenticate(token)
         }
 
-        const [homeUrl] = await context.module<Module<string>>(HOME).call({ full: true }) ?? []
-        window.location.href = homeUrl ?? window.location.origin
+        // A registered step (marketing consent, say) or a device/authorization-code consent
+        // screen that suspended itself here before sending the browser to sign in both take
+        // priority over the app's own home — `landAfterLogin` is the whole decision.
+        const landing = await landAfterLogin(context)
+        window.location.href = await landingUrl(context, landing)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setBusy(false)

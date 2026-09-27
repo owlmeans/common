@@ -1,7 +1,14 @@
 
 export const DEFAULT_DB_ALIAS = 'postgres'
 
-export const DEFAULT_PAGE_SIZE = 10
+/**
+ * Rows `list()` returns when the caller names no `size`.
+ *
+ * A relational table is unbounded, so an unpaged read is a production incident waiting for
+ * the row count to grow. Asking for everything stays possible — and greppable — as
+ * `list(where, { size: 0 })`.
+ */
+export const DEFAULT_PAGE_SIZE = 100
 
 /**
  * Table that records which code-registered migrations have already been applied.

@@ -7,8 +7,8 @@ import type { ClientContext } from '../types.js'
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
 
-export const buildModuleTree = <R, C extends Config = Config, T extends Context<C> = Context<C>>(context: T): ModuleTree<R> => {
-  const modules = context.entrypoints<ClientEntrypoint<R>>().filter(
+export const buildEntrypointTree = <R, C extends Config = Config, T extends Context<C> = Context<C>>(context: T): EntrypointTree<R> => {
+  const entrypoints = context.entrypoints<ClientEntrypoint<R>>().filter(
     module => module.route.route.type === AppType.Frontend
       && (module.sticky || module.route.route.service == null
         || module.route.route.service === context.cfg.service)
@@ -17,8 +17,8 @@ export const buildModuleTree = <R, C extends Config = Config, T extends Context<
   const flatTree = new Map<ClientEntrypoint<R>, ClientEntrypoint<R>[]>()
   const roots: ClientEntrypoint<R>[] = []
 
-  modules.forEach(module => {
-    const parentAlias = module.getParentAlias()
+  entrypoints.forEach(module => {
+    const parentAlias = module.route.route.parent
     if (parentAlias == null) {
       roots.push(module)
     } else {
@@ -29,18 +29,18 @@ export const buildModuleTree = <R, C extends Config = Config, T extends Context<
     }
   })
 
-  const reduceModules = (modules: ClientEntrypoint<R>[]): ModuleTree<R> => modules.reduce(
-    (tree, module) => tree.set(module, reduceModules(flatTree.get(module) ?? [])), new Map()
+  const reduceEntrypoints = (entrypoints: ClientEntrypoint<R>[]): EntrypointTree<R> => entrypoints.reduce(
+    (tree, module) => tree.set(module, reduceEntrypoints(flatTree.get(module) ?? [])), new Map()
   )
 
-  return reduceModules(roots)
+  return reduceEntrypoints(roots)
 }
 
-export const visitModuleTree = async <T, R>(tree: ModuleTree<T>, visitor: ModuleTreeVisitor<T, R>): Promise<R[]> =>
+export const visitEntrypointTree = async <T, R>(tree: EntrypointTree<T>, visitor: EntrypointTreeVisitor<T, R>): Promise<R[]> =>
   Array.from(tree.entries()).reduce<Promise<R[]>>(
     async (result, [module, tree], _, source) => [
       ...(await result),
-      await visitor(module, await visitModuleTree(tree, visitor), source.length === 1)
+      await visitor(module, await visitEntrypointTree(tree, visitor), source.length === 1)
     ], Promise.resolve([]))
 
 export const initializeRouter = async (context: Context) => {
@@ -52,9 +52,9 @@ export const initializeRouter = async (context: Context) => {
   return await model.resolve(context)
 }
 
-export interface ModuleTreeVisitor<T, R> {
+export interface EntrypointTreeVisitor<T, R> {
   (module: ClientEntrypoint<T>, children: R[], alone: boolean): Promise<R>
 }
 
-interface ModuleTree<T> extends Map<ClientEntrypoint<T>, ModuleTree<T>> {
+interface EntrypointTree<T> extends Map<ClientEntrypoint<T>, EntrypointTree<T>> {
 }

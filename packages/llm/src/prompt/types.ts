@@ -36,6 +36,16 @@ export interface PromptComposeParams {
   cacheMax?: number
   /** File access a plugin may use to resolve knowledge from disk. */
   files?: FileProviderRef
+  /**
+   * A cheap model a plugin may spend ONE call on while composing — picking which of a
+   * hundred candidate skills a request is actually about, classifying an ask. Resolved
+   * lazily and allowed to yield `undefined`: no cheap tier is configured on most
+   * deployments, and a plugin that cannot get one must degrade rather than fail.
+   *
+   * Whatever it returns must not change what lands in a CACHED block — a model's answer
+   * is not reproducible byte-for-byte, so it belongs in `Packages` or `Context`.
+   */
+  utility?: () => BaseChatModel | undefined
 }
 
 /** What a prompt plugin sees and may contribute to. */
@@ -47,6 +57,16 @@ export interface PromptContext extends PromptComposeParams {
   add: (block: PromptBlock, text: string) => void
   /** Resolve skill aliases through the registry, following `requires`. */
   resolve: (aliases: readonly string[]) => SkillDefinition[]
+  /**
+   * Take exclusive ownership of `key` for THIS composition: the first caller gets `true`,
+   * every later one `false`. Two plugins that can each render the same skill — a static
+   * catalogue and a detector — would otherwise emit it twice, which costs tokens and
+   * tells the model the same thing in two voices.
+   *
+   * The claim set is per `compose` call and consulted by nobody else, so a composition
+   * where no plugin claims renders exactly the bytes it rendered before this seam existed.
+   */
+  claim: (key: string) => boolean
 }
 
 /**

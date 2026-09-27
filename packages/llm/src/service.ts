@@ -3,6 +3,7 @@ import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { LLM_SERVICE } from './consts.js'
 import { LlmMissconfiguredError } from './errors.js'
+import { resolveFallbacks } from './helpers/fallback.js'
 import { resolvePlugin } from './plugins/index.js'
 import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService } from './types.js'
 
@@ -58,10 +59,35 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
     ) as Partial<ModelConfig>
 
   /**
+   * What the provider accepts bounds what we may ask for. A config that over-declares is
+   * corrected here rather than at the provider, where it surfaces as a fatal 400 on the one
+   * call that finally escalated far enough to exceed the limit.
+   */
+  const fit = (alias: string, config: ModelConfig): ModelConfig => {
+    if (config.maxOutput == null || config.maxOutput <= 0) return config
+    const label = `Model "${alias}" (${config.model ?? 'default'})`
+    if (config.maxTokensCap != null && config.maxTokensCap > config.maxOutput) {
+      console.warn(
+        `${label} declares maxTokensCap ${config.maxTokensCap} above the provider's`
+        + ` maxOutput ${config.maxOutput}; the escalator will stop at ${config.maxOutput}.`
+      )
+    }
+    if (config.maxTokens != null && config.maxTokens > config.maxOutput) {
+      console.warn(
+        `${label} declares maxTokens ${config.maxTokens} above the provider's`
+        + ` maxOutput ${config.maxOutput}; clamping.`
+      )
+      return { ...config, maxTokens: config.maxOutput }
+    }
+
+    return config
+  }
+
+  /**
    * Resolve `alias` → config (inheriting a `preset`, applying `override`) and build it.
-   * A declared `fallback` is built as well and attached to the primary as a
-   * non-enumerable `__fallbackModel`, which the model's retry escalator reads. The
-   * fallback spec is merged OVER the primary config, so it inherits secret/headers.
+   * Every rung of a declared `fallback` chain is built as well (see `resolveFallbacks`) and
+   * hung off the rung above it as a non-enumerable `__fallbackModel`, which the model's retry
+   * escalator walks.
    *
    * Four layers, lowest first — the alias's own preset, the alias, the override's preset,
    * the override. A `preset` is a BASE that its referent refines, so it has to sit under
@@ -89,37 +115,16 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
     // own `streamTimeout` knows something specific about that model and keeps it.
     config.streamTimeout ??= options.streamTimeout
 
-    // What the provider accepts bounds what we may ask for. A preset that over-declares is
-    // corrected here rather than at the provider, where it surfaces as a fatal 400 on the
-    // one call that finally escalated far enough to exceed the limit.
-    if (config.maxOutput != null && config.maxOutput > 0) {
-      if (config.maxTokensCap != null && config.maxTokensCap > config.maxOutput) {
-        console.warn(
-          `Model "${alias}" declares maxTokensCap ${config.maxTokensCap} above the provider's`
-          + ` maxOutput ${config.maxOutput}; the escalator will stop at ${config.maxOutput}.`
-        )
-      }
-      if (config.maxTokens != null && config.maxTokens > config.maxOutput) {
-        console.warn(
-          `Model "${alias}" declares maxTokens ${config.maxTokens} above the provider's`
-          + ` maxOutput ${config.maxOutput}; clamping.`
-        )
-        config.maxTokens = config.maxOutput
-      }
-    }
-
-    const { fallback, ...primaryConfig } = config
-    const primary = buildModel(alias, primaryConfig)
-    if (fallback != null) {
-      const { fallback: _nested, ...fallbackConfig } = { ...primaryConfig, ...fallback }
-      Object.defineProperty(primary, '__fallbackModel', {
-        value: buildModel(alias, fallbackConfig),
+    const rungs = resolveFallbacks(config).map(rung => buildModel(alias, fit(alias, rung)))
+    for (let i = 0; i < rungs.length - 1; i++) {
+      Object.defineProperty(rungs[i], '__fallbackModel', {
+        value: rungs[i + 1],
         enumerable: false,
         configurable: true,
       })
     }
 
-    return primary
+    return rungs[0]!
   }
 
   const cacheKey = (alias: string, override: Partial<ModelConfig> = {}): string =>

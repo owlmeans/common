@@ -1,0 +1,51 @@
+{
+  "kind": {
+    "card": "Картка",
+    "project": "Проєкт",
+    "specification": "Специфікація"
+  },
+  "intrinsic": {
+    "planned": "Заплановано",
+    "in-progress": "У роботі",
+    "closed": "Закрито"
+  },
+  "action": {
+    "create": "Створено",
+    "update": "Оновлено",
+    "transit": "Статус змінено",
+    "link": "Пов’язано",
+    "unlink": "Зв’язок видалено",
+    "delete": "Видалено"
+  },
+  "commit": {
+    "pending": "Збереження…",
+    "committed": "Збережено",
+    "failed": "Не збережено"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "text": "Звичайний текст"
+  },
+  "errors": {
+    "PlanningError": "Не вдалося виконати запит планування",
+    "PlanningErrorWorkcardNotFound": "Цей елемент не існує або недоступний вам",
+    "PlanningErrorUnknownWorkcardType": "Цей тип елемента невідомий",
+    "PlanningErrorUnknownStatusFlow": "Цей потік статусів невідомий",
+    "PlanningErrorParentNotFound": "Батьківський елемент не існує",
+    "PlanningErrorCardTypeNotAllowed": "Елемент цього типу не можна додати сюди",
+    "PlanningErrorRefused": "Зміну відхилено",
+    "PlanningErrorIllegalTransition": "Така зміна статусу неприпустима з поточного статусу",
+    "PlanningErrorFieldsInvalid": "Деякі поля мають неприпустимі значення",
+    "PlanningErrorLabelNotAllowed": "Ця мітка тут неприпустима",
+    "PlanningErrorSpecificationSlotUnknown": "Цей вид документа тут неприпустимий",
+    "PlanningErrorSpecificationRevisionConflict": "Цей документ уже існує — відредагуйте його",
+    "PlanningErrorRelationshipRefused": "Цей зв’язок неприпустимий",
+    "PlanningErrorCodeTaken": "Цей код уже зайнятий",
+    "PlanningErrorWorkcardConflict": "Хтось змінив цей елемент тим часом — оновіть і спробуйте знову",
+    "PlanningErrorCommitTimeout": "Зміна ще зберігається — перевірте трохи пізніше",
+    "PlanningErrorCommitFailed": "Не вдалося зберегти зміну",
+    "PlanningErrorScopeMismatch": "Цей елемент не існує або недоступний вам",
+    "PlanningErrorUnsupported": "Ця операція не підтримується для цього елемента"
+  }
+}

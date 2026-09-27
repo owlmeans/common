@@ -1,6 +1,6 @@
 import { ResilientError } from '@owlmeans/error'
 import { CALL_TIMEOUT, MessageType } from './consts.js'
-import { SocketMessageMalformed, SocketTimeout } from './errors.js'
+import { SocketMessageMalformed, SocketTimeout, SocketUnauthorized, SocketUnsupported } from './errors.js'
 import type {
   AuthMessage, CallHendler, CallMessage, CallResolver, Connection, ConnectionListener,
   EventMessage, Message, RequestHandler
@@ -175,116 +175,148 @@ export const createBasicConnection = (): Connection => {
     },
 
     receive: async message => {
-      if (message.startsWith('{') || message.startsWith('[')) {
-        let msg: Message<any> | string = message
-        try {
-          msg = JSON.parse(message)
-        } catch {
-        }
-        if (typeof msg === 'object') {
-          if (msg.payload == null) {
-            msg.payload = msg
-          }
-          if (msg.type == null) {
-            msg.type = MessageType.Message
-          }
-          msg.rawData = message
-          if (conn.prepare != null) {
-            conn.prepare(msg, true)
-          }
-          try {
-            switch (msg.type) {
-              case MessageType.Call: {
-                await conn._receiveCall(msg as CallMessage<any>)
-                break
+      if (!message.startsWith('{') && !message.startsWith('[')) {
+        return
+      }
+
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(message)
+      } catch {
+        throw new SocketMessageMalformed('json')
+      }
+      if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new SocketMessageMalformed('shape')
+      }
+
+      const msg = parsed as Message<any>
+      if (msg.payload == null) {
+        msg.payload = parsed
+      }
+      if (msg.type == null) {
+        msg.type = MessageType.Message
+      }
+      if (!Object.values(MessageType).includes(msg.type)) {
+        throw new SocketMessageMalformed('type')
+      }
+      // System frames belong to the carrier lifecycle and are never accepted from the wire.
+      if (msg.type === MessageType.System) {
+        throw new SocketMessageMalformed('system')
+      }
+      if (conn.requiresAuthentication === true
+        && conn.stage !== AuthenticationStage.Authenticated
+        && msg.type !== MessageType.Auth) {
+        throw new SocketUnauthorized('stage')
+      }
+
+      msg.rawData = message
+      conn.prepare?.(msg, true)
+
+      try {
+        switch (msg.type) {
+          case MessageType.Call:
+            await conn._receiveCall(msg as CallMessage<any>)
+            break
+          case MessageType.Result:
+            await conn._receiveResult(msg)
+            break
+          case MessageType.Error:
+            await conn._receiveError(msg)
+            break
+          case MessageType.Request:
+            await conn._receiveRequest(msg)
+            break
+          case MessageType.Response:
+            await conn._receiveResponse(msg)
+            break
+          case MessageType.Event:
+            await conn._receiveEvent(msg as EventMessage<any>)
+            break
+          case MessageType.Message:
+            await conn._receiveMessage(msg)
+            break
+          case MessageType.Auth: {
+            const authMessage = msg as AuthMessage<any>
+            if (conn._authSequence != null) {
+              if (authMessage.stage == null) {
+                conn._authSequence.reject(ResilientError.ensure(
+                  authMessage.payload ?? new AuthError('socket:unknown')
+                ))
+              } else {
+                conn.stage = authMessage.stage
+                conn._authSequence.resolve(authMessage.payload)
               }
-              case MessageType.Result: {
-                await conn._receiveResult(msg)
-                break
-              }
-              case MessageType.Error: {
-                await conn._receiveError(msg)
-                break
-              }
-              case MessageType.Request: {
-                await conn._receiveRequest(msg)
-                break
-              }
-              case MessageType.Response: {
-                await conn._receiveResponse(msg)
-                break
-              }
-              case MessageType.Event: {
-                await conn._receiveEvent(msg as EventMessage<any>)
-                break
-              }
-              case MessageType.Message: {
-                await conn._receiveMessage(msg)
-                break
-              }
-              case MessageType.Auth: {
-                const _msg: AuthMessage<any> = msg as AuthMessage<any>
-                if (conn._authSequence != null) {
-                  if (_msg.stage == null) {
-                    conn._authSequence.reject(ResilientError.ensure(_msg.payload ?? new AuthError('socket:unknown')))
-                  } else {
-                    conn.stage = _msg.stage
-                    conn._authSequence.resolve(_msg.payload)
-                  }
-                  conn._authSequence = undefined
-                } else {
-                  try {
-                    const [stage, response] = await conn.authenticate(_msg.stage, _msg.payload)
-                    if (stage != null) {
-                      conn.auth(stage, response).finally(() => void 0)
-                    }
-                  } catch (e) {
-                    conn.auth(null as any, ResilientError.marshal(ResilientError.ensure(e as Error))).finally(() => void 0)
-                  } finally {
-                    conn._authSequence = undefined
-                  }
+              conn._authSequence = undefined
+            } else {
+              try {
+                const [stage, response] = await conn.authenticate(authMessage.stage, authMessage.payload)
+                if (stage != null) {
+                  void conn.auth(stage, response).catch(error => {
+                    console.error('Error sending socket authentication response:', error)
+                  })
                 }
-                break
+              } catch (error) {
+                void conn.auth(
+                  null as any,
+                  ResilientError.marshal(ResilientError.ensure(error as Error))
+                ).catch(sendError => {
+                  console.error('Error sending socket authentication error:', sendError)
+                })
+              } finally {
+                conn._authSequence = undefined
               }
             }
-          } catch (e) {
-            console.error('Error on message processing:', e)
-            throw ResilientError.ensure(e as Error)
+            break
           }
         }
-        await Promise.all(listeners.map(async listener => listener(msg)))
+      } catch (error) {
+        throw ResilientError.ensure(error as Error)
       }
+
+      // A consumer listener is an observation hook, not part of dispatch. One rejecting listener
+      // must neither skip its peers nor reject the transport event callback.
+      await Promise.all(listeners.map(async listener => {
+        try {
+          await listener(msg)
+        } catch (error) {
+          console.error('Socket listener error:', error)
+        }
+      }))
     },
 
     _receiveCall: async msg => {
+      if (msg.id == null) {
+        throw new SocketMessageMalformed('call:id')
+      }
+      if (typeof msg.method !== 'string' || msg.method.length === 0 || !Array.isArray(msg.payload)) {
+        throw new SocketMessageMalformed('call')
+      }
+
       let cancel = false
-      callPerformers[msg.method](...msg.payload)
-        .then(async result => {
-          if (cancel) {
-            return
-          }
-          clearTimeout(timeout)
-          const resultMsg: Message<any> = {
-            id: msg.id,
-            type: MessageType.Result,
-            payload: result
-          }
-          await conn.send(resultMsg)
-        }).catch(async error => {
-          console.error('Error during the call:', error)
-          if (cancel) {
-            return
-          }
-          clearTimeout(timeout)
-          const response: Message<any> = {
-            id: msg.id,
-            type: MessageType.Error,
-            payload: ResilientError.ensure(error).marshal().message
-          }
-          await conn.send(response)
-        })
       msg.timeout = msg.timeout ?? conn.defaultCallTimeout ?? CALL_TIMEOUT
       const timeout = setTimeout(() => { if (msg.timeout !== 0) cancel = true }, msg.timeout)
+
+      try {
+        const performer = callPerformers[msg.method]
+        if (performer == null) {
+          throw new SocketUnsupported(`call:${msg.method}`)
+        }
+        const result = await performer(...msg.payload)
+        if (!cancel) {
+          await conn.send({ id: msg.id, type: MessageType.Result, payload: result })
+        }
+      } catch (error) {
+        if (!cancel) {
+          const resilient = ResilientError.ensure(error as Error)
+          await conn.send({
+            id: msg.id,
+            type: MessageType.Error,
+            payload: resilient.marshal().message
+          })
+        }
+      } finally {
+        clearTimeout(timeout)
+      }
     },
 
     _receiveResult: async msg => {

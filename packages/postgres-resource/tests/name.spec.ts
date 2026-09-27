@@ -19,9 +19,9 @@ describe('@owlmeans/postgres-resource — identifiers', () => {
   })
 
   /**
-   * Postgres truncates past `NAMEDATALEN - 1` server side and says nothing. Truncating here
-   * instead keeps the hash that made the name unique — the shared `dbName()` overflow path
-   * appends its disambiguator past byte 63, where the server would cut it off.
+   * Postgres truncates past `NAMEDATALEN - 1` server side and says nothing, which would let
+   * two names differing only beyond byte 63 collapse into one identifier. Clamping here
+   * instead keeps the hash suffix that tells them apart inside the limit.
    */
   test('keeps an overlong name unique inside the 63 byte limit', () => {
     const long = 'a'.repeat(200)

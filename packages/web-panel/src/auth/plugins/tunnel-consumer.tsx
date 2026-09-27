@@ -11,7 +11,7 @@ import { BlockScaling } from '@owlmeans/client-panel'
 import { Status } from '../../components/status.js'
 import { Button } from '../../components/form/button/component.js'
 import { QRCodeCanvas } from 'qrcode.react'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '../../@/components/ui/progress.js'
 
 /**
  * Read a CSS variable from `:root` (consumer-owned theme). Falls back to

@@ -10,9 +10,9 @@ const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_$]*$/
 /**
  * Coerce an arbitrary name into a legal Postgres identifier of at most 63 bytes.
  *
- * The shared `dbName()` helper's own overflow fallback emits 96 characters, which the
- * server would silently truncate — losing the hash suffix that made the name unique in
- * the first place. Truncating here keeps the disambiguator inside the limit.
+ * Postgres cuts anything past `NAMEDATALEN - 1` off server side and says nothing about
+ * it, so two names that differ only beyond byte 63 would collapse into one identifier.
+ * Clamping here instead leaves room for a hash suffix that keeps them apart.
  */
 export const pgIdentifier = (name: string): string => {
   const sanitized = name.replace(/[^A-Za-z0-9_$]/g, '_')

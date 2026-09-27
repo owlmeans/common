@@ -1,5 +1,4 @@
 import type { ResourceRecord } from '@owlmeans/resource'
-import type { ExecutionState } from '@owlmeans/llm-common'
 import type { AgentRunStatus } from './consts.js'
 
 /**
@@ -44,21 +43,6 @@ export interface ConversationEventInput extends Omit<ConversationEvent, 'id' | '
 }
 
 /**
- * The data plane of a run.
- *
- * `flow` is the serialized {@link import('@owlmeans/flow').FlowModel} state — the control plane
- * collapsed to a string — and `state` is the execution snapshot the LLM layer produces. Keeping
- * them in one record is what makes a resume a single read.
- */
-export interface AgentRunState extends ResourceRecord {
-  id: string
-  conversationId: string
-  flow: string
-  state: ExecutionState
-  updatedAt: string
-}
-
-/**
  * A node of the subsystem memory graph.
  *
  * `subsystem` is the lookup key within a scope, and `links` are the other subsystems this one
@@ -89,16 +73,18 @@ export interface MemoryEventInput extends Omit<MemoryEvent, 'id' | 'seq' | 'crea
 }
 
 /**
- * What a transport carries.
+ * What a transport carries: a POINTER, never a payload.
  *
- * The execution state travels by REFERENCE (`stateRef`), not by value: a project execution's state
- * holds the whole project specification, and a queue whose messages carry that is a queue that
- * falls over on the first large project. The flow string is small enough to inline, and it is what
- * a consumer needs to route the message before it reads anything.
+ * Everything a consumer needs to route the message is here, and everything else is read from the
+ * run row it names. That is not an optimization — a pipeline state is scalars and keys precisely so
+ * that the authority stays in one place, and a message that carried a copy would be a second one,
+ * stale from the moment it was enqueued.
  */
 export interface AgentRunMessage {
-  id: string
+  runId: string
   conversationId: string
-  flow: string
-  stateRef?: string
+  /** The pipeline alias, when the message is about a pipeline run rather than a conversation. */
+  pipeline?: string
+  /** Where the run stood when the message was sent. Advisory — the row is authoritative. */
+  step?: string
 }

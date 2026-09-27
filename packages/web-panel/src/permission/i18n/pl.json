@@ -1,0 +1,13 @@
+{
+  "title": "Działanie odrzucone",
+  "description": "Serwer odrzucił to działanie zgodnie z obecnymi uprawnieniami. Jeśli oczekujesz dostępu, skontaktuj się z administratorem.",
+  "technical-details": "Szczegóły techniczne",
+  "endpoint": "Punkt końcowy",
+  "status": "Status",
+  "incident": "Identyfikator incydentu",
+  "area-title": "Odmowa dostępu",
+  "area-description": "Twoje konto nie może otworzyć tego obszaru. Jeśli oczekujesz dostępu, skontaktuj się z administratorem.",
+  "area": "Obszar",
+  "required-permissions": "Wymagane uprawnienia",
+  "logout": "Wyloguj się"
+}

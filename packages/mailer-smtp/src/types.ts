@@ -39,3 +39,10 @@ export interface SmtpMailerService extends MailerService {
   /** Release a pooled connection. A no-op for the default, non-pooled transport. */
   close: () => Promise<void>
 }
+
+export interface SmtpMailerOptions {
+  /** Require a default sender and username/password authentication. */
+  authenticated?: boolean
+  /** Authenticate with the relay while the context initializes. */
+  verifyOnInit?: boolean
+}

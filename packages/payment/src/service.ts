@@ -1,7 +1,10 @@
 import { createService } from '@owlmeans/context'
 import type { ConfigRecord } from '@owlmeans/context'
-import { DEFAULT_ALIAS, PaymentEntityType, PLAN_RECORD_PREFIX, PRODUCT_RECORD_TYPE } from './consts.js'
-import type { Localization, PaymentService } from './types.js'
+import {
+  CONSUMER_RIGHTS_RECORD_ID, DEFAULT_ALIAS, PaymentEntityType, PLAN_RECORD_PREFIX, PRICING_POLICY_RECORD_ID,
+  PRODUCT_RECORD_TYPE,
+} from './consts.js'
+import type { ConsumerRightsPolicy, Localization, PaymentService, PricingPolicy } from './types.js'
 import type { Config, Context } from './utils/types.js'
 import { PLAN_RECORD_TYPE, PRODUCT_RECORD_PREFIX } from './consts.js'
 import { PaymentIdentificationError, UnknownPlan, UnknownProduct } from './errors.js'
@@ -12,6 +15,7 @@ import { l10nToId } from './helper.js'
 import { DEFAULT_LNG } from '@owlmeans/i18n'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthCredentials } from '@owlmeans/auth'
+import { DEFAULT_PRICING_POLICY } from './estimate.js'
 
 export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentService => {
   const service: PaymentService = createService<PaymentService>(alias, {
@@ -118,6 +122,28 @@ export const makePaymentService = (alias: string = DEFAULT_ALIAS): PaymentServic
       }
 
       return auth.profileId
+    },
+
+    pricingPolicy: async () => {
+      const context = service.assertCtx() as Context
+      const configRes = context.getConfigResource()
+
+      const record = await configRes.load(PRICING_POLICY_RECORD_ID)
+
+      return record == null
+        ? DEFAULT_PRICING_POLICY
+        : fromConfigRecord<ConfigRecord, PricingPolicy & ResourceRecord>(record)
+    },
+
+    consumerRightsPolicy: async () => {
+      const context = service.assertCtx() as Context
+      const configRes = context.getConfigResource()
+
+      const record = await configRes.load(CONSUMER_RIGHTS_RECORD_ID)
+
+      return record == null
+        ? null
+        : fromConfigRecord<ConfigRecord, ConsumerRightsPolicy & ResourceRecord>(record)
     }
   }, service => async () => {
     service.initialized = true

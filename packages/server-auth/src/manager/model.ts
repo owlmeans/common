@@ -12,6 +12,7 @@ import { trusted } from './utils/trusted.js'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { Resource } from '@owlmeans/resource'
 import type { AuthSpent } from '../types.js'
+import { AuthChallengeReplayPolicy } from './plugins/replay-policy.js'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
@@ -51,21 +52,23 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
       const msg: string = envelope.message(true)
 
-      try {
-        await cache(context).create({ id: msg }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
-      } catch (e) {
-        const error = new AuthenFailed('challenge')
-        if (e instanceof Error) {
-          error.oiriginalStack = `${e} : ${e.stack}`
+      const plugin = await getPlugin(envelope.type(), context)
+
+      if (plugin.challengeReplayPolicy !== AuthChallengeReplayPolicy.Plugin) {
+        try {
+          await cache(context).create({ id: msg }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
+        } catch (e) {
+          const error = new AuthenFailed('challenge')
+          if (e instanceof Error) {
+            error.oiriginalStack = `${e} : ${e.stack}`
+          }
+          throw error
         }
-        throw error
       }
 
       if (credential.userId == null) {
         throw new AuthenPayloadError('userId')
       }
-
-      const plugin = await getPlugin(envelope.type(), context)
 
       // @TODO this token PROBABLY needs to be registered somewhere and rechecked
       // from time to time to make sure that the session is not deleted 
