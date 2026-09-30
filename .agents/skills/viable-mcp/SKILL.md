@@ -152,7 +152,11 @@ platform's model calls — so a parent that read only that could still drive the
 
 `target=local, llm=cloud` is the default: the project lives in the user's working directory, the
 model calls are the platform's and billed to their credits. `VIABLE_API_URL` points the server at a
-self-hosted or development deployment, which is what every end-to-end test does.
+self-hosted or development deployment, which is what every end-to-end test does. It is that
+deployment's PUBLIC API origin — path-less, the host that serves the connector, planning, `/mcp`
+and the OAuth authorization server, `https://api-<web host>` for an OwlMeans Viable dev
+environment — never the web app's `/api`, which answers none of the connector's routes. The device
+sign-in and `/oauth/revoke` run against the same origin, and it is the token's issuer.
 
 ## Tests
 

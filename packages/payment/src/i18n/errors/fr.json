@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Le prestataire de paiement n’a pas pu traiter la demande",
   "PaymentErrorPaygateUnknown": "Ce prestataire de paiement n’est pas pris en charge",
   "PaymentErrorPaygateMapping": "Les données du prestataire de paiement n’ont pas pu être associées",
+  "PaymentErrorPaygateSignature": "La signature du webhook est absente ou invalide.",
   "PaymentErrorPaygateWebhookSetup": "Les notifications de paiement ne sont pas configurées",
   "PaymentErrorPaygatePortalUnavailable": "La gestion de la facturation n’est pas encore disponible pour ce compte",
   "PaymentErrorProduct": "Ce produit n’est pas disponible",

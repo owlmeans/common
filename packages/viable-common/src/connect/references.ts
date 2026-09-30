@@ -3,13 +3,11 @@ import type { RegisteredEntrypoint, RequestShape } from '@owlmeans/entrypoint'
 import type { EntrypointReference } from '@owlmeans/context'
 import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
-import type { ConverterProjectLlmBody } from '../convert/index.js'
 import type {
-  ConnectAttachBody, ConnectCapabilitiesView, ConnectConfirmBody, ConnectCreateBody,
-  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectInquiryAnswerBody,
-  ConnectModifyBody, ConnectOpSubmission, ConnectPipelineParams, ConnectPipelineResumeBody,
-  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectLlmBody,
-  ConnectProjectSettings, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectConvertCreateBody,
+  ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectModifyBody, ConnectOpSubmission,
+  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState, ConnectProjectBranding,
+  ConnectProjectBrandingSave, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
   ConnectSessionOpen, ConnectSessionParams, ConnectSessionView, ConnectStoryStatus,
   ConversionStatusView, ConvertCheck,
 } from './types.js'
@@ -18,12 +16,9 @@ type ConnectReference<Request extends RequestShape, Response> =
   EntrypointReference<RegisteredEntrypoint<Request, Response>>
 
 export interface ConnectReferences {
-  capabilities: ConnectReference<{}, ConnectCapabilitiesView>
   session: {
     open: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
     openDelegated: ConnectReference<{ body: ConnectSessionOpen }, ConnectSessionView>
-    get: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
-    heartbeat: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
     close: ConnectReference<{ params: ConnectSessionParams }, ConnectSessionView>
   }
   op: {
@@ -40,11 +35,6 @@ export interface ConnectReferences {
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
     reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
-    settings: ConnectReference<{ params: { id: string } }, ConnectProjectSettings>
-    llm: ConnectReference<{ params: { id: string }, body: ConnectProjectLlmBody }, ConnectProjectSettings>
-    converterLlm: ConnectReference<{
-      params: { id: string }, body: ConverterProjectLlmBody
-    }, ConnectProjectSettings>
     branding: {
       get: ConnectReference<{ params: { id: string } }, ConnectProjectBranding>
       save: ConnectReference<{
@@ -65,7 +55,6 @@ export interface ConnectReferences {
     proceed: ConnectReference<{
       params: { id: string }, body: ConnectConvertProceedBody
     }, ConversionStatusView>
-    cancel: ConnectReference<{ params: { id: string } }, ConversionStatusView>
     status: ConnectReference<{ params: { id: string } }, ConversionStatusView>
     purge: ConnectReference<{ params: { id: string } }, ConversionStatusView>
   }
@@ -88,12 +77,9 @@ export interface ConnectReferences {
  * aliases to UI or domain code.
  */
 export const connectRef: ConnectReferences = {
-  capabilities: entrypointRef<{}, ConnectCapabilitiesView>(connect.capabilities),
   session: {
     open: entrypointRef<{ body: ConnectSessionOpen }, ConnectSessionView>(connect.session.open),
     openDelegated: entrypointRef<{ body: ConnectSessionOpen }, ConnectSessionView>(connect.session.openDelegated),
-    get: entrypointRef<{ params: ConnectSessionParams }, ConnectSessionView>(connect.session.get),
-    heartbeat: entrypointRef<{ params: ConnectSessionParams }, ConnectSessionView>(connect.session.heartbeat),
     close: entrypointRef<{ params: ConnectSessionParams }, ConnectSessionView>(connect.session.close),
   },
   op: {
@@ -110,13 +96,6 @@ export const connectRef: ConnectReferences = {
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
     reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
-    settings: entrypointRef<{ params: { id: string } }, ConnectProjectSettings>(connect.project.settings),
-    llm: entrypointRef<{
-      params: { id: string }, body: ConnectProjectLlmBody
-    }, ConnectProjectSettings>(connect.project.llm),
-    converterLlm: entrypointRef<{
-      params: { id: string }, body: ConverterProjectLlmBody
-    }, ConnectProjectSettings>(connect.project.converterLlm),
     branding: {
       get: entrypointRef<{ params: { id: string } }, ConnectProjectBranding>(connect.project.branding.get),
       save: entrypointRef<{
@@ -136,7 +115,6 @@ export const connectRef: ConnectReferences = {
     proceed: entrypointRef<{
       params: { id: string }, body: ConnectConvertProceedBody
     }, ConversionStatusView>(connect.convert.proceed),
-    cancel: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.cancel),
     status: entrypointRef<{
       params: { id: string }
     }, ConversionStatusView>(connect.convert.status),

@@ -54,6 +54,9 @@ import {
 
 appendPaymentGatewayService(context)                    // the process that owns Stripe
 appendPaymentGatewayService(context, { manage: false }) // a process that only reads entitlements
+// several managed processes on one database — the same `owner` and `webhookService` in each:
+appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks' })                   // receives the webhook
+appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks', bootstrap: false }) // checkout and portal
 export const serverBindings = [...paymentGateEntrypoints]
 
 observer(context).onTopUp(async completion => { /* credit, idempotent by completion.externalId */ })
@@ -68,7 +71,20 @@ customer-portal configuration, one webhook endpoint at this deployment's public 
 secret stored in `payment-webhook`) — and each step is fingerprinted, so an unchanged deployment
 makes no Stripe call.
 
-Several deployments of one service may share a Stripe account (typically every test-mode
+Three gateway options place that state when a deployment runs several processes:
+
+| Option | Default | Decides |
+|---|---|---|
+| `webhookService` | `cfg.service` | the `cfg.services` alias whose host and base form the webhook URL — also the portal's deployment key |
+| `owner` | `cfg.service` | the key of the `payment-webhook` rows, the signing-secret lookup, the `portal:<owner>` fingerprint and the Stripe labels |
+| `bootstrap` | `manage` | whether this process runs the bootstrap at boot; a forced one (`resync`, `bootstrapStripe(ctx, stripe, { force: true })`) runs in any managed process |
+
+Give every process of the database the same `owner` and `webhookService` (the process that receives
+the webhook), and keep `bootstrap` on that receiver only. Changing `webhookService` moves the
+endpoint on the next bootstrap: created at the new URL, the endpoint of the owner's former URL
+deleted, a new portal configuration for the new deployment key.
+
+Several deployments of one application may share a Stripe account (typically every test-mode
 deployment), each with its own database and URL — and a deployment's identity is its webhook URL,
 even an undeliverable local one.
 
@@ -78,8 +94,8 @@ even an undeliverable local one.
   retired deployment is removed by hand in the Stripe dashboard; one deleted from outside comes back
   on the next forced `resync`.
 - **Portal configuration.** Each deployment has its own, tagged
-  `{ owlmeans: 'payment', service, deployment: <webhook URL> }`. It updates the configuration its
-  `portal:<service>` fingerprint row names, unless that one is tagged for another deployment, and
+  `{ owlmeans: 'payment', service: <owner>, deployment: <webhook URL> }`. It updates the configuration its
+  `portal:<owner>` fingerprint row names, unless that one is tagged for another deployment, and
   without a row adopts only a configuration carrying exactly its own tag. Stripe cannot delete a
   portal configuration, so one a deployment can no longer identify stays in the account and a new
   one is created.
@@ -118,9 +134,30 @@ The limit gate never consumes; the handler does.
 ## Routes
 
 `paymentGateEntrypoints` binds the immutable `paymentGate` tree: the public Stripe webhook
-(`POST /payment-gate/webhook/:paygate`, verified by signature over the raw body), and two
+(`POST /payment-gate/webhook/:paygate`, verified by signature over the raw body; a missing or
+unverifiable signature is a `PaygateSignatureError`, answered 400), and two
 Ed25519-guarded repairs — `resync` (products, portal, webhook endpoint) and `resyncSubscriptions`
 (re-reads every live Stripe subscription, answering `{ scanned, updated }`).
+
+An application that declares the gate itself — its own aliases, pinned to the service that receives
+the webhook — binds its declarations to the same actions instead, and registers nothing of
+`paymentGate`:
+
+```typescript
+import { bind } from '@owlmeans/server-app'
+import { paymentGateHandlers } from '@owlmeans/server-payment'
+
+export const hookBindings = [
+  bind(own.base),
+  bind(own.webhook, paymentGateHandlers.webhook),
+  bind(own.resync, paymentGateHandlers.resync),
+  bind(own.resyncSubscriptions, paymentGateHandlers.resyncSubscriptions),
+]
+```
+
+Each handler runs in the context of the entrypoint it is bound to. The declarations keep
+`paymentGate`'s paths (the webhook URL registered with Stripe is formed from them), contracts and
+guards; bind each with `bind` — `bindAll` pairs a handler only with the declaration it was made for.
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

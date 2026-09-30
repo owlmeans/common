@@ -16,8 +16,8 @@ tests that compile the schemas). It depends on `@owlmeans/planning`, `@owlmeans/
 `@owlmeans/context`, and on nothing else.
 
 Every name the OwlMeans Viable platform puts on a wire, on a volume or in a prompt is declared
-here once, and the four runtimes that must agree about it — the manager API, the agent, the
-publisher/production runtime, and the connector SDK on somebody's laptop — all read the same
+here once, and the four runtimes that must agree about it — the platform's API services, the
+agent, the publisher/production runtime, and the connector SDK on somebody's laptop — all read the same
 declaration. A vocabulary copied instead of imported is how one tree gets two totals, one
 refusal two spellings, and one ceiling two values.
 
@@ -45,7 +45,7 @@ the `Blueprint` types and vocabulary that execution state and card fields name.
 A Viable project, its user stories and the documents behind them are `@owlmeans/planning`
 WORKCARDS. The planning packages own the record, the transition, the fold, the stores and the
 protocol tree; this module owns what a Viable card IS — its type, its flow, its `fields`, its
-slots, its code — and every runtime that writes one (the manager API, the agent, the library, the
+slots, its code — and every runtime that writes one (the platform API services, the agent, the library, the
 SDK) reads that declaration from here. A plugin registers `VIABLE_TYPE_SCHEMAS` and
 `VIABLE_FLOW_SCHEMAS`; nothing redeclares a type or a flow locally.
 
@@ -188,8 +188,8 @@ second answer that can disagree with it.
 ### The write channel
 
 `ViableChannel` (`web`, `connect`, `agent`, `pipeline`) is what a planning write carries on
-`PlanningScope.channel` and records on `actor.channel`. It is never read from the wire: the manager
-API derives `connect` from an access-token request and `web` from everything else; the agent's own
+`PlanningScope.channel` and records on `actor.channel`. It is never read from the wire: the platform's
+API services derive `connect` from an access-token request and `web` from everything else; the agent's own
 writes are `agent` or `pipeline`. Three rules key on it, and `isUserChannel` is how they ask:
 
 - the balance refusal — `ConnectOutOfCredits` for `connect`, `AgentOutOfTokens` otherwise;
@@ -271,15 +271,34 @@ deploy together.
 
 ## One immutable protocol tree, bound in each runtime
 
-`connectProtocols(opts)` is the connector's whole immutable HTTP and socket tree — aliases, paths,
-methods, contracts and protocol parents. The manager and SDK bind their own local materializations
+`connectProtocols(opts)` is the connector's whole immutable HTTP tree — aliases, paths, methods,
+contracts and protocol parents. The platform and the SDK bind their own local materializations
 from those declarations, so a path or schema cannot differ across a server and client. Only what
-belongs to the DEPLOYMENT is injected: the guard alias, ownership gate, paid local-LLM gate and the
-platform's update-base protocol.
+belongs to the DEPLOYMENT is injected: the guard alias, the ownership gate and the paid local-LLM
+gate (on `session.openDelegated` alone).
 
-Adding a route means adding it here first, then binding that named protocol in every runtime that
-serves or calls it. A route declared on one side alone is a 404 nobody can explain from the failing
-end. Keep raw aliases private to declaration modules; consumers receive protocol objects, and a
+The tree holds exactly the routes a connector calls, under one base (`/connect` unless the `path`
+option says otherwise), and `connect` (aliases) and `connectRef` (typed references) name the same
+set:
+
+| Branch | Routes |
+|---|---|
+| `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
+| `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
+| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding` |
+| `story` | `status` GET `/project/:id/story/:storyId/status` |
+| `files` | `list` GET `/project/:id/files` |
+| `convert` | `create` POST `/convert`, `check` GET `/convert/:id/check`, `start`, `proceed`, `purge` POST `/convert/:id/…`, `status` GET `/convert/:id` |
+| `inquiry` | `answer` POST `/project/:id/inquiry/:inquiryId` |
+| `pipeline` | `state` GET `/pipeline/:id/:runId`, `resume` POST `/pipeline/:id/:runId/resume` |
+
+There is no socket, capability view, session read or heartbeat, conversion cancel or project
+inference-settings route: nothing a connector does calls one. A project's inference modes are the
+browser's to set, through the platform's own API — `ConnectProjectSettings`,
+`ConnectProjectLlmBody(Schema)` and `ConverterProjectLlmBody(Schema)` stay here as that API's
+shapes. Adding a route means adding it here first (alias, declaration, `connectRef` entry), then
+binding that named protocol in every runtime that serves or calls it. A route declared on one side
+alone is a 404 nobody can explain from the failing end. Keep raw aliases private to declaration modules; consumers receive protocol objects, and a
 dynamic adapter reads `.alias` only at its string-addressed boundary.
 
 The connector tree has NO story routes. A story is a planning card, listed, created, edited,
@@ -308,7 +327,8 @@ vocabulary.
 
 A prompt typed on the PUBLIC site (owlmeans.com, a static Astro app that cannot import the platform
 repo) reaches the platform through this one subpath, which is why it lives here and not in viable:
-the site, the manager API and the manager web must agree on every address, schema and step.
+the site, the platform's API services (the stash and the pickup may be served by different ones)
+and the manager web must agree on every address, schema and step.
 
 - **Two guest routes and one screen, no guard, no gate, no service.** `makeIntentProtocols()` declares
   `stash` (POST `/public/intent`, body `{ prompt 1..8192, consent: const true }` → `{ ref, expiresAt }`),
@@ -426,8 +446,8 @@ read back by the purge, and a path spelled at a call site is a file the purge le
 ## The inquiry vocabulary is a deliberate COPY, and the ceiling is not
 
 `ConnectInquiryKind` / `InquiryPayload` / `InquiryAnswerPayload` mirror `@owlmeans/llm-common`'s
-`Inquiry` family, renamed so both vocabularies can be imported into one file and so `manager-api`,
-which does not depend on the model runtime, stays free of it. Values are byte-identical, so the
+`Inquiry` family, renamed so both vocabularies can be imported into one file and so the platform's API services,
+which do not depend on the model runtime, stay free of it. Values are byte-identical, so the
 platform's mapper is a widening rather than a translation table, and a test pins that — the same
 arrangement `ModelTask` has with `DelegatedTask`.
 
@@ -494,8 +514,9 @@ refusals' type names surviving a marshal), `scaffold.spec.ts` (an old-shape and 
 both passing the schema and the `scaffold` slot, `null` optionals accepted, no `minItems`),
 `blueprint.spec.ts` (`landingGatePreferenceOf` — the default for an absent layer or an unknown
 value), `branding.spec.ts` (the build env and the metadata vocabulary),
-`connect-entrypoints.spec.ts` (the tree's protocol count, no story route, the job-id round trip,
-the branding routes and their save body),
+`connect-entrypoints.spec.ts` (the tree's protocol count, every route's method and path, no
+socket, the alias table and `connectRef` naming the tree's routes, the paid gate on the delegated
+session alone, no story route, the branding routes and their save body),
 `convert.spec.ts` (the three structural walks over the barrel, the
 conversion schemas compiling, a nullable enum accepting `null` under Ajv while still refusing an
 unknown member, the census classifiers and the stage transitions), `connect-convert.spec.ts` (the

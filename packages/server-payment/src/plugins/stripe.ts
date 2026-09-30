@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 import {
   assertCheckoutAmount, billingLanguageOf, BillingCountryLocked, chargeAmountMinor, chargeCurrencyOf,
   CheckoutPricingMode, CONSUMER_RIGHTS_COPY_VERSION, ConsumerRightsError, consumerText, inScope, linksOf,
-  PaygateError, ProductError, ProductType, regionOf, TaxBehavior, WebhookSetupError,
+  PaygateError, PaygateSignatureError, ProductError, ProductType, regionOf, TaxBehavior, WebhookSetupError,
 } from '@owlmeans/payment'
 import type { BillingProfileView, ConsumerRegion, ConsumerRightsPolicy, PricingPolicy } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
@@ -639,13 +639,13 @@ interface WebhookRequest {
  * Verify a Stripe webhook against the configured override secret, then the managed endpoint's
  * stored one, and dispatch it.
  *
- * @throws PaygateError('signature') | WebhookSetupError('secret')
+ * @throws PaygateSignatureError | WebhookSetupError('secret')
  */
 export const handleStripeWebhook = async (ctx: ApiContext, stripe: Stripe, request: unknown): Promise<void> => {
   const typed = request as WebhookRequest
   const rawBody = typed.original?.rawBody ?? typed.rawBody
   const signature = typed.headers[STRIPE_SIGNATURE.toLowerCase()]
-  if (rawBody == null || typeof signature !== 'string') throw new PaygateError('signature')
+  if (rawBody == null || typeof signature !== 'string') throw new PaygateSignatureError()
 
   const secrets = await stripeWebhookSecrets(ctx)
   if (secrets.length === 0) {
@@ -661,7 +661,7 @@ export const handleStripeWebhook = async (ctx: ApiContext, stripe: Stripe, reque
     }
   }
   if (event == null) {
-    throw new PaygateError('signature')
+    throw new PaygateSignatureError()
   }
 
   await createEventHandler(ctx, stripe).process(event)

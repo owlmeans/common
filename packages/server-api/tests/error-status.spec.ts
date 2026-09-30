@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
-import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
+import { AuthForbidden, AuthorizationError, AuthUnknown } from '@owlmeans/auth'
 import { ResilientError, SEPARATOR } from '@owlmeans/error'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { errorExposure, errorStatus, handleError, INCIDENT_ID_HEADER } from '../src/utils/error.js'
@@ -242,6 +242,12 @@ describe('@owlmeans/server-api — handleError status', () => {
       expect((await answer(typed(type))).status).toBe(500)
       expect((await answer(new ForeignResilientError(type, 'near-miss'))).status).toBe(500)
     }
+  })
+
+  test('an unknown authentication method or identity answers 400, as thrown and after a marshal hop', async () => {
+    expect((await answer(new AuthUnknown('email-otp'))).status).toBe(400)
+    expect((await answer(ResilientError.marshal(new AuthUnknown('entity')))).status).toBe(400)
+    expect((await answer(new AuthUnknown(), '/execute')).status).toBe(400)
   })
 
   test('honours an explicitly exposed 5xx without opening arbitrary server statuses', async () => {

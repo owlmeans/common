@@ -186,8 +186,7 @@ export interface ConnectProfileSettingsView extends ConnectProfileSettings {
    * work: a conversion reads somebody else's whole repository, which is the one case where handing
    * the inference to the parent agent is the cheap default rather than the experimental option.
    *
-   * OPTIONAL for the same reason {@link ConnectCapabilitiesView.defaults} carries `converterLlm`
-   * optionally: the two converter fields are answered by a platform build that does not exist yet,
+   * OPTIONAL: the two converter fields are answered by a platform build that does not exist yet,
    * and this package is consumed by the platform through a workspace link rather than a published
    * range — a required field here is a compile error in every handler that already returns this
    * view. Tightened to required once the platform's conversion handlers fill them.
@@ -250,26 +249,6 @@ export interface ConnectProjectBranding {
  * rules the web form uses, and answers the merged record.
  */
 export interface ConnectProjectBrandingSave extends Partial<ConnectProjectBranding> {}
-
-/** What the platform tells a connector about itself. */
-export interface ConnectCapabilitiesView {
-  /** Tier → the platform role names that will be asked for at that tier. */
-  tiers: Record<ModelTier, string[]>
-  /** Whether this caller may open a local-LLM session. */
-  localLlm: boolean
-  /**
-   * The default mode for a new session, resolved from the caller's settings.
-   *
-   * `converterLlm` is OPTIONAL: an older platform does not send it, and a client that treated its
-   * absence as a value would pin every conversion to whatever its own default happened to be.
-   */
-  defaults: { target: ConnectTarget, llm: ConnectLlm, converterLlm?: ConnectLlm }
-  limits: {
-    pullWaitMs: number
-    modelTaskTimeoutMs: number
-    maxPending: number
-  }
-}
 
 /** Attach an existing project to a session. */
 export interface ConnectAttachBody {

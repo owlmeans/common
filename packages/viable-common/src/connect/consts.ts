@@ -260,9 +260,9 @@ export const CONNECT_INQUIRY_MAX_TEXT = 2_000
 /**
  * How long a session survives without a sign of life.
  *
- * A connector refreshes its presence on every socket ping, every long-poll and every submit. Ten
- * minutes is generous on purpose: a parent agent running one model task in a subagent can be
- * silent for several, and expiring a session under it would fail a run that was progressing.
+ * A connector refreshes its presence on every long poll and every submit. Ten minutes is generous
+ * on purpose: a parent agent running one model task in a subagent can be silent for several, and
+ * expiring a session under it would fail a run that was progressing.
  */
 export const CONNECT_SESSION_EXPIRE_MS = 600_000
 
@@ -354,10 +354,6 @@ export const CONNECT_MARKER_DIR = '.viable'
 export const CONNECT_ENV_BEGIN = '# --- viable:managed ---'
 export const CONNECT_ENV_END = '# --- /viable:managed ---'
 
-/** Socket events a connector session carries. */
-export const CONNECT_EVENT_OP = 'connect:op'
-export const CONNECT_EVENT_SESSION = 'connect:session'
-
 /** Redis resource aliases the platform registers for the relay. */
 export const CONNECT_OP_PUBSUB = 'connect-op-pubsub'
 export const CONNECT_RESULT_PUBSUB = 'connect-result-pubsub'
@@ -381,14 +377,10 @@ export const RES_CONNECT_SESSION = 'connect-session'
  */
 export const connect = Object.freeze({
   base: 'viable:manager-api:connect:base',
-  capabilities: 'viable:manager-api:connect:capabilities',
   session: Object.freeze({
     open: 'viable:manager-api:connect:session:open',
     openDelegated: 'viable:manager-api:connect:session:open-delegated',
-    get: 'viable:manager-api:connect:session:get',
-    heartbeat: 'viable:manager-api:connect:session:heartbeat',
     close: 'viable:manager-api:connect:session:close',
-    socket: 'viable:manager-api:connect:session:socket',
   }),
   op: Object.freeze({
     pull: 'viable:manager-api:connect:op:pull',
@@ -402,10 +394,6 @@ export const connect = Object.freeze({
     attach: 'viable:manager-api:connect:project:attach',
     reinit: 'viable:manager-api:connect:project:reinit',
     modify: 'viable:manager-api:connect:project:modify',
-    settings: 'viable:manager-api:connect:project:settings',
-    llm: 'viable:manager-api:connect:project:llm',
-    /** The per-project converter inference mode. Separate from `llm`: it is not a paid capability. */
-    converterLlm: 'viable:manager-api:connect:project:converter-llm',
     /**
      * The project's own branding — copyright, organization, the two legal links, the Google tag.
      * The platform credit is deliberately NOT here: hiding it is a paid capability with its own
@@ -424,7 +412,6 @@ export const connect = Object.freeze({
     check: 'viable:manager-api:connect:convert:check',
     start: 'viable:manager-api:connect:convert:start',
     proceed: 'viable:manager-api:connect:convert:proceed',
-    cancel: 'viable:manager-api:connect:convert:cancel',
     status: 'viable:manager-api:connect:convert:status',
     purge: 'viable:manager-api:connect:convert:purge',
   }),
