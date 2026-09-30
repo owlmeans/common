@@ -1,4 +1,6 @@
-import { FORBIDDEN_ERROR, SERVER_ERROR, UNAUTHORIZED_ERROR } from '@owlmeans/api'
+import {
+  FORBIDDEN_ERROR, SERVER_ERROR, UNAUTHORIZED_ERROR, DENIAL_KIND_HEADER, ACCESS_DENIED_KIND,
+} from '@owlmeans/api'
 import type { FastifyReply } from 'fastify'
 import { AccessError, AuthFailedError } from '../errors.js'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
@@ -177,6 +179,12 @@ export const applyErrorHeaders = (error: unknown, reply: FastifyReply): void => 
   const retryAfter = (error as { retryAfter?: unknown }).retryAfter
   if (typeof retryAfter === 'number' && Number.isFinite(retryAfter) && retryAfter > 0) {
     reply.header('Retry-After', String(Math.ceil(retryAfter)))
+  }
+  // Match exact registered types. EntitlementRefusal also extends AuthForbidden but is a plan
+  // decision, not a person's IAM permission denial.
+  const type = (error as { type?: unknown }).type
+  if (type === AuthForbidden.typeName || type === AccessError.typeName) {
+    reply.header(DENIAL_KIND_HEADER, ACCESS_DENIED_KIND)
   }
 }
 

@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.42`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.43`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -103,6 +103,11 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
 than reaching through `request.original` in application code.
 
 ## Error exposure
+
+An exact IAM `AuthForbidden` or `AccessError` refusal answers with
+`X-OwlMeans-Denial: access-denied`, exposed through CORS. Subclasses such as entitlement refusals
+do not get this marker. The marker survives production exposure so browser clients can present a
+permission message while keeping diagnostic bodies private.
 
 `handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
 `X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value

@@ -27,8 +27,8 @@ export interface ConsentPlugin {
   /**
    * Offer an interface language from outside this document's own storage — e.g. the one the page
    * that led here was read in. Returns a language the application supports, or `null` to keep
-   * choosing its own. Only a CANDIDATE: it says what the link carried, and persisting it is
-   * `writeConsentLanguage`'s call, which refuses until `functional` is granted on this document.
+   * choosing its own. Only a CANDIDATE: it says what the link carried, and `writeConsentLanguage`
+   * stores it — unconditionally, since the interface language is strictly necessary storage.
    */
   adoptLanguage?: (opts: ConsentOptions) => string | null
   /**
@@ -107,8 +107,7 @@ export const adoptConsent = (opts: ConsentOptions): ConsentRecord | null => {
 
 /**
  * Try every registered plugin's `adoptLanguage`, in priority order, and use the first language
- * offered. The caller persists it (`writeConsentLanguage`, which refuses until `functional` is
- * granted) — and has to do that BEFORE its i18n
+ * offered. The caller persists it (`writeConsentLanguage`) — and has to do that BEFORE its i18n
  * layer reads storage, which is why the inline `<head>` fragment (`consentLinkerScript`) is the
  * one that normally does.
  */

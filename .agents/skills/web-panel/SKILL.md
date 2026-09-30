@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.62"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.63"` in `dependencies`
 
 ## Key Exports
 
@@ -329,6 +329,11 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => <>
 - `sonner` is a dependency of this package, so nothing is required of the consumer — but an app
   raising its own toasts should declare `sonner` too, at a range that resolves to the same copy.
 
+`appendPermissionDeniedToast(context)` plugs into the client entrypoint failure service and
+shows a localized access-denied toast for errors carrying the server IAM marker. Mount `Toaster`
+once as usual. The toast exposes the technical message and incident id in a separate details
+section. The app supplies its locale through its i18n context.
+
 ### Reload prompt — `SocketReloadDialog`
 
 `makeContext` calls `appendSocketStatus` from `@owlmeans/client-socket` unconditionally, and
@@ -498,9 +503,8 @@ menu has already mounted) and because React 18 StrictMode double-invokes mount/c
 | Job | Import from `@owlmeans/web-panel/consent` | Where it goes |
 |---|---|---|
 | The consent dialog (and its floating re-open button) | `PanelCookieConsent` | Beside the router — a `PanelApp` child — once |
-| Remember the language only while the visitor granted `functional` cookies | `installConsentLanguage()` | Once, in the bootstrap, BEFORE `prepareI18n` — wires `client-i18n`'s persistence guard, and applies a language that arrived with a link from another OwlMeans domain once the grant is saved |
 | The "Cookie settings" control in a footer or menu | `PanelConsentMenuWidget` (`label`, `className`, `onSelect?` — defaults to `openConsent('reopen')`) | Inside the host's own footer/menu |
-| Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control |
+| Hiding the floating button while that control is reachable | `useConsentMenuPresence()` | Called by the always-mounted component that renders the control — mounted ONLY while the control can actually be reached: a component that is merely hidden by CSS (`xl:hidden`) is still mounted and still claims presence, so the floating button vanishes with nothing else to open the dialog; render it conditionally instead (viable's header mounts its hamburger menu only below the full-row breakpoint) |
 | Registering the presence service | `appendConsentWidgetService(context)` | The app's `context.ts` |
 
 A footer is the simplest host, because it is always mounted — the control and the presence call

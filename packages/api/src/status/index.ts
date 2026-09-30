@@ -3,13 +3,22 @@ import { ApiClientError } from '../errors.js'
 import { parseClientMarker } from './marker.js'
 
 export { INCIDENT_ID_HEADER } from '../consts.js'
+export { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND } from '../consts.js'
+import { ACCESS_DENIED_KIND } from '../consts.js'
 export { API_CLIENT_MARKER, API_STATUS_MARKER, parseClientMarker } from './marker.js'
 export type { ClientMarker } from './marker.js'
 
 /** The HTTP status the API client stamps on an error it rebuilt from a response body. */
 export interface ResponseStatusCarrier {
   responseStatus?: number
+  denialKind?: string
 }
+
+/** True only for a server-labelled auth/IAM refusal, never an unrelated 403. */
+export const isAccessDenied = (error: unknown): boolean =>
+  httpStatusOf(error) === 403
+  && typeof error === 'object' && error != null
+  && (error as ResponseStatusCarrier).denialKind === ACCESS_DENIED_KIND
 
 const httpStatus = (value: unknown): number | null =>
   typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599 ? value : null

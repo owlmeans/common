@@ -9,6 +9,7 @@ import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { PARAM, SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { combineConfig } from './utils/config.js'
+import { makeInteractionPolicy } from './utils/policy.js'
 
 let _initializedOidc: Provider | undefined = undefined
 export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcProviderService => {
@@ -41,6 +42,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         },
 
         interactions: {
+          policy: makeInteractionPolicy(),
           url: async (_, interaction) => {
             // The interaction screen is a FRONTEND route, and this is a server context — the
             // entrypoint registered here has no `url()` (that helper is attached by

@@ -30,6 +30,11 @@ Upgrades consult the `oidc-versions` skill. Viable-side usage: [[auth]].
 
 ## Gotchas
 
+- `findAccount` → `undefined` for a session's account does NOT re-prompt login in oidc-provider 9.11.1
+  (`no_session` reads `session.accountId`); the consent prompt then throws on `oidc.grant` →
+  `server_error` at the RP. `makeInteractionPolicy()` adds the `account_refused` login check;
+  bumping the pin means re-running `tests/policy.spec.ts` (its first case is the upstream canary).
+
 - oidc-provider v9: `oidc.use()` post-`next()` no longer runs after a matched route — CSP header
   rewrites and debug logging must live at the Fastify layer (`onSend` scoped to the OIDC base
   path).

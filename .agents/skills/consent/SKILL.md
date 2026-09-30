@@ -76,24 +76,19 @@ interface ConsentCategory {
 }
 ```
 
-The default set is `essential` (required), `functional`, `analytics`, `marketing` — what owlmeans.com
-already asked, plus the essential row the original widget left implicit (what lets a flow require an
-acknowledgement before it sets a session cookie, and tells a visitor what is stored regardless), plus
-`functional`: the visitor's own remembered preferences — today the interface language.
+The default set is `essential` (required), `analytics`, `marketing` — what owlmeans.com already
+asked, plus the essential row the original widget left implicit (what lets a flow require an
+acknowledgement before it sets a session cookie, and tells a visitor what is stored regardless: the
+consent record itself and the interface language the visitor picked).
 
-**`functional` drives NO Consent Mode signal, on purpose.** A signal would make `trackingGranted`
-count it (an optional category with a signal is "tracking"), and a visitor who only allowed their
-language to be remembered would load the tag container. Anything that stores a preference asks
-`functionalGranted(opts)` (or writes through `writeFunctionalPreference`) — never `analytics`, never
-"a decision exists": a refusal is an answer, and tying a language to analytics would bundle purposes.
-
-**A record saved before the category existed has no `functional` key, and that is NOT a grant** — the
-visitor was never asked. It is not re-asked either (a new question is not worth the dialog re-opening
-for everyone); `granted('functional')` is `false`, "Accept all" and the preferences dialog grant it.
-`functionalKeys` (default: the language key) lists the `localStorage` keys that may exist only while
-it is granted: `init` and `save` remove them the moment it is not, so a preference never outlives the
-consent to remember it. A category set of your own with no `functional` key can therefore never store
-a preference — deliberately: the safe failure.
+**The interface language is strictly necessary storage, and no category governs it.** The visitor
+asked for it by choosing it, and the site cannot speak to them without it, so it is written to
+`owlmeans-lng` (`CONSENT_LANGUAGE_KEY`) whatever the cookie decision is — none yet, a refusal, an
+old record. There is no `functional` category, no purge of a preference when consent is withdrawn, and
+no "remembered only while granted" rule: a category that governed nothing would be a dialog row
+offering a choice that changes nothing. Records saved while a `functional` key existed keep it as an
+unread extra key. A preference the visitor did NOT set by an action of their own is a different
+matter: it would need a category of its own and a consent, exactly as before.
 
 `globalVar` is the seam for anything that cannot subscribe: a GTM custom-HTML tag reading a flag, a
 hand-placed pixel, a script that runs once. Globals are written **before** the signal update, so a
@@ -257,9 +252,9 @@ LANGUAGE (see "Language rides the same link" below).
   - `now − t ≤ maxAge` (default 300 s), and `t − now ≤ 60 s` of allowed clock skew the other way;
   - every LOCAL optional category is present in the payload's `c` — a partial payload (fewer
     categories than this site actually asks about) is refused rather than partially applied. A
-    sender built before `functional` existed carries no such key, so a receiver that asks about it
-    refuses that decision and asks again rather than guess: release the packages of both ends
-    together.
+    sender that still carries a category the receiver has dropped is harmless (the extra key is
+    ignored); a sender that has dropped one the receiver still asks about is refused, and the
+    receiver asks again rather than guess — release the packages of both ends together.
 
   `consentStore.init` calls `adoptConsent(opts)` **only when this document has no stored record
   yet** — an existing decision always wins, the same rule the ordinary "ask" path already follows.
@@ -299,29 +294,18 @@ interface ConsentLinkerLanguage {
   trust rule, not two. The carried code must be one of `supported`, exactly or by its base tag
   (`de-AT` → `de`), and the answer is the receiver's own spelling. A code the app cannot render
   changes nothing.
-- **It is stored ONLY while `functional` is granted on the receiving document** — by a stored
-  record, or by the record adopted from the very link that carries the language. No decision, a
-  "reject all", or a record saved before the category existed all mean no: `writeConsentLanguage`
-  writes nothing and returns `false`, and the inline fragment skips its write. `adoptLanguage` only
-  names a candidate; the gate is in the writer, so no caller can forget it. A stored record still
-  wins over a carried decision, and does not stop the language when it grants `functional`.
-- **A language that cannot be stored yet is HELD, in memory, and stored when the grant arrives.** The
-  inline fragment leaves it on `window[CONSENT_PENDING_LANGUAGE]` (the URL parameter is already
-  stripped); `consentStore.init` takes it from there (or from the URL, on a page with no fragment)
-  into `pendingLanguage()`. `save()` settles it: a record that grants `functional` writes it and
-  dispatches `CONSENT_LANGUAGE_EVENT` (`detail.language`) so the app can switch this very page;
-  one that does not leaves it waiting — the visitor may grant later in this page's life — and
-  removes every `functionalKeys` entry. It dies with the page: nothing is ever stored, not even in
-  `sessionStorage`, before the grant.
-- **The application decides how to react.** `@owlmeans/client-i18n` takes a persistence guard
-  (`setLanguagePersistence`) — while it says no, `setLanguage` switches the UI but writes nothing,
-  remembers the refused choice, and a stored language counts as absent at start-up — and
-  `persistLanguage()` writes the refused choice once storage is allowed. `web-panel/consent`'s
-  `installConsentLanguage()` wires all of it: guard = `functionalGranted`, `CONSENT_EVENT` →
-  `persistLanguage`, `CONSENT_LANGUAGE_EVENT` → `setLanguage` (unless the person already picked one in
-  this page's life: what they chose outranks what a link carried). Call it BEFORE `prepareI18n`.
-  A page with no bundle at all (owlmeans.com's inline language switcher) asks
-  `consentAllowsScript()`'s `window.owlConsentAllows('functional')` before it writes.
+- **It is stored unconditionally.** `writeConsentLanguage` writes the carried language to `storageKey`
+  whatever the receiving document's decision is — no decision, a refusal, an old record. The
+  inline fragment does the same before any bundle exists, and `consentStore.init` repeats it in
+  TypeScript for a page without the fragment. There is no pending state, no `CONSENT_LANGUAGE_EVENT`,
+  no purge: the language and the decision are independent, and a stored decision still wins over a
+  carried one while the language comes through either way.
+- **The application has nothing to bind.** `@owlmeans/client-i18n`'s `setLanguage` stores the choice
+  on every switch and `prepareI18n` reads it at every start — no guard, no ordering against the
+  consent bootstrap beyond "the fragment writes before `prepareI18n` reads". `web-panel/consent`'s
+  `installConsentLanguage()` survives only as a deprecated no-op, so a generated target that floats
+  to a newer release and still calls it keeps building; do not call it in new code. A page with no
+  bundle at all (owlmeans.com's inline language switcher) writes its own language keys directly.
 - **It overwrites.** `writeConsentLanguage` replaces whatever the receiver stored under
   `storageKey`: the carried language is the one the visitor was just reading, which outranks a
   choice made on this domain some other day. That is `CONSENT_LANGUAGE_KEY` (`owlmeans-lng`) by
@@ -336,10 +320,9 @@ interface ConsentLinkerLanguage {
   fragment on its own: `consentLinkerScript({ linker })` (viable's `vite.config.ts` does, when
   `GTM_ID` is empty).
 - The fragment mirrors `supportedLanguage` + `writeConsentLanguage` in hand-rolled JS and runs
-  AFTER its consent part, guarded by `fg` — a parseable stored record with `functional` true, or the
-  record the fragment itself just adopted with it true — so the gate holds before any bundle exists;
-  otherwise it leaves the candidate on `window`. An unparseable stored record is no grant (and is not
-  adopted over). Without `language.supported` no language code is emitted.
+  AFTER its consent part, behind the same trust checks (referrer, freshness) — nothing about the
+  stored decision gates it, an unparseable one included (which is still not adopted over). Without
+  `language.supported` no language code is emitted.
 
 ## Order: adopt-and-strip runs before either storage read
 
@@ -409,7 +392,7 @@ exception.** owlmeans.com stamps `owlHeadScripts(...).adopt` first in `<head>` o
 legal ones included — see `/astro`. Adopting a cross-domain cookie-consent CHOICE sets no tracking
 cookie of its own and pushes nothing to `dataLayer`; it only mirrors a decision the visitor already
 made elsewhere into this document's own consent-state storage, which the site's own cookie policy
-already classifies as functional/necessary. `tags.head` (the tag container itself) stays suppressed
+already classifies as necessary. `tags.head` (the tag container itself) stays suppressed
 on a legal page exactly as before.
 
 ## Related

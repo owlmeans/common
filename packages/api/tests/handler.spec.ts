@@ -7,6 +7,7 @@ import { ResilientError } from '@owlmeans/error'
 import {
   ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError, httpStatusOf, incidentIdOf,
   INCIDENT_ID_HEADER,
+  DENIAL_KIND_HEADER, ACCESS_DENIED_KIND,
 } from '../src/index.js'
 import { processResponse, statusError } from '../src/utils/handler.js'
 import * as status from '../src/status/index.js'
@@ -59,6 +60,12 @@ describe('2xx', () => {
 })
 
 describe('a production incident body keeps its status and incident id', () => {
+  test('only a labelled 403 is an auth/IAM denial', () => {
+    const denied = respond(403, INCIDENT, { [DENIAL_KIND_HEADER]: ACCESS_DENIED_KIND }).error
+    expect(status.isAccessDenied(denied)).toBe(true)
+    expect(status.isAccessDenied(respond(403, INCIDENT).error)).toBe(false)
+    expect(status.isAccessDenied(respond(401, INCIDENT, { [DENIAL_KIND_HEADER]: ACCESS_DENIED_KIND }).error)).toBe(false)
+  })
   test('428 with the header becomes ApiStatusError', () => {
     const { error } = respond(428, INCIDENT, { [INCIDENT_ID_HEADER.toLowerCase()]: INCIDENT })
     expect(error).toBeInstanceOf(ApiStatusError)

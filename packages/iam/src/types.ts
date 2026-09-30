@@ -141,6 +141,8 @@ export interface IamPermissionArgs {
    * so its absence from the declarations is not evidence that it is unused.
    */
   managed?: boolean
+  /** Blanket permission inherited by end users until they receive an explicit per-user value. */
+  defaultEnabled?: boolean
 }
 
 export interface IamResourceSpec {
@@ -160,6 +162,8 @@ export interface IamPermissionDefinition {
   area?: string
   /** Owned by the platform rather than declared by the application. See `IamPermissionArgs.managed`. */
   managed?: boolean
+  /** Effective for end users without an explicit blanket value for this permission. */
+  defaultEnabled?: boolean
 }
 
 /** Narrows a definition listing. An `areas` entry of `null` matches definitions carrying no tag. */
@@ -199,6 +203,8 @@ export interface IamGrant {
   resources?: string[]
   /** Which form this record is. Derived from `resources`, not new information. */
   mode?: IamGrantMode
+  /** This blanket grant comes from the definition, not the user's stored profile. */
+  inherited?: boolean
 }
 
 /** Grants every definition a filter selects, plus any named outright. */

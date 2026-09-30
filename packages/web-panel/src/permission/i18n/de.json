@@ -1,0 +1,13 @@
+{
+  "title": "Aktion verweigert",
+  "description": "Der Server hat diese Aktion gemäß den aktuellen Berechtigungen verweigert. Wenn Sie Zugriff erwartet haben, fragen Sie eine Administratorin oder einen Administrator.",
+  "technical-details": "Technische Details",
+  "endpoint": "Endpunkt",
+  "status": "Status",
+  "incident": "Vorfall-ID",
+  "area-title": "Zugriff verweigert",
+  "area-description": "Ihr Konto kann diesen Bereich nicht öffnen. Wenn Sie Zugriff erwartet haben, wenden Sie sich an die Administration.",
+  "area": "Bereich",
+  "required-permissions": "Erforderliche Berechtigungen",
+  "logout": "Abmelden"
+}

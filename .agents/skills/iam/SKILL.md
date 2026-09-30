@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/iam`
 
-**Install:** `"@owlmeans/iam": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.42"` in `dependencies`
 
 Provider-agnostic IAM abstraction: the `IamService` interface, the permission and grant shapes, the
 gate-param grammar, and `hasPermission`. It contains no implementation and talks to no provider —
@@ -50,12 +50,12 @@ this package's screens hand out. Permission decisions are made there, never in t
 | `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm? }` |
 | `IamClientOptions` | type | `{ redirectUris? }` — explicit `ensureClient` hardening; omitting is a keycloak-only legacy shape (see below) |
 | `IamCredentialsPair` | type | `{ token: string; realm: string }` |
-| `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title?, area?, managed? }` — `permission` absent means unscoped resource name |
+| `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title?, area?, managed?, defaultEnabled? }` — `permission` absent means unscoped resource name |
 | `IamResourceSpec` | type | `{ name: string; displayName?: string }` |
-| `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, title?, area?, managed? }` |
+| `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, title?, area?, managed?, defaultEnabled? }` |
 | `IamPermissionFilter` | type | `{ areas?, managed?, resourceScoped? }` — narrows `listPermissions`; an `areas` entry of `null` matches untagged definitions |
 | `IamGrantArgs` | type | `{ resources?: string[], mode? }` |
-| `IamGrant` | type | `{ profileId, clientId, permission, resources?, mode? }` |
+| `IamGrant` | type | `{ profileId, clientId, permission, resources?, mode?, inherited? }` |
 | `IamGrantMode` | enum | `Blanket` / `Resources` / `All` — which FORM of a grant an operation addresses |
 | `IamGrantBundle` | type | `{ filter?, permissions?, mode?, resources? }` — what `grantBundle` hands out |
 | `IamRemovalPolicy` | enum | `Cascade` / `Refuse` — what to do about grants of a definition being deleted |
@@ -111,6 +111,13 @@ revoke has always meant "remove it everywhere". Pass `mode` explicitly rather th
 nothing at request time. `managed: true` marks a definition the platform owns: an operator cannot
 revoke it from an undifferentiated list, and a repair that deletes "definitions no declaration names"
 must not reach one.
+
+`defaultEnabled: true` makes an unmanaged `user`-area permission effective for every end user of
+that client. `mergePermissionDefaults` adds inherited blanket grants when reading grants or
+building OIDC claims; it never writes a grant to every profile. The first explicit blanket change
+stores `true` or `false` on that profile, and a stored `false` suppresses the inherited grant.
+Resource-specific grants remain independent. Integrated IAM supports this contract; Keycloak
+refuses a default-enabled definition with `IamUnsupported`.
 
 ## `IamService` interface
 
