@@ -44,7 +44,7 @@ for a worked example of all three steps.
 
 ## Agent guidance
 
-This project ships agent context in `AGENTS.md` and a `CLAUDE.md` bridge, with skills in
+This project ships agent context in `AGENTS.md`, with skills in
 `.agents/skills/` and a shared memory store at `.agents/memory/`.
 
 Files carrying an `AUTO-GENERATED` banner are managed by

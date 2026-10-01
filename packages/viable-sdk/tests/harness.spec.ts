@@ -29,7 +29,7 @@ describe('viable-sdk — setting a coding agent up', () => {
     const worker = await read(dir, '.claude/agents/viable-worker.md')
     expect(worker).toContain('effort: low')
     expect(worker).toContain('ONE model task')
-    expect(await read(dir, 'CLAUDE.md')).toContain('next_task')
+    expect(await read(dir, 'AGENTS.md')).toContain('next_task')
   })
 
   test('every harness starts the same caret-pinned viable-mcp, never a tag', async () => {
@@ -62,26 +62,26 @@ describe('viable-sdk — setting a coding agent up', () => {
   test('installing twice changes nothing', async () => {
     const dir = await tmp()
     await installHarness(dir, ConnectHarness.ClaudeCode)
-    const before = await read(dir, 'CLAUDE.md')
+    const before = await read(dir, 'AGENTS.md')
 
     const second = await installHarness(dir, ConnectHarness.ClaudeCode)
 
     expect(second.written).toEqual([])
-    expect(await read(dir, 'CLAUDE.md')).toBe(before)
+    expect(await read(dir, 'AGENTS.md')).toBe(before)
   })
 
   test('a section replaces only its own block, and keeps what the project wrote', async () => {
     const dir = await tmp()
-    await fs.outputFile(path.join(dir, 'CLAUDE.md'), '# My project\n\nRun the tests before committing.\n')
+    await fs.outputFile(path.join(dir, 'AGENTS.md'), '# My project\n\nRun the tests before committing.\n')
 
     await installHarness(dir, ConnectHarness.ClaudeCode)
-    const merged = await read(dir, 'CLAUDE.md')
+    const merged = await read(dir, 'AGENTS.md')
     expect(merged).toContain('Run the tests before committing.')
     expect(merged).toContain('next_task')
 
     // A second install rewrites the block in place rather than appending a duplicate.
     await installHarness(dir, ConnectHarness.ClaudeCode)
-    const again = await read(dir, 'CLAUDE.md')
+    const again = await read(dir, 'AGENTS.md')
     expect(again.split('viable:begin')).toHaveLength(2)
     expect(again).toContain('Run the tests before committing.')
   })

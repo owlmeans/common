@@ -152,3 +152,13 @@ rule in place in the same change-set (`self-education`).
   `bun run scripts/sync-agent-meta.ts --project common` in library-manager.
 - AGENTS.md + its imports + MEMORY.md ≤ 40 000 chars (`sh .agents/scripts/agents-size.sh`);
   subsystem rules go to their skill, incidents to `.agents/memory/`.
+## Claude Code
+
+Claude Code reads this file directly — there is no `CLAUDE.md`. Skills live only in
+`.agents/skills/<name>/SKILL.md`, the single canonical location shared with Copilot and Codex.
+`.claude/skills/` holds only generated per-skill symlinks (gitignored except `.gitkeep`); the
+committed `SessionStart` hook runs `sh .agents/scripts/link-skills.sh` to (re)create them each session.
+
+- Never author files under `.claude/skills/` — write skills in `.agents/skills/`.
+- After creating, renaming, or deleting a skill, re-run
+  `sh .agents/scripts/link-skills.sh` so the session picks it up.

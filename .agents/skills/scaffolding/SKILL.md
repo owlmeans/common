@@ -98,8 +98,7 @@ primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.1
 my-app/
 ├── package.json            # bun workspaces: sources/*, plus a `prepare` script
 ├── bunfig.toml             # [install] linker = "hoisted"
-├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder
-├── CLAUDE.md               # thin bridge: imports AGENTS.md, documents the skill symlinks
+├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder + Claude Code skill-link notes
 ├── .agents/skills/         # seeded harness skills (+ deployed ones)
 ├── .agents/scripts/link-skills.sh  # links local + installed-package skills for every agent
 ├── .agents/linked-skills/  # generated on install, git-ignored — see below
@@ -156,8 +155,8 @@ subscribed as a live query through `useStoreList`; the fetch calls the entrypoin
 Workflow**, **Reporting**, **Memory** (the `.agents/memory/` graph store), **Self-Education** —
 plus the mandatory [[reuse-code]] section and a **project-purpose placeholder**
 (`<!-- OWLMEANS:PROJECT-PURPOSE -->`). On the first agent session that block instructs the agent to
-ask the user what the project is for and replace it. `CLAUDE.md` is a thin bridge that imports
-`AGENTS.md` and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
+ask the user what the project is for and replace it. Claude Code reads `AGENTS.md` itself
+(no `CLAUDE.md`) and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
 hook. Copilot and Codex need no bridge file: they read `AGENTS.md`, `.agents/skills/` and
 `.agents/linked-skills/` natively, which is why `AGENTS.md` carries its own
 `<!-- OWLMEANS:LINKED-SKILLS -->` section describing where the linked skills come from.

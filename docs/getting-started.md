@@ -55,8 +55,7 @@ This generates the three-workspace project below, installs dependencies, and —
 It also writes **`AGENTS.md`** — the always-on project context every coding agent reads — carrying
 the four mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory,
 Self-Education) plus a project-purpose placeholder: the first time you open the project in an
-agent, it will ask what the project is for and fill it in. A thin **`CLAUDE.md`** imports
-`AGENTS.md` and keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
+agent, it will ask what the project is for and fill it in. Claude Code reads it directly (there is no `CLAUDE.md`) and the committed hook keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
 single shared graph store at **`.agents/memory/`** (index `MEMORY.md`) — the scaffold seeds the
 index for you.
 

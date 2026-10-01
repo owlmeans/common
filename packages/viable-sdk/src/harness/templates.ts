@@ -110,7 +110,7 @@ effort: low
 ${WORKER_BODY}
 `,
         },
-        { path: 'CLAUDE.md', section: true, content: marked(WORKING_RULE) },
+        { path: 'AGENTS.md', section: true, content: marked(WORKING_RULE) },
         {
           path: '.mcp.json',
           jsonKey: ['mcpServers', 'viable'],

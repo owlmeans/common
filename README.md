@@ -340,7 +340,7 @@ installing OwlMeans packages:
 npx @owlmeans/agent-skills@^0.1.18-rc.44
 ```
 
-The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated
+The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated
 Claude Code links. In this monorepo, edit only canonical files under `.agents/skills/` and run
 `bun run scripts/sync-agent-meta.ts --project common`; never edit package `agent-meta/` copies.
 

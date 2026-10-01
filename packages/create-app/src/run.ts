@@ -92,7 +92,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     ? 'Add your entrypoints in sources/common/src/entrypoints.ts, handlers in sources/api\n'
       + 'and screens in sources/web/src/screens — the Home screen shows where they go.\n'
     : 'Open the "Session" page to exercise the in-memory session resource.\n')
-  log('Agent guidance was scaffolded: AGENTS.md (with a CLAUDE.md bridge), the skills in')
+  log('Agent guidance was scaffolded: AGENTS.md, the skills in')
   log('.agents/skills/ and the shared memory store at .agents/memory/MEMORY.md.')
   log('Open the project in any coding agent — on the first session it will ask what the')
   log('project is for and fill in its purpose for you.\n')
