@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "El proveedor de pagos no pudo completar la solicitud",
   "PaymentErrorPaygateUnknown": "Este proveedor de pagos no es compatible",
   "PaymentErrorPaygateMapping": "No se pudieron asociar los datos del proveedor de pagos",
+  "PaymentErrorPaygateSignature": "La firma del webhook falta o no es válida.",
   "PaymentErrorPaygateWebhookSetup": "Las notificaciones de pago no están configuradas",
   "PaymentErrorPaygatePortalUnavailable": "La gestión de la facturación aún no está disponible para esta cuenta",
   "PaymentErrorProduct": "Este producto no está disponible",

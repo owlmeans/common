@@ -3,7 +3,7 @@
 Runtime-free contracts of the OwlMeans Viable platform.
 
 Viable turns a description into a running full-stack application. Four runtimes have to agree
-about every name involved — the manager API, the agent, the publisher that runs inside a project
+about every name involved — the platform API services, the agent, the publisher that runs inside a project
 slot, and the connector SDK on a developer's machine — so each of those names is declared here
 once and imported by all of them. There is no runtime in this package: no `@langchain/*`, no
 filesystem, no inference SDK. It is safe to import from a browser bundle.

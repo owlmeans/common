@@ -67,11 +67,3 @@ export const NEXT_QUESTION_WAIT_MS = 30_000
 /** How long a pull waits for an operation before answering empty. */
 export const PULL_WAIT_MS = 30_000
 
-/** How often a socket says it is still there. Presence outlives three missed pings. */
-export const PING_INTERVAL_MS = 30_000
-
-/** How long the socket handshake may take before the connector falls back to polling. */
-export const SOCKET_HANDSHAKE_MS = 10_000
-
-/** Reconnection backoff, in order. The last entry repeats. */
-export const RECONNECT_BACKOFF_MS = [1_000, 2_000, 5_000, 10_000, 30_000]

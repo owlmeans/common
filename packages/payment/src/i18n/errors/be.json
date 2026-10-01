@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Плацежны правайдар не змог выканаць запыт",
   "PaymentErrorPaygateUnknown": "Гэты плацежны правайдар не падтрымліваецца",
   "PaymentErrorPaygateMapping": "Не ўдалося супаставіць даныя плацежнага правайдара",
+  "PaymentErrorPaygateSignature": "Подпіс вэбхука адсутнічае або несапраўдны.",
   "PaymentErrorPaygateWebhookSetup": "Апавяшчэнні пра плацяжы не наладжаны",
   "PaymentErrorPaygatePortalUnavailable": "Кіраванне аплатай для гэтага акаўнта пакуль недаступнае",
   "PaymentErrorProduct": "Гэты прадукт недаступны",

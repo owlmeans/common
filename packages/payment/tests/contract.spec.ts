@@ -170,3 +170,14 @@ describe('package surface', () => {
     }
   })
 })
+
+describe('webhook signature refusal', () => {
+  test('a missing or unverifiable signature is a client error, still a PaygateError', async () => {
+    const { PaygateError, PaygateSignatureError } = await import('../src/errors.js')
+    const error = new PaygateSignatureError()
+    expect(error).toBeInstanceOf(PaygateError)
+    expect(error.message).toContain('signature')
+    expect((error.constructor as unknown as { httpStatus: number }).httpStatus).toBe(400)
+    expect((PaygateError as unknown as { httpStatus?: number }).httpStatus).toBeUndefined()
+  })
+})

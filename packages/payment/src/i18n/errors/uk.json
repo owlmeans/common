@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Платіжний провайдер не зміг виконати запит",
   "PaymentErrorPaygateUnknown": "Цей платіжний провайдер не підтримується",
   "PaymentErrorPaygateMapping": "Не вдалося зіставити дані платіжного провайдера",
+  "PaymentErrorPaygateSignature": "Підпис вебхука відсутній або недійсний.",
   "PaymentErrorPaygateWebhookSetup": "Сповіщення про платежі не налаштовано",
   "PaymentErrorPaygatePortalUnavailable": "Керування оплатою для цього облікового запису поки недоступне",
   "PaymentErrorProduct": "Цей продукт недоступний",

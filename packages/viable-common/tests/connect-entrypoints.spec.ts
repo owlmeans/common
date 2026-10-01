@@ -1,30 +1,48 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
-import { aliasOf, openProtocol, protocols } from '@owlmeans/entrypoint'
+import { aliasOf, protocols } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD } from '@owlmeans/auth-common'
-import { route, RouteMethod } from '@owlmeans/route'
+import { RouteMethod, RouteProtocols } from '@owlmeans/route'
 import { connect, CONNECT_BRANDING_GOOGLE_TAG_MAX } from '../src/connect/consts.js'
 import { ConnectProjectBrandingSaveSchema } from '../src/connect/schemas.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
 
 describe('@owlmeans/viable-common — connector protocol tree', () => {
-  const tree = connectProtocols({
-    guard: DEFAULT_GUARD,
-    updateBase: openProtocol(route('manager:update', '/update')),
-  })
+  const tree = connectProtocols({ guard: DEFAULT_GUARD })
 
   test('exports named immutable declarations and a complete flat materialization view', () => {
     expect(tree.base.alias).toBe(connect.base)
     expect(tree.session.open.alias).toBe(connect.session.open)
-    expect(tree.project.llm.alias).toBe(connect.project.llm)
-    expect(tree.project.converterLlm.alias).toBe(connect.project.converterLlm)
     expect(tree.story.status.alias).toBe(connect.story.status)
     expect(tree.convert.proceed.alias).toBe(connect.convert.proceed)
     expect(tree.inquiry.answer.alias).toBe(connect.inquiry.answer)
     expect(tree.files.list.alias).toBe(connect.files.list)
-    expect(protocols(tree)).toHaveLength(34)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(34)
+    expect(protocols(tree)).toHaveLength(26)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(26)
+  })
+
+  test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
+    const declared = protocols(tree)
+    const addresses = declared.filter(protocol => protocol.route.route.method != null)
+      .map(protocol => `${protocol.route.route.method!.toUpperCase()} ${protocol.route.route.path}`).sort()
+
+    expect(addresses).toEqual([
+      'GET /convert/:id', 'GET /convert/:id/check', 'GET /pipeline/:id/:runId', 'GET /project',
+      'GET /project/:id/branding', 'GET /project/:id/files', 'GET /project/:id/status',
+      'GET /project/:id/story/:storyId/status', 'GET /session/:sessionId/ops',
+      'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
+      'POST /pipeline/:id/:runId/resume', 'POST /project', 'POST /project/:id/branding',
+      'POST /project/:id/confirm', 'POST /project/:id/inquiry/:inquiryId', 'POST /project/:id/modify',
+      'POST /project/:id/reinit', 'POST /project/attach', 'POST /session', 'POST /session/:sessionId/close',
+      'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
+    ])
+    expect(declared.every(protocol => protocol.route.route.protocol !== RouteProtocols.SOCKET)).toBe(true)
+    // The alias table, the tree and the typed references name the same routes.
+    const leaves = (value: object): string[] => Object.values(value).flatMap(entry =>
+      typeof entry === 'string' ? [entry] : 'alias' in entry ? [entry.alias as string] : leaves(entry))
+    expect(leaves(connect).sort()).toEqual(declared.map(protocol => protocol.alias).sort())
+    expect(leaves(connectRef).sort()).toEqual(declared.map(protocol => protocol.alias).filter(alias => alias !== connect.base).sort())
   })
 
   test('reads and saves a project\'s branding at one path, under the owned base and no paid gate', () => {
@@ -32,7 +50,6 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       guard: DEFAULT_GUARD,
       gate: { alias: 'test-gate', params: ['owner'] },
       localLlm: { alias: 'test-paid-llm', params: ['cap'] },
-      updateBase: openProtocol(route('manager:update', '/update')),
     })
     const get = paid.project.branding.get
     const save = paid.project.branding.save
@@ -45,9 +62,11 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(save.route.route.method).toBe(RouteMethod.POST)
     expect(aliasOf(get.route.route.parent)).toBe(connect.base)
     expect(aliasOf(save.route.route.parent)).toBe(connect.base)
-    // The paid local-LLM gate sits on its own two routes; branding carries no gate of its own and
-    // inherits only the base's guard and ownership gate.
-    expect(paid.project.llm.gate?.alias).toBe('test-paid-llm')
+    // The paid local-LLM gate sits on the delegated session alone; branding carries no gate of its
+    // own and inherits only the base's guard and ownership gate.
+    expect(paid.session.openDelegated.gate?.alias).toBe('test-paid-llm')
+    expect(protocols(paid).filter(protocol => protocol.gate?.alias === 'test-paid-llm'))
+      .toEqual([paid.session.openDelegated])
     expect(get.gate).toBeUndefined()
     expect(save.gate).toBeUndefined()
     expect(connectRef.project.branding.save.alias).toBe(connect.project.branding.save)

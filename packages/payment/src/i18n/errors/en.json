@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "The payment provider could not complete the request",
   "PaymentErrorPaygateUnknown": "This payment provider is not supported",
   "PaymentErrorPaygateMapping": "The payment provider's data could not be matched",
+  "PaymentErrorPaygateSignature": "The webhook signature is missing or invalid.",
   "PaymentErrorPaygateWebhookSetup": "Payment notifications are not configured",
   "PaymentErrorPaygatePortalUnavailable": "Billing management is not available for this account yet",
   "PaymentErrorProduct": "This product is not available",

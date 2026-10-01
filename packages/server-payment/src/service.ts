@@ -21,7 +21,7 @@ import { makeEstimateCache, estimateStripePrice } from './plugins/estimate.js'
 import { createPortalLink, ensurePortalConfiguration } from './plugins/portal.js'
 import { makeCheckoutPluginRegistry, narrowAmountFor } from './plugins/checkout-plugins.js'
 import { consumablePlanOf, createCheckoutLink } from './plugins/stripe.js'
-import { ensureWebhookEndpoint } from './plugins/webhook-manager.js'
+import { ensureWebhookEndpoint, webhookRouteOf } from './plugins/webhook-manager.js'
 import {
   makeFingerprintResource, makeFulfillmentResource, makePaygateCustomerResource, makeSubscriptionResource,
   makeUsageCounterResource, makeUsageResource, makeWebhookResource,
@@ -42,6 +42,11 @@ export interface StripeBootstrapOptions {
 /**
  * Bring Stripe to what this deployment declares, each step on its own so one failing does not block
  * the others: products and prices, the customer-portal configuration, the webhook endpoint.
+ *
+ * The webhook URL and the owner key come from the context's gateway (`webhookService`, `owner`), so
+ * every process of one deployment — the one bootstrapping at boot, a `resync`, an application's
+ * forced maintenance run — computes the same URL and rows; each step is fingerprinted, so running it
+ * from any of them is idempotent.
  */
 export const bootstrapStripe = async (
   ctx: ApiContext, stripe: Stripe, opts: StripeBootstrapOptions = {},
@@ -102,19 +107,55 @@ export const grantInternalPlan = async (
 
 const unmanaged = (): never => { throw new PaygateError('unmanaged') }
 
+/** The gateway options a service instance takes — the resource aliases belong to the registration. */
+export type GatewayServiceOptions = Omit<PaymentGatewayOptions, 'dbAlias' | 'serviceAlias'>
+
+/**
+ * Refuse contradictory gateway options: `bootstrap: true` on an unmanaged gateway
+ * (`PaygateError('bootstrap:unmanaged')`), an empty `owner` / `webhookService`
+ * (`PaygateError('owner' | 'webhook-service')`).
+ */
+export const assertGatewayOptions = (opts: GatewayServiceOptions): void => {
+  if (opts.manage === false && opts.bootstrap === true) {
+    throw new PaygateError('bootstrap:unmanaged')
+  }
+  for (const [name, value] of [['owner', opts.owner], ['webhook-service', opts.webhookService]] as const) {
+    if (value != null && (typeof value !== 'string' || value.trim() === '')) {
+      throw new PaygateError(name)
+    }
+  }
+}
+
+/**
+ * The gateway service. `manage`, `bootstrap`, `owner`, `webhookService` and `stripe` are
+ * `PaymentGatewayOptions`; the options are checked here (`assertGatewayOptions`), and a managed,
+ * bootstrapping gateway also refuses to initialize when its webhook service is not declared in
+ * `cfg.services` (`WebhookSetupError('service:<alias>')`).
+ */
 export const makeGatewayService = (
-  alias: string = GATEWAY_SERVICE, opts: Pick<PaymentGatewayOptions, 'manage'> = {},
+  alias: string = GATEWAY_SERVICE, opts: GatewayServiceOptions = {},
 ): GatewayService => {
+  assertGatewayOptions(opts)
   const managed = opts.manage !== false
+  const bootstrap = opts.bootstrap ?? managed
+  const stripeOf = opts.stripe ?? stripeClient
   // One estimate cache per gateway SERVICE instance, never module-level: several service
   // instances (several tests, several deployments in one process) must never share hits.
   const estimateCache = makeEstimateCache()
   // Checkout plugins are seated per gateway instance, like the estimate cache.
   const plugins = makeCheckoutPluginRegistry()
-  const service = createService<GatewayService>(alias, {
+  const service: GatewayService = createService<GatewayService>(alias, {
     managed,
+    bootstrap,
+    get webhookService(): string {
+      return opts.webhookService ?? (service.assertCtx() as unknown as ApiContext).cfg.service
+    },
+    get owner(): string {
+      return opts.owner ?? (service.assertCtx() as unknown as ApiContext).cfg.service
+    },
+    stripe: stripeOf,
     createLink: async (ctx, params) => managed
-      ? await createCheckoutLink(ctx, await stripeClient(ctx), params, plugins.list()) : unmanaged(),
+      ? await createCheckoutLink(ctx, await stripeOf(ctx), params, plugins.list()) : unmanaged(),
     use: plugin => { plugins.use(plugin) },
     checkoutPlugins: () => plugins.list(),
     amountPolicy: async (ctx, entityId, productSku, planSku) => {
@@ -126,24 +167,28 @@ export const makeGatewayService = (
     },
     planPrices: async (ctx, productSku) => await syncedPlanPrices(ctx, productSku),
     portalLink: async (ctx, entityId, link) => managed
-      ? await createPortalLink(ctx, await stripeClient(ctx), entityId, link) : unmanaged(),
+      ? await createPortalLink(ctx, await stripeOf(ctx), entityId, link) : unmanaged(),
     grantInternalPlan: async (ctx, entityId, planSku, grant) => await grantInternalPlan(ctx, entityId, planSku, grant),
     resyncSubscription: async (ctx, ref) => managed
-      ? await resyncStripeSubscription(ctx, await stripeClient(ctx), ref) : unmanaged(),
+      ? await resyncStripeSubscription(ctx, await stripeOf(ctx), ref) : unmanaged(),
     resyncAll: async ctx => managed
-      ? await resyncStripeSubscriptions(ctx, await stripeClient(ctx)) : unmanaged(),
+      ? await resyncStripeSubscriptions(ctx, await stripeOf(ctx)) : unmanaged(),
     estimatePrice: async (ctx, params) => managed
-      ? await estimateStripePrice(ctx, await stripeClient(ctx), params, estimateCache) : unmanaged(),
+      ? await estimateStripePrice(ctx, await stripeOf(ctx), params, estimateCache) : unmanaged(),
   }, service => async () => {
     const ctx = service.assertCtx() as unknown as ApiContext
     assertPlanDeclarations(ctx.cfg)
+    if (bootstrap) {
+      // Every boot bootstrap forms the webhook URL on this alias: an undeclared one fails the boot.
+      webhookRouteOf(ctx, opts.webhookService ?? ctx.cfg.service)
+    }
     service.initialized = true
     // The consumer-rights service is lazy (reachable while the application is wired): initialize it
     // with the gateway, so its boot checks run at boot.
     consumerRightsOf(ctx)
-    if (managed) {
+    if (bootstrap) {
       void ctx.waitForInitialized().then(async () => {
-        await bootstrapStripe(ctx, await stripeClient(ctx))
+        await bootstrapStripe(ctx, await stripeOf(ctx))
       }).catch(error => { console.error('[payment] Stripe bootstrap failed', error) })
     }
   })
@@ -157,7 +202,8 @@ export const makeGatewayService = (
  * when not registered yet.
  *
  * `manage: false` registers the same surface for a process that reads entitlements but never talks
- * to Stripe.
+ * to Stripe. Several managed processes of one deployment share the Stripe rows through one `owner`
+ * and one `webhookService`; exactly one of them keeps `bootstrap` (the one receiving the webhook).
  */
 export const appendPaymentGatewayService = <C extends Config, T extends Context<C>>(
   ctx: T, opts?: PaymentGatewayOptions,
@@ -178,7 +224,12 @@ export const appendPaymentGatewayService = <C extends Config, T extends Context<
   }
   if (!ctx.hasService(PAYMENT_SERVICE)) appendPaymentService(ctx as never)
   appendCompletionObserver(ctx)
-  if (!ctx.hasService(GATEWAY_SERVICE)) ctx.registerService(makeGatewayService(GATEWAY_SERVICE, { manage: opts?.manage }))
+  if (!ctx.hasService(GATEWAY_SERVICE)) {
+    ctx.registerService(makeGatewayService(GATEWAY_SERVICE, {
+      manage: opts?.manage, bootstrap: opts?.bootstrap, owner: opts?.owner, webhookService: opts?.webhookService,
+      stripe: opts?.stripe,
+    }))
+  }
   if (!ctx.hasService(ENTITLEMENT_GATE)) ctx.registerService(makeCapabilityGate())
   if (!ctx.hasService(LIMIT_GATE)) ctx.registerService(makeLimitGate())
   if (!ctx.hasService(ENTITLEMENT_SERVICE)) ctx.registerService(makeEntitlementService())

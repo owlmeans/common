@@ -4,7 +4,7 @@ import { CheckoutPricingMode, ProductType, TaxBehavior } from '@owlmeans/payment
 import type { PlanPriceView } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { STRIPE_PAYGATE_ALIAS } from './consts.js'
-import { fingerprints, payment, stripeClient, stripePricingConfig } from './utils.js'
+import { fingerprints, gatewayOf, payment, stripeClient, stripePricingConfig } from './utils.js'
 import type { PaymentPlan, PaymentProduct, SyncedPrice, SyncedPriceOption } from './types.js'
 import { settlementAmount } from './plugins/fx.js'
 import type { StripeFxRateCache } from './plugins/fx.js'
@@ -312,6 +312,6 @@ export const syncedPlanPrices = async (ctx: ApiContext, productSku: string): Pro
   return views
 }
 
-/** `syncStripeProducts` with this context's own Stripe client. */
+/** `syncStripeProducts` with this context's own Stripe client (the gateway's, else the configured secret). */
 export const syncPaymentProducts = async (ctx: ApiContext): Promise<void> =>
-  await syncStripeProducts(ctx, await stripeClient(ctx))
+  await syncStripeProducts(ctx, await (gatewayOf(ctx)?.stripe ?? stripeClient)(ctx))

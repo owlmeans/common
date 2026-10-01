@@ -8,7 +8,9 @@ import type { Context as ApiContext } from '@owlmeans/server-api'
 import {
   paymentGate, STRIPE_OWNER_KEY, STRIPE_OWNER_VALUE, STRIPE_PAYGATE_ALIAS, WEBHOOK_EVENTS,
 } from '../consts.js'
-import { apiVersionOf, isDuplicateKey, isMissingObject, paymentWebhooks, stripeConfig } from '../utils.js'
+import {
+  apiVersionOf, gatewayOf, isDuplicateKey, isMissingObject, paymentWebhooks, stripeConfig,
+} from '../utils.js'
 import type { PaymentWebhookRecord } from '../types.js'
 
 /** The path the webhook route answers for one paygate: `/<base>/webhook/<paygate>`. */
@@ -16,15 +18,25 @@ export const webhookPathOf = (paygate: string): string =>
   '/' + normalizePath(normalizePath(paymentGate.base.route.route.path) + '/'
     + normalizePath(paymentGate.webhook.route.route.path).replace(':paygate', paygate))
 
-/** This deployment's public webhook URL for a paygate. */
-export const webhookUrlOf = (ctx: ApiContext, paygate: string = STRIPE_PAYGATE_ALIAS): string => {
-  const route = ctx.cfg.services?.[ctx.cfg.service] as CommonServiceRoute | undefined
+/** The alias whose host and base form the webhook URL: the gateway's `webhookService`, else `cfg.service`. */
+export const webhookServiceOf = (ctx: ApiContext): string => gatewayOf(ctx)?.webhookService ?? ctx.cfg.service
+
+/** The key this deployment's Stripe rows are stored under: the gateway's `owner`, else `cfg.service`. */
+export const gatewayOwnerOf = (ctx: ApiContext): string => gatewayOf(ctx)?.owner ?? ctx.cfg.service
+
+/** @throws WebhookSetupError('service:<alias>') when the webhook service is not declared in `cfg.services`. */
+export const webhookRouteOf = (ctx: ApiContext, alias: string = webhookServiceOf(ctx)): CommonServiceRoute => {
+  const route = ctx.cfg.services?.[alias] as CommonServiceRoute | undefined
   if (route == null) {
-    throw new WebhookSetupError(`service:${ctx.cfg.service}`)
+    throw new WebhookSetupError(`service:${alias}`)
   }
 
-  return makeSecurityHelper(ctx as never).makeUrl(route, webhookPathOf(paygate))
+  return route
 }
+
+/** This deployment's public webhook URL for a paygate, on the webhook service's host and base. */
+export const webhookUrlOf = (ctx: ApiContext, paygate: string = STRIPE_PAYGATE_ALIAS): string =>
+  makeSecurityHelper(ctx as never).makeUrl(webhookRouteOf(ctx), webhookPathOf(paygate))
 
 /** A URL a paygate can deliver to: https on a public, dotted host name. */
 export const isDeliverableUrl = (url: string): boolean => {
@@ -41,8 +53,8 @@ export const isDeliverableUrl = (url: string): boolean => {
 }
 
 /** An operator's label on an endpoint this package created — never evidence of which deployment owns it. */
-const ownerMetadata = (service: string): Record<string, string> =>
-  ({ [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service })
+const ownerMetadata = (owner: string): Record<string, string> =>
+  ({ [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service: owner })
 
 const hashOf = (url: string, apiVersion: string, events: string[]): string =>
   createHash('sha256').update(JSON.stringify({ url, apiVersion, events })).digest('hex')
@@ -104,15 +116,15 @@ export interface EnsureWebhookOptions {
 
 /**
  * Delete the endpoints this deployment created at URLs it has left: each `payment-webhook` row of
- * this paygate and service at another URL drops the endpoint it names (one already gone is fine),
+ * this paygate and owner at another URL drops the endpoint it names (one already gone is fine),
  * then the row itself. `live` — the endpoint just put in place — is never dropped.
  */
 const pruneFormerUrls = async (
-  ctx: ApiContext, stripe: Stripe, service: string, url: string, live: string,
+  ctx: ApiContext, stripe: Stripe, owner: string, url: string, live: string,
 ): Promise<void> => {
   const resource = paymentWebhooks(ctx)
   const { items } = await resource.list(
-    { paygate: STRIPE_PAYGATE_ALIAS, service, url: { $ne: url } }, { size: 0 },
+    { paygate: STRIPE_PAYGATE_ALIAS, service: owner, url: { $ne: url } }, { size: 0 },
   )
   for (const row of items) {
     if (row.externalId !== live) {
@@ -127,9 +139,11 @@ const pruneFormerUrls = async (
  * `WEBHOOK_EVENTS` on the client's API version, and persist its signing secret — which Stripe
  * returns only when an endpoint is created.
  *
- * A deployment's identity is its webhook URL. Several deployments of one service may share a Stripe
- * account — a test-mode account commonly serves every non-production deployment — each with its own
- * database and URL, so a deployment deletes only the endpoints its own `payment-webhook` rows name.
+ * A deployment's identity is its webhook URL (`webhookUrlOf`: the `webhookService` alias's host and
+ * base); its rows are keyed by the gateway's `owner` (`gatewayOwnerOf`). Several deployments of one
+ * application may share a Stripe account — a test-mode account commonly serves every non-production
+ * deployment — each with its own database and URL, so a deployment deletes only the endpoints its
+ * own `payment-webhook` rows name.
  *
  * - A URL Stripe cannot deliver to (not https, a loopback or dotless host) is skipped.
  * - An unchanged `{ url, apiVersion, events }` fingerprint makes no paygate call at all.
@@ -138,13 +152,14 @@ const pruneFormerUrls = async (
  * - Changed events on the same API version update the endpoint in place.
  * - A changed API version (create-only on an endpoint) deletes and recreates it.
  * - An endpoint already at this exact URL that no row names is replaced: its secret is unknown here.
- * - A row of this paygate and service at another URL is a URL this deployment has left: once the
- *   endpoint at the current URL is in place, the endpoint that row names is deleted (already gone is
- *   fine), then the row.
+ * - A row of this paygate and owner at another URL is a URL this deployment has left — a moved host,
+ *   or a new `webhookService`: once the endpoint at the current URL is in place, the endpoint that
+ *   row names is deleted (already gone is fine), then the row.
  * - An endpoint at another URL that no row of this deployment names belongs to another deployment
  *   and is never deleted — whatever its metadata says.
  * - Replicas racing to persist one row: the endpoint created last is the live one.
- * - A created endpoint carries `{ owlmeans: 'payment', service }` metadata for operators.
+ * - A created endpoint carries `{ owlmeans: 'payment', service: <owner> }` metadata and the
+ *   `owlmeans:<owner>` description for operators.
  */
 export const ensureWebhookEndpoint = async (
   ctx: ApiContext, stripe: Stripe, opts: EnsureWebhookOptions = {},
@@ -154,16 +169,16 @@ export const ensureWebhookEndpoint = async (
     console.info(`[payment] webhook endpoint not managed: "${url}" is not a public https URL`)
     return null
   }
-  const service = ctx.cfg.service
+  const owner = gatewayOwnerOf(ctx)
   const apiVersion = apiVersionOf(stripe)
   const events = [...WEBHOOK_EVENTS].sort()
   const hash = hashOf(url, apiVersion, events)
   const resource = paymentWebhooks(ctx)
-  const description = `owlmeans:${service}`
-  const metadata = ownerMetadata(service)
+  const description = `owlmeans:${owner}`
+  const metadata = ownerMetadata(owner)
   const now = new Date()
 
-  let stored = await resource.load({ paygate: STRIPE_PAYGATE_ALIAS, service, url })
+  let stored = await resource.load({ paygate: STRIPE_PAYGATE_ALIAS, service: owner, url })
   if (stored != null && opts.force === true) {
     try {
       await stripe.webhookEndpoints.retrieve(stored.externalId)
@@ -213,7 +228,7 @@ export const ensureWebhookEndpoint = async (
     }
 
     const row = await sealed({
-      paygate: STRIPE_PAYGATE_ALIAS, service, url, externalId: created.id, secret: created.secret,
+      paygate: STRIPE_PAYGATE_ALIAS, service: owner, url, externalId: created.id, secret: created.secret,
       apiVersion, events, hash, createdAt: stored?.createdAt ?? now, updatedAt: now,
     }, ctx)
     try {
@@ -225,19 +240,20 @@ export const ensureWebhookEndpoint = async (
         throw error
       }
       // Another replica persisted its endpoint meanwhile; the one created last is the live one.
-      const winner = await resource.load({ paygate: STRIPE_PAYGATE_ALIAS, service, url })
+      const winner = await resource.load({ paygate: STRIPE_PAYGATE_ALIAS, service: owner, url })
       live = await resource.update({ ...row, id: winner?.id } as PaymentWebhookRecord)
     }
   }
 
-  await pruneFormerUrls(ctx, stripe, service, url, live.externalId)
+  await pruneFormerUrls(ctx, stripe, owner, url, live.externalId)
 
   return live
 }
 
 /**
  * The secrets a Stripe signature may be verified with, in order: the configured file secret (an
- * override), then the one stored for the managed endpoint.
+ * override), then the one stored for the managed endpoint — the newest row of the gateway's `owner`,
+ * so a process receiving the webhook finds the secret whichever process of the owner stored it.
  */
 export const stripeWebhookSecrets = async (ctx: ApiContext): Promise<string[]> => {
   const secrets: string[] = []
@@ -246,7 +262,7 @@ export const stripeWebhookSecrets = async (ctx: ApiContext): Promise<string[]> =
     secrets.push(configured.trim())
   }
   const stored = await paymentWebhooks(ctx).load(
-    { paygate: STRIPE_PAYGATE_ALIAS, service: ctx.cfg.service },
+    { paygate: STRIPE_PAYGATE_ALIAS, service: gatewayOwnerOf(ctx) },
     { sort: [{ field: 'updatedAt', order: 'desc' }] },
   )
   if (stored != null) {

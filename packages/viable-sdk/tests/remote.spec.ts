@@ -105,3 +105,23 @@ describe('viable-sdk — the remote planning facade', () => {
     expect(calls[1]!.body).not.toHaveProperty('actor')
   })
 })
+
+describe('viable-sdk — the remote API addresses only routes the platform serves', () => {
+  test('no capability view, no session read or heartbeat, no conversion cancel; every connector route is bound', async () => {
+    const context = await makeSdkContext({
+      apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
+    })
+    const api = makeRemoteConnectorApi(context)
+
+    expect(Object.keys(api).sort()).toEqual([
+      'closeSession', 'convert', 'files', 'inquiry', 'openSession', 'pipeline', 'planning', 'project',
+      'projectBranding', 'pullOps', 'saveProjectBranding', 'story', 'submitOp',
+    ])
+    expect(Object.keys(api.convert).sort()).toEqual(['check', 'create', 'proceed', 'purge', 'start', 'status'])
+    const leaves = (value: object): string[] => Object.values(value)
+      .flatMap(entry => typeof entry === 'string' ? [entry] : leaves(entry as object))
+    for (const alias of leaves(connect)) {
+      expect(() => context.entrypoint(alias)).not.toThrow()
+    }
+  })
+})

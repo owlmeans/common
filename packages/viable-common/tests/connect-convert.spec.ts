@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
-import { RouteMethod, route } from '@owlmeans/route'
-import { aliasOf, openProtocol, protocols } from '@owlmeans/entrypoint'
+import { RouteMethod } from '@owlmeans/route'
+import { aliasOf, protocols } from '@owlmeans/entrypoint'
 import { connect, ConnectInquiryKind, ConnectOpKind } from '../src/connect/consts.js'
 import { connectProtocols } from '../src/connect/entrypoints.js'
 import { connectRef } from '../src/connect/references.js'
@@ -20,7 +20,6 @@ const entrypoints = () => connectProtocols({
   guard: 'test-guard',
   gate: { alias: 'test-gate', params: ['id'] },
   localLlm: { alias: 'test-paid-llm', params: ['id'] },
-  updateBase: openProtocol(route('test:update:base', '/update')),
 })
 
 const entrypointOf = (alias: string) => {
@@ -102,11 +101,9 @@ describe('viable-common - the conversion additions to the connector contract', (
       [connect.convert.check, '/convert/:id/check', RouteMethod.GET],
       [connect.convert.start, '/convert/:id/start', RouteMethod.POST],
       [connect.convert.proceed, '/convert/:id/proceed', RouteMethod.POST],
-      [connect.convert.cancel, '/convert/:id/cancel', RouteMethod.POST],
       [connect.convert.status, '/convert/:id', RouteMethod.GET],
       [connect.convert.purge, '/convert/:id/purge', RouteMethod.POST],
       [connect.inquiry.answer, '/project/:id/inquiry/:inquiryId', RouteMethod.POST],
-      [connect.project.converterLlm, '/project/:id/converter-llm', RouteMethod.POST],
       [connect.files.list, '/project/:id/files', RouteMethod.GET],
     ]
 
@@ -122,21 +119,18 @@ describe('viable-common - the conversion additions to the connector contract', (
     expect(connectRef.convert.check.alias).toBe(connect.convert.check)
     expect(connectRef.convert.start.alias).toBe(connect.convert.start)
     expect(connectRef.convert.proceed.alias).toBe(connect.convert.proceed)
-    expect(connectRef.convert.cancel.alias).toBe(connect.convert.cancel)
     expect(connectRef.convert.status.alias).toBe(connect.convert.status)
     expect(connectRef.convert.purge.alias).toBe(connect.convert.purge)
     expect(connectRef.inquiry.answer.alias).toBe(connect.inquiry.answer)
-    expect(connectRef.project.converterLlm.alias).toBe(connect.project.converterLlm)
     expect(connectRef.files.list.alias).toBe(connect.files.list)
   })
 
   test('the conversion routes hang under the connector base and carry no paid gate', () => {
     // Delegated inference is the DEFAULT for a conversion, not an experimental capability — so
-    // unlike `project.llm`, nothing here sits behind the local-LLM gate.
-    expect(entrypointOf(connect.project.llm).gate?.alias).toBe('test-paid-llm')
+    // unlike the delegated session, nothing here sits behind the local-LLM gate.
+    expect(entrypointOf(connect.session.openDelegated).gate?.alias).toBe('test-paid-llm')
 
-    const gated = [...Object.values(connect.convert), connect.inquiry.answer,
-      connect.project.converterLlm]
+    const gated = [...Object.values(connect.convert), connect.inquiry.answer]
     for (const alias of gated) {
       expect(entrypointOf(alias).gate, alias).toBeUndefined()
       expect(aliasOf(routeOf(alias).parent!), alias).toBe(connect.base)

@@ -15,9 +15,9 @@ import { COMMIT_POLL_SEC, SDK_SERVICE, TOOL_DEADLINE_MS } from '../consts.js'
 import { SdkAuthError, SdkMisconfigured } from '../errors.js'
 
 /**
- * The platform's websocket namespace, which the connector's socket route is declared under.
+ * The platform's websocket namespace, which the planning commit feed is declared under.
  *
- * A literal because it belongs to manager-api: the contract package takes it as a parameter for
+ * A literal because it belongs to the platform: `makePlanningProtocols` takes it as a parameter for
  * exactly this reason, so that neither end has to import the other's constants.
  */
 const UPDATE_BASE = 'viable:manager-api:update:base'
@@ -126,19 +126,14 @@ export const makeSdkContext = async (opts: SdkContextOptions): Promise<ClientCon
   }))
   context.registerMiddleware(authMiddleware)
 
-  const surface = connectProtocols({
-    guard: DEFAULT_GUARD,
-    updateBase,
-  })
+  const surface = connectProtocols({ guard: DEFAULT_GUARD })
   // The story tools speak planning: the same tree the platform mounts, reached with the same token.
-  // Its commit socket hangs under the platform's `/update` base as well, which is one more reason
-  // that base is declared here.
   const planning = sdkPlanningProtocols()
 
-  // The socket routes hang under the platform's own websocket base, so that base has to exist
-  // here too — a parent a registry cannot resolve fails the whole context at init, not the one
-  // call that would have used it. It is a declaration-only namespace, so its client binding has
-  // no screen or request implementation.
+  // The planning commit feed hangs under the platform's own websocket base, so that base has to
+  // exist here too — a parent a registry cannot resolve fails the whole context at init, not the
+  // one call that would have used it. It is a declaration-only namespace, so its client binding has
+  // no screen or request implementation, and the SDK never opens the feed.
   const entrypoints = [
     bind(updateBase),
     ...protocols(surface).map(declaration => bind(declaration)),

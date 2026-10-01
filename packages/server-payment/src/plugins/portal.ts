@@ -12,12 +12,13 @@ import { planLookupKey, stripePlansOf } from '../sync.js'
 import {
   fingerprints, isMissingObject, paygateCustomers, payment, portalBrandingConfig, subscriptions,
 } from '../utils.js'
-import { webhookUrlOf } from './webhook-manager.js'
+import { gatewayOwnerOf, webhookUrlOf } from './webhook-manager.js'
 import type { PaymentProduct, PaymentSubscriptionRecord, PortalLinkOptions } from '../types.js'
 
 type ConfigurationParams = Stripe.BillingPortal.ConfigurationCreateParams
 
-export const portalFingerprintSku = (service: string): string => `${FINGERPRINT_PORTAL}:${service}`
+/** The fingerprint sku of an owner's portal configuration: `portal:<owner>`. */
+export const portalFingerprintSku = (owner: string): string => `${FINGERPRINT_PORTAL}:${owner}`
 
 /** The recurring plans sold through Stripe, per product — what the portal may switch between. */
 const recurringCatalog = async (ctx: ApiContext): Promise<Array<{ product: PaymentProduct, lookupKeys: string[], hashable: unknown[] }>> => {
@@ -57,16 +58,16 @@ export interface EnsurePortalOptions {
 type Claim = 'ours' | 'foreign' | 'unclaimed'
 
 /**
- * Whose a configuration is by its metadata: `ours` carries this service AND this deployment's key;
- * `foreign` is tagged for another deployment or another service; `unclaimed` names no deployment.
+ * Whose a configuration is by its metadata: `ours` carries this owner AND this deployment's key;
+ * `foreign` is tagged for another deployment or another owner; `unclaimed` names no deployment.
  */
-const claimOf = (metadata: Stripe.Metadata | null | undefined, service: string, deployment: string): Claim => {
+const claimOf = (metadata: Stripe.Metadata | null | undefined, owner: string, deployment: string): Claim => {
   const owned = metadata?.[STRIPE_OWNER_KEY] === STRIPE_OWNER_VALUE
   const tagged = metadata?.[STRIPE_DEPLOYMENT_KEY]
-  if (owned && metadata?.service === service && tagged === deployment) {
+  if (owned && metadata?.service === owner && tagged === deployment) {
     return 'ours'
   }
-  if ((owned && metadata?.service !== service) || (tagged != null && tagged !== '')) {
+  if ((owned && metadata?.service !== owner) || (tagged != null && tagged !== '')) {
     return 'foreign'
   }
 
@@ -93,16 +94,18 @@ const listActiveConfigurations = async (stripe: Stripe): Promise<Stripe.BillingP
  * method self-service, cancellation at period end, and switching between the active recurring
  * prices of every product sold through Stripe (both subscription features off when there are none).
  *
- * A deployment's identity is its webhook URL (`webhookUrlOf`) — also when that URL is undeliverable,
- * as on a local run. Several deployments of one service may share a Stripe account, so each owns a
- * configuration of its own, tagged `{ owlmeans: 'payment', service, deployment: <webhook URL> }`.
+ * A deployment's identity is its webhook URL (`webhookUrlOf`, on the gateway's `webhookService`) —
+ * also when that URL is undeliverable, as on a local run; its fingerprint row and label carry the
+ * gateway's `owner` (`gatewayOwnerOf`). Several deployments of one application may share a Stripe
+ * account, so each owns a configuration of its own, tagged
+ * `{ owlmeans: 'payment', service: <owner>, deployment: <webhook URL> }`.
  *
  * - An unchanged declaration (catalogue, branding, deployment key) makes no paygate call.
- * - The configuration the `portal:<service>` fingerprint row names is updated in place — unless its
- *   metadata tags it for another deployment, which is never overwritten; this deployment then
- *   proceeds as though it held no row.
- * - Without a usable row, an active configuration tagged with exactly this service and deployment
- *   key is adopted. Nothing else is: not an untagged one, not one carrying only the service label,
+ * - The configuration the `portal:<owner>` fingerprint row names is updated in place — unless its
+ *   metadata tags it for another deployment (a moved webhook URL included), which is never
+ *   overwritten; this deployment then proceeds as though it held no row.
+ * - Without a usable row, an active configuration tagged with exactly this owner and deployment
+ *   key is adopted. Nothing else is: not an untagged one, not one carrying only the owner label,
  *   not one tagged for another deployment.
  * - Otherwise a new configuration is created. Stripe cannot delete a portal configuration, so one
  *   this deployment can no longer identify stays in the account, and a lost row creates a new one
@@ -111,9 +114,9 @@ const listActiveConfigurations = async (stripe: Stripe): Promise<Stripe.BillingP
 export const ensurePortalConfiguration = async (
   ctx: ApiContext, stripe: Stripe, opts: EnsurePortalOptions = {},
 ): Promise<string | null> => {
-  const service = ctx.cfg.service
+  const owner = gatewayOwnerOf(ctx)
   const deployment = webhookUrlOf(ctx)
-  const sku = portalFingerprintSku(service)
+  const sku = portalFingerprintSku(owner)
   const branding = await portalBrandingConfig(ctx)
   const catalog = await recurringCatalog(ctx)
   const rights = await payment(ctx).consumerRightsPolicy()
@@ -121,7 +124,7 @@ export const ensurePortalConfiguration = async (
   const countryLock = rights?.mechanisms.countryLock === true
   const regionCurrencies = Object.values(rights?.currencies ?? {}).filter(code => code != null).sort()
   const hash = createHash('sha256').update(JSON.stringify({
-    service,
+    service: owner,
     deployment,
     ...(countryLock ? { countryLock } : {}),
     ...(regionCurrencies.length > 0 ? { regionCurrencies } : {}),
@@ -146,7 +149,7 @@ export const ensurePortalConfiguration = async (
   }
   const cancelable = catalog.length > 0
   const switchable = products.length > 0
-  const metadata = { [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service, [STRIPE_DEPLOYMENT_KEY]: deployment }
+  const metadata = { [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service: owner, [STRIPE_DEPLOYMENT_KEY]: deployment }
   const params: ConfigurationParams = {
     features: {
       customer_update: {
@@ -179,7 +182,7 @@ export const ensurePortalConfiguration = async (
   if (stored?.externalId != null) {
     try {
       const current = await stripe.billingPortal.configurations.retrieve(stored.externalId)
-      if (claimOf(current.metadata, service, deployment) !== 'foreign') {
+      if (claimOf(current.metadata, owner, deployment) !== 'foreign') {
         await stripe.billingPortal.configurations.update(current.id, params)
         configurationId = current.id
       }
@@ -191,7 +194,7 @@ export const ensurePortalConfiguration = async (
   }
   if (configurationId == null) {
     const existing = (await listActiveConfigurations(stripe))
-      .find(configuration => claimOf(configuration.metadata, service, deployment) === 'ours')
+      .find(configuration => claimOf(configuration.metadata, owner, deployment) === 'ours')
     if (existing != null) {
       await stripe.billingPortal.configurations.update(existing.id, params)
       configurationId = existing.id
@@ -233,7 +236,7 @@ export const createPortalLink = async (
     throw new PortalUnavailable('customer')
   }
 
-  const sku = portalFingerprintSku(ctx.cfg.service)
+  const sku = portalFingerprintSku(gatewayOwnerOf(ctx))
   let configuration = (await fingerprints(ctx).bySku(sku))?.externalId ?? null
   if (configuration == null) {
     await ensurePortalConfiguration(ctx, stripe).catch(error => {
