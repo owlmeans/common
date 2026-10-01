@@ -1,6 +1,12 @@
 
 import {  ResilientError } from '@owlmeans/error'
 
+/**
+ * The storage refusal family. A class that answers the caller's request declares the HTTP status
+ * an `@owlmeans/server-api` boundary answers it with (`static httpStatus`, inherited through the
+ * constructor chain): an absent record 404, a taken id or unique key 409. A fault — a misshaped
+ * record, an unsupported argument, a failed migration — declares nothing and answers 500.
+ */
 export class ResourceError extends ResilientError {
   public static override typeName = 'ResourceError'
 
@@ -9,8 +15,11 @@ export class ResourceError extends ResilientError {
   }
 }
 
+/** The addressed record does not exist (`get`, `update`, `take` of an absent id or criteria). */
 export class UnknownRecordError extends ResourceError {
   public static override typeName = `${ResourceError.typeName}UnknownRecordError`
+  /** The addressed record is absent: answered 404. */
+  public static httpStatus = 404
 
   public static readonly idSeparator: string = '/'
 
@@ -19,8 +28,11 @@ export class UnknownRecordError extends ResourceError {
     this.type = UnknownRecordError.typeName
   }
 
+  /** Everything after the first separator — an id or a criteria description may contain one. */
   get id(): string {
-    return this.message.split(UnknownRecordError.idSeparator)[1]
+    const at = this.message.indexOf(UnknownRecordError.idSeparator)
+
+    return at < 0 ? '' : this.message.slice(at + UnknownRecordError.idSeparator.length)
   }
 }
 
@@ -33,8 +45,11 @@ export class MisshapedRecord extends ResourceError {
   }
 }
 
+/** A record under that id or unique key is already stored (`create`, a unique-index violation). */
 export class RecordExists extends ResourceError {
   public static override typeName = `${ResourceError.typeName}RecordExists`
+  /** The id or unique key is taken: answered 409. */
+  public static httpStatus = 409
 
   constructor(msg: string) {
     super(`record-exists:${msg}`)

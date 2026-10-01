@@ -197,8 +197,9 @@ describe('@owlmeans/llm — retry escalation behaviour', () => {
 })
 
 describe('@owlmeans/llm — provider effort', () => {
+  /** Read off the request body langchain builds — the constructor field is not what ships. */
   const openAiEffort = (model: BaseChatModel): string | undefined =>
-    ((model as ChatOpenAI).lc_kwargs as { reasoning?: { effort?: string } }).reasoning?.effort
+    ((model as ChatOpenAI).invocationParams({} as never) as { reasoning?: { effort?: string } }).reasoning?.effort
   const anthropicEffort = (model: BaseChatModel): string | undefined =>
     ((model as ChatAnthropic).lc_kwargs as { outputConfig?: { effort?: string } }).outputConfig?.effort
 
@@ -215,6 +216,29 @@ describe('@owlmeans/llm — provider effort', () => {
     expect(openAiEffort(build(openAiPlugin, { model: 'gpt-6-sol' }))).toBeUndefined()
     expect(openAiEffort(build(openAiPlugin, { model: 'gpt-5.4-mini', effort: ModelEffort.High }))).toBeUndefined()
     expect(openAiEffort(build(openAiPlugin, { model: 'gpt-4.1-mini', effort: ModelEffort.High }))).toBeUndefined()
+  })
+
+  // `@langchain/openai` puts its constructor `reasoning` field on the wire only for `o*`/`gpt-5*`
+  // names: on `gpt-6-*` every configured effort was silently dropped. It travels in `modelKwargs`.
+  test('the gpt-6 request body carries reasoning.effort exactly as configured, once', () => {
+    for (const model of ['gpt-6-luna', 'gpt-6-sol']) {
+      for (const effort of [ModelEffort.Low, ModelEffort.High]) {
+        const built = build(openAiPlugin, { model, effort }) as ChatOpenAI
+        const params = built.invocationParams({} as never) as unknown as Record<string, unknown>
+        expect([model, params.reasoning]).toEqual([model, { effort }])
+        expect((built.lc_kwargs as { reasoning?: unknown }).reasoning).toBeUndefined()
+        expect(params.prompt_cache_key).toBe('spec')
+      }
+      const none = build(openAiPlugin, { model }) as ChatOpenAI
+      expect('reasoning' in (none.invocationParams({} as never) as object)).toBe(false)
+    }
+  })
+
+  test('a gpt-5 model is unchanged: no effort is guessed for it', () => {
+    const terra = build(openAiPlugin, { model: 'gpt-5.6-terra', effort: ModelEffort.High }) as ChatOpenAI
+    expect((terra.invocationParams({} as never) as { reasoning?: unknown }).reasoning).toBeUndefined()
+    const refined = openAiPlugin.refine({ base: terra, attempt: 2, rungAttempt: 2, maxOutputCap: 32000 }) as ChatOpenAI
+    expect((refined.invocationParams({} as never) as { reasoning?: unknown }).reasoning).toBeUndefined()
   })
 
   test('a level the model does not accept is clamped to one it does, never sent as is', () => {

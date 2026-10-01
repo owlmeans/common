@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.1.18-rc.39"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.1.18-rc.42"` in `dependencies`
 
 ## Key Exports
 
@@ -51,8 +51,27 @@ These live on the request the caller passes and are forwarded to the transport:
   peer hangs forever unless a caller bounds it.
 - `signal` — an `AbortSignal`, which aborts the request in flight.
 - `headers` — a `content-type` of `application/x-www-form-urlencoded` makes the body serialize
-  through `qs` instead of JSON. A string body on a `POST` with no `content-type` gets
-  `application/json` and is sent verbatim rather than re-quoted.
+  through `qs` instead of JSON; any other `content-type` the caller sets is kept.
+
+## Request bodies
+
+The body travels as JSON the server parses back to the value the caller passed:
+
+| Body | On the wire |
+|---|---|
+| Object or array | JSON, serialized by axios — as always |
+| String, number or boolean on a `POST` with no `content-type` | `content-type: application/json`, `JSON.stringify`'d (`'abc'` → `"abc"`, `42`, `true`) |
+| String, number or boolean under a JSON `content-type` (`application/json`, `*+json`), any method | `JSON.stringify`'d |
+| A string that already IS JSON text (`'{"a":1}'`, `'"abc"'`) | Sent as it is — a caller that serialized it itself keeps working |
+| Any scalar under another `content-type` (`text/plain`), or with none on a non-`POST` | Untouched |
+
+Under a body schema of `type: 'string'` (the protocol's contract, read from the entrypoint's
+`filter.body`) a string is always a value: `'123'`, `'true'` or `'{…}'` arrive as those strings,
+and only a JSON string literal counts as pre-serialized. Without a string contract a string that
+parses as JSON is taken as serialized, so send a plain string that looks like JSON through a
+`type: 'string'` contract. The caller's `headers` object is never rewritten. A bare unquoted string
+under `application/json` is invalid JSON — `@owlmeans/server-api` answers it 400 — which is why it
+is never sent.
 
 ## Reading the answer
 

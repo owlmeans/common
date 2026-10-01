@@ -4,8 +4,8 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture, SpectatorArgument,
-  SpectatorEntryLogged,
+  CumulativeResults, FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture,
+  SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
 
@@ -69,6 +69,12 @@ export interface LlmModelOptions extends LlmLogging {
    * fall back to whatever they can decide without a model.
    */
   utility?: () => BaseChatModel | undefined
+  /**
+   * What the earlier steps of the pipeline this model works in produced — the execution's own
+   * `results`, which arrives here whenever the helper execution itself is passed as the options.
+   * Composed into `PromptBlock.Results`; ignored, like `prompt`, without a `prompts` resolver.
+   */
+  results?: CumulativeResults
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole

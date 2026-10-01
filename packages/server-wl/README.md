@@ -12,7 +12,7 @@ Server-side whitelabeling — provides entity-specific branding and configuratio
 ## Installation
 
 ```bash
-bun add @owlmeans/server-wl@^0.1.18-rc.41
+bun add @owlmeans/server-wl@^0.1.18-rc.44
 ```
 
 ## Usage
@@ -60,7 +60,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.40
+npx @owlmeans/agent-skills@^0.1.18-rc.44
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

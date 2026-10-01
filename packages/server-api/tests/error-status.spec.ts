@@ -7,7 +7,11 @@ import { provideResponse } from '@owlmeans/entrypoint'
 import { errorExposure, errorStatus, handleError, INCIDENT_ID_HEADER } from '../src/utils/error.js'
 import { executeResponse } from '../src/utils/payload.js'
 import { AccessError, AuthFailedError } from '../src/errors.js'
-import { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND } from '@owlmeans/api'
+import { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND, httpStatusOf } from '@owlmeans/api'
+import {
+  MigrationError, MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError,
+  UnsupportedArgumentError, UnsupportedMethodError,
+} from '@owlmeans/resource'
 
 class OutOfCredit extends ResilientError {
   public static override typeName = 'ServerApiSpecOutOfCredit'
@@ -180,7 +184,7 @@ const answer = async (error: unknown, path: string = '/handle') => {
   return {
     status: reply.statusCode,
     body: reply.body,
-    incidentId: reply.headers[INCIDENT_ID_HEADER.toLowerCase()],
+    incidentId: reply.headers[INCIDENT_ID_HEADER.toLowerCase()] as string,
     retryAfter: reply.headers['retry-after'],
     denialKind: reply.headers[DENIAL_KIND_HEADER.toLowerCase()],
   }
@@ -292,5 +296,47 @@ describe('@owlmeans/server-api — auth status across a rebuild and duplicate mo
     expect((await answer(typed('AccessAuthFailedError'))).status).toBe(403)
     // Its own type names nothing of the family; only the chain does.
     expect((await answer(new ForeignEntitlementRefusal())).status).toBe(403)
+  })
+})
+
+describe('@owlmeans/server-api — storage refusals of @owlmeans/resource', () => {
+  test('an absent record answers 404 and a taken id or key 409 — as thrown and after a marshal hop', async () => {
+    expect((await answer(new UnknownRecordError('shelf/3'))).status).toBe(404)
+    expect((await answer(new RecordExists('id-present'))).status).toBe(409)
+    expect((await answer(ResilientError.marshal(new UnknownRecordError('shelf/3')))).status).toBe(404)
+    expect((await answer(ResilientError.marshal(new RecordExists('isbn')))).status).toBe(409)
+    expect((await answer(new UnknownRecordError('shelf/3'), '/execute')).status).toBe(404)
+  })
+
+  test('a storage fault still answers 500', async () => {
+    for (const fault of [
+      new MisshapedRecord('x'), new RecordUpdateFailed('x'), new UnsupportedArgumentError('ttl'),
+      new UnsupportedMethodError('watch'), new MigrationError('x'),
+    ]) {
+      expect([fault.type, (await answer(fault)).status]).toEqual([fault.type, 500])
+    }
+  })
+
+  test('a development body rebuilds into the same class, and the status the client stamps agrees with it', async () => {
+    for (const [error, status] of [
+      [new UnknownRecordError('shelf/3'), 404], [new RecordExists('isbn'), 409],
+    ] as const) {
+      const response = await answer(error, '/handle-development')
+      expect(response.status).toBe(status)
+      // What `@owlmeans/api` does with a non-2xx body carrying the separator.
+      const rebuilt = Object.assign(ResilientError.ensure(response.body, true), { responseStatus: response.status })
+      expect(rebuilt.constructor).toBe(error.constructor)
+      expect(rebuilt.message).toBe(error.message)
+      expect(httpStatusOf(rebuilt)).toBe(status)
+    }
+    const rebuilt = ResilientError.ensure((await answer(new UnknownRecordError('shelf/3'), '/handle-development')).body, true)
+    expect((rebuilt as UnknownRecordError).id).toBe('shelf/3')
+  })
+
+  test('a production body is the incident id alone, under the declared status', async () => {
+    const response = await answer(new UnknownRecordError('shelf/3'))
+    expect(response.status).toBe(404)
+    expect(response.body).toBe(response.incidentId)
+    expect(response.body).not.toContain('shelf')
   })
 })

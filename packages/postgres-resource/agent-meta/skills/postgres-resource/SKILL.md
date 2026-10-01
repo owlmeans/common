@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/postgres-resource
 
 **Layer:** Infra
-**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.36"` in `dependencies` (peers `pg`, `ajv`)
+**Install:** `"@owlmeans/postgres-resource": "^0.1.18-rc.38"` in `dependencies` (peers `pg`, `ajv`)
 
 The Postgres counterpart of [[mongo-resource]]. The difference that governs everything else: a
 Mongo collection has no structure, a Postgres table does — so **the resource layer owns the DDL**
@@ -19,7 +19,7 @@ and derives it from the resource's AJV schema.
 | Export | Description |
 |--------|-------------|
 | `makePostgresResource<R, T>(alias, dbAlias?, serviceAlias?, tableName?)` | The resource factory. Aliases default to `DEFAULT_DB_ALIAS` (`'postgres'`); `tableName` overrides the physical table (else the sanitized alias). |
-| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, `db()`/`client()`, `index`, `ref`, `getDefaults`, custom SQL (`query`/`queryOne`/`execute`/`select`/`selectOne`), `transaction`, `insert`/`upsert`/`patch`, `lock`/`unlock`, `migration`/`migrations`. |
+| `PostgresResource<T>` | `Resource<T>` + `table`/`entity`, `db()`/`client()`, `index`, `ref`, `getDefaults`, custom SQL (`query`/`queryOne`/`execute`/`select`/`selectOne`), `transaction`, `insert`/`upsert`/`patch`, `countBy`, `lock`/`unlock`, `migration`/`migrations`. |
 | `PostgresDbService`, `PostgresDb`, `PostgresTx` | Service contract implemented by `@owlmeans/postgres`; the db handle `{ drizzle, pool, schema, database }`; the transaction façade (`client`, `query`/`queryOne`/`execute`, `ref`). |
 | `PostgresMeta` | The `DbConfig.meta` shape this package reads — `database`, `autoSync`, `url`, and the pool/probe knobs. |
 | `TableSpec`, `ColumnSpec`, `PgPropertyOverride`, `PgRootOverride`, `DdlPlan` | The compiled table description and the `pg:` vocabulary types. |
@@ -27,6 +27,7 @@ and derives it from the resource's AJV schema.
 | `criteriaToSql`, `sortToSql` | `Criteria<T>` → a WHERE clause and `Sort<T>` → the ORDER BY, for code that builds its own statement over the same table. |
 | `pgKeyword` | `{ keyword: 'pg', valid: true }` — register it when running AJV in strict mode. |
 | `schemaToTableSpec`, `pgTableName`, `pgIdentifier`, `quoteIdent`, `qualify`, `advisoryKey` | The compiler and identifier helpers. |
+| `planSync`, `introspectTable`, `canonicalDefinition` | The reconciliation plan against a live table, the introspection, and the form definitions are compared in. |
 | `refOf`, `resolvePlaceholders` | `{{alias}}` resolution — identifiers only. |
 | `PostgresError` family, `pgErrorToResourceError`, `describePgError` | Driver-error translation. |
 | `getDeclaration`, `resetDeclarations` | Module-scope schema/index/migration declarations, keyed by alias. |
@@ -119,6 +120,16 @@ The schema root override `pg: { autoSync }` is a boolean and wins per table: it 
 back on for one table under `meta.autoSync: 'off'`, and off for one table under the other two modes.
 `Full` versus `Additive` still comes from the config.
 
+**A table at its declared shape plans nothing.** Postgres reports what it stores in its own
+rendering — identifiers unquoted, every literal cast (`''::text`), a `varchar` column cast inside
+an expression, a partial predicate and each operator expression parenthesized, `IN (…)` as
+`= ANY (ARRAY[…])`, a default as `(gen_random_uuid())::character varying`. Index, constraint and
+default definitions are therefore compared in `canonicalDefinition` form (case, quotes, casts,
+whitespace and parentheses dropped), never as raw text — raw comparison dropped and recreated every
+declared index and enum `CHECK` on every boot. Declare expressions and `where` predicates in plain
+SQL; a change that differs from the old definition only in how its operators group is invisible
+to the comparison, so give it a new index name.
+
 **`Full` DROPs columns the schema doesn't declare.** Adopting a table this package didn't create:
 boot once with `Additive`, confirm the plan comes out empty, then flip to `Full`. Columns listed in
 `pg.unmanaged` stay outside reconciliation's authority permanently. A cast Postgres cannot perform
@@ -196,6 +207,7 @@ middleware `appendPostgres` installs — use that rather than reordering registr
 | `delete` / `take` | one `DELETE … RETURNING`: the row is handed back by the statement that removed it. `take` **deletes** and throws `UnknownRecordError` on a miss |
 | `purge` | `DELETE … RETURNING` over the criteria; refuses an empty criteria object (`UnsupportedArgumentError('purge:no-criteria')`) rather than truncating the table |
 | `count` | `count(*)` over the criteria, no rows carried back |
+| `countBy(criteria, fields)` | one `GROUP BY` over the named properties: `[{ ...group values, count }]` (a group value is `null` where absent); refuses no field, a field named `count`, and an unknown property |
 | `upsert` | `INSERT … ON CONFLICT DO UPDATE`, conflicting on the primary key by default |
 | `select`/`selectOne` | custom SQL marshalled back into `T`; `query`/`queryOne` return raw rows |
 
@@ -219,11 +231,22 @@ the same rows here as it does against a collection or in memory. What is specifi
 
 - **A key naming no column raises `UnsupportedArgumentError`.** A typo that silently widened a
   query to the whole table is worth being loud about — the schemaless stores cannot detect one.
-- **A dotted key reaches into a jsonb column** (`#>>`), and a criteria object against a jsonb
-  column becomes containment (`@>`). A dotted key over a non-jsonb column is refused, and `sort`
-  refuses dotted paths outright: ORDER BY names a column the caller actually declared.
-- `$contains`/`$contained`/`$overlaps` are the array operators `@>`, `<@` and `&&`;
-  `$like`/`$ilike` are `LIKE`/`ILIKE`; `$exists: true` and `$null: false` are `IS NOT NULL`, their
+- **A dotted key reaches into a jsonb column** as `col #> $n::text[]` — the path ONE bound
+  parameter, so a segment holding a comma stays one segment — and reads the way the same value
+  reads on a column: a bare value is TYPED JSON equality (`= $m::jsonb`: `30` is not `'30'`, `true`
+  not `'true'`), a bare list is membership (`= ANY(ARRAY[…]::jsonb[])`), `null` is absence (`IS NULL`
+  or a JSON `null`), operators apply as on a column (comparisons against jsonb, the text operators
+  over `#>>`, `$in`/`$nin` with the null widening, `$exists`/`$null`, the array operators below),
+  and a plain object is containment. A criteria object against a jsonb column itself is
+  containment (`@>`). A dotted key over a non-jsonb column is refused, and `sort` refuses dotted
+  paths outright: ORDER BY names a column the caller actually declared.
+- `$contains`/`$contained`/`$overlaps` take a list or a scalar (the one-element list). On a native
+  array column they are `@>`/`<@`/`&&` against ONE bound array parameter cast to the column's type —
+  a bare JS array inside a drizzle `sql` template expands into a row constructor `($1, $2)`, which
+  no array operator accepts. On jsonb, `@>`/`<@` compare JSON (an object as an object, anything
+  else as the array it is), and `$overlaps` is element-wise over an array value (a scalar value
+  overlaps when it is one of the operands).
+- `$like`/`$ilike` are `LIKE`/`ILIKE`; `$exists: true` and `$null: false` are `IS NOT NULL`, their
   negations `IS NULL`.
 - **`{ $in: [null, …] }` is widened explicitly.** SQL `IN` never matches NULL, so a null in the
   list would silently disappear; the condition becomes `IN (…) OR IS NULL` (and the `$nin` form
@@ -246,9 +269,11 @@ translation — consumers classify retryable DDL races on `42P01`/`42703`.
 ## Tests
 
 `bun test ./tests` in the package — unit specs (schema compilation, identifiers, placeholder
-resolution, error translation), no gate, no service. Specs that build a real `ServerContext` live in
-`@owlmeans/postgres` instead: a devDependency here on its own dependent is a cycle. See
-[[testing-integration]].
+resolution, criteria rendering, error translation, definition comparison against captured server
+renderings), no gate, no service. Specs that build a real `ServerContext` live in
+`@owlmeans/postgres` instead (`sync.spec.ts` proves a second boot plans nothing; `criteria.spec.ts`
+answers each criteria the way the in-memory engine does): a devDependency here on its own
+dependent is a cycle. See [[testing-integration]].
 
 ## Depends On
 

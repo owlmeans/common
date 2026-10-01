@@ -2,7 +2,8 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  CacheTtl, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy, SkillDefinition,
+  CacheTtl, CumulativeResults, FileProviderRef, LlmPurpose, PromptBlock, PromptPolicy,
+  SkillDefinition,
 } from '@owlmeans/llm-common'
 import type { LlmPlugin, LlmSystemBlock } from '../plugins/types.js'
 
@@ -46,6 +47,12 @@ export interface PromptComposeParams {
    * is not reproducible byte-for-byte, so it belongs in `Packages` or `Context`.
    */
   utility?: () => BaseChatModel | undefined
+  /**
+   * What the earlier steps of the pipeline this call runs in produced — normally the execution's
+   * own `results`. Rendered into `PromptBlock.Results` by `resultsPlugin`; absent, that block is
+   * not emitted and the composed bytes are exactly what they would be without it.
+   */
+  results?: CumulativeResults
 }
 
 /** What a prompt plugin sees and may contribute to. */
@@ -80,7 +87,7 @@ export interface PromptContext extends PromptComposeParams {
  */
 export interface LlmPromptPlugin {
   alias: string
-  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills) and 90 (context). */
+  /** Lower runs first. The built-ins occupy 0 (role), 10 (skills), 80 (results) and 90 (context). */
   order?: number
   /** Contribute static content, before anything has looked at the messages. */
   compose?: (ctx: PromptContext) => void | Promise<void>

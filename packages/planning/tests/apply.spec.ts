@@ -3,7 +3,7 @@ import { IntrinsicStatus, TransitionAction, WorkcardKind } from '../src/consts.j
 import { IllegalTransition, PlanningError } from '../src/errors.js'
 import { applyRelationship, applyTransition } from '../src/helpers/apply.js'
 import { assertMutable, computeChanges, isEmptyChange } from '../src/helpers/changes.js'
-import type { Relationship, Specification, Workcard } from '../src/types.js'
+import type { Relationship, Specification, Workcard, WorkcardChanges } from '../src/types.js'
 import {
   AT, ENTITY, LATER, PROJECT_TYPE, SPEC_TYPE, STORY_TYPE, TASK_TYPE, makeRegistry, transitionOf,
 } from './fixtures.js'
@@ -172,5 +172,69 @@ describe('assertMutable', () => {
       .toThrow('immutable:title')
     expect(() => assertMutable({ card: 'c1', action: TransitionAction.Update, changes: { code: 'free' } }, TASK_TYPE))
       .not.toThrow()
+  })
+
+  test('provenance is never written after the create: createdBy and createdAt in changes or unset, on any action', () => {
+    const draft = { kind: WorkcardKind.Card, type: STORY_TYPE.type, parent: 'p1', title: 'Owned', createdBy: 'owner-1' }
+    const refused = [
+      { card: 'c1', action: TransitionAction.Update, changes: { createdBy: 'intruder' } },
+      { card: 'c1', action: TransitionAction.Update, changes: { createdBy: null } },
+      { card: 'c1', action: TransitionAction.Update, unset: ['createdBy'] },
+      { card: 'c1', action: TransitionAction.Transit, transition: 'start', changes: { createdBy: 'intruder' } },
+      { card: 'c1', action: TransitionAction.Link, link: { type: 'follows', to: 'c2' }, unset: ['createdBy'] },
+      { card: draft, action: TransitionAction.Create, changes: { createdBy: 'intruder' } },
+    ] as Parameters<typeof assertMutable>[0][]
+
+    for (const exec of refused) {
+      expect(() => assertMutable(exec, STORY_TYPE)).toThrow('planning:immutable:createdBy')
+    }
+    expect(() => assertMutable({ card: 'c1', action: TransitionAction.Update, changes: { createdAt: LATER } as WorkcardChanges }, STORY_TYPE))
+      .toThrow('planning:immutable:createdAt')
+    expect(() => assertMutable({ card: 'c1', action: TransitionAction.Update, unset: ['createdAt'] }, STORY_TYPE))
+      .toThrow('planning:immutable:createdAt')
+    expect(() => assertMutable({ card: draft, action: TransitionAction.Create }, STORY_TYPE)).not.toThrow()
+    expect(() => assertMutable({ card: 'c1', action: TransitionAction.Update, changes: { createdBy: undefined, title: 'T' } }, STORY_TYPE))
+      .not.toThrow()
+  })
+})
+
+describe('createdBy — written by the create alone', () => {
+  const owned = (): Workcard => ({ ...created(), createdBy: 'owner-1' })
+
+  test('computeChanges takes it from the draft and never from changes or unset', () => {
+    const create = computeChanges(undefined, {
+      action: TransitionAction.Create,
+      card: { kind: WorkcardKind.Card, type: STORY_TYPE.type, parent: 'p1', title: 'Owned', createdBy: 'owner-1' },
+      changes: { createdBy: 'intruder' },
+    }, STORY_TYPE, registry, AT)
+    expect(create.changes.createdBy).toBe('owner-1')
+
+    const update = computeChanges(owned(), {
+      card: 'c1', action: TransitionAction.Update, changes: { createdBy: 'intruder', title: 'Renamed' }, unset: ['createdBy'],
+    }, STORY_TYPE, registry, LATER)
+    expect(update).toEqual({ changes: { title: 'Renamed' }, unset: [] })
+
+    const cleared = computeChanges(owned(), { card: 'c1', action: TransitionAction.Update, changes: { createdBy: null } as unknown as WorkcardChanges },
+      STORY_TYPE, registry, LATER)
+    expect(isEmptyChange(cleared)).toBe(true)
+
+    const transit = computeChanges(owned(), {
+      card: 'c1', action: TransitionAction.Transit, transition: 'start', changes: { createdBy: 'intruder' }, unset: ['createdBy'],
+    }, STORY_TYPE, registry, LATER)
+    expect(transit.changes.createdBy).toBeUndefined()
+    expect(transit.unset).not.toContain('createdBy')
+  })
+
+  test('the fold replays a legacy transition that named it, as written — the refusal is at admission', () => {
+    const card = owned()
+    const renamed = applyTransition(card, transitionOf({
+      card: 'c1', seq: 2, action: TransitionAction.Update, at: LATER, changes: { title: 'Legacy', createdBy: 'intruder' },
+    }))!
+    const cleared = applyTransition(renamed, transitionOf({ card: 'c1', seq: 3, action: TransitionAction.Update, unset: ['createdBy'] }))!
+
+    expect([renamed.seq, renamed.title, renamed.createdBy, renamed.createdAt]).toEqual([2, 'Legacy', 'intruder', AT])
+    expect([cleared.seq, cleared.title, cleared.createdBy]).toEqual([3, 'Legacy', undefined])
+    expect(applyTransition(cleared, transitionOf({ card: 'c1', seq: 4, action: TransitionAction.Update, changes: { title: 'After' } }))!
+      .title).toBe('After')
   })
 })

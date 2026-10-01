@@ -121,8 +121,33 @@ export interface LlmPlugin {
   /** How this provider should be asked for schema-conforming output. */
   structuredMode: (config: ModelConfig) => StructuredMode
 
-  /** Provider-specific `tool_choice` shape that pins the model to `toolName`. */
-  toolChoice: (toolName: string) => unknown
+  /**
+   * Provider-specific `tool_choice` for the structured-output tool `toolName`: the shape that
+   * pins it, or — for a model that refuses a pinned tool ({@link pinsTool} `false`) — the
+   * provider's automatic choice. `config` is the rung's own, so a fallback is asked in its shape.
+   */
+  toolChoice: (toolName: string, config?: Partial<ModelConfig>) => unknown
+
+  /**
+   * Whether {@link toolChoice} pins the tool for this model. Omitted: it always does. When it
+   * does not, the request carries an instruction naming the tool (the only way left to ask for
+   * the call), and a reply with no tool call is a failed attempt the retry loop repeats.
+   */
+  pinsTool?: (config: Partial<ModelConfig>) => boolean
+
+  /**
+   * Whether the structured-output tool is sent `strict` (grammar-constrained arguments) for this
+   * model and schema. Omitted: never.
+   */
+  strictTool?: (config: Partial<ModelConfig>, schema: unknown) => boolean
+
+  /**
+   * What stops this provider from SHOWING the model a structured-output schema as written — one
+   * line per defect, each naming its JSON pointer. A non-empty answer fails the call before the
+   * rung's first request with a fatal `LlmMissconfiguredError`: a model cannot answer what it is
+   * never shown, and every retry would fail validation the same way. Omitted: nothing is hidden.
+   */
+  schemaDefects?: (config: Partial<ModelConfig>, schema: unknown) => string[]
 
   /** Provider-specific `response_format` for {@link StructuredMode.Native}. */
   responseFormat?: (toolName: string, schema: unknown) => Record<string, unknown>

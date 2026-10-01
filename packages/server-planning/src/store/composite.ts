@@ -29,6 +29,7 @@ const sum = async <S>(stores: S[], run: (store: S) => Promise<number>): Promise<
  * then each owner; a list whose criteria names one owned type (or several owned by one store) goes
  * there, and every other list is the default store's — a cross-type query is answered by the
  * default store alone, never merged. Relationship lists and commit subscriptions span every store.
+ * The data-defined schema port is the default store's.
  */
 export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore): PlanningStore => {
   const all = [...new Set([fallback, ...routes.map(route => route.store)])]
@@ -167,5 +168,7 @@ export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore
     ...(specs != null ? { specs } : {}),
     ...(links != null ? { links } : {}),
     ...(commits != null ? { commits } : {}),
+    // Data-defined schemas are the default store's alone: a layer describes the whole organization.
+    ...(fallback.schemas != null ? { schemas: fallback.schemas } : {}),
   }
 }

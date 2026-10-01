@@ -1,4 +1,6 @@
-import { AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthUnknown, entitySlugOf } from '@owlmeans/auth'
+import {
+  AuthForbidden, AuthManagerError, AuthManagerUnsupported, AuthorizationError, AuthUnknown, entitySlugOf,
+} from '@owlmeans/auth'
 import { authService, DEFAULT_ALIAS } from '../consts.js'
 import type { Config, Context, OidcClientService } from '../types.js'
 import { cache, managedId } from '../utils/cache.js'
@@ -36,7 +38,12 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
     },
 
     loadPermissions: async (user, permissions) => {
-      const record = await cache<C, T>(ctx).get(managedId(user.token))
+      const record = await cache<C, T>(ctx).load(managedId(user.token))
+      if (record == null) {
+        // The session's record is gone (signed out, expired, evicted): the caller signs in again.
+        // A bare `get` would surface the storage refusal instead and answer "not found".
+        throw new AuthorizationError('record')
+      }
       if (record.payload == null) {
         throw new AuthForbidden('record')
       }

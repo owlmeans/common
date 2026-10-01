@@ -4,7 +4,7 @@ import type { FileProviderRef, SkillDefinition } from '@owlmeans/llm-common'
 export const OWLMEANS_SCOPE = '@owlmeans'
 
 /** Where a package's skills came from — surfaced in logs, useful when a lookup surprises you. */
-export type SkillSource = 'files' | 'local' | 'remote'
+export type SkillSource = 'files' | 'local' | 'checkout' | 'remote'
 
 export interface PackageSkills {
   packageName: string
@@ -42,6 +42,16 @@ export interface PackageSkillsOptions {
    * than freshness.
    */
   ref?: string
+
+  /**
+   * A local CHECKOUT of `repo`, read in place of the GitHub fallback: the same
+   * `packages/<name>/agent-meta/` files at the same paths, straight from disk.
+   *
+   * For a development host that mounts the checkout — the only way it sees a package or a
+   * skill that is not pushed yet. When set, GitHub is never asked; a file missing here is a
+   * miss exactly as a failed fetch is. `fetch` does not apply: it governs the network only.
+   */
+  localRoot?: string
 
   /** Set to `false` to skip the GitHub fallback entirely (air-gapped runs). */
   fetch?: boolean

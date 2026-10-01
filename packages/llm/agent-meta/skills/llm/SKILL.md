@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/llm
 
 **Layer:** Core
-**Install:** `"@owlmeans/llm": "^0.1.18-rc.38"` in `dependencies` (plus the `@langchain/*` peers)
+**Install:** `"@owlmeans/llm": "^0.1.18-rc.42"` in `dependencies` (plus the `@langchain/*` peers)
 
 The inference runtime. Everything provider-specific is a **plugin**; the model itself only owns the
 provider-independent parts (streaming discipline, retries, validation, observability). Serializable
@@ -21,20 +21,21 @@ symbol "because a test needs it".
 
 | Export | Description |
 |--------|-------------|
-| `makeLlmModel({ model, purpose, prompt?, prompts?, files?, utility?, retries?, … }, spectator)` | The four-method model: `ask` / `talk` / `invoke(input, schema, opts)` / `request`. `model` is an already-resolved `BaseChatModel`. |
+| `makeLlmModel({ model, purpose, prompt?, prompts?, files?, utility?, results?, retries?, … }, spectator)` | The four-method model: `ask` / `talk` / `invoke(input, schema, opts)` / `request`. `model` is an already-resolved `BaseChatModel`. |
 | `makeLlmService(options, alias?)` · `appendLlmService(ctx, options, alias?)` · `llmServiceApi(options, self)` | Model factory/registry — `makeLlmService({ models: () => configs }).getModel(alias, override?)` resolves a `ModelConfig` by alias, memoized per alias+override. The `…Api` half omits `createService`, to compose into your own service (role accessors, domain helpers). |
-| `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` · `executionServiceApi(options, self)` | Frozen 3-level executions + policy resolution + snapshot/restore + advice, and the same composable half. |
+| `makeExecutionService(alias?, options?)` · `appendExecutionService(ctx, alias?, options?)` · `executionServiceApi(options, self)` | Frozen 3-level executions + policy resolution + snapshot/restore + advice + the results view (`withResults`), and the same composable half. |
 | `makePromptService(options?, alias?)` · `appendPromptService(ctx, options?, alias?)` · `promptServiceApi(options, self)` | Skill registry + the composition plugin chain. Also at `@owlmeans/llm/prompt`. |
-| `rolePlugin`, `skillsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
+| `rolePlugin`, `skillsPlugin`, `resultsPlugin`, `contextPlugin`, `BUILT_IN_PROMPT_PLUGINS` | The built-in composition plugins. |
 | `PromptContext.claim(key)` · `PromptComposeParams.utility` | Per-composition ownership of a key; a cheap model for one plugin-side call. |
 | `renderSkill`, `sortSkills`, `joinChunks`, `compareAlias`, `prefixHash` · `readCacheUsage`, `hasCacheActivity` | Deterministic rendering primitives — reuse them, never re-implement — and normalized prompt-cache accounting from a completion. |
 | `plugins`, `registerLlmPlugin`, `resolvePlugin`, `pluginOf`, `pluginFor` | The provider-plugin registry. Also at `@owlmeans/llm/plugins`. |
 | `anthropicPlugin`, `openAiPlugin`, `compatiblePlugin`, `openAiFamily` | Built-in providers; `openAiFamily` is the shared OpenAI-client behaviour to spread into a new plugin. |
 | `NO_SAMPLING_PREFIXES` / `rejectsSampling(model)` · `RESPONSES_API_PREFIXES` / `usesResponsesApi(model)` | Which families reject which sampling parameters — see the table below. Consumers pin presets against them. |
-| `effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `ANTHROPIC_EFFORT_SUPPORT` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts — see "Fallback chains and provider effort". |
+| `effortSupportOf(config)` · `OPENAI_EFFORT_SUPPORT`, `OPENAI_HIDDEN_PROPERTY_NAMES`, `ANTHROPIC_MODEL_SUPPORT` / `anthropicSupportOf(model)` · `REASONING_MIN_MAX_TOKENS` | Which `ModelConfig.effort` levels a model accepts, and the per-family Anthropic facts beside them — see "Fallback chains and provider effort". |
+| `ThinkingOff`, `thinkingOffFor(config)` · `rejectsForcedTool(model)` | The Anthropic off switch a config sends (`disabled`, `between_tools`, or none), and whether a model refuses a pinned `tool_choice`. |
 | `withRetry`, `registerFatalError`, `isFatalError`, `spectate`, `normalizeInput`, `parseJsonContent`, `coerceToSchema`, `resolveFallbacks`, `PROVIDER_NEUTRAL_FIELDS` | Helpers usable alongside a model. Also at `@owlmeans/llm/helpers`. |
 | `LlmError`, `LlmModelError`, `LlmMissconfiguredError`, `LlmPluginError`, `LlmRetryExceededError` | `ResilientError` family. `LlmModelError` is the RETRYABLE one. |
-| `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role. |
+| `mergePrompt`, `mergePolicy`, `resolveRole`, `effortPatch`, `freezeResults` | Execution merge helpers; `mergePrompt` unions skills and takes the deepest role; `freezeResults` deep-freezes a results view. |
 | `DEFAULT_MODEL_RETRIES`, `MODEL_STREAM_TIMEOUT_MS` (3 min idle), `FALLBACK_AFTER_ATTEMPTS`, `TEMPERATURE_PER_EFFORT_STEP`, `DEFAULT_EFFORT`, `EFFORT_TABLE`, `MAX_CACHE_BREAKPOINTS`, `MAX_SYSTEM_BREAKPOINTS`, `MIN_CACHEABLE_TOKENS`, `LLM_SERVICE`, `EXECUTION_SERVICE`, `PROMPT_SERVICE` | Tuning + aliases. |
 
 ## Provider differences are plugins, never `if`s
@@ -47,8 +48,10 @@ symbol "because a test needs it".
 | `owns` / `family` | `instanceof` checks; a `family` change between rungs re-renders the prompt |
 | `refine` | the per-provider retry rebuild (budget doubling, reasoning shrink, effort climb) |
 | `effort` | which `ModelConfig.effort` levels a model accepts (`effortSupportOf(config)`) |
-| `structuredMode` | native `response_format` vs the forced-tool-call hack |
-| `toolChoice` / `responseFormat` | the provider-specific call shapes |
+| `structuredMode` | native `response_format` vs a structured-output tool call |
+| `toolChoice(toolName, config)` / `responseFormat` | the provider-specific call shapes; `config` is the ACTIVE rung's, so a model that refuses a pinned tool gets the automatic choice |
+| `pinsTool(config)` / `strictTool(config, schema)` | whether `toolChoice` pins the tool (when not, `prepare` appends `toolCallInstruction`), and whether the tool goes `strict` |
+| `schemaDefects(config, schema)` | what the provider would not show the model of a structured-output schema; non-empty is a fatal `LlmMissconfiguredError` before the rung's first request |
 | `patchSystem` | how the composed system blocks are rendered and where their cache breakpoints go |
 | `patchCache` | the message-prefix cache marker |
 | `cacheKey` (via `ModelConfig.cacheKey`) | provider cache-routing hints such as OpenAI's `prompt_cache_key` |
@@ -106,6 +109,18 @@ object. Resolution precedence in `model(exec, role, override)`: **roleOverride �
 effort tier → `LlmService.getModel`**; `escalate(exec, { effort })` raises the tier once and cascades
 to everything derived from it. `snapshot` excludes `state` itself — without that, every
 `derive`/`escalate`/`withPurpose` on a task would nest another copy of the previous state.
+
+### The results view: `withResults(exec, view)`
+
+`ExecutionState.results` carries what the earlier steps of the pipeline an execution works inside
+produced (`CumulativeResults`, cut by `@owlmeans/agent`'s `cumulativeResultsPlugin`). A step hands
+its own view in with `withResults(exec, ctx.results?.view)`: a new frozen execution, the view
+deep-frozen, REPLACING any view already carried — one cut for another step names the wrong
+predecessors — and `null`/`undefined` drops the key entirely, so the execution and its snapshots are
+what they would be had it never carried one. Inheritance is the ordinary spread down
+`forTask`/`forHelper`, and `makeLlmModel` takes `results` from its options, so a consumer that builds
+its model from the helper execution itself (`makeLlmModel(exec, spectator)`) composes the view with
+no other change. Without a `prompts` resolver, like `prompt`, it is ignored.
 
 Extending it for a domain: declare your own `Execution`/input types, list collaborator fields in
 `ExecutionServiceOptions.collaboratorKeys` (kept out of snapshots), instantiate the service generic
@@ -253,9 +268,10 @@ bug: another provider's rung asked in the primary's `tool_choice` spelling is a 
 
 **`ModelConfig.effort` (`ModelEffort`, `@owlmeans/llm-common`) is the provider's own knob** —
 OpenAI `reasoning.effort`, Anthropic `output_config.effort` — and not `ExecutionEffort`, which is
-this package's token-budget tier. Plugin tables are the authority (`OPENAI_EFFORT_SUPPORT`,
-`ANTHROPIC_EFFORT_SUPPORT`, verified 2026-09-23 against developers.openai.com/api/docs/models/* and
-platform.claude.com/docs/en/build-with-claude/effort):
+this package's token-budget tier. Plugin tables are the authority (`OPENAI_EFFORT_SUPPORT` verified
+2026-09-23 against developers.openai.com/api/docs/models/*; `ANTHROPIC_MODEL_SUPPORT` verified
+2026-09-29 against platform.claude.com/docs/en/models/{sonnet-5-5,opus-5-5,fable-5-1}/whats-new-* and
+build-with-claude/effort):
 
 | Model | Levels | Default |
 |---|---|---|
@@ -263,16 +279,49 @@ platform.claude.com/docs/en/build-with-claude/effort):
 | `gpt-6-astra` | low … max (`none` is a 400) | medium |
 | `gpt-5*` and older OpenAI | not sent — accepted sets vary per snapshot | — |
 | Claude Opus 5.5 | low … max | medium |
-| Claude Opus 5, Fable 5, Mythos 5, Opus 4.8/4.7, Sonnet 5 | low … max | high |
+| Claude Sonnet 5.5, Opus 5, Fable 5.1/5, Mythos 5.1/5, Opus 4.8/4.7, Sonnet 5 | low … max | high |
 | Claude Mythos Preview, Opus 4.6, Sonnet 4.6 | low, medium, high, max (no xhigh) | high |
 | Claude Opus 4.5 | low, medium, high | high |
 | Claude Haiku 4.5, Sonnet 4.5 and older | field rejected — never sent | — |
 
 A declared level the model lacks is clamped DOWN to the nearest accepted one (never a 400); an
-undeclared effort is not sent at all (omitting it is how the default is asked for). Opus 5 accepts
-`thinking: disabled` only at `high` or below, so under `disableThinking` its levels stop there
-(`thinkingOffCeiling`); Sonnet 5 takes `disabled` at every level, and effort still governs every
-output token with thinking off.
+undeclared effort is not sent at all (omitting it is how the default is asked for).
+
+**The Anthropic families differ in three ways that are each a 400**, and `ANTHROPIC_MODEL_SUPPORT`
+(first prefix match wins, so `claude-sonnet-5-5` sits above `claude-sonnet-5`) is where each fact
+lives — never an inline check on one id:
+
+| Family | Off switch under `disableThinking` | Effort beside it | Pinned `tool_choice` | Cache minimum |
+|---|---|---|---|---|
+| Sonnet 5.5 | `between_tools` (alone — `display`, `budget_tokens`, `block_binding` beside it are 400s) | low … high (`thinkingOffCeiling`) | 400 | 512 |
+| Opus 5.5 | none: always thinks, nothing is sent, effort is the control | all | 400 | 512 |
+| Fable 5.1, Mythos 5.1 | none | all | 400 | 512 |
+| Fable 5, Mythos 5 | none | all | accepted | 512 |
+| Opus 5 | `disabled` | low … high (`thinkingOffCeiling`) | accepted | 512 |
+| Sonnet 5, Opus 4.8/4.7 | `disabled` | all | accepted | 1024 |
+| Older models (Haiku 4.5, Sonnet 4.6, …) | none — they reason only when asked | per the effort table | accepted | 1024 |
+
+`thinkingOffFor(config)` is the value `build` sends; `refine` carries it through `lc_kwargs` and
+reads it back to keep the ceiling, so a climbed retry stops at `high` instead of answering 400. The
+cache minimum is the default under a preset's own `cacheMinTokens`.
+
+**Structured output on a model that refuses a pinned tool** (`rejectsForcedTool`): `toolChoice`
+answers `{ type: 'auto' }`, `pinsTool` answers `false`, and `prepare` appends
+`toolCallInstruction(toolName)` to the per-call payload after the JSON mention — the prompt is all
+that asks for the call. The tool goes `strict: true` only when `isStrictSchema(schema)` (every object
+closed with `additionalProperties: false`, basic types, scalar `enum`/`const`, `anyOf`/`allOf`, the
+listed formats, `minItems` 0/1; no `$ref`, no length/pattern/numeric constraints, no `nullable`): a
+strict schema outside that subset is a 400 no retry fixes, while a non-strict one is still checked by
+the caller's validator. A reply with no tool call falls to the JSON-content fallback and otherwise
+throws a retryable `null-output` — a failed attempt, never a crash. Every other model keeps the pin
+and gets neither instruction nor `strict`.
+
+**langchain reads a `thinking` it never sends.** `ChatAnthropic` keeps a `thinking: disabled` field
+default, off the wire unless set, but its client-side parameter check reads it: an Opus 5/5.5 call
+at `xhigh`/`max` with no `thinking` set threw "thinking.type=disabled is not supported" locally,
+before any request — not a 400, so retried to exhaustion. `build` and `refine` therefore set that
+unsent field to `adaptive` on a model whose absent field means adaptive (`thinksByDefault`: the 5
+family, not Opus 4.8/4.7); the wire is unchanged.
 
 **Effort climbs on retries, one level per attempt of the rung** (`LlmRefineParams.rungAttempt`), from
 the rung's declared level — or its model's default once it has retried — to the model's ceiling. So
@@ -283,6 +332,36 @@ wire. Effort is part of Anthropic's cached prefix, so a climbed retry writes a n
 At `high` and above the OpenAI plugin floors the output budget at `REASONING_MIN_MAX_TOKENS` (25k,
 OpenAI's reasoning-guide reservation for reasoning + answer), clamped to the cap, like
 `ADAPTIVE_MIN_MAX_TOKENS` below.
+
+**OpenAI effort travels in `modelKwargs.reasoning`, never in the constructor's `reasoning` field.**
+`@langchain/openai` (1.5.x) puts that field on the wire only for names it recognises as reasoning
+models (`o*`, `gpt-5*`), so on `gpt-6-*` it was dropped from every request with no error — every
+preset effort on an OpenAI rung was ignored. `modelKwargs` is spread verbatim into the Responses
+body for every model, and langchain adds its own `reasoning` key only when the constructor field or a
+call option is set, which the plugin never does, so the key goes out exactly once. `build` writes it
+there and `refine` climbs it there (reading the declared level back from `modelKwargs`). Assert it on
+the request body, `invocationParams()`, never on `lc_kwargs`. Verified live 2026-09-29 on
+`gpt-6-luna`: `effort: low` → 179 reasoning tokens, `high` → 331, both echoed back in the response's
+`reasoning`; `gpt-5.4-mini` still gets no effort.
+
+**OpenAI hides property NAMES that look like keywords.** A non-strict `json_schema` response format
+(the only one the plugin sends, `strict: false`) is rendered into the model's prompt with JSON-schema
+keywords stripped by KEY, anywhere in the tree, a `properties` map included. A property named like one
+of `OPENAI_HIDDEN_PROPERTY_NAMES` — `required`, `default`, `format`, `pattern`,
+`additionalProperties`, `examples`, `deprecated`, `readOnly`, `writeOnly`, `minimum`, `maximum`,
+`exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minLength`, `maxLength`, `minItems`,
+`maxItems`, `uniqueItems`, `minProperties`, `maxProperties`, `allOf`, `not`, `if`, `then`, `else`,
+`contains`, `propertyNames`, `patternProperties`, `dependentRequired`, `unevaluatedProperties`
+(measured on `gpt-6-sol`/`gpt-6-luna`) — never reaches the model, is never answered, and fails
+validation identically on every retry. `type`, `properties`, `items`, `enum`, `const`,
+`description`, `title`, `nullable`, `anyOf`, `oneOf`, `$ref`, `$id`, `$defs`, `definitions`,
+`prefixItems` and `discriminator` survive. The plugin's `schemaDefects` names each such property by
+JSON pointer (only keys of a `properties` map — a keyword in keyword position is fine), and `invoke`
+/ `request` throw `LlmMissconfiguredError` before the rung's first request; a misconfiguration is
+fatal to every retry loop. Function calling (`structuredOutput: false`) and Anthropic's tool mode
+keep every name and are not refused. Rename the field (`mandatory` for `required`). `strict: true`
+is not sent to OpenAI: its strict mode also demands every property in `required`, which
+`isStrictSchema` (Anthropic's subset) does not check.
 
 ### Reasoning is off unless a preset asks for it — and it is billed against the same budget
 
@@ -299,8 +378,9 @@ the idle deadline reads as a dead connection and retries from scratch
 `makeLlmModel` appends the literal `/no_think` to every request's prepared messages whenever the flag
 is set AND the plugin's `suppressesThinking(config)` does not answer `true` — the soft switch for
 models with no request-level control (Qwen3). The Anthropic plugin answers `true` only for
-`rejectsSampling(model)`, and for those puts `thinking: { type: 'disabled' }` on the request in
-`build`, which `refine` carries through `lc_kwargs` on every attempt. Below that line
+`rejectsSampling(model)`, and for those puts the family's off switch (`thinkingOffFor`, the table
+above) on the request in `build`, which `refine` carries through `lc_kwargs` on every attempt — on a
+model that always thinks nothing is sent and the flag only keeps the directive out. Below that line
 (`claude-haiku-4-5`, `claude-sonnet-4-6`) and under any plugin declaring no hook the flag injects
 prompt text instead, so set it where the wire honours it. **A preset must set the flag on every
 adaptive Anthropic rung**: a same-provider `fallback` inherits it from the rung above, a rung that
@@ -325,6 +405,14 @@ Two diagnostics the above depends on:
 
 OpenAI reasoning models get it handled by shrinking the reasoning cap on retry (`plugins/openai.ts`);
 escalating `maxTokens` alone fixes neither family — the retry draws from an unchanged distribution.
+
+**Every attempt is a fresh request over the caller's history.** A retry or a fallback rung re-sends
+the same prepared messages; a failed attempt's reply is never appended. So the thinking-block
+bindings of Opus 5.5, Sonnet 5.5 and Fable 5.1 (a block is read only by its own model, or a listed
+successor; the API drops the rest, unbilled) cost nothing here. What they do bind is a CALLER that
+carries assistant turns across `talk` calls: an edit before a replayed block (the system prompt, the
+tools, an earlier message) is a 400 on accounts created on or after 2026-08-31, so such a
+conversation stays append-only.
 
 ## Config precedence: a preset is a base, not a final word
 
@@ -357,10 +445,16 @@ retry control or persistence that the call itself depends on.
 
 ## Tests
 
-`bun test ./tests` in the package; offline specs always run. In `tests/model.spec.ts` the anthropic live
+`bun test ./tests` in the package; offline specs always run. `tests/results.spec.ts` holds GOLDEN
+bytes of a composed prompt and of a model's sent messages recorded before the results block existed
+— the proof that a call without a view is unchanged; never re-record them to make a change pass.
+In `tests/model.spec.ts` the anthropic live
 suite is gated on `ANTHROPIC_SECRET` and self-skips with a printed reason without it, and the OpenRouter
 suite is disabled unconditionally: an aggregator on a separate account serving models no deployment runs,
-whose `402 requires more credits` reads as a failure of the code under test. `plugins.spec.ts` covers the
+whose `402 requires more credits` reads as a failure of the code under test. `anthropic-families.spec.ts`
+pins the per-family wire (thinking switch, effort ceiling, `tool_choice`, `strict`, cache minimum,
+the retry on a text-only reply) through `ChatAnthropic.invocationParams`; `structured-schema.spec.ts`
+pins the refusal of a hidden property name before any request. `plugins.spec.ts` covers the
 `Compatible` provider offline.
 
 ## Depends On

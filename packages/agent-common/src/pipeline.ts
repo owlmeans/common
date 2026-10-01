@@ -346,6 +346,50 @@ export const pipelineDescendants = (spec: PipelineSpec, step: string): string[] 
   return orderPipelineSteps(spec).filter(name => reached.has(name))
 }
 
+/**
+ * Every step `step` transitively waits on, with its DEPTH — the fewest `after` edges between the
+ * two — in topological order.
+ *
+ * The mirror of {@link pipelineDescendants}, with one deliberate asymmetry: the named step itself
+ * is NOT included. A re-run re-enters the step it names, so the descendants include it; nothing is
+ * its own predecessor, so the ancestors do not. The depth is what a consumer uses to decide how
+ * much of a predecessor's output it needs to be told — a direct predecessor is depth 1 however far
+ * apart the two sit in the topological order.
+ *
+ * @throws {PipelineUnknownStepError} when the spec does not declare `step`.
+ */
+export const pipelineAncestry = (
+  spec: PipelineSpec, step: string,
+): Array<{ step: string, depth: number }> => {
+  if (!spec.steps.some(entry => entry.step === step)) {
+    throw new PipelineUnknownStepError(`${spec.alias}:${step}`)
+  }
+
+  const after = new Map(spec.steps.map(entry => [entry.step, entry.after ?? []]))
+  const depths = new Map<string, number>()
+  let frontier = [step]
+  for (let depth = 1; frontier.length > 0; ++depth) {
+    const next: string[] = []
+    for (const name of frontier) {
+      for (const dependency of after.get(name) ?? []) {
+        if (dependency !== step && !depths.has(dependency)) {
+          depths.set(dependency, depth)
+          next.push(dependency)
+        }
+      }
+    }
+    frontier = next
+  }
+
+  return orderPipelineSteps(spec)
+    .filter(name => depths.has(name))
+    .map(name => ({ step: name, depth: depths.get(name)! }))
+}
+
+/** The names from {@link pipelineAncestry}: what must finish before `step` may start, in order. */
+export const pipelineAncestors = (spec: PipelineSpec, step: string): string[] =>
+  pipelineAncestry(spec, step).map(entry => entry.step)
+
 /** The declaration of one step, by name. `null` when the spec does not declare it. */
 export const pipelineStep = (spec: PipelineSpec, step: string): PipelineStepSpec | null =>
   spec.steps.find(entry => entry.step === step) ?? null

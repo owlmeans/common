@@ -65,6 +65,32 @@ export enum CodeScope {
   Entity = 'entity',
 }
 
+/** What a data-defined schema record declares: a card type or a status flow. */
+export enum PlanningSchemaKind {
+  Type = 'type',
+  Flow = 'flow',
+}
+
+/**
+ * The layer a resolved type or flow comes from. `code` is the in-process registry (plugins),
+ * `entity` an organization-wide record, `project` a record scoped to one project card.
+ */
+export enum SchemaOrigin {
+  Code = 'code',
+  Entity = 'entity',
+  Project = 'project',
+}
+
+/** How a `schema.define` request writes its declarations. */
+export enum SchemaWriteMode {
+  /** Each declaration lands at its layer's next version. */
+  Define = 'define',
+  /** Compare-and-set: each declaration's `version` must be its layer's next version. */
+  Put = 'put',
+  /** Only keys the layer lacks are written, at version 1. */
+  Seed = 'seed',
+}
+
 /** Service alias of the planning facade host. Identical on the server and in a client. */
 export const PLANNING_SERVICE = 'planning'
 
@@ -133,4 +159,12 @@ export const planningAliases = (base: string) => Object.freeze({
   transition: Object.freeze({ get: `${base}:transition:get` }),
   execute: `${base}:execute`,
   commit: Object.freeze({ get: `${base}:commit:get`, events: `${base}:commit:events` }),
+})
+
+/**
+ * The aliases of the leaves a tree gains with `definitions: true` — kept apart from
+ * {@link planningAliases} so a tree declared without them names no alias it does not declare.
+ */
+export const planningDefinitionAliases = (base: string) => Object.freeze({
+  define: `${base}:schema:define`,
 })

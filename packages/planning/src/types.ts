@@ -4,8 +4,8 @@ import type { Criteria, ListOptions, ListResult, ResourceRecord } from '@owlmean
 import type { RouteParent } from '@owlmeans/route'
 import type { AnySchema, ValidateFunction } from 'ajv'
 import type {
-  CodeScope, CodeStyle, CommitState, IntrinsicPolicy, IntrinsicStatus, SpecificationFormat,
-  TransitionAction, WorkcardKind,
+  CodeScope, CodeStyle, CommitState, IntrinsicPolicy, IntrinsicStatus, PlanningSchemaKind, SchemaOrigin,
+  SchemaWriteMode, SpecificationFormat, TransitionAction, WorkcardKind,
 } from './consts.js'
 
 // ─── Records ─────────────────────────────────────────────────────────────────────────────────────
@@ -186,6 +186,11 @@ export interface StatusFlowSchema {
   statuses: StatusDefinition[]
   transitions: StatusTransitionRule[]
   label?: string
+  /**
+   * A code-registered flow is sealed against a data-defined override unless it says so. Meaningless
+   * on a data-defined flow: a project may override any organization-wide record.
+   */
+  overridable?: boolean
 }
 
 export interface SpecificationSlot {
@@ -243,12 +248,22 @@ export interface WorkcardTypeSchema {
   labels?: string[]
   code?: CodePolicy
   label?: string
+  /**
+   * A code-registered card type is sealed against a data-defined override unless it says so.
+   * Meaningless on a data-defined type: a project may override any organization-wide record.
+   */
+  overridable?: boolean
 }
 
 export interface ProjectTypeSchema extends Omit<WorkcardTypeSchema, 'kind'> {
   kind: WorkcardKind.Project
   cardTypes: string[]
   projectTypes?: string[]
+  /**
+   * The project admits cards of data-defined types (organization-wide or its own) beside the
+   * `cardTypes` it lists.
+   */
+  scopedCardTypes?: boolean
 }
 
 export type AnyTypeSchema = WorkcardTypeSchema | ProjectTypeSchema
@@ -276,6 +291,156 @@ export interface PlanningSchemaRegistry {
   bundle: () => PlanningSchemaBundle
   /** Replace everything with a bundle — a client's boot. */
   load: (bundle: PlanningSchemaBundle) => void
+}
+
+// ─── Data-defined (scoped) schemas ───────────────────────────────────────────────────────────────
+
+/** The layer a record belongs to: an organization, and optionally one of its project cards. */
+export interface SchemaScope {
+  entityId: string
+  /** A project card id; the organization-wide layer when omitted. */
+  project?: string
+}
+
+/**
+ * A card type or a status flow defined as data — organization-wide, or scoped to one project.
+ *
+ * `version` is the record's compare-and-set token and is also written into the declaration's own
+ * `version`: a write lands only at its layer's next version (1 for a new key).
+ */
+export interface ScopedSchemaRecord extends ResourceRecord {
+  id?: string
+  entityId: string
+  /** A project card id; absent on an organization-wide record. */
+  project?: string
+  kind: PlanningSchemaKind
+  /** The type key or the flow id. */
+  key: string
+  version: number
+  /** A `WorkcardTypeSchema` of kind `card`, or a `StatusFlowSchema`. */
+  definition: WorkcardTypeSchema | StatusFlowSchema
+  /**
+   * Retired: offered for nothing new, still resolved for what already uses it. A retired record
+   * gives way to a live declaration of the same key in a lower layer.
+   */
+  retired?: boolean
+  /** The organization's schema revision this write landed at — assigned by the store. */
+  rev?: number
+  createdAt: string
+  updatedAt?: string
+  by?: TransitionActor
+}
+
+export interface ScopedSchemaWhere {
+  entityId: string
+  /** A project id — that project's layer; `null` — the organization-wide layer; omitted — every layer. */
+  project?: string | null
+  kind?: PlanningSchemaKind
+  key?: string | string[]
+  retired?: boolean
+}
+
+/**
+ * The optional port a store implements to hold data-defined types and flows. A store without it
+ * resolves every type and flow from the code registry alone.
+ */
+export interface SchemaStore {
+  list: (where: ScopedSchemaWhere) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Write one record — compare-and-set on `version`: the stored record of the same layer and key
+   * must be at `record.version - 1` (absent for version 1). Bumps the organization's revision.
+   *
+   * @throws {SchemaConflict}
+   */
+  put: (record: ScopedSchemaRecord) => Promise<ScopedSchemaRecord>
+  /** Remove a project's whole layer (its project was purged). Bumps the revision. */
+  purge: (where: { entityId: string, project: string }) => Promise<number>
+  /** The organization's monotonic schema revision — 0 before its first write. */
+  revision: (entityId: string) => Promise<number>
+  /** Hear of every write of an organization's records, from this process and — where the store can — others. */
+  watch?: (listener: (entityId: string) => void) => Unsubscribe
+}
+
+export interface SchemaKey {
+  kind: PlanningSchemaKind
+  key: string
+}
+
+/** What a scoped bundle adds, per kind: where each key resolved from, and which keys are retired. */
+export interface ScopedSchemaOrigins {
+  types: Record<string, SchemaOrigin>
+  flows: Record<string, SchemaOrigin>
+}
+
+export interface ScopedSchemaRetired {
+  types: string[]
+  flows: string[]
+}
+
+/**
+ * A bundle resolved for one layer: the code registry, overlaid by the organization's records, then
+ * by the project's. Retired declarations stay in `types`/`flows` (existing cards still resolve them)
+ * and are listed in `retired`. Readers of the plain bundle ignore the extra keys.
+ */
+export interface ScopedSchemaBundle extends PlanningSchemaBundle {
+  scope?: SchemaScope
+  /** The organization's schema revision the bundle was resolved at. */
+  revision?: number
+  origins?: ScopedSchemaOrigins
+  retired?: ScopedSchemaRetired
+}
+
+/** A read-only registry over one resolved layer. Its `register*` and `load` refuse. */
+export interface ScopedSchemaRegistry extends PlanningSchemaRegistry {
+  scope: SchemaScope
+  revision: number
+  /** `undefined` for a key the layer does not resolve. */
+  originOf: (kind: PlanningSchemaKind, key: string) => SchemaOrigin | undefined
+  isRetired: (kind: PlanningSchemaKind, key: string) => boolean
+  bundle: () => ScopedSchemaBundle
+}
+
+/** Declarations written together — flows first, so a type may name a flow defined beside it. */
+export interface SchemaDeclarations {
+  types?: WorkcardTypeSchema[]
+  flows?: StatusFlowSchema[]
+}
+
+export interface SchemaWriteOptions {
+  /** A project card id — that project's layer; the organization-wide layer when omitted. */
+  project?: string
+}
+
+/**
+ * Data-defined types and flows — present on a facade whose store implements
+ * {@link PlanningStore.schemas}. Only card types and flows are data-defined; projects and
+ * specifications always resolve in code.
+ */
+export interface PlanningDefinitions {
+  /** The layer resolved: the organization-wide one, or a project's (which includes it). */
+  bundle: (project?: string) => Promise<ScopedSchemaBundle>
+  registry: (project?: string) => Promise<ScopedSchemaRegistry>
+  /** The records of one layer (`project: null` the organization's; omitted — every layer). */
+  records: (opts?: { project?: string | null, kind?: PlanningSchemaKind, retired?: boolean }) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Compare-and-set: `type.version` must be the layer's next version (1 for a new key).
+   *
+   * @throws {SchemaConflict | SchemaSealed | SchemaInvalid | WorkcardNotFound}
+   */
+  putType: (type: WorkcardTypeSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
+  /** Compare-and-set, as {@link putType}. */
+  putFlow: (flow: StatusFlowSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
+  /** Every declaration at its layer's next version — flows first, then types. */
+  define: (declarations: SchemaDeclarations, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord[]>
+  /** Only the keys the layer lacks, at version 1 — idempotent. */
+  seed: (declarations: SchemaDeclarations, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Retire a key at a layer. Existing cards keep resolving it; nothing new is created with it.
+   *
+   * @throws {SchemaInUse} a flow still resolved by a live type of an affected layer
+   * @throws {UnknownWorkcardType | UnknownStatusFlow} the layer holds no record of the key
+   */
+  retire: (kind: PlanningSchemaKind, key: string, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
 }
 
 // ─── Execution and receipts ──────────────────────────────────────────────────────────────────────
@@ -389,7 +554,8 @@ export interface CommitSource {
 export interface TransitionWhere {
   entityId: string
   card?: string | string[]
-  project?: string
+  /** One project, or any of several. */
+  project?: string | string[]
   sinceSeq?: number
   state?: CommitState
   action?: TransitionAction | TransitionAction[]
@@ -456,6 +622,8 @@ export interface RelationshipWhere {
   from?: string | string[]
   to?: string | string[]
   type?: string | string[]
+  /** The project an edge is filed under. A store that ignores it is narrowed by the facade. */
+  project?: string | string[]
 }
 
 export interface RelationshipStore {
@@ -482,6 +650,8 @@ export interface PlanningStore {
   specs?: SpecificationStore
   links?: RelationshipStore
   commits?: CommitSource
+  /** Data-defined types and flows. Without it every type and flow resolves in code. */
+  schemas?: SchemaStore
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────────────────────────
@@ -613,6 +783,29 @@ export interface RevisionsQuery {
   limit?: number
 }
 
+export interface SchemaListQuery {
+  /** A project card id — that project's layer; the organization-wide one when omitted. */
+  project?: string
+}
+
+/** The one write of data-defined types and flows over the wire. */
+export interface SchemaDefineRequest {
+  /** A project card id — that project's layer; the organization-wide one when omitted. */
+  project?: string
+  /** `define` when omitted. */
+  mode?: SchemaWriteMode
+  types?: WorkcardTypeSchema[]
+  flows?: StatusFlowSchema[]
+  /** Keys retired at the layer after the declarations are written. */
+  retire?: SchemaKey[]
+}
+
+/** What a `schema.define` answers: the records it wrote, and the layer as it resolves afterwards. */
+export interface SchemaDefineReply {
+  records: ScopedSchemaRecord[]
+  bundle: ScopedSchemaBundle
+}
+
 // ─── Facade, scope, service, plugin seam ─────────────────────────────────────────────────────────
 
 export interface PlanningScope {
@@ -622,6 +815,12 @@ export interface PlanningScope {
   service?: string
   channel?: string
   actor?: TransitionActor
+  /**
+   * The only project cards this scope may see and write — the projects themselves and every card
+   * whose `parents` name one (a card's document through its card). Every project when omitted.
+   * Advisory on a client, where the server decides.
+   */
+  projects?: string[]
 }
 
 export interface PlanningFacade {
@@ -652,6 +851,8 @@ export interface PlanningFacade {
   commits: CommitSource
   execute: (exec: TransitionExecution, opts?: ExecuteOptions) => Promise<TransitionReceipt>
   model: <T extends Workcard = Workcard>(card: T | string) => Promise<WorkcardModel<T>>
+  /** Data-defined types and flows — present only where the store holds them. */
+  definitions?: PlanningDefinitions
 }
 
 export interface WithPlanningService {
@@ -804,12 +1005,21 @@ export interface PlanningProtocolOptions {
    * planning base when omitted.
    */
   socketBase?: RouteParent
+  /**
+   * Declare the data-defined schema surface: `schema.list` takes a `project` query and answers
+   * that layer's scoped bundle, and `schema.define` writes. Off by default — a tree without it
+   * declares exactly the other leaves.
+   */
+  definitions?: boolean
 }
 
 export interface PlanningProtocols {
   base: EntrypointProtocol<OpenRequest, OpenValue>
   schema: {
-    list: EntrypointProtocol<{}, PlanningSchemaBundle>
+    /** The plain bundle — or, on a tree declared with `definitions`, a layer's scoped one. */
+    list: EntrypointProtocol<{ query?: SchemaListQuery }, ScopedSchemaBundle>
+    /** Present on a tree declared with `definitions` only. */
+    define?: EntrypointProtocol<{ body: SchemaDefineRequest }, SchemaDefineReply>
   }
   card: {
     list: EntrypointProtocol<{ query: WorkcardQueryWire }, ListResult<Workcard>>

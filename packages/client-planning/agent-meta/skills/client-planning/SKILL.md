@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.12"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.15"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -24,13 +24,14 @@ CLI). React hooks over the mirror are `useStoreModel` / `useStoreList` from `@ow
 | `makePlanningClientService(context, options)` | The service itself, for a host that registers it on its own |
 | `makeRemoteFacade(context, protocols, scope, opts)` | One facade — every method is one entrypoint call |
 | `makeRemoteCommitSource(context, protocols, opts?)` | `status` / `subscribe` / `wait` over `commit.get` and `commit.events` |
+| `makeRemoteDefinitions(context, protocols, opts?)` | Data-defined types and flows over a tree declared with `definitions: true` |
 | `appendPlanningStores(context, aliases?)` / `planningStoresOf(context)` | The state mirror, and a lookup that answers `null` without one |
 | `syncCards(store, items, where?, opts?)` / `syncLinks(...)` | Make the mirror agree with a list WITHIN a scope |
 | `applyCommitEvent(stores, event, facade?)` / `applyReceipt(stores, view)` / `applyCards(stores, cards)` | The folds |
 | `makePlanningFeed(context, opts?)` | Subscribe, seed, fold, refresh — `{ connected, seeded, error, ready, refresh, stop }` |
 | `planningOf(context, scope?)` / `planningModelOf(context, card, scope?)` | The facade / a model with the schemas loaded |
 | `CARDS`, `LINKS`, `COMMITS` | Store aliases (`planning-card-state`, `planning-link-state`, `planning-commit-state`) |
-| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions` |
+| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteDefinitions`, `RemoteDefinitionsOptions`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions` |
 
 ## Wiring
 
@@ -74,6 +75,17 @@ round trip). The bundle is fetched in the background once the context is **Ready
 there is swallowed — a browser that is not signed in yet cannot read it, and a context must never
 fail or wait over it. `model()` and `service.loadSchemas()` load it on first use regardless, and a
 failed load is retried by the next caller. `schemas: false` skips the background load.
+
+### Data-defined types and flows
+
+A tree declared with `definitions: true` (the server's store holds data-defined schemas) gives the
+service and every facade `definitions`: `registry(project?)` / `bundle(project?)` read
+`schema.list?project=` and are cached per project; `putType`/`putFlow` (compare-and-set on the
+declaration's `version`), `define`, `seed` and `retire` go through `schema.define` and drop the
+whole cache — an organization-wide write reaches every project's layer — and make the next
+`model()` reload the service's own bundle. `records` is the server's alone (`PlanningUnsupported`).
+`model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
+`parent`); a specification's type is always code's. A tree without `definitions` has none of this.
 
 ## Reading
 

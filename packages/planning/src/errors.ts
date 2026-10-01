@@ -206,6 +206,72 @@ export class PlanningScopeMismatch extends PlanningError {
   }
 }
 
+/**
+ * A data-defined schema write lost its compare-and-set: the layer's record is not at the version
+ * the write replaces. Re-read the layer and retry.
+ */
+export class SchemaConflict extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}SchemaConflict`
+  /** The stored record moved past the expected version: answered 409. */
+  public static httpStatus = 409
+
+  constructor(message: string = 'error') {
+    super(`schema-conflict:${message}`)
+    this.type = SchemaConflict.typeName
+  }
+}
+
+/** A flow cannot be retired while a live type of an affected layer still resolves it. */
+export class SchemaInUse extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}SchemaInUse`
+  /** Other declarations still depend on the key: answered 409. */
+  public static httpStatus = 409
+
+  constructor(message: string = 'error') {
+    super(`schema-in-use:${message}`)
+    this.type = SchemaInUse.typeName
+  }
+}
+
+/**
+ * The key is registered in code and does not declare itself `overridable` — or it is a project
+ * or specification type, which only code declares.
+ */
+export class SchemaSealed extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}SchemaSealed`
+  /** The key cannot be declared as data: answered 422. */
+  public static httpStatus = 422
+
+  constructor(message: string = 'error') {
+    super(`schema-sealed:${message}`)
+    this.type = SchemaSealed.typeName
+  }
+}
+
+/** A data-defined declaration fails its closed-form checks. */
+export class SchemaInvalid extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}SchemaInvalid`
+  /** The declaration's content is refused: answered 422. */
+  public static httpStatus = 422
+
+  constructor(message: string = 'error') {
+    super(`schema-invalid:${message}`)
+    this.type = SchemaInvalid.typeName
+  }
+}
+
+/** The request's access does not grant the write (creating or deleting a project, defining schemas). */
+export class PlanningForbidden extends PlanningError {
+  public static override typeName: string = `${PlanningError.typeName}Forbidden`
+  /** The caller lacks the grant the write needs: answered 403. */
+  public static httpStatus = 403
+
+  constructor(message: string = 'error') {
+    super(`forbidden:${message}`)
+    this.type = PlanningForbidden.typeName
+  }
+}
+
 /** The store behind this type cannot do what was asked (a foreign provider without a log). */
 export class PlanningUnsupported extends PlanningError {
   public static override typeName: string = `${PlanningError.typeName}Unsupported`
@@ -234,4 +300,9 @@ ResilientError.registerErrorClass(WorkcardConflict)
 ResilientError.registerErrorClass(CommitTimeout)
 ResilientError.registerErrorClass(CommitFailed)
 ResilientError.registerErrorClass(PlanningScopeMismatch)
+ResilientError.registerErrorClass(SchemaConflict)
+ResilientError.registerErrorClass(SchemaInUse)
+ResilientError.registerErrorClass(SchemaSealed)
+ResilientError.registerErrorClass(SchemaInvalid)
+ResilientError.registerErrorClass(PlanningForbidden)
 ResilientError.registerErrorClass(PlanningUnsupported)

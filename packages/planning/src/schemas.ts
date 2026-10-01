@@ -5,12 +5,14 @@ import type { ListResult } from '@owlmeans/resource'
 import {
   BODY_MAX, CAUSE_MAX, CODE_MAX, CodeScope, CodeStyle, CommitState, DESCRIPTION_MAX, IntrinsicPolicy,
   IntrinsicStatus, KEY_MAX, LABEL_MAX, MAX_COMMIT_POLL, MAX_LABELS, MAX_PARENTS, MAX_QUERY_LIST,
-  QUERY_TEXT_MAX, REF_MAX, SpecificationFormat, TITLE_MAX, TransitionAction, TYPE_MAX, WorkcardKind,
+  PlanningSchemaKind, QUERY_TEXT_MAX, REF_MAX, SchemaOrigin, SchemaWriteMode, SpecificationFormat,
+  TITLE_MAX, TransitionAction, TYPE_MAX, WorkcardKind,
 } from './consts.js'
 import type {
   AnyTypeSchema, CodePolicy, CommitEvent, CommitFeedQuery, CommitQuery, CommitStatus, ExecuteRequest,
   PlanningSchemaBundle, ProjectTypeSchema, Relationship, RelationshipDraft, RelationshipQueryWire,
-  RelationshipType, RevisionsQuery, Specification, SpecificationQueryWire, SpecificationRevision,
+  RelationshipType, RevisionsQuery, SchemaDefineRequest, SchemaKey, SchemaListQuery, ScopedSchemaBundle,
+  ScopedSchemaRecord, Specification, SpecificationQueryWire, SpecificationRevision,
   SpecificationRevisionList, SpecificationSlot, StatusDefinition, StatusFlowSchema,
   StatusTransitionRule, SummaryQueryWire, SummaryView, Transition, TransitionActor, TransitionCommit,
   TransitionExecution, TransitionParams, TransitionQueryWire, TransitionReceiptView, Workcard,
@@ -260,6 +262,7 @@ export const StatusFlowSchemaSchema = cast<StatusFlowSchema>({
     statuses: { type: 'array', minItems: 1, items: StatusDefinitionSchema },
     transitions: { type: 'array', items: StatusTransitionRuleSchema },
     label: { type: 'string', maxLength: TITLE_MAX, nullable: true },
+    overridable: { type: 'boolean', nullable: true },
   },
   required: ['id', 'version', 'statuses', 'transitions'],
   additionalProperties: false,
@@ -322,6 +325,7 @@ const typeProperties = {
   labels: { type: 'array', items: Label, nullable: true },
   code: { ...CodePolicySchema, nullable: true },
   label: { type: 'string', maxLength: TITLE_MAX, nullable: true },
+  overridable: { type: 'boolean', nullable: true },
 }
 
 const typeRequired = ['type', 'kind', 'version', 'fields', 'flows', 'specifications']
@@ -343,6 +347,7 @@ export const ProjectTypeSchemaSchema = cast<ProjectTypeSchema>({
     kind: { type: 'string', enum: [WorkcardKind.Project] },
     cardTypes: { type: 'array', items: TypeKey },
     projectTypes: { type: 'array', items: TypeKey, nullable: true },
+    scopedCardTypes: { type: 'boolean', nullable: true },
   },
   required: [...typeRequired, 'cardTypes'],
   additionalProperties: false,
@@ -356,6 +361,7 @@ export const AnyTypeSchemaSchema = cast<AnyTypeSchema>({
     kind: WorkcardKindSchema,
     cardTypes: { type: 'array', items: TypeKey, nullable: true },
     projectTypes: { type: 'array', items: TypeKey, nullable: true },
+    scopedCardTypes: { type: 'boolean', nullable: true },
   },
   required: typeRequired,
   additionalProperties: false,
@@ -369,6 +375,96 @@ export const PlanningSchemaBundleSchema = cast<PlanningSchemaBundle>({
     flows: { type: 'array', items: StatusFlowSchemaSchema },
   },
   required: ['version', 'types', 'flows'],
+  additionalProperties: false,
+})
+
+// ─── Data-defined (scoped) schemas ───────────────────────────────────────────────────────────────
+
+export const PlanningSchemaKindSchema = cast<PlanningSchemaKind>({ type: 'string', enum: Object.values(PlanningSchemaKind) })
+export const SchemaOriginSchema = cast<SchemaOrigin>({ type: 'string', enum: Object.values(SchemaOrigin) })
+export const SchemaWriteModeSchema = cast<SchemaWriteMode>({ type: 'string', enum: Object.values(SchemaWriteMode) })
+
+export const ScopedSchemaRecordSchema = cast<ScopedSchemaRecord>({
+  type: 'object',
+  properties: {
+    id: OptionalId,
+    entityId: Id,
+    project: OptionalId,
+    kind: PlanningSchemaKindSchema,
+    key: TypeKey,
+    version: { type: 'number', minimum: 1 },
+    /** A card type or a flow — its own schema is applied by `assertTypeSchema` / `assertFlowSchema`. */
+    definition: OpenObject,
+    retired: { type: 'boolean', nullable: true },
+    rev: { type: 'number', minimum: 0, nullable: true },
+    createdAt: IsoDate,
+    updatedAt: OptionalIsoDate,
+    by: { ...TransitionActorSchema, nullable: true },
+  },
+  required: ['entityId', 'kind', 'key', 'version', 'definition', 'createdAt'],
+  additionalProperties: false,
+})
+
+export const SchemaKeySchema = cast<SchemaKey>({
+  type: 'object',
+  properties: { kind: PlanningSchemaKindSchema, key: TypeKey },
+  required: ['kind', 'key'],
+  additionalProperties: false,
+})
+
+const originMap = () => ({ type: 'object', additionalProperties: { type: 'string', enum: Object.values(SchemaOrigin) }, required: [] })
+const keyList = () => ({ type: 'array', items: TypeKey })
+
+export const ScopedSchemaBundleSchema = cast<ScopedSchemaBundle>({
+  type: 'object',
+  properties: {
+    version: { type: 'number', minimum: 1 },
+    types: { type: 'array', items: AnyTypeSchemaSchema },
+    flows: { type: 'array', items: StatusFlowSchemaSchema },
+    scope: {
+      type: 'object',
+      properties: { entityId: Id, project: OptionalId },
+      required: ['entityId'],
+      additionalProperties: false,
+      nullable: true,
+    },
+    revision: { type: 'number', minimum: 0, nullable: true },
+    origins: {
+      type: 'object',
+      properties: { types: originMap(), flows: originMap() },
+      required: ['types', 'flows'],
+      additionalProperties: false,
+      nullable: true,
+    },
+    retired: {
+      type: 'object',
+      properties: { types: keyList(), flows: keyList() },
+      required: ['types', 'flows'],
+      additionalProperties: false,
+      nullable: true,
+    },
+  },
+  required: ['version', 'types', 'flows'],
+  additionalProperties: false,
+})
+
+export const SchemaListQuerySchema = cast<SchemaListQuery>({
+  type: 'object',
+  properties: { project: OptionalId },
+  required: [],
+  additionalProperties: false,
+})
+
+export const SchemaDefineRequestSchema = cast<SchemaDefineRequest>({
+  type: 'object',
+  properties: {
+    project: OptionalId,
+    mode: nullable(SchemaWriteModeSchema),
+    types: { type: 'array', maxItems: MAX_QUERY_LIST, items: WorkcardTypeSchemaSchema, nullable: true },
+    flows: { type: 'array', maxItems: MAX_QUERY_LIST, items: StatusFlowSchemaSchema, nullable: true },
+    retire: { type: 'array', maxItems: MAX_QUERY_LIST, items: SchemaKeySchema, nullable: true },
+  },
+  required: [],
   additionalProperties: false,
 })
 

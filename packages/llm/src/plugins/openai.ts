@@ -6,6 +6,7 @@ import type { ModelConfig } from '../types.js'
 import { resolveOutputCap } from '../utils/config.js'
 import { effortAtLeast, effortFor } from '../utils/effort.js'
 import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
+import { hiddenPropertyNames } from '../utils/schema.js'
 
 /**
  * Model families served through OpenAI's Responses API rather than chat completions. That
@@ -52,6 +53,23 @@ const openAiEffort = (model: string | undefined): EffortSupport | undefined => {
 }
 
 /**
+ * The request's `reasoning` object travels in `modelKwargs`, never in the constructor's
+ * `reasoning` field. `@langchain/openai` puts that field on the wire only for model names it
+ * recognises as reasoning models (`o*`, `gpt-5*`), so on `gpt-6-*` a configured effort was
+ * silently dropped from every request. `modelKwargs` is spread verbatim into the Responses body
+ * for every model, and langchain adds its own `reasoning` key only when the constructor field (or
+ * a call option) is set — which this plugin never does — so the key goes out exactly once.
+ */
+type OpenAiKwargs = ConstructorParameters<typeof ChatOpenAI>[0] & {
+  modelKwargs?: { reasoning?: { max_tokens?: number, effort?: string } & Record<string, unknown> } & Record<string, unknown>
+}
+
+const withEffort = (
+  modelKwargs: OpenAiKwargs['modelKwargs'], effort: ModelEffort | undefined,
+): OpenAiKwargs['modelKwargs'] =>
+  effort != null ? { ...modelKwargs, reasoning: { ...modelKwargs?.reasoning, effort } } : modelKwargs
+
+/**
  * The smallest output budget a request at `high` effort or above is given. Reasoning tokens
  * are billed against `max_output_tokens` together with the answer, and OpenAI's reasoning
  * guide says to reserve at least 25k for the two; below that a hard problem comes back
@@ -63,6 +81,24 @@ const reasoningFloor = (maxTokens: number, effort: ModelEffort | undefined, cap:
   effortAtLeast(effort, ModelEffort.High) ? Math.max(maxTokens, Math.min(REASONING_MIN_MAX_TOKENS, cap)) : maxTokens
 
 export const OPENAI_FAMILY = 'openai'
+
+/**
+ * Property NAMES OpenAI never shows the model in a NON-strict `json_schema` response format — the
+ * one this plugin sends (`strict: false`). The Responses API renders that schema into the prompt
+ * with JSON-schema keywords stripped by KEY, anywhere in the tree, a `properties` map included: a
+ * property named like one of these is removed from what the model sees, never answered, and a
+ * schema that requires it fails validation on every retry. Measured on `gpt-6-sol` / `gpt-6-luna`
+ * (2026-09-29); `type`, `properties`, `items`, `enum`, `const`, `description`, `title`,
+ * `nullable`, `anyOf`, `oneOf`, `$ref`, `$id`, `$defs`, `definitions`, `prefixItems` and
+ * `discriminator` survive. Function calling (`structuredOutput: false`) keeps every name.
+ */
+export const OPENAI_HIDDEN_PROPERTY_NAMES: ReadonlySet<string> = new Set([
+  'required', 'default', 'format', 'pattern', 'additionalProperties', 'examples', 'deprecated',
+  'readOnly', 'writeOnly', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+  'multipleOf', 'minLength', 'maxLength', 'minItems', 'maxItems', 'uniqueItems', 'minProperties',
+  'maxProperties', 'allOf', 'not', 'if', 'then', 'else', 'contains', 'propertyNames',
+  'patternProperties', 'dependentRequired', 'unevaluatedProperties',
+])
 
 /** Every plugin that constructs a `ChatOpenAI` shares these instance-level behaviours. */
 export const openAiFamily = {
@@ -102,9 +138,7 @@ export const openAiFamily = {
   refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
     const model = base as ChatOpenAI
     const currentTemperature = temperature ?? model.temperature ?? 0
-    const baseKwargs = model.lc_kwargs as ConstructorParameters<typeof ChatOpenAI>[0] & {
-      modelKwargs?: { reasoning?: { max_tokens?: number } } & Record<string, unknown>
-    }
+    const baseKwargs = model.lc_kwargs as OpenAiKwargs
     const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
       || baseKwargs.useResponsesApi === true
     // Effort only where `build` chose the Responses API itself — the `compatible` plugin
@@ -112,7 +146,7 @@ export const openAiFamily = {
     const effort = baseKwargs.useResponsesApi === true
       ? effortFor(
         openAiEffort(model.model ?? baseKwargs.model),
-        baseKwargs.reasoning?.effort as ModelEffort | undefined,
+        baseKwargs.modelKwargs?.reasoning?.effort as ModelEffort | undefined,
         rungAttempt ?? attempt,
       )
       : undefined
@@ -137,14 +171,16 @@ export const openAiFamily = {
     // temperature here puts it on the wire for every single request, not just a retry.
     // Suppressing it in one hook and restoring it in the other ships the parameter anyway.
     if (responsesApi) {
+      const kwargs = withEffort(modelKwargs, effort)
       const cfg = {
         ...baseKwargs,
         maxTokens,
-        ...(modelKwargs != null ? { modelKwargs } : {}),
-        ...(effort != null ? { reasoning: { ...baseKwargs.reasoning, effort } } : {}),
+        ...(kwargs != null ? { modelKwargs: kwargs } : {}),
       }
       delete cfg.temperature
       delete cfg.topP
+      // The constructor field is the one langchain drops on `gpt-6-*` — never set it.
+      delete cfg.reasoning
 
       return new ChatOpenAI(cfg)
     }
@@ -173,6 +209,9 @@ export const openAiPlugin: LlmPlugin = {
 
   effort: config => openAiEffort(config.model),
 
+  schemaDefects: (config, schema) =>
+    config.structuredOutput === false ? [] : hiddenPropertyNames(schema, OPENAI_HIDDEN_PROPERTY_NAMES),
+
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'
     const configuration = makeConfiguration({ baseURL: undefined, headers: config.headers })
@@ -200,8 +239,7 @@ export const openAiPlugin: LlmPlugin = {
         useResponsesApi: true,
         metadata: { config },
         callbacks,
-        modelKwargs,
-        ...(effort != null ? { reasoning: { effort } } : {}),
+        modelKwargs: withEffort(modelKwargs, effort),
         ...configuration,
       })
     }

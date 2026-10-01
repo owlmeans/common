@@ -9,7 +9,7 @@ the executor with `@owlmeans/server-planning` and reads remotely with `@owlmeans
 ## Installation
 
 ```sh
-bun add @owlmeans/planning@^0.1.18-rc.10 ajv ajv-formats
+bun add @owlmeans/planning@^0.1.18-rc.13 ajv ajv-formats
 ```
 
 ## Concepts
@@ -78,6 +78,20 @@ const page = await context.entrypoint(planningProtocols.card.list).call({ query 
 const where = criteriaOf(decodeWorkcardQuery(req.query), { entityId })
 ```
 
+Create a card and read it back through a facade — in process the one of `@owlmeans/server-planning`
+(`ctx.service<PlanningHostService>(PLANNING_SERVICE).for({ entityId, profileId })`), remotely the one
+of `@owlmeans/client-planning`:
+
+```ts
+import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
+
+const drill = await planning.execute({
+  action: TransitionAction.Create,
+  card: { kind: WorkcardKind.Card, type: 'shed:tool', parent: shedId, title: 'Cordless drill' },
+}, { wait: true })                     // the options are the SECOND argument
+const again = await planning.cards.get(drill.card!.id!)
+```
+
 Work through a model — the same code on either side of the wire:
 
 ```ts
@@ -107,10 +121,16 @@ const links = transitions.reduce(applyRelationship, [])
 - Write path and feed: `TransitionExecution`, `WorkcardDraft`, `ExecuteRequest`,
   `TransitionReceipt`, `TransitionReceiptView`, `CommitEvent`, `CommitStatus`, `CommitSource`.
 - Ports and seam: `TransitionStore`, `ProjectionStore`, `SpecificationStore`, `RelationshipStore`,
-  `PlanningStore`, `PlanningPlugin`, `PlanningScope`, `PlanningFacade`, `PlanningService`.
+  `SchemaStore`, `PlanningStore`, `PlanningPlugin`, `PlanningScope`, `PlanningFacade`,
+  `PlanningService`, `PlanningDefinitions`.
+- Data-defined types and flows: `ScopedSchemaRecord`, `ScopedSchemaWhere`, `ScopedSchemaBundle`,
+  `ScopedSchemaRegistry`, `SchemaDeclarations`, `SchemaWriteOptions`, `SchemaDefineRequest`,
+  `SchemaDefineReply`, `resolveScopedBundle`, `scopedRegistryOf`, `assertTypeSchema`,
+  `assertFlowSchema`, `assertOverridable`, `flowInUse`.
 - Enums and constants: `WorkcardKind`, `IntrinsicStatus`, `IntrinsicPolicy`, `TransitionAction`,
-  `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope`, `PLANNING_SERVICE`,
-  `PLANNING_PATH`, `PLANNING_COMMIT_EVENT`, `planningAliases`, limits (`TITLE_MAX`, …).
+  `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope`, `PlanningSchemaKind`,
+  `SchemaOrigin`, `SchemaWriteMode`, `PLANNING_SERVICE`, `PLANNING_PATH`, `PLANNING_COMMIT_EVENT`,
+  `planningAliases`, `planningDefinitionAliases`, limits (`TITLE_MAX`, …).
 - Fold and changes: `applyTransition`, `applyRelationship`, `computeChanges`, `isEmptyChange`,
   `assertMutable`, `mergeFields`, `applyUnset`.
 - Status: `intrinsicOf`, `initialStatusOf`, `ruleOf`, `canTransit`, `transitionsFrom`,
@@ -128,27 +148,37 @@ const links = transitions.reduce(applyRelationship, [])
   `ParentNotFound`, `CardTypeNotAllowed`, `PlanningRefused`, `IllegalTransition`, `FieldsInvalid`,
   `LabelNotAllowed`, `SpecificationSlotUnknown`, `SpecificationRevisionConflict`,
   `RelationshipRefused`, `CodeTaken`, `WorkcardConflict`, `CommitTimeout`, `CommitFailed`,
-  `PlanningScopeMismatch`, `PlanningUnsupported`.
+  `PlanningScopeMismatch`, `SchemaConflict`, `SchemaInUse`, `SchemaSealed`, `SchemaInvalid`,
+  `PlanningForbidden`, `PlanningUnsupported`.
 - Schemas: `WorkcardSchema`, `SpecificationSchema`, `TransitionSchema`, `ExecuteRequestSchema`,
   `WorkcardQuerySchema`, … (every record, declaration, request and view).
 
 ## Common pitfalls
 
+- A create's draft goes under `card` (never `draft`), and `{ wait, timeout }` is the second argument
+  of `execute` — inside the execution an in-process facade ignores it.
+- A type or flow declaration has no `name` or `key`: the display name is `label`, the key is `type`
+  (a type) or `id` (a flow); a status has `key`, a transition rule `name`. The declaration schemas
+  are closed — `definitions.define` refuses an extra key with `SchemaInvalid`.
 - Pass a query through `encode*Query` before an HTTP call — arrays and objects do not survive a
   query string as they are.
 - `status`, `intrinsic` and `flows` move only through `transit`; an `update` naming them is refused.
+- `createdBy` is written once, by a create's draft: `changes` or `unset` naming it is refused on
+  every action (`planning:immutable:createdBy`), so an ownership check can trust it.
 - `fields` and `flows` in `changes` merge; every other key replaces. Clear with `null` or `unset`.
 - A model's `expectSeq` is its record's head: a stale model refuses with `WorkcardConflict`.
 - `WorkcardNotFound` is also the answer for another entity's card — never read it as "deleted".
 - `CommitTimeout` leaves the transition pending; it will still commit.
 - Keep schemas `$jsonSchema`-safe: no `integer`, every optional property nullable.
+- Only card types and flows are data-defined, and a code key needs `overridable: true` to be
+  overridden; a data-defined declaration's `version` is its compare-and-set token.
 
 ## Related packages
 
 - `@owlmeans/server-planning` — executor, plugin registry, memory store, handlers
 - `@owlmeans/client-planning` — remote facade, state mirror, commit waiting
 - `@owlmeans/resource` — the criteria language
-- `@owlmeans/server-planning` — server execution and projection implementations
+- `@owlmeans/planning-postgres` — the durable Postgres store
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance
@@ -158,7 +188,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.44
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

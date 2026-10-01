@@ -1,12 +1,12 @@
 ---
 node: planning
-scope: "packages/{planning,server-planning,client-planning}/**, packages/viable-common/src/planning/**"
+scope: "packages/{planning,server-planning,client-planning,planning-postgres}/**, packages/viable-common/src/planning/**"
 updated: 2026-09
 ---
 
 # Planning (workcards, transitions, commits)
 
-Rules live in the `planning`, `server-planning` and `client-planning` skills; this node keeps what
+Rules live in the `planning`, `server-planning`, `client-planning` and `planning-postgres` skills; this node keeps what
 cost time to find.
 
 ## Facts that cost time to rediscover
@@ -27,6 +27,20 @@ cost time to find.
   the SDK runs long-poll only.
 - **Wire queries are encoded** (`encodeWorkcardQuery` & twins): a URL carries no arrays or nested
   objects, and a hand-built query string silently drops `fields`/`sort`.
+- **`foldPending` fails a gap and the row right after an already-failed one as out of order** (it
+  lists pending rows only). The memory store lives with it; on Postgres `nextSeq`/`append` are two
+  round trips, so gaps are routine and the store's prelude bounds each `foldPending` call to the
+  consecutive pending run it measured — an unbounded call failed every row past a young gap.
+- **An aborted Postgres transaction lies quietly**: after one failed statement every later one
+  answers `25P02`, `COMMIT` becomes a silent `ROLLBACK`, and `foldPending`'s `safely` swallows the
+  original — track "poisoned" in the runner and report the FIRST error, not the cascade.
+- **Memory and Postgres settle an out-of-order row differently** (memory: failed; Postgres past the
+  grace: placeholder + committed) — the conformance case asserts only "settled, never pending".
+- **Generated code kept inventing the create call** — `draft:` for `card:` (refused as
+  `malformed:create-without-draft`), `wait: true` inside the execution (ignored in process),
+  `ctx.planning()` in a target (only `appendPlanningService` installs it), `name`/`key` on a type or
+  flow (`SchemaInvalid`). Every one compiled only through an `any`-typed helper; the three skills now
+  show the call, and `server-planning/tests/create-example.spec.ts` runs it.
 
 Related: [[queues]] (hook merge, job ids, unsigned enqueue), [[viable]] (the Viable vocabulary and
 connector tools over the facade), [[entrypoints]].

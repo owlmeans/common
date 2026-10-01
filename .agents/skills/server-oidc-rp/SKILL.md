@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-oidc-rp
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.47"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-rp": "^0.1.18-rc.50"` in `dependencies`
 
 ## Key Exports
 
@@ -143,6 +143,11 @@ There is no dedicated resource. The cache is `AUTH_CACHE` from `@owlmeans/server
 A consumer that needs the provider token set behind the request it is serving reads
 `context.resource(AUTH_CACHE)` at `${OIDC_TOKEN_STORE}:token:<token>` — never
 `context.resource(OIDC_TOKEN_STORE)`, which resolves nothing.
+
+A missing `:token:` record is a session that is gone — signed out, expired, evicted — and every
+reader answers it as `AuthorizationError` (401, sign in again): the wrapping service, and the gate
+model's `loadPermissions`, which `load`s the record rather than `get`ting it, since a bare `get`
+would let the storage refusal escape as a 404. A record without a token set is `AuthForbidden`.
 
 ## PKCE verifiers are consume-once
 

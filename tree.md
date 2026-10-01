@@ -122,6 +122,7 @@ External-system integrations: Mongo, Postgres, Redis, S3-compatible object stora
 - [`redis-queue`](packages/redis-queue) → `basic-ids`, `context`, `error`, `queue`, `redis`, `redis-resource`, `resource`, `server-context`
 - [`postgres-resource`](packages/postgres-resource) → `basic-ids`, `context`, `resource`, `server-context`
 - [`postgres`](packages/postgres) → `basic-keys`, `context`, `postgres-resource`, `resource`, `server-context`
+- [`planning-postgres`](packages/planning-postgres) → `basic-ids`, `context`, `error`, `planning`, `postgres-resource`, `resource`, `server-planning`
 - [`kluster`](packages/kluster) → `config`, `context`, `server-config`, `server-context`
 - [`mailer-smtp`](packages/mailer-smtp) → `context`, `mailer`, `server-context`
 - [`server-mailer-mailgun`](packages/server-mailer-mailgun) → `context`, `error`, `mailer`

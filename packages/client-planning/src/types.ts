@@ -2,9 +2,9 @@ import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import type { LazyService } from '@owlmeans/context'
 import type { AbstractRequest, EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import type {
-  CommitFilter, CommitSource, CommitState, PlanningFacade, PlanningProtocols, PlanningSchemaRegistry,
-  PlanningScope, PlanningService, Relationship, RelationshipQuery, TransitionAction, Workcard,
-  WorkcardKind, WorkcardQuery,
+  CommitFilter, CommitSource, CommitState, PlanningDefinitions, PlanningFacade, PlanningProtocols,
+  PlanningSchemaRegistry, PlanningScope, PlanningService, Relationship, RelationshipQuery, TransitionAction,
+  Workcard, WorkcardKind, WorkcardQuery,
 } from '@owlmeans/planning'
 import type { Criteria, ResourceRecord } from '@owlmeans/resource'
 import type { Connection } from '@owlmeans/socket'
@@ -56,6 +56,21 @@ export interface PlanningClientService extends PlanningService, LazyService {
   loadSchemas: (opts?: { force?: boolean }) => Promise<PlanningSchemaRegistry>
   /** Release the shared commit socket. */
   close: () => Promise<void>
+  /** Data-defined types and flows — present when the tree was declared with `definitions: true`. */
+  definitions?: RemoteDefinitions
+}
+
+/** The client half of `PlanningDefinitions`: layers cached per project, dropped on any write. */
+export interface RemoteDefinitions extends PlanningDefinitions {
+  /** Forget every cached layer — the next read asks the server. */
+  invalidate: () => void
+}
+
+export interface RemoteDefinitionsOptions {
+  /** Milliseconds, for every definitions call. */
+  timeout?: number
+  /** Called after every write (the service reloads its own bundle on the next `model()`). */
+  onWrite?: () => void
 }
 
 export interface WithPlanningClient {
@@ -86,6 +101,8 @@ export interface RemoteFacadeOptions {
   loadSchemas?: () => Promise<PlanningSchemaRegistry>
   timeout?: number
   stores?: () => PlanningStores | null
+  /** The data-defined schema surface, shared by every facade of the service. */
+  definitions?: RemoteDefinitions
 }
 
 /** One row per transition the client wrote or saw settle. */

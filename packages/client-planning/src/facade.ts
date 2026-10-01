@@ -1,6 +1,6 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import {
-  CommitFailed, CommitState, DEFAULT_COMMIT_TIMEOUT, PlanningError, PlanningUnsupported, WorkcardNotFound,
+  CommitFailed, CommitState, DEFAULT_COMMIT_TIMEOUT, PlanningError, PlanningUnsupported, WorkcardKind, WorkcardNotFound,
   encodeRelationshipQuery, encodeSpecificationQuery, encodeSummaryQuery, encodeTransitionQuery,
   encodeWorkcardQuery, modelOf,
 } from '@owlmeans/planning'
@@ -159,9 +159,21 @@ export const makeRemoteFacade = <C extends BasicConfig, T extends BasicContext<C
     model: async <R extends Workcard = Workcard>(card: R | string): Promise<WorkcardModel<R>> => {
       await opts.loadSchemas?.()
       const record = typeof card === 'string' ? await facade.cards.get(card) as R : card
+      // A card of a project resolves its types in that project's layer; the organization's layer
+      // is the service's own bundle, and a specification's type is always code's.
+      const project = opts.definitions == null
+        ? undefined
+        : record.kind === WorkcardKind.Project ? record.id : record.kind === WorkcardKind.Card ? record.parent : undefined
+      if (project == null) {
+        return modelOf<R>(record, facade)
+      }
 
-      return modelOf<R>(record, facade)
+      return modelOf<R>(record, { ...facade, schemas: await opts.definitions!.registry(project) })
     },
+  }
+
+  if (opts.definitions != null) {
+    facade.definitions = opts.definitions
   }
 
   return facade

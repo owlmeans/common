@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/resource
 
 **Layer:** Core
-**Install:** `"@owlmeans/resource": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/resource": "^0.1.18-rc.37"` in `dependencies`
 
 ## Key Exports
 
@@ -29,7 +29,7 @@ user-invocable: false
 | `ResourceDbService<Db, Client>`, `DbLocker<T>` | What a connection service implements: `db`/`client`/`clients`/`config`/`name`/`ensureConfigAlias`/`initialize`, plus `lock`/`unlock` when the backend encrypts fields. |
 | `ResourceMaker<R, T>` | `(dbAlias?, serviceAlias?) => T` — the signature every resource maker is typed with, so an app registers `makeXResource()` without repeating the argument list. |
 | `filterObject(obj, keep?)`, `createListSchema` | Drop null and undefined properties, keeping the names listed in `keep`; the AJV schema for a `ListResult<T>` envelope. |
-| Errors | `ResourceError`, `UnknownRecordError`, `MisshapedRecord`, `RecordExists`, `RecordUpdateFailed`, `UnsupportedArgumentError`, `UnsupportedMethodError`, `MigrationError`, `MigrationConflict`. |
+| Errors | `ResourceError`, `UnknownRecordError` (404), `MisshapedRecord`, `RecordExists` (409), `RecordUpdateFailed`, `UnsupportedArgumentError`, `UnsupportedMethodError`, `MigrationError`, `MigrationConflict` — the unmarked ones are faults (500). `tests/errors.spec.ts` refuses an exported class whose status was not decided. `UnknownRecordError.id` is everything after the first `/`, so an id or criteria text holding one survives. |
 | `DbConfig`, `Config`, `Context` | Database config (`cfg.dbs`) types. |
 
 ## Usage
@@ -83,6 +83,19 @@ else; the criteria overload takes `{ sort }` to say which match is "the" one:
 
 Every method returns the record(s) themselves, never a driver result object — there is no
 `rowsAffected`/`rowCount` anywhere on this contract.
+
+### What an escaped storage error answers
+
+The two refusals declare their HTTP status (`static httpStatus`, the `error` skill's rule), so an
+`@owlmeans/server-api` handler that lets one escape answers it: `UnknownRecordError` **404**,
+`RecordExists` **409** (a unique-key violation, a taken id, and a `create` handed an id —
+`id-present` — alike). Every other class of the family is a fault and answers 500. A development
+body rebuilds into the same class on the client; a production body is the incident id alone and
+arrives as `ApiStatusError` with that status (`@owlmeans/api`).
+
+So `get` only what the REQUEST addressed. A missing row it did not name — a configuration record,
+a session, an internal lookup — is not the caller's 404: `load` it and throw the fault or the
+refusal that fits (an auth path throws `AuthorizationError`).
 
 ### The criteria language
 

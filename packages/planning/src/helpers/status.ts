@@ -45,7 +45,9 @@ const fromMatches = (rule: StatusTransitionRule, status: string): boolean =>
  * The rule a named transition follows from a status.
  *
  * A name may be declared several times with different `from` sets; the rule naming the status
- * explicitly wins, and a `'*'` rule of that name answers only when none does.
+ * explicitly wins, and a `'*'` rule of that name answers only when none does. A status the flow
+ * does NOT declare — a card whose flow changed under it — matches every rule of the name, the first
+ * declared answering: such a card can always move back onto the flow it now runs.
  */
 export const ruleOf = (
   flow: StatusFlowSchema, transition: string, from: string
@@ -54,6 +56,7 @@ export const ruleOf = (
 
   return named.find(rule => rule.from !== ANY_STATUS && fromMatches(rule, from))
     ?? named.find(rule => rule.from === ANY_STATUS)
+    ?? (statusDefinitionOf(flow, from) == null ? named[0] : undefined)
 }
 
 export const canTransit = (flow: StatusFlowSchema, transition: string, from: string): boolean =>

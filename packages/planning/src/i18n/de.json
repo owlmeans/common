@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "Die Änderung wird noch gespeichert — prüfe es gleich noch einmal",
     "PlanningErrorCommitFailed": "Die Änderung konnte nicht gespeichert werden",
     "PlanningErrorScopeMismatch": "Dieses Element existiert nicht oder ist für dich nicht verfügbar",
+    "PlanningErrorSchemaConflict": "Diese Definition wurde inzwischen geändert — neu laden und erneut versuchen",
+    "PlanningErrorSchemaInUse": "Diese Definition wird noch verwendet und kann nicht zurückgezogen werden",
+    "PlanningErrorSchemaSealed": "Diese Definition ist festgelegt und kann hier nicht geändert werden",
+    "PlanningErrorSchemaInvalid": "Diese Definition ist ungültig",
+    "PlanningErrorForbidden": "Du darfst diese Änderung nicht vornehmen",
     "PlanningErrorUnsupported": "Dieser Vorgang wird für dieses Element nicht unterstützt"
   }
 }

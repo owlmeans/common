@@ -21,6 +21,8 @@ export interface ChangeSet {
 
 /** Never in a caller's changes: the transition itself carries them. */
 const IDENTITY_KEYS = ['id', 'kind', 'type', 'entityId', 'seq', 'head', 'createdAt']
+/** Written once, from a create's draft; never by `changes` or `unset`, whatever the action. */
+const PROVENANCE_KEYS = ['createdBy']
 /** Move only through `transit` (or a create's draft). */
 const FLOW_KEYS = ['status', 'intrinsic', 'flows', 'closedAt']
 /** Computed by the executor, never supplied. */
@@ -82,7 +84,9 @@ export const applyUnset = <T extends object>(record: T, unset?: string[]): T => 
  *
  * `status`/`intrinsic`/`flows`/`closedAt` move only through `transit` (a create's draft may name
  * the initial status); `code` is fixed once minted unless the type's policy says `mutable`;
- * `category` is fixed; `revision`/`bodyChars` are computed.
+ * `category` is fixed; `revision`/`bodyChars` are computed; `createdBy` is the create DRAFT's
+ * alone — named in `changes` or `unset` it is refused on every action, so an owner check
+ * (`card.createdBy === profileId`) can trust it.
  *
  * @throws {PlanningError} `planning:immutable:<field>`
  */
@@ -97,7 +101,7 @@ export const assertMutable = (exec: TransitionExecution, type: AnyTypeSchema): v
     if (value === undefined) {
       continue
     }
-    if (IDENTITY_KEYS.includes(key) || DERIVED_KEYS.includes(key)) {
+    if (IDENTITY_KEYS.includes(key) || PROVENANCE_KEYS.includes(key) || DERIVED_KEYS.includes(key)) {
       refuse(key)
     }
     if (!create && (FLOW_KEYS.includes(key) || key === 'category' || (key === 'code' && codeFixed))) {
@@ -107,6 +111,9 @@ export const assertMutable = (exec: TransitionExecution, type: AnyTypeSchema): v
 
   for (const path of exec.unset ?? []) {
     const head = path.split('.')[0]
+    if (PROVENANCE_KEYS.includes(head)) {
+      refuse(head)
+    }
     if (IDENTITY_KEYS.includes(path) || DERIVED_KEYS.includes(path) || REQUIRED_KEYS.includes(path)
       || FLOW_KEYS.includes(head) || (path === 'code' && codeFixed)) {
       refuse(path)
@@ -123,7 +130,7 @@ const diffInto = (card: Workcard, changes: WorkcardChanges | undefined, skip: st
   const current = card as unknown as Record<string, unknown>
 
   for (const [key, value] of Object.entries(changes ?? {})) {
-    if (value === undefined || IDENTITY_KEYS.includes(key) || skip.includes(key)) {
+    if (value === undefined || IDENTITY_KEYS.includes(key) || PROVENANCE_KEYS.includes(key) || skip.includes(key)) {
       continue
     }
     if (key === 'fields' || key === 'flows') {
@@ -160,6 +167,9 @@ const diffInto = (card: Workcard, changes: WorkcardChanges | undefined, skip: st
 
 const unsetInto = (card: Workcard, unset: string[] | undefined, set: ChangeSet): void => {
   for (const path of unset ?? []) {
+    if (PROVENANCE_KEYS.includes(path.split('.')[0])) {
+      continue
+    }
     if (reach(card as unknown as Record<string, unknown>, path) !== undefined && !set.unset.includes(path)) {
       set.unset.push(path)
     }
@@ -206,7 +216,8 @@ const createOf = (
   }
   const draft: WorkcardDraft = exec.card
   const overlay = Object.fromEntries(Object.entries(exec.changes ?? {})
-    .filter(([key]) => !FLOW_KEYS.includes(key) && !IDENTITY_KEYS.includes(key) && !DERIVED_KEYS.includes(key))
+    .filter(([key]) => !FLOW_KEYS.includes(key) && !IDENTITY_KEYS.includes(key) && !PROVENANCE_KEYS.includes(key)
+      && !DERIVED_KEYS.includes(key))
   ) as WorkcardChanges
 
   const parent = overlay.parent ?? draft.parent
@@ -260,6 +271,9 @@ const createOf = (
  *   moves, `closedAt` set on entering closed and cleared on leaving it — plus the caller's own
  *   changes, diffed as in an update.
  * - `link`, `unlink`, `delete`: nothing.
+ *
+ * `createdBy` comes from a create's draft only: `changes` and `unset` never carry it, on any action
+ * ({@link assertMutable} refuses an execution that tries).
  *
  * @throws {IllegalTransition} a transit the flow does not offer from the current status
  * @throws {PlanningError} `malformed:*` for an execution missing what its action needs

@@ -37,6 +37,42 @@ export interface PlanningScopeExtractor {
   (req: AbstractRequest, ctx: BasicContext<BasicConfig>): Partial<PlanningScope> | Promise<Partial<PlanningScope>>
 }
 
+/**
+ * A grant: `true` for everything the request can see, a list for those project cards only (the
+ * parent of a created project, the deleted project, the schema layer).
+ */
+export type PlanningGrant = boolean | string[]
+
+export interface PlanningAccessGrants {
+  /** Create a project — at the root only with `true`; a list names the parent projects. */
+  createProjects?: PlanningGrant
+  /** Delete a project — a list names the projects. */
+  deleteProjects?: PlanningGrant
+  /** Write data-defined types and flows — the organization-wide layer only with `true`. */
+  defineSchemas?: PlanningGrant
+}
+
+/** What a hosting application decides about one request. */
+export interface PlanningAccess {
+  /** The organization the request acts in — the only source of it once a resolver is given. */
+  entityId: string
+  /** Narrows every read and write to these project cards. Every project when omitted. */
+  projects?: string[]
+  /**
+   * Gates the writes above. Omitted — nothing is gated; present — a flag it leaves out is refused
+   * with `PlanningForbidden`.
+   */
+  grants?: PlanningAccessGrants
+}
+
+/**
+ * Resolves a request's access. A throw is the request's answer (an `AuthForbidden` answers 403
+ * like any other guard refusal).
+ */
+export interface PlanningAccessResolver {
+  (req: AbstractRequest, ctx: BasicContext<BasicConfig>): Promise<PlanningAccess>
+}
+
 export interface PlanningHandlerOptions {
   /** The planning service alias. `PLANNING_SERVICE` when omitted. */
   service?: string
@@ -45,4 +81,9 @@ export interface PlanningHandlerOptions {
   /** The longest single long poll, in seconds — clamps `commit.get`'s `wait` and `execute`'s `timeout`. */
   maxPoll?: number
   scope?: PlanningScopeExtractor
+  /**
+   * The hosting application's access decision per request. Without it the organization is the
+   * request's own (`requireEntityKey`) and nothing is narrowed or gated.
+   */
+  access?: PlanningAccessResolver
 }

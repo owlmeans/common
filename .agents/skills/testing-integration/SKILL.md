@@ -5,11 +5,11 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
-**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.29"` in `devDependencies`
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.30"` in `devDependencies`
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
-`kluster`, `storage-resource`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`,
+`kluster`, `storage-resource`, `mailer-smtp`, `server-mailer-mailgun`, `server-api`, `planning-postgres`,
 `server-app`, `llm` (live inference providers). These tests **never** mock the external service.
 They run only when the corresponding env vars are set, and they self-skip cleanly when those
 variables are missing.

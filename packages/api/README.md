@@ -12,7 +12,7 @@ HTTP API client service for OwlMeans client contexts — carries entrypoint call
 ## Installation
 
 ```bash
-bun add @owlmeans/api@^0.1.18-rc.39
+bun add @owlmeans/api@^0.1.18-rc.42
 ```
 
 ## Usage
@@ -41,6 +41,14 @@ Creates an HTTP client service. `alias` defaults to `DEFAULT_ALIAS` (`'web-clien
 
 Registers the API client in the context.
 
+### Request bodies
+
+Objects and arrays go as JSON. A string, number or boolean body on a `POST` without a
+`content-type`, or under a JSON `content-type` on any method, is `JSON.stringify`'d, so the server
+parses back the same value (`'abc'` travels as `"abc"`). A string that already is JSON text is sent
+as it is — except under a `type: 'string'` body contract, where only a JSON string literal counts
+as serialized and `'123'` arrives as the string `'123'`.
+
 ### Error Classes
 
 - `ApiError` — base API error
@@ -65,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.40
+npx @owlmeans/agent-skills@^0.1.18-rc.44
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

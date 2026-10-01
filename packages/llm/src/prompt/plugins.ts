@@ -1,4 +1,4 @@
-import { PromptBlock } from '@owlmeans/llm-common'
+import { PromptBlock, renderCumulativeResults } from '@owlmeans/llm-common'
 import type { SkillDefinition } from '@owlmeans/llm-common'
 import { joinChunks, renderSkill, sortSkills } from './render.js'
 import type { LlmPromptPlugin } from './types.js'
@@ -41,7 +41,27 @@ export const skillsPlugin: LlmPromptPlugin = {
 }
 
 /**
- * Block 3 — whatever the caller handed over verbatim, plus any skills requested for this
+ * Block 3 — what the earlier steps of the pipeline produced, as the pipeline runtime cut it for
+ * the step this call belongs to (`PromptComposeParams.results`, normally `exec.results`).
+ *
+ * Contributes NOTHING without a view, so every call that is not inside an opted-in pipeline
+ * composes byte-identically to a service that never had this plugin. With one, it lands below the
+ * two cached boundaries (role + skills, packages) and above the per-call context: it changes from
+ * one step to the next, so it may never sit inside a region other steps read back from cache.
+ */
+export const resultsPlugin: LlmPromptPlugin = {
+  alias: 'results',
+  order: 80,
+  compose: ctx => {
+    const text = renderCumulativeResults(ctx.results)
+    if (text !== '') {
+      ctx.add(PromptBlock.Results, text)
+    }
+  },
+}
+
+/**
+ * Block 4 — whatever the caller handed over verbatim, plus any skills requested for this
  * one call. Emitted last and never marked cacheable: its content varies per request by
  * definition, and a varying tail must not sit inside a prefix other calls depend on.
  */
@@ -65,5 +85,5 @@ export const contextPlugin: LlmPromptPlugin = {
 
 /** The plugins every {@link PromptService} starts with, in run order. */
 export const BUILT_IN_PROMPT_PLUGINS: readonly LlmPromptPlugin[] = [
-  rolePlugin, skillsPlugin, contextPlugin,
+  rolePlugin, skillsPlugin, resultsPlugin, contextPlugin,
 ] as const

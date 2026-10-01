@@ -341,6 +341,27 @@ export const makePostgresResource = <
       return Number((rows[0] as { total: number } | undefined)?.total ?? 0)
     },
 
+    countBy: async (criteria, fields) => {
+      const { db, spec: table, entity: from } = await ensure()
+      if (fields.length < 1 || fields.some(field => field === 'count')) {
+        /** `count` names the answer's own tally; grouping by nothing is `count()`. */
+        throw new UnsupportedArgumentError(`count-by:${fields.join(',')}`)
+      }
+      const columns = fields.map(field => columnOf(table, field))
+      const selection: Record<string, SQL | PgRuntimeTable[string]> = Object.fromEntries(
+        columns.map(column => [column.property, from[column.property]])
+      )
+      const rows = await db.drizzle
+        .select({ ...selection, count: sql<number>`count(*)::int` } as never)
+        .from(from).where(criteriaToSql(criteria, table, from))
+        .groupBy(...columns.map(column => from[column.property]))
+
+      return (rows as Array<Record<string, unknown>>).map(row => {
+        const { count, ...group } = row
+        return { ...resultToRecord<Record<string, unknown>>(group, table), count: Number(count ?? 0) }
+      })
+    },
+
     getDefaults: () => {
       const schema = resource.schema as JSONSchemaType<unknown> | undefined
       if (schema == null) {

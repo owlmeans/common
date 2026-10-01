@@ -119,11 +119,61 @@ describe('@owlmeans/postgres-resource — criteriaToSql', () => {
     expect(clause.params).toEqual(['open', 18, 'a@b.c'])
   })
 
-  test('reaches into a jsonb column through a dotted path', () => {
+  test('reaches into a jsonb column through a dotted path, compared as typed JSON', () => {
     const clause = where({ 'profile.city': 'Kyiv' })
 
-    expect(clause.sql).toContain('#>>')
-    expect(clause.params).toEqual(['{city}', 'Kyiv'])
+    /** The path is a bound text[] and the value a bound jsonb literal — neither is statement text. */
+    expect(clause.sql).toContain('#> $1::text[]')
+    expect(clause.sql).toContain('$2::jsonb')
+    expect(clause.params).toEqual([['city'], '"Kyiv"'])
+
+    /** A number or a boolean is compared as itself, never as its text. */
+    expect(where({ 'profile.age': 30 } as Criteria<Thing>).params).toEqual([['age'], '30'])
+    expect(where({ 'profile.verified': true } as Criteria<Thing>).params).toEqual([['verified'], 'true'])
+  })
+
+  test('reads a dotted array as membership, null as absence, and operators as they read on a column', () => {
+    const list = where({ 'profile.tier': ['gold', 'silver'] } as Criteria<Thing>)
+    expect(list.sql).toContain('= ANY(ARRAY[')
+    expect(list.sql).toContain(']::jsonb[])')
+    expect(list.params).toEqual([['tier'], '"gold"', '"silver"'])
+
+    const absent = where({ 'profile.tier': null } as Criteria<Thing>)
+    expect(absent.sql).toContain('IS NULL')
+    expect(absent.sql).toContain(`'null'::jsonb`)
+
+    const widened = where({ 'profile.tier': { $in: ['gold', null] } } as Criteria<Thing>)
+    expect(widened.sql).toContain('= ANY(ARRAY[')
+    expect(widened.sql).toContain('IS NULL')
+
+    expect(where({ 'profile.age': { $gte: 18 } } as Criteria<Thing>).sql).toContain('>= $2::jsonb')
+    expect(where({ 'profile.city': { $ilike: 'ky%' } } as Criteria<Thing>).sql).toContain('#>> $1::text[]) ILIKE')
+    expect(where({ 'profile.city': { $exists: true } } as Criteria<Thing>).sql).toMatch(/^NOT \(.* IS NULL OR .* = 'null'::jsonb\)$/)
+    expect(where({ 'profile.tags': { $contains: 'a' } } as Criteria<Thing>).params).toEqual([['tags'], '["a"]'])
+    /** A path segment holding a comma or a brace stays one segment. */
+    expect(where({ 'profile.a,b': 1 } as Criteria<Thing>).params).toEqual([['a,b'], '1'])
+  })
+
+  test('binds an array operand of a native array column as ONE array parameter, wrapping a scalar', () => {
+    const scalar = where({ tags: { $contains: 'rare' } })
+    expect(scalar.sql).toContain('"tags" @> $1::text[]')
+    expect(scalar.params).toEqual([['rare']])
+
+    const many = where({ tags: { $overlaps: ['rare', 'new'] } })
+    expect(many.sql).toContain('"tags" && $1::text[]')
+    expect(many.params).toEqual([['rare', 'new']])
+
+    expect(where({ tags: { $contained: ['rare', 'new'] } }).sql).toContain('<@ $1::text[]')
+  })
+
+  test('reads jsonb array operators as JSON containment, and overlap element by element', () => {
+    const contains = where({ profile: { $contains: 'rare' } })
+    expect(contains.sql).toContain('"profile" @> $1::jsonb')
+    expect(contains.params).toEqual(['["rare"]'])
+
+    const overlaps = where({ profile: { $overlaps: ['rare', 2] } })
+    expect(overlaps.sql).toContain('jsonb_array_elements')
+    expect(overlaps.params).toEqual(['"rare"', '2', '"rare"', '2'])
   })
 
   test('matches a jsonb column against a whole object with containment', () => {

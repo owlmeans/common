@@ -1,6 +1,6 @@
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import type { Criteria, FieldOperators, Sort } from '@owlmeans/resource'
-import { and, asc, desc, or, sql } from 'drizzle-orm'
+import { and, asc, desc, or, param, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 
 import type { ColumnSpec, PgRuntimeTable, TableSpec } from '../types.js'
@@ -17,6 +17,58 @@ const value = (raw: unknown, column: ColumnSpec): SQL => {
   }
 
   return sql`${raw}`
+}
+
+/** The operand of an array operator as a list — a scalar is the list of itself. */
+const listOf = (operand: unknown): unknown[] => Array.isArray(operand) ? operand : [operand]
+
+const isPlainObject = (raw: unknown): raw is Record<string, unknown> =>
+  raw != null && typeof raw === 'object' && !Array.isArray(raw) && !(raw instanceof Date)
+
+/** A JSON value as a bound `jsonb` literal. */
+const json = (raw: unknown): SQL => sql`${JSON.stringify(raw instanceof Date ? raw.toISOString() : raw)}::jsonb`
+
+/** `ARRAY[$1, $2]::jsonb[]` — one bound JSON literal per value. */
+const jsonList = (values: unknown[]): SQL => values.length === 0
+  ? sql`ARRAY[]::jsonb[]`
+  : sql`ARRAY[${sql.join(values.map(entry => sql`${JSON.stringify(entry instanceof Date ? entry.toISOString() : entry)}`), sql`, `)}]::jsonb[]`
+
+/**
+ * `@>` / `<@` against a jsonb value: an object is contained as an object, anything else as the
+ * JSON array it is (or the array of the one value it is).
+ */
+const jsonContainment = (target: SQL, operator: '@>' | '<@', operand: unknown): SQL =>
+  sql`${target} ${sql.raw(operator)} ${json(isPlainObject(operand) ? operand : listOf(operand))}`
+
+/**
+ * `&&` has no jsonb form: an array value overlaps when one of its elements is one of the operands,
+ * and a scalar value — like every other store reads it — when it is one of them.
+ */
+const jsonOverlap = (target: SQL, operand: unknown): SQL => {
+  const values = listOf(operand)
+  return sql`(CASE WHEN jsonb_typeof(${target}) = 'array' THEN EXISTS (SELECT 1 FROM jsonb_array_elements(${target}) AS element WHERE element = ANY(${jsonList(values)})) ELSE ${target} = ANY(${jsonList(values)}) END)`
+}
+
+/**
+ * `@>` / `<@` / `&&` on a column. A native array column takes ONE bound array parameter cast to the
+ * column's own type (a bare JS array in a template would expand into a row constructor), a jsonb
+ * column takes JSON, and a scalar operand is the one-element list either way.
+ */
+const arrayOperator = (
+  table: PgRuntimeTable, column: ColumnSpec, operator: '$contains' | '$contained' | '$overlaps', operand: unknown
+): SQL => {
+  const target = columnRef(table, column)
+  if (column.jsonb) {
+    return operator === '$overlaps'
+      ? jsonOverlap(target, operand)
+      : jsonContainment(target, operator === '$contains' ? '@>' : '<@', operand)
+  }
+  const symbol = sql.raw(operator === '$contains' ? '@>' : operator === '$contained' ? '<@' : '&&')
+  if (column.array) {
+    return sql`${target} ${symbol} ${param(listOf(operand))}::${sql.raw(column.sqlType)}`
+  }
+
+  return sql`${target} ${symbol} ${value(operand, column)}`
 }
 
 const inList = (table: PgRuntimeTable, column: ColumnSpec, values: unknown[], negate: boolean): SQL => {
@@ -98,13 +150,9 @@ const operators = (
         break
       }
       case '$contains':
-        conditions.push(sql`${columnRef(table, column)} @> ${value(operand, column)}`)
-        break
       case '$contained':
-        conditions.push(sql`${columnRef(table, column)} <@ ${value(operand, column)}`)
-        break
       case '$overlaps':
-        conditions.push(sql`${columnRef(table, column)} && ${value(operand, column)}`)
+        conditions.push(arrayOperator(table, column, operator, operand))
         break
       default:
         throw new UnsupportedArgumentError(`criteria-operator:${operator}`)
@@ -115,6 +163,129 @@ const operators = (
 }
 
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, match => `\\${match}`)
+
+// ─── Dotted paths into a jsonb column ────────────────────────────────────────────────────────────
+
+/**
+ * A value at a path, as the jsonb it is (`#>`) and as text (`#>>`). The path is ONE bound `text[]`
+ * parameter, so a segment holding a comma or a brace stays one segment.
+ */
+interface PathTarget {
+  value: SQL
+  text: SQL
+  /** Absent, or a JSON `null` — what every other store reads as "no value". */
+  missing: SQL
+}
+
+const pathTarget = (table: PgRuntimeTable, column: ColumnSpec, path: string[]): PathTarget => {
+  const value = sql`(${columnRef(table, column)} #> ${param(path)}::text[])`
+
+  return {
+    value,
+    text: sql`(${columnRef(table, column)} #>> ${param(path)}::text[])`,
+    missing: sql`(${value} IS NULL OR ${value} = 'null'::jsonb)`,
+  }
+}
+
+/** `$in` / `$nin` / a bare list at a path — the column rules: a `null` entry widens to absence. */
+const pathList = (target: PathTarget, values: unknown[], negate: boolean): SQL => {
+  const present = values.filter(entry => entry != null)
+  const hasNull = present.length !== values.length
+
+  if (present.length < 1) {
+    return hasNull
+      ? negate ? sql`NOT ${target.missing}` : target.missing
+      : negate ? sql`TRUE` : sql`FALSE`
+  }
+  const membership = sql`${target.value} = ANY(${jsonList(present)})`
+  if (negate) {
+    return sql`(NOT ${target.missing} AND NOT (${membership}))`
+  }
+
+  return hasNull ? sql`(${membership} OR ${target.missing})` : membership
+}
+
+/** The operators at a path, each read as the same operator reads on a column. */
+const pathOperators = (target: PathTarget, spec: FieldOperators<any>, key: string): SQL[] => {
+  const conditions: SQL[] = []
+  for (const [operator, operand] of Object.entries(spec)) {
+    if (operator in COMPARISON) {
+      conditions.push(operand == null
+        ? operator === '$ne' ? sql`NOT ${target.missing}` : target.missing
+        : sql`${target.value} ${sql.raw(COMPARISON[operator])} ${json(operand)}`)
+      continue
+    }
+    switch (operator) {
+      case '$in':
+      case '$nin':
+        conditions.push(pathList(target, listOf(operand), operator === '$nin'))
+        break
+      case '$exists':
+        conditions.push(operand === false ? target.missing : sql`NOT ${target.missing}`)
+        break
+      case '$null':
+        conditions.push(operand === false ? sql`NOT ${target.missing}` : target.missing)
+        break
+      case '$like':
+        conditions.push(sql`${target.text} LIKE ${operand}`)
+        break
+      case '$ilike':
+        conditions.push(sql`${target.text} ILIKE ${operand}`)
+        break
+      case '$regex':
+        conditions.push(sql`${target.text} ~ ${operand}`)
+        break
+      case '$startsWith':
+        conditions.push(sql`${target.text} LIKE ${`${escapeLike(`${operand}`)}%`}`)
+        break
+      case '$endsWith':
+        conditions.push(sql`${target.text} LIKE ${`%${escapeLike(`${operand}`)}`}`)
+        break
+      case '$between': {
+        if (!Array.isArray(operand) || operand.length !== 2) {
+          throw new UnsupportedArgumentError(`criteria:$between:${key}`)
+        }
+        conditions.push(sql`${target.value} BETWEEN ${json(operand[0])} AND ${json(operand[1])}`)
+        break
+      }
+      case '$contains':
+        conditions.push(jsonContainment(target.value, '@>', operand))
+        break
+      case '$contained':
+        conditions.push(jsonContainment(target.value, '<@', operand))
+        break
+      case '$overlaps':
+        conditions.push(jsonOverlap(target.value, operand))
+        break
+      default:
+        throw new UnsupportedArgumentError(`criteria-operator:${operator}`)
+    }
+  }
+
+  return conditions
+}
+
+/**
+ * A criteria value at a dotted path, with the meaning it has on a column: a bare value is typed
+ * JSON equality (a number is not its text), a bare list is membership, `null` is absence, an object
+ * of operators applies each, and a plain object is containment.
+ */
+const pathCondition = (target: PathTarget, raw: unknown, key: string): SQL[] => {
+  if (raw === null) {
+    return [target.missing]
+  }
+  if (isOperatorSpec(raw)) {
+    return pathOperators(target, raw, key)
+  }
+  if (Array.isArray(raw)) {
+    return [pathList(target, raw, false)]
+  }
+  if (isPlainObject(raw)) {
+    return [jsonContainment(target.value, '@>', raw)]
+  }
+
+  return [sql`${target.value} = ${json(raw)}`]
+}
 
 /**
  * An object naming at least one `$` key is a spec, not a value to compare against.
@@ -180,7 +351,7 @@ const build = <T>(
       if (!column.jsonb) {
         throw new UnsupportedArgumentError(`criteria-path:${key}`)
       }
-      conditions.push(sql`${columnRef(table, column)} #>> ${`{${path.join(',')}}`} = ${`${raw}`}`)
+      conditions.push(...pathCondition(pathTarget(table, column, path), raw, key))
       continue
     }
 

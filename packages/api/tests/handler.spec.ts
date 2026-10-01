@@ -4,6 +4,7 @@ import type { AxiosResponse } from 'axios'
 import type { AbstractResponse } from '@owlmeans/entrypoint'
 import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
+import { RecordExists, UnknownRecordError } from '@owlmeans/resource'
 import {
   ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError, httpStatusOf, incidentIdOf,
   INCIDENT_ID_HEADER,
@@ -142,6 +143,41 @@ describe('a development body stays its typed class', () => {
     expect(error).toBeInstanceOf(ApiStatusError)
     expect(error.status).toBe(409)
     expect(error.incidentId).toBe(INCIDENT)
+  })
+
+  test('a storage refusal (404 absent record, 409 taken key) rebuilds into its own class', () => {
+    for (const [refusal, code] of [
+      [new UnknownRecordError('shelf/3'), 404], [new RecordExists('isbn'), 409],
+    ] as const) {
+      const body = ResilientError.marshal(refusal, { includeStack: true, incidentId: INCIDENT }).message
+      const { error } = respond(code, body, { [INCIDENT_ID_HEADER]: INCIDENT })
+      expect(error!.constructor).toBe(refusal.constructor)
+      expect(error!.message).toBe(refusal.message)
+      expect(httpStatusOf(error)).toBe(code)
+      expect(incidentIdOf(error)).toBe(INCIDENT)
+    }
+    const body = ResilientError.marshal(new UnknownRecordError('shelf/3')).message
+    expect((respond(404, body).error as UnknownRecordError).id).toBe('shelf/3')
+  })
+
+  test('a class this process never registered still answers the status the server sent', () => {
+    const body = `ApiSpecUnregisteredRefusal${ResilientError.separator}spec:unregistered:x`
+    const { error } = respond(404, body, { [INCIDENT_ID_HEADER]: INCIDENT })
+    expect(error).not.toBeInstanceOf(ServerCrashedError)
+    expect(httpStatusOf(error)).toBe(404)
+    expect(incidentIdOf(error)).toBe(INCIDENT)
+  })
+})
+
+describe('a production body of a storage refusal keeps the declared status', () => {
+  test('404 and 409 become status errors, not a crash', () => {
+    for (const code of [404, 409]) {
+      const { error } = respond(code, INCIDENT)
+      expect(error).toBeInstanceOf(ApiStatusError)
+      expect(error).not.toBeInstanceOf(ServerCrashedError)
+      expect(error!.message).toBe(`api:client:status:${code}:${INCIDENT}`)
+      expect(httpStatusOf(error)).toBe(code)
+    }
   })
 })
 

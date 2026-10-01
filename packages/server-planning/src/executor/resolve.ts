@@ -1,10 +1,12 @@
 import {
-  CardTypeNotAllowed, isProject, normalizeParents, ParentNotFound, PlanningError, PlanningScopeMismatch,
-  primaryFlowOf, projectOf, slotOf, TransitionAction, UnknownStatusFlow, WorkcardKind, WorkcardNotFound,
+  CardTypeNotAllowed, isProject, normalizeParents, ParentNotFound, PlanningError, PlanningSchemaKind,
+  PlanningScopeMismatch, primaryFlowOf, projectOf, SchemaOrigin, slotOf, TransitionAction, UnknownStatusFlow,
+  UnknownWorkcardType, WorkcardKind, WorkcardNotFound,
 } from '@owlmeans/planning'
 import type {
-  AnyTypeSchema, PlanningFacade, PlanningStore, ProjectTypeSchema, Specification, SpecificationSlot,
-  StatusFlowSchema, TransitionExecution, Workcard, WorkcardDraft,
+  AnyTypeSchema, PlanningFacade, PlanningSchemaRegistry, PlanningStore, ProjectTypeSchema,
+  ScopedSchemaRegistry, Specification, SpecificationSlot, StatusFlowSchema, TransitionExecution, Workcard,
+  WorkcardDraft,
 } from '@owlmeans/planning'
 import type { PlanningRuntime } from '../service.js'
 
@@ -22,6 +24,23 @@ export interface Resolved {
   slot?: SpecificationSlot
   /** The store the type is written to. */
   store: PlanningStore
+  /**
+   * The registry every later step reads: the service's code registry itself, or — where the store
+   * holds data-defined schemas — the resolved layer of the card's project.
+   */
+  schemas: PlanningSchemaRegistry
+}
+
+const isScoped = (schemas: PlanningSchemaRegistry): schemas is ScopedSchemaRegistry =>
+  typeof (schemas as Partial<ScopedSchemaRegistry>).originOf === 'function'
+
+/** A type the layer resolves from a data-defined record rather than from code. */
+const dataDefined = (schemas: PlanningSchemaRegistry | undefined, type: string): boolean => {
+  if (schemas == null || !isScoped(schemas) || !schemas.has(type)) {
+    return false
+  }
+  const origin = schemas.originOf(PlanningSchemaKind.Type, type)
+  return origin === SchemaOrigin.Entity || origin === SchemaOrigin.Project
 }
 
 const trimmed = (value: unknown): unknown => typeof value === 'string' ? value.trim() : value
@@ -61,9 +80,15 @@ export const normalizeExecution = (input: TransitionExecution): TransitionExecut
   return exec
 }
 
-/** The parent type's rule for a child of `kind`/`type`. @throws {CardTypeNotAllowed} */
+/**
+ * The parent type's rule for a child of `kind`/`type`: a project lists the `cardTypes` (and
+ * `projectTypes`) it admits, and one declaring `scopedCardTypes` also admits a card type its layer
+ * (`view`, the parent project's resolved schemas) defines as data. Project types are code's alone.
+ *
+ * @throws {CardTypeNotAllowed}
+ */
 export const assertChildAllowed = (
-  runtime: PlanningRuntime, parent: Workcard, kind: WorkcardKind, type: string
+  runtime: PlanningRuntime, parent: Workcard, kind: WorkcardKind, type: string, view?: PlanningSchemaRegistry
 ): void => {
   if (kind === WorkcardKind.Specification) {
     return
@@ -73,10 +98,20 @@ export const assertChildAllowed = (
   }
   const parentType = runtime.service().schemas.type(parent.type) as ProjectTypeSchema
   const allowed = kind === WorkcardKind.Project ? parentType.projectTypes ?? [] : parentType.cardTypes ?? []
-  if (!allowed.includes(type)) {
-    throw new CardTypeNotAllowed(`${parent.type}:${type}`)
+  if (allowed.includes(type)) {
+    return
   }
+  if (kind === WorkcardKind.Card && parentType.scopedCardTypes === true && dataDefined(view, type)) {
+    return
+  }
+  throw new CardTypeNotAllowed(`${parent.type}:${type}`)
 }
+
+/** The layer a parent project admits data-defined children through — `undefined` without a schema port. */
+export const childViewOf = async (
+  runtime: PlanningRuntime, entityId: string, parent: Workcard
+): Promise<PlanningSchemaRegistry | undefined> =>
+  runtime.schemaStore() == null || !isProject(parent) ? undefined : await runtime.schemasFor(entityId, parent.id)
 
 /**
  * Step 4: the card, its type and flow, its parent and — for a specification — its slot.
@@ -88,9 +123,12 @@ export const resolveExecution = async (
   runtime: PlanningRuntime, facade: PlanningFacade, exec: TransitionExecution
 ): Promise<Resolved> => {
   const service = runtime.service()
-  const schemas = service.schemas
   const entityId = facade.scope.entityId
   const create = exec.action === TransitionAction.Create
+  // Without a schema port every step reads the code registry itself, in today's order; with one,
+  // the card's project is found first and the step reads that project's resolved layer.
+  const layered = runtime.schemaStore() != null
+  let schemas: PlanningSchemaRegistry = service.schemas
 
   let card: Workcard | undefined
   let type: AnyTypeSchema
@@ -101,14 +139,34 @@ export const resolveExecution = async (
       throw new PlanningError('malformed:create-without-draft')
     }
     const draft = exec.card
+    const parents = normalizeParents(draft.parent, draft.parents)
+    const loaded = new Map<string, Workcard>()
+    if (layered) {
+      // Loaded through the facade, so a parent this scope cannot see is absent here too.
+      const primary = parents[0] != null ? await facade.cards.load(parents[0]) : null
+      if (parents[0] != null && primary == null) {
+        throw new ParentNotFound(parents[0])
+      }
+      if (primary != null) {
+        loaded.set(parents[0], primary)
+      }
+      const project = draft.kind === WorkcardKind.Project || primary == null
+        ? undefined
+        : projectOf({ kind: draft.kind, parent: parents[0], parents } as unknown as Workcard, primary)
+      schemas = await runtime.schemasFor(entityId, project)
+    }
     type = schemas.type(draft.type)
     if (type.kind !== draft.kind) {
       throw new PlanningError(`malformed:kind:${draft.type}:${draft.kind}`)
     }
+    if (layered && isScoped(schemas) && schemas.isRetired(PlanningSchemaKind.Type, draft.type)) {
+      // Existing cards keep resolving a retired type; nothing new is made of it.
+      throw new UnknownWorkcardType(`retired:${draft.type}`)
+    }
     // Normalized: the primary parent is first. It must accept the child; so must every project
     // among the secondary parents.
-    for (const [index, id] of normalizeParents(draft.parent, draft.parents).entries()) {
-      const found = await facade.cards.load(id)
+    for (const [index, id] of parents.entries()) {
+      const found = loaded.get(id) ?? await facade.cards.load(id)
       if (found == null) {
         throw new ParentNotFound(id)
       }
@@ -116,7 +174,8 @@ export const resolveExecution = async (
         parent = found
       }
       if (index === 0 || isProject(found)) {
-        assertChildAllowed(runtime, found, draft.kind, draft.type)
+        const view = !layered ? undefined : index === 0 && isProject(found) ? schemas : await childViewOf(runtime, entityId, found)
+        assertChildAllowed(runtime, found, draft.kind, draft.type, view)
       }
     }
     if (draft.kind === WorkcardKind.Specification && parent == null) {
@@ -133,9 +192,19 @@ export const resolveExecution = async (
     if (found.entityId !== entityId) {
       throw new PlanningScopeMismatch(exec.card)
     }
+    if (facade.scope.projects != null && await facade.cards.load(exec.card) == null) {
+      // Outside the scope's projects: absent, exactly like another entity's card.
+      throw new WorkcardNotFound(exec.card)
+    }
     card = found
-    type = schemas.type(card.type)
-    parent = card.parent != null ? await facade.cards.load(card.parent) ?? undefined : undefined
+    if (layered) {
+      parent = card.parent != null ? await facade.cards.load(card.parent) ?? undefined : undefined
+      schemas = await runtime.schemasFor(entityId, projectOf(card, parent))
+      type = schemas.type(card.type)
+    } else {
+      type = schemas.type(card.type)
+      parent = card.parent != null ? await facade.cards.load(card.parent) ?? undefined : undefined
+    }
   }
 
   const flowId = exec.flow ?? primaryFlowOf(type)
@@ -158,6 +227,7 @@ export const resolveExecution = async (
     ...(parent != null ? { parent } : {}),
     ...(slot != null ? { slot } : {}),
     store: service.store(type.type),
+    schemas,
   }
 }
 

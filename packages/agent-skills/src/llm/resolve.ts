@@ -73,15 +73,13 @@ const findLocalDir = (packageName: string, from: string): string | null => {
   }
 }
 
-const fromLocal = (
+/** One `agent-meta/` directory on this filesystem, read synchronously; a miss is `null`. */
+const fromDir = (
   packageName: string,
-  from: string,
+  dir: string,
   categories: readonly string[],
+  source: 'local' | 'checkout',
 ): PackageSkills | null => {
-  const dir = findLocalDir(packageName, from)
-  if (dir == null) {
-    return null
-  }
   const read = (path: string): string => {
     try {
       return readFileSync(path, 'utf8')
@@ -104,8 +102,42 @@ const fromLocal = (
   }
 
   return skills.length > 0
-    ? { packageName, version: manifest.version, source: 'local', skills }
+    ? { packageName, version: manifest.version, source, skills }
     : null
+}
+
+const fromLocal = (
+  packageName: string,
+  from: string,
+  categories: readonly string[],
+): PackageSkills | null => {
+  const dir = findLocalDir(packageName, from)
+
+  return dir == null ? null : fromDir(packageName, dir, categories, 'local')
+}
+
+/** What a package directory may be named — never a path that climbs out of `packages/`. */
+const PACKAGE_DIR = /^[a-z0-9][a-z0-9._-]*$/
+
+/**
+ * Source 3, from disk — a CHECKOUT of the canonical repository, read in place of GitHub.
+ *
+ * The same `packages/<name>/agent-meta/` files the remote source asks GitHub for, at the same
+ * repo-relative paths, so a checkout serves exactly what pushing it to the ref would. It exists for
+ * a development host that mounts one: the only way it can see a package or a skill that is not
+ * pushed yet. A file missing here is a miss, exactly as a failed fetch is.
+ */
+const fromCheckout = (
+  packageName: string,
+  root: string,
+  categories: readonly string[],
+): PackageSkills | null => {
+  const name = unscoped(packageName)
+  if (!PACKAGE_DIR.test(name) || name.includes('..')) {
+    return null
+  }
+
+  return fromDir(packageName, join(root, 'packages', name, AGENT_META), categories, 'checkout')
 }
 
 /**
@@ -174,6 +206,12 @@ export const loadPackageSkills = async (
   const local = fromLocal(packageName, options.dir ?? process.cwd(), categories)
   if (local != null) {
     return local
+  }
+
+  // A configured checkout REPLACES the remote source — GitHub is not asked as well.
+  const root = options.localRoot?.trim()
+  if (root != null && root !== '') {
+    return fromCheckout(packageName, root, categories)
   }
 
   return fromRemote(packageName, options, categories)
