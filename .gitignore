@@ -31,8 +31,9 @@ node_modules/
 /packages/*/build/*
 !/packages/*/build/.gitkeep
 
-# Tmp files from dev containers
-/tmp/*
+# Scratch: the content of every tmp/ folder, at any depth, is never committed; only its .gitkeep
+**/tmp/**
+!**/tmp/.gitkeep
 
 # GitKeep
 !.gitkeep
