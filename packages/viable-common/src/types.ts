@@ -7,6 +7,11 @@ export interface SlotMetadata extends
 }
 
 export interface SlotConstMetadata {
+  /**
+   * The project's ALIAS — a lowercase slug, an identifier. The OIDC client id base, the key
+   * namespace prefix and the address are composed from it, so it never reaches a person as the
+   * product's name; that is the project card's `title`.
+   */
   projectName: string
   oidcClientId: string
   oidcRealm: string

@@ -12,6 +12,8 @@ export interface AmountCheckoutDialogProps {
   /** The plan's policy — or one already narrowed for the entity (`AmountPolicyView.policy`). */
   policy: AmountCheckoutPolicy
   pending?: boolean
+  /** Disable amount selection and submission while application details are unavailable. */
+  disabled?: boolean
   /** Chosen amount and, where tax estimation collected it, the billing country. */
   onConfirm: (amountMinor: number, country?: string) => Promise<void> | void
   /** A live tax/currency estimate for the credit line — absent: the plain "tax at checkout" note. */
@@ -24,6 +26,8 @@ export interface AmountCheckoutDialogProps {
   limit?: CheckoutLimitView | null
   /** Legal text the application places right above the buttons (a withdrawal note, terms links). */
   legalNote?: ReactNode
+  /** Application-owned information about the account’s purchase limits. */
+  details?: ReactNode
 }
 
 /** What `usePriceEstimate` returns: the latest answer, the chosen country, and its lifecycle. */

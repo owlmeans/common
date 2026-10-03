@@ -61,6 +61,13 @@ const failingBody = async (): Promise<void> => {
   throw new Error('deliberate')
 }
 
+const failingSql = 'SELECT o."enquiryId" FROM {{}} o WHERE o."title" = $1'
+const sqlFailures: Record<string, (tx: PostgresTx) => Promise<unknown>> = {
+  query: async tx => await tx.query(failingSql, ['private-bound-value']),
+  queryOne: async tx => await tx.queryOne(failingSql, ['private-bound-value']),
+  execute: async tx => await tx.execute(failingSql, ['private-bound-value']),
+}
+
 const driftBody = async (tx: PostgresTx): Promise<void> => { await tx.execute('SELECT 1') }
 const driftEdited = async (tx: PostgresTx): Promise<void> => { await tx.execute('SELECT 2') }
 
@@ -212,6 +219,30 @@ describe('@owlmeans/postgres — code registered migrations', () => {
       `SELECT "name" FROM "${suite.schema}"."_owlmeans_migrations" WHERE "alias" = $1`, ['mig-d']
     )).rows)
     expect(rows).toHaveLength(0)
+  })
+
+  it('failed migration SQL survives all transaction methods, with placeholders resolved and values kept separate', async () => {
+    for (const [method, apply] of Object.entries(sqlFailures)) {
+      const alias = `mig-sql-${method.toLowerCase()}`
+      await boot({ alias })
+      let failure: unknown
+      try {
+        await boot({ alias, declare: resource => {
+          resource.migration('0001-bad-sql', async tx => { await apply(tx) }, MigrationStage.Post)
+        } })
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(MigrationError)
+      const cause = (failure as Error).cause as Error
+      expect(cause.message).toContain('42703')
+      expect(cause.message).toContain('SQL: SELECT o."enquiryId" FROM')
+      expect(cause.message).toContain(suite.schema)
+      expect(cause.message).toContain('$1')
+      expect(cause.message).not.toContain('{{}}')
+      expect(cause.message).not.toContain('private-bound-value')
+      expect(cause.cause).toBeInstanceOf(Error)
+    }
   })
 
   it('refuses to start when an applied migration body has been edited', async () => {

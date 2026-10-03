@@ -25,16 +25,27 @@ describe('brandingEnv', () => {
 
   it('composes the rest of the branding env from whatever is present, blank otherwise', () => {
     expect(brandingEnv({
-      brandingCopyright: '© 2026 Acme', projectName: 'Acme CRM',
+      brandingCopyright: '© 2026 Acme', projectName: 'acme-crm',
     })).toEqual({
       BRANDING_COPYRIGHT: '© 2026 Acme',
       BRANDING_ORGANIZATION: '',
       BRANDING_TERMS_URL: '',
       BRANDING_PRIVACY_URL: '',
       BRANDING_CREDIT: '1',
-      BRANDING_PRODUCT: 'Acme CRM',
+      BRANDING_PRODUCT: '',
       BRANDING_GOOGLE_TAG: '',
     })
+  })
+
+  it('never delivers the project alias as the product name', () => {
+    // `projectName` is the lowercase slug the OIDC client and the address are composed from. Taken
+    // for the product's name it titled the document `slopepact` over a header saying `SlopePact`.
+    // The name a person reads is the target's own `APP_TITLE`, which the build falls back to when
+    // this is empty — and the key is still emitted, so the bundle has no bare `process.env` read.
+    for (const projectName of ['slopepact', 'Acme CRM', '']) {
+      expect(brandingEnv({ projectName }).BRANDING_PRODUCT).toBe('')
+    }
+    expect(Object.keys(brandingEnv({ projectName: 'slopepact' }))).toContain('BRANDING_PRODUCT')
   })
 
   it('carries the Google tag, and emits it empty when none is set', () => {

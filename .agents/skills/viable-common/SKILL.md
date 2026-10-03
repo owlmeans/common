@@ -34,7 +34,7 @@ the `Blueprint` types and vocabulary that execution state and card fields name.
 | Subpath | What it declares |
 |---|---|
 | `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`; `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums (names only); the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY` and `landingGatePreferenceOf`; the BA shapes and helpers (`mergeConnectingStories`), the dev, UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` |
-| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` sets, `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
+| `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; `SubProject`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
 | `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`Shape`/`State`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`Reason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
@@ -371,7 +371,10 @@ a key it does not know. A key added after slots exist is therefore OPTIONAL in t
 from a push while unset: `brandingGoogleTag` (in `metadataConfigs`), `cspSources` (in
 `SlotListMetadata`). The build ENVIRONMENT is different — `brandingEnv` always emits every
 `BRANDING_ENV_KEYS` entry, `BRANDING_GOOGLE_TAG` as `''` when unset, because the application's own
-build reads `''` as "none".
+build reads `''` as "none". `BRANDING_PRODUCT` is always `''`: `projectName` is the project's ALIAS
+(a lowercase slug, an identifier), never a product name, and the human-readable one is the target's
+own `APP_TITLE` (stated from the project card's `title`), which the build falls back to. Pinned by
+`tests/branding.spec.ts`.
 
 `metadataConfigs` / `metadataLists` / `metadataSecrets` enumerate what an owner STORES — one
 `project-config` / `project-secret` row per key, loaded on every metadata read. `cspSources` is not

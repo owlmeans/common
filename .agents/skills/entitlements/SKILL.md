@@ -31,6 +31,10 @@ answer from the same pure functions, so a disabled button and a 403 cannot disag
 - **The effective plan** is the highest-ranked subscription in `ENTITLING_STATUSES`
   (`Active`, `Trial`, `PastDue`). `PastDue` still entitles and is flagged; `Suspended` revokes
   until resumed; terminal statuses fall back to the free plan.
+- **One subscription may hold other ceilings than its plan declares**: the row's `overrides.limits`
+  replace the plan's ceilings for that subscription only, promo or not (the `server-payment` skill,
+  § The subscription store). Read a plan's limits from the effective plan or the entitlement view,
+  never from the catalogue by sku, or an override is missed.
 - A plan names its keys, never a product's copy: every limit key an application gates on appears
   on every plan (with `limit: 0` where not included), so "not included" is an answer, not a
   missing row.

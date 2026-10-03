@@ -1,5 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
-import { SlotCommandType, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
+import { SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand } from './consts.js'
 import type { SlotCommandPayload, SlotGitCloneArgs } from './types.js'
 
 export const SlotCommandPayloadSchema = {
@@ -14,6 +14,7 @@ export const SlotCommandPayloadSchema = {
         { type: 'string', enum: Object.values(SlotFileCommand) },
         { type: 'string', enum: Object.values(SlotShellCommand) },
         { type: 'string', enum: Object.values(SlotGitCommand) },
+        { type: 'string', enum: Object.values(SlotDatabaseCommand) },
       ]
     },
     args: {

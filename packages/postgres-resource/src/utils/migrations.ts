@@ -15,29 +15,32 @@ export const makeTx = (
   client,
 
   query: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
+    const query = resolve(text)
     try {
-      const result = await client.query<Row>(resolve(text), params as never[])
+      const result = await client.query<Row>(query, params as never[])
       return result.rows
     } catch (error) {
-      throw pgErrorToResourceError(error)
+      throw pgErrorToResourceError(error, query)
     }
   },
 
   queryOne: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
+    const query = resolve(text)
     try {
-      const result = await client.query<Row>(resolve(text), params as never[])
+      const result = await client.query<Row>(query, params as never[])
       return result.rows[0] ?? null
     } catch (error) {
-      throw pgErrorToResourceError(error)
+      throw pgErrorToResourceError(error, query)
     }
   },
 
   execute: async (text: string, params?: unknown[]) => {
+    const query = resolve(text)
     try {
-      const result = await client.query(resolve(text), params as never[])
+      const result = await client.query(query, params as never[])
       return result.rowCount ?? 0
     } catch (error) {
-      throw pgErrorToResourceError(error)
+      throw pgErrorToResourceError(error, query)
     }
   },
 

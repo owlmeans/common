@@ -97,6 +97,17 @@ describe('@owlmeans/postgres-resource — driver error translation', () => {
     expect(pgErrorToResourceError(original)).toBe(original)
   })
 
+  test('preserves the executed SQL and driver cause for migration diagnostics', () => {
+    const original = driver({ code: '42703', message: 'column o.enquiryId does not exist' })
+    const query = 'UPDATE "app"."opportunity" o SET "enquiryId" = $1 WHERE o."enquiryId" IS NULL'
+    const failure = pgErrorToResourceError(original, query)
+
+    expect(failure).toBeInstanceOf(PostgresError)
+    expect(failure.message).toContain('42703')
+    expect(failure.message).toContain(`SQL: ${query}`)
+    expect(failure.cause).toBe(original)
+  })
+
   test('leaves an error that is not from the driver alone', () => {
     const plain = new Error('not postgres at all')
 

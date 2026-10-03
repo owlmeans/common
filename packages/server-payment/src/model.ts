@@ -48,6 +48,21 @@ export const PaymentSubscriptionSchema = {
     checkoutSessionId: optStr, purchaseId: optStr, firstInvoiceId: optStr, country: optStr, email: optStr,
     amountTotalMinor: optNum, amountTaxMinor: optNum, termsAccepted: optBool, startRequestId: optStr,
     withdrawnAt: optDate,
+    overrides: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        limits: {
+          type: 'object',
+          nullable: true,
+          additionalProperties: {
+            type: 'object', properties: { limit: num }, required: ['limit'], additionalProperties: false,
+          },
+          required: [],
+        },
+      },
+      additionalProperties: false,
+    },
     propagated: {
       type: 'object',
       nullable: true,
