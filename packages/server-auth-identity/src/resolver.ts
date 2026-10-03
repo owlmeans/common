@@ -5,7 +5,8 @@ import type { EntityResolverService, OrgEntityRef } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER, ENTITY_SLUG_PATTERN } from '@owlmeans/auth-common'
 import { generateWordSlug, nextSlugCandidate } from '@owlmeans/basic-ids'
 import type { OrgEntity, OrgEntityResource } from './types.js'
-import { AUTH_IDENTITY_ORG_ENTITY, MAX_ENTITY_SLUG_ATTEMPTS } from './consts.js'
+import { AUTH_IDENTITY_ORG_ENTITY, MAX_ENTITY_SLUG_ATTEMPTS, MAX_GUARDED_UPDATE_ATTEMPTS } from './consts.js'
+import { idFilter, isDuplicateKey } from './native.js'
 
 type Context = ServerContext<ServerConfig>
 
@@ -19,14 +20,17 @@ type Context = ServerContext<ServerConfig>
  */
 const CACHE_TTL = 30_000
 
-/** A stored record as the contract exposes it. Persisted records always carry an id. */
+/**
+ * A stored record as the contract exposes it. Persisted records always carry an id. The cache keeps
+ * only this: the record itself carries groups and minted names nobody resolving a request needs.
+ */
 const toRef = (entity: OrgEntity | null): OrgEntityRef | null =>
   entity == null ? null : {
     id: entity.id!, slug: entity.slug, formerSlugs: entity.formerSlugs, iamKey: entity.iamKey,
   }
 
 interface CacheEntry {
-  entity: OrgEntity | null
+  entity: OrgEntityRef | null
   at: number
 }
 
@@ -38,13 +42,13 @@ export const makeEntityResolverService = (
   const cache = new Map<string, CacheEntry>()
   const now = () => Date.now()
 
-  const remember = (entity: OrgEntity | null, ...keys: string[]): OrgEntity | null => {
+  const remember = (entity: OrgEntityRef | null, ...keys: string[]): OrgEntityRef | null => {
     const at = now()
     for (const key of keys) {
       if (key !== '') cache.set(key, { entity, at })
     }
     if (entity != null) {
-      cache.set(entity.id!, { entity, at })
+      cache.set(entity.id, { entity, at })
       cache.set(entity.slug, { entity, at })
       cache.set(entity.iamKey, { entity, at })
       for (const former of entity.formerSlugs ?? []) cache.set(former, { entity, at })
@@ -53,16 +57,16 @@ export const makeEntityResolverService = (
     return entity
   }
 
-  const forget = (entity: OrgEntity) => {
+  const forget = (entity: OrgEntityRef) => {
     for (const key of [entity.id, entity.slug, entity.iamKey, ...(entity.formerSlugs ?? [])]) {
-      if (key != null) cache.delete(key)
+      cache.delete(key)
     }
   }
 
   const resource = (): OrgEntityResource =>
     (service.ctx as Context).resource<OrgEntityResource>(AUTH_IDENTITY_ORG_ENTITY)
 
-  const load = async (value: string): Promise<OrgEntity | null> => {
+  const load = async (value: string): Promise<OrgEntityRef | null> => {
     const cached = cache.get(value)
     if (cached != null && now() - cached.at < CACHE_TTL) {
       return cached.entity
@@ -73,7 +77,7 @@ export const makeEntityResolverService = (
     // id can never shadow it. A value that is not a record id simply misses. Then the current
     // slug, then the names it has retired, then the frozen key external systems still quote.
     const byId = await res.load(value)
-    if (byId != null) return remember(byId, value)
+    if (byId != null) return remember(toRef(byId), value)
 
     const candidates: Criteria<OrgEntity>[] = [
       { slug: value },
@@ -82,16 +86,16 @@ export const makeEntityResolverService = (
     ]
     for (const where of candidates) {
       const found = await res.load(where)
-      if (found != null) return remember(found, value)
+      if (found != null) return remember(toRef(found), value)
     }
 
     return remember(null, value)
   }
 
   const service: EntityResolverService = appendContextual<EntityResolverService>(alias, {
-    resolve: async value => toRef(await load(value)),
+    resolve: async value => await load(value),
 
-    byId: async id => toRef(remember(await resource().load(id), id)),
+    byId: async id => remember(toRef(await resource().load(id)), id),
 
     mintSlug: async () => {
       const res = resource()
@@ -118,29 +122,53 @@ export const makeEntityResolverService = (
       }
 
       const res = resource()
-      const entity = await res.get(id)
-      if (entity.slug === slug) {
-        return toRef(entity)!
+      for (let attempt = 0; attempt < MAX_GUARDED_UPDATE_ATTEMPTS; ++attempt) {
+        const entity = toRef(await res.get(id))!
+        if (entity.slug === slug) {
+          return remember(entity)!
+        }
+
+        // A slug another entity has ever answered to cannot be taken: tokens and third-party
+        // records quoting it would start resolving to the wrong organization.
+        const taken = await res.load({
+          $or: [{ slug }, { formerSlugs: { $contains: [slug] } }],
+        })
+        if (taken != null && taken.id !== id) {
+          throw new SyntaxError(`entity:slug-taken:${slug}`)
+        }
+
+        const formerSlugs = [...new Set([...(entity.formerSlugs ?? []), entity.slug])]
+          .filter(former => former !== slug)
+        let renamed: boolean
+        try {
+          // Three fields, never the document: groups and minted names written since the read
+          // above survive. Guarded on the slug that was read — `formerSlugs` moves only with it —
+          // so a concurrent rename makes this match nothing instead of writing a stale list.
+          const result = await res.collection.updateOne(
+            { ...idFilter(res, id), slug: entity.slug },
+            { $set: { slug, formerSlugs, updatedAt: new Date() } },
+          )
+          renamed = result.matchedCount > 0
+        } catch (error) {
+          // The unique index settles a race the read above could not see.
+          if (isDuplicateKey(error)) throw new SyntaxError(`entity:slug-taken:${slug}`)
+          throw error
+        }
+
+        forget(entity)
+        if (renamed) {
+          return remember(toRef(await res.get(id)))!
+        }
       }
 
-      // A slug another entity has ever answered to cannot be taken: tokens and third-party records
-      // quoting it would start resolving to the wrong organization.
-      const taken = await res.load({
-        $or: [{ slug }, { formerSlugs: { $contains: [slug] } }],
-      })
-      if (taken != null && taken.id !== id) {
-        throw new SyntaxError(`entity:slug-taken:${slug}`)
-      }
-
-      forget(entity)
-      const formerSlugs = [...new Set([...(entity.formerSlugs ?? []), entity.slug])]
-        .filter(former => former !== slug)
-      const updated = await res.update({ ...entity, slug, formerSlugs, updatedAt: new Date() })
-
-      return toRef(remember(updated))!
+      throw new SyntaxError(`entity:rename-contended:${id}`)
     },
 
     mintName: async (id, key, mint) => {
+      if (key === '' || key.includes('.') || key.startsWith('$')) {
+        throw new SyntaxError(`entity:name-key-malformed:${key}`)
+      }
+
       const res = resource()
       const entity = await res.get(id)
       const existing = entity.names?.[key]
@@ -151,13 +179,14 @@ export const makeEntityResolverService = (
       }
 
       const minted = mint(toRef(entity)!)
-      forget(entity)
-      const updated = await res.update({
-        ...entity, names: { ...entity.names, [key]: minted }, updatedAt: new Date(),
-      })
-      remember(updated)
+      // One field, guarded on still being unset: of two concurrent minters the first write wins,
+      // and both answer what was stored.
+      await res.collection.updateOne(
+        { ...idFilter(res, id), [`names.${key}`]: { $in: [null, ''] } },
+        { $set: { [`names.${key}`]: minted, updatedAt: new Date() } },
+      )
 
-      return updated.names?.[key] ?? minted
+      return (await res.get(id)).names?.[key] ?? minted
     },
   })
 

@@ -9,8 +9,12 @@ import { base64 } from '@scure/base'
 import { randomBytes } from '@noble/hashes/utils'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
+/**
+ * Exchanges an authorization code. Answers the provider descriptor, the token set, the exchange
+ * token and — fourth — the organization the person asked to act in at init, if any.
+ */
 export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(context: T) =>
-  async (credential: AuthCredentials): Promise<[OidcProviderConfig, OidcTokenSet, string]> => {
+  async (credential: AuthCredentials): Promise<[OidcProviderConfig, OidcTokenSet, string, string | undefined]> => {
     const challengeParts = credential.challenge.split(':http')
     // This is ex. source - url we were going to return user to after all it happens
     const redirectUrl = challengeParts[0]
@@ -58,5 +62,5 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
       { ttl: AUTHEN_TIMEFRAME / 1000 }
     )
 
-    return [cfg, tokenSet, exchangeToken]
+    return [cfg, tokenSet, exchangeToken, verification.entitySlug]
   }

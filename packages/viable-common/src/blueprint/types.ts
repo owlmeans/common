@@ -1,3 +1,4 @@
+import type { ProjectTenancy } from '../areas/tenancy.js'
 import type { SubProject } from '../slot/consts.js'
 import type { ViableSkill } from '../skills/consts.js'
 import type { ViablePersona } from '../skills/roles.js'
@@ -21,7 +22,7 @@ import type { TopologyDescriptor } from '../topology/types.js'
  * OPTIONAL and says what its product should do for the people using it. Optional because a
  * blueprint registered before the layer existed — or a patch serialized into a run row — must keep
  * resolving: every reader asks through a helper that answers the default for an absent layer
- * ({@link landingGatePreferenceOf}).
+ * ({@link landingGatePreferenceOf}, `tenancyOf`).
  */
 export interface Blueprint {
   id: string
@@ -85,6 +86,14 @@ export enum LandingGatePreference {
  */
 export interface ExperienceLayer {
   landingGate: LandingGatePreference
+  /**
+   * Whether the product splits its audiences into tenant organizations.
+   *
+   * Written by resolution from {@link BlueprintRef.tenancy} — the project's own decision — and by
+   * no blueprint or case table, which cannot know it. Absent is a single-organization application;
+   * always read through `tenancyOf`.
+   */
+  tenancy?: ProjectTenancy
 }
 
 const LANDING_GATE_PREFERENCES = new Set<string>(Object.values(LandingGatePreference))
@@ -266,5 +275,14 @@ export interface BlueprintRef {
    * which is the only reading that cannot silently take a capability away from a live project.
    */
   case?: string
+  /**
+   * Whether the product splits its audiences into tenant organizations — the project card's
+   * decision, resolved into `experience.tenancy`.
+   *
+   * Flags rather than a key, because the decision is the project's own and no table could hold it;
+   * two booleans are still no artifact. Absent, or both false, applies nothing, so a run row of a
+   * project nobody decided for serializes exactly as it did before tenancy existed.
+   */
+  tenancy?: ProjectTenancy
   overrides?: BlueprintPatch
 }

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.2"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
+**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.5"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
 
 A `PlanningStore` of `@owlmeans/server-planning` on Postgres. It owns no planning semantics: every
 write still goes through the executor, every fold through `foldPending`, every query through
@@ -23,7 +23,7 @@ included, so a facade over it has `definitions`.
 | `makePlanningCardResource(alias?, dbAlias?, serviceAlias?)` (and the three twins), `makePlanningPostgresResources(aliases)` | The same resources under custom aliases |
 | `makePostgresPlanningService(opts?, alias?)` | The planning host service over a Postgres store — a target's `makeService()` |
 | `appendPostgresPlanning(ctx, opts?, alias?)` | The four resources (each unless present), the service and `ctx.planning()` in one call |
-| `makePostgresPlanningStore({ context, ...opts })` | The store alone; `fold(card)`, `recover(opts?)`, `close()` beside the ports |
+| `makePostgresPlanningStore({ context: () => ctx, ...opts })` | The store alone (its resources resolved on that context at the first call); `fold(card)`, `recover(opts?)`, `close()` beside the ports |
 | `PlanningPostgresOptions` | `{ aliases?, bus?, limits?, ids?, now? }`; `PostgresPlanningServiceOptions` adds the service's own (`plugins`, `schemas`, `hooks`) |
 | `DEFAULT_PLANNING_POSTGRES_LIMITS` | `{ foldBatch: 500, gapGraceMs: 30_000, healAfterMs: 1_000, recoverAfterMs: 60_000, lockTimeoutMs: 10_000 }` |
 | `RES_PLANNING_CARD` · `RES_PLANNING_TRANSITION` · `RES_PLANNING_LINK` · `RES_PLANNING_SCHEMA`, `PLANNING_POSTGRES_STORE` | `planning-card` … `planning-schema`, `planning-postgres` |
@@ -49,7 +49,7 @@ included, so a facade over it has `definitions`.
 - The card table carries one private column, `headAt` — when `head` last moved — that no read
   ever returns.
 - A card list includes specifications only when it asks for `kind: 'specification'` or names a
-  `category` (`wantsSpecifications`, the memory store's own rule); a summary never counts them.
+  `category` (`wantsSpecifications`, the rule every store routes by); a summary never counts them.
 - Every maker declares each index once, however often it runs.
 
 ## Target wiring
@@ -149,8 +149,7 @@ export const PLANNING: PlanningPlugin = {
 
 The api binds the tree the shared package declares (an api's own `entrypoints.ts`, outside the
 wiring above); a hand-written backend may register everything in one call instead —
-`appendPostgres(context); appendPostgresPlanning(context, { plugins: [PLANNING] })`. A lending
-library's branches (projects) and books (cards):
+`appendPostgres(context); appendPostgresPlanning(context, { plugins: [PLANNING] })`.
 
 ```ts
 // common: a lending library's branches (projects) and books (cards)
@@ -185,47 +184,12 @@ export const planningProtocols = makePlanningProtocols({
 ...servePlanningEntrypoints(planningProtocols)
 ```
 
-Writing and reading from backend code. A target registers the service as a plain service
-(`services/planning.ts` above), so there is NO `ctx.planning()` — reach it by alias:
-
-```ts
-import { IntrinsicStatus, PLANNING_SERVICE, TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import type { PlanningHostService } from '@owlmeans/server-planning'
-
-const planning = ctx.service<PlanningHostService>(PLANNING_SERVICE).for({ entityId, profileId })
-
-const branch = await planning.execute({
-  action: TransitionAction.Create,
-  card: { kind: WorkcardKind.Project, type: 'library:branch', title: 'Riverside branch' },
-}, { wait: true })
-const book = await planning.execute({
-  action: TransitionAction.Create,
-  card: { kind: WorkcardKind.Card, type: 'library:book', parent: branch.card!.id!, title: 'Moby-Dick' },
-}, { wait: true })                      // book.card — the committed row, status 'shelved'
-await planning.cards.list({ parent: branch.card!.id!, type: 'library:book' })
-await planning.execute({ action: TransitionAction.Transit, card: book.card!.id!, transition: 'lend' }, { wait: true })
-
-// This store keeps schemas, so `definitions` is present: a flow and a card type as data, for the
-// branch alone (admitted there because `library:branch` says `scopedCardTypes: true`).
-await planning.definitions!.define({
-  flows: [{ id: 'library:repair', version: 1, label: 'Repair',
-    statuses: [{ key: 'reported', intrinsic: IntrinsicStatus.Planned, initial: true, label: 'Reported' },
-      { key: 'rebound', intrinsic: IntrinsicStatus.Closed, terminal: true, label: 'Rebound' }],
-    transitions: [{ name: 'rebind', from: ['reported'], to: 'rebound', label: 'Rebind', explicit: true }] }],
-  types: [{ type: 'library:repair', kind: WorkcardKind.Card, version: 1, label: 'Repair request',
-    fields: { type: 'object' }, flows: ['library:repair'], specifications: [] }],
-}, { project: branch.card!.id! })
-```
-
-| Wrong | What happens | Right |
-|---|---|---|
-| `{ action, draft: { … } }` | `planning:malformed:create-without-draft` | the draft goes under `card` |
-| `{ …, wait: true }` in the execution | ignored — unnoticed while the inline fold lands at once, then a receipt with no `card` the first time another process holds the card's fold (a lock, a young gap) | `execute(exec, { wait: true })` |
-| `ctx.planning()` | not a function in a target | `ctx.service<PlanningHostService>(PLANNING_SERVICE)` |
-| `name` / `key` on a type or flow | `SchemaInvalid` — the display name is `label`, the key is `type` / `id` | see the `planning` skill's declaration table |
-
-Every wrong form is a compile error against the typed facade; it reaches run time only through a
-helper or context typed `any`.
+Writing and reading from backend code is `server-planning` → Creating and reading a card (the
+call, the read back, `define`, and the wrong forms). A target registers the service as a plain
+service (`services/planning.ts` above), so there is NO `ctx.planning()`: reach it as
+`ctx.service<PlanningHostService>(PLANNING_SERVICE).for({ entityId, profileId })`, with `entityId`
+taken in the HANDLER (`server-planning` → Scope and security) and passed down. This store keeps
+schemas, so `definitions` is always present.
 
 The first store call into a missing resource throws
 `PlanningPostgresError('resource-missing:planning-schema: add src/resources/planning/schema.ts')`,

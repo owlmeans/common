@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.15"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.18"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -31,8 +31,9 @@ reuses the `./store` subpath (`foldPending`, `makeCommitHub`) without pulling fa
 | `PlanningAccessResolver`, `PlanningAccess`, `PlanningAccessGrants`, `PlanningGrant` | The optional access decision a hosting app supplies |
 | `listCards` … `executePlanning`, `getCommit`, `watchCommits`, `listSchemas`, `defineSchemas`, `applySchemaRequest` | The handlers, to bind one by hand |
 | `scopeOf(req, extra?)`, `accessScopeOf(req, access, extra?)`, `handlerScopeOf`, `assertGranted`, `actorOf(req)`, `concealed(run)`, `clampSeconds` | Scope and security helpers |
-| `makeDefinitions(runtime, facade)`, `makeSchemaViews(opts)`, `projectCriteriaOf(projects)` | Data-defined schemas and the project narrowing |
+| `makeDefinitions(runtime, facade)`, `makeSchemaViews(opts)`, `projectCriteriaOf(projects, through?)` | Data-defined schemas and the project narrowing |
 | `makeProjectionProcessor(ctx, opts?)`, `planningQueueHooks(ctx, opts?)` | A generic projection job body and its `onJobDead` |
+| `./queue`: `declarePlanningQueue(cfg, opts?)`, `PLANNING_PROJECTION_QUEUE` (`planning-projection`), `PLANNING_PROJECT_JOB` (`planning:project`), `ProjectionRequest` | The projection queue's shared address; each process chooses separately whether to listen |
 | `./store`: `makeMemoryPlanningStore`, `foldPending`, `failPending`, `revisionsFromLog`, `commitEventOf`, `makeCommitHub`, `makeCompositeStore`, `wantsSpecifications` | What stores are built from |
 | `./conformance`: `planningConformance`, `conformanceCasesFor`, `planningConformancePlugin`, `conformanceClock`, `ConformanceFailure` | The store conformance suite, runner-agnostic |
 
@@ -115,7 +116,7 @@ await planning.definitions!.define({
 | Wrong | What happens | Right |
 |---|---|---|
 | `execute({ action, draft: { … } })` | refused: `planning:malformed:create-without-draft` | the draft goes under `card` |
-| `execute({ …, wait: true })` | in process the key is ignored: the receipt returns before the commit, with no `card` | `execute({ … }, { wait: true })` — only the wire body (`ExecuteRequest`) carries `wait` inside |
+| `execute({ …, wait: true })` | in process the key is ignored: the receipt returns before the commit, with no `card` — hidden while an inline-folding store (`planning-postgres`) lands at once, exposed the first time another process holds the card's fold | `execute({ … }, { wait: true })` — only the wire body (`ExecuteRequest`) carries `wait` inside |
 | `ctx.planning().for(…)` in a target | `ctx.planning is not a function` | `ctx.service<PlanningHostService>(PLANNING_SERVICE).for(…)` |
 | `{ id, name: 'Repair', … }` on a flow, `{ key, name, … }` on a type | `define` refuses with `SchemaInvalid` (closed schemas); a code plugin's registry does not validate, so the key is silently dropped | a flow's key is `id`, a type's is `type`, the display name is `label` on both |
 | `action: 'create'` | a type error — `TransitionAction` is an enum | `action: TransitionAction.Create` |
@@ -141,8 +142,7 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
    default store holds data-defined schemas, the card's project is found first and everything
    after reads that project's resolved layer (`Resolved.schemas`): a data-defined type of a
    project with `scopedCardTypes` is admitted, a retired type creates nothing
-   (`UnknownWorkcardType('retired:…')`). Without the port `Resolved.schemas` IS the code registry
-   and the order is unchanged.
+   (`UnknownWorkcardType('retired:…')`). Without the port `Resolved.schemas` IS the code registry.
 5. **`before` chain** — in plugin order; re-resolved once when it changed the card, type or parent.
 6. **Validate** — shape (`planning:malformed:*`), the flow rule (`IllegalTransition`), immutables
    (`planning:immutable:*`, `createdBy` among them — `assertCreatorFixed`), merged `fields` (`FieldsInvalid`), labels (`LabelNotAllowed`), a moved
@@ -164,22 +164,15 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
 in-process caller may add `agent`/`runId` on the execution. A handler never passes a wire `actor`.
 
 A create's `createdBy` is the scope's subject too — `creatorOf(scope)`: `profileId`, else `userId`,
-else the same two of `scope.actor`. The executor stamps it on every path, so
-`service.for({ entityId, profileId }).execute({ action: 'create', card })` and the HTTP `execute`
-produce the same owner and an ownership check (`card.createdBy === profileId`) holds for the
-creator. An in-process draft that names `createdBy` keeps it (explicit wins — a manager creating on
-someone's behalf); a scope naming nobody (a service or system scope) leaves it unset. The wire drops
-a create draft's `createdBy` before the stamp. Nothing else writes it: there is no `updatedBy` — who
-made each later write is the transition's `actor`.
+else the same two of `scope.actor`. The executor stamps it on every path, so an in-process facade
+create and the HTTP `execute` produce the same owner. An in-process draft that names `createdBy`
+keeps it (explicit wins — a manager creating on someone's behalf); a scope naming nobody (a service
+or system scope) leaves it unset; the wire drops a draft's `createdBy` before the stamp.
 
-**After the create `createdBy` never moves.** An execution naming it in `changes` or `unset` is
-refused with `planning:immutable:createdBy` on every action — a create's `changes` overlay too, since
-the draft is its one source — whether it came over the wire, from an in-process caller, or from a
-`before` plugin (validation runs after the chain), and nothing is appended. The executor holds this
-check itself (`assertCreatorFixed`), beside `@owlmeans/planning`'s `assertMutable`, so it stands
-whatever planning build a host resolves. `createdAt` is an identity key and refused the same way. A
-row appended before the refusal existed still folds as written (the fold replays the log; guards
-live at admission), and the conformance suite checks a store folds it like the pure fold does.
+`createdBy` never moves after the create (the rule is `planning` → The record model). The executor
+enforces it itself with `assertCreatorFixed` at step 6, after the `before` chain, so a wire body, an
+in-process caller and a plugin are refused alike, whatever `@owlmeans/planning` build the host
+resolves. The conformance suite checks a store folds a stored row naming it as the pure fold does.
 
 ## Idempotency and `expectSeq`
 
@@ -221,8 +214,8 @@ the store; `bind` replaces the listener, so a store has exactly one.
   the criteria asks for `kind: specification` or a `category` (`wantsSpecifications`, the rule every
   store routes by).
 - `schemas: true` adds the data-defined schema port (records per layer, a revision per
-  organization, synchronous `watch`); off by default, so a plain memory store resolves everything
-  in code exactly as before.
+  organization, synchronous `watch`); off by default — without it every type and flow resolves
+  from code.
 - `sync` (default) folds, publishes and runs `committed` inside `project()`, serialized per card.
   `sync: false` folds nothing until `flush(card?)` — a queued store's shape, for tests that need a
   commit to stay pending.
@@ -288,9 +281,14 @@ mapping external records (`mappers`) belongs to that plugin's own store adapter.
 
 - Without `opts.access`: `entityId` is `requireEntityKey(req)`; `opts.scope(req, ctx)` adds a
   `channel` or `service` and can never replace the entity. `actor` and a create's `createdBy` come
-  from the request, never the body (`wireExecution` drops a draft's claim; the executor's
-  `withCreator` stamps the subject, and `assertCreatorFixed` refuses a body whose `changes` or
-  `unset` names `createdBy` — an update can never re-own a card).
+  from the request, never the body (`wireExecution` drops a draft's claim, `withCreator` stamps the
+  subject, `assertCreatorFixed` refuses a body naming `createdBy` — an update never re-owns a card).
+- The organization of a scope is the one the request ACTS IN. `requireEntityKey(req)` answers
+  `req.entity.id`, the stable record id (the token's `entitySlug` only where no entity resolver is
+  registered). Behind an OIDC relying party (`@owlmeans/server-oidc-rp`) the acting organization is
+  session state: the guard attaches `req.entity` with `id` = the organization claim's frozen
+  `entityKey`, so the tenant key survives a rename and follows a switch. Take it in the handler and
+  pass it down; never read it from the context or from a body.
 - Another entity's card, specification or transition answers `WorkcardNotFound` — the same as an
   absent id — on reads and writes alike (`concealed`).
 - Queries arrive in their wire form and are decoded with `decode*Query` before `criteriaOf`, which
@@ -302,13 +300,22 @@ mapping external records (`mappers`) belongs to that plugin's own store adapter.
 decision per request; a throw is the request's answer (an `AuthForbidden` answers 403).
 
 - `entityId` is the resolver's — never the token's, never `opts.scope`'s.
-- `projects` becomes `PlanningScope.projects`, which the server facade enforces everywhere: the
-  projects themselves and every card whose `parents` name one are visible (a specification
-  through its parent card); anything else reads as absent (`WorkcardNotFound`, `null`, an empty
-  list), a create under an invisible parent is `ParentNotFound` (the executor's own parent load),
-  lists, counts and summaries are AND'd with `projectCriteriaOf`, links and transitions are
-  filtered by `project` (and post-filtered, for a store that ignores the field), commit
-  subscriptions drop events outside the set and a status or wait refuses them.
+- `projects` becomes `PlanningScope.projects`, which the server facade enforces on every read and
+  write. Visible are the projects, every card whose `parents` name one, and every specification
+  whose parent card is visible (its `parents` hold only that card). Anything else reads as absent
+  (`WorkcardNotFound`, `null`, an empty list); a create under an invisible parent is
+  `ParentNotFound`; links and transitions are filtered by `project` (and post-filtered, for a store
+  that ignores the field); commit subscriptions drop events outside the set and a status or wait
+  refuses them.
+- **A narrowed list or count sees a specification whenever its parent card is visible** — exactly
+  what a single read admits. It is AND'd with `projectCriteriaOf(projects, through)`; when its
+  criteria ask for specifications (`wantsSpecifications`) the facade resolves `through` (the visible
+  parent cards) with ONE read per call: the query's `parent`, else the projects' own cards. A
+  summary counts no specification and pays nothing extra. `tests/narrowing.spec.ts` pins it.
+- A person who may see only SOME projects of their organization (a tool-shed volunteer given one
+  shed) is expressed here: the resolver answers the project ids the person's grants list as
+  `projects`, and omits the key when a grant covers every project — never a hand-written filter in
+  each handler.
 - `grants` gates the stock handlers' writes: `createProjects` (a project create — `true` for the
   root, a list names the parent projects), `deleteProjects` (the delete of a project card — a list
   names the projects), `defineSchemas` (`schema.define` — `true` for the organization's layer, a

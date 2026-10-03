@@ -55,8 +55,14 @@ export const requireEntity = (req: AbstractRequest): ResolvedEntity => {
  * its handlers quietly fall back to comparing a slug against stored ids — which surfaces as "this
  * project does not exist" rather than as a missing resolution, and costs an afternoon to find.
  *
- * A no-op when no resolver is registered: such a deployment has no organization store, and the
- * slug is the only identifier it has.
+ * An entity the guard already attached is kept while its slug is exactly the token's: a guard
+ * whose authority names the organization itself (an OIDC session of a tenanted client) is the only
+ * source such a deployment has, because the registry that owns the organization is not its own.
+ * One whose slug differs is never trusted — it is dropped, and resolution proceeds as if it had
+ * not been there.
+ *
+ * Otherwise a no-op when no resolver is registered: such a deployment has no organization store,
+ * and the slug is the only identifier it has.
  *
  * @throws {AuthenFailed} when the token names an organization that cannot be resolved.
  */
@@ -64,6 +70,13 @@ export const attachEntity = async (
   context: BasicContext<any>, request: AbstractRequest
 ): Promise<ResolvedEntity | undefined> => {
   const slug = entitySlugOf(request.auth)
+  if (request.entity != null) {
+    if (slug != null && request.entity.slug === slug) {
+      return request.entity
+    }
+    request.entity = undefined
+  }
+
   if (slug == null || !context.hasService(ENTITY_RESOLVER)) {
     return undefined
   }

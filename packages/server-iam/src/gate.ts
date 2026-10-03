@@ -104,7 +104,8 @@ const auditEntrypoint = (ctx: Context, req: AbstractRequest, params: string[]): 
  * appendIam() so target code never knows which IAM backend is active.
  *
  * 1. When the Auth carries a valid PermissionSet[] claim (integrated IAM mode),
- *    params are asserted locally against it — both unscoped and resource-scoped forms.
+ *    params are asserted locally against it — both unscoped and resource-scoped forms, and a set
+ *    bound to an organization only for the organization the request acts in.
  * 2. Otherwise (Keycloak mode — its tokens never produce a conforming claim) the
  *    @-suffixes are stripped and the check delegates to the UMA2 gate model from
  *    @owlmeans/server-oidc-rp, byte-equivalent to makeOidcGate.
@@ -134,6 +135,11 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
         // repaired in completely different places.
         const structural: string[] = []
 
+        // The organization the request acts in. A relying party of a tenanted client attaches it
+        // through the guard; otherwise it is the token's. A set bound to any other organization
+        // never satisfies the check.
+        const entitySlug = req.entity?.slug ?? entitySlugOf(auth)
+
         const granted = params.some(param => {
           const { permission, resource, error } = parseGateParam(param)
           // Grants are stored against the entity's stable id wherever one is resolvable; the
@@ -158,10 +164,10 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
               return false
             }
 
-            return hasPermission(auth, fixed, { resourceId: resolution.id })
+            return hasPermission(auth, fixed, { resourceId: resolution.id, entitySlug })
           }
 
-          return hasPermission(auth, fixed)
+          return hasPermission(auth, fixed, { entitySlug })
         })
 
         if (!granted) {

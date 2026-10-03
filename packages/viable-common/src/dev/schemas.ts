@@ -80,7 +80,10 @@ export const EntrypointRefListSchema: JSONSchemaType<{entries: EntrypointRef[]}>
   additionalProperties: false
 }
 
-export const AccessBlockSchema: JSONSchemaType<AccessBlock> = {
+/** The part of an {@link AccessBlock} a model is asked for. */
+type ModelAccessBlock = Omit<AccessBlock, 'defaults' | 'entityScoped'>
+
+const ModelAccessBlockSchema: JSONSchemaType<ModelAccessBlock> = {
   type: "object",
   title: "AccessBlock",
   description: "Object with permissions array and access level",
@@ -118,6 +121,15 @@ export const AccessBlockSchema: JSONSchemaType<AccessBlock> = {
   required: ["permissions", "level"],
   additionalProperties: false
 }
+
+/**
+ * The access block a model writes.
+ *
+ * It names only what a model is asked for: `defaults` and `entityScoped` are written by code and
+ * must never reach a prompt, which `tests/access-schema.spec.ts` pins byte for byte. A value it
+ * admits is still an {@link AccessBlock}, because both code-written keys are optional.
+ */
+export const AccessBlockSchema = ModelAccessBlockSchema as unknown as JSONSchemaType<AccessBlock>
 
 export const AccessListSchema: JSONSchemaType<AccessList> = {
   type: "object",

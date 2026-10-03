@@ -37,7 +37,7 @@ const makeRequest = (
     userId: 'user-1',
     role: AuthRole.User,
     scopes: [],
-    entityId: 'entity-1',
+    entitySlug: 'entity-1',
     isUser: true,
     createdAt: new Date(),
     permissions: [
@@ -86,8 +86,8 @@ describe('@owlmeans/server-iam — makeIamGate (claims mode)', () => {
 
   test('resolves a resource id from the auth object', async () => {
     const gate = await makeGate()
-    // `entity-1` is this subject's own entityId, and the unscoped grant covers every resource.
-    await gate.assert(makeRequest(), res, ['article--modify@auth:entityId'])
+    // `entity-1` is this subject's own organization slug, and the unscoped grant covers every resource.
+    await gate.assert(makeRequest(), res, ['article--modify@auth:entitySlug'])
   })
 
   /**
@@ -123,5 +123,81 @@ describe('@owlmeans/server-iam — makeIamGate (claims mode)', () => {
     expect(
       gate.assert(req, res, ['department--modify@depId'])
     ).rejects.toBeInstanceOf(AuthForbidden)
+  })
+})
+
+/**
+ * The four permission kinds, as a relying party hands them to the gate. Normally the relying party
+ * strips the binding of the acting organization's sets and drops every other bound set; a bound set
+ * in a token is therefore a leak, and the gate applies it only in its own organization.
+ */
+describe('@owlmeans/server-iam — makeIamGate and the acting organization', () => {
+  const CLIENT = 'acme-preview'
+
+  const kindsRequest = (opts: {
+    entitySlug?: string
+    entity?: { id: string, slug: string }
+    params?: Record<string, string>
+  }): AbstractRequest => ({
+    alias: 'kinds',
+    headers: {},
+    params: opts.params ?? {},
+    query: {},
+    body: {},
+    path: '/',
+    ...(opts.entity != null ? { entity: { ...opts.entity, iamKey: opts.entity.id } } : {}),
+    auth: {
+      type: 'oidc-wrapped-token',
+      token: 'test',
+      userId: 'user-1',
+      role: AuthRole.User,
+      scopes: [],
+      ...(opts.entitySlug != null ? { entitySlug: opts.entitySlug } : {}),
+      isUser: true,
+      createdAt: new Date(),
+      permissions: [
+        // unbound
+        { scope: CLIENT, permissions: { 'report--view': true } },
+        // entity-bound
+        { scope: CLIENT, permissions: { 'order--edit': true }, entitySlug: 'acme' },
+        // resource-bound
+        { scope: CLIENT, title: 'department--modify', permissions: { 'department--modify': true }, resources: ['dep-1'] },
+        // both
+        {
+          scope: CLIENT, title: 'order--delete', permissions: { 'order--delete': true },
+          resources: ['ord-1'], entitySlug: 'acme',
+        },
+        // the per-organization marker, granted against the organization's stable id
+        { scope: CLIENT, permissions: { 'tenant-0123456789abcdef01234567--admin': true } },
+      ],
+    } as Auth,
+  }) as unknown as AbstractRequest
+
+  test.each([
+    ['unbound: applies in any organization', 'report--view', { entitySlug: 'beta' }, true],
+    ['unbound: applies with no organization at all', 'report--view', {}, true],
+    ['entity-bound: applies in its organization', 'order--edit', { entitySlug: 'acme' }, true],
+    ['entity-bound: refused in another organization', 'order--edit', { entitySlug: 'beta' }, false],
+    ['entity-bound: refused with no organization (fail-closed)', 'order--edit', {}, false],
+    ['resource-bound: the granted record', 'department--modify@depId', { entitySlug: 'beta', params: { depId: 'dep-1' } }, true],
+    ['resource-bound: another record', 'department--modify@depId', { entitySlug: 'acme', params: { depId: 'dep-2' } }, false],
+    ['both: its organization and its record', 'order--delete@id', { entitySlug: 'acme', params: { id: 'ord-1' } }, true],
+    ['both: its organization, another record', 'order--delete@id', { entitySlug: 'acme', params: { id: 'ord-2' } }, false],
+    ['both: its record, another organization', 'order--delete@id', { entitySlug: 'beta', params: { id: 'ord-1' } }, false],
+    // The guard-attached entity is what the request acts in; the token's slug is the fallback.
+    ['the attached entity wins over the token slug', 'order--edit',
+      { entitySlug: 'beta', entity: { id: 'acme-key', slug: 'acme' } }, true],
+    ['the attached entity refuses another organization', 'order--edit',
+      { entitySlug: 'acme', entity: { id: 'beta-key', slug: 'beta' } }, false],
+    ['{entity} is still the attached entity id', 'tenant-{entity}--admin',
+      { entity: { id: '0123456789abcdef01234567', slug: 'acme' } }, true],
+  ] as const)('%s', async (_, param, opts, granted) => {
+    const gate = await makeGate()
+    const attempt = gate.assert(kindsRequest(opts), res, [param])
+    if (granted) {
+      await attempt
+    } else {
+      await expect(attempt).rejects.toBeInstanceOf(AuthForbidden)
+    }
   })
 })

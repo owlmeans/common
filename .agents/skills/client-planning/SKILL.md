@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.15"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.18"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -59,8 +59,8 @@ appendPlanningStores(context)        // a browser mirror; a Node client usually 
 - `bind: false` when the host already bound the tree.
 - The service answers under `PLANNING_SERVICE`, the alias the server's service uses, so
   `context.planning().for(scope)` is the same call in a handler and in a screen. The scope is
-  **advisory**: the server takes the entity and the actor from the credential. The execution's own
-  `actor` is never sent.
+  **advisory** — it changes nothing the server decides: the server takes the entity and the actor
+  from the credential. The execution's own `actor` is never sent.
 - A client runs no middleware and folds nothing: `store()`, `committed()` and a plugin carrying
   `before`/`after`/`store`/`mintCode` answer `PlanningUnsupported`. `use()` accepts a schemas-only
   plugin, layered over the server's bundle.
@@ -91,11 +91,11 @@ whole cache — an organization-wide write reaches every project's layer — and
 ```typescript
 const planning = context.planning().for()
 
-const stories = await planning.cards.list({ parent: projectId, type: STORY, sort: ['order'], size: 0 })
-const board = await planning.cards.summary([projectId])
-const brief = await planning.specifications.current(projectId, 'specification')
-const story = await planning.model(storyId)
-story.available().map(rule => rule.name)
+const tools = await planning.cards.list({ parent: shedId, type: 'shed:tool', sort: ['order'], size: 0 })
+const board = await planning.cards.summary([shedId])
+const rules = await planning.specifications.current(shedId, 'house-rules')
+const drill = await planning.model(drillId)
+drill.available().map(rule => rule.name)
 ```
 
 - The facade takes the rich `WorkcardQuery`; it encodes the scalar wire shape itself
@@ -135,8 +135,8 @@ The fold rules, shared by `syncCards`, `applyCards`, `applyCommitEvent` and `com
 
 ```typescript
 const feed = makePlanningFeed(context, {
-  query: { parent: projectId, type: STORY },
-  filter: { project: projectId },
+  query: { parent: shedId, type: 'shed:tool' },
+  filter: { project: shedId },
   refresh: 15_000,
   onChange: state => setState(state),
 })
@@ -196,18 +196,14 @@ A Node client passes no opener and relies on the long poll.
 (run by `execute` whenever stores are registered) raises the stored card's `head` to the new
 transition's `seq`, so `model.pending()` is true before any frame arrives; the commit's fold brings
 `seq` up to it. The mirror only ever grows `head`, so a list fetched before the append does not
-clear the marker. A model's writes default `expectSeq` to `record.head ?? record.seq`; a stale model
-gets `WorkcardConflict` — reload and retry.
+clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `planning` → Models.
 
 ## Gotchas
 
 - Mount a feed once per screen; read the store everywhere else.
-- Do not `replace()` the card store — it holds every kind. Use `syncCards` with a `where`.
 - A refusal crosses the hop as its class (`IllegalTransition`, `WorkcardConflict`,
   `FieldsInvalid`, a plugin's own class) — branch on `instanceof`, never on message text.
 - `CommitTimeout` is not a failure of the transition; re-wait or re-read the card.
-- The scope passed to `for()` changes nothing the server decides; it exists so code written against
-  `PlanningFacade` reads the same on both sides.
 
 ## Depends On
 

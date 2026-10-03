@@ -1,13 +1,13 @@
 ---
 name: server-oidc-provider
-description: How to use @owlmeans/server-oidc-provider — the embedded OIDC identity provider on top of the oidc-provider library — service wiring, the account and adapter seams, the interaction URL, how scopes are derived from claims, and the response headers an authorization endpoint has to correct. Auto-invoked when serving OIDC endpoints from your own service.
+description: How to use @owlmeans/server-oidc-provider — the embedded OIDC identity provider on top of the oidc-provider library — service wiring, the account and adapter seams, the interaction URL, how scopes are derived from claims, the organizations claim, extra discovery fields, pairwise subjects, and the response headers an authorization endpoint has to correct. Auto-invoked when serving OIDC endpoints from your own service.
 user-invocable: false
 ---
 
 # @owlmeans/server-oidc-provider
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.45"` in `dependencies`
+**Install:** `"@owlmeans/server-oidc-provider": "^0.1.18-rc.47"` in `dependencies`
 **Runtime deps:** `oidc-provider@9.11.1` (exact), `jose@6.2.5` (exact), `@types/oidc-provider@9.5.0`
 
 Use this only when your service **is** the identity provider. For consuming someone else's issuer,
@@ -25,6 +25,7 @@ use `@owlmeans/server-oidc-rp`.
 | `OidcAdapterService` | The storage seam: `instance(name)` returns an `oidc-provider` `Adapter` |
 | `OIDC_ACCOUNT_SERVICE`, `DEFAULT_ALIAS` | The default account-service alias and the default provider alias |
 | `OidcConfig`, `OidcConfigAppend` | The `cfg.oidc` shape this package reads |
+| `OidcCustomConfiguration` | `oidc-provider`'s `Configuration` plus `sectorIdentifierUriValidate`, which the pinned typings omit — the type of `cfg.oidc.customConfiguration` |
 | `OidcAccountParams` | `{ clientId? }` — lets the account service scope its claims per client |
 | `toClientMetadata(client)` | Maps a stored `OidcRegisteredClient` to `oidc-provider` `ClientMetadata` |
 | `OidcRegisteredClient`, `OidcClientMetadata` | The stored-client shape `toClientMetadata` takes, and the `oidc-provider` metadata shape it returns, carrying `owlEntityId` |
@@ -41,12 +42,16 @@ context.registerMiddleware(createOidcProviderMiddleware())
 
 `cfg.oidc` supplies `clients` (`ClientMetadata[]`), `defaultKeys.RS256.pk` (a PKCS#8 PEM), and
 optionally `basePath` (default `oidc`), `authService` (whose registered route the issuer is built
-from — defaults to this service), `behindProxy`, `accountService`, `adapterService` and
-`customConfiguration` (merged over the defaults below). The shape also declares `frontBase`, which
+from — defaults to this service), `behindProxy`, `accountService`, `adapterService`,
+`discoveryUris` (below) and `customConfiguration` (merged over the defaults below). The shape also declares `frontBase`, which
 this package reads nowhere — setting it configures nothing.
 
 A client's `redirect_uris` and `post_logout_redirect_uris` may be written as `{{service-alias}}/path`
-and are expanded against that registered service's host. A client with no `client_secret` is refused
+and are expanded against that registered service's host. `discoveryUris` (field → URL) extends the
+discovery document through the same expansion, merged over `customConfiguration.discovery` — that
+is how a deployment advertises an endpoint another service serves, such as `IAM_API_METADATA`
+(`owlmeans_iam_api`, the runtime IAM API). A field the provider derives itself cannot be overridden
+this way. A client with no `client_secret` is refused
 unless a debug flag is on, in which case one is generated and printed.
 
 ## Building the interaction URL
@@ -69,9 +74,36 @@ client's own `scope` allowlist: a client that omits one fails the whole authoriz
 no claim behind it is silently empty.
 
 The defaults this package sets: `claims` covers `email` (`email`, `email_verified`), `profile` (the
-standard set) and `PERMISSIONS_SCOPE` → `PERMISSIONS_CLAIM`, which stays inert unless the account
-service actually emits it; `scopes` is `openid profile offline_access permissions`;
-`features.devInteractions` is off. Anything under `cfg.oidc.customConfiguration` merges over these.
+standard set), `PERMISSIONS_SCOPE` → `PERMISSIONS_CLAIM` and `ORGANIZATIONS_SCOPE` →
+`ORGANIZATIONS_CLAIM`, both inert unless the account service actually emits them; `scopes` is
+`openid profile offline_access permissions organizations`; `features.devInteractions` is off.
+Anything under `cfg.oidc.customConfiguration` merges over these.
+
+`organizations` is a static scope like any other: only a client whose allowlist names it may ask,
+and a client that does not ask gets no `organizations` claim at all, so a single-organization
+client's tokens never carry one.
+
+## Pairwise subjects
+
+The integrated IAM gives every client its own subject for one account. `subjectTypes`,
+`pairwiseIdentifier` and `sectorIdentifierUriValidate` pass through `customConfiguration`
+unchanged, and `tests/pairwise.spec.ts` drives the pinned provider through the whole design:
+
+- `subjectTypes: ['pairwise']`, `pairwiseIdentifier: (ctx, accountId, client) => <subject>`, and
+  `sectorIdentifierUriValidate: () => false`; each client carries `subject_type: 'pairwise'` and
+  one constant `sector_identifier_uri` (https, never fetched, so its host may serve nothing — it
+  only lets a client register redirect URIs on several hosts).
+- The session and the grant name the ACCOUNT; `findAccount` is only ever asked for the account
+  id. The id_token, userinfo and introspection all answer the pairwise subject, unchanged across a
+  refresh; another client of the same session gets another one.
+- **The account's `claims()` must return `sub` = the account id.** The provider applies
+  `pairwiseIdentifier` to whatever `sub` it is given (`helpers/claims.js`), and introspection to
+  `token.accountId` — an account service that returned the pairwise value itself would have it
+  transformed a second time, and the id_token would no longer match introspection.
+- With only `pairwise` supported it becomes every client's default `subject_type`; a client
+  declaring `public` is refused.
+- `sectorIdentifierUriValidate` is missing from `@types/oidc-provider` 9.5.0, which is why
+  `OidcCustomConfiguration` declares it; drop that field when the typings carry it.
 
 ## oidc-provider v9 configuration
 

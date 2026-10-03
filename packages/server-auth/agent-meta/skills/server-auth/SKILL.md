@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-auth
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.49"` in `dependencies`
+**Install:** `"@owlmeans/server-auth": "^0.1.18-rc.51"` in `dependencies`
 
 Two halves, deliberately split by subpath:
 
@@ -30,7 +30,6 @@ An ordinary service imports the root. Only the auth manager imports `./manager`.
 | `AUTH_CACHE` | `'auth-cache'` — the single-use challenge store |
 | `AUTH_SRV_KEY` | `'auth-service'` — the TRUSTED record whose key signs credential envelopes |
 | `AUTHEN_TIMEFRAME` | `15 * 60 * 1000` — challenge lifetime and anti-replay window, in ms |
-| `AUTH_SESSION_MANAGER` / `appendMemoryAuthSessionManager` | Seven-day session registry contract and the process-local default; use the Redis implementation from `@owlmeans/server-auth-session` for a shared authority |
 | `AuthService`, `AuthServiceAppend`, `AuthSpent` | Types |
 | `makeRelyModel`, `makeProviderRely`, `makeConsumerRely`, `RelyOptions` | The rely (wallet handshake) models |
 
@@ -108,7 +107,8 @@ registerPlugin('my-method', context => ({
   context with `AUTH_SESSION_MANAGER`, the guard rejects an absent, expired, pending or revoked
   session and re-signs fresh profile claims after a registry revision. Registry or identity-store
   failure is `AuthUnavailable` (503), never a false 401/logout.
-- `appendAuthService` installs the memory session manager only as a single-process default. A
+- The session registry (`AUTH_SESSION_MANAGER`) is `@owlmeans/server-auth-session`'s, not exported
+  here; `appendAuthService` installs its memory manager only as a single-process default. A
   central or multi-replica issuer registers `appendRedisAuthSessionManager(context)` before it;
   the manager is the authority that fences, refreshes or revokes an organization profile's sessions.
 - The manager canonicalizes the organization entity: whatever slug (current, retired, or the frozen

@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.26`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.28`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -46,13 +46,23 @@ declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'pro-monthly', rank: 10,
 
 appendPaymentGatewayService(context)                     // the process that talks to Stripe
 appendPaymentGatewayService(context, { manage: false })  // a worker that only reads entitlements and asserts consent
+// One deployment, several managed processes on one database: the same owner and webhookService everywhere
+appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks' })                   // receives the webhook, bootstraps at boot
+appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks', bootstrap: false }) // checkout and portal only
 appendConsumerRights(context, { manage, usage: myUsageMeter })   // before or after the gateway; idempotent
 consumerRights(context).useMailRenderer(myRenderer)      // lazy service: works while wiring
 gateway(context).use(myCheckoutPlugin)                   // a tier / cap / hold plugin — once the context is initialized
 export const serverBindings = [
-  ...paymentGateEntrypoints,
+  ...paymentGateEntrypoints,                            // the library's own, unpinned `paymentGate`
   ...consumerRightsEntrypoints(consumerProtocols, { guardMoney, throttle, subjectOf, planNameOf }),
   ...checkoutReadEntrypoints(checkoutProtocols),
+]
+// …or the gate re-declared by the application (its aliases, pinned to its service, the library's paths):
+export const hookBindings = [
+  bind(own.base),
+  bind(own.webhook, paymentGateHandlers.webhook),
+  bind(own.resync, paymentGateHandlers.resync),
+  bind(own.resyncSubscriptions, paymentGateHandlers.resyncSubscriptions),
 ]
 observer(context).onSubscription(async event => { /* keyed by event.eventKey */ })
 ```
@@ -75,6 +85,26 @@ observer(context).onSubscription(async event => { /* keyed by event.eventKey */ 
   `cancel` throw `PaygateError('unmanaged')`. `grantInternalPlan`, the entitlement service,
   `amountPolicy`, `planPrices` and the consumer-rights reads, `recordConsent`,
   `recordStartRequest` and `assertConsent` work, because they are Mongo only.
+- **Three keys of a deployment's Stripe state**, each a `PaymentGatewayOptions` field, each read
+  back on the gateway (`gateway(ctx).webhookService / owner / bootstrap`):
+  - `webhookService` (default `cfg.service`) — the `cfg.services` alias whose host and base form
+    `webhookUrlOf`, the portal's deployment key too. Name the process that RECEIVES the webhook
+    (the one serving `paymentGate`) in every process, so every bootstrap computes one URL.
+  - `owner` (default `cfg.service`) — the `payment-webhook` rows' `service`, the signing-secret
+    lookup, the endpoint's `owlmeans:<owner>` description and `service` metadata, the
+    `portal:<owner>` fingerprint and the portal's `service` metadata. One value in every process of
+    the database, so each finds and replaces the others' rows.
+  - `bootstrap` (default: `manage`) — run `bootstrapStripe` at boot. Exactly one kind of process
+    keeps it (the receiver). A managed process with `bootstrap: false` still serves checkout, the
+    portal, estimates, the resyncs and the webhook route, and a FORCED bootstrap (`resync`, an
+    application's maintenance `bootstrapStripe(ctx, stripe, { force: true })`) still runs there —
+    same URL, same rows, fingerprinted, so idempotent from any process.
+  - Refused at construction: `bootstrap: true` with `manage: false`, an empty `owner` or
+    `webhookService` (`PaygateError`). A managed, bootstrapping gateway fails its initialization when
+    `webhookService` is not declared in `cfg.services` (`WebhookSetupError('service:<alias>')`).
+- `stripe` (a `StripeFactory`, default `stripeClient`) is the gateway's own Stripe client —
+  `gateway(ctx).stripe(ctx)`, used by its methods, its boot bootstrap and the `paymentGate` handlers.
+  The consumer-rights service takes its own (`appendConsumerRights({ stripe })`).
 - Every process that registers the gateway runs the collection validators (`collMod`) of all
   twelve records at init: a process of an older version narrows the validators again, so roll
   the processes of one deployment out together.
@@ -114,10 +144,10 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 | `payment-paygate-customer` | Stripe customer (`country`, `currency` from its webhooks; `deletedAt`) | `{paygate, externalId}` unique · `{paygate, entityId}` · `{paygate, profileId}` |
 | `payment-subscription` | subscription: `sub_…`, `free:<entityId>`, `internal:<planSku>:<entityId>` (+ `currency` and the checkout evidence) | `{paygate, externalId}` unique · `{entityId, status, rank:-1}` · `{entityId, planSku}` · `{paygate, customerId}` · `{paygate, itemId}` sparse · `{paygate, status, updatedAt}` |
 | `payment-fulfillment` | one-time checkout session (+ evidence: country, e-mail, totals, terms, `purchaseId`) | `{paygate, externalId}` unique · `{paygate, paymentIntentId}` sparse · `{paygate, chargeId}` sparse · `{entityId, createdAt:-1}` |
-| `payment-webhook` | managed webhook endpoint (`secret` is `secure: true`) | `{paygate, service, url}` unique |
+| `payment-webhook` | managed webhook endpoint of an owner (`service` = the gateway's `owner`; `secret` is `secure: true`) | `{paygate, service, url}` unique |
 | `payment-usage` | usage event — the ledger | `{entityId, limitKey, eventKey}` unique · `{entityId, limitKey, window}` · `{entityId, limitKey, ref}` sparse · `{entityId, createdAt:-1}` |
 | `payment-usage-counter` | (entity, limit, window) projection | `{entityId, limitKey, window}` unique |
-| `payment-fingerprint` | synchronized product (`<productSku>`, with `prices[]`) or portal (`portal:<service>`) | `{sku}` unique |
+| `payment-fingerprint` | synchronized product (`<productSku>`, with `prices[]`) or portal (`portal:<owner>`) | `{sku}` unique |
 | `payment-billing-profile` | organization: the billing country fixed at the first purchase | `{entityId}` unique · `{paygate, customerId}` sparse |
 | `payment-purchase` | purchase = contract + withdrawal window (a paid one-time checkout, a subscription's first invoice) | `{purchaseId}` unique · `{contractRef}` unique · `{entityId, deadline:-1}` · `{entityId, purchasedAt:-1}` · `{sessionId}` unique sparse · `{paygate, subscriptionId}` · `{invoiceId}` · `{invoiceNumber}` · `{paygate, paymentIntentId}` |
 | `payment-consumer-consent` | append-only: a performance consent or a subscription start request | `{entityId, decidedAt:-1}` · `{kind, entityId, planSku, decidedAt:-1}` |
@@ -248,6 +278,16 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 
 - **The effective plan** is the highest-ranked row in `ENTITLING_STATUSES` (catalogue rank; the
   newest on a tie), else the declared free plan, else `PlanRequired`.
+- **A subscription row may override its plan.** `PaymentSubscriptionRecord.overrides`
+  (`SubscriptionOverrides`: `limits: { <key>: { limit } }`) is applied by `overriddenPlan(plan, row)`
+  inside `resolveEffectivePlan` and `snapshotOf`, so ceilings, the entitlement view, both gates and
+  observers read one answer and nothing else needs to know. An override sets the ceiling of a key
+  the plan declares and drops that key's promo; kind and window stay the plan's (counters are keyed
+  by them); an undeclared key or a ceiling that is not a safe integer `>= 0` is ignored. An operator
+  writes it, no paygate does: every sync and re-grant spreads the previous row, so it survives. It
+  belongs to the row — it follows the subscription through a plan change, ends with it, and the
+  free-plan fallback (no row) has none. A new overridable parameter is a new optional key of
+  `SubscriptionOverrides`, declared in `PaymentSubscriptionSchema` and merged in `overriddenPlan`.
 - `mapStatus`: `active`→Active, `trialing`→Trial, `past_due`→PastDue, `unpaid`/`paused`→Suspended,
   `incomplete`→Created, `incomplete_expired`→Ended, `canceled`→Canceled; paused collection is
   Suspended with `pausedAt`.
@@ -379,6 +419,18 @@ made (found by `metadata.withdrawalId`). Five failures of a step leave it to an 
 - `paymentGate` (bound by `paymentGateEntrypoints`): `webhook` is public because Stripe signs the
   untouched raw body — never put an application guard on it; `resync` and `resyncSubscriptions`
   carry `GUARD_ED25519`.
+- **An application that declares the gate itself** — its own aliases, every route pinned to the
+  service that receives the webhook — binds its declarations to `paymentGateHandlers` (`webhook`,
+  `resync`, `resyncSubscriptions`) with `bind(own.webhook, paymentGateHandlers.webhook)` from
+  `@owlmeans/server-entrypoint` / `@owlmeans/server-app`, and never registers `paymentGate` or
+  `paymentGateEntrypoints`. A handler reads its context from the entrypoint it is bound to, so the
+  application's declaration is the one mounted and run. Its declarations keep the library's paths
+  (`webhookUrlOf` forms the Stripe URL from `paymentGate`'s), contracts (`PaygateParams`,
+  `ResyncResult`, `ResyncSubscriptionsResult` — `bind` refuses another shape at compile time) and
+  guards. Two ways to get it wrong: `bindAll(declarations, [paymentGateHandlers.webhook])` pairs by
+  object identity and leaves the application's declaration without a handler, and
+  `handlers().params(own.webhook, paymentGateHandlers.webhook)` answers every request with
+  `HandlerMisconfiguredError` (a handler bound to another protocol).
 - `consumerRightsEntrypoints(protocols, { resolveEntity?, subjectOf?, guardMoney?, throttle?,
   metaOf?, publicMinMs?, planNameOf?, serviceAlias? })` binds `makeConsumerRightsProtocols`' tree.
   **Every hook gets the request's context as its LAST argument** — `resolveEntity(req, ctx)`,
@@ -398,20 +450,27 @@ made (found by `metadata.withdrawalId`). Five failures of a step leave it to an 
 
 ## Stripe self-management
 
-Runs in `initialize()` of a managed gateway, after the context is ready; each step independent:
-products and prices (above), the portal configuration, the webhook endpoint.
+Runs in `initialize()` of a managed gateway with `bootstrap` (default), after the context is
+ready, and on a forced `bootstrapStripe` from any managed process; each step independent: products
+and prices (above), the portal configuration, the webhook endpoint. A deployment's identity is its
+webhook URL (`webhookUrlOf`: the `webhookService` alias's host and base); its rows carry the
+`owner`.
 
 - **The portal configuration**: customer update (email, address, tax id — **without address under
   `mechanisms.countryLock`**), invoice history, payment method update, cancellation at period end
   without proration, price switching between the active recurring prices. Its fingerprint covers
   the catalogue (incl. `currencyPrices`), the lock flag, the region currencies, the branding and
   the deployment key. Each deployment owns its own configuration, tagged `{ owlmeans: 'payment',
-  service, deployment: webhookUrlOf(ctx) }`; one tagged for another deployment is never touched.
+  service: <owner>, deployment: webhookUrlOf(ctx) }`; one tagged for another deployment (a former
+  webhook URL included) is never touched — a moved URL creates a new configuration.
 - `portalLink(ctx, entityId, { flow, planSku?, returnUrl })`: a customer is required
   (`PortalUnavailable`, 409); `Cancel`/`Update`/`Change` need an entitling Stripe subscription.
 - **The webhook endpoint** at `webhookUrlOf(ctx)`, subscribed to `WEBHOOK_EVENTS`, on the API version
   read back from the client; only an https public host. A deployment deletes only the endpoints its
-  own rows name. The secret (create-only) is stored field-encrypted where the database has a key.
+  own rows name. A new URL (a moved host, a new `webhookService`) creates the endpoint there, then
+  deletes the endpoints of the owner's rows at other URLs and those rows — no migration step. The
+  secret (create-only) is stored field-encrypted where the database has a key; the receiver reads
+  the newest row of its `owner`.
 - **Do not bump the Stripe SDK** (17.x, API `2025-02-24.acacia`): `current_period_*`,
   `invoice.subscription`, `invoice.payment_intent`, `charge.invoice` are top-level there and move
   later; credit notes link a refund by `refund`; `presentment_details` is untyped. Read them through
@@ -470,8 +529,12 @@ resources (unique and sparse-unique indexes, raw conditional updates) and a fake
 every SDK call and its request options (idempotency keys) and can fail a method's next calls
 (`state.failures`: a message, a real SDK error such as `new Stripe.errors.StripeInvalidRequestError(…)`,
 or a list of them, one per call), so "no Stripe call" is an assertion. `makeFakeContext` wires the
-consumer-rights call before the gateway by default (`gatewayFirst`, `rights`, `gatewayManage` and a
-pre-init `wire` hook test the other orders). The consumer-rights service there is
+consumer-rights call before the gateway by default (`gatewayFirst`, `rights` and a pre-init `wire`
+hook test the other orders); `gateway` passes the gateway's options (default `{ manage: false }`,
+the fake always its Stripe client, so a managed one boot-bootstraps against it), `service` /
+`host` / `base` / `services` shape `cfg.service` and `cfg.services`, and `seed` pre-fills stores
+(a database shared between two processes). `gate-handlers.spec.ts` binds `paymentGateHandlers`
+onto a re-declared, pinned gate and runs it in that process's context. The consumer-rights service there is
 managed through the fake (`appendConsumerRights({ manage: true, stripe })`) with a console mailer
 (`fake.mails`). The Mongo-gated specs prove admission under concurrency, the collection validators
 of every record, the unique indexes, the concurrent first lock and the single winner of

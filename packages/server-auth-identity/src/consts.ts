@@ -28,6 +28,22 @@ export const AUTH_IDENTITY_DB_ALIAS = 'auth-identity'
 // unique index, so this bounds a retry loop rather than a probability.
 export const MAX_ENTITY_SLUG_ATTEMPTS = 8
 
+/**
+ * The app key a deployment's own profile rows carry in `service` when it passes none to
+ * `appendAuthIdentityResources`. A row's app is what tells a deployment's own people apart from the
+ * people of every other app sharing the store — a target's login client, say — so a deployment
+ * sharing its store with others passes a key of its own.
+ */
+export const DEFAULT_APP_SERVICE = 'app'
+
 // Helper prefixes for stable key derivation
 export const LOGIN_SERVICE_PREFIX = 'service'
 export const EXTERNAL_KEY_DELIMITER = ':'
+
+/** How many characters of the Base58 digest a computed `profileId` keeps (~129 bits). */
+export const PROFILE_DIGEST_LENGTH = 22
+
+// Bounds of the retry loops settled against unique indexes (a random account key, a guarded
+// field-level update that lost a race).
+export const MAX_ACCOUNT_KEY_ATTEMPTS = 5
+export const MAX_GUARDED_UPDATE_ATTEMPTS = 5
