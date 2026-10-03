@@ -1,7 +1,7 @@
 import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { handleBody } from '@owlmeans/server-api'
 import type { OIDCClientAuthPayload } from '@owlmeans/oidc'
-import { OIDC_WRAPPED_TOKEN } from '@owlmeans/oidc'
+import { OIDC_WRAPPED_TOKEN, ORGANIZATIONS_CLAIM, PERMISSIONS_CLAIM } from '@owlmeans/oidc'
 import { assertContext } from '@owlmeans/context'
 import type { Config, Context } from '../types.js'
 import Url from 'url'
@@ -10,15 +10,14 @@ import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { AuthenFailed, AuthManagerError, AuthRole } from '@owlmeans/auth'
 import { decodeJwt } from 'jose'
 import { cache, exchangeId, managedId } from '../utils/cache.js'
-import { trust } from '@owlmeans/auth-common/utils'
-import { TRUSTED } from '@owlmeans/config'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { OIDC_AUTH_LIFTETIME } from '../consts.js'
 import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
 import type { AuthSessionManager } from '@owlmeans/server-auth-session'
-import { wrapper } from '../utils/wrapped.js'
+import { signWrapped, wrapper } from '../utils/wrapped.js'
 import { extractPermissionSets } from '../utils/permissions.js'
-import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
+import {
+  actingAuth, actingPermissionSets, extractOrganizations, pickOrganization, resolvedEntityOf,
+} from '../utils/organization.js'
 
 /**
  * Authentication method links together OIDC and OwlMeans auth.
@@ -31,7 +30,7 @@ import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
  * (this is useful to properly support paid accounts and bridge the underlying
  * IAM system implemetation - abstract from it).
  * 5. The method ends with production of OwlMeans authorization token.
- * 
+ *
  * ! There is also token renewal mechanism that should be implemented nearby.
  */
 export const authenticate: RefedEntrypointHandler = handleBody(async (
@@ -43,7 +42,7 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
   const url = new Url.URL(authUrl)
   const redirectUrl = url.searchParams.get('redirect_uri')
 
-  const [cfg, tokenSet, token] = await makeOidcAuthentication(context)({
+  const [cfg, tokenSet, token, requested] = await makeOidcAuthentication(context)({
     challenge: redirectUrl + ':' + authUrl,
     credential: new Url.URLSearchParams(params).toString()
   } as AuthCredentials)
@@ -65,7 +64,18 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
   const id = decodeJwt(tokenSet.id_token)
 
   // Integrated IAM mode: the provider mints the subject's PermissionSet[] into the id_token
-  const permissions = extractPermissionSets(id[PERMISSIONS_CLAIM])
+  const sets = extractPermissionSets(id[PERMISSIONS_CLAIM])
+
+  // A tenanted client also receives the subject's organizations. A client that never asked for
+  // them gets no claim, and its session stays exactly what it was before tenancy: the descriptor's
+  // entity on the token and no organization attached to its requests.
+  const organizations = extractOrganizations(id[ORGANIZATIONS_CLAIM])
+  const acting = organizations != null ? pickOrganization(organizations, { entitySlug: requested }) : undefined
+  if (organizations != null && acting == null) {
+    throw new AuthenFailed('entity')
+  }
+  // No bound set reaches a browser outside the organization it is bound to.
+  const permissions = sets != null ? actingPermissionSets(sets) : undefined
 
   const issuedAt = Date.now()
   const expiresAt = issuedAt + OIDC_AUTH_LIFTETIME
@@ -99,6 +109,9 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     createdAt: new Date(issuedAt),
     expiresAt: new Date(expiresAt),
   }
+  if (acting != null) {
+    user = actingAuth(user, acting, sets)
+  }
 
   if (profileId == null) throw new AuthenFailed('subject')
   if (context.hasService(AUTH_SESSION_MANAGER)) {
@@ -113,18 +126,21 @@ export const authenticate: RefedEntrypointHandler = handleBody(async (
     user = { ...user, sessionId: managedId(token), authorizationVersion: decision.version }
   }
 
-  await cache(context).create(
-    { id: managedId(token), payload: tokenSet, client: cfg.clientId, entityId, profileId, expiresAt },
-    { ttl: OIDC_AUTH_LIFTETIME / 1000 }
-  )
+  await cache(context).create({
+    id: managedId(token), payload: tokenSet, client: cfg.clientId, entityId, profileId, expiresAt,
+    // The organizations and the raw sets stay here, server-side: the browser token carries only
+    // the acting organization's slug, groups and flattened sets, and a switch re-reads these.
+    ...(acting != null ? {
+      acting: acting.entityKey, entity: resolvedEntityOf(acting), organizations,
+      ...(sets != null ? { sets } : {}),
+    } : {}),
+  }, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
 
-  const trusted = await trust<Config, Context>(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
-  const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-    .send(user, null).sign(trusted.key, EnvelopeKind.Token)
+  const issued = { token: await signWrapped(context, user) }
 
-  let auth = { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }
+  // Only the token goes back: the entity the wrapper resolves carries the organization's key,
+  // which never leaves the server.
+  const updated = await wrapper(context).update(issued, true)
 
-  auth = await wrapper(context).update(auth, true) ?? auth
-
-  return auth
+  return { token: updated?.token ?? issued.token }
 })

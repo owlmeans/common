@@ -1,133 +1,163 @@
 import { describe, expect, test } from 'bun:test'
-import { AuthRole } from '@owlmeans/auth'
-import { AuthenticationType } from '@owlmeans/auth'
-import {
-  AUTH_IDENTITY_ACCOUNT, AUTH_IDENTITY_CREDENTIALS, AUTH_IDENTITY_ORG_ENTITY,
-  AUTH_IDENTITY_PROFILE,
-} from '../src/consts.js'
-import { details, linkingFor, makeCtx } from './context.js'
+import { AuthenticationType, AuthRole } from '@owlmeans/auth'
+import { ensureAccount, ensureProfile, profileIdOf } from '../src/identity.js'
+import { DEFAULT_APP_SERVICE } from '../src/consts.js'
+import { details, makeIdentityContext } from './context.js'
 
 /**
- * One human, one email, one platform profile — whichever way they sign in.
- *
- * `linkProfile` used to create an organization, an account and a profile on every registration,
- * and registration is per METHOD. The same address signing in by Google and then by key ended up
- * in two entities that could not see each other's projects: `requireEntity` matched neither, and
- * ownership (`project.createdBy`) named a profile the other identity did not have.
+ * A deployment's own sign-in over the identity store: one account per address, every method a
+ * credential on it, and the payload always the deployment's OWN app's row in the person's main
+ * organization — never a row another app wrote for the same person.
  */
 describe('linkProfile', () => {
-  test('a first sign-in registers an organization, an account and a profile', async () => {
-    const ctx = makeCtx()
-    const payload = await linkingFor(ctx).linkProfile(
-      details('google-oauth', 'google-sub') as never, { username: 'person@example.org' }
-    )
+  test('a first sign-in registers an organization, an account, the credential and the owner row', async () => {
+    const { linking, stores } = await makeIdentityContext({ service: 'viable' })
 
-    expect(ctx.resources[AUTH_IDENTITY_ORG_ENTITY].items).toHaveLength(1)
-    expect(ctx.resources[AUTH_IDENTITY_ACCOUNT].items).toHaveLength(1)
-    expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(1)
-    expect(payload.profileId).toStartWith('google-oauth:')
+    const payload = await linking.linkProfile(details('google-oauth', 'google-sub', 'google'), { username: 'person@example.org' })
+
+    const [account] = stores.accounts.rows
+    const [entity] = stores.entities.rows
+    expect(stores.entities.rows).toHaveLength(1)
+    expect(stores.accounts.rows).toHaveLength(1)
+    expect(stores.profiles.rows).toHaveLength(1)
+    expect(stores.profiles.rows[0]).toMatchObject({
+      profileId: profileIdOf('viable', account!.id), userId: account!.id, service: 'viable', entityId: entity!.id,
+      owner: true, role: AuthRole.User, scopes: ['*'], permissions: [],
+    })
+    expect(stores.profiles.rows[0]!.credential).toBeUndefined()
+    expect(stores.credentials.rows).toEqual([expect.objectContaining({
+      type: 'google-oauth', userId: 'google-oauth:google:google-sub', credential: 'service:google-oauth:google', accountId: account!.id,
+    })])
+    expect(payload).toEqual({
+      type: 'google-oauth', role: AuthRole.User, userId: account!.id, profileId: profileIdOf('viable', account!.id),
+      entitySlug: entity!.slug, scopes: ['*'],
+    })
   })
 
-  test('a SECOND method on the same email adds a credential, not an identity', async () => {
-    // The whole defect: this used to mint a second organization, and the person's projects
-    // became invisible to their other login.
-    const ctx = makeCtx()
-    const linking = linkingFor(ctx)
+  test('a SECOND method on the same address adds a credential, not an identity', async () => {
+    const { linking, stores } = await makeIdentityContext()
 
-    const first = await linking.linkProfile(
-      details('google-oauth', 'google-sub') as never, { username: 'person@example.org' }
-    )
+    const first = await linking.linkProfile(details('google-oauth', 'google-sub'), { username: 'person@example.org' })
     const second = await linking.linkProfile(
-      details(AuthenticationType.Supervisor, 'person@example.org') as never,
-      { username: 'person@example.org' }
+      details(AuthenticationType.Supervisor, 'person@example.org'), { username: 'Person@Example.org' }
     )
 
-    expect(ctx.resources[AUTH_IDENTITY_ORG_ENTITY].items).toHaveLength(1)
-    expect(ctx.resources[AUTH_IDENTITY_ACCOUNT].items).toHaveLength(1)
-    expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(1)
-    // Two credentials, one per method — which is the point.
-    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items).toHaveLength(2)
-    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items.map((c: any) => c.type).sort())
-      .toEqual(['google-oauth', AuthenticationType.Supervisor].sort())
-
-    // Same identity, same organization — so the same projects.
+    expect(stores.entities.rows).toHaveLength(1)
+    expect(stores.accounts.rows).toHaveLength(1)
+    expect(stores.profiles.rows).toHaveLength(1)
+    expect(stores.credentials.rows.map(row => row.type).sort()).toEqual(['google-oauth', AuthenticationType.Supervisor].sort())
     expect(second.profileId).toBe(first.profileId)
     expect(second.entitySlug).toBe(first.entitySlug)
+    expect(await linking.getLinkedProfile(details(AuthenticationType.Supervisor, 'person@example.org'))).toEqual(second)
   })
 
-  test('a different email is a different person', async () => {
-    const ctx = makeCtx()
-    const linking = linkingFor(ctx)
+  test('a different address is a different person', async () => {
+    const { linking, stores } = await makeIdentityContext()
 
-    await linking.linkProfile(details('google-oauth', 'a') as never, { username: 'a@example.org' })
-    await linking.linkProfile(details('google-oauth', 'b') as never, { username: 'b@example.org' })
+    await linking.linkProfile(details('google-oauth', 'a'), { username: 'a@example.org' })
+    await linking.linkProfile(details('google-oauth', 'b'), { username: 'b@example.org' })
 
-    expect(ctx.resources[AUTH_IDENTITY_ORG_ENTITY].items).toHaveLength(2)
-    expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(2)
+    expect(stores.entities.rows).toHaveLength(2)
+    expect(stores.profiles.rows).toHaveLength(2)
   })
 
-  test("an organization's END USER row is never mistaken for a platform login", async () => {
-    // `inviteUser` writes a row for the same person carrying the same address — the identity the
-    // GENERATED application authenticates, deliberately separate from the platform credential. It
-    // has no login service on it, and that is what tells the two apart.
-    const ctx = makeCtx({
-      accounts: [{ id: 'acc-end-user', credential: 'x', name: 'person@example.org', entityId: 'ent-1' }],
-      profiles: [{
-        id: 'prof-end-user', profileId: 'email-otp:acc-end-user', userId: 'acc-end-user',
-        role: AuthRole.User, name: 'person@example.org', email: 'person@example.org',
-        entityId: 'ent-1', scopes: ['*'],
-      }],
-    })
+  test("another app's row of the same person is never the answer — the own app's row is ensured", async () => {
+    const { ctx, linking, stores } = await makeIdentityContext({ service: 'viable' })
+    // The person first registered at a target app, with an e-mail code.
+    const { account } = await ensureAccount(ctx, { email: 'person@example.org' }, details('email-otp', 'person@example.org', 'email'))
+    const target = await ensureProfile(ctx, { account, service: 'shop-taskly', entityId: account.entityId, owner: true })
 
-    const payload = await linkingFor(ctx).linkProfile(
-      details('google-oauth', 'google-sub') as never, { username: 'person@example.org' }
-    )
+    // The target's method is linked to the account, but this app has no row yet: not linked here.
+    expect(await linking.getLinkedProfile(details('email-otp', 'person@example.org', 'email'))).toBeNull()
 
-    // A new platform identity, not a hijack of the end-user row.
-    expect(payload.profileId).toStartWith('google-oauth:')
-    expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(2)
+    const payload = await linking.linkProfile(details('google-oauth', 'sub'), { username: 'person@example.org' })
+
+    expect(payload.profileId).toBe(profileIdOf('viable', account.id))
+    expect(payload.profileId).not.toBe(target.profileId)
+    expect(stores.accounts.rows).toHaveLength(1)
+    expect(stores.entities.rows).toHaveLength(1)
+    expect(stores.profiles.rows.map(row => row.service).sort()).toEqual(['shop-taskly', 'viable'])
+    expect(stores.profiles.rows.find(row => row.service === 'shop-taskly')!.scopes).toEqual([])
   })
 
-  test('force still registers a fresh identity', async () => {
-    const ctx = makeCtx()
-    const linking = linkingFor(ctx)
+  test('the package default app key is used when the deployment passes none', async () => {
+    const { linking } = await makeIdentityContext()
 
-    await linking.linkProfile(details('google-oauth', 'a') as never, { username: 'person@example.org' })
-    await linking.linkProfile(
-      details('google-oauth', 'b') as never, { username: 'person@example.org', force: true }
-    )
+    const payload = await linking.linkProfile(details('google-oauth', 'sub'), { username: 'person@example.org' })
 
-    expect(ctx.resources[AUTH_IDENTITY_PROFILE].items).toHaveLength(2)
+    expect(payload.profileId).toStartWith(`${DEFAULT_APP_SERVICE}:`)
   })
 })
 
-/**
- * Forgetting which profile an external login maps to.
- *
- * The mapping is unique on `{type, userId, credential}`, so a caller that has decided the stored
- * one is wrong cannot write over it — it has to be retired first. That is what lets a login path
- * serving a different population than this service's own customers (a target project's end users,
- * say) re-establish an identity of its own for an address that was merged onto a platform one.
- */
+describe('linkCredentials', () => {
+  test('attaches a further method to the account of the named row', async () => {
+    const { linking, stores } = await makeIdentityContext()
+    const first = await linking.linkProfile(details('google-oauth', 'sub'), { username: 'person@example.org' })
+
+    const linked = await linking.linkCredentials({ ...details('github', 'gh-sub'), profileId: first.profileId })
+
+    expect(linked).toEqual({ ...first, type: 'github' })
+    expect(stores.credentials.rows.map(row => row.accountId)).toEqual([first.userId, first.userId])
+  })
+
+  test('refuses a method that signs into another account', async () => {
+    const { linking } = await makeIdentityContext()
+    const first = await linking.linkProfile(details('google-oauth', 'a'), { username: 'a@example.org' })
+    await linking.linkProfile(details('google-oauth', 'b'), { username: 'b@example.org' })
+
+    await expect(linking.linkCredentials({ ...details('google-oauth', 'b'), profileId: first.profileId }))
+      .rejects.toThrow('another account')
+  })
+})
+
 describe('unlinkCredentials', () => {
   test('the stored mapping is removed, and only that one', async () => {
-    const ctx = makeCtx()
-    const linking = linkingFor(ctx)
+    const { linking, stores } = await makeIdentityContext()
     await linking.linkProfile(details('email-otp', 'sub-1'), { username: 'person@example.org' })
     await linking.linkProfile(details('google', 'sub-2'), { username: 'person@example.org' })
-    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items.length).toBe(2)
+    expect(stores.credentials.rows).toHaveLength(2)
 
     await linking.unlinkCredentials(details('email-otp', 'sub-1'))
 
-    expect(ctx.resources[AUTH_IDENTITY_CREDENTIALS].items.map((c: any) => c.type))
-      .toEqual(['google'])
-    // And the login is unlinked as far as every reader is concerned.
+    expect(stores.credentials.rows.map(row => row.type)).toEqual(['google'])
     expect(await linking.getLinkedProfile(details('email-otp', 'sub-1'))).toBeNull()
+    expect(await linking.getLinkedProfile(details('google', 'sub-2'))).not.toBeNull()
   })
 
   test('a login that maps to nothing is already in the state this promises', async () => {
-    const linking = linkingFor(makeCtx())
+    const { linking } = await makeIdentityContext()
 
     expect(await linking.unlinkCredentials(details('email-otp', 'nobody'))).toBeUndefined()
+  })
+})
+
+describe('owner reads', () => {
+  test('getOwnerProfiles lists the own app\'s rows of the organization, whatever their number', async () => {
+    const { ctx, linking, stores } = await makeIdentityContext({ service: 'viable' })
+    const owner = await linking.linkProfile(details('google-oauth', 'owner'), { username: 'owner@example.org' })
+    const entityId = stores.entities.rows[0]!.id
+    // A member of the same organization, and the owner's row of another app there.
+    const { account: member } = await ensureAccount(ctx, { email: 'member@example.org' })
+    await ensureProfile(ctx, { account: member, service: 'viable', entityId, scopes: ['*'] })
+    await ensureProfile(ctx, { account: stores.accounts.rows[0] as never, service: 'shop-taskly', entityId })
+
+    const profiles = await linking.getOwnerProfiles(entityId)
+
+    expect(profiles.map(profile => profile.id).sort()).toEqual([owner.profileId!, profileIdOf('viable', member.id)].sort())
+    expect(profiles.every(profile => profile.entitySlug === owner.entitySlug)).toBe(true)
+  })
+
+  test('getOwnerCredentials answers a method of the account as its own-app row', async () => {
+    const { linking } = await makeIdentityContext()
+    const owner = await linking.linkProfile(details('google-oauth', 'owner'), { username: 'owner@example.org' })
+
+    const credentials = await linking.getOwnerCredentials(owner.userId, undefined, 'google-oauth')
+
+    expect(credentials).toMatchObject({
+      type: 'google-oauth', userId: owner.userId, profileId: owner.profileId, entitySlug: owner.entitySlug,
+      credential: 'service:google-oauth:google-oauth', challenge: '',
+    })
+    expect(await linking.getOwnerCredentials(owner.userId, undefined, 'github')).toBeUndefined()
+    expect(await linking.getOwnerCredentials('not-an-account')).toBeUndefined()
   })
 })

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.13"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.15"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -37,26 +37,8 @@ entityId, profileId })`) and the remote one (`@owlmeans/client-planning`).
 - The **options** are `{ wait?, timeout? }`, always the second argument. Only the wire body
   (`ExecuteRequest`) carries them beside the execution.
 
-```ts
-import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-
-const drill = await planning.execute({
-  action: TransitionAction.Create,
-  card: { kind: WorkcardKind.Card, type: 'shed:tool', parent: shedId, title: 'Cordless drill', fields: { brand: 'Acme' } },
-}, { wait: true })                      // drill.card — the committed record
-await planning.cards.get(drill.card!.id!)
-await planning.execute({ action: TransitionAction.Transit, card: drill.card!.id!, transition: 'lend' }, { wait: true })
-```
-
-| Wrong | What happens | Right |
-|---|---|---|
-| `{ action, draft: { … } }` | `planning:malformed:create-without-draft` | the draft goes under `card` |
-| `{ …, wait: true }` in the execution | ignored in process: the receipt returns before the commit, with no `card` | `execute(exec, { wait: true })` |
-| `action: 'create'` | a type error — `TransitionAction` is an enum | `TransitionAction.Create` |
-
-Each is a compile error against the typed `TransitionExecution`; it reaches run time only through a
-value typed `any`. `server-planning` carries the full example (facade, read back, data-defined
-type and flow).
+The worked example (facade, create, read back, transit, a data-defined type and flow) and the wrong
+forms generated code keeps writing are `server-planning` → Creating and reading a card.
 
 ## Key exports
 
@@ -91,7 +73,9 @@ type and flow).
   `status`, `labels`, `order`, `parent` are generic and indexable; everything a type adds lives in
   `fields` and is validated by the type's `fields` JSON schema. Generic code reads only the top.
   A `fields` key never holds `.` or `$` at any depth (`invalidFieldKeys`).
-- **`entityId` is the organization's stable id**, never a slug. Every read is scoped by it.
+- **`entityId` is the organization's stable record id** — never the wire `entitySlug`, never a body
+  value. Every read is scoped by it; where a request's comes from is `server-planning` → Scope and
+  security.
 - **Membership is `parent` + `parents`, never a relationship.** `parents` always contains `parent`
   (first), so many-to-many membership needs no junction row. `within` queries `parents`.
 - **Specification is a workcard** (`kind: specification`) with `category`, `format`, `body`, `ref`,
@@ -162,7 +146,7 @@ excess-property check catches it — keep the literal typed.
 Card types and status flows may also be DATA — `ScopedSchemaRecord`s a store keeps behind the
 optional `PlanningStore.schemas` port — layered **code → entity → project**:
 
-- `code` is the plugin registry (unchanged, the default), `entity` an organization-wide record
+- `code` is the plugin registry (the default), `entity` an organization-wide record
   (`project` absent), `project` a record of one project card. A project record overrides an
   organization one of the same key.
 - **Only card types and flows are data.** A code key is sealed unless its declaration says
@@ -189,18 +173,8 @@ optional `PlanningStore.schemas` port — layered **code → entity → project*
   `define` (each at its layer's next version, flows first), `seed` (only the keys the layer lacks),
   `retire(kind, key, { project? })`. The declaration still carries its own `version` (any number
   ≥ 1 for `define`/`seed`, which assign the layer's next one; the exact next one for `put*`), and
-  a project layer is `{ project: <project card id> }` in the second argument:
-
-```ts
-await planning.definitions!.define({
-  flows: [{ id: 'shed:repair', version: 1, label: 'Repair',
-    statuses: [{ key: 'reported', intrinsic: IntrinsicStatus.Planned, initial: true },
-      { key: 'fixed', intrinsic: IntrinsicStatus.Closed, terminal: true }],
-    transitions: [{ name: 'fix', from: ['reported'], to: 'fixed', explicit: true }] }],
-  types: [{ type: 'shed:repair', kind: WorkcardKind.Card, version: 1, label: 'Repair ticket',
-    fields: { type: 'object' }, flows: ['shed:repair'], specifications: [] }],
-}, { project: shedId })   // admitted under the shed when its type says `scopedCardTypes: true` (or lists it in `cardTypes`)
-```
+  a project layer is `{ project: <project card id> }` in the second argument (a `define` call:
+  `server-planning` → Creating and reading a card).
 
 ## The fold
 
@@ -215,9 +189,9 @@ await planning.definitions!.define({
   never written or cleared;
 - `link`/`unlink` move only `seq`/`head`/`updatedAt`; `delete` answers `null`;
 - every result carries `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`;
-- the log is replayed AS WRITTEN: a row the executor would refuse today (an update naming
-  `createdBy`, appended before that refusal existed) still folds. Guards live at admission
-  (`assertMutable`, the executor), never in the fold, so a stored log never stops projecting.
+- the log is replayed AS WRITTEN: a stored row admission would refuse (an update naming
+  `createdBy`) still folds. Guards live at admission (`assertMutable`, the executor), never in the
+  fold, so a stored log never stops projecting.
 
 `applyRelationship(links, transition)` folds the edges: a create's `links`, `link`, `unlink`, and a
 `delete` dropping every edge touching the card. An existing edge is kept, so re-folding adds nothing.
@@ -234,7 +208,6 @@ await planning.definitions!.define({
 - transit — `flows[flow] = rule.to`, `status` on the primary flow, `intrinsic` when it moves,
   `closedAt` set on entering closed and cleared on leaving; throws `IllegalTransition`;
 - link/unlink/delete — nothing.
-- `createdBy` only ever comes from a create's draft: `changes` and `unset` never carry it.
 
 `assertMutable(exec, type)` refuses (`planning:immutable:<field>`) identity keys (`createdAt`
 among them), `createdBy` in `changes` or `unset` on any action (a create included),
@@ -251,8 +224,8 @@ description `$ilike` (wildcards escaped) and code `$startsWith`, `updatedSince` 
 $gte }`. `entityId` always comes from the scope; `undefined` is omitted. Paging and sort are
 `listOptionsOf` (`size: 0` = no limit). `summaryOf(cards, parents)` counts DIRECT children by
 intrinsic state and gives no key to a parent with none. A scope naming `projects` is narrowed by
-the SERVER facade on top of this translation (`server-planning`); `TransitionWhere.project` and
-`RelationshipWhere.project` take one id or a list.
+the SERVER facade on top of this translation (`server-planning` → The access resolver);
+`TransitionWhere.project` and `RelationshipWhere.project` take one id or a list.
 
 **A query crosses HTTP in its wire form.** The OwlMeans transport cannot carry arrays or nested
 objects in a query string (the client writes `key[]=`, the server reads that key literally), so
@@ -264,7 +237,7 @@ A client calls `encodeWorkcardQuery(query)` before `call({ query })`; a handler 
 
 ## The protocol tree and mounting
 
-`makePlanningProtocols({ base: { alias, path?, parent?, service? }, guards, gate?, socketBase? })`:
+`makePlanningProtocols({ base: { alias, path?, parent?, service? }, guards, gate?, socketBase?, definitions? })`:
 
 | Leaf | Route | Request → reply |
 |---|---|---|
@@ -349,7 +322,7 @@ throw a `ResilientError` that declares nothing.
 
 ## i18n
 
-Importing the package registers, in all seven languages, `lib:planning.*` labels (`kind.*`,
+Importing the package registers, in eight languages (en, pl, ru, be, uk, es, de, fr), `lib:planning.*` labels (`kind.*`,
 `intrinsic.*`, `action.*`, `commit.*`, `format.*`) and one text per refusal type under the shared
 `errors` resource (`errors.<TypeName>`), where a panel's error lookup finds it.
 

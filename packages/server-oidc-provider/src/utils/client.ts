@@ -28,7 +28,8 @@ export const updateClient = (context: Context, client: ClientMetadata): ClientMe
   return client
 }
 
-const makeUriUpdater = (context: Context, helper: SecurityHelper) => (uri: string): string => {
+/** Expands a `{{service-alias}}/path` URI against that registered service; any other URI is kept. */
+export const makeUriUpdater = (context: Context, helper: SecurityHelper) => (uri: string): string => {
   if (uri.startsWith('{{')) {
     const [host, ...parts] = uri.split(SEP)
     

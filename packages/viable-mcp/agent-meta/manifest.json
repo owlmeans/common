@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/viable-mcp",
-  "version": "0.1.18-rc.36",
-  "generatedAt": "2026-09-30T09:41:02.837Z",
+  "version": "0.1.18-rc.39",
+  "generatedAt": "2026-10-03T11:19:50.800Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

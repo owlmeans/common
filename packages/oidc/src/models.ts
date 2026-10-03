@@ -1,12 +1,17 @@
 import type { JSONSchemaType } from 'ajv'
-import type { OIDCAuthInitParams, OIDCClientAuthPayload, OIDCTokenUpdate, ProviderProfileDetails } from './types.js'
-import { AuthTokenSchema, EntityValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema } from '@owlmeans/auth'
+import type {
+  OIDCAuthInitParams, OIDCClientAuthPayload, OidcOrganizationSwitch, OIDCTokenUpdate, ProviderProfileDetails,
+} from './types.js'
+import {
+  AuthTokenSchema, EntitySlugValueSchema, EntityValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema,
+} from '@owlmeans/auth'
 
 export const OIDCAuthInitParamsSchema: JSONSchemaType<OIDCAuthInitParams> = {
   type: 'object',
   properties: {
     entity: { ...EntityValueSchema, nullable: true },
     profile: { ...IdValueSchema, nullable: true },
+    entitySlug: { ...EntitySlugValueSchema, nullable: true },
   },
   required: [],
   additionalProperties: false,
@@ -20,6 +25,15 @@ export const OIDCClientAuthPayloadSchema: JSONSchemaType<OIDCClientAuthPayload> 
   },
   additionalProperties: {type: 'string', minLength: 0, maxLength: 512},
   required: ['code', 'authUrl'],
+}
+
+export const OidcOrganizationSwitchSchema: JSONSchemaType<OidcOrganizationSwitch> = {
+  type: 'object',
+  properties: {
+    entitySlug: { ...EntitySlugValueSchema },
+  },
+  required: ['entitySlug'],
+  additionalProperties: false,
 }
 
 export const OIDCTokenUpdateSchema: JSONSchemaType<OIDCTokenUpdate> = {

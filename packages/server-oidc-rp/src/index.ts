@@ -21,6 +21,12 @@ export * from './guard.js'
 export * from './gate.js'
 export * from './entrypoints.js'
 export * from './wrapper.js'
+export type { OIDCAuthCache } from './utils/types.js'
 export { createGateModel } from './model/gate.js'
 export { extractPermissionSets } from './utils/permissions.js'
+export {
+  extractOrganizations, pickOrganization, actingPermissionSets, actingAuth, resolvedEntityOf, organizationItemOf,
+} from './utils/organization.js'
+export type { OrganizationSelector } from './utils/organization.js'
+export { sessionRecord } from './utils/cache.js'
 export { requestedScope } from './utils/scope.js'

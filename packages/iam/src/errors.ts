@@ -72,6 +72,29 @@ export class IamUserError extends IamError {
   }
 }
 
+/**
+ * A refusal about an organization or a membership in it — an unknown organization, the last owner,
+ * the membership cap.
+ */
+export class IamOrganizationError extends IamError {
+  public static override typeName = `IamOrganization${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`organization:${message}`)
+    this.type = IamOrganizationError.typeName
+  }
+}
+
+/** A refusal about a group: an unknown key, a managed group written by an operator, another app's group. */
+export class IamGroupError extends IamError {
+  public static override typeName = `IamGroup${ResilientError.typeName}`
+
+  constructor(message = 'error') {
+    super(`group:${message}`)
+    this.type = IamGroupError.typeName
+  }
+}
+
 ResilientError.registerErrorClass(IamError)
 ResilientError.registerErrorClass(IamClientError)
 ResilientError.registerErrorClass(IamResourceError)
@@ -79,3 +102,5 @@ ResilientError.registerErrorClass(IamGrantError)
 ResilientError.registerErrorClass(IamPermissionError)
 ResilientError.registerErrorClass(IamUnsupported)
 ResilientError.registerErrorClass(IamUserError)
+ResilientError.registerErrorClass(IamOrganizationError)
+ResilientError.registerErrorClass(IamGroupError)

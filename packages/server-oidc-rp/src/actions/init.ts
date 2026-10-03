@@ -86,6 +86,9 @@ export const init: RefedEntrypointHandler = handleBody(async (body: OIDCAuthInit
     verifier,
     client: client.getClientId(),
     ...(entityIdUsedForResolution ? { entityId } : {}),
+    // Only a request: the exchange honours it when the provider names that organization among the
+    // subject's, and starts the session in the home one otherwise.
+    ...(body.entitySlug != null ? { entitySlug: body.entitySlug } : {}),
   }, { ttl: AUTHEN_TIMEFRAME / 1000 })
 
   // The dispatcher is a FRONTEND route, and this is a server context — the entrypoint registered

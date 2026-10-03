@@ -115,7 +115,6 @@ export interface AccountLinkingService extends InitializedService {
 
 export interface AccountMeta {
   username: string
-  force?: boolean
 }
 
 export interface ProviderApiService extends InitializedService {

@@ -2,28 +2,26 @@ import { AuthenFailed, AuthorizationError, AuthRole, AuthUnavailable } from '@ow
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { createService } from '@owlmeans/context'
-import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService } from '@owlmeans/oidc'
-import { OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '@owlmeans/oidc'
-import { cache, managedId } from './utils/cache.js'
+import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService, WrappedOIDCUpdate } from '@owlmeans/oidc'
+import { ORGANIZATIONS_CLAIM, WRAPPED_OIDC } from '@owlmeans/oidc'
+import { cache, managedId, sessionTtl } from './utils/cache.js'
+import type { OIDCAuthCache } from './utils/types.js'
 import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
-import { authService, DEFAULT_ALIAS, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
+import { authService, DEFAULT_ALIAS, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
 import { decodeJwt } from 'jose'
 import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
 import { extractPermissionSets } from './utils/permissions.js'
+import {
+  actingAuth, actingPermissionSets, extractOrganizations, pickOrganization, resolvedEntityOf,
+} from './utils/organization.js'
+import { signWrapped } from './utils/wrapped.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
 import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
 import type { AuthSessionDecision, AuthSessionManager } from '@owlmeans/server-auth-session'
-
-const cacheTtl = (expiresAt: number | undefined): number => {
-  if (expiresAt == null) return OIDC_AUTH_LIFTETIME / 1000
-  const ttl = Math.ceil((expiresAt - Date.now()) / 1000)
-  if (ttl <= 0) throw new AuthorizationError('session')
-  return ttl
-}
 
 /** Provider errors which affirm that this access token is no longer usable. */
 const isInvalidProviderToken = (error: unknown): boolean => {
@@ -47,8 +45,12 @@ const sessionFailure = (decision: AuthSessionDecision): never => {
   throw new AuthorizationError('session')
 }
 
+/** The guard attaches the acting organization only for a session that acts in one. */
+const updateOf = (token: string, record: OIDCAuthCache): WrappedOIDCUpdate =>
+  record.acting != null && record.entity != null ? { token, entity: record.entity } : { token }
+
 export const makeOidcWrappingService = (): WrappedOIDCService => {
-  const service = createService<WrappedOIDCService>(WRAPPED_OIDC, {
+  const service: WrappedOIDCService = createService<WrappedOIDCService>(WRAPPED_OIDC, {
     update: async (token, thr) => {
       const ctx = service.assertCtx<Config, Context>()
       token = typeof token === 'string' ? token : token?.token
@@ -64,7 +66,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
         if (record == null || record.payload == null) {
           throw new AuthorizationError('record')
         }
-        const remainingTtl = cacheTtl(record.expiresAt)
+        const remainingTtl = sessionTtl(record.expiresAt)
 
         const manager = ctx.hasService(AUTH_SESSION_MANAGER)
           ? ctx.service<AuthSessionManager>(AUTH_SESSION_MANAGER)
@@ -94,7 +96,7 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
 
         if (!validateEveryRequest && record.validated != null && days(record.validated)
           .add(OIDC_WRAP_FRESHNESS, 'milliseconds').isAfter() && sessionDecision?.state !== 'refresh') {
-          return { token }
+          return updateOf(token, record)
         }
 
         record.validated = new Date()
@@ -144,15 +146,13 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
             else updatedUser.authorizationVersion = registered.version
           }
 
-          const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
-          const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-            .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
+          const issued = await signWrapped(ctx, updatedUser)
 
           record.payload = update.tokenSet as OidcTokenSetParameters
 
           await cache(ctx).save(record, { ttl: remainingTtl })
 
-          return { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }
+          return updateOf(issued, record)
         } else if (record.payload != null) {
           if (configuredClientId != null) {
             let tokenSet: CommonTokenSetParams = record.payload as CommonTokenSetParams
@@ -197,35 +197,56 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
               throw new AuthUnavailable('oidc-introspection')
             }
 
-            const updatedUser: Auth = {
+            let updatedUser: Auth = {
               ...user,
               createdAt: new Date()
             }
 
-            // Keep integrated-IAM permission grants fresh across token refreshes
-            if (tokenSet.id_token != null) {
-              const permissions = extractPermissionSets(decodeJwt(tokenSet.id_token)[PERMISSIONS_CLAIM])
-              if (permissions != null) {
-                updatedUser.permissions = permissions
-                updatedUser.permissioned = true
-              }
-            }
+            // The provider's current word on the subject: userinfo where the provider is the
+            // authority on every request, the (possibly refreshed) id_token otherwise. Keeps
+            // integrated-IAM permission grants and organizations fresh across token refreshes.
+            let claims: Record<string, unknown> | undefined = tokenSet.id_token != null
+              ? decodeJwt(tokenSet.id_token)
+              : undefined
 
             if (validateEveryRequest) {
-              let claims: Record<string, unknown>
+              let current: Record<string, unknown>
               try {
-                claims = await client.userinfo(tokenSet as OidcTokenSetParameters, user.userId)
+                current = await client.userinfo(tokenSet as OidcTokenSetParameters, user.userId)
               } catch (error) {
                 // An active token that cannot be checked against the provider is an authority
                 // outage, but an `invalid_token` response is an explicit authorization refusal.
                 if (isInvalidProviderToken(error)) throw new AuthorizationError('access-token')
                 throw new AuthUnavailable('oidc-userinfo')
               }
-              const permissions = extractPermissionSets(claims[PERMISSIONS_CLAIM])
-              if (permissions == null) {
+              if (extractPermissionSets(current[PERMISSIONS_CLAIM]) == null) {
                 throw new AuthorizationError('permissions')
               }
-              updatedUser.permissions = permissions
+              claims = current
+            }
+
+            const sets = claims != null ? extractPermissionSets(claims[PERMISSIONS_CLAIM]) : undefined
+
+            if (record.acting != null) {
+              // A session that acts in an organization keeps exactly that one, followed by its
+              // frozen key across renames. Gone from the provider's answer means the subject left
+              // it — never a silent move into another organization.
+              const organizations = claims != null
+                ? extractOrganizations(claims[ORGANIZATIONS_CLAIM])
+                : record.organizations
+              const acting = organizations != null
+                ? pickOrganization(organizations, { entityKey: record.acting })
+                : undefined
+              if (acting == null) {
+                throw new AuthorizationError('entity')
+              }
+
+              record.organizations = organizations
+              record.sets = sets ?? record.sets
+              record.entity = resolvedEntityOf(acting)
+              updatedUser = actingAuth(updatedUser, acting, record.sets)
+            } else if (sets != null) {
+              updatedUser.permissions = actingPermissionSets(sets)
               updatedUser.permissioned = true
             }
 
@@ -246,15 +267,13 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
               else updatedUser.authorizationVersion = registered.version
             }
 
-            const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
-            const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-              .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
+            const issued = await signWrapped(ctx, updatedUser)
 
             record.payload = tokenSet as OidcTokenSetParameters
 
             await cache(ctx).save(record, { ttl: remainingTtl })
 
-            return { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }
+            return updateOf(issued, record)
           }
         }
       } catch (err) {

@@ -77,8 +77,8 @@ sets the linker and no timeout.
   untracked leftover from a removed package, not a workspace member — delete it rather than
   debugging why it will not compile.
 - Several packages declare a `test` script but ship no `tests/` directory, so `bun run test` reports
-  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `client-iam`, `mailer`,
-  `server-auth-otp`, `server-mailer-mailgun`, `web-auth`. Expected, not a regression — read the
+  `Test filter "./tests" had no matches` and exits 1 for each: `auth-otp`, `mailer`,
+  `server-mailer-mailgun`, `web-auth`. Expected, not a regression — read the
   per-package pass/fail counts, not the aggregate exit code.
 - **The pinned Bun floor is load-bearing for MongoDB.** `bson@7.3.x` runs a static initializer that
   calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, and Bun implements

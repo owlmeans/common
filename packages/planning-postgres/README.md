@@ -11,7 +11,7 @@ tools the in-memory store of `@owlmeans/server-planning`.
 ## Installation
 
 ```sh
-bun add @owlmeans/planning-postgres@^0.1.18-rc.2
+bun add @owlmeans/planning-postgres@^0.1.18-rc.5
 ```
 
 Peers: `pg`, `ajv`, `ajv-formats`.
@@ -93,7 +93,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.44
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -4,20 +4,27 @@ import {
 } from '@owlmeans/planning'
 import type {
   CommitEvent, CommitSource, PlanningFacade, PlanningScope, Relationship, Specification, Transition,
-  Workcard, WorkcardModel,
+  Workcard, WorkcardModel, WorkcardQuery,
 } from '@owlmeans/planning'
 import type { Criteria } from '@owlmeans/resource'
 import { makeDefinitions } from './definitions.js'
 import { executeTransition } from './executor.js'
 import type { PlanningRuntime } from './service.js'
+import { wantsSpecifications } from './store/memory.js'
 import type { CommitHub } from './store/types.js'
 
 /**
- * The criteria a scope narrowed to `projects` adds to every card read: the projects themselves and
- * every card whose `parents` name one of them.
+ * The criteria a scope narrowed to `projects` adds to every card list, count and summary: the
+ * projects themselves, every card whose `parents` name one of them, and the specifications whose
+ * parent card is one of `through` — the cards of those projects a specification is seen through,
+ * exactly as a single read sees it (a specification's `parents` hold only its own card).
  */
-export const projectCriteriaOf = (projects: readonly string[]): Criteria<Workcard> => ({
-  $or: [{ id: { $in: [...projects] } }, { parents: { $overlaps: [...projects] } }],
+export const projectCriteriaOf = (projects: readonly string[], through: readonly string[] = []): Criteria<Workcard> => ({
+  $or: [
+    { id: { $in: [...projects] } },
+    { parents: { $overlaps: [...projects] } },
+    ...(through.length > 0 ? [{ kind: WorkcardKind.Specification, parent: { $in: [...through] } }] : []),
+  ],
 }) as Criteria<Workcard>
 
 /**
@@ -28,9 +35,12 @@ export const projectCriteriaOf = (projects: readonly string[]): Criteria<Workcar
  * `WorkcardNotFound`, exactly as for an id that never existed. Reads go through the composite
  * store (the default store plus the stores plugins own); writes go through the executor.
  *
- * A scope naming `projects` sees those projects and the cards whose `parents` name one of them (a
- * card's specification through its card); everything else reads as absent, lists are narrowed by
- * an AND'd criteria, and commit events and transitions outside the set are dropped or refused.
+ * A scope naming `projects` sees those projects, the cards whose `parents` name one of them, and a
+ * specification whose parent card is one of those (a card's specification through its card);
+ * everything else reads as absent. Lists, counts and summaries are narrowed by an AND'd criteria
+ * that admits the same cards a single read does — the parent cards a specification is seen through
+ * are resolved once per call ({@link projectCriteriaOf}) — and commit events and transitions
+ * outside the set are dropped or refused.
  *
  * `definitions` is present when the default store holds data-defined schemas; a model is then
  * built over the registry of the card's own project.
@@ -58,9 +68,37 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
     return null
   }
 
-  const narrow = (where: Criteria<Workcard>): Criteria<Workcard> => projects == null
+  /**
+   * The cards a narrowed list or count may see specifications THROUGH — what {@link visible} admits
+   * one by: its parent card in the scope's projects. One read per call, and only for criteria that
+   * ask for specifications at all (`wantsSpecifications`, the rule every store routes a list by): the
+   * parent the query names, or else the projects' own cards. A summary counts no specification.
+   */
+  const throughOf = async (where: Criteria<Workcard>, parent?: string): Promise<string[]> => {
+    if (projects == null || projects.length === 0 || !wantsSpecifications(where)) {
+      return []
+    }
+    if (parent != null) {
+      const card = mine(await reader().cards.get(parent, entityId))
+      return card != null && inProjects(card) ? [parent] : []
+    }
+    const listed = await reader().cards.list({ entityId, parents: { $overlaps: projects } } as unknown as Criteria<Workcard>, { size: 0 })
+    // A project's own specifications are matched by their `parents` already.
+    return listed.items.filter(card => card.id != null && !projects.includes(card.id) && inProjects(card)).map(card => card.id!)
+  }
+
+  /** A narrowed list's or count's criteria — `through` as {@link throughOf} resolved it. */
+  const narrowed = async (query?: WorkcardQuery | null): Promise<Criteria<Workcard>> => {
+    const where = criteriaOf(query, scope)
+    return narrow(where, await throughOf(where, query?.parent))
+  }
+
+  const narrow = (where: Criteria<Workcard>, through: readonly string[] = []): Criteria<Workcard> => projects == null
     ? where
-    : { ...where, $and: [...((where as { $and?: Criteria<Workcard>[] }).$and ?? []), projectCriteriaOf(projects)] } as Criteria<Workcard>
+    : {
+      ...where,
+      $and: [...((where as { $and?: Criteria<Workcard>[] }).$and ?? []), projectCriteriaOf(projects, through)],
+    } as Criteria<Workcard>
 
   const projectVisible = (project?: string | null): boolean =>
     projects == null || (project != null && projects.includes(project))
@@ -113,9 +151,9 @@ export const makeStoreFacade = (runtime: PlanningRuntime, scope: PlanningScope):
         return card
       },
 
-      list: async query => await reader().cards.list(narrow(criteriaOf(query, scope)), listOptionsOf(query)),
+      list: async query => await reader().cards.list(await narrowed(query), listOptionsOf(query)),
 
-      count: async query => await reader().cards.count(narrow(criteriaOf(query, scope))),
+      count: async query => await reader().cards.count(await narrowed(query)),
 
       summary: async (parents, query) => parents.length === 0
         ? {}
