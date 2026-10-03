@@ -1,6 +1,7 @@
 import type {
   CommitEvent, CommitSource, CommitStatus, PlanningStore, ProjectionStore, Relationship,
-  RelationshipStore, SpecificationStore, Transition, TransitionStore, Workcard,
+  RelationshipStore, SchemaStore, ScopedSchemaRecord, SpecificationStore, Transition, TransitionStore,
+  Workcard,
 } from '@owlmeans/planning'
 
 /** What a folding store calls for every committed transition — the service's `committed`. */
@@ -49,6 +50,11 @@ export interface FoldOptions {
   limit?: number
   /** Called between transitions — a queue processor renews its lock here. */
   touch?: () => Promise<void>
+  /**
+   * Runs one transition's store writes as a unit — a transactional store opens a savepoint here, so
+   * a write the database refuses leaves nothing of that transition behind and the fold goes past it.
+   */
+  unit?: <R>(run: () => Promise<R>) => Promise<R>
 }
 
 export interface FoldResult {
@@ -63,6 +69,8 @@ export interface MemoryPlanningStoreSeed {
   cards?: Workcard[]
   links?: Relationship[]
   transitions?: Transition[]
+  /** Data-defined type and flow records — kept only by a store built with `schemas: true`. */
+  schemas?: ScopedSchemaRecord[]
 }
 
 export interface MemoryPlanningStoreOptions {
@@ -74,6 +82,11 @@ export interface MemoryPlanningStoreOptions {
   /** The commit listener used until a service binds its own. */
   onCommitted?: CommitListener
   alias?: string
+  /**
+   * Hold data-defined types and flows (the `schemas` port). Off by default: a store without it
+   * resolves every type and flow from the code registry, exactly as before.
+   */
+  schemas?: boolean
 }
 
 export interface MemoryPlanningStore extends BindablePlanningStore {
@@ -82,6 +95,8 @@ export interface MemoryPlanningStore extends BindablePlanningStore {
   specs: SpecificationStore
   links: RelationshipStore
   commits: CommitHub
+  /** Present when the store was built with `schemas: true`. */
+  schemas?: SchemaStore
   bind: (committed: CommitListener) => void
   /** Fold what is pending — for one card, or for every card with a pending transition. */
   flush: (card?: string) => Promise<void>

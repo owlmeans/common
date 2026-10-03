@@ -2,18 +2,18 @@ import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import type { ListResult } from '@owlmeans/resource'
 import { backend, route, RouteMethod, socket } from '@owlmeans/route'
 import type { RouteOptions } from '@owlmeans/route'
-import { PLANNING_PATH, planningAliases } from './consts.js'
+import { PLANNING_PATH, planningAliases, planningDefinitionAliases } from './consts.js'
 import {
   CommitQuerySchema, ExecuteRequestSchema, RelationshipQuerySchema, RevisionsQuerySchema,
-  SpecificationQuerySchema, SummaryQuerySchema, TransitionParamsSchema, TransitionQuerySchema,
-  WorkcardParamsSchema, WorkcardQuerySchema,
+  SchemaDefineRequestSchema, SchemaListQuerySchema, SpecificationQuerySchema, SummaryQuerySchema,
+  TransitionParamsSchema, TransitionQuerySchema, WorkcardParamsSchema, WorkcardQuerySchema,
 } from './schemas.js'
 import type {
   CommitEvent, CommitFeedQuery, CommitQuery, CommitStatus, ExecuteRequest, PlanningProtocolOptions,
   PlanningProtocols, PlanningSchemaBundle, Relationship, RelationshipQueryWire, RevisionsQuery,
-  Specification, SpecificationQueryWire, SpecificationRevisionList, SummaryQueryWire, SummaryView,
-  Transition, TransitionParams, TransitionQueryWire, TransitionReceiptView, Workcard, WorkcardParams,
-  WorkcardQueryWire,
+  SchemaDefineReply, SchemaDefineRequest, SchemaListQuery, ScopedSchemaBundle, Specification, SpecificationQueryWire,
+  SpecificationRevisionList, SummaryQueryWire, SummaryView, Transition, TransitionParams,
+  TransitionQueryWire, TransitionReceiptView, Workcard, WorkcardParams, WorkcardQueryWire,
 } from './types.js'
 
 /**
@@ -26,6 +26,10 @@ import type {
  *
  * Queries travel as their `*Wire` shapes: encode with `encode*Query` before a call, decode with
  * `decode*Query` in a handler.
+ *
+ * `definitions: true` adds the data-defined schema surface: `schema.list` takes a `project` query
+ * and answers that layer's scoped bundle, and `schema.define` (POST `/schemas`) writes. Without it
+ * the tree declares exactly the other leaves.
  */
 export const makePlanningProtocols = (opts: PlanningProtocolOptions): PlanningProtocols => {
   const aliases = planningAliases(opts.base.alias)
@@ -40,12 +44,27 @@ export const makePlanningProtocols = (opts: PlanningProtocolOptions): PlanningPr
   })
   const get = (alias: string, path: string) => route(alias, path, backend({ parent: base }, RouteMethod.GET))
 
+  const schema: PlanningProtocols['schema'] = opts.definitions === true
+    ? Object.freeze({
+      list: protocol(
+        get(aliases.schema.list, '/schemas'),
+        contract.request({ query: typed<SchemaListQuery>(SchemaListQuerySchema) }, typed<ScopedSchemaBundle>())
+      ) as unknown as PlanningProtocols['schema']['list'],
+      define: protocol(
+        route(planningDefinitionAliases(opts.base.alias).define, '/schemas', backend({ parent: base }, RouteMethod.POST)),
+        contract.request({ body: typed<SchemaDefineRequest>(SchemaDefineRequestSchema) }, typed<SchemaDefineReply>())
+      ),
+    })
+    : Object.freeze({
+      list: protocol(
+        get(aliases.schema.list, '/schemas'), contract(typed<PlanningSchemaBundle>())
+      ) as unknown as PlanningProtocols['schema']['list'],
+    })
+
   return Object.freeze({
     base,
 
-    schema: Object.freeze({
-      list: protocol(get(aliases.schema.list, '/schemas'), contract(typed<PlanningSchemaBundle>())),
-    }),
+    schema,
 
     card: Object.freeze({
       list: protocol(

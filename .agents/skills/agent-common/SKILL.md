@@ -1,13 +1,13 @@
 ---
 name: agent-common
-description: "How to use @owlmeans/agent-common — runtime-free contracts for OwlMeans agents: conversation identity, the run-lifecycle flow, the PIPELINE declaration (PipelineSpec, PipelineRun, validatePipelineSpec, orderPipelineSteps) and the record shapes an application persists. Auto-invoked when importing agent record types, a pipeline spec or run type, conversationFor, truncateAt, or the agent run flow."
+description: "How to use @owlmeans/agent-common — runtime-free contracts for OwlMeans agents: conversation identity, the run-lifecycle flow, the PIPELINE declaration (PipelineSpec, PipelineRun, validatePipelineSpec, orderPipelineSteps, pipelineAncestors), the CUMULATIVE PIPELINE RESULTS contracts (facts, entries, declarations, deterministic renderers) and the record shapes an application persists. Auto-invoked when importing agent record types, a pipeline spec or run type, a cumulative-results type or renderer, conversationFor, truncateAt, or the agent run flow."
 user-invocable: false
 ---
 
 # @owlmeans/agent-common
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent-common": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/agent-common": "^0.1.18-rc.45"` in `dependencies`
 
 Serializable contracts for the agent family. No LangChain, no LangGraph, no storage driver — a
 backend or a browser bundle imports these to read what an agent wrote without pulling the runtime.
@@ -27,13 +27,17 @@ The runtime is `@owlmeans/agent`.
 | `AgentRunMessage` | What a transport carries — a POINTER (`runId`, `conversationId`, optional `pipeline`/`step`), never state. |
 | `PipelineStepSpec`, `PipelineSpec` | The declaration: named steps, `after: string[]` edges, `optional`, `nonIdempotent`, `attempts`, `timeout`. |
 | `PipelineRun`, `PipelineRunStatus`, `PipelineProgress` | The persisted run row — `state` is JSON **text** plus `stateChars`; `completed`/`pending`/`warnings`; `heartbeatAt`. |
-| `validatePipelineSpec`, `orderPipelineSteps`, `pipelineDescendants`, `pipelineStep` | Pure spec helpers — no runtime, no graph engine. |
+| `validatePipelineSpec`, `orderPipelineSteps`, `pipelineDescendants`, `pipelineAncestors`, `pipelineAncestry`, `pipelineStep` | Pure spec helpers — no runtime, no graph engine. |
+| `CumulativeResultFact`, `CumulativeResultEntry`, `CumulativeResultSource`, `CumulativeFactKind`, `ResultViewMode`, `ResultFactQuery` | CUMULATIVE PIPELINE RESULTS records: one authoritative fact, one step's entry in a ledger. |
+| `CumulativeResultsSpec`, `StepResultsSpec`, `ResultSummarySpec`, `mergeResultsSpecs`, `RESULTS_EVERY_STEP` | The JSON-safe declaration — per step: extractors by name, `full`/`omit` consumers, `window`, caps, `refresh`, an optional `summary`. |
+| `renderResultEntry`, `renderResultFact`, `renderResultSummary`, `sortFacts`, `factKey`, `compareResultOrder`, `resultLabel`, `rootRunOf` | Deterministic renderers and ledger helpers. |
 | `AGENTS_SERVICE` | The service alias — **`agents`**, plural. |
 | `AGENT_*_STORE` | Port names a consumer binds its storage under. |
 | `AgentRunStatus` | `ok` / `failed`, written on a conversation event. |
 | `AgentCommonError`, `AgentRunStateError`, `PipelineSpecError`, `PipelineVersionError`, `PipelineUnknownStepError`, `PipelineNotIdempotentError`, `PipelineStateTooLargeError` | The error family. |
 | `DEFAULT_SUMMARY_CHARS` (1200) · `DEFAULT_ADVICE_CHARS` (400) · `DEFAULT_EVENT_WINDOW` (3) · `DEFAULT_MEMORY_NODE_CHARS` (2000) · `DEFAULT_MEMORY_EVENTS_LIMIT` (50) | The caps the runtime's plugins default to. Override them per plugin; read them here rather than restating a number. |
 | `DEFAULT_MAX_STATE_CHARS` (256_000) · `DEFAULT_STEP_ATTEMPTS` (1) · `DEFAULT_STEP_TIMEOUT` (30 min) | Pipeline defaults. The state cap is a TRIPWIRE, not a budget. |
+| `DEFAULT_RESULTS_MAX_CHARS` (12_000) · `DEFAULT_RESULT_ENTRY_CHARS` (4_000) · `DEFAULT_RESULT_COMPACT_CHARS` (400) · `DEFAULT_RESULTS_WINDOW` (2) · `DEFAULT_RESULT_SUMMARY_CHARS` (600) · `AGENT_CUMULATIVE_RESULT_STORE` | Cumulative-results caps — they bound what a step is TOLD, never what it may produce — and the store's port name. |
 
 ## Rules
 
@@ -78,6 +82,25 @@ than as prompt text.
 **A conversation id degrades to a named default, never to an empty string.** An empty key would
 silently collapse every run of every subject into one thread.
 
+**`pipelineAncestors` mirrors `pipelineDescendants` but excludes the named step.** A re-run re-enters
+the step it names; nothing is its own predecessor. `pipelineAncestry` adds each ancestor's DEPTH —
+the fewest `after` edges between them — which is what a results window counts, so a direct
+predecessor is depth 1 however far apart the two sit in the topological order.
+
+**A rendered entry is deterministic and carries nothing that varies.** Facts sort by kind (file
+facts last — a location is what a budget spares first), name and location with a code-unit compare;
+no timestamp, run id or revision is ever rendered. Over its cap an entry drops WHOLE facts and says
+how many ("they exist: check the files"), never half a signature. An empty non-partial entry renders
+to `''` and costs a view nothing; a summary is always labelled "not verified".
+
+**An entry's `order` is a PATH, not a number.** It is the step's topological index behind the index
+path of every step it was composed under; where one key prefixes another the longer sorts FIRST, so
+a composed run's entries precede the composing step's own. Two pipelines' indexes are not comparable,
+which is why a single sequence number cannot order a ledger.
+
+**Declarations merge like skills.** `mergeResultsSpecs` lets later declarations win field by field
+but ACCUMULATES extractors, `full` and `omit` lists; `'*'` absorbs names.
+
 **Port names are exported; ports are not bound here.** An unbound port is not an error — the plugin
 that needs it degrades to a no-op. `AGENT_PIPELINE_RUN_STORE` is the one exception in spirit: a
 pipeline with no run store still runs, but it is not resumable, because the ROW is what a resume
@@ -87,7 +110,8 @@ reads. `AGENT_CHECKPOINT_STORE` may be absent with no loss of correctness at all
 
 Category A (unit, no env, no network). This package's own `tests/flow.spec.ts` covers the flow
 round-trip — which is also the standing check that `@owlmeans/flow` still works server-side, since
-every other consumer of that package is client-side.
+every other consumer of that package is client-side. `tests/results.spec.ts` pins the exact bytes an
+entry renders to; a change there changes what every consuming step is told.
 
 ## Related
 

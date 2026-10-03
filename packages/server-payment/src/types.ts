@@ -327,6 +327,14 @@ export interface SubscriptionRef {
 export interface GatewayService extends InitializedService {
   /** `false` when registered with `manage: false`: every Stripe-calling method throws. */
   managed: boolean
+  /** Whether the boot-time `bootstrapStripe` runs: the `bootstrap` option, else `managed`. */
+  bootstrap: boolean
+  /** The alias whose host and base form the webhook URL: the `webhookService` option, else `cfg.service`. */
+  readonly webhookService: string
+  /** The key of this deployment's Stripe rows: the `owner` option, else `cfg.service`. */
+  readonly owner: string
+  /** The Stripe client every paygate call of this gateway uses: the `stripe` option, else the configured secret. */
+  stripe: StripeFactory
   createLink: (ctx: ApiContext, params: CreateLinkParams) => Promise<string>
   portalLink: (ctx: ApiContext, entityId: string, opts: PortalLinkOptions) => Promise<string>
   /** @throws PaygateError('unmanaged') when `managed` is `false`. */
@@ -355,9 +363,35 @@ export interface PaymentGatewayOptions {
   serviceAlias?: string
   /**
    * `false` for a process that must read entitlements but never talk to Stripe: no Stripe
-   * bootstrap at init, and `createLink` / `portalLink` / `resync*` throw `PaygateError('unmanaged')`.
+   * bootstrap at init, and `createLink` / `portalLink` / `resync*` / the webhook route throw
+   * `PaygateError('unmanaged')`.
    */
   manage?: boolean
+  /**
+   * Whether this process brings Stripe to the declared state at boot (`bootstrapStripe`: products,
+   * portal configuration, webhook endpoint). Default: `manage`. A managed process with `false`
+   * still serves checkout, the portal, estimates and the resyncs, and still runs a FORCED
+   * bootstrap (`resync`, an application's `bootstrapStripe(ctx, stripe, { force: true })`).
+   * `true` on an unmanaged gateway is refused at construction.
+   */
+  bootstrap?: boolean
+  /**
+   * The alias (in `cfg.services`) whose host and base form the webhook URL (`webhookUrlOf`) — also
+   * the portal configuration's deployment key. Default: `cfg.service`. Name the process that
+   * RECEIVES the webhook, in every process of the deployment, so every bootstrap computes one URL.
+   * A managed, bootstrapping gateway refuses to initialize when the alias is not declared.
+   */
+  webhookService?: string
+  /**
+   * The key this deployment's Stripe rows are stored under: the `payment-webhook` rows' `service`,
+   * the signing-secret lookup, the endpoint's `owlmeans:<owner>` description and `service`
+   * metadata, the `portal:<owner>` fingerprint and the portal configuration's `service` metadata.
+   * Default: `cfg.service`. Give every process sharing the database the same value, so they read
+   * and replace one another's rows.
+   */
+  owner?: string
+  /** The Stripe client for this gateway's paygate calls. Default: the configured secret (`stripeClient`). */
+  stripe?: StripeFactory
 }
 
 /** A Stripe client for one context — the default reads the configured secret. */
@@ -625,6 +659,15 @@ export interface PropagatedState {
   renewedInvoiceId?: string
 }
 
+/**
+ * What ONE subscription holds instead of its plan's static declaration. Written by an operator,
+ * never by the paygate: every sync and re-grant carries it over with the rest of the row.
+ */
+export interface SubscriptionOverrides {
+  /** By limit key: the ceiling in force for this subscription, whatever the plan or its promo says. */
+  limits?: { [key: string]: { limit: number } }
+}
+
 /** One row per subscription — paygate (`sub_…`) or internal (`free:<entityId>`, `internal:<planSku>:<entityId>`). */
 export interface PaymentSubscriptionRecord extends ResourceRecord {
   entityId: string
@@ -669,6 +712,8 @@ export interface PaymentSubscriptionRecord extends ResourceRecord {
   termsAccepted?: boolean
   startRequestId?: string
   withdrawnAt?: Date
+  /** This subscription's own plan parameters — `resolveEffectivePlan` answers the plan with them applied. */
+  overrides?: SubscriptionOverrides
 }
 export interface PaymentSubscriptionResource extends MongoResource<PaymentSubscriptionRecord> {
   byExternalId: (externalId: string, paygate: string) => Promise<PaymentSubscriptionRecord | null>
@@ -716,7 +761,9 @@ export interface PaymentFulfillmentResource extends MongoResource<PaymentFulfill
 /** The paygate webhook endpoint this deployment owns, with its signing secret. */
 export interface PaymentWebhookRecord extends ResourceRecord {
   paygate: string
+  /** The gateway's `owner` (default `cfg.service`) — the key every process of one owner shares. */
   service: string
+  /** The endpoint's URL (`webhookUrlOf`: the `webhookService` alias's host and base). */
   url: string
   externalId: string
   secret: string

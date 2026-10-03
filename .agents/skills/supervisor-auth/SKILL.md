@@ -51,8 +51,8 @@ Options:
   front-end signs with. Pick aliases whose private keys you actually have (e.g. in `.env.dev.secrets`).
 - `resolveUser` — `(userId, context, { register }) => Promise<SupervisorUserResolution>`. Default:
   trust the id as-is (`{ userId }`). Wire it to `@owlmeans/server-auth-identity`'s
-  `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create a real profile and
-  organization entity. `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
+  `IdentityLinkingService` (`getLinkedProfile` / `linkProfile`) to find-or-create the person's
+  account and the deployment's own row (a new address registers a personal organization). `SupervisorUserResolution` is `{ userId }` plus optional `profileId`,
   `entitySlug`, `role` and `scopes` — the organization value is a SLUG, the renameable public name
   that a token carries, never the stable `entityId`. `profileId` defaults to `userId`, `scopes` to
   the credential's own or `[ALL_SCOPES]`, and `role` to `AuthRole.User`.

@@ -20,3 +20,9 @@ export const DEFAULT_COMMIT_MEMORY = 1000
  * ladder is what answers when it folded somewhere the hub does not.
  */
 export const COMMIT_POLL_LADDER: readonly number[] = Object.freeze([250, 1000, 2000])
+
+/**
+ * How many resolved schema layers (organization, project) a service keeps. A layer is re-resolved
+ * whenever its organization's schema revision moves, so the cap bounds memory, never staleness.
+ */
+export const DEFAULT_SCHEMA_VIEWS = 500

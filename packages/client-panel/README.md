@@ -16,7 +16,7 @@ headless navigation model.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-panel@^0.1.18-rc.49
+bun add @owlmeans/client-panel@^0.1.18-rc.55
 ```
 
 ## Usage
@@ -153,7 +153,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

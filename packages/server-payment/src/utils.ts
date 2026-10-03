@@ -21,6 +21,10 @@ import type {
 
 export const payment = (ctx: ApiContext): PaymentService => ctx.service<PaymentService>(PAYMENT_SERVICE)
 export const gateway = (ctx: ApiContext): GatewayService => ctx.service<GatewayService>(GATEWAY_SERVICE)
+/** The gateway, or `null` in a context that registered none. */
+export const gatewayOf = (ctx: ApiContext): GatewayService | null =>
+  (ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(GATEWAY_SERVICE) === true
+    ? gateway(ctx) : null
 export const observer = (ctx: ApiContext): CompletionObserver => ctx.service<CompletionObserver>(PAYMENT_OBSERVER)
 export const entitlements = (ctx: ApiContext): EntitlementService =>
   ctx.service<EntitlementService>(ENTITLEMENT_SERVICE)

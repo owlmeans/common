@@ -105,7 +105,9 @@ const writeFold = async (
  * to advance, so what follows it fails too; a store that refuses the advancing write itself stops
  * the fold there and reports `followUp`, leaving the rest pending for a retry.
  *
- * The caller owns single flight: two folds of one card running at once would both publish.
+ * The caller owns single flight: two folds of one card running at once would both publish. A
+ * transactional store passes `unit`, which wraps each transition's writes (a savepoint), so a write
+ * the database refuses is undone whole before the fold marks the transition failed.
  *
  * @throws {PlanningUnsupported} for a store without a transition log
  */
@@ -140,7 +142,11 @@ export const foldPending = async (
         // Already applied by another folder, which owns its commit and its event.
         continue
       }
-      await writeFold(store, card, next, transition)
+      const before = card
+      const after = next
+      await (opts.unit != null
+        ? opts.unit(async () => { await writeFold(store, before, after, transition) })
+        : writeFold(store, before, after, transition))
     } catch (error) {
       failed++
       const message = errorText(error)

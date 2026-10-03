@@ -1,6 +1,6 @@
 ---
 name: auth-protocol
-description: Comprehensive reference for the OwlMeans authentication and authorization protocol — the Ed25519, OIDC, provider-backed local identity, email-OTP and PK-supervisor paths, the core types and error hierarchy, guards and gates, the trust resource, the envelope shape, organization-entity resolution, the refresh flow, and the mocking points. Auto-invoked when files under auth*, *oidc*, server-auth-identity, did*, wled or client-payment are touched.
+description: Comprehensive reference for the OwlMeans authentication and authorization protocol — the Ed25519, OIDC, provider-backed local identity, email-OTP, hosted-app (integrated provider) and PK-supervisor paths, the identity model (one account per e-mail, credentials on the account, profile rows per app and organization, organizations with groups), pairwise subjects, the acting organization as session state and its switch, the four permission kinds, the core types and error hierarchy, guards and gates, the trust resource, the envelope shape, organization-entity resolution, the refresh flow, and the mocking points. Auto-invoked when files under auth*, *oidc*, *iam*, server-auth-identity, did*, wled or client-payment are touched.
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
 
@@ -30,19 +30,19 @@ Use case: service-to-service, wallet provider, backend clients, high-security br
 Use case: browser clients, third-party IdP integration, multi-tenant SaaS.
 
 1. Standard OAuth2 authorization-code flow. The relying party redirects to the provider and the return leg exchanges the code: `makeOidcClientService` (`@owlmeans/server-oidc-rp`) replays the stored PKCE verifier and grants the token set.
-2. Server decodes the ID token, builds an `Auth` from its claims, and wraps it in an envelope of type `oidc-wrapped-token` signed with the service key — the bearer is `OIDC-WRAPPED-TOKEN <encoded>`.
+2. Server decodes the ID token — only the id_token; an access token's format is provider-private — builds an `Auth` from its claims, and wraps it in an envelope of type `oidc-wrapped-token` signed with the service key — the bearer is `OIDC-WRAPPED-TOKEN <encoded>`. The token set and, for a tenanted client, the organizations stay in the server-side session record ("Organizations and the session").
 3. Subsequent requests are matched and handled by `makeOidcGuard` (`@owlmeans/oidc`), which verifies the envelope signature against the service key and delegates freshness to the `WRAPPED_OIDC` service.
-4. Refresh: `makeOidcWrappingService` (`@owlmeans/server-oidc-rp`) re-validates the stored token set — introspection, or a refresh grant once `expires_at` has passed — and re-signs the wrapped token. When the value changes, the guard returns it in the **`TOKEN_UPDATE` response header** (`'auth-token-refresh'`, `@owlmeans/auth-common`); an empty value means the session is over. It is a header, not a route: `@owlmeans/server-api` lists it in `exposedHeaders` and `@owlmeans/api`'s client service feeds it back into `AuthService.update()`. Where the deployment has a separate auth manager, the wrapper reaches it over the `external-auth:auth:update` declaration from `makeAuthServiceEntrypoints`, bound at `/<prefix>/auth/update`.
+4. Refresh: `makeOidcWrappingService` (`@owlmeans/server-oidc-rp`) re-validates the stored token set — introspection, or a refresh grant once `expires_at` has passed; current userinfo on every request under `sessionValidation: 'required'` — and re-signs the wrapped token. When the value changes, the guard returns it in the **`TOKEN_UPDATE` response header** (`'auth-token-refresh'`, `@owlmeans/auth-common`); an empty value means the session is over. It is a header, not a route: `@owlmeans/server-api` lists it in `exposedHeaders` and `@owlmeans/api`'s client service feeds it back into `AuthService.update()`. Where the deployment has a separate auth manager, the wrapper reaches it over the `external-auth:auth:update` declaration from `makeAuthServiceEntrypoints`, bound at `/<prefix>/auth/update`.
 
-### Provider-Backed Local Identity
+### Provider-backed local identity
 
-Use case: apps such as `product-viable` that use Google/OIDC as login bootstrap but authorize against local product identity.
+Use case: a deployment that signs its own people in through Google, OIDC or an e-mail code and authorizes against its own identity store (`@owlmeans/server-auth-identity`).
 
 1. Browser imports `@owlmeans/web-oidc-rp/auth/plugins`, which registers OIDC and Google plugins in `@owlmeans/client-auth`.
 2. The plugin persists auth control state, redirects to the provider, restores state on return, and submits code/query params as `AuthCredentials`.
-3. Server exchanges the provider code through `@owlmeans/server-oidc-rp` and maps `ProviderProfileDetails` through `@owlmeans/server-auth-identity`.
-4. `AUTH_IDENTITY_ORG_ENTITY`, `AUTH_IDENTITY_ACCOUNT`, `AUTH_IDENTITY_PROFILE` and `AUTH_IDENTITY_CREDENTIALS` store the organization entity and the local account/profile/provider-link data. A second login method on the same email adds a CREDENTIAL to the person's existing profile — it never mints a second identity or a second organization.
-5. Server returns a normal OwlMeans bearer token carrying the organization's `entitySlug`. Downstream product gates authorize against local profile scopes, not against `OIDC_GATE`.
+3. Server exchanges the provider code through `@owlmeans/server-oidc-rp`. The Google plugin refuses a userinfo whose `email_verified` is not `true` (`AuthenFailed('email-verified')`): the address is what links the sign-in to an account.
+4. The linking service (`AUTH_IDENTITY_LINKING`) maps `ProviderProfileDetails` onto the identity model ("The identity model"): `getLinkedProfile` follows the method's credential to its account and answers the row of THIS deployment's app in the account's main organization; otherwise `linkProfile(details, { username: verifiedEmail })` runs `ensureAccount` — a further method of a known address becomes another credential on the same account, a new address registers an account with a personal organization — and `ensureProfile` for the deployment's own app there (`owner: true`, `scopes: ['*']`).
+5. Server returns a normal OwlMeans bearer token carrying the organization's `entitySlug` and the row's `profileId`. Downstream product gates authorize against that row — requiring its `service` to be the deployment's own app, because the same organization holds hosted apps' rows — not against `OIDC_GATE`.
 
 ### Email one-time code
 
@@ -50,7 +50,19 @@ Use case: passwordless sign-in where no external IdP is wanted.
 
 1. Client posts `{ type: 'email-otp', userId: <email> }` to `/authentication/init`.
 2. `@owlmeans/server-auth-otp` mails a six-digit code, stores it in Redis under a TTL, and answers with a challenge of `"<email>::<nonce>"` — the nonce is what keeps two independent attempts for one address from colliding in the manager's anti-replay cache.
-3. Client posts the code as `AuthCredentials.credential`; the plugin verifies and consumes it, resolves the identity through `AUTH_IDENTITY_LINKING`, and the manager signs the credential envelope as usual.
+3. Client posts the code as `AuthCredentials.credential`; the plugin verifies and consumes it, resolves the identity through the linking service `cfg.otp.identityAlias` names (default `AUTH_IDENTITY_LINKING`), and the manager signs the credential envelope as usual. An integrated provider's end-user login names the e-mail proof linking service there instead (next path).
+
+### Hosted-app sign-in through the integrated provider
+
+Use case: an application a deployment hosts (a generated target) signs its end users in against the deployment's own OIDC provider (`@owlmeans/server-oidc-provider` with `@owlmeans/iam-integrated`), over the same identity store.
+
+1. The application's server relying party (`appendIam` of `@owlmeans/server-iam`) sends the browser to the provider with the base scopes plus `permissions` (and `organizations` for a tenanted client); a provisioned client's allowlist is a superset of everything a relying party asks for.
+2. The provider's login screen runs the e-mail code against the deployment's auth manager with the e-mail proof linking service (`makeEmailProofLinkingService`). Its payload proves the address and identifies nobody: `profileId: IAM_EMAIL_PROOF` (`'proof:email'`), `userId` = the address, one narrow end-user scope, no `entitySlug` — and it writes nothing.
+3. The provider's interaction finalizer verifies that proof, loads the interaction's client and calls `subjects.signIn(clientId, { email })`: the account (one per address; the e-mail code a credential on it), its primary row of the app as owner of the personal organization, and — for staff of the client's owning organization — the staff row there. The provider grant and session name the ACCOUNT id.
+4. `findAccount` asks `subjects.resolve(clientId, accountId)` for the claims. `null` (no row of the app, a disabled or expired primary row) refuses the account, and the provider's `account_refused` login check sends the browser back to the login screen instead of failing the consent.
+5. The claims: `sub` = the pairwise subject, `email`, `permissions`, and `organizations` under its scope. The account's record id never leaves the provider.
+
+**Pairwise subjects.** Every client sees its own subject for one account: `profileIdOf(clientId, accountId)` (`subjects.identify`) — the very `profileId` of the account's rows of that app — the same in the id_token, userinfo and introspection, and different for every other client, so two apps cannot correlate their users. The provider configuration that produces it (pairwise-only, the sector URI, `claims()` answering the account id) is governed by `server-oidc-provider` → "Pairwise subjects".
 
 ### PK supervisor (development only)
 
@@ -62,56 +74,65 @@ Use case: deterministic end-to-end tests, and operator access to a development o
 
 Never enabled in real production — see the `supervisor-auth` skill.
 
-## Core types
+## The identity model
 
-Exported from `@owlmeans/auth`:
+One store (`@owlmeans/server-auth-identity`) serves a deployment's own app and every app it hosts.
+Its records, fields, indexes, races and events are governed by the `server-auth-identity` skill;
+the protocol relies on these rules:
 
-- `Authorization` — RBAC primitive: `entitySlug?`, `scopes`, `permissions?`, `attributes?`, `permissioned?`, `denormalized?`.
-- `ProfilePayload` — `Authorization` plus `groups?`.
-- `AuthPayload` — `ProfilePayload` plus `type`, `role`, `userId`, `source?`, `profileId?`, `expiresAt?`.
-- `AuthCredentials` — `AuthPayload` plus `challenge`, `credential`, `publicKey?`: the challenge/response pair signed during authentication.
-- `Auth` — `AuthPayload` plus `token`, `isUser`, `createdAt`: the full authenticated identity a guard resolves.
-- `Profile` — a stored identity record: `ProfilePayload` plus `id`, `name`, `credential?`, `secret?`.
-- `AllowanceRequest` — partial `AuthPayload` with a required `type`, triggering challenge generation.
-- `AllowanceResponse` — `{ challenge }`.
-- `AuthToken` — `{ token }`, used in entrypoint query auth.
-- `PermissionSet` / `Capabilties` / `AttributeSet` — scope-bound capability shapes.
+- **Account** — the person, ONE per e-mail; `entityId` = its personal organization. Every sign-in
+  method (e-mail code, Google, PK supervisor) is a **credential** on the account, never on a row.
+- **Profile row** — one per (account, app, organization); `service` = the app (the deployment's own
+  key, or a hosted app's client id); `profileId = profileIdOf(service, accountId)` is computed, the
+  same on every row of one (account, app), and is the pairwise subject that app's client sees. The
+  PRIMARY row (in the personal organization) carries `home` and `disabled`.
+- **Organization** (`OrgEntity`) — `slug` (the wire `entitySlug`, renameable), `iamKey` (frozen,
+  claimed as `entityKey`, server-side only) and the organization's **groups** inside the document.
+- Registration anywhere creates the account, its personal organization and an owner row of the app
+  signing in. The address IS the identity: every caller of `ensureAccount` must have verified it.
 
-**`entitySlug` is the only organization-entity value on the wire.** It is the customer
-organization's renameable, human-readable name; the stable `entityId` an implementation keys its
-rows on never appears in a token, a URL or a body. Read the slug with `entitySlugOf(payload)`
-(`@owlmeans/auth`) rather than off the field.
+## Organizations and the session
 
-## Enums and constants
+Tenancy is a property of the hosted app's client (`IamClientConfig.users` / `.operators`,
+`iam` skill): with neither flag every subject acts in the client's owning organization; with either,
+the client asks for `ORGANIZATIONS_SCOPE` and each subject acts in organizations of its own.
 
-`@owlmeans/auth` constants:
+- **The acting organization is session state of the relying party**, never a request parameter.
+  The exchange picks it, every validation re-picks it by `entityKey`, and only the switch moves it —
+  governed by `server-oidc-rp` → "Organizations" (claims, session record, browser-token contents,
+  the switch handlers).
+- **The request entity** on such a relying party is `{ id: entityKey, slug, iamKey: entityKey }`,
+  attached by the OIDC guard; `requireEntityKey(req)` answers the `entityKey` — the tenant key a
+  hosted app stores its records by (`auth-common` → "The organization entity").
+- **Browser**: `listOrganizations` / `switchOrganization` (`client-iam`). **Server**:
+  `organizationsOf` / `organizationOf` and the runtime IAM client `iamRuntime` (`server-iam`) over the
+  provider's runtime IAM API (`makeIamRuntimeProtocols`, `iam` skill), advertised as the discovery
+  field `owlmeans_iam_api`.
 
-- `AuthRole` — **string** enum: `User`, `Guest`, `Service`, `System`, `Admin`, `Superuser`, `Blocked`. Never use numeric literals for `role` fields — always use `AuthRole.User` etc.
-- `AuthenticationType` — how identity is proven: `BasicEd25519`, `OneTimeToken`, `ReCaptcha`, `WalletDid`, `RelyHandshake`, `WalletConsumer`, `WalletProvider`, `Google` (`'google-oauth'`), `Supervisor` (`'pk-supervisor'`).
-- `AuthroizationType` (sic) — how a request carries authorization: `AuthToken`, `Ed25519BasicToken`, `Ed25519BasicSignature`.
-- `AuthenticationStage` — the client flow's stage: `Error`, `Init`, `Allowence`, `Authenticate`, `Authentication`, `Authenticated`.
-- `AUTH_HEADER = 'authorization'`, `AUTH_QUERY = 'token'`, `ENTITY_QUERY = 'entitySlug'`, `PROFILE_QUERY = 'profile'`.
-- `DISPATCHER`, `DISPATCHER_AUTHEN`, `DISPATCHER_SURROGATE` — the return-leg and login-window entrypoint aliases.
+## Permission kinds
 
-`@owlmeans/auth-common` constants:
+What a grant binds to — nothing, an organization (`entityScoped`), resource ids (`resourceScoped`) or
+both — is a property of its DEFINITION, and `defaultClass` (`none` / `user` / `member` / `owner`)
+says who holds it without a grant. `hasPermission(auth, name, { scope?, resourceId?, entitySlug? })`
+is fail-closed on a bound set. The model is governed by the `iam` skill ("Permission kinds",
+"Default classes"); the gate that asserts it by `server-iam` ("How the gate decides").
 
-- `DEF_AUTH_SRV = 'auth'` and its alias `DEFAULT_GUARD = 'auth'`.
-- `GUARD_ED25519 = 'guard:ed25519-basic-signature'`.
-- `TOKEN_UPDATE = 'auth-token-refresh'`.
-- `DISPATCHER_PATH = '/dispatcher'` and `SURROGATE_PATH = '/surrogate'` — both reserved paths.
-- `ENTITY_RESOLVER = 'entity-resolver'` and `ENTITY_SLUG_PATTERN` — the organization-entity contract.
+## Types, constants and errors
 
-`@owlmeans/oidc` constants:
+The payload chain is `Authorization` (`entitySlug?`, `scopes`, `permissions?`, …) → `ProfilePayload`
+(+ `groups?`) → `AuthPayload` (+ `type`, `role`, `userId`, `profileId?`, …) → `AuthCredentials`
+(+ `challenge`, `credential`) for authentication and `Auth` (+ `token`, `isUser`, `createdAt`) for a
+resolved identity. **`entitySlug` is the only organization-entity value on the wire**; read it with
+`entitySlugOf(payload)`, never off the field. Where each name is governed:
 
-- `OIDC_GATE = 'oidc-gate'` — the gate alias to put in a protocol's `gate` option for OIDC enforcement.
-- `GOOGLE_CLIENT_AUTH = 'google-oauth'` — browser plugin type for Google OAuth.
-- `GOOGLE_SERVICE = 'google'` — provider service key used by backend config and identity linking.
-
-For apps that use OIDC/Google only as a login provider and then authorize against local identity resources, declare a product-specific gate alias instead of reusing `OIDC_GATE`.
-
-## Errors
-
-`@owlmeans/auth` exports, root first: `AuthError` → `AuthUnknown`, `AuthorizationError` → `AuthForbidden`, `ProfileError` → `ProfileConsistencyError`, and `AuthManagerError` → `AuthManagerUnsupported`, `AuthenFailed` (→ `AuthenExists`, `AuthenPayloadError`) and `AuthPluginError` (→ `TypeMissmatchError`). Each is i18n-aware via `@owlmeans/error`.
+- types, `AuthRole` (a **string** enum), `AuthenticationType`, query/header constants, the error
+  hierarchy (`AuthError` root; `AuthUnknown` 400, `AuthorizationError` → `AuthForbidden`,
+  `AuthenFailed` …) — the `auth` skill;
+- guard aliases (`DEFAULT_GUARD`, `GUARD_ED25519`), `TOKEN_UPDATE`, reserved paths, `ENTITY_RESOLVER`
+  — the `auth-common` skill;
+- `OIDC_GATE`, the Google plugin/service names, the `permissions` / `organizations` scopes and their
+  refusal reasons, `IAM_API_METADATA` — the `oidc` skill. An app that uses a provider only to sign in
+  and authorizes against local identity declares its own gate alias (`server-oidc-rp` → Rules).
 
 ## Guard interface
 
@@ -142,10 +163,10 @@ import { TRUSTED } from '@owlmeans/config'
 const { user, key } = await trust(context, TRUSTED, context.cfg.alias ?? context.cfg.service)
 ```
 
-It loads the record by `name` (pass a fourth argument to match on another field) and throws
-`SyntaxError` when there is none.
-
-`TrustedRecord` (`@owlmeans/auth-common`) is a `ConfigRecord` with an `id`, carrying `Profile` minus `permissions` / `attributes` — in practice a `name`, a `credential` (the public key) and, for identities this deployment signs as, a `secret`. `trust()` returns a signing key pair when the record has a secret and a verify-only one otherwise. The `TRUSTED` config resource (`@owlmeans/config`) is the system's source of truth for known signing identities — the auth service, peer services, wallet providers, supervisors.
+It loads the record by `name` (a fourth argument matches another field), throws `SyntaxError` when
+there is none, and answers a signing key pair when the `TrustedRecord` carries a `secret`, a
+verify-only one otherwise. The `TRUSTED` config resource is the source of truth for known signing
+identities — the auth service, peer services, wallet providers, supervisors (`auth-common`).
 
 ## Envelope shape
 
@@ -165,20 +186,10 @@ It loads the record by `name` (pass a fourth argument to match on another field)
 
 ## Key model
 
-`KeyPairModel` (`@owlmeans/basic-keys`):
-
-```ts
-export interface KeyPairModel {
-  sign: (data) => Promise<string>
-  verify: (data, signature) => Promise<boolean>
-  export: () => string         // private, "ed25519:<base64>"
-  exportPublic: () => string   // public,  "ed25519:<base64>"
-  exportAddress: () => string
-  encrypt / decrypt / dcrpt
-}
-```
-
-`makeKeyPairModel(input?)` (`@owlmeans/basic-keys`) accepts a `KeyPair`, an `ed25519:<base64>` string, or `undefined` for random. `fromPubKey(credential)` builds a public-only model. `packAuthCredentials(auth, extra, signer)` signs an `AuthCredentials` for the Ed25519 path.
+`KeyPairModel` (`@owlmeans/basic-keys`, `basic-keys` skill) signs, verifies and exports
+`ed25519:<base64>` keys; `makeKeyPairModel(input?)` builds one, `fromPubKey(credential)` a
+verify-only one, and `packAuthCredentials(auth, extra, signer)` signs an `AuthCredentials` for the
+Ed25519 path.
 
 ## Setup wiring
 
@@ -186,17 +197,19 @@ Server-side:
 - `makeAuthService(alias?)` / `appendAuthService(ctx, alias?)` (`@owlmeans/server-auth`) — the bearer guard.
 - `makeAuthServiceEntrypoints(serviceAlias, prefix = 'oidc-api')` (`@owlmeans/server-oidc-rp`) — returns `external-auth:provider:list` and `external-auth:auth:update` declarations, both behind `GUARD_ED25519`; bind them in the serving app.
 - `makeOidcWrappingService`, `makeOidcGate`, `makeOidcClientService`, `appendOidcGuard`, `oidcEntrypoints` — wire OIDC services and server-local bindings into a server context (`@owlmeans/server-oidc-rp`). Decorate the app protocol tree with `withOidcGuard` from `@owlmeans/oidc` before binding it.
+- `appendIam(context)` (`@owlmeans/server-iam`) — the same four registrations with the IAM gate in place of `makeOidcGate()`, for an application signing in against an IAM provider.
 
 Client-side:
 - `appendAuthService(ctx, alias?)` (`@owlmeans/client-auth`) — the client auth service with persistent storage.
 - `setupExternalAuthentication(service)` (`@owlmeans/client-auth`) — point `CAUTHEN_FLOW_ENTER` at the service an external provider redirects into.
 - `appendLogin(ctx)` (`@owlmeans/client-auth/login`) — the login-plugin host; `@owlmeans/web-client`'s `makeContext` already calls it.
 - `appendOidcGuard()`, `oidcEntrypoints()` — `@owlmeans/web-oidc-rp` for browser-side bindings; `withOidcGuard` decorates the shared protocol tree.
+- `appendIam(context, opts?)`, `withIamGuard`, `iamEntrypoints()` (`@owlmeans/client-iam`) — the same in one import, plus the consent-before-sign-in precondition and the organization switch.
 
 Local identity and the organization entity:
-- `appendAuthIdentityResources(context)` (`@owlmeans/server-auth-identity`) — registers the org-entity registry, the account/profile/credentials resources, the linking service and the entity resolver.
-- `AUTH_IDENTITY_LINKING` — the service that maps provider profile details onto an `AuthPayload`.
-- `AUTH_IDENTITY_PROFILE` — the durable authorization profile: `entityId`, `role`, `scopes`, optional expiry.
+- `appendAuthIdentityResources(context, dbAlias?, { service? })` (`@owlmeans/server-auth-identity`) — registers the org-entity registry, the account/profile/credentials resources, the linking service for the deployment's own app key `service`, the entity resolver and the identity-events seam.
+- `AUTH_IDENTITY_LINKING` — the service that maps provider profile details onto an `AuthPayload` of the deployment's own app.
+- `AUTH_IDENTITY_PROFILE` — the profile rows: one per (account, app, organization), the record authorization reads (`role`, `scopes`, `permissions`, `groups`, optional expiry).
 - `ENTITY_RESOLVER` — turns the token's `entitySlug` (current, retired, or the frozen `iamKey`) into a stable `OrgEntityRef`. Registering it is what tells the boundary this deployment has organizations.
 
 Read identity records with `load()` or `list()`. Never use `take()` in an authorization lookup — it is delete-and-return, so it consumes the record it answers with.
@@ -216,6 +229,10 @@ Handlers then key their records on `entityKeyOf(req)` / `requireEntityKey(req)`,
 resolved id and fall back to the slug where no resolver is registered. A boundary that skips step 2
 leaves `request.entity` empty and its handlers silently compare a slug against stored ids — which
 surfaces as "this record does not exist", not as a missing resolution.
+
+A relying party of a tenanted client has no registry to resolve from: there the OIDC guard attaches
+the session's acting organization itself, and `attachEntity` keeps it only while its slug is exactly
+the token's (`auth-common` → "The organization entity").
 
 ## Mocking points (for category-B tests)
 

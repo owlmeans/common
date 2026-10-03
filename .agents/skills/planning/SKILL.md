@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.10"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.15"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -21,6 +21,24 @@ transitions in `seq` order. There is one write path (`facade.execute(exec)`), on
 (`applyTransition`) and one query translation (`criteriaOf`), shared by every store and both sides
 of the wire, so one log always means one card.
 
+## The write call
+
+`facade.execute(execution, options?)` — the same signature on the server facade
+(`@owlmeans/server-planning`, reached as `ctx.service<PlanningHostService>(PLANNING_SERVICE).for({
+entityId, profileId })`) and the remote one (`@owlmeans/client-planning`).
+
+- The **execution** has exactly these keys — `TransitionExecutionSchema` is closed, but only the
+  wire validates against it; in process an unknown key is silently ignored: `card` — the `WorkcardDraft` of a
+  create (`kind`, `type`, `title` required; `parent`/`parents`, `description`, `code`, `labels`,
+  `order`, `fields`, `status`, and a specification's `category`/`format`/`body`), the card id
+  otherwise — and `action` (`TransitionAction`), then per action `transition`, `flow`, `changes`,
+  `unset`, `link` / `links`, and `cause`, `key`, `expectSeq`.
+- The **options** are `{ wait?, timeout? }`, always the second argument. Only the wire body
+  (`ExecuteRequest`) carries them beside the execution.
+
+The worked example (facade, create, read back, transit, a data-defined type and flow) and the wrong
+forms generated code keeps writing are `server-planning` → Creating and reading a card.
+
 ## Key exports
 
 | Export | What it is |
@@ -28,10 +46,11 @@ of the wire, so one log always means one card.
 | `Workcard`, `Card`, `Project`, `Specification`, `Relationship`, `Transition` | The records |
 | `StatusFlowSchema`, `WorkcardTypeSchema`, `ProjectTypeSchema`, `SpecificationSlot`, `CodePolicy`, `RelationshipType`, `PlanningSchemaBundle` | Type declarations — data, not code |
 | `TransitionExecution`, `WorkcardDraft`, `TransitionReceipt`, `CommitEvent`, `CommitSource` | The write path and its commit feed |
-| `TransitionStore`, `ProjectionStore`, `SpecificationStore`, `RelationshipStore`, `PlanningStore` | Ports a store implements (only `cards` is required) |
-| `PlanningPlugin`, `PlanningScope`, `PlanningFacade`, `PlanningService` | The plugin seam and the facade, typed here so a plugin and a client can name them |
-| `WorkcardKind`, `IntrinsicStatus`, `IntrinsicPolicy`, `TransitionAction`, `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope` | Enums |
-| `PLANNING_SERVICE` (`'planning'`), `PLANNING_PATH`, `PLANNING_COMMIT_EVENT` (`'planning-commit'`), `planningAliases(base)` | Names both sides share |
+| `TransitionStore`, `ProjectionStore`, `SpecificationStore`, `RelationshipStore`, `SchemaStore`, `PlanningStore` | Ports a store implements (only `cards` is required) |
+| `PlanningPlugin`, `PlanningScope`, `PlanningFacade`, `PlanningService`, `PlanningDefinitions` | The plugin seam and the facade, typed here so a plugin and a client can name them |
+| `ScopedSchemaRecord`, `ScopedSchemaWhere`, `ScopedSchemaBundle`, `ScopedSchemaRegistry`, `SchemaDeclarations`, `SchemaWriteOptions`, `SchemaScope`, `SchemaKey`, `SchemaListQuery`, `SchemaDefineRequest`, `SchemaDefineReply` | Data-defined types and flows |
+| `WorkcardKind`, `IntrinsicStatus`, `IntrinsicPolicy`, `TransitionAction`, `CommitState`, `SpecificationFormat`, `CodeStyle`, `CodeScope`, `PlanningSchemaKind`, `SchemaOrigin`, `SchemaWriteMode` | Enums |
+| `PLANNING_SERVICE` (`'planning'`), `PLANNING_PATH`, `PLANNING_COMMIT_EVENT` (`'planning-commit'`), `planningAliases(base)`, `planningDefinitionAliases(base)` | Names both sides share |
 | `TITLE_MAX` 2048, `DESCRIPTION_MAX` 16384, `CODE_MAX` 64, `BODY_MAX` 1048576, `MAX_LABELS` 32, `MAX_PARENTS` 32, `DEFAULT_COMMIT_TIMEOUT` 30 s, `DEFAULT_COMMIT_POLL` 20 s, `MAX_COMMIT_POLL` 55 s, `CODE_MINT_ATTEMPTS` 8 | Limits |
 | `applyTransition`, `applyRelationship` | The fold |
 | `computeChanges`, `isEmptyChange`, `assertMutable`, `mergeFields`, `applyUnset`, `sameValue` | What a transition records |
@@ -42,6 +61,7 @@ of the wire, so one log always means one card.
 | `slotOf`, `currentSpecification`, `nextRevision`, `specificationTypeOf`, `bodyCharsOf` | Specifications |
 | `makeAjv`, `validateFields`, `validateCard`, `validateSpecificationBody`, `invalidFieldKeys`, `ajvErrorText` | Validation |
 | `makeSchemaRegistry(bundle?)` | Types, flows, cached field validators; `bundle()` / `load()` |
+| `resolveScopedBundle`, `scopedRegistryOf`, `assertTypeSchema`, `assertFlowSchema`, `assertOverridable`, `flowInUse`, `schemaRecordKey`, `schemaKeyOf` | Data-defined layers: resolution, the read-only view, the closed-form checks |
 | `makePlanningProtocols(opts)` | The protocol tree |
 | `makeWorkcardModel`, `makeProjectModel`, `makeSpecificationModel`, `modelOf`, `executeFor` | Models |
 | `*Schema` | AJV schemas of every record, declaration, request and view |
@@ -52,7 +72,9 @@ of the wire, so one log always means one card.
   `status`, `labels`, `order`, `parent` are generic and indexable; everything a type adds lives in
   `fields` and is validated by the type's `fields` JSON schema. Generic code reads only the top.
   A `fields` key never holds `.` or `$` at any depth (`invalidFieldKeys`).
-- **`entityId` is the organization's stable id**, never a slug. Every read is scoped by it.
+- **`entityId` is the organization's stable record id** — never the wire `entitySlug`, never a body
+  value. Every read is scoped by it; where a request's comes from is `server-planning` → Scope and
+  security.
 - **Membership is `parent` + `parents`, never a relationship.** `parents` always contains `parent`
   (first), so many-to-many membership needs no junction row. `within` queries `parents`.
 - **Specification is a workcard** (`kind: specification`) with `category`, `format`, `body`, `ref`,
@@ -60,6 +82,10 @@ of the wire, so one log always means one card.
   `keepRevisions`, a JSON body `schema` — is declared on the PARENT's type. One record per
   `(parent, category)` unless the slot is `multiple`; a revisioned slot increments `revision` on the
   same record, and earlier bodies come back from the transition log.
+- **`createdBy` is written once, from a create's draft, and never moves.** Named in `changes` or
+  `unset` it is refused on every action (`planning:immutable:createdBy`), so an ownership check
+  (`card.createdBy === profileId`) can trust it. A card that changes hands keeps that in a field of
+  its own type (`fields.assignee`); who made each later write is the transition's `actor`.
 - **`seq` is the last folded transition, `head` the highest allocated.** `head > seq` means a write
   is in flight (`isPending`); optimistic concurrency (`expectSeq`) compares against the head.
 - `order` is a double: a card may sit between two others (`3.5`).
@@ -74,7 +100,9 @@ of the wire, so one log always means one card.
 - A rule name may repeat with different `from` sets (`start` from `planned`, `start` from
   `failed`). `ruleOf` picks the rule naming the current status; a `'*'` rule of that name answers
   only when none does, wherever it is declared. `'*'` includes the target status itself, so
-  `reset` from `planned` is legal.
+  `reset` from `planned` is legal. A status the flow does NOT declare (a card whose flow changed
+  under it) matches every rule of the name, the first declared answering — such a card can always
+  move back onto the flow it now runs.
 - `transitionsFrom(flow, status)` answers one rule per name in declaration order;
   `{ explicit: true }` keeps the ones offered to a person.
 - `IntrinsicPolicy.Primary` (default) reads the primary flow; `IntrinsicPolicy.All` takes the least
@@ -84,7 +112,21 @@ of the wire, so one log always means one card.
 ## Declaring a type
 
 A `WorkcardTypeSchema` / `ProjectTypeSchema` is plain data registered through a plugin's `schemas`
-or `makeSchemaRegistry({ types, flows })`:
+or `makeSchemaRegistry({ types, flows })`. **Every declaration schema is closed** — these are ALL
+the keys:
+
+| Declaration | Required | Optional |
+|---|---|---|
+| card / specification type | `type` (its key), `kind`, `version`, `fields`, `flows` (at least one), `specifications` | `intrinsic`, `relationships`, `labels`, `code`, `label`, `overridable` |
+| project type | the same, plus `cardTypes` | `projectTypes`, `scopedCardTypes` |
+| flow | `id` (its key), `version`, `statuses` (at least one), `transitions` | `label`, `overridable` |
+| status | `key`, `intrinsic` | `initial`, `terminal`, `label`, `tone` |
+| transition rule | `name`, `from` (status keys or `'*'`), `to` | `label`, `explicit` |
+
+The display name is `label` everywhere; a type or a flow has no `name`, `key` or `description`
+(`key` belongs to a status, `name` to a rule). As data, `definitions` refuses an extra key with
+`SchemaInvalid`; in code the registry does not validate a declaration, so only TypeScript's
+excess-property check catches it — keep the literal typed.
 
 - `fields` — the AJV schema of `fields`; the registry compiles and caches it (`validator(type)`).
 - `specifications` — the slots this type's cards carry as children. A slot may name its
@@ -94,7 +136,44 @@ or `makeSchemaRegistry({ types, flows })`:
   parent|entity, mutable? }`. A code is fixed once minted unless `mutable`.
 - `relationships` — the edge types a card may start (`single` = at most one per card).
 - `labels` — the allowed labels (any when omitted).
-- A project type lists `cardTypes` (and `projectTypes` for nesting) its children may have.
+- A project type lists `cardTypes` (and `projectTypes` for nesting) its children may have;
+  `scopedCardTypes: true` also admits card types defined as data (below).
+- `overridable: true` on a code type or flow opens it to a data-defined override.
+
+## Data-defined types and flows
+
+Card types and status flows may also be DATA — `ScopedSchemaRecord`s a store keeps behind the
+optional `PlanningStore.schemas` port — layered **code → entity → project**:
+
+- `code` is the plugin registry (the default), `entity` an organization-wide record
+  (`project` absent), `project` a record of one project card. A project record overrides an
+  organization one of the same key.
+- **Only card types and flows are data.** A code key is sealed unless its declaration says
+  `overridable: true`; project and specification types are always code's (`assertOverridable` →
+  `SchemaSealed`).
+- A record's `version` is its compare-and-set token and is written into the declaration's own
+  `version`: a write lands only at its layer's next version, 1 for a new key (`SchemaConflict`).
+- The closed-form checks are shared by every store: `assertFlowSchema` (the declaration's schema,
+  unique status keys, every `to` declared, `from` `'*'` or declared statuses) and
+  `assertTypeSchema` (the `card` kind, a compiling `fields` schema, unique flows that resolve) —
+  `SchemaInvalid`.
+- **Retired** means offered for nothing new, still resolved for what uses it: a retired record
+  gives way to a live declaration below it, and a key retired in every layer resolves retired —
+  present in the bundle's `types`/`flows`, listed in `retired`. A flow cannot be retired while a
+  live type of an affected layer still runs it (`flowInUse` → `SchemaInUse`).
+- `resolveScopedBundle(code, records, scope)` is the ONE resolution (pure); `scopedRegistryOf` is
+  its read-only registry (`originOf`, `isRetired`; `register*`/`load` refuse). A
+  `ScopedSchemaBundle` extends the plain bundle with `scope`, `revision`, `origins`, `retired`, so a
+  reader of the plain bundle is unaffected.
+- `SchemaStore`: `list(where)`, `put(record)` (the CAS), `purge({ entityId, project })`,
+  `revision(entityId)` (monotonic per organization), optional `watch(listener)`.
+- `PlanningFacade.definitions` (present only where the store has the port): `bundle(project?)`,
+  `registry(project?)`, `records`, `putType`/`putFlow` (CAS on the declaration's version),
+  `define` (each at its layer's next version, flows first), `seed` (only the keys the layer lacks),
+  `retire(kind, key, { project? })`. The declaration still carries its own `version` (any number
+  ≥ 1 for `define`/`seed`, which assign the layer's next one; the exact next one for `put*`), and
+  a project layer is `{ project: <project card id> }` in the second argument (a `define` call:
+  `server-planning` → Creating and reading a card).
 
 ## The fold
 
@@ -108,7 +187,10 @@ or `makeSchemaRegistry({ types, flows })`:
   replaces** — and clear `unset` (`key`, `fields.key`, `flows.id`); identity and required keys are
   never written or cleared;
 - `link`/`unlink` move only `seq`/`head`/`updatedAt`; `delete` answers `null`;
-- every result carries `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`.
+- every result carries `seq = transition.seq`, `head = max(head, seq)`, `updatedAt = transition.at`;
+- the log is replayed AS WRITTEN: a stored row admission would refuse (an update naming
+  `createdBy`) still folds. Guards live at admission (`assertMutable`, the executor), never in the
+  fold, so a stored log never stops projecting.
 
 `applyRelationship(links, transition)` folds the edges: a create's `links`, `link`, `unlink`, and a
 `delete` dropping every edge touching the card. An existing edge is kept, so re-folding adds nothing.
@@ -126,9 +208,10 @@ or `makeSchemaRegistry({ types, flows })`:
   `closedAt` set on entering closed and cleared on leaving; throws `IllegalTransition`;
 - link/unlink/delete — nothing.
 
-`assertMutable(exec, type)` refuses (`planning:immutable:<field>`) identity keys, `revision` /
-`bodyChars`, `status`/`intrinsic`/`flows`/`closedAt` outside a create (they move only through
-`transit`), `category`, a fixed `code`, and clearing a required field.
+`assertMutable(exec, type)` refuses (`planning:immutable:<field>`) identity keys (`createdAt`
+among them), `createdBy` in `changes` or `unset` on any action (a create included),
+`revision` / `bodyChars`, `status`/`intrinsic`/`flows`/`closedAt` outside a create (they move only
+through `transit`), `category`, a fixed `code`, and clearing a required field.
 
 ## Querying
 
@@ -139,7 +222,9 @@ bare values and arrays pass through (`kind`, `type`, `status`, `intrinsic`, `cod
 description `$ilike` (wildcards escaped) and code `$startsWith`, `updatedSince` → `updatedAt: {
 $gte }`. `entityId` always comes from the scope; `undefined` is omitted. Paging and sort are
 `listOptionsOf` (`size: 0` = no limit). `summaryOf(cards, parents)` counts DIRECT children by
-intrinsic state and gives no key to a parent with none.
+intrinsic state and gives no key to a parent with none. A scope naming `projects` is narrowed by
+the SERVER facade on top of this translation (`server-planning` → The access resolver);
+`TransitionWhere.project` and `RelationshipWhere.project` take one id or a list.
 
 **A query crosses HTTP in its wire form.** The OwlMeans transport cannot carry arrays or nested
 objects in a query string (the client writes `key[]=`, the server reads that key literally), so
@@ -151,7 +236,7 @@ A client calls `encodeWorkcardQuery(query)` before `call({ query })`; a handler 
 
 ## The protocol tree and mounting
 
-`makePlanningProtocols({ base: { alias, path?, parent?, service? }, guards, gate?, socketBase? })`:
+`makePlanningProtocols({ base: { alias, path?, parent?, service? }, guards, gate?, socketBase?, definitions? })`:
 
 | Leaf | Route | Request → reply |
 |---|---|---|
@@ -167,9 +252,13 @@ A client calls `encodeWorkcardQuery(query)` before `call({ query })`; a handler 
 | `execute` | POST `/execute` | body `ExecuteRequest` → `TransitionReceiptView` |
 | `commit.get` | GET `/commits/:transition` | query `CommitQuery { wait? }` → `CommitStatus` |
 | `commit.events` | SOCKET `/commits` | query `CommitFeedQuery` → `CommitEvent` frames |
+| `schema.define` (with `definitions: true`) | POST `/schemas` | body `SchemaDefineRequest { project?, mode?, types?, flows?, retire? }` → `SchemaDefineReply { records, bundle }` |
 
 - Aliases derive from the base alias (`planningAliases(base)` → `<base>:card:list`, …); two mounts
-  are two base aliases.
+  are two base aliases. `definitions: true` adds `schema.define` (its alias from
+  `planningDefinitionAliases(base)`, kept apart so a tree without it names no undeclared alias)
+  and gives `schema.list` a `SchemaListQuery { project? }` answered with that layer's scoped bundle.
+  Without it the tree declares exactly the other leaves.
 - The guards and the gate sit on the base alone; every HTTP leaf inherits them. `path` defaults to
   `/planning`.
 - Static `/cards/summary` is declared before parametric `/cards/:id`.
@@ -212,13 +301,17 @@ the marker survives a hop where the class is unknown, so match on it there:
 | `SpecificationSlotUnknown` / `SpecificationRevisionConflict` | `specification-slot-unknown:` / `specification-revision-conflict:` | 422 / 409 |
 | `RelationshipRefused` / `CodeTaken` | `relationship-refused:` / `code-taken:` | 422 / 409 |
 | `WorkcardConflict` | `workcard-conflict:` — stale `expectSeq` | 409 |
+| `SchemaConflict` / `SchemaInUse` | `schema-conflict:` (lost version CAS) / `schema-in-use:` (retiring a flow a live type runs) | 409 |
+| `SchemaSealed` / `SchemaInvalid` | `schema-sealed:` / `schema-invalid:` | 422 |
+| `PlanningForbidden` | `forbidden:<grant>:<target>` — the request's access lacks a grant | 403 |
 | `CommitTimeout` / `CommitFailed` | `commit-timeout:` (still pending, nothing undone) / `commit-failed:` | 500 |
 | `PlanningScopeMismatch` / `PlanningUnsupported` | `scope-mismatch:` / `unsupported:` | 404 / 500 |
 
 Type names are `PlanningError<Suffix>` (`PlanningErrorWorkcardNotFound`).
 
 **The HTTP column is each class's `static httpStatus`** (the `error` skill's principle; 500 = none
-declared): an addressed card that is absent or another entity's is 404, a card whose state or head
+declared): an addressed card that is absent or another entity's is 404, a write the request's
+access does not grant is 403, a card whose state or head (or a schema record whose version)
 refuses the write is 409, a body naming what the registry, the parent or a schema refuses is 422.
 Faults declare nothing, and so does `PlanningError` itself — its three causes share one class, and
 a base's static would reach every subclass. A new refusal declares on its own leaf class, and
@@ -228,7 +321,7 @@ throw a `ResilientError` that declares nothing.
 
 ## i18n
 
-Importing the package registers, in all seven languages, `lib:planning.*` labels (`kind.*`,
+Importing the package registers, in eight languages (en, pl, ru, be, uk, es, de, fr), `lib:planning.*` labels (`kind.*`,
 `intrinsic.*`, `action.*`, `commit.*`, `format.*`) and one text per refusal type under the shared
 `errors` resource (`errors.<TypeName>`), where a panel's error lookup finds it.
 
@@ -251,4 +344,4 @@ is part of the package's own tests.
 - [[server-planning]] — the executor, the plugin registry, the memory store, the handlers
 - [[client-planning]] — the remote facade, the state mirror, waiting for a commit
 - [[resource]] — the criteria language `criteriaOf` targets
-- [[server-planning]] — executor, projection implementations, plugin registry and memory store
+- [[planning-postgres]] — a durable store implementing every port, the schema port included

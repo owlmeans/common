@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.11"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.18"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -24,13 +24,14 @@ CLI). React hooks over the mirror are `useStoreModel` / `useStoreList` from `@ow
 | `makePlanningClientService(context, options)` | The service itself, for a host that registers it on its own |
 | `makeRemoteFacade(context, protocols, scope, opts)` | One facade — every method is one entrypoint call |
 | `makeRemoteCommitSource(context, protocols, opts?)` | `status` / `subscribe` / `wait` over `commit.get` and `commit.events` |
+| `makeRemoteDefinitions(context, protocols, opts?)` | Data-defined types and flows over a tree declared with `definitions: true` |
 | `appendPlanningStores(context, aliases?)` / `planningStoresOf(context)` | The state mirror, and a lookup that answers `null` without one |
 | `syncCards(store, items, where?, opts?)` / `syncLinks(...)` | Make the mirror agree with a list WITHIN a scope |
 | `applyCommitEvent(stores, event, facade?)` / `applyReceipt(stores, view)` / `applyCards(stores, cards)` | The folds |
 | `makePlanningFeed(context, opts?)` | Subscribe, seed, fold, refresh — `{ connected, seeded, error, ready, refresh, stop }` |
 | `planningOf(context, scope?)` / `planningModelOf(context, card, scope?)` | The facade / a model with the schemas loaded |
 | `CARDS`, `LINKS`, `COMMITS` | Store aliases (`planning-card-state`, `planning-link-state`, `planning-commit-state`) |
-| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions` |
+| Types | `PlanningClientOptions`, `PlanningClientService`, `WithPlanningClient`, `PlanningSocketOpener`, `RemoteCommitSource`, `RemoteDefinitions`, `RemoteDefinitionsOptions`, `PlanningStores`, `PlanningStoreAliases`, `WithPlanningStores`, `PlanningCommitRecord`, `PlanningFeed`, `PlanningFeedOptions`, `PlanningFeedState`, `SyncOptions` |
 
 ## Wiring
 
@@ -59,8 +60,8 @@ appendPlanningStores(context)        // a browser mirror; a Node client usually 
 - `bind: false` when the host already bound the tree.
 - The service answers under `PLANNING_SERVICE`, the alias the server's service uses, so
   `context.planning().for(scope)` is the same call in a handler and in a screen. The scope is
-  **advisory**: the server takes the entity and the actor from the credential. The execution's own
-  `actor` is never sent.
+  **advisory** — it changes nothing the server decides: the server takes the entity and the actor
+  from the credential. The execution's own `actor` is never sent.
 - A client runs no middleware and folds nothing: `store()`, `committed()` and a plugin carrying
   `before`/`after`/`store`/`mintCode` answer `PlanningUnsupported`. `use()` accepts a schemas-only
   plugin, layered over the server's bundle.
@@ -75,16 +76,27 @@ there is swallowed — a browser that is not signed in yet cannot read it, and a
 fail or wait over it. `model()` and `service.loadSchemas()` load it on first use regardless, and a
 failed load is retried by the next caller. `schemas: false` skips the background load.
 
+### Data-defined types and flows
+
+A tree declared with `definitions: true` (the server's store holds data-defined schemas) gives the
+service and every facade `definitions`: `registry(project?)` / `bundle(project?)` read
+`schema.list?project=` and are cached per project; `putType`/`putFlow` (compare-and-set on the
+declaration's `version`), `define`, `seed` and `retire` go through `schema.define` and drop the
+whole cache — an organization-wide write reaches every project's layer — and make the next
+`model()` reload the service's own bundle. `records` is the server's alone (`PlanningUnsupported`).
+`model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
+`parent`); a specification's type is always code's. A tree without `definitions` has none of this.
+
 ## Reading
 
 ```typescript
 const planning = context.planning().for()
 
-const stories = await planning.cards.list({ parent: projectId, type: STORY, sort: ['order'], size: 0 })
-const board = await planning.cards.summary([projectId])
-const brief = await planning.specifications.current(projectId, 'specification')
-const story = await planning.model(storyId)
-story.available().map(rule => rule.name)
+const tools = await planning.cards.list({ parent: shedId, type: 'shed:tool', sort: ['order'], size: 0 })
+const board = await planning.cards.summary([shedId])
+const rules = await planning.specifications.current(shedId, 'house-rules')
+const drill = await planning.model(drillId)
+drill.available().map(rule => rule.name)
 ```
 
 - The facade takes the rich `WorkcardQuery`; it encodes the scalar wire shape itself
@@ -124,8 +136,8 @@ The fold rules, shared by `syncCards`, `applyCards`, `applyCommitEvent` and `com
 
 ```typescript
 const feed = makePlanningFeed(context, {
-  query: { parent: projectId, type: STORY },
-  filter: { project: projectId },
+  query: { parent: shedId, type: 'shed:tool' },
+  filter: { project: shedId },
   refresh: 15_000,
   onChange: state => setState(state),
 })
@@ -185,18 +197,14 @@ A Node client passes no opener and relies on the long poll.
 (run by `execute` whenever stores are registered) raises the stored card's `head` to the new
 transition's `seq`, so `model.pending()` is true before any frame arrives; the commit's fold brings
 `seq` up to it. The mirror only ever grows `head`, so a list fetched before the append does not
-clear the marker. A model's writes default `expectSeq` to `record.head ?? record.seq`; a stale model
-gets `WorkcardConflict` — reload and retry.
+clear the marker. A model's `expectSeq` default and its `WorkcardConflict` are `planning` → Models.
 
 ## Gotchas
 
 - Mount a feed once per screen; read the store everywhere else.
-- Do not `replace()` the card store — it holds every kind. Use `syncCards` with a `where`.
 - A refusal crosses the hop as its class (`IllegalTransition`, `WorkcardConflict`,
   `FieldsInvalid`, a plugin's own class) — branch on `instanceof`, never on message text.
 - `CommitTimeout` is not a failure of the transition; re-wait or re-read the card.
-- The scope passed to `for()` changes nothing the server decides; it exists so code written against
-  `PlanningFacade` reads the same on both sides.
 
 ## Depends On
 

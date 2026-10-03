@@ -1,6 +1,6 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  ConnectCapabilities, ConnectCapabilitiesView, ConnectConvertCreateBody, ConnectHarness,
+  ConnectCapabilities, ConnectConvertCreateBody, ConnectHarness,
   ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
   ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
   ConnectStoryStatus, ConnectTarget, ConversionDecision,
@@ -31,11 +31,8 @@ export interface SdkOptions {
  * written against this, so a tool cannot accidentally work in only one of the two.
  */
 export interface ConnectorApi {
-  capabilities: () => Promise<ConnectCapabilitiesView>
-
   openSession: (args: OpenSessionArgs) => Promise<ConnectSessionView>
   closeSession: (sessionId: string) => Promise<void>
-  heartbeat: (sessionId: string) => Promise<ConnectSessionView>
   pullOps: (sessionId: string, waitSec: number) => Promise<ConnectOp[]>
   submitOp: (sessionId: string, result: ConnectOpResult) => Promise<ConnectOpSubmission>
 
@@ -102,7 +99,6 @@ export interface ConnectorApi {
     check: (projectId: string) => Promise<ConvertCheck>
     start: (projectId: string) => Promise<ConversionStatusView>
     proceed: (projectId: string, decision: ConversionDecision, note?: string) => Promise<ConversionStatusView>
-    cancel: (projectId: string) => Promise<ConversionStatusView>
     status: (projectId: string) => Promise<ConversionStatusView>
     purge: (projectId: string) => Promise<ConversionStatusView>
   }
@@ -192,8 +188,8 @@ export interface SessionStats {
   questionsDelivered: number
   questionsAnswered: number
   lastActivityAt: number
-  /** How the connector is currently receiving operations. */
-  transport: 'socket' | 'pull' | 'none'
+  /** How the connector is currently receiving operations: by long poll, or not at all once closed. */
+  transport: 'pull' | 'none'
 }
 
 export interface SdkMarker extends ConnectMarker {}

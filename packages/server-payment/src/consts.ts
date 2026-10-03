@@ -67,13 +67,14 @@ export const PURCHASE_ID_PREFIX = 'stripe'
  */
 export const CONTRACT_REF_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
 
-/** Fingerprint sku prefix of a portal configuration: `portal:<service>`. */
+/** Fingerprint sku prefix of a portal configuration: `portal:<owner>` (the gateway's `owner`). */
 export const FINGERPRINT_PORTAL = 'portal'
 
 /**
- * The metadata every Stripe object this package creates carries (`{ owlmeans: 'payment', service }`).
- * It labels the object for an operator; several deployments of one service share it, so it never
- * decides on its own that an object belongs to this deployment.
+ * The metadata every Stripe object this package creates carries (`{ owlmeans: 'payment', service }`,
+ * `service` valued with the gateway's `owner`). It labels the object for an operator; several
+ * deployments of one owner share it, so it never decides on its own that an object belongs to this
+ * deployment.
  */
 export const STRIPE_OWNER_KEY = 'owlmeans'
 export const STRIPE_OWNER_VALUE = 'payment'

@@ -109,12 +109,18 @@ export const SPECTATOR_GENERAL = 'general'
  * - `Packages` — capabilities resolved from whatever the request happens to mention.
  *                Varies per request, so it gets its OWN breakpoint and can never
  *                invalidate the two blocks above it.
+ * - `Results`  — what the earlier steps of the pipeline this call runs in produced
+ *                (`ExecutionState.results`). Stable within one step, different on the
+ *                next, so it sits BELOW every boundary that is cached across steps and
+ *                is emitted only when a view is present — a call without one composes
+ *                exactly the bytes it composed before this block existed.
  * - `Context`  — volatile, caller-supplied system text. Never cached.
  */
 export enum PromptBlock {
   Role = 'role',
   Skills = 'skills',
   Packages = 'packages',
+  Results = 'results',
   Context = 'context',
 }
 
@@ -127,6 +133,7 @@ export const PROMPT_BLOCK_ORDER: readonly PromptBlock[] = [
   PromptBlock.Role,
   PromptBlock.Skills,
   PromptBlock.Packages,
+  PromptBlock.Results,
   PromptBlock.Context,
 ] as const
 

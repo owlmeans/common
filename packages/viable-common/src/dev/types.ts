@@ -1,4 +1,4 @@
-import type { AccessLevel } from "./consts.js"
+import type { AccessLevel, PermissionDefault } from "./consts.js"
 
 export interface SourceFile {
   path: string
@@ -31,6 +31,22 @@ export interface AccessBlock {
    */
   permissions: string[]
   level: AccessLevel
+  /** Gate params safe for every newly signed-in user; a subset of permissions. */
+  defaultEnabledPermissions?: string[]
+  /**
+   * The default class of each permission this block names, keyed by the gate param with its
+   * `@<routeParam>` selector stripped — the name the definition is registered under.
+   *
+   * Written by CODE, never by a model: `AccessBlockSchema` does not carry it, so a model answer
+   * never holds one, and what decides it is the project's tenancy and the area, not a reading of
+   * the story.
+   */
+  defaults?: Record<string, PermissionDefault>
+  /**
+   * Whether the permissions of this block are bound to the organization being acted in, rather than
+   * held everywhere. Written by code, like {@link AccessBlock.defaults}.
+   */
+  entityScoped?: boolean
 }
 
 /**

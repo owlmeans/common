@@ -39,6 +39,8 @@ updated: 2026-09
 
 ## Invariants
 
+- An entity's plan parameters are read from `resolveEffectivePlan` / the entitlement view, never
+  from the catalogue by sku: a subscription row's `overrides` are merged only there.
 - Public HTTP bodies carry `entitySlug`; the server boundary resolves the stable `entityId` before
   calling the in-process gateway or persisting Stripe metadata. Protocol objects pass through
   client/server code; aliases appear only at registry and broker adapters.

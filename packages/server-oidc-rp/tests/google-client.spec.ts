@@ -1,8 +1,11 @@
-import { describe, test, expect } from 'bun:test'
+import { describe, test, expect, afterEach } from 'bun:test'
+import { createServer } from 'node:http'
+import type { Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { makeTestContext } from './context.js'
 import { googleClientPlugin } from '../src/auth/plugins/google-client.js'
 import { GOOGLE_SERVICE } from '@owlmeans/oidc'
-import { AuthenPayloadError, AuthRole } from '@owlmeans/auth'
+import { AuthenFailed, AuthenPayloadError, AuthRole } from '@owlmeans/auth'
 import { UnknownRecordError } from '@owlmeans/resource'
 import { verifierId } from '../src/utils/cache.js'
 import { AUTH_CACHE } from '@owlmeans/server-auth'
@@ -119,5 +122,56 @@ describe('@owlmeans/server-oidc-rp — googleClientPlugin.authenticate', () => {
         scopes: ['*'],
       })
     ).rejects.toBeInstanceOf(UnknownRecordError)
+  })
+})
+
+describe('@owlmeans/server-oidc-rp — googleClientPlugin.authenticate and the verified address', () => {
+  const running: Server[] = []
+  afterEach(() => {
+    while (running.length > 0) running.pop()?.close()
+  })
+
+  /** Google's token and userinfo endpoints, answering `userinfo` for any code. */
+  const google = async (userinfo: Record<string, unknown>) => {
+    const server = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json')
+      res.end(JSON.stringify(req.url?.startsWith('/token') === true ? { access_token: 'google-access' } : userinfo))
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    running.push(server)
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+
+    const ctx = makeTestContext()
+    Object.assign(ctx.cfg.oidc.providers![0], { tokenEndpoint: `${base}/token`, userinfoEndpoint: `${base}/userinfo` })
+    ctx.configure()
+    await ctx.init()
+    const cache = (ctx as unknown as BasicContext<Config>).resource<Resource<OIDCAuthCache>>(AUTH_CACHE)
+    await cache.create({ id: verifierId('google-state'), verifier: 'v', client: 'google-client-id-123', redirectUri: 'https://example.com/cb' })
+
+    return googleClientPlugin(ctx as unknown as Context, GOOGLE_SERVICE).authenticate({
+      type: 'google-oauth', challenge: '', credential: 'code=abc123&state=google-state',
+      role: AuthRole.User, userId: 'code', scopes: ['*'],
+    })
+  }
+
+  const person = { sub: 'google-sub-1', email: 'person@example.test' }
+
+  test.each([
+    ['an address Google says is unverified', { ...person, email_verified: false }],
+    ['an address Google says nothing about', person],
+    ['a verification that is not the boolean true', { ...person, email_verified: 'true' }],
+  ])('refuses %s', async (_, userinfo) => {
+    const failure = await google(userinfo).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AuthenFailed)
+    expect((failure as Error).message).toContain('email-verified')
+  })
+
+  test('a verified address goes on to the account linking', async () => {
+    // No linking service is registered here, so reaching it is the failure that proves the
+    // address check passed.
+    const failure = await google({ ...person, email_verified: true }).catch((error: unknown) => error)
+
+    expect((failure as Error).message).toContain('google.account.store')
   })
 })

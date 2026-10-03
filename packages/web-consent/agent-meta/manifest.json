@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-consent",
-  "version": "0.1.18-rc.33",
-  "generatedAt": "2026-09-25T15:32:39.584Z",
+  "version": "0.1.18-rc.39",
+  "generatedAt": "2026-10-03T11:19:50.788Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

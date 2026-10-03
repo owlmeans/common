@@ -71,6 +71,8 @@ const writeChanges = (record: Record<string, unknown>, changes: Record<string, u
  *   safe.
  * - Anything but the next seq (`card.seq + 1`, or 1 for a create with no card) is refused with
  *   `PlanningError('fold:out-of-order')`.
+ * - The log is replayed as written: a transition the executor would refuse today (an update naming
+ *   `createdBy`, appended before that refusal existed) still folds. Guards live at admission.
  * - `create` builds the whole record from `changes` plus the transition's identity; `delete`
  *   answers `null`; `link`/`unlink` only move `seq`/`head`/`updatedAt` (the edges are
  *   {@link applyRelationship}'s); `update`/`transit` write `changes` — `fields` and `flows` merge,

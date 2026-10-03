@@ -1,8 +1,9 @@
-import { LlmRetryExceededError } from '../errors.js'
+import { LlmMissconfiguredError, LlmRetryExceededError } from '../errors.js'
 import { plugins } from '../plugins/index.js'
 import type { FatalErrorResolver, RetryOptions } from '../types.js'
 
-const resolvers: FatalErrorResolver[] = []
+/** A misconfiguration is the same on every attempt: no retry, rung or climb can change it. */
+const resolvers: FatalErrorResolver[] = [e => e instanceof LlmMissconfiguredError ? e : null]
 
 /**
  * Register a globally-applicable rule that turns a thrown error into an immediate

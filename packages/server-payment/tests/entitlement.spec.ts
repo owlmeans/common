@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { INTERNAL_PAYGATE, PlanRequired, SubscriptionStatus } from '@owlmeans/payment'
+import { INTERNAL_PAYGATE, LimitExhausted, LimitKind, PlanRequired, SubscriptionStatus } from '@owlmeans/payment'
 import { entitlements, subscriptions } from '../src/utils.js'
 import type { PaymentSubscriptionRecord } from '../src/types.js'
 import {
@@ -42,6 +42,42 @@ describe('@owlmeans/server-payment — effective plan', () => {
 
     await seed(fake, PRO, { paygate: INTERNAL_PAYGATE, periodEnd: future(1) })
     expect((await entitlements(fake.ctx).effectivePlan('entity-1')).plan.sku).toBe(PRO)
+  })
+
+  test('a subscription\'s overrides replace the plan\'s ceilings for that subscription only', async () => {
+    const fake = await makeFakeContext({ catalogue: { reportsUntil: past(2) } })
+    await seed(fake, PRO, {
+      createdAt: past(1),
+      overrides: { limits: { seats: { limit: 7 }, reports: { limit: 9 }, unknown: { limit: 3 }, exports: { limit: -1 } } },
+    })
+    await seed(fake, PRO, { entityId: 'entity-2', createdAt: past(1) })
+
+    const { plan } = await entitlements(fake.ctx).effectivePlan('entity-1')
+    expect(plan.limits?.seats).toEqual({ kind: LimitKind.Occupancy, limit: 7 })
+    // A key the plan does not declare and a malformed ceiling are ignored.
+    expect(plan.limits?.unknown).toBeUndefined()
+    expect(plan.limits?.exports?.limit).toBe(3)
+
+    const view = await entitlements(fake.ctx).entitlements('entity-1')
+    expect(view.limits.find(limit => limit.key === 'seats')?.limit).toBe(7)
+    // The override holds past the plan's lapsed promo.
+    expect(view.limits.find(limit => limit.key === 'reports')?.limit).toBe(9)
+
+    const other = await entitlements(fake.ctx).entitlements('entity-2')
+    expect(other.limits.find(limit => limit.key === 'seats')?.limit).toBe(2)
+    expect(other.limits.find(limit => limit.key === 'reports')?.limit).toBe(0)
+  })
+
+  test('an overridden ceiling is what admission counts against', async () => {
+    const fake = await makeFakeContext()
+    await seed(fake, PRO, { overrides: { limits: { seats: { limit: 3 } } } })
+
+    for (const eventKey of ['a', 'b', 'c']) {
+      expect((await entitlements(fake.ctx).consume({ entityId: 'entity-1', limitKey: 'seats', eventKey })).admitted).toBe(true)
+    }
+    await expect(entitlements(fake.ctx).consume({ entityId: 'entity-1', limitKey: 'seats', eventKey: 'd' }))
+      .rejects.toBeInstanceOf(LimitExhausted)
+    expect((await entitlements(fake.ctx).limitState('entity-1', 'seats')).limit).toBe(3)
   })
 
   test('without a free plan and without a subscription it is a PlanRequired fault', async () => {

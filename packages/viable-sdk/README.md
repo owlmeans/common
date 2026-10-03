@@ -51,8 +51,11 @@ const session = await openSession({
 const job = await api.project.create('a tool for tracking gym workouts', ConnectTarget.Local)
 ```
 
-The session runs its own loop from that point: operations arrive, the executor answers them, model
-tasks queue for the parent agent.
+`apiUrl` is the platform's public API origin — path-less, the host that serves the connector,
+planning, `/mcp` and the OAuth sign-in (`CONNECT_DEFAULT_API_URL` in production).
+
+The session runs its own loop from that point — a long poll: operations arrive, the executor
+answers them, model tasks queue for the parent agent.
 
 ## Rules worth knowing before you change something
 
@@ -68,8 +71,8 @@ then refused is one an agent tries once and remembers as broken.
 platform believes it is the only writer of. Two concurrent template writes into one tree is not a
 throughput problem, it is a corrupted tree.
 
-**Results are cached by operation id.** A connector that reconnects is handed everything still
-outstanding, including what it had already answered when the connection dropped. Re-running a build
+**Results are cached by operation id.** A connector that polls again after a restart or a lost
+answer is handed everything still outstanding, including what it had already answered. Re-running a build
 because an acknowledgement was lost is exactly the cost that cache avoids.
 
 **A malformed model-task answer is refused locally.** `parseTaskResult` checks the answer against
@@ -93,7 +96,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

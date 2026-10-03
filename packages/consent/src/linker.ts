@@ -1,8 +1,7 @@
 import {
-  CONSENT_COOKIE_DAYS, CONSENT_FUNCTIONAL, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_PENDING_LANGUAGE,
-  CONSENT_SCHEMA_VERSION, DEFAULT_CONSENT_CATEGORIES,
+  CONSENT_COOKIE_DAYS, CONSENT_KEY, CONSENT_LANGUAGE_KEY, CONSENT_SCHEMA_VERSION,
+  DEFAULT_CONSENT_CATEGORIES,
 } from './consts.js'
-import { functionalGranted } from './functional.js'
 import type { ConsentPlugin } from './plugins.js'
 import { decorateConsentUrl } from './plugins.js'
 import { readConsent } from './storage.js'
@@ -170,20 +169,15 @@ const supportedLanguage = (language: string, supported: string[]): string | null
 
 /**
  * Persist an adopted language where the application's i18n layer reads its explicit choice from —
- * `linker.language.storageKey`, `owlmeans-lng` by default — and only while the visitor has GRANTED
- * `functional` on this document (a stored record, or the one adopted from the very link that
- * carried the language). Without that grant nothing is written and `false` comes back: remembering
- * a preference on a visitor's device is storage like any other, and a refusal ("reject all") is an
- * answer, not a gap to fill. The gate lives here, not in the callers, so no caller can forget it.
+ * `linker.language.storageKey`, `owlmeans-lng` by default. Unconditional: the interface language is
+ * strictly necessary storage (the visitor picked it, and the site cannot speak to them without it),
+ * so no cookie decision — none yet, a refusal, an old record — stands between it and the device.
  *
  * It overwrites what is there on purpose: the carried language is the one the visitor was reading a
  * moment ago, which outranks a choice they made on this domain some other day. Storage that refuses
  * the write is not an error. Returns whether the language was written.
  */
 export const writeConsentLanguage = (language: string, opts?: ConsentOptions): boolean => {
-  if (!functionalGranted(opts)) {
-    return false
-  }
   try {
     localStorage.setItem(opts?.linker?.language?.storageKey ?? CONSENT_LANGUAGE_KEY, language)
 
@@ -358,19 +352,15 @@ export const consentLinkerScript = (opts: ConsentOptions): string => {
   const skew = CONSENT_LINK_SKEW
   const cookieDays = opts.cookieDays ?? CONSENT_COOKIE_DAYS
   const version = CONSENT_LINK_VERSION
-  // The language rides the same trust decision but is WRITTEN only while `functional` is granted
-  // here — in the stored record, or in the record just adopted from this very link (`fg` below).
-  // Otherwise it is left on `window` for the store to pick up (memory, never storage): the visitor
-  // may still grant functional storage later in this page's life. Mirrors `supportedLanguage` +
+  // The language rides the same trust decision and is written unconditionally — it is strictly
+  // necessary storage, whatever the cookie decision is. Mirrors `supportedLanguage` +
   // `writeConsentLanguage`; empty for a page that does not receive a language.
-  const functionalKey = jsonForScript(CONSENT_FUNCTIONAL)
   const language = linker.language?.supported != null
     ? `var L=${jsonForScript(linker.language.supported)};` +
       `if(typeof j.l==='string'){var lc=j.l.toLowerCase(),lm=null,q;` +
       `for(q=0;q<L.length;q++){if(String(L[q]).toLowerCase()===lc){lm=L[q];break}}` +
       `if(!lm){lc=lc.split(/[-_]/)[0];for(q=0;q<L.length;q++){if(String(L[q]).toLowerCase()===lc){lm=L[q];break}}}` +
-      `if(lm){if(fg){try{w.localStorage.setItem(${jsonForScript(linker.language.storageKey ?? CONSENT_LANGUAGE_KEY)},lm)}catch(e){}}` +
-      `else{w[${jsonForScript(CONSENT_PENDING_LANGUAGE)}]=lm}}}`
+      `if(lm){try{w.localStorage.setItem(${jsonForScript(linker.language.storageKey ?? CONSENT_LANGUAGE_KEY)},lm)}catch(e){}}}`
     : ''
 
   return `(function(w,d){` +
@@ -390,12 +380,7 @@ export const consentLinkerScript = (opts: ConsentOptions): string => {
       `var existing=null;try{existing=w.localStorage.getItem(${storageKey})}catch(e){}` +
       `if(!existing){var cp=('; '+d.cookie).split('; '+${storageKey}+'=');` +
         `if(cp.length===2)existing=cp.pop().split(';').shift()}` +
-      // `fg`: functional storage is granted here — by a parseable stored record, or by the one
-      // adopted below. A record with no `functional` key (saved before the category existed) is not
-      // a grant.
-      `var fg=false;` +
-      `if(existing){try{var ex=JSON.parse(existing);fg=!!ex&&typeof ex==='object'&&ex[${functionalKey}]===true}catch(e){}}` +
-      `else{` +
+      `if(!existing){` +
         `var keys=${optionalKeys},ok=true;` +
         `for(var i=0;i<keys.length;i++){if(j.c[keys[i]]!==0&&j.c[keys[i]]!==1){ok=false;break}}` +
         `if(ok){` +
@@ -404,7 +389,7 @@ export const consentLinkerScript = (opts: ConsentOptions): string => {
           `var val=JSON.stringify(rec);` +
           `try{w.localStorage.setItem(${storageKey},val)}catch(e){}` +
           `var exp=new Date(Date.now()+${cookieDays}*86400000).toUTCString();` +
-          `d.cookie=${storageKey}+'='+val+';expires='+exp+';path=/;SameSite=Lax';fg=rec[${functionalKey}]===true` +
+          `d.cookie=${storageKey}+'='+val+';expires='+exp+';path=/;SameSite=Lax'` +
         `}` +
       `}` +
       language +

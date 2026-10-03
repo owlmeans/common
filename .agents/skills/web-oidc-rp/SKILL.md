@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-oidc-rp
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.55"` in `dependencies`
+**Install:** `"@owlmeans/web-oidc-rp": "^0.1.18-rc.61"` in `dependencies`
 
 ## Key Exports
 
@@ -30,14 +30,13 @@ user-invocable: false
 - `./auth/plugins` — importing it registers both `OIDC_CLIENT_AUTH` and `GOOGLE_CLIENT_AUTH` into the
   `@owlmeans/client-auth` manager plugin registry. After a successful Google sign-in the plugin lands via
   `landAfterLogin` + `landingUrl` (`@owlmeans/client-auth/login`) — a pending post-login step, then a flow
-  suspended in `@owlmeans/client-flow` when there is one, else `HOME`. It no longer imports
-  `@owlmeans/client-flow`/`@owlmeans/web-client` for this; `landAfterLogin` is the whole decision
+  suspended in `@owlmeans/client-flow` when there is one, else `HOME`. It imports neither
+  `@owlmeans/client-flow` nor `@owlmeans/web-client` for this; `landAfterLogin` is the whole decision
 
-The generic OIDC method's own framed/chooser branch (`oidcMethodSource` in `src/auth/methods.ts`) forwards
-the component's `LoginMethodContext.navigate` into the `LoginRequest.navigate` it hands `login.begin(...)`,
-mirroring `useLogin`'s own `nav.go(target ?? DISPATCHER)` — without it, a sign-in started by clicking a
-method button (as opposed to a header "Log in" control) inside a frame adopted the token from the
-surrogate and then left the framed application exactly where it was, with no continuation at all.
+A sign-in method's `begin` must forward `LoginMethodContext.navigate` into the `LoginRequest.navigate`
+it hands `login.begin(...)` (as `oidcMethodSource` does, mirroring `useLogin`'s
+`nav.go(target ?? DISPATCHER)`): without it a method button pressed inside a frame adopts the token
+and leaves the framed application where it was, with no continuation.
 
 ## Wiring
 
@@ -61,15 +60,20 @@ export const clientBindings = [
 ]
 ```
 
-The third argument is the dispatcher's default props (`Partial<ParametrisedProps>` from
+Its only argument is the dispatcher's default props (`Partial<ParametrisedProps>` from
 `@owlmeans/web-client`); its `payload` merges under whatever the route supplies, so a route-level
-value wins. Pass it only to parametrise
-the screen — omit it and the plain `Dispatcher` is attached.
+value wins. Omit it and the plain `Dispatcher` is attached.
 
 `oidcEntrypoints()` returns bindings, not declarations: spread it once into the browser's immutable
-entrypoint list. Its `dispatcherProps` argument parametrises only the dispatcher screen. The shared
+entrypoint list. The shared
 OIDC protocols stay in the tree from `@owlmeans/oidc`; do not reconstruct or append them in the
 browser entrypoint list.
+
+The bindings cover all four shared protocols: the sign-in pair (`init`, `authenticate`) and the
+organization switch (`organizations`, `organization`). The switch pair is declared with
+`OIDC_GUARD`, so a call carries the wrapped token through that guard's `authenticated()` and the
+server answers for the session it names; a re-signed token the switch answers is adopted like any
+other (`adoptToken` / `context.login().adopt(token)`).
 
 ## Sign-in methods come from the provider list
 

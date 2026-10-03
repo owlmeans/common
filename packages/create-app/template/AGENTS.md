@@ -92,9 +92,9 @@ tokens, secrets and internal addresses never belong in an `allow` selector.
 Reusable guidance lives in `.agents/skills/<name>/SKILL.md`, deployed by `@owlmeans/agent-skills`
 from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you run `/<name>`
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
-symlinks in `.claude/skills/` (see `CLAUDE.md`).
+symlinks in `.claude/skills/` (see "Claude Code" below).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.39` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.46` to refresh
   the deployed skills.
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.
 - To capture your own guidance, see the `skill-authoring` skill; to turn repeatedly-used memory into
@@ -116,6 +116,17 @@ again, so a fresh checkout carries the links for every agent — Copilot and Cod
 not just Claude Code.
 
 <!-- /OWLMEANS:LINKED-SKILLS -->
+
+## Claude Code
+
+Claude Code reads this file directly — there is no `CLAUDE.md`. Skills live only in
+`.agents/skills/<name>/SKILL.md`, the single canonical location shared with Copilot and Codex.
+`.claude/skills/` holds only generated per-skill symlinks (gitignored except `.gitkeep`); the
+committed `SessionStart` hook runs `sh .agents/scripts/link-skills.sh` to (re)create them each session.
+
+- Never author files under `.claude/skills/` — write skills in `.agents/skills/`.
+- After creating, renaming, or deleting a skill, re-run
+  `sh .agents/scripts/link-skills.sh` so the session picks it up.
 
 ## Develop
 

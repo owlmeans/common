@@ -39,6 +39,12 @@ and the client state store all answer it. Resources are registered on the contai
   verb), `clear()`, `watch(id, listener)` and `query(where, listener, opts?)` for live reads.
   `StateModel` is `{ id, empty, record, update, commit, clear }`.
 
+- **`UnknownRecordError` / `RecordExists` answer 404 / 409** (declared `httpStatus`); until 2026-09
+  they declared nothing and every miss or duplicate answered 500. A `get` of a row the request did
+  not address therefore surfaces as the caller's 404 — the OIDC gate's session lookup was one
+  (now `load` + `AuthorizationError`). `RecordExists('id-present')` (a create handed an id, a
+  programming error) answers 409 too.
+
 ## Invariants
 
 - **Paging is per backend; `size: 0` means NO LIMIT on every one of them.** Mongo and postgres page
@@ -55,6 +61,17 @@ and the client state store all answer it. Resources are registered on the contai
   unknown id invents no placeholder record and leaves the store exactly as empty as it found it.
 
 ## Gotchas
+
+- **drizzle's `sql` template expands a bare JS array into a row constructor `($1, $2)`**, so an
+  array operator against a `text[]` column needs `param(list)` (one bound array) — the old
+  `$contains`/`$overlaps` rendered SQL no array operator accepts.
+- **Postgres re-renders what it stores** (unquoted identifiers, `''::text`, parenthesized
+  predicates, `IN` as `= ANY (ARRAY[…])`, `(gen_random_uuid())::character varying`); a raw-text
+  comparison made every boot drop and recreate every declared index and enum `CHECK`. Captured
+  renderings are pinned in `postgres-resource/tests/diff.spec.ts`.
+- **A `pg: { type: 'text' }` override does not change marshalling**: a `string` + `format:
+  'date-time'` property still goes through `Date` on the way in and out. Keep an ISO string by
+  dropping `format` from the table schema (what `planning-postgres` does).
 
 - Redis answers only reads by id from a key. Every criteria read, listing, count and purge walks
   the resource's own namespace with SCAN and evaluates in memory — affordable for a small

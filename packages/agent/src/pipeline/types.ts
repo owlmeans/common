@@ -1,8 +1,9 @@
 import type { BaseCheckpointSaver } from '@langchain/langgraph'
 import type {
-  PipelineProgress, PipelineRun, PipelineRunInquiry, PipelineRunStatus, PipelineSpec, PipelineState,
+  CumulativeResultEntry, CumulativeResultFact, PipelineProgress, PipelineRun, PipelineRunInquiry,
+  PipelineRunStatus, PipelineSpec, PipelineState, ResultFactQuery, ResultViewMode,
 } from '@owlmeans/agent-common'
-import type { Inquiry, InquiryAnswer } from '@owlmeans/llm-common'
+import type { CumulativeResults, Inquiry, InquiryAnswer } from '@owlmeans/llm-common'
 import type { PipelineRunStore } from '../stores/types.js'
 
 /**
@@ -63,6 +64,147 @@ export interface PipelineRunContext<S extends PipelineState, C> {
    * never match what the state holds, so the run re-asks and parks again forever.
    */
   ask: (inquiry: Inquiry) => Promise<InquiryAnswer>
+  /**
+   * What the earlier steps produced, cut for this step — present only when a pipeline plugin
+   * supplies it (`cumulativeResultsPlugin`). A pipeline that seats no such plugin never has the key.
+   *
+   * Hand `results.view` to the step's execution (`ExecutionService.withResults`) and every model
+   * built from it composes the view; call `results.record` with what the step wrote so the next
+   * steps are told about it.
+   */
+  results?: StepResults
+}
+
+/** What a step tells the results plugin about itself. Every call adds to the last. */
+export interface ResultRecordInput {
+  /** Files the step wrote or rewrote, relative to the project root. */
+  files?: string[]
+  /** Facts the step already knows. Taken as they are, ahead of anything an extractor finds. */
+  facts?: CumulativeResultFact[]
+}
+
+/** One entry a step can see, and how its view shows it. */
+export interface VisibleResultEntry {
+  entry: CumulativeResultEntry
+  mode: ResultViewMode
+  /** Left out of the prompt for BUDGET — named in `view.omitted` — rather than by declaration. */
+  dropped?: boolean
+}
+
+/**
+ * The results surface of ONE step: the view to put in its prompt, a query over the facts behind
+ * that view for code that wants them, and the way to report what the step produced.
+ */
+export interface StepResults {
+  /** The ledger the step's entries belong to. */
+  ledger: string
+  /** Where the step sits in the ledger — the order key a run composed under it extends. */
+  order: readonly number[]
+  /** Serializable and frozen; `ExecutionService.withResults(exec, results.view)`. */
+  view: CumulativeResults
+  /** Every entry visible to the step, oldest first, with how the view shows it. */
+  entries: () => readonly VisibleResultEntry[]
+  /**
+   * Facts visible to the step, narrowed by kind, name and producing step — including those the
+   * PROMPT left out for space or by declaration: a budget is about what a model reads, and code
+   * asking for a fact is not a model reading a prompt.
+   */
+  facts: (query?: ResultFactQuery) => CumulativeResultFact[]
+  /** Report files touched and facts known. Read once, when the step finishes. */
+  record: (input: ResultRecordInput) => void
+}
+
+/**
+ * The composing step of a parent pipeline, as a run composed under it (`asStep`) sees it —
+ * read-only by construction: a composed run may learn where it sits, never write its parent.
+ */
+export interface PipelineParentRef {
+  pipeline: string
+  runId: string
+  step: string
+  /** The parent step's results surface, when its pipeline seats a results plugin. */
+  results?: StepResults
+}
+
+/**
+ * How a run entered the runner: a first run, a run carried on from where its row stopped (an
+ * `invoke` on an unfinished row, or any `resume`), or an unfinished row discarded on request.
+ */
+export type PipelineEnterMode = 'fresh' | 'continue' | 'restart'
+
+export interface PipelineEnterEvent<S extends PipelineState, C> {
+  spec: PipelineSpec
+  runId: string
+  scope: string
+  entityId?: string
+  deps: C
+  mode: PipelineEnterMode
+  /** Steps this execution inherits as complete, in order. None of them will run or pass. */
+  inherited: readonly string[]
+  /** The state the run starts from — restored from its row, with the seed or patch merged. */
+  state: Readonly<S>
+  /** Present when the run is a step of another pipeline. */
+  parent?: PipelineParentRef
+}
+
+export interface PipelineStepEvent<S extends PipelineState, C> {
+  step: string
+  ctx: PipelineRunContext<S, C>
+  /** The live state. Read it; a plugin never writes it. */
+  state: Readonly<S>
+}
+
+export interface PipelineAfterStepEvent<S extends PipelineState, C> extends PipelineStepEvent<S, C> {
+  /** What the step returned, already merged into `state`. */
+  patch: Partial<S>
+}
+
+export interface PipelinePassStepEvent<S extends PipelineState, C> extends PipelineStepEvent<S, C> {
+  /** `skipped` — its guard answered true; `failed` — it is `optional`, failed, and the run goes on. */
+  reason: 'skipped' | 'failed'
+  error?: Error
+}
+
+export interface PipelineExitEvent<S extends PipelineState, C> {
+  spec: PipelineSpec
+  runId: string
+  deps: C
+  result: PipelineResult<S>
+}
+
+/** What `beforeStep` may hand the step. The first plugin to offer `results` owns them. */
+export interface PipelineStepContribution {
+  results?: StepResults
+}
+
+/**
+ * An optional capability of a pipeline run, seated by `alias` and run by ascending `order`.
+ *
+ * A plugin WATCHES a run: it never writes the pipeline's state — whatever it keeps, it keeps in a
+ * store of its own — and it never decides where a run stands, which the row alone does. Every hook
+ * is wrapped: a plugin that throws is logged and the run goes on, because losing an enhancement
+ * costs what it adds and never the work. The one exception is an error `PipelineOptions.fatal`
+ * calls fatal, which takes the exact path a fatal step error takes — the row written `Failed`
+ * first, then the error rethrown.
+ *
+ * - `enter` — once per `invoke`/`resume`, before the first step, with how the run entered.
+ * - `beforeStep` — once the runner has decided the step will RUN, before it runs.
+ * - `afterStep` — after the step's patch is merged into the state and BEFORE the row commit that
+ *   marks the step complete, so what a plugin persists lands before the step is durably done.
+ * - `passStep` — a step skipped by its guard, or an optional step that failed.
+ * - `exit` — once, at the end, with the result the caller is about to receive.
+ */
+export interface PipelinePlugin<S extends PipelineState, C> {
+  alias: string
+  /** Lower runs first. Defaults to 50. */
+  order?: number
+  enter?: (event: PipelineEnterEvent<S, C>) => Promise<void> | void
+  beforeStep?: (
+    event: PipelineStepEvent<S, C>,
+  ) => Promise<PipelineStepContribution | void> | PipelineStepContribution | void
+  afterStep?: (event: PipelineAfterStepEvent<S, C>) => Promise<void> | void
+  passStep?: (event: PipelinePassStepEvent<S, C>) => Promise<void> | void
+  exit?: (event: PipelineExitEvent<S, C>) => Promise<void> | void
 }
 
 /**
@@ -120,6 +262,12 @@ export interface PipelineOptions<S extends PipelineState, C> {
   onProgress?: (progress: PipelineProgress) => void
   /** One line per step boundary. The only place a runner says anything. */
   trace?: (line: string) => void
+  /**
+   * Optional capabilities of every run — seated by alias, run by ascending `order`. None seated,
+   * the runner behaves exactly as if the seam did not exist: no hook is awaited, and a step's
+   * context carries no `results`.
+   */
+  plugins?: PipelinePlugin<S, C>[]
 }
 
 export interface PipelineResult<S extends PipelineState> {
@@ -155,6 +303,11 @@ export interface PipelineInvokeArgs<C> {
    * for the work twice. A `Done` row always starts a fresh run.
    */
   restart?: boolean
+  /**
+   * The composing step, when this run is a step of another pipeline. Set by `asStep`; handed to
+   * the plugins' `enter`, and never persisted.
+   */
+  parent?: PipelineParentRef
 }
 
 export interface PipelineResumeArgs<C> {

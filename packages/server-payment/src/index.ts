@@ -9,7 +9,7 @@ export * from './limit.js'
 export * from './entitlement.js'
 export * from './reconcile.js'
 export * from './entrypoints.js'
-export { findPlan, findProduct, freePlanOf, planRank, resolveEffectivePlan } from './plan.js'
+export { findPlan, findProduct, freePlanOf, overriddenPlan, planRank, resolveEffectivePlan } from './plan.js'
 export { consumeLimit, consumptionByRefOf, consumptionOf, limitStateOf, reconcileLedgerCounters, reconcileOccupancyOf, releaseLimit } from './usage.js'
 export {
   classifySubscriptionChange, commitSubscription, propagatedStateOf, subscriptionEventKey,
@@ -24,11 +24,12 @@ export type { EstimateCache } from './plugins/estimate.js'
 export { applySubscription, createEventHandler, mapStatus } from './plugins/events.js'
 export type { ApplyOptions } from './plugins/events.js'
 export {
-  ensureWebhookEndpoint, stripeWebhookSecret, stripeWebhookSecrets, webhookUrlOf,
+  ensureWebhookEndpoint, gatewayOwnerOf, stripeWebhookSecret, stripeWebhookSecrets, webhookRouteOf, webhookServiceOf,
+  webhookUrlOf,
 } from './plugins/webhook-manager.js'
-export { ensurePortalConfiguration } from './plugins/portal.js'
+export { ensurePortalConfiguration, portalFingerprintSku } from './plugins/portal.js'
 export {
   activeSubscription, apiVersionOf, billingProfiles, consumerConsents, consumerDeclarations, consumerEvents,
-  consumerRights, consumerRightsOf, entitlements, fingerprints, fulfillments, gateway, observer, paygateCustomers,
+  consumerRights, consumerRightsOf, entitlements, fingerprints, fulfillments, gateway, gatewayOf, observer, paygateCustomers,
   payment, paymentWebhooks, purchases, stripeClient, stripeConfig, subscriptions, usageCounters, usageEvents,
 } from './utils.js'

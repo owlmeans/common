@@ -44,7 +44,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.48 my-app
+npx @owlmeans/create-app@^0.1.18-rc.55 my-app
 ```
 
 This generates the three-workspace project below, installs dependencies, and — by default —
@@ -55,8 +55,7 @@ This generates the three-workspace project below, installs dependencies, and —
 It also writes **`AGENTS.md`** — the always-on project context every coding agent reads — carrying
 the four mandatory sections a real OwlMeans monorepo uses (Git Workflow, Reporting, Memory,
 Self-Education) plus a project-purpose placeholder: the first time you open the project in an
-agent, it will ask what the project is for and fill it in. A thin **`CLAUDE.md`** imports
-`AGENTS.md` and keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
+agent, it will ask what the project is for and fill it in. Claude Code reads it directly (there is no `CLAUDE.md`) and the committed hook keeps the symlinks Claude Code needs in `.claude/skills/` fresh. Agent memory is a
 single shared graph store at **`.agents/memory/`** (index `MEMORY.md`) — the scaffold seeds the
 index for you.
 
@@ -65,7 +64,7 @@ The harness guidance ships with the project itself (`agent-memory`, `memory-prom
 it is present even with `--no-install`, and the project can grow its own guidance from day one.
 
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
-`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.48 --help`.
+`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.55 --help`.
 
 Then run it:
 
@@ -502,7 +501,7 @@ bun run dev      # API :3000, web :3001
 Install the OwlMeans Claude Code skills and Copilot instructions into the project:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested

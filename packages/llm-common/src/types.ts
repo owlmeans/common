@@ -1,5 +1,6 @@
 import type { ExecutionEffort, ExecutionLevel, ModelEffort, PromptBlock } from './consts.js'
 import type { InquiryConfig } from './inquiry/types.js'
+import type { CumulativeResults } from './results/types.js'
 
 /**
  * Free-form observability metadata attached to every model call — forwarded to the
@@ -150,6 +151,15 @@ export interface ExecutionState {
    * same policy, as the one that parked it.
    */
   inquiry?: InquiryConfig
+  /**
+   * What the earlier steps of the pipeline this execution works inside produced, cut for the step
+   * at hand. Rendered into `PromptBlock.Results` by the prompt service.
+   *
+   * State, not a collaborator: it is plain rendered text, and a resumed run must compose the
+   * prompt the interrupted one did. Inherited by every refinement like any other state field, and
+   * replaced — never merged — when a later step is handed its own view.
+   */
+  results?: CumulativeResults
 }
 
 /**

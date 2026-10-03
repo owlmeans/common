@@ -3,7 +3,7 @@ import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { PlanningFacade, PlanningProtocols, PlanningScope } from '@owlmeans/planning'
 import { bind } from '@owlmeans/server-entrypoint'
 import {
-  executePlanning, getCard, getCommit, getSpecification, getTransition, listCardSpecifications,
+  defineSchemas, executePlanning, getCard, getCommit, getSpecification, getTransition, listCardSpecifications,
   listCardTransitions, listCards, listLinks, listSchemas, listSpecificationRevisions, summarizeCards,
   watchCommits,
 } from './actions/index.js'
@@ -12,12 +12,16 @@ import { planningServiceOf, scopeOf } from './utils/index.js'
 
 /**
  * Bind this package's handlers to a tree declared by `makePlanningProtocols` — one binding per
- * protocol, the base included. Pass the tree itself, never a flattened list; an application that
- * wants its own handler for one leaf binds that protocol afterwards.
+ * protocol, the base included (and `schema.define` when the tree declares it). Pass the tree
+ * itself, never a flattened list; an application that wants its own handler for one leaf binds
+ * that protocol afterwards.
  */
 export const servePlanningEntrypoints = (protocols: PlanningProtocols, opts?: PlanningHandlerOptions) => [
   bind(protocols.base),
   bind(protocols.schema.list, listSchemas(protocols.schema.list, opts)),
+  ...(protocols.schema.define != null
+    ? [bind(protocols.schema.define, defineSchemas(protocols.schema.define, opts))]
+    : []),
   bind(protocols.card.list, listCards(protocols.card.list, opts)),
   bind(protocols.card.summary, summarizeCards(protocols.card.summary, opts)),
   bind(protocols.card.get, getCard(protocols.card.get, opts)),

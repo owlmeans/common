@@ -20,7 +20,7 @@ export interface ConsentCategory {
    * itself a dark pattern. A required category is disclosure, not a question.
    */
   required?: boolean
-  /** Resolved through `translate`; the built-in bundle supplies the default set in 7 languages. */
+  /** Resolved through `translate`; the built-in bundle supplies the default set in 8 languages. */
   labelKey: string
   descriptionKey: string
   /**
@@ -86,13 +86,6 @@ export interface ConsentOptions {
   /** Skip every dataLayer and global write. For tests, and for an app that runs no tags. */
   silent?: boolean
   /**
-   * The `localStorage` keys that hold this application's functional preferences (the interface
-   * language, today). They may exist only while the visitor has granted `functional`: `init` and
-   * `save` remove every one of them the moment it is not granted. Defaults to the language key
-   * (`owlmeans-lng`); `linker.language.storageKey` is always included.
-   */
-  functionalKeys?: string[]
-  /**
    * Cross-domain consent: share this decision, and adopt one, between the listed first-party
    * domains — a visitor who already decided on one need not decide again on another. See
    * `consentLinker`/`ConsentPlugin` in `./plugins.js` and `./linker.js`.
@@ -115,8 +108,8 @@ export interface ConsentLinkerOptions {
    * Carry the visitor's interface language along with the decision, so a visitor reading the site
    * in Polish arrives on the next domain in Polish. Its PRESENCE turns the sending side on (a link
    * to a listed domain carries this document's `<html lang>`); `supported` turns the receiving side
-   * on — which still stores nothing until functional storage is granted there. See
-   * `ConsentLinkerLanguage`.
+   * on — which stores the carried language whatever the cookie decision says, because the interface
+   * language is strictly necessary. See `ConsentLinkerLanguage`.
    */
   language?: ConsentLinkerLanguage
 }
@@ -124,17 +117,15 @@ export interface ConsentLinkerOptions {
 export interface ConsentLinkerLanguage {
   /**
    * RECEIVING side: the languages this application can render. A carried language is adopted only
-   * when it is one of these, exactly or by its base tag (`de-DE` → `de`). It is stored only while
-   * the visitor has granted `functional` on this document — until then it is held in memory, and
-   * stored if they grant it later in this page's life (`CONSENT_LANGUAGE_EVENT` tells the app);
+   * when it is one of these, exactly or by its base tag (`de-DE` → `de`), and is then stored at
+   * once — the interface language is strictly necessary storage, so no cookie decision gates it;
    * anything else is ignored and the application keeps choosing its own. Leave it out on a site
    * that only SENDS its language.
    */
   supported?: string[]
   /**
    * RECEIVING side: the `localStorage` key an explicit language choice lives under. Defaults to
-   * `owlmeans-lng`, the key `@owlmeans/client-i18n` reads before it renders anything. It is a
-   * functional key: written only while `functional` is granted, removed when it is not.
+   * `owlmeans-lng`, the key `@owlmeans/client-i18n` reads before it renders anything.
    */
   storageKey?: string
 }
@@ -161,11 +152,5 @@ export interface ConsentStore {
   close: () => void
   /** Imperative reader, for the callers that are not React. */
   granted: (key: string) => boolean
-  /**
-   * A language that arrived with a link and is waiting for the visitor to grant `functional`
-   * storage — memory only, or `null`. It is written (and `CONSENT_LANGUAGE_EVENT` dispatched) the
-   * moment the grant is saved.
-   */
-  pendingLanguage: () => string | null
   options: () => ConsentOptions & { categories: ConsentCategory[], storageKey: string }
 }

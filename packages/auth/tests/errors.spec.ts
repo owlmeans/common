@@ -5,6 +5,7 @@ import {
   AuthorizationError,
   AuthenFailed,
   AuthenPayloadError,
+  AuthUnknown,
 } from '@owlmeans/auth'
 
 describe('@owlmeans/auth — error inheritance chain', () => {
@@ -47,5 +48,23 @@ describe('@owlmeans/auth — error inheritance chain', () => {
       }
     }
     expect(thrown).toHaveLength(3)
+  })
+})
+
+describe('@owlmeans/auth — declared HTTP statuses', () => {
+  // An unknown method, provider or identity is the caller's request — never a crashed server (500).
+  test('AuthUnknown declares 400 and stays outside the authorization family', () => {
+    const err = new AuthUnknown('email-otp')
+    expect(AuthUnknown.httpStatus).toBe(400)
+    expect((err.constructor as { httpStatus?: unknown }).httpStatus).toBe(400)
+    expect(err).toBeInstanceOf(AuthError)
+    expect(err).not.toBeInstanceOf(AuthorizationError)
+  })
+
+  // Their 401/403 comes from the family mapping in `@owlmeans/server-api`, never from a declaration.
+  test('the authorization family declares no status of its own', () => {
+    for (const refusal of [AuthorizationError, AuthForbidden]) {
+      expect([refusal.typeName, (refusal as { httpStatus?: unknown }).httpStatus]).toEqual([refusal.typeName, undefined])
+    }
   })
 })

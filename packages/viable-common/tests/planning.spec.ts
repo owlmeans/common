@@ -276,6 +276,32 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ landing: { story: 'US-ABC12' } })).toBe(false)
     expect(project({ landing: { story: 'US-ABC12', at, reason: 'best fit' } })).toBe(false)
   })
+
+  test('a project records a tenancy decision with both flags, who decided it and when', () => {
+    expect(project({ tenancy: { operators: false, users: true, by: 'model', at } })).toBe(true)
+    expect(project({
+      tenancy: {
+        operators: true, users: true, by: 'owner', at,
+        quotes: { operators: 'Each agency manages its own staff.', users: null },
+      },
+    })).toBe(true)
+    expect(project({ tenancy: null })).toBe(true)
+  })
+
+  test('a project refuses a partial tenancy decision, an unknown decider and a stray key', () => {
+    expect(project({ tenancy: { users: true, by: 'model', at } })).toBe(false)
+    expect(project({ tenancy: { operators: true, users: false, at } })).toBe(false)
+    expect(project({ tenancy: { operators: true, users: false, by: 'model' } })).toBe(false)
+    expect(project({ tenancy: { operators: 'yes', users: false, by: 'model', at } })).toBe(false)
+    expect(project({ tenancy: { operators: true, users: false, by: 'agent', at } })).toBe(false)
+    expect(project({ tenancy: { operators: true, users: false, by: 'model', at, reason: 'b2b' } })).toBe(false)
+    expect(project({
+      tenancy: { operators: true, users: false, by: 'model', at, quotes: { staff: 'x' } },
+    })).toBe(false)
+    expect(project({
+      tenancy: { operators: true, users: false, by: 'model', at, quotes: { operators: 'x'.repeat(1025) } },
+    })).toBe(false)
+  })
 })
 
 describe('viable-common - the viable card helpers', () => {

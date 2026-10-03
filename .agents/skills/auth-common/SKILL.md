@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/auth-common
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.38"` in `dependencies`
+**Install:** `"@owlmeans/auth-common": "^0.1.18-rc.44"` in `dependencies`
 
 Everything a server and a browser must agree on to talk authentication: aliases, the shared
 protocol declarations, the signature guard, and the contract for resolving the organization
@@ -82,7 +82,7 @@ import { attachEntity, entityKeyOf, requireEntityKey, requireEntity } from '@owl
 
 | Helper | What it answers |
 |--------|-----------------|
-| `attachEntity(context, request)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. A no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
+| `attachEntity(context, request)` | Resolve the slug on `request.auth` and set `request.entity`, canonicalizing a retired slug to the current one. Keeps an entity the guard already attached when its `slug` equals the token's exactly, and drops one that does not. Otherwise a no-op when no resolver is registered; throws `AuthenFailed('entity')` when the token names an organization that will not resolve |
 | `entityKeyOf(req)` | The value to store and query organization-scoped records by — `req.entity?.id`, falling back to the token's slug where no resolver exists |
 | `requireEntityKey(req)` | Same, throwing `AuthorizationError` when the request carries no organization |
 | `requireEntity(req)` | The full `ResolvedEntity` (`id`, `slug`, `iamKey`), throwing `AuthorizationError` when nothing resolved |
@@ -91,6 +91,15 @@ import { attachEntity, entityKeyOf, requireEntityKey, requireEntity } from '@owl
 any socket that authenticates after its connection is already open. A path that authenticates
 without it leaves `request.entity` empty and its handlers silently compare a slug against stored
 ids.
+
+A guard may attach the entity itself when its authority names the organization — the OIDC guard
+does for a session of a tenanted client (`@owlmeans/oidc`), whose relying party has no registry to
+resolve from. `attachEntity` trusts that attachment only while its `slug` is the token's
+`entitySlugOf(request.auth)`; on any mismatch it removes it and resolves as if nothing had been
+attached, so a stale or foreign entity can never reach a handler. That attached entity is keyed by
+the organization's frozen IAM key (`{ id: entityKey, slug, iamKey: entityKey }`) — the registry's
+record id never leaves the provider — so on such a relying party `requireEntityKey(req)` answers the
+`entityKey`, which survives a rename exactly as a record id would.
 
 Never build a user-facing name (a hostname, a display label) from `entityKeyOf`. Those want the
 current slug, `req.entity?.slug`.
@@ -113,13 +122,10 @@ protocol(
 )
 ```
 
-`{entity}` is a placeholder each **gate service** substitutes for itself — `@owlmeans/auth-common`
-declares neither the token nor the substitution — so what it stands for depends on the gate the
-alias resolves to. `@owlmeans/server-iam` substitutes `req.entity?.id`, falling back to the token's
-slug, because its grants are stored against the organization entity's stable id wherever one is
-resolvable. `@owlmeans/server-oidc-rp`'s gate model substitutes the token's slug only. Both write
-`'-'` when neither is available. Read the gate you are wiring before writing a parameter that
-depends on the value.
+`{entity}` is a placeholder each **gate service** substitutes for itself — this package declares
+neither the token nor the substitution. `@owlmeans/server-iam` substitutes the resolved id
+(`server-iam` → "`{entity}` in a permission name"); `@owlmeans/server-oidc-rp`'s gate model the
+token's slug only; both write `'-'` when neither is available. Read the gate you are wiring first.
 
 ## Rules
 
@@ -131,8 +137,7 @@ depends on the value.
   accepts only canonical timestamps inside its symmetric 60-second window and claims the
   credential-and-nonce pair until that timestamp's absolute expiry; a replay-store error refuses
   authentication rather than disabling deduplication.
-- An OIDC gate is not required when OIDC is only the login/bootstrap provider. Where the provider
-  issues a local bearer token, authorize with a product-specific gate against local identity scopes.
+- OIDC used only to sign in authorizes with a product gate, not `OIDC_GATE` (`server-oidc-rp` → Rules).
 - The trust resource (`TRUSTED`, from `@owlmeans/config`) is the system's source of truth for known
   signing identities — the auth service, peer services, wallet providers, supervisors.
 

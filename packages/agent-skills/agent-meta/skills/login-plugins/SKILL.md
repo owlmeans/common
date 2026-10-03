@@ -262,8 +262,9 @@ Two blockers, both verified, both recorded here so nobody re-derives them:
    `ensureClient` passes `redirectUris` alone. An `end_session_endpoint` hop would therefore be
    rejected, or would land the popup on the provider's own "signed out" page — which never posts
    back and never closes, so the window simply sits there. That is strictly worse than the bug.
-2. The IdP session is shared with the manager and every sibling project of the same organization.
-   "Log out of this preview" must not sign the user out of everything.
+2. The IdP session names the ACCOUNT, so it is shared by every application that signs in against
+   that provider in the browser, every sibling project included. "Log out of this
+   preview" must not sign the user out of everything.
 
 Local-only logout satisfies the requirement exactly: the two token copies are two IndexedDB records
 in two storage partitions of one origin, and clearing both is the whole of it. The seam stays —

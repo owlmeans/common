@@ -395,8 +395,10 @@ describe('@owlmeans/llm — a temperature refinement climbs effort', () => {
       models: () => llm, policy: { effort: DEFAULT_EFFORT }, purpose: { type: 'spec' },
     }), { role })
   }
+  /** Read off the request body — the constructor's `reasoning` field is not what ships on gpt-6. */
   const effortOf = (model: BaseChatModel): string | undefined =>
-    (model.lc_kwargs as { reasoning?: { effort?: string } }).reasoning?.effort
+    ((model as unknown as { invocationParams: (options: unknown) => { reasoning?: { effort?: string } } })
+      .invocationParams({})).reasoning?.effort
 
   test('each 0.3 of temperature is one level above the declared effort', () => {
     const helper = helperFor('declared')

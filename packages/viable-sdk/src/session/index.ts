@@ -168,9 +168,8 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
   /**
    * The pull loop.
    *
-   * A long poll rather than a socket, as the first transport: it works through every proxy, needs
-   * no reconnection logic, and is the only option the URL-configured host has at all. The socket
-   * is an optimisation over it, not a replacement for it.
+   * A long poll, the connector's only transport: it works through every proxy and needs no
+   * reconnection logic.
    */
   const loop = async (): Promise<void> => {
     while (!closed) {

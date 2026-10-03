@@ -1,6 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX } from '@owlmeans/planning'
 import { ProjectArea } from '../areas/consts.js'
+import { TENANCY_QUOTE_MAX } from '../areas/tenancy.js'
 import { StoryKind } from '../ba/consts.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import { ProjectOriginSchema } from '../convert/schemas.js'
@@ -38,6 +39,30 @@ export const ViableProjectFieldsSchema = {
         at: { type: 'string', minLength: 1, maxLength: 32 },
       },
       required: ['at'],
+      additionalProperties: false,
+    },
+    // An absent `tenancy` is "never decided"; a recorded one always carries both flags, so a
+    // reader never has to guess what a missing flag meant.
+    tenancy: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        operators: { type: 'boolean' },
+        users: { type: 'boolean' },
+        quotes: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            operators: { type: 'string', minLength: 1, maxLength: TENANCY_QUOTE_MAX, nullable: true },
+            users: { type: 'string', minLength: 1, maxLength: TENANCY_QUOTE_MAX, nullable: true },
+          },
+          required: [],
+          additionalProperties: false,
+        },
+        by: { type: 'string', enum: ['model', 'owner'] },
+        at: { type: 'string', minLength: 1, maxLength: 32 },
+      },
+      required: ['operators', 'users', 'by', 'at'],
       additionalProperties: false,
     },
   },

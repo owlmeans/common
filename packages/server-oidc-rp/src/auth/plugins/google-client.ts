@@ -135,11 +135,17 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       }
 
       const userinfo = await userinfoResponse.json() as {
-        sub: string; email: string; name?: string; picture?: string
+        sub: string; email: string; email_verified?: unknown; name?: string; picture?: string
       }
 
       if (userinfo.sub == null || userinfo.email == null) {
         throw new AuthenFailed()
+      }
+
+      // The address is what links this sign-in to an existing account, so an address Google has
+      // not verified would let anyone who types it in take over the account that owns it.
+      if (userinfo.email_verified !== true) {
+        throw new AuthenFailed('email-verified')
       }
 
       // Use the account linking service to load or create identity
@@ -160,10 +166,7 @@ export const googleClientPlugin = <C extends Config, T extends Context<C>>(conte
       let profile = await store.getLinkedProfile(profileDetails)
 
       if (profile == null) {
-        profile = await store.linkProfile(profileDetails, {
-          username: userinfo.email,
-          force: false,
-        })
+        profile = await store.linkProfile(profileDetails, { username: userinfo.email })
       }
 
       // Generate exchange token for the auth manager to issue final bearer

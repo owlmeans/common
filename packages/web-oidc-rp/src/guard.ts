@@ -29,13 +29,19 @@ export const appendOidcGuard = <C extends Config, T extends Context<C>>(
   return ctx
 }
 
-/** Browser-local OIDC handlers and dispatcher screen for the shared protocol declarations. */
+/**
+ * Browser-local OIDC handlers and dispatcher screen for the shared protocol declarations: the
+ * sign-in pair and the organization switch (whose calls carry the wrapped token through
+ * `OIDC_GUARD`).
+ */
 export const oidcEntrypoints = (extras?: Partial<ParametrisedProps>) => {
   const DispatcherCom = extras ? parametriseDispatcher(extras, Dispatcher) : Dispatcher
 
   return [
     bind(oidcProtocols.init),
     bind(oidcProtocols.authenticate),
+    bind(oidcProtocols.organizations),
+    bind(oidcProtocols.organization),
     bindScreen(authProtocols.dispatcher, handler(DispatcherCom)),
   ]
 }

@@ -1,6 +1,6 @@
 import { BaseMessage } from '@langchain/core/messages'
 import type { MessageFieldWithRole } from '@langchain/core/messages'
-import { EMPTY_CONTENT_STUB, JSON_INSTRUCTION, NO_THINK_DIRECTIVE } from '../consts.js'
+import { EMPTY_CONTENT_STUB, JSON_INSTRUCTION, NO_THINK_DIRECTIVE, toolCallInstruction } from '../consts.js'
 
 const messageMentions = (msg: MessageFieldWithRole, needle: string): boolean => {
   if (typeof msg.content === 'string') return msg.content.toLowerCase().includes(needle)
@@ -126,4 +126,15 @@ export const applyNoThink = (msgs: MessageFieldWithRole[], disableThinking: bool
   if (disableThinking !== true) return
   if (msgs.some(msg => typeof msg.content === 'string' && msg.content.includes(NO_THINK_DIRECTIVE))) return
   appendDirective(msgs, NO_THINK_DIRECTIVE)
+}
+
+/**
+ * Ask for the structured-output tool in words, once, on the per-call payload. A model that refuses
+ * a pinned `tool_choice` is called with `auto`, and then the prompt is all that says the answer
+ * belongs in the tool — a reply in plain text is a failed attempt.
+ */
+export const ensureToolCall = (msgs: MessageFieldWithRole[], toolName: string): void => {
+  const instruction = toolCallInstruction(toolName)
+  if (msgs.some(msg => typeof msg.content === 'string' && msg.content.includes(instruction))) return
+  appendDirective(msgs, instruction)
 }

@@ -1,0 +1,56 @@
+{
+  "name": "@owlmeans/planning-postgres",
+  "version": "0.1.18-rc.5",
+  "license": "MIT",
+  "description": "A durable Postgres PlanningStore for @owlmeans/server-planning — cards, the transition log, links and data-defined types and flows as four tables, an inline fold under a per-card advisory lock, and a LISTEN/NOTIFY commit bus.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "sleep 12 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@owlmeans/basic-ids": "^0.1.18-rc.34",
+    "@owlmeans/context": "^0.1.18-rc.32",
+    "@owlmeans/error": "^0.1.18-rc.36",
+    "@owlmeans/planning": "^0.1.18-rc.15",
+    "@owlmeans/postgres-resource": "^0.1.18-rc.40",
+    "@owlmeans/resource": "^0.1.18-rc.37",
+    "@owlmeans/server-planning": "^0.1.18-rc.18"
+  },
+  "peerDependencies": {
+    "ajv": "*",
+    "ajv-formats": "*",
+    "pg": "*"
+  },
+  "devDependencies": {
+    "@owlmeans/dep-config": "workspace:*",
+    "@owlmeans/postgres": "^0.1.18-rc.42",
+    "@owlmeans/server-context": "^0.1.18-rc.40",
+    "@owlmeans/test": "^0.1.18-rc.33",
+    "@owlmeans/test-integration": "^0.1.18-rc.30",
+    "@types/bun": "^1.4.0",
+    "@types/pg": "^8.20.4",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "nodemon": "^3.1.14",
+    "pg": "^8.22.0",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

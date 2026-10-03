@@ -1,10 +1,10 @@
 import { createService } from '@owlmeans/context'
-import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService } from './types.js'
+import type { Config, Context, OidcGuard, OidcGuardOptions, WrappedOIDCService, WrappedOIDCUpdate } from './types.js'
 import { OIDC_GUARD, OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from './consts.js'
 import { decorateEntrypoint, isEntrypointProtocol } from '@owlmeans/entrypoint'
 import type { AbstractRequest, AbstractResponse, EntrypointTree, GuardService } from '@owlmeans/entrypoint'
 import { DEFAULT_GUARD, TOKEN_UPDATE } from '@owlmeans/auth-common'
-import { AUTH_HEADER, type Auth, AuthToken, AuthorizationError } from '@owlmeans/auth'
+import { AUTH_HEADER, type Auth, AuthorizationError } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { trust } from '@owlmeans/auth-common/utils'
 import { TRUSTED } from '@owlmeans/config'
@@ -77,7 +77,7 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
 
       const token = extractAuthToken(req, OIDC_WRAPPED_TOKEN, false)!
 
-      let updated: AuthToken | null = null
+      let updated: WrappedOIDCUpdate | null = null
 
       try {
         updated = await wrapper(ctx).update({ token }, true)
@@ -92,6 +92,13 @@ export const makeOidcGuard = (opts?: OidcGuardOptions): OidcGuard => {
 
       if (updated == null) {
         return false as T
+      }
+
+      // The provider names the organization this session acts in, and a relying party of a
+      // tenanted client has no registry to resolve it from by slug. `attachEntity` keeps this one
+      // only while its slug is the token's, so a stale attachment can never stand in for it.
+      if (updated.entity != null) {
+        req.entity = updated.entity
       }
 
       if (updated.token !== token) {

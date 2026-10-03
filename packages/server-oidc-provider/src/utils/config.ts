@@ -1,13 +1,14 @@
-import type { Context } from '../types.js'
-import type { Configuration } from 'oidc-provider'
-import { updateClient } from './client.js'
-import { PERMISSIONS_CLAIM, PERMISSIONS_SCOPE } from '@owlmeans/oidc'
+import type { Context, OidcCustomConfiguration } from '../types.js'
+import { makeUriUpdater, updateClient } from './client.js'
+import { ORGANIZATIONS_CLAIM, ORGANIZATIONS_SCOPE, PERMISSIONS_CLAIM, PERMISSIONS_SCOPE } from '@owlmeans/oidc'
+import { makeSecurityHelper } from '@owlmeans/config'
 import * as jose from 'jose'
 
-export const combineConfig = async (context: Context, _unsecure: boolean): Promise<Configuration> => {
+export const combineConfig = async (context: Context, _unsecure: boolean): Promise<OidcCustomConfiguration> => {
   const cfg = context.cfg.oidc
+  const updateUri = makeUriUpdater(context, makeSecurityHelper(context))
 
-  const configuration: Configuration = {
+  const configuration: OidcCustomConfiguration = {
     ...cfg.customConfiguration,
     clients: [
       ...cfg.clients,
@@ -21,12 +22,18 @@ export const combineConfig = async (context: Context, _unsecure: boolean): Promi
       ],
       // Inert unless the account service actually emits the claim (integrated IAM mode)
       [PERMISSIONS_SCOPE]: [PERMISSIONS_CLAIM],
+      // Inert likewise — and a static scope, so only a client whose allowlist names it may ask
+      [ORGANIZATIONS_SCOPE]: [ORGANIZATIONS_CLAIM],
       ...cfg.customConfiguration?.claims,
     },
     scopes: [
-      'openid', 'profile', 'offline_access', PERMISSIONS_SCOPE,
+      'openid', 'profile', 'offline_access', PERMISSIONS_SCOPE, ORGANIZATIONS_SCOPE,
       ...cfg.customConfiguration?.scopes ?? []
     ],
+    discovery: {
+      ...cfg.customConfiguration?.discovery,
+      ...Object.fromEntries(Object.entries(cfg.discoveryUris ?? {}).map(([field, uri]) => [field, updateUri(uri)])),
+    },
     features: {
       ...cfg.customConfiguration?.features,
       devInteractions: { enabled: false }

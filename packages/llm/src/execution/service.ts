@@ -3,7 +3,9 @@ import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import {
   capAnswer, defaultAnswerFor, ExecutionEffort, ExecutionLevel, InquiryPolicy, UTILITY_ROLE,
 } from '@owlmeans/llm-common'
-import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
+import type {
+  CumulativeResults, ExecutionState, ModelPolicy, TaskExecutionState,
+} from '@owlmeans/llm-common'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
 import { InquiryDeclined } from '../inquiry/errors.js'
 import { inquiryTransportFor } from '../inquiry/transport.js'
@@ -14,8 +16,8 @@ import type {
 } from './types.js'
 import { temperatureSteps } from '../utils/effort.js'
 import {
-  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
-  mergePrompt, raisedEffort, resolveRole,
+  composeExecState, composeTaskState, effortPatch, freeze, freezeResults, mergeOverride,
+  mergePolicy, mergePrompt, raisedEffort, resolveRole,
 } from './utils.js'
 
 /**
@@ -124,6 +126,17 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
 
     escalate: (exec, patch: Partial<ModelPolicy>) =>
       freeze(recompose({ ...exec, policy: mergePolicy(exec.policy, patch) })),
+
+    withResults: (exec, results) => {
+      // Replaced, never merged: a view is cut for ONE step, and another step's view names the
+      // wrong predecessors. Without one the key is dropped rather than set to `undefined`, so the
+      // execution — and every snapshot of it — is exactly what it would be had it never carried one.
+      const { results: _replaced, ...rest } = exec as typeof exec & { results?: CumulativeResults }
+
+      return freeze(recompose(
+        results != null ? { ...rest, results: freezeResults(results) } : rest,
+      )) as typeof exec
+    },
 
     model: (exec, role, override) => {
       const effectiveRole = resolveRole(exec.policy, role ?? (exec as HelperExecution).role)

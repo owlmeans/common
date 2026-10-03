@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/client-entrypoint
 
-**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.38`
+**Install:** `bun add @owlmeans/client-entrypoint@^0.1.18-rc.44`
 
 Bind a declaration from `@owlmeans/entrypoint`; never construct or replace a contextual
 entrypoint by alias.
@@ -45,3 +45,9 @@ dynamic remote declaration that cannot be imported.
 Client calls include only contract request sections plus `CallOptions` (`auth`, host/port/base,
 timeout, signal). `url` accepts params/query plus the same address options. The route transport is
 chosen by the declaration; callers do not branch for HTTP, socket, or queue.
+
+`ensureEntrypointFailureService(context)` returns the context-local failure plugin host. Register
+an `onFailure` plugin there to observe a rejected remote `invoke`/`call`, show a toast, or collect
+diagnostics. Plugins run after the transport fails and the original error is still rethrown to
+the caller. This is the opt-in seam for application-wide failure UI; keep the transport independent
+of the chosen toast library.

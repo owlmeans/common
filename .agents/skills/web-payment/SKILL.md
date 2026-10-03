@@ -6,7 +6,7 @@ user-invocable: false
 
 # @owlmeans/web-payment
 
-**Install:** `bun add @owlmeans/web-payment@^0.1.18-rc.23`
+**Install:** `bun add @owlmeans/web-payment@^0.1.18-rc.29`
 
 Public MIT web package paired with `@owlmeans/server-payment`. It incorporates checkout, balance,
 entitlement and shallow-auth helpers over the underlying `@owlmeans/client-payment` service, plus
@@ -69,7 +69,7 @@ and action text come from the application). Every one accepts `className`.
 | `PlanCard` | `plan: EntitlementPlanView`, `offer?: { sku, title, priceLabel, highlight? }`, `current?`, `pending?`, `actionLabel?`, `onAction?(sku)`, `children?` | Title; the status line (with a tone dot) for the entity's own plan, or for an offer only when it is current; a "Current plan" badge; `priceLabel`; children; one action button (outline when current, disabled while `pending`). `current` defaults to `offer.sku === plan.sku`. |
 | `LimitMeter` | `limit: LimitView`, `label`, `showReset? = true`, `compact?` | `used of limit` (with `unit`), a `Progress` bar, "Limit reached" when exhausted, "Resets on …" for a window limit, the promo inscription. `limit: 0` reads "Not included" and draws no bar. |
 | `CapabilityList` | `capabilities: CapabilityView[]`, `labels: Record<param, string>`, `onlyGranted?` | One row per labelled param in view order (duplicate params collapse, granted wins); unlabelled rows are not rendered; ungranted rows are muted; promo inscription under the label. |
-| `CheckoutLimitNote` | `limit: CheckoutLimitView \| null`, `reasonLabel?: string \| (reason) => string` | Nothing for `null` or a limit that narrowed nothing; else "You can add up to {max} right now" (or "You cannot add credits right now" when `blocked`), the reason's sentence (`per-purchase`, `window`, `hold`, any other → generic; `reasonLabel` replaces it) and "More becomes available on {resetsAt}" (UTC, to the minute). |
+| `CheckoutLimitNote` | `limit: CheckoutLimitView \| null`, `reasonLabel?: string \| (reason) => string` | Nothing for `null` or a limit that narrowed nothing; else "You can add up to {max} right now" (or "You cannot add credits right now" when `blocked`), the reason's sentence (`per-purchase`, `window`, `total`, `hold`, any other → generic; `reasonLabel` replaces it) and "More becomes available on {resetsAt}" (UTC, to the minute). |
 
 - **Stable selectors** for tests and styling: `[data-plan-card]` with `data-plan-sku`,
   `data-plan-status` (the line kind), `data-plan-tone`, `data-current`; `[data-plan-status-line]`,
@@ -84,7 +84,7 @@ and action text come from the application). Every one accepts `className`.
 
 ## AmountCheckoutDialog
 
-The dialog takes `{ open, onOpenChange, policy, pending, onConfirm, estimate?, limit?, legalNote? }`.
+The dialog takes `{ open, onOpenChange, policy, pending, disabled?, onConfirm, estimate?, limit?, legalNote?, details? }`.
 It keeps integer minor units, accepts locale decimal separators and at most two decimals, shows
 configured presets plus custom input, and reports below/above-bound errors without clamping.
 Confirmation is disabled when invalid or pending.
@@ -103,6 +103,9 @@ tax-inclusive debit.
   `policy` may be the plan's or one already narrowed (`AmountPolicyView.policy`) — narrowing is
   idempotent. **`blocked`** disables the presets, the input and the confirm button; the pinned
   policy `narrowAmountPolicy` returns for a block is never an offer of the minimum.
+- **`details`** is a reusable application-owned React slot after the limit note and before amounts.
+  `disabled` prevents amount selection and submission while application reads are unavailable;
+  cancel remains usable. Applications own loading, failed-read, retry and refreshed-limit details.
 - **`legalNote`** is a slot right above the buttons for the application's legal line (the EU
   withdrawal note of a top-up, terms links) — `[data-legal-note]`.
 - Selectors: `[data-amount-checkout]` (`data-blocked`), `[data-amount-preset="<minor>"]`,
@@ -277,7 +280,7 @@ A Tailwind v4 consumer scanning package source adds:
 All visible interface strings live in the `web-payment` library resource (`lib` namespace,
 `WEB_PAYMENT_RESOURCE`) in all eight languages — `en pl ru be uk es de fr` — under
 `amount-checkout` (incl. `above-limit`), `checkout-limit` (`note`, `blocked`, `resets`,
-`reason.{per-purchase,window,hold,other}`), `entitlement` (`plan`, `status`, `limit`, `promo`,
+`reason.{per-purchase,window,total,hold,other}`), `entitlement` (`plan`, `status`, `limit`, `promo`,
 `capability`), `estimate` (`country`, `country-locked`, `tax-type`, `rate`, `total`,
 `converted-note`, `status`, `loading`, `failed`), and for `./consumer`: `consumer` (toggle, steps,
 receipt labels, validation), `withdrawal` (candidate lines, estimate, kinds, `status.*`) and

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/api
 
 **Layer:** Core
-**Install:** `"@owlmeans/api": "^0.1.18-rc.38"` in `dependencies`
+**Install:** `"@owlmeans/api": "^0.1.18-rc.44"` in `dependencies`
 
 ## Key Exports
 
@@ -17,12 +17,16 @@ user-invocable: false
 | `appendApiClient(ctx, alias?)` | Register it and make it the context's default `webService` when none is set |
 | `ApiClient` | Service interface — a single `handler(req, reply)` |
 | `ApiError`, `ApiClientError`, `ServerCrashedError`, `ServerAuthError`, `ApiStatusError` | Typed transport errors; an `ApiClientError` carries the answered `status` and the server's `incidentId` |
-| `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status and incident id (also the `./status` subpath) |
+| `httpStatusOf`, `incidentIdOf`, `isAccessDenied`, `isIncidentBody`, `parseClientMarker`, `API_CLIENT_MARKER`, `API_STATUS_MARKER` | Read a failure's HTTP status, incident id and IAM denial marker (also the `./status` subpath) |
 | Constants | Status codes (`OK`, `CREATED`, `ACCEPTED`, `FINISHED`, `UNAUTHORIZED_ERROR`, `FORBIDDEN_ERROR`, `SERVER_ERROR`), `INCIDENT_ID_HEADER` (`X-Incident-ID`), `DEFAULT_ALIAS` (`web-client`) |
 
 Subpath `./status` — `httpStatusOf`, `incidentIdOf`, `isIncidentBody`, `parseClientMarker`, the
 markers and `INCIDENT_ID_HEADER`, importing only `@owlmeans/error`: a browser package reads a
 status without pulling axios in.
+
+`isAccessDenied(error)` requires the server's `X-OwlMeans-Denial: access-denied` marker and a 403.
+Do not classify all 403 responses as IAM denials: entitlement and other refusals use that status
+too. The API client stamps the marker on its rejection even under production error exposure.
 
 ## How a call is carried
 
@@ -46,8 +50,27 @@ These live on the request the caller passes and are forwarded to the transport:
   peer hangs forever unless a caller bounds it.
 - `signal` — an `AbortSignal`, which aborts the request in flight.
 - `headers` — a `content-type` of `application/x-www-form-urlencoded` makes the body serialize
-  through `qs` instead of JSON. A string body on a `POST` with no `content-type` gets
-  `application/json` and is sent verbatim rather than re-quoted.
+  through `qs` instead of JSON; any other `content-type` the caller sets is kept.
+
+## Request bodies
+
+The body travels as JSON the server parses back to the value the caller passed:
+
+| Body | On the wire |
+|---|---|
+| Object or array | JSON, serialized by axios — as always |
+| String, number or boolean on a `POST` with no `content-type` | `content-type: application/json`, `JSON.stringify`'d (`'abc'` → `"abc"`, `42`, `true`) |
+| String, number or boolean under a JSON `content-type` (`application/json`, `*+json`), any method | `JSON.stringify`'d |
+| A string that already IS JSON text (`'{"a":1}'`, `'"abc"'`) | Sent as it is — a caller that serialized it itself keeps working |
+| Any scalar under another `content-type` (`text/plain`), or with none on a non-`POST` | Untouched |
+
+Under a body schema of `type: 'string'` (the protocol's contract, read from the entrypoint's
+`filter.body`) a string is always a value: `'123'`, `'true'` or `'{…}'` arrive as those strings,
+and only a JSON string literal counts as pre-serialized. Without a string contract a string that
+parses as JSON is taken as serialized, so send a plain string that looks like JSON through a
+`type: 'string'` contract. The caller's `headers` object is never rewritten. A bare unquoted string
+under `application/json` is invalid JSON — `@owlmeans/server-api` answers it 400 — which is why it
+is never sent.
 
 ## Reading the answer
 

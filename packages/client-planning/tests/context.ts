@@ -86,6 +86,7 @@ const types: AnyTypeSchema[] = [
     flows: [PROJECT_FLOW],
     specifications: [{ category: 'brief', format: SpecificationFormat.Markdown, revisioned: true, type: SPEC }],
     cardTypes: [STORY],
+    scopedCardTypes: true,
   },
   {
     type: STORY,
@@ -118,6 +119,13 @@ export const protocols = makePlanningProtocols({
   guards: [],
 })
 
+/** The same mount with the data-defined schema surface. */
+export const definitionProtocols = makePlanningProtocols({
+  base: { alias: 'test:planning', path: '/planning' },
+  guards: [],
+  definitions: true,
+})
+
 const AUTH = { profileId: PROFILE_ID, userId: 'user-1', entityId: 'acme' } as unknown as Auth
 const entityOf = (id: string): ResolvedEntity => ({ id, slug: id, iamKey: id })
 
@@ -136,6 +144,8 @@ export interface SuiteOptions extends Partial<Pick<PlanningClientOptions, 'poll'
   stores?: boolean
   /** The entity the transport authenticates as. */
   entityId?: string
+  /** Mount the tree with `definitions: true` over a store holding data-defined schemas. */
+  definitions?: boolean
   /** Runs after the server answered a call and before the client sees the answer. */
   after?: (call: Call) => Promise<void>
 }
@@ -193,9 +203,10 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
   const server = makeBasicContext<BasicConfig>({
     ready: false, service: 'client-planning-tests-server', type: AppType.Backend,
   } as BasicConfig)
-  const store = makeMemoryPlanningStore({ sync: opts.sync !== false })
+  const tree = opts.definitions === true ? definitionProtocols : protocols
+  const store = makeMemoryPlanningStore({ sync: opts.sync !== false, schemas: opts.definitions === true })
   appendPlanningService(server, { store, schemas: { types, flows } })
-  server.registerEntrypoints(servePlanningEntrypoints(protocols))
+  server.registerEntrypoints(servePlanningEntrypoints(tree))
   await server.configure().init()
 
   const calls: Call[] = []
@@ -245,7 +256,7 @@ export const makeSuite = async (opts: SuiteOptions = {}): Promise<Suite> => {
   }))
 
   appendPlanningClient(client, {
-    protocols,
+    protocols: tree,
     poll: opts.poll ?? 2,
     schemas: opts.schemas,
     ...(opts.socket === true

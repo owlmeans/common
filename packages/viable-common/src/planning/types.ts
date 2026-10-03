@@ -1,5 +1,6 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
 import type { ProjectArea } from '../areas/consts.js'
+import type { ViableTenancyDecision } from '../areas/tenancy.js'
 import type { StoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import type { ProjectOrigin } from '../convert/types.js'
@@ -42,6 +43,14 @@ export type ViableProjectFields = {
    * "none" and no later run would ask again. `at` is when it was decided, an ISO timestamp.
    */
   landing?: ViableLandingDecision
+  /**
+   * Whether the target splits its operators and its end users into tenant organizations.
+   *
+   * ABSENT means never decided and reads as a single-organization application, exactly as every
+   * project before tenancy. It reaches a run through the blueprint reference (`BlueprintRef.tenancy`)
+   * only when a flag is on.
+   */
+  tenancy?: ViableTenancyDecision
 }
 
 /** The recorded landing-gate decision — see {@link ViableProjectFields.landing}. */

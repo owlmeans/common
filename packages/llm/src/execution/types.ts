@@ -1,9 +1,9 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, Inquiry, InquiryAnswer,
-  InquiryConfig, LlmPurpose, ModelConfigOverride, ModelPolicy, ModelRole, PromptPolicy,
-  TaskExecutionState,
+  CumulativeResults, ExecutionEffort, ExecutionLevel, ExecutionState, FileProviderRef, Inquiry,
+  InquiryAnswer, InquiryConfig, LlmPurpose, ModelConfigOverride, ModelPolicy, ModelRole,
+  PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import type { LlmService, TemperatureFactory } from '../types.js'
 import type { PromptService } from '../prompt/types.js'
@@ -172,6 +172,16 @@ export interface ExecutionService<S extends ExecutionShape = ExecutionShape> ext
   derive: <E extends S['exec']>(exec: E, patch: Partial<E>) => E
   withPurpose: <E extends S['exec']>(exec: E, patch: Partial<S['purpose']>) => E
   escalate: <E extends S['exec']>(exec: E, patch: Partial<ModelPolicy>) => E
+  /**
+   * The same execution, carrying what the earlier steps of its pipeline produced — the view a
+   * pipeline step is handed as `ctx.results.view` — or, given `null`/`undefined`, carrying none.
+   *
+   * The view REPLACES any the execution already carried, because it is cut for one step and a view
+   * cut for another would tell the model about the wrong predecessors. Deep-frozen, and inherited
+   * by everything derived from the result like any other state field, so a helper built from a
+   * task that holds a view composes it without being told.
+   */
+  withResults: <E extends S['exec']>(exec: E, results: CumulativeResults | null | undefined) => E
 
   // Model resolution (policy-aware)
   model: (exec: S['exec'], role?: ModelRole, override?: ModelConfigOverride) => BaseChatModel

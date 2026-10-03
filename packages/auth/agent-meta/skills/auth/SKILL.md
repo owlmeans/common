@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/auth
 
 **Layer:** Core
-**Install:** `"@owlmeans/auth": "^0.1.18-rc.36"` in `dependencies`
+**Install:** `"@owlmeans/auth": "^0.1.18-rc.38"` in `dependencies`
 
 Types, enums, errors and schemas only — no services, no wiring. Every other auth package builds on
 this vocabulary, so a symbol belongs here exactly when both a server and a browser need to agree on
@@ -58,7 +58,7 @@ it.
 
 | Error | Raise it when |
 |-------|---------------|
-| `AuthUnknown` | The thing being authenticated is not known at all — an unregistered plugin type, a request whose auth state is missing |
+| `AuthUnknown` | The thing being authenticated is not known at all — an unregistered plugin type, a method a gate refuses, a request whose auth state is missing. Declares `httpStatus = 400`: the caller's request, never a 500 |
 | `AuthManagerError` | The auth manager itself failed |
 | `AuthManagerUnsupported` | The manager cannot serve this request shape |
 | `AuthenFailed` | Authentication was attempted and rejected (bad challenge, bad code, bad signature) |
@@ -142,8 +142,10 @@ export const list = handlers<Context>().request(projectProtocols.list, async (re
 
 Rules of thumb:
 
-- A gate that decides "not allowed" throws `AuthForbidden`; a handler that finds no identity to act
-  on throws `AuthUnknown`; a failed credential check throws `AuthenFailed`.
+- A gate that decides "not allowed" throws `AuthForbidden` (403); a handler that finds no identity
+  to act on, or a sign-in naming a method nobody serves, throws `AuthUnknown` (400); a failed
+  credential check throws `AuthenFailed`. `@owlmeans/server-api` maps the authorization family to
+  401/403 before reading a class's declared `httpStatus`, so `AuthUnknown`'s 400 never masks them.
 - Keep ownership rules out of this package. Downstream apps compose `@owlmeans/entrypoint` gates or
   handler-level checks around these types.
 - WebSocket wiring uses `Auth`, `AuthToken` and `AuthenticationStage` to move a token-bearing

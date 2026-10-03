@@ -46,6 +46,11 @@
     "PlanningErrorCommitTimeout": "Zmiana jest nadal zapisywana — sprawdź ponownie za chwilę",
     "PlanningErrorCommitFailed": "Nie udało się zapisać zmiany",
     "PlanningErrorScopeMismatch": "Ten element nie istnieje lub nie jest dla Ciebie dostępny",
+    "PlanningErrorSchemaConflict": "Ta definicja została w międzyczasie zmieniona — odśwież i spróbuj ponownie",
+    "PlanningErrorSchemaInUse": "Ta definicja jest nadal używana i nie może zostać wycofana",
+    "PlanningErrorSchemaSealed": "Ta definicja jest stała i nie można jej tu zmienić",
+    "PlanningErrorSchemaInvalid": "Ta definicja jest nieprawidłowa",
+    "PlanningErrorForbidden": "Nie masz uprawnień do wprowadzenia tej zmiany",
     "PlanningErrorUnsupported": "Ta operacja nie jest obsługiwana dla tego elementu"
   }
 }

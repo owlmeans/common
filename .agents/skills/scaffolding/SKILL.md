@@ -19,14 +19,14 @@ the framework shape is [[getting-started]].
 npm create @owlmeans/app@latest my-app
 bun create @owlmeans/app my-app
 yarn create @owlmeans/app my-app
-npx @owlmeans/create-app@^0.1.18-rc.48 my-app
+npx @owlmeans/create-app@^0.1.18-rc.55 my-app
 ```
 
 By default it copies the template, runs `git init`, installs dependencies, and **deploys agent
 guidance** into the project (`.agents/skills/`). `@owlmeans/agent-skills` is a dependency of the
 scaffolder and runs in-process, so the deploy happens whatever `--pm` is. With `--no-install` it
 still runs — the installer's own bundled extras give the project its general/harness guidance;
-only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.39` after the
+only the package-specific skills wait for `npx @owlmeans/agent-skills@^0.1.18-rc.46` after the
 install.
 
 Flags: `--name <name>`, `--slug <slug>`, `--lang <code>` (default `en`), `--description <text>`,
@@ -90,7 +90,7 @@ Follow **Option B** in the
 [OwlMeans getting-started guide](https://github.com/owlmeans/common/blob/main/docs/getting-started.md): create the bun
 workspace, then `common` (shared `entrypoints.ts`/schemas/config), `api` (`@owlmeans/server-app` +
 `appendStaticResource` handlers + `main`), and `web` (`@owlmeans/web-panel` + shadcn `@`-provided
-primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.39` to add agent guidance.
+primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.18-rc.46` to add agent guidance.
 
 ## What gets generated
 
@@ -98,8 +98,7 @@ primitives + layout/nav/screens). Finish with `npx @owlmeans/agent-skills@^0.1.1
 my-app/
 ├── package.json            # bun workspaces: sources/*, plus a `prepare` script
 ├── bunfig.toml             # [install] linker = "hoisted"
-├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder
-├── CLAUDE.md               # thin bridge: imports AGENTS.md, documents the skill symlinks
+├── AGENTS.md               # git/reporting/memory/self-education rules + project-purpose placeholder + Claude Code skill-link notes
 ├── .agents/skills/         # seeded harness skills (+ deployed ones)
 ├── .agents/scripts/link-skills.sh  # links local + installed-package skills for every agent
 ├── .agents/linked-skills/  # generated on install, git-ignored — see below
@@ -156,8 +155,8 @@ subscribed as a live query through `useStoreList`; the fetch calls the entrypoin
 Workflow**, **Reporting**, **Memory** (the `.agents/memory/` graph store), **Self-Education** —
 plus the mandatory [[reuse-code]] section and a **project-purpose placeholder**
 (`<!-- OWLMEANS:PROJECT-PURPOSE -->`). On the first agent session that block instructs the agent to
-ask the user what the project is for and replace it. `CLAUDE.md` is a thin bridge that imports
-`AGENTS.md` and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
+ask the user what the project is for and replace it. Claude Code reads `AGENTS.md` itself
+(no `CLAUDE.md`) and keeps the gitignored `.claude/skills/` symlinks fresh through a `SessionStart`
 hook. Copilot and Codex need no bridge file: they read `AGENTS.md`, `.agents/skills/` and
 `.agents/linked-skills/` natively, which is why `AGENTS.md` carries its own
 `<!-- OWLMEANS:LINKED-SKILLS -->` section describing where the linked skills come from.
@@ -168,6 +167,6 @@ project has it even before the installer runs: [[agent-memory]], [[memory-promot
 [[getting-started]]. Regenerate the seed with `sync-agent-meta --seed-only` in the library-manager;
 never hand-edit a seeded copy. The installer adds the remaining general skills
 ([[scaffolding]], [[router-plugins]], [[shadcn-web]], [[shadcn-versions]], [[consent]],
-[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.39`
+[[login-methods]], [[login-plugins]], [[agent-skills]]) and every package-specific one. After adding any `@owlmeans/*` dependency, re-run `npx @owlmeans/agent-skills@^0.1.18-rc.46`
 — discovery scans **every** `node_modules/@owlmeans` in the workspace (root and nested under
 `sources/*`), so package-specific skills are picked up even though bun nests them.

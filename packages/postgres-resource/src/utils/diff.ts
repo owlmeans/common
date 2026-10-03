@@ -23,19 +23,44 @@ const defaultExpression = (column: ColumnSpec): string | undefined => {
   return undefined
 }
 
+/** A type cast as `pg_get_expr` / `pg_get_indexdef` print one: `::text`, `::character varying(64)[]`. */
+const CAST = /::(?:character varying|double precision|bit varying|timestamp with(?:out)? time zone|time with(?:out)? time zone|[a-z_][a-z0-9_]*)(?:\(\d+(?:\s*,\s*\d+)?\))?(?:\[\])?/g
+
 /**
- * Postgres echoes defaults back with an explicit cast — a declared `'active'` comes back
- * as `'active'::text`. Strip a trailing cast when the literal underneath still matches, so
- * an unchanged default doesn't look like drift on every boot.
+ * Postgres echoes defaults back with explicit casts — a declared `'active'` comes back as
+ * `'active'::text`. Compare without them, so an unchanged default doesn't look like drift on
+ * every boot.
  */
 const normalizeDefault = (expression: string | null | undefined): string | null => {
   if (expression == null) return null
 
-  return expression.trim().replace(/::[a-z0-9_ ."\[\]]+$/i, '').trim().toLowerCase()
+  /**
+   * Casts anywhere (a `varchar` id's `gen_random_uuid()::text` is stored as
+   * `(gen_random_uuid())::character varying`) and the parentheses Postgres adds around them.
+   */
+  return expression.toLowerCase().replace(CAST, '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-const normalizeDefinition = (definition: string): string =>
-  definition.replace(/\s+/g, ' ').replace(/ ?, ?/g, ',').trim().toLowerCase()
+/**
+ * The form an index or constraint definition is compared in, so the statement this package emits
+ * and the text Postgres reports for the object it created compare equal.
+ *
+ * Postgres deparses what it stores: it leaves an identifier unquoted when it can, casts every
+ * literal (`''::text`), casts a `varchar` column inside an expression, wraps a partial predicate and
+ * each of its operator expressions in parentheses, and rewrites `x IN (…)` as `x = ANY (ARRAY[…])`.
+ * Comparing the raw texts made every boot drop and recreate every declared index and every enum
+ * `CHECK`. So both sides lose case, quotes, casts, whitespace and parentheses, and `= ANY (ARRAY[…])`
+ * reads as `IN (…)`. What that cannot tell apart — two definitions differing only in how their
+ * operators group — is a change to make under a new name.
+ */
+export const canonicalDefinition = (definition: string): string => definition
+  .toLowerCase()
+  .replace(/"/g, '')
+  .replace(CAST, '')
+  .replace(/[\s()]/g, '')
+  .replace(/=anyarray\[([^\]]*)\]/g, 'in$1')
+
+const normalizeDefinition = canonicalDefinition
 
 const columnList = (columns: string[]): string => columns.map(quoteIdent).join(', ')
 

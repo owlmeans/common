@@ -7,7 +7,7 @@ metadata:
 
 # Using `@owlmeans/server-auth-otp`
 
-**Install:** `"@owlmeans/server-auth-otp": "^0.1.18-rc.44"` in `dependencies`
+**Install:** `"@owlmeans/server-auth-otp": "^0.1.18-rc.50"` in `dependencies`
 
 Email OTP authentication plugin for the OwlMeans auth-manager plugin system. Relies on `@owlmeans/auth-otp` for the OTP service interface, a Redis resource for code storage, and a `MailerService` to send codes.
 
@@ -70,9 +70,13 @@ appendOtpPlugin(context)
 **Authenticate** — client sends `{ challenge: <signed-envelope>, userId: email, credential: '123456', type: 'email-otp', role: AuthRole.User, scopes: [ALL_SCOPES] }`:
 - Envelope is opened → the plugin verifies the opaque issuance and code atomically. Five failed
   attempts invalidate it; one concurrent correct verification can consume it.
-- `IdentityLinkingService` finds the linked profile, or links this email to the person's platform
-  identity — registering an account, a profile and an organization entity only when the address is
-  new to the platform.
+- The `IdentityLinkingService` `cfg.otp.identityAlias` names answers the payload. The identity
+  store's own (`AUTH_IDENTITY_LINKING`) follows the e-mail code's credential to the person's
+  account, or finds the account by the address — the code becoming another credential on it — or
+  registers an account with a personal organization when the address is new; it answers the
+  deployment's own row in the account's main organization. An integrated provider's end-user login
+  names the e-mail proof linking service instead (`makeEmailProofLinkingService`,
+  `@owlmeans/iam-integrated`), which proves the address and writes nothing.
 - Copies `userId`, `profileId`, `entitySlug`, `role` and `scopes` from the resolved payload onto the
   credential, sets `credential.type = AuthenticationType.OneTimeToken`, and returns the signed auth
   token.
@@ -100,12 +104,11 @@ cfg.otp = {
 - Call `appendOtpPlugin(context)` once per context — it adds to the shared plugin registry singleton.
 - `credential.entitySlug` on the authenticate request **selects nothing**. The plugin copies it into
   the linking details as `clientId` (defaulting to `'default'`) and `entityId`, and
-  `@owlmeans/server-auth-identity` reads neither: `getLinkedProfile` keys on the external login key
-  built from the auth type, the `'email'` service and the address, and `linkProfile` either reuses
-  the person's existing platform profile — matched on the account name — or mints a brand-new
-  organization entity. Whatever the caller sent is then overwritten with the linked profile's own
-  slug before the envelope is signed, so the address alone decides which identity and which
-  organization the token names.
+  `@owlmeans/server-auth-identity` reads neither: `getLinkedProfile` keys on the credential built
+  from the auth type, the `'email'` service and the address, and `linkProfile` lands on the one
+  account of that address (registering it with a personal organization when it is new). Whatever
+  the caller sent is then overwritten with the linked payload's own slug before the envelope is
+  signed, so the address alone decides which account and which organization the token names.
 - Errors from this plugin are `AuthenFailed` (from `@owlmeans/auth`) — callers catch that, not raw `Error`.
 - Use the email throttle for the public integrated-IAM flow: one issuance per minute and ten per
   hour, with a 429 and Retry-After. The companion IP throttle is available for an ingress that

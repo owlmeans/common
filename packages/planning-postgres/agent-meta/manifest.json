@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/planning-postgres",
+  "version": "0.1.18-rc.5",
+  "generatedAt": "2026-10-03T11:19:50.768Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "planning-postgres",
+      "category": "package-specific",
+      "file": "skills/planning-postgres/SKILL.md",
+      "canonicalPath": ".agents/skills/planning-postgres/SKILL.md"
+    }
+  ]
+}

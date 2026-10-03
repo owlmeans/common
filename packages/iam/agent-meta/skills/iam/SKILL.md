@@ -1,6 +1,6 @@
 ---
 name: iam
-description: "How to use @owlmeans/iam — the provider-agnostic IamService, the permission-definition and two-form grant model, client-id uniqueness, issuer and redirect-URI rules, and hasPermission. Load when wiring IAM operations, granting or revoking permissions, selecting the IAM backend, or implementing a new IAM provider. Applies to files matching **/services/iam*.ts, **/context.ts, **/types.ts."
+description: "How to use @owlmeans/iam — the provider-agnostic IamService, the permission-definition model with its four kinds (unbound, entity-bound, resource-bound, both) and default classes, the organization/group/subject facets, the runtime IAM API declarations, client-id uniqueness, issuer and redirect-URI rules, and hasPermission. Load when wiring IAM operations, granting or revoking permissions, working with tenanted clients, selecting the IAM backend, or implementing a new IAM provider. Applies to files matching **/services/iam*.ts, **/context.ts, **/types.ts."
 metadata:
   applyTo: "**/services/iam*.ts, **/context.ts, **/types.ts"
 ---
@@ -8,57 +8,43 @@ metadata:
 
 # Using `@owlmeans/iam`
 
-**Install:** `"@owlmeans/iam": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/iam": "^0.1.18-rc.47"` in `dependencies`
 
 Provider-agnostic IAM abstraction: the `IamService` interface, the permission and grant shapes, the
-gate-param grammar, and `hasPermission`. It contains no implementation and talks to no provider —
+gate-param grammar, `hasPermission`, and the declarations of the provider's runtime IAM API. It
+contains no implementation and talks to no provider —
 concrete backends (a Keycloak proxy, an integrated backend built on the OwlMeans OIDC provider) are
 separate packages, and every consumer depends on this interface rather than on one of them.
 
-## The browser half — `@owlmeans/client-iam`
+## Where the halves live
 
-`@owlmeans/client-iam` has no skill of its own because it is a wiring package: it re-exports these
-types and `hasPermission`, and adds the two calls that turn "this application uses IAM" into two
-lines.
-
-| Export | Description |
-|--------|-------------|
-| `appendIam(context, opts?)` | Wires the OIDC guard onto a web context **and** installs the consent-before-sign-in precondition |
-| `withIamGuard(protocolTree, coguards?)` | Returns a decorated immutable protocol tree with IAM's OIDC guard applied |
-| `iamEntrypoints(dispatcherProps?)` | Browser-local OIDC bindings and dispatcher-screen binding |
-| `requireConsentForLogin(ctx, opts?)` | That precondition on its own, for a context wired some other way |
-| `CONSENT_LOGIN_PRECONDITION` / `CLIENT_IAM_SERVICE` | The precondition alias and the service alias |
-| `useLogin` / `useLogout`, `LoginOutcome` / `LoginIntent`, `LoginPlugin` / `LoginService` / … | Re-exported sign-in surface, so an app has one IAM import rather than three |
-| Everything from `@owlmeans/iam` | The types above, plus `hasPermission` |
-
-The protocol tree is immutable. Decorate it once with `withIamGuard(protocols)` before binding local
-screens and API callers, then spread `iamEntrypoints()` once into that browser binding list. The
-helper deliberately does not add declarations to a flattened entrypoint array.
-
-And the consent precondition sits on `LoginService.begin` rather than on a hook, a screen or a login
-plugin, because `begin` is the single funnel every sign-in mechanic passes through and the one place
-the user's gesture is still live — a refusal resolves as `LoginOutcome.Gesture` and opens the consent dialog in
-the same gesture. An application that genuinely sets no cookie passes `{ consent: { disabled: true } }`.
-
-The server half of the same story is `@owlmeans/server-iam` — the IAM gate that asserts the grants
-this package's screens hand out. Permission decisions are made there, never in the browser.
+This package is contracts only. The browser half — `appendIam`, the session's organizations and the
+switch, `hasPermission` re-exported — is `@owlmeans/client-iam` (`client-iam` skill); the server half
+— the IAM gate, the session's organizations on the server and the runtime IAM client — is
+`@owlmeans/server-iam` (`server-iam` skill). Permission decisions are made on the server, never in
+the browser.
 
 ## Public API surface
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
 | `IamService` | type | Unified IAM interface — all provisioning + authorization operations |
-| `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm? }` |
-| `IamClientOptions` | type | `{ redirectUris? }` — explicit `ensureClient` hardening; omitting is a keycloak-only legacy shape (see below) |
+| `IamClient` | type | Provisioned OIDC client `{ id?, clientId, secret?, name?, realm?, config? }` |
+| `IamClientInfo` | type | `IamClient` without `secret` — what `getClient` answers |
+| `IamClientConfig` | type | `{ operators?, users?, [key]: unknown }` — the two tenancy flags plus the client's arbitrary configuration |
+| `IamClientOptions` | type | `{ redirectUris?, config? }` — explicit `ensureClient` hardening (omitting `redirectUris` is a keycloak-only legacy shape, see below); `config` merges shallowly |
 | `IamCredentialsPair` | type | `{ token: string; realm: string }` |
-| `IamPermissionArgs` | type | `{ permission?, resourceScoped?, title?, area?, managed? }` — `permission` absent means unscoped resource name |
+| `IamPermissionArgs` | type | `{ permission?, resourceScoped?, entityScoped?, title?, area?, managed?, defaultClass? }` — `permission` absent means unscoped resource name; omitted flags are kept, passed ones (`false` / `None` included) written |
 | `IamResourceSpec` | type | `{ name: string; displayName?: string }` |
-| `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, title?, area?, managed? }` |
-| `IamPermissionFilter` | type | `{ areas?, managed?, resourceScoped? }` — narrows `listPermissions`; an `areas` entry of `null` matches untagged definitions |
-| `IamGrantArgs` | type | `{ resources?: string[], mode? }` |
-| `IamGrant` | type | `{ profileId, clientId, permission, resources?, mode? }` |
+| `IamPermissionDefinition` | type | Declared permission `{ name, resource, action?, resourceScoped?, entityScoped?, title?, area?, managed?, defaultClass? }` |
+| `IamPermissionFilter` | type | `{ areas?, managed?, resourceScoped?, entityScoped? }` — narrows `listPermissions`; an `areas` entry of `null` matches untagged definitions |
+| `IamDefaultClass` | enum | `None` / `User` / `Member` / `Owner` — who holds a definition without a grant (see "Permission kinds") |
+| `IamGrantArgs` | type | `{ resources?, mode?, entitySlug? }` — `entitySlug` binds an `entityScoped` grant |
+| `IamGrant` | type | `{ profileId? \| group?, clientId, permission, resources?, mode?, entitySlug?, origin?, through? }` — exactly one subject |
+| `IamGrantOrigin` | enum | `Direct` / `Default` / `Group` — why a listed grant is held; `through` names the group |
+| `IamGroupRef` | type | `{ entitySlug, key }` — a group by its organization's slug and its key |
 | `IamGrantMode` | enum | `Blanket` / `Resources` / `All` — which FORM of a grant an operation addresses |
-| `IamGrantBundle` | type | `{ filter?, permissions?, mode?, resources? }` — what `grantBundle` hands out |
+| `IamGrantBundle` | type | `{ filter?, permissions?, mode?, resources?, entitySlug? }` — what `grantBundle` hands out |
 | `IamRemovalPolicy` | enum | `Cascade` / `Refuse` — what to do about grants of a definition being deleted |
 | `IamPermissionDeleteArgs`, `IamPermissionRemoval` | type | `{ policy?, managed? }` and `{ permission, clientId, found, revoked }` |
 | `IamNormalizeArgs`, `IamNormalizationReport` | type | `{ dryRun? }` and the rename/merge plan `normalizePermissions` reports |
@@ -66,11 +52,24 @@ this package's screens hand out. Permission decisions are made there, never in t
 | `PERMISSION_ACTION_SEPARATOR` | const | `'--'` — TWO hyphens, never one |
 | `parsePermissionName` / `composePermissionName` / `isPermissionName` | fn | Read, build and validate a permission NAME |
 | `ParsedPermissionName` | type | `{ name, resource, action?, problem? }` |
-| `IamUser` | type | End-user of an entity `{ profileId, email?, name?, role, disabled?, grantCount? }` |
+| `IamUser` | type | Subject of one client `{ profileId, email?, name?, role, disabled?, grantCount?, home?, memberships? }` |
+| `IamMembershipInfo` | type | `{ entitySlug, title?, owner, groups, home? }` — one organization of an `IamUser` |
 | `IamUserInvite` | type | `{ email, name?, role? }` — find-or-create args |
-| `IamUserUpdate` | type | `{ name?, role?, disabled? }` |
-| `hasPermission` | fn | `(auth, permission, { scope?, resourceId? }?)` — checks `Authorization.permissions` PermissionSet[]; an unscoped set satisfies a resourceId check |
-| `HasPermissionOptions` | type | `{ scope?, resourceId? }` |
+| `IamUserUpdate` | type | `{ name?, role?, disabled? }` — `disabled` lands on the primary row |
+| `IamOrganization`, `IamOrganizationArgs`, `IamOrganizationUpdate` | type | `{ entitySlug, title?, members? }`; create `{ title?, profileId? }` (the new owner); update `{ title }` |
+| `IamMember`, `IamMemberInvite`, `IamMemberUpdate` | type | `{ profileId, email?, name?, owner, groups, managed? }`; `{ email, name?, owner? }`; `{ owner?, groups? }` |
+| `IamGroup`, `IamGroupArgs`, `IamGroupBundle` | type | `{ entitySlug, key, title?, managed?, members?, bundles }`; `{ title?, bundles? }`; `{ filter?, permissions? }` |
+| `IamStaffSyncArgs`, `IamStaffSyncReport` | type | `{ bundles }` and `{ added, removed }` (profile ids) of `syncStaff` |
+| `IamSubject`, `IamSignInArgs`, `IamSignInResult` | type | `{ profileId, email?, name?, organizations, permissions }` (claims input); `{ email, name? }`; `{ accountId, profileId }` |
+| `IamOrganizationFacet`, `IamGroupFacet`, `IamSubjectFacet` | type | The three facets of `IamService` |
+| `unsupportedFacet<T>(what)` | fn | A facet whose every method throws `IamUnsupported(what)` — synchronously |
+| `IAM_MEMBERS_GROUP` | const | `'members'` — the managed staff group `syncStaff` keeps |
+| `IAM_EMAIL_PROOF` | const | `'proof:email'` — the `profileId` of a credential that proves an address and identifies nobody yet |
+| `hasPermission` | fn | `(auth, permission, { scope?, resourceId?, entitySlug? }?)` — checks `Authorization.permissions`; an unscoped set satisfies a resourceId check, an unbound set any organization |
+| `HasPermissionOptions` | type | `{ scope?, resourceId?, entitySlug? }` |
+| `makeIamRuntimeProtocols({ service, path? })` | fn | The runtime IAM API's protocol tree — see "Runtime IAM API" |
+| `IAM_RUNTIME_GUARD`, `IAM_RUNTIME_PATH`, `IAM_RUNTIME_ROUTES` | const | Its guard alias, default base path (`'/runtime'`) and leaf-path table |
+| `IamRuntime*` | type/schema | Its wire shapes and closed schemas (`IamRuntimeOrganization`, `IamRuntimeMember`, `IamRuntimePermission`, `IamRuntimeGrant`, `IamRuntimeGrantRequest`, … and `*Schema`) |
 | Gate grammar | fn/type | `parseGateParam`, `parseGateSelector`, `formatGateParam`, `resolveGateResource`, `validateGateParams`, `routeParamsOf`, plus `RESOURCE_*_SEPARATOR`, `GateParamSource`, `DEFAULT_GATE_PARAM_SOURCES`, `GateParamErrorCode`, `GateResolutionFailure` and the `Gate*` types. The syntax itself is documented in the `server-iam` skill |
 | `DEFAULT_ALIAS` | const | Default service alias `'iam-service'` |
 | `IAM_MODE_KEYCLOAK` | const | `'keycloak'` |
@@ -82,9 +81,11 @@ this package's screens hand out. Permission decisions are made there, never in t
 | `IamGrantError` | class | Grant subject missing or entity mismatch |
 | `IamPermissionError` | class | A refusal about a DEFINITION: `permission:held:<name>`, `permission:managed:<name>` |
 | `IamUserError` | class | An end-user operation was refused |
+| `IamOrganizationError` | class | An organization or membership refusal — unknown organization, last owner, membership cap |
+| `IamGroupError` | class | A group refusal — unknown key, a managed group written by an operator, another app's group |
 | `IamUnsupported` | class | Operation not supported by the active backend (e.g. `resource-scoped-grant`, `user-management`) |
 
-## Permission model (two grant forms)
+## Permission model (kinds and grant forms)
 
 Permissions are declared per entity client (project) with `ensurePermission` and granted to end-user
 subjects with `grantPermission`:
@@ -113,6 +114,45 @@ nothing at request time. `managed: true` marks a definition the platform owns: a
 revoke it from an undifferentiated list, and a repair that deletes "definitions no declaration names"
 must not reach one.
 
+### Permission kinds
+
+What a grant binds to is a property of the DEFINITION, and grants follow it:
+
+| Kind | Definition flags | Grant stored on | Applies |
+|---|---|---|---|
+| unbound | none | the subject's primary row, or a group | everywhere |
+| entity-bound | `entityScoped` | the subject's row of THAT organization, or a group of it | only while acting in that organization |
+| resource-bound | `resourceScoped` | the primary row, a titled set with `resources` | to those resource ids |
+| both | both | that organization's row, a titled set with `resources` | both checks |
+
+- Granting an `entityScoped` definition REQUIRES `args.entitySlug`, which names the subject's row
+  there — the subject must be a member. Any other definition refuses `args.entitySlug`. Turning
+  `entityScoped` off while grants exist is refused: every bound grant would silently widen.
+- Stored sets carry the organization's id; CLAIM sets (provider → relying party only) carry its
+  `entitySlug` instead (`OidcPermissionSetClaim`). The relying party keeps the unbound sets and the
+  acting organization's, strips the binding, and drops the rest — a browser token never carries a
+  bound set of another organization.
+- `hasPermission(auth, name, { entitySlug })` applies a set without `entitySlug` everywhere and a
+  bound one only when `opts.entitySlug` names its organization — fail-closed, so a bound set that
+  leaked into a token never counts where the caller named no organization.
+
+### Default classes
+
+`defaultClass` says who holds a definition without an explicit grant. It is evaluated when claims and
+grant listings are built — never written onto a row:
+
+- `User` — every signed-in subject of the client. Requires an unbound, unmanaged `user`-area definition.
+- `Member` / `Owner` — every member / owner of the organization the subject acts in. Requires
+  `entityScoped`.
+- `None` — nobody.
+
+A class default is a BLANKET set, so `Owner` on a resource-scoped definition is its all-records form.
+An explicit `false` on a row suppresses only the class default of that binding (an unbound `false`
+suppresses `User`; a `false` on the row of an organization suppresses `Member`/`Owner` there).
+Grants are additive — there is no deny rule over a group's grant. A listing marks each grant's
+`origin`: `Direct`, `Default`, or `Group` with `through` naming the group. A backend that cannot
+evaluate classes (Keycloak) refuses any `defaultClass` other than `None` with `IamUnsupported`.
+
 ## `IamService` interface
 
 ```ts
@@ -128,10 +168,14 @@ interface IamService extends InitializedService {
   // "A client id is a global name" for the two rules it has to obey.
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
 
+  // The entity's client without its secret, or null. Never provisions.
+  getClient: (entityId: string, clientId: string) => Promise<IamClientInfo | null>
+
   // Reserve a free client id without provisioning it; false when anyone else holds it.
   claimClient: (entityId: string, clientId: string) => Promise<boolean>
 
-  // Release a client id and everything keyed by it (called when a project/slot is deleted).
+  // Release a client id and everything keyed by it — its subjects' rows, its groups, its
+  // definitions (called when a project/slot is deleted).
   deleteClient: (entityId: string, clientId: string) => Promise<void>
 
   // Declare a permission. Returns the canonical name. MERGES into an existing definition —
@@ -148,14 +192,16 @@ interface IamService extends InitializedService {
   // A rename and a merge — never a delete, never an invention.
   normalizePermissions: (entityId: string, clientId: string, args?: IamNormalizeArgs) => Promise<IamNormalizationReport>
 
-  // Provision a resource and assign it to the tenant's owner role
+  // Provision a resource and assign it to the tenant's owner role (keycloak). A no-op on the
+  // integrated backend, which has no owner role to assign to.
   ensureResourceOwnership: (entityId: string, clientId: string, resource: IamResourceSpec) => Promise<void>
 
   // --- Authorization (permission definitions & grants) ---
 
   listPermissions: (entityId: string, clientId: string, filter?: IamPermissionFilter) => Promise<IamPermissionDefinition[]>
 
-  // args.resources selects the resource-scoped form; see "Permission model (two grant forms)"
+  // args.resources selects the resource-scoped form, args.entitySlug the binding of an entityScoped
+  // definition; see "Permission model (kinds and grant forms)"
   grantPermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<IamGrant>
   revokePermission: (entityId: string, clientId: string, profileId: string, permission: string, args?: IamGrantArgs) => Promise<void>
 
@@ -164,30 +210,108 @@ interface IamService extends InitializedService {
   // grantPermission, which costs N·M writes and N·M lost-update windows on the same records.
   grantBundle: (entityId: string, clientId: string, profileIds: string[], bundle: IamGrantBundle) => Promise<IamGrant[]>
 
+  // Direct, default-class and group grants, each with its `origin`.
   listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
 
-  // --- End-user management — see "End-users are customer-wide" ---
+  // --- Users of one client — see "Users are per client" ---
 
   listUsers: (entityId: string, clientId?: string) => Promise<IamUser[]>
-  getUser: (entityId: string, profileId: string) => Promise<IamUser | null>
-  inviteUser: (entityId: string, invite: IamUserInvite) => Promise<IamUser>
-  updateUser: (entityId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
-  removeUser: (entityId: string, profileId: string) => Promise<void>
+  getUser: (entityId: string, clientId: string, profileId: string) => Promise<IamUser | null>
+  inviteUser: (entityId: string, clientId: string, invite: IamUserInvite) => Promise<IamUser>
+  updateUser: (entityId: string, clientId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
+  removeUser: (entityId: string, clientId: string, profileId: string) => Promise<void>
+
+  // The owning organization's staff, admitted to the client through the managed `members` group.
+  syncStaff: (entityId: string, clientId: string, args: IamStaffSyncArgs) => Promise<IamStaffSyncReport>
+
+  // --- Tenancy facets — see "Organizations, groups and subjects" ---
+  organizations: IamOrganizationFacet
+  groups: IamGroupFacet
+  subjects: IamSubjectFacet
 }
 ```
 
-## End-users are customer-wide
+The first parameter of every method is `entityId` — the organization that OWNS the client — and
+every `(entityId, clientId)` method verifies that ownership before it reads or writes anything. The
+organizations a client's subjects act in are a different thing, named by `entitySlug` inside the
+facets.
 
-An end-user belongs to the **entity**, not to a project: one customer's users are shared across every
-project they own. `listUsers` therefore returns the entity's whole set and `clientId` only scopes the
-reported `grantCount` to one project's client. Do not reintroduce a per-client filter — a person who
-has authenticated against a project but holds no grant there is still that project's user, and the
-screen that hands out grants is exactly where they have to be visible.
+## Users are per client
 
-`inviteUser` is idempotent by email, which is what lets an invitation and a first sign-in converge on
-one record instead of accumulating twins. A backend with no user store of its own — one where the
-customer manages users in the provider's own console — throws `IamUnsupported('user-management')`
-from all five methods.
+A person is ONE account (one per e-mail address); what a client sees of it are its rows of that app —
+one per (account, app, organization), the PRIMARY one in the account's own organization. The
+`profileId` a client knows is the pairwise subject, the same on every row of one (account, app) and
+different for every app, so two apps of one customer cannot correlate their users by it.
+
+- `listUsers(entityId, clientId)` lists every account holding a row of the client, in whichever
+  organization. Without `clientId` it is a read-only aggregate over the entity's clients, for a
+  console — nothing is written through it.
+- `getUser` / `inviteUser` / `updateUser` / `removeUser` take the client. `removeUser` deletes this
+  account's rows of THAT app only — the account, and its rows of other apps, stay. `updateUser`
+  writes `disabled` on the primary row, which is what refuses the subject at the provider.
+- `inviteUser` is idempotent by email, which is what lets an invitation and a first sign-in converge on
+  one record instead of accumulating twins.
+
+A backend with no user store of its own — one where the customer manages users in the provider's own
+console — throws `IamUnsupported('user-management')` from all five methods.
+
+## Organizations, groups and subjects
+
+The three facets of `IamService` carry tenancy. A backend that cannot provide one answers
+`unsupportedFacet<IamOrganizationFacet>('organizations')` (and so on): every method of it throws
+`IamUnsupported(what)` SYNCHRONOUSLY, because `subjects.identify` is synchronous and a rejected
+promise would hand it the wrong type — an awaited call rejects either way.
+
+- **Tenancy is the client's configuration.** `IamClientConfig.users` / `.operators` turn it on: with
+  neither flag, every subject acts in the client's owning organization (a single-tenant app); with
+  either, each subject acts in organizations of its own and the provider claims them under the
+  `organizations` scope (`@owlmeans/oidc`). The flags also gate the runtime API's writes by area.
+- **`organizations`** — `list`, `get`, `create({ title?, profileId? })` (that subject becomes the
+  owner), `update({ title })`, `members`, `addMember` (find-or-create by e-mail, idempotent, refused
+  past the membership cap), `updateMember`, `removeMember`. The last owner cannot be demoted or
+  removed (`IamOrganizationError`).
+- **`groups`** — a group is (organization, client, key), kept inside the organization record; one
+  client never reads or writes another's. `list`, `ensure`, `remove`, `members`, `addMembers`,
+  `removeMembers`, `grant` / `revoke` (bound to the group's organization), `grants`, and
+  `setBundles` — a bundle (`{ filter?, permissions? }`) grants every definition it selects to the
+  group's members at claim time. `IAM_MEMBERS_GROUP` is the managed group `syncStaff` keeps in the
+  owning organization; it is read-only to an operator (`IamGroupError`).
+- **`subjects`** — the provider's half, keyed by the ACCOUNT, which never leaves the provider.
+  `signIn(clientId, { email })` finds or creates the account and its rows for the client;
+  `resolve(clientId, accountId)` builds the `IamSubject` the claims come from (`null` = not admitted:
+  no row, or a disabled primary row); `identify(clientId, accountId)` is the pairwise `sub`.
+
+## Runtime IAM API
+
+`makeIamRuntimeProtocols({ service, path? })` declares the provider-side API a tenanted client's
+server calls on behalf of its signed-in subject. It is declarations only: the provider binds it, and
+a relying party calls it through `iamRuntime` (`@owlmeans/server-iam`) over plain `fetch`.
+
+| Route (under `path`, default `IAM_RUNTIME_PATH`) | Tree | Who |
+|---|---|---|
+| `GET /organizations` | `organizations.list` | any subject — its own |
+| `POST /organizations` `{ title? }` | `organizations.create` | any subject of a tenanted client; it becomes owner |
+| `POST /organizations/:entitySlug` `{ title }` | `organizations.update` | owner |
+| `GET /organizations/:entitySlug/members` | `members.list` | member |
+| `POST /organizations/:entitySlug/members` `{ email, name?, owner? }` | `members.add` | owner; idempotent by e-mail |
+| `POST …/members/:profileId` `{ owner?, groups? }` | `members.update` | owner |
+| `POST …/members/:profileId/remove` | `members.remove` | owner, or the member itself |
+| `GET …/permissions` | `permissions.list` | member |
+| `GET …/grants` `?profileId` | `grants.list` | owner |
+| `POST …/grants`, `POST …/grants/revoke` `{ profileId, permission, resources?, mode? }` | `grants.assign` / `grants.revoke` | owner |
+
+- **Every route, the base included, is pinned to `service`** — a route's service is never inherited
+  from its parent — and every leaf hangs under ONE base carrying `IAM_RUNTIME_GUARD`. The serving
+  process registers that guard: it admits only a bearer access token the provider issued, and takes
+  the client and the account from it, never from the request.
+- **The wire names organizations by `entitySlug` and subjects by the calling client's pairwise
+  `profileId`** — no organization or account id appears in any shape. Every schema is closed, since
+  the server's AJV strips an undeclared key silently. `IAM_RUNTIME_ROUTES` is the one leaf-path table
+  the declarations and the fetch client share.
+- The serving process enforces the write rules: only `entityScoped`, unmanaged definitions of the
+  CALLING client, binding forced to the path's organization, the last owner protected, the
+  membership cap, and only for an area the client's tenancy config opens (`users` → `user`,
+  `operators` → `operator`). A non-owner write is `AuthForbidden(ORGANIZATION_OWNER_REFUSAL)`.
 
 ## A client id is a global name
 
@@ -208,8 +332,8 @@ cannot namespace it on a consumer's behalf. Uniqueness has to be *in the id*.
 
 ## `IamClient.realm` field
 
-`realm` is set by the provider to the entity id, so read `client.realm ?? fallbackEntityId` and never
-reach into an adapter's own internals (`(client as any)._realm`) for the same value.
+Every implementation sets `realm` to the entity id, so read `client.realm ?? fallbackEntityId` and
+never reach into an adapter's own internals (`(client as any)._realm`) for the same value.
 
 ## Issuer & redirect URIs
 
@@ -278,14 +402,18 @@ the same options — otherwise they disagree about the issuer, and only one of t
 - Do not expose `getCredentialsPair` to request handlers — it returns a raw admin token.
 - `IamClientError` means the provisioned client was invalid (missing secret, null token). The adapter
   already throws it; callers handle it rather than re-throwing a wrapped error.
-- `IamClient.realm` is set by every concrete implementation.
-- An operation a backend cannot support throws `IamUnsupported('<what>')`. Callers turn that into a
-  fallback — an "external console" link, a disabled control — rather than an error screen.
+- An operation a backend cannot support throws `IamUnsupported('<what>')`; a whole facet it cannot
+  support is `unsupportedFacet(what)`. Callers turn that into a fallback — an "external console"
+  link, a disabled control — rather than an error screen.
+- A wire value names an organization by `entitySlug` only; the `entityId` parameter is the client's
+  OWNER, resolved server-side, never taken from a token or a request.
 
 ## Related
 
-- `@owlmeans/server-iam` — the IAM gate that asserts both grant forms, and the gate-param grammar;
-  see the `server-iam` skill
+- `@owlmeans/server-iam` — the IAM gate that asserts every permission kind, the gate-param grammar,
+  the session's organizations and the runtime IAM client; see the `server-iam` skill
+- `@owlmeans/client-iam` — browser wiring, the organization switch and `hasPermission`; see the
+  `client-iam` skill
 - `@owlmeans/oidc` — provider descriptors and the `iamMode` config seam; see the `oidc` skill
 - The concrete adapters (a Keycloak proxy, and the integrated backend built on
   `@owlmeans/server-oidc-provider` plus `@owlmeans/server-auth-identity`) ship separately and are

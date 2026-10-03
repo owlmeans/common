@@ -10,13 +10,16 @@ the `@owlmeans/server-planning/store` subpath.
 ## Installation
 
 ```sh
-bun add @owlmeans/server-planning@^0.1.18-rc.11 @owlmeans/planning@^0.1.18-rc.10 ajv
+bun add @owlmeans/server-planning@^0.1.18-rc.18 @owlmeans/planning@^0.1.18-rc.15 ajv
 ```
 
 ## Concepts
 
-- **Facade** — `context.planning().for(scope)`: every read and write of one organization entity,
-  with no scope argument on any method.
+- **Facade** — `ctx.service<PlanningHostService>(PLANNING_SERVICE).for(scope)`: every read and
+  write of one organization entity, with no scope argument on any method. `context.planning()` is
+  the same service, but only on a context that went through `appendPlanningService`; a service
+  registered as a plain one (`makePlanningService()`, a generated target's `services/planning.ts`)
+  has no `context.planning`.
 - **Executor** — the only write path: normalize → idempotency → resolve → plugins' `before` →
   validate → id → code → changes → seq CAS → append → project → receipt. Nothing is appended by a
   refusal.
@@ -101,36 +104,61 @@ const cards = await planningFor(ctx, req, { channel: 'web' }).cards.list({ paren
 
 - Service: `appendPlanningService`, `ensurePlanningService`, `makePlanningService`,
   `planningServiceApi`, `makePluginRegistry`, `makeStoreFacade`, `executeTransition`,
-  `PlanningServiceOptions`, `PlanningHostService`, `PlanningRuntime`, `PluginRegistry`
+  `creatorOf`, `withCreator`, `assertCreatorFixed`, `PlanningServiceOptions`, `PlanningHostService`,
+  `PlanningRuntime`, `PluginRegistry`
 - Handlers: `servePlanningEntrypoints`, `planningFor`, `listSchemas`, `listCards`,
   `summarizeCards`, `getCard`, `listCardTransitions`, `listCardSpecifications`, `getSpecification`,
   `listSpecificationRevisions`, `listLinks`, `getTransition`, `executePlanning`, `wireExecution`,
-  `executeOptionsOf`, `getCommit`, `watchCommits`, `PlanningHandlerOptions`, `PlanningScopeExtractor`
-- Scope: `scopeOf`, `actorOf`, `handlerFacade`, `planningServiceOf`, `concealed`, `assertScope`,
-  `notFoundOf`, `clampSeconds`
+  `executeOptionsOf`, `assertExecutionGranted`, `getCommit`, `watchCommits`, `defineSchemas`,
+  `applySchemaRequest`, `PlanningHandlerOptions`, `PlanningScopeExtractor`, `PlanningAccessResolver`,
+  `PlanningAccess`, `PlanningAccessGrants`, `PlanningGrant`
+- Scope: `scopeOf`, `accessScopeOf`, `actorOf`, `handlerFacade`, `handlerScopeOf`, `assertGranted`,
+  `planningServiceOf`, `concealed`, `assertScope`, `notFoundOf`, `clampSeconds`, `projectCriteriaOf`
+- Data-defined schemas: `makeDefinitions`, `makeSchemaViews`, `SchemaViews`, `SchemaViewsOptions`
 - Projection: `makeProjectionProcessor`, `planningQueueHooks`, `ProjectionOptions`
-- Constants: `DEFAULT_ALIAS`, `MEMORY_STORE_ALIAS`, `DEFAULT_COMMIT_MEMORY`, `COMMIT_POLL_LADDER`
+- Constants: `DEFAULT_ALIAS`, `MEMORY_STORE_ALIAS`, `DEFAULT_COMMIT_MEMORY`, `COMMIT_POLL_LADDER`,
+  `DEFAULT_SCHEMA_VIEWS`
 - `@owlmeans/server-planning/store`: `makeMemoryPlanningStore`, `foldPending`, `failPending`,
-  `revisionsFromLog`, `commitEventOf`, `makeCommitHub`, `makeCompositeStore`, and the types
-  `BindablePlanningStore`, `CommitListener`, `CommitHub`, `CommitHubOptions`, `FoldOptions`,
-  `FoldResult`, `MemoryPlanningStore`, `MemoryPlanningStoreOptions`, `StoreRoute`
+  `revisionsFromLog`, `commitEventOf`, `makeCommitHub`, `makeCompositeStore`, `wantsSpecifications`,
+  and the types `BindablePlanningStore`, `CommitListener`, `CommitHub`, `CommitHubOptions`,
+  `FoldOptions`, `FoldResult`, `MemoryPlanningStore`, `MemoryPlanningStoreOptions`, `StoreRoute`
+- `@owlmeans/server-planning/conformance`: `planningConformance`, `conformanceCasesFor`,
+  `planningConformancePlugin`, `conformanceClock`, `ConformanceFailure`, `check`, `same`,
+  `sameSet`, `rejects`, the library fixtures (`LIBRARY`, `createBranch`, `createBook`, `transit`)
+  and the types `ConformanceCase`, `ConformanceSubject`, `ConformanceCapability`
 
 ## Common pitfalls
+
+- A create's draft goes under `card` — `draft` is refused as `planning:malformed:create-without-draft`.
+- `{ wait: true }` is the SECOND argument of `execute`; inside the execution it is ignored and the
+  receipt returns before the commit.
+- A type or flow declaration has no `name` or `key`: the display name is `label`, the key is `type`
+  (a type) or `id` (a flow). `definitions.define` refuses anything else with `SchemaInvalid`; a code
+  plugin's registry does not check, so keep the literals typed.
 
 - `after` hooks run where the transition is FOLDED, once per commit — register the same plugins in
   every folding process, and never run hooks from a commit-bus subscription.
 - The memory store is per-process heap: wrong for multiple processes or restarts.
 - `actor` comes from the scope; a wire `actor` or `createdBy` is ignored.
+- A create's `createdBy` defaults to the scope's subject (`profileId`, else `userId`, else the
+  scope actor's) on every path — in-process facade and HTTP alike; an in-process draft that names
+  one keeps it, a scope naming nobody leaves it unset.
+- After the create `createdBy` never moves: an execution naming it in `changes` or `unset` is
+  refused with `planning:immutable:createdBy` — over HTTP, in process and from a `before` plugin.
 - Another entity's record is `WorkcardNotFound`, never a permission error.
 - Give retried writes a `key` — it is checked before validation, so a retry answers the first receipt.
 - `expectSeq` compares against `head`; a stale one is `WorkcardConflict`, re-read and retry.
 - Call `appendPlanningService` before any `ensurePlanningService`, or the appended host replaces
   what was registered on the default one.
+- `opts.access` makes the resolver the only source of the organization; a `grants` object refuses
+  every flag it leaves out.
+- A durable store is not done until it passes `@owlmeans/server-planning/conformance`.
 
 ## Related packages
 
 - `@owlmeans/planning` — records, flows, fold, query language, protocol tree, models
 - `@owlmeans/client-planning` — the remote facade and state mirror
+- `@owlmeans/planning-postgres` — the durable Postgres store
 - `@owlmeans/server-job`, `@owlmeans/queue` — job feeds and the projection queue
 
 <!-- owlmeans:agent-guidance:start -->
@@ -141,7 +169,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

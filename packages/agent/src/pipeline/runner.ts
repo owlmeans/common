@@ -12,9 +12,32 @@ import type {
 import { DEFAULT_INQUIRY_ANSWER_CHARS, capAnswer, stateAnswerOf } from '@owlmeans/llm-common'
 import type { InquiryAnswer } from '@owlmeans/llm-common'
 import type {
-  PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineResult, PipelineRunContext,
-  PipelineStep, PipelineStepMapping,
+  PipelineEnterMode, PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineParentRef,
+  PipelinePlugin, PipelineResult, PipelineRunContext, PipelineStep, PipelineStepContribution,
+  PipelineStepMapping, StepResults,
 } from './types.js'
+
+/** Ordering weight of a pipeline plugin that declares none. */
+const DEFAULT_PIPELINE_PLUGIN_ORDER = 50
+
+/**
+ * Plugins seated by alias — a second registration replaces the first in its place — and ordered
+ * by `order`, then by where each alias was first seated.
+ */
+const seatPlugins = <S extends PipelineState, C>(
+  plugins: readonly PipelinePlugin<S, C>[],
+): PipelinePlugin<S, C>[] => {
+  const seats = new Map<string, { plugin: PipelinePlugin<S, C>, index: number }>()
+  plugins.forEach((plugin, index) => {
+    seats.set(plugin.alias, { plugin, index: seats.get(plugin.alias)?.index ?? index })
+  })
+
+  return [...seats.values()]
+    .sort((a, b) =>
+      (a.plugin.order ?? DEFAULT_PIPELINE_PLUGIN_ORDER) - (b.plugin.order ?? DEFAULT_PIPELINE_PLUGIN_ORDER)
+      || a.index - b.index)
+    .map(seat => seat.plugin)
+}
 
 /**
  * Ends a run on purpose, with work left to do.
@@ -124,6 +147,38 @@ export const makePipeline = <S extends PipelineState, C>(
   const terminals = spec.steps
     .filter(declared => !spec.steps.some(other => (other.after ?? []).includes(declared.step)))
     .map(declared => declared.step)
+  const seated = seatPlugins(options.plugins ?? [])
+  // Tested at every hook site, so a pipeline that seats nothing awaits nothing it did not await
+  // before the seam existed — not even a no-op — and its parallel steps interleave exactly as they did.
+  const hooked = seated.length > 0
+
+  /**
+   * One hook of every seated plugin, in order, collecting what each returned.
+   *
+   * A plugin that throws is logged and skipped: it is an enhancement, and losing one costs what it
+   * adds, never the work. Two things escape — the runner's own stop signal, and an error the
+   * pipeline calls fatal. The caller of this function routes the second down the fatal path.
+   */
+  const eachPlugin = async <T>(
+    hook: string, call: (plugin: PipelinePlugin<S, C>) => T | void | Promise<T | void>,
+  ): Promise<T[]> => {
+    const answers: T[] = []
+    for (const plugin of seated) {
+      try {
+        const answer = await call(plugin)
+        if (answer != null) {
+          answers.push(answer)
+        }
+      } catch (e) {
+        if (isStop(e) || options.fatal?.(e) === true) {
+          throw e
+        }
+        console.warn(`Pipeline plugin ${plugin.alias} failed on ${hook} for ${spec.alias}:`, e)
+      }
+    }
+
+    return answers
+  }
 
   /** The copy of an answer this pipeline's STATE is allowed to hold. */
   const forState = (answer: InquiryAnswer): InquiryAnswer =>
@@ -161,6 +216,7 @@ export const makePipeline = <S extends PipelineState, C>(
       signal?: AbortSignal
       onProgress?: (progress: PipelineProgress) => void
     },
+    entry: { mode: PipelineEnterMode, parent?: PipelineParentRef },
   ): Promise<PipelineResult<S>> => {
     const deadline = args.budgetMs != null ? Date.now() + args.budgetMs : undefined
     const controller = new AbortController()
@@ -344,6 +400,27 @@ export const makePipeline = <S extends PipelineState, C>(
       return ctx
     }
 
+    /**
+     * `passStep` of every plugin. Called where no step body is running — a guard skip, an optional
+     * failure already caught — so a fatal plugin error is routed down the fatal path HERE, exactly
+     * as the step's own catch would route a fatal step error.
+     */
+    const passing = async (
+      step: string, ctx: PipelineRunContext<S, C>, reason: 'skipped' | 'failed', error?: Error,
+    ): Promise<void> => {
+      try {
+        await eachPlugin('passStep', plugin => plugin.passStep?.({
+          step, ctx, state: live as Readonly<S>, reason, ...(error != null ? { error } : {}),
+        }))
+      } catch (e) {
+        if (!isStop(e)) {
+          outcome.fatal = e
+          outcome.failedAt = step
+        }
+        throw e
+      }
+    }
+
     const nodeFor = (declared: PipelineStepSpec) =>
       async (): Promise<Record<string, unknown>> => {
         const step = declared.step
@@ -385,6 +462,9 @@ export const makePipeline = <S extends PipelineState, C>(
         if (skip) {
           trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (skip)`)
           report({ pipeline: spec.alias, runId: row.runId, step, index, total, skipped: true })
+          if (hooked) {
+            await passing(step, ctx, 'skipped')
+          }
           await commit({ completed: step })
 
           return { completed: [step] }
@@ -394,8 +474,27 @@ export const makePipeline = <S extends PipelineState, C>(
         report({ pipeline: spec.alias, runId: row.runId, step, index, total })
 
         try {
+          if (hooked) {
+            const offered = await eachPlugin<PipelineStepContribution>('beforeStep', plugin => plugin.beforeStep?.({
+              step, ctx, state: live as Readonly<S>,
+            }))
+            const results = offered.find(contribution => contribution.results != null)?.results
+            if (results != null) {
+              // Only ever set when a plugin offers it: a step of a pipeline that seats none must
+              // not even see the key.
+              (ctx as { results?: StepResults }).results = results
+            }
+          }
           const patch = (await handler.run(live as Readonly<S>, ctx)) ?? {}
           Object.assign(live, patch)
+          if (hooked) {
+            // Before the commit that marks the step complete, so whatever a plugin persists about
+            // the step lands before the step is durably done — a crash between the two leaves the
+            // step to be run again, never a done step with nothing recorded about it.
+            await eachPlugin('afterStep', plugin => plugin.afterStep?.({
+              step, ctx, state: live as Readonly<S>, patch: patch as Partial<S>,
+            }))
+          }
           await commit({ completed: step })
           if (outcome.failedAt === step) {
             // A retry that succeeded. Nothing failed here after all.
@@ -423,6 +522,9 @@ export const makePipeline = <S extends PipelineState, C>(
           if (declared.optional === true) {
             const warning = `${step}: ${asError(e).message}`
             console.warn(`Pipeline ${spec.alias}:${step} failed and is optional:`, e)
+            if (hooked) {
+              await passing(step, ctx, 'failed', asError(e))
+            }
             await commit({ completed: step, warning })
 
             return { completed: [step], warnings: [warning] }
@@ -476,7 +578,66 @@ export const makePipeline = <S extends PipelineState, C>(
       options.checkpointer != null ? { checkpointer: options.checkpointer } : undefined,
     )
 
+    const resultOf = (error: Error | null = outcome.error): PipelineResult<S> => ({
+      runId: row.runId,
+      status: row.status,
+      state: live,
+      completed: [...row.completed],
+      pending: [...row.pending],
+      warnings: [...row.warnings],
+      ...(row.failedAt != null && row.failedAt !== '' ? { failedAt: row.failedAt } : {}),
+      ...(error != null ? { error } : {}),
+      ...(row.note != null ? { note: row.note } : {}),
+      ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
+    })
+
+    /**
+     * `exit` of every plugin, with the result the caller is about to receive. On a run already
+     * leaving with a fatal error nothing more may escape; otherwise a fatal plugin error takes the
+     * fatal path — the row written `Failed` first, then the error rethrown.
+     */
+    const exiting = async (result: PipelineResult<S>, escaping: boolean): Promise<void> => {
+      try {
+        await eachPlugin('exit', plugin => plugin.exit?.({
+          spec, runId: row.runId, deps: args.deps, result,
+        }))
+      } catch (e) {
+        if (escaping) {
+          console.warn(`Pipeline plugin failed on exit of ${spec.alias}:${row.runId}:`, e)
+          return
+        }
+        await commit({
+          status: PipelineRunStatus.Failed,
+          failedAt: row.completed[row.completed.length - 1] ?? order[0],
+          error: asError(e).message,
+          freezeState: true,
+        }).catch(saveError => console.error('Pipeline could not record a fatal outcome:', saveError))
+        throw e
+      }
+    }
+
     try {
+      if (hooked) {
+        try {
+          await eachPlugin('enter', plugin => plugin.enter?.({
+            spec,
+            runId: row.runId,
+            scope: row.scope,
+            ...(row.entityId != null ? { entityId: row.entityId } : {}),
+            deps: args.deps,
+            mode: entry.mode,
+            inherited: order.filter(step => seeded.has(step)),
+            state: live as Readonly<S>,
+            ...(entry.parent != null ? { parent: entry.parent } : {}),
+          }))
+        } catch (e) {
+          // Only a fatal error or a stop gets here; a fatal one is recorded the way a step's is.
+          if (!isStop(e)) {
+            outcome.fatal = e
+          }
+          throw e
+        }
+      }
       await compiled.invoke(
         { state: { ...live }, completed: [...row.completed], warnings: [...row.warnings] },
         {
@@ -506,6 +667,9 @@ export const makePipeline = <S extends PipelineState, C>(
           error: asError(outcome.fatal).message,
           freezeState: true,
         }).catch(saveError => console.error('Pipeline could not record a fatal outcome:', saveError))
+        if (hooked) {
+          await exiting(resultOf(asError(outcome.fatal)), true)
+        }
         throw outcome.fatal
       } else {
         outcome.error = outcome.error ?? asError(e)
@@ -520,18 +684,12 @@ export const makePipeline = <S extends PipelineState, C>(
       args.signal?.removeEventListener('abort', onAbort)
     }
 
-    return {
-      runId: row.runId,
-      status: row.status,
-      state: live,
-      completed: [...row.completed],
-      pending: [...row.pending],
-      warnings: [...row.warnings],
-      ...(row.failedAt != null && row.failedAt !== '' ? { failedAt: row.failedAt } : {}),
-      ...(outcome.error != null ? { error: outcome.error } : {}),
-      ...(row.note != null ? { note: row.note } : {}),
-      ...(row.inquiry != null ? { inquiry: row.inquiry } : {}),
+    const result = resultOf()
+    if (hooked) {
+      await exiting(result, false)
     }
+
+    return result
   }
 
   const freshRow = (args: PipelineInvokeArgs<C>): PipelineRun => ({
@@ -595,7 +753,10 @@ export const makePipeline = <S extends PipelineState, C>(
         + ` · steps=${total} inherited=${seeded.size} attempt=${row.attempts}`,
       )
 
-      return await execute(row, live, seeded, args)
+      return await execute(row, live, seeded, args, {
+        mode: args.restart === true ? 'restart' : resuming ? 'continue' : 'fresh',
+        ...(args.parent != null ? { parent: args.parent } : {}),
+      })
     },
 
     resume: async (runId, args) => {
@@ -650,7 +811,7 @@ export const makePipeline = <S extends PipelineState, C>(
         + ` attempt=${row.attempts}`,
       )
 
-      return await execute(row, live, new Set(completed), args)
+      return await execute(row, live, new Set(completed), args, { mode: 'continue' })
     },
 
     snapshot: async runId => (await runs?.load(runId)) ?? null,
@@ -681,6 +842,14 @@ export const makePipeline = <S extends PipelineState, C>(
               return remaining != null ? { budgetMs: remaining } : {}
             })(),
             signal: ctx.signal,
+            // Where the child sits, for its plugins: a results ledger shared with the parent, and
+            // the parent's view for this step as what the child's first step starts from.
+            parent: {
+              pipeline: ctx.spec.alias,
+              runId: ctx.runId,
+              step,
+              ...(ctx.results != null ? { results: ctx.results } : {}),
+            },
           })
 
           if (result.status === PipelineRunStatus.Waiting) {

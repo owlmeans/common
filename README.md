@@ -89,7 +89,7 @@ bun run test
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
-| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.39` installs it. | [`agent-skills`](packages/agent-skills) |
+| **Agent skill / agent-meta** | Version-matched guidance for coding agents. Each package ships it in `agent-meta/`, and `npx @owlmeans/agent-skills@^0.1.18-rc.46` installs it. | [`agent-skills`](packages/agent-skills) |
 
 ## How an application is shaped
 
@@ -226,18 +226,107 @@ concepts, worked examples, the full export list and common pitfalls.
 Lower-level building blocks, feature families and tooling. Most applications reach them through the
 application packages above, or add one when they need that specific feature.
 
-| Group | Packages |
-|---|---|
-| Configuration and tooling | [`agent-skills`](packages/agent-skills), [`cli-auth`](packages/cli-auth), [`create-app`](packages/create-app), [`dep-config`](packages/dep-config), [`viable-mcp`](packages/viable-mcp), [`viable-sdk`](packages/viable-sdk) |
-| Core foundations | [`basic-envelope`](packages/basic-envelope), [`basic-ids`](packages/basic-ids), [`basic-keys`](packages/basic-keys), [`did`](packages/did), [`i18n`](packages/i18n), [`router`](packages/router), [`socket`](packages/socket) |
-| Cross-cutting domain | [`agent`](packages/agent), [`agent-common`](packages/agent-common), [`auth-otp`](packages/auth-otp), [`consent`](packages/consent), [`flow`](packages/flow), [`iam`](packages/iam), [`job`](packages/job), [`llm`](packages/llm), [`llm-common`](packages/llm-common), [`mailer`](packages/mailer), [`marketing-consent`](packages/marketing-consent), [`oidc`](packages/oidc), [`payment`](packages/payment), [`planning`](packages/planning), [`viable-common`](packages/viable-common), [`wled`](packages/wled) |
-| Auth shared | [`auth-common`](packages/auth-common), [`auth-token`](packages/auth-token), [`oauth`](packages/oauth) |
-| API and runtime config | [`api`](packages/api), [`api-config`](packages/api-config), [`api-config-client`](packages/api-config-client), [`api-config-server`](packages/api-config-server) |
-| Storage and infrastructure | [`image-resource`](packages/image-resource), [`kluster`](packages/kluster), [`mailer-smtp`](packages/mailer-smtp), [`marketing-consent-mongo`](packages/marketing-consent-mongo), [`marketing-consent-postgres`](packages/marketing-consent-postgres), [`mongo`](packages/mongo), [`postgres`](packages/postgres), [`redis`](packages/redis), [`redis-queue`](packages/redis-queue), [`server-mailer-mailgun`](packages/server-mailer-mailgun), [`static-resource`](packages/static-resource), [`storage-common`](packages/storage-common), [`storage-resource`](packages/storage-resource) |
-| Server | [`server-auth-otp`](packages/server-auth-otp), [`server-auth-session`](packages/server-auth-session), [`server-auth-token`](packages/server-auth-token), [`server-config`](packages/server-config), [`server-context`](packages/server-context), [`server-iam`](packages/server-iam), [`server-job`](packages/server-job), [`server-marketing-consent`](packages/server-marketing-consent), [`server-oauth`](packages/server-oauth), [`server-oidc-provider`](packages/server-oidc-provider), [`server-payment`](packages/server-payment), [`server-planning`](packages/server-planning), [`server-route`](packages/server-route), [`server-wl`](packages/server-wl) |
-| Client | [`client-config`](packages/client-config), [`client-context`](packages/client-context), [`client-did`](packages/client-did), [`client-flow`](packages/client-flow), [`client-i18n`](packages/client-i18n), [`client-iam`](packages/client-iam), [`client-job`](packages/client-job), [`client-panel`](packages/client-panel), [`client-payment`](packages/client-payment), [`client-planning`](packages/client-planning), [`client-resource`](packages/client-resource), [`client-route`](packages/client-route), [`client-socket`](packages/client-socket), [`client-wl`](packages/client-wl) |
-| Web | [`astro`](packages/astro), [`mui-oidc-rp`](packages/mui-oidc-rp), [`mui-panel`](packages/mui-panel), [`web-auth`](packages/web-auth), [`web-auth-token`](packages/web-auth-token), [`web-consent`](packages/web-consent), [`web-db`](packages/web-db), [`web-flow`](packages/web-flow), [`web-gtm`](packages/web-gtm), [`web-marketing-consent`](packages/web-marketing-consent), [`web-oauth`](packages/web-oauth), [`web-oidc-provider`](packages/web-oidc-provider), [`web-oidc-rp`](packages/web-oidc-rp), [`web-payment`](packages/web-payment), [`web-router`](packages/web-router), [`web-router-react-router`](packages/web-router-react-router), [`web-wl`](packages/web-wl) |
-| Test support | [`test`](packages/test), [`test-auth`](packages/test-auth), [`test-integration`](packages/test-integration), [`test-ui`](packages/test-ui) |
+| Group | Package | Purpose |
+|---|---|---|
+| Configuration and tooling | [`agent-skills`](packages/agent-skills) | The CLI that installs embedded package guidance into a project, and the prompt plugins that load package and project skills |
+|  | [`cli-auth`](packages/cli-auth) | OAuth device-authorization sign-in for a command-line tool: the `~/.owlmeans` credentials file, a cross-process sign-in lock and a browser opener |
+|  | [`create-app`](packages/create-app) | Scaffold a fullstack OwlMeans app — its common, api and web packages — or, with `--bare`, the demo-free shell |
+|  | [`dep-config`](packages/dep-config) | Shared TypeScript configuration for `@owlmeans` packages |
+|  | [`viable-mcp`](packages/viable-mcp) | An MCP server that lets a coding agent build full-stack web applications with the OwlMeans Viable platform |
+|  | [`viable-sdk`](packages/viable-sdk) | Drive the Viable platform from outside it: the connector session, the local slot executor and the tool catalogue |
+| Core foundations | [`basic-envelope`](packages/basic-envelope) | Signed, typed, time-limited payload envelopes, serialized as a wrap or a token |
+|  | [`basic-ids`](packages/basic-ids) | Random identifiers, v4 UUIDs and human-readable word slugs |
+|  | [`basic-keys`](packages/basic-keys) | Ed25519 key pairs, signing and verification, the key model and its auth plugins |
+|  | [`did`](packages/did) | The derivable owlmk key type, DID key models and a wallet over a three-resource store |
+|  | [`i18n`](packages/i18n) | The core localization registry packages register their strings in (no runtime dependencies) |
+|  | [`router`](packages/router) | The UI routing plugin host: the router service, cascade selection, the route IR and the matcher |
+|  | [`socket`](packages/socket) | The transport-agnostic Connection model, its message types and the socket errors |
+| Cross-cutting domain | [`agent`](packages/agent) | Context-aware LLM agents over LangGraph's functional API, and resumable checkpointed pipelines |
+|  | [`agent-common`](packages/agent-common) | Runtime-free agent contracts: conversation identity, the run lifecycle and pipeline declarations |
+|  | [`auth-otp`](packages/auth-otp) | Email-OTP sign-in contracts: the auth type, the service and cache names, the code length and lifetime |
+|  | [`consent`](packages/consent) | The cookie-consent model, its categories, the storage contract and Consent Mode v2 signalling |
+|  | [`flow`](packages/flow) | A serializable step/transition state machine whose whole state is one string |
+|  | [`iam`](packages/iam) | The provider-agnostic IAM service, permission definitions and grants, and `hasPermission` |
+|  | [`job`](packages/job) | Browser-safe application job projections, schemas and entrypoint contracts |
+|  | [`llm`](packages/llm) | The LLM inference runtime: provider plugins, the model factory, policy-driven execution and prompt composition |
+|  | [`llm-common`](packages/llm-common) | Runtime-free serializable contracts for LLM inference and execution |
+|  | [`mailer`](packages/mailer) | The MailerService contract and a console transport for development and tests |
+|  | [`marketing-consent`](packages/marketing-consent) | Marketing-consent contracts: the opt-in/opt-out catalogue, revision-aware status, terms acceptance and the consent protocol tree |
+|  | [`oidc`](packages/oidc) | The OIDC names both sides share: the gate, the guard, requested scopes, provider descriptors and the dispatcher entrypoints |
+|  | [`payment`](packages/payment) | Provider-agnostic payment contracts: protocols, checkout policies, catalogue records, entitlement gates and consumer rights |
+|  | [`planning`](packages/planning) | Runtime-free planning contracts: workcards, projects, specifications, status flows, the transition fold, scoped schemas and the protocol tree |
+|  | [`viable-common`](packages/viable-common) | Runtime-free contracts of the OwlMeans Viable platform |
+|  | [`wled`](packages/wled) | The shared white-label contract: company info, styles, brand media and DNS shapes |
+| Auth shared | [`auth-common`](packages/auth-common) | The auth vocabulary both sides share: guard aliases, the auth protocol trees, the Ed25519 guard and the organization-entity helpers |
+|  | [`auth-token`](packages/auth-token) | Long-lived access tokens (API keys): the record, the token format, the management entrypoints and the carrier guard |
+|  | [`oauth`](packages/oauth) | Shared OAuth 2.1 contracts: device authorization, authorization code with PKCE, the metadata documents and the consent flow |
+| API and runtime config | [`api`](packages/api) | The HTTP client service that carries entrypoint calls between services, with typed transport errors |
+|  | [`api-config`](packages/api-config) | The runtime config document a backend advertises: its entrypoint and the allowlist plugins |
+|  | [`api-config-client`](packages/api-config-client) | Fetches the runtime config a backend advertises and merges it into the client config at boot |
+|  | [`api-config-server`](packages/api-config-server) | Answers the runtime config endpoint from package-owned allowlist plugins |
+| Storage and infrastructure | [`image-resource`](packages/image-resource) | Image-shaped names and schemas over the shared stored-file types |
+|  | [`kluster`](packages/kluster) | The Kubernetes API client service and the `kluster:` config directive that resolves cluster addresses at boot |
+|  | [`mailer-smtp`](packages/mailer-smtp) | The SMTP (nodemailer) transport for the MailerService contract |
+|  | [`marketing-consent-mongo`](packages/marketing-consent-mongo) | Mongo storage for the two marketing-consent resources |
+|  | [`marketing-consent-postgres`](packages/marketing-consent-postgres) | Postgres tables for the two marketing-consent resources of a generated target project |
+|  | [`mongo`](packages/mongo) | The MongoDB connection service, cluster setup and the field-encryption backend |
+|  | [`planning-postgres`](packages/planning-postgres) | A durable Postgres planning store: four tables, an inline fold under a per-card advisory lock and a LISTEN/NOTIFY commit bus |
+|  | [`postgres`](packages/postgres) | The PostgreSQL connection service, its health checks and the least-privilege bootstrap path |
+|  | [`redis`](packages/redis) | The Redis connection service registered on a server context |
+|  | [`redis-queue`](packages/redis-queue) | The BullMQ-over-Redis driver for `@owlmeans/queue` |
+|  | [`server-mailer-mailgun`](packages/server-mailer-mailgun) | The Mailgun production email transport |
+|  | [`static-resource`](packages/static-resource) | An in-process Resource over a module-scope map, for records an app holds in memory |
+|  | [`storage-common`](packages/storage-common) | Shared object and file storage types, errors and model |
+|  | [`storage-resource`](packages/storage-resource) | An upload-only S3-compatible object storage resource with MIME sniffing |
+| Server | [`server-auth-otp`](packages/server-auth-otp) | The email-OTP auth plugin and OtpService for passwordless sign-in |
+|  | [`server-auth-session`](packages/server-auth-session) | The seven-day session registry, with memory and Redis implementations |
+|  | [`server-auth-token`](packages/server-auth-token) | The server half of access tokens: the store, the verifying guard, the management handlers and the coguard |
+|  | [`server-config`](packages/server-config) | `sservice()` for backend service routes, file-mounted config values and the server config shape |
+|  | [`server-context`](packages/server-context) | `makeServerContext()`, the server config shape and the file config reader |
+|  | [`server-iam`](packages/server-iam) | One-call OIDC relying-party wiring and the IAM gate for unscoped and resource-scoped permissions |
+|  | [`server-job`](packages/server-job) | Technical queue work exposed as sanitized application job views behind an authenticated policy |
+|  | [`server-marketing-consent`](packages/server-marketing-consent) | The database-agnostic MarketingConsentService and its guarded handlers |
+|  | [`server-oauth`](packages/server-oauth) | An OAuth 2.1 authorization server that mints ordinary access tokens on approval |
+|  | [`server-oidc-provider`](packages/server-oidc-provider) | An embedded OIDC identity provider on top of `oidc-provider` |
+|  | [`server-payment`](packages/server-payment) | Protocol-bound payment resources, entitlement gates and Stripe checkout |
+|  | [`server-planning`](packages/server-planning) | The planning service and plugin registry, the transition executor, the in-memory store, the handlers and the store conformance suite |
+|  | [`server-route`](packages/server-route) | Server-side route models: matching a request against a mounted path |
+|  | [`server-wl`](packages/server-wl) | The server half of the white-label contract: the provide entrypoint and its provider seams |
+| Client | [`client-config`](packages/client-config) | The base client config shape and `addWebService()` |
+|  | [`client-context`](packages/client-context) | `makeClientContext()`, the platform-agnostic base of every web and native context |
+|  | [`client-did`](packages/client-did) | The browser and native DID wallet service, and signing an authentication challenge with it |
+|  | [`client-flow`](packages/client-flow) | The platform-agnostic flow service and the runner a screen drives through a flow |
+|  | [`client-i18n`](packages/client-i18n) | The React i18n context over i18next, language switching and deferred language packs |
+|  | [`client-iam`](packages/client-iam) | One-call OIDC relying-party wiring for a browser app: the IAM guard, consent before sign-in and the login hooks |
+|  | [`client-job`](packages/client-job) | Sanitized application job views in a browser: `useJob`, `useJobs` and one feed subscription |
+|  | [`client-panel`](packages/client-panel) | Cross-platform panel and form components and the headless navigation model |
+|  | [`client-payment`](packages/client-payment) | The browser PaymentService with a cached shallow identity |
+|  | [`client-planning`](packages/client-planning) | The remote planning facade, the state mirror and the subscribe-then-poll commit wait, for a browser or a Node client |
+|  | [`client-resource`](packages/client-resource) | A client-side caching resource for in-memory or persistent storage |
+|  | [`client-route`](packages/client-route) | Marking a route model as client-side and extracting its parameters |
+|  | [`client-socket`](packages/client-socket) | A self-restoring WebSocket connection to a socket entrypoint, with its status aggregator and hook |
+|  | [`client-wl`](packages/client-wl) | The reserved platform-neutral slot of the white-label stack |
+| Web | [`astro`](packages/astro) | Astro wiring for the browser packages: the head and noscript strings, the legal-page test and locale conversion |
+|  | [`mui-oidc-rp`](packages/mui-oidc-rp) | The legacy MUI browser OIDC relying party |
+|  | [`mui-panel`](packages/mui-panel) | The legacy MUI v7 browser layer |
+|  | [`web-auth`](packages/web-auth) | Web authentication plugins for the shared client-auth registry, including the development supervisor login |
+|  | [`web-auth-token`](packages/web-auth-token) | The browser half of access tokens: the management panel and its hook |
+|  | [`web-consent`](packages/web-consent) | The React cookie-consent dialog, its re-open button, the cookie-policy page and the consent hooks |
+|  | [`web-db`](packages/web-db) | IndexedDB-backed browser storage |
+|  | [`web-flow`](packages/web-flow) | The browser flow service that rehydrates a flow from the URL, and `useFlow()` |
+|  | [`web-gtm`](packages/web-gtm) | The Google tag head snippet with Consent Mode defaults, the id validator and the CSP host lists |
+|  | [`web-marketing-consent`](packages/web-marketing-consent) | The browser half of marketing consent: the privacy-choices screen, the settings card and the login step |
+|  | [`web-oauth`](packages/web-oauth) | The consent, device-code and done screens an OAuth 2.1 sign-in ends on |
+|  | [`web-oidc-provider`](packages/web-oidc-provider) | The browser state behind an embedded OIDC provider's interaction screens |
+|  | [`web-oidc-rp`](packages/web-oidc-rp) | The browser OIDC relying party: the guard, the entrypoints and the dispatcher screen |
+|  | [`web-payment`](packages/web-payment) | Protocol-bound payment hooks and the themed amount checkout UI |
+|  | [`web-router`](packages/web-router) | The default in-browser routing plugin: the History API, the matcher and the React provider |
+|  | [`web-router-react-router`](packages/web-router-react-router) | The opt-in React Router v8 routing plugin |
+|  | [`web-wl`](packages/web-wl) | The browser half of the white-label contract: the caching service and the logo component |
+| Test support | [`test`](packages/test) | Foundation test helpers: `.env` loading, required variables and environment gates |
+|  | [`test-auth`](packages/test-auth) | The only package with authentication mocks: fixture key pairs, trusted-record stores and guards |
+|  | [`test-integration`](packages/test-integration) | The env-gated integration harness: service gates and per-run namespaces |
+|  | [`test-ui`](packages/test-ui) | Playwright-as-a-library helpers for bun-test component acceptance tests |
 
 The current web family is shadcn UI and Tailwind CSS v4 (`web-panel`). `mui-panel` and
 `mui-oidc-rp` are supported only for existing MUI applications.
@@ -248,10 +337,10 @@ Published packages include generated, version-matched guidance in `agent-meta/`.
 installing OwlMeans packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
-The installer copies applicable skills to `.agents/skills/`; `CLAUDE.md` provides the generated
+The installer copies applicable skills to `.agents/skills/`; `AGENTS.md` documents the generated
 Claude Code links. In this monorepo, edit only canonical files under `.agents/skills/` and run
 `bun run scripts/sync-agent-meta.ts --project common`; never edit package `agent-meta/` copies.
 

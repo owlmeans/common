@@ -6,11 +6,10 @@ import axios, { AxiosHeaders } from 'axios'
 import type { AxiosRequestTransformer } from 'axios'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { DEFAULT_ALIAS, UNAUTHORIZED_ERROR } from './consts.js'
+import { requestBodyOf } from './utils/body.js'
 import { processResponse } from './utils/handler.js'
 import { BasicClientConfig } from '@owlmeans/client-config'
-import qs from 'qs'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { RouteMethod } from '@owlmeans/route'
 import { AUTH_HEADER, DEF_AUTH_SRV, TOKEN_UPDATE } from '@owlmeans/auth-common'
 import type { AuthService } from '@owlmeans/auth-common'
 
@@ -54,28 +53,19 @@ export const createApiService = (alias: string = DEFAULT_ALIAS): ApiClient => {
         { host: request.host, base: request.base, forceUnsecure: request.unsecure }
       )
 
-      let transformer: AxiosRequestTransformer | undefined = undefined
-
-      let body = request.body != null && Object.entries((request.headers ?? {})).find(
-        ([key, value]) =>
-          key.toLowerCase() === 'content-type' && value?.includes('application/x-www-form-urlencoded')
-      ) ? qs.stringify(request.body) : request.body
-
-      // @TODO Probably this hack needs to be made a little bit less dirty
-      if (typeof body === 'string' && route.method === RouteMethod.POST) {
-        if (Object.keys(request.headers).every(key => key.toLowerCase() !== 'content-type')) {
-          request.headers['content-type'] = 'application/json'
-          // It fixes the case when final rest api under application/json can't
-          // properly accept canonized jsoned string value (put into quotes)
-          transformer = data => data
-        }
-      }
+      // A scalar JSON body (a string, a number, a boolean) is serialized here, so the server parses
+      // back the value the caller sent; objects and arrays are left to axios.
+      const body = requestBodyOf(request.body, request.headers, route.method, module.filter?.body)
+      const transformer: AxiosRequestTransformer | undefined = body.verbatim ? data => data : undefined
+      const requestHeaders = body.contentType != null
+        ? { ...request.headers, 'content-type': body.contentType }
+        : request.headers
 
       const response = await axios.request({
         url, method: route.method,
         params: request.query,
-        data: body,
-        headers: request.headers,
+        data: body.data,
+        headers: requestHeaders,
         transformRequest: transformer,
         validateStatus: () => true,
         // Per-request timeout (ms); axios aborts the request and rejects on expiry.

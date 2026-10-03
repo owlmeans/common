@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.33"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.40"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -45,14 +45,16 @@ machine, deliver its model calls to the parent agent, and run the generated appl
 ## One credential, and the routes the server declares
 
 `makeSdkContext` registers `makeTokenCarrierGuard` under `DEFAULT_GUARD` and binds the SAME
-immutable `connectProtocols(...)` tree the server mounts, so a path or a schema cannot be right on
-one end and wrong on the other. The planning tree is bound the same way:
-`makePlanningProtocols({ base: { alias: 'viable:manager-api:planning', path: '/planning' }, guards:
-DEFAULT_GUARD, socketBase: <the /update base> })` — manager-api's mount minus its ownership gate, which
-is the server's to apply — followed by `appendPlanningClient(context, { protocols, bind: false, poll:
-COMMIT_POLL_SEC, timeout: TOOL_DEADLINE_MS, schemas: false })`. The base alias and path are literals
-beside the `/update` base for the same reason that one is: they belong to manager-api, and every
-planning alias and path derives from them. No socket opener is passed, so a commit is awaited by long
+immutable `connectProtocols({ guard })` tree the server mounts (on the platform's public API host),
+so a path or a schema cannot be right on one end and wrong on the other. The planning tree is bound
+the same way: `makePlanningProtocols({ base: { alias: 'viable:manager-api:planning', path:
+'/planning' }, guards: DEFAULT_GUARD, socketBase: <the /update base> })` — the platform's mount minus
+its ownership gate, which is the server's to apply — followed by `appendPlanningClient(context, {
+protocols, bind: false, poll: COMMIT_POLL_SEC, timeout: TOOL_DEADLINE_MS, schemas: false })`. The
+base alias and path are literals beside the `/update` base for the same reason that one is: they
+belong to the platform, and every planning alias and path derives from them. The aliases are this
+context's registry keys only; the wire is the path, which is why the platform may register its copy
+under aliases of its own. No socket opener is passed, so a commit is awaited by long
 poll only, and the schema bundle is not fetched at startup — nothing a tool does reads a flow, and a
 server nobody has asked anything yet makes no call. There is deliberately **no second credential path**: a connector that could
 fall back to another form of authentication is a connector whose access nobody can revoke by
@@ -73,9 +75,9 @@ the holder forgets a dead file token (or reports a dead environment one) — see
 caller passes the already merged environment + `~/.owlmeans` values (environment wins). A deployment's
 own resource identifier stays host-derived on the server.
 
-**The context must also declare the platform's `/update` base itself.** The connector's socket route
-and the planning commit feed hang under that namespace, and a parent an entrypoint registry cannot resolve fails the **whole
-context at init** rather than the one call that would have used it — a server that exited at startup
+**The context must also declare the platform's `/update` base itself.** The planning commit feed
+hangs under that namespace (the SDK never opens it), and a parent an entrypoint registry cannot
+resolve fails the **whole context at init** rather than the one call that would have used it — a server that exited at startup
 with `Entrypoint viable:manager-api:update:base not found`. It is declared with the path the
 platform declares and never binds: it is a namespace, and nothing calls it.
 
@@ -84,22 +86,31 @@ looks up with `context.service(...)`, and the only thing registered under it is 
 `makeClientContext` appends (`web-client`). Naming the backend service there — which is exactly what
 `addWebService` does — makes every call fail with `Service <backend> not found` before a request is
 sent. The backend belongs in `cfg.services` as an ordinary descriptor marked `default: true`; the
-connect routes name no service of their own, so that is the one they resolve to.
+connect routes name no service of their own, so that is the one they resolve to. Its host is `apiUrl`,
+the platform's PUBLIC API origin (path-less: the connector tree, planning, `/mcp`, OAuth); its alias
+(`service`, default `viable-manager-api`) is a registry key of this context only, never on the wire.
 
 **A POST with nothing to say still sends `{}`.** The client sets no `Content-Type` for an absent
 body, and Fastify answers **415 Unsupported Media Type** before the handler runs — an error about
 media types for a call whose only fault was having no arguments. `makeRemoteConnectorApi` fills an
-empty body for any POST route that was given none; `session.close` and `session.heartbeat` are
-exactly that shape.
+empty body for any POST route that was given none; `session.close` is exactly that shape.
 
 ## Two hosts, one interface
 
 `ConnectorApi` is an interface because two implementations must stay interchangeable — one calling
-the API over HTTP (`makeRemoteConnectorApi`, the npx server) and one calling the manager's own
-handlers in process (`makeInProcessConnectorApi` in `viable-manager-api`, behind `POST /mcp`). Every
+the API over HTTP (`makeRemoteConnectorApi`, the npx server) and one calling the platform's own
+handlers in process (`makeInProcessConnectorApi` in `viable-public-api`, behind `POST /mcp`). Every
 tool is written against it, so a tool cannot accidentally work in only one of the two. Which route
 `openSession` calls fixes the mode: the delegated route carries the entitlement gate, so a caller
 without the capability is refused at the boundary rather than by a check somewhere inside.
+
+`ConnectorApi` has exactly one member per connector route plus the planning facade — the session
+(`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding, story status, files,
+pipeline state, conversion (`create`, `check`, `start`, `proceed`, `status`, `purge`) and inquiry
+answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
+project's inference settings are not a connector call: a person sets them in the browser, through
+the platform's own API. A member is added together with the route in `connectProtocols` and its
+`connectRef` entry — never one without the others.
 
 ## A SESSION belongs to a host that stays; `sessionCapable` is what says so
 
@@ -116,9 +127,9 @@ reads the same predicate: a parent told to call `next_task` when the tool is not
 parent that waits for a run nobody will advance. A host that cannot serve the delegated mode says so
 in one sentence instead, naming the stdio connector.
 
-The in-process implementation refuses the five session verbs (`openSession`, `closeSession`,
-`heartbeat`, `pullOps`, `submitOp`) with a message naming `@owlmeans/viable-mcp`, because
-"unsupported" alone leaves the reader with nothing to do about it.
+The in-process implementation refuses the four session verbs (`openSession`, `closeSession`,
+`pullOps`, `submitOp`) with a message naming `@owlmeans/viable-mcp`, because "unsupported" alone
+leaves the reader with nothing to do about it.
 
 ## A tool that cannot work in a mode is HIDDEN, not failing
 
@@ -293,13 +304,10 @@ A local operation that fails reports `ConnectOpErrorKind.Refused`, never `Unavai
 connector ran and could not do the thing; `Unavailable` tells the platform to give up on a run that
 is fine.
 
-**The pull long-poll is the transport.** It works through every proxy and needs no reconnection
-logic. It is also the only transport a session ever uses — the URL-configured host opens no session
-at all, so it never pulls. The contract declares a socket
-(`connect.session.socket`, served by manager-api) and `SessionStats.transport` can say `'socket'`,
-but **the SDK implements only the pull loop** — `PING_INTERVAL_MS`, `SOCKET_HANDSHAKE_MS` and
-`RECONNECT_BACKOFF_MS` are declared for a socket client that does not exist yet. Treat the socket as
-a platform capability, not an SDK one.
+**The pull long-poll is the only transport.** It works through every proxy and needs no
+reconnection logic, and the URL-configured host opens no session at all, so it never pulls. The
+contract declares no connector socket, and `SessionStats.transport` is `'pull'` or `'none'`;
+presence is refreshed by every pull and every submit.
 
 ## An answer is READ in the shapes models produce, not only the one asked for
 
@@ -514,7 +522,8 @@ the landing mark included; the settings tools over a recorded `ConnectorApi` (or
 save, the patch sent, the phrased `AuthenPayloadError`). `platform.spec.ts` pins that every tool a
 pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
 the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade and the
-settings routes through a captured transport to pin their paths and deadlines.
+settings routes through a captured transport to pin their paths and deadlines, and pins that the remote
+`ConnectorApi` has no member without a connector route and every connector alias is bound.
 
 ## Depends On
 

@@ -35,7 +35,7 @@ const effectivePolicyOf = (policy: AmountCheckoutPolicy, limit?: CheckoutLimitVi
 }
 
 export const AmountCheckoutDialog = ({
-  open, onOpenChange, policy: basePolicy, pending = false, onConfirm, estimate, limit, legalNote,
+  open, onOpenChange, policy: basePolicy, pending = false, disabled = false, onConfirm, estimate, limit, legalNote, details,
 }: AmountCheckoutDialogProps) => {
   const t = useI18nLib('web-payment', 'amount-checkout')
   const [locale] = useLanguage()
@@ -61,7 +61,7 @@ export const AmountCheckoutDialog = ({
   const valid = !blocked && error == null && amountMinor != null
   const chargeMinor = valid ? chargeAmountMinor(amountMinor, policy) : 0
   const adjustmentMinor = valid && amountMinor != null ? chargeMinor - amountMinor : 0
-  const locked = pending || blocked
+  const locked = pending || blocked || disabled
   const submit = async () => {
     if (amountMinor == null || !valid || locked) return
     assertCheckoutAmount(policy, amountMinor)
@@ -76,6 +76,7 @@ export const AmountCheckoutDialog = ({
       </DialogHeader>
       <div className="grid gap-5">
         {limit != null && <CheckoutLimitNote limit={limit} />}
+        {details}
         {policy.presetsMinor.length > 0 && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label={t('presets')}>
           {policy.presetsMinor.map(preset => <Button
             key={preset} type="button" variant={preset === amountMinor ? 'default' : 'outline'} data-amount-preset={preset}

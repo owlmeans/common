@@ -8,7 +8,8 @@ import type {
   PlanningFacade, RelationshipDraft, Specification, TransitionExecution, WorkcardDraft,
 } from '@owlmeans/planning'
 import type { PlanningRuntime } from '../service.js'
-import { assertChildAllowed } from './resolve.js'
+import { assertCreatorFixed } from './creator.js'
+import { assertChildAllowed, childViewOf } from './resolve.js'
 import type { Resolved } from './resolve.js'
 
 const ACTIONS = new Set<string>(Object.values(TransitionAction))
@@ -58,10 +59,10 @@ const assertShape = (exec: TransitionExecution, resolved: Resolved): void => {
   assertText('code', changes.code ?? undefined, CODE_MAX, false)
 }
 
-const assertFlow = (exec: TransitionExecution, resolved: Resolved, runtime: PlanningRuntime): void => {
+const assertFlow = (exec: TransitionExecution, resolved: Resolved): void => {
   if (resolved.create) {
     const status = (exec.card as WorkcardDraft).status
-    const primary = runtime.service().schemas.primaryFlow(resolved.type.type)
+    const primary = resolved.schemas.primaryFlow(resolved.type.type)
     if (status != null && !primary.statuses.some(definition => definition.key === status)) {
       throw new IllegalTransition(`${primary.id}:create:${status}`)
     }
@@ -77,8 +78,8 @@ const assertFlow = (exec: TransitionExecution, resolved: Resolved, runtime: Plan
   }
 }
 
-const assertFields = (exec: TransitionExecution, resolved: Resolved, runtime: PlanningRuntime): void => {
-  const schemas = runtime.service().schemas
+const assertFields = (exec: TransitionExecution, resolved: Resolved): void => {
+  const schemas = resolved.schemas
   if (resolved.create) {
     const draft = exec.card as WorkcardDraft
     validateFields(schemas, resolved.type.type, mergeFields(draft.fields, exec.changes?.fields))
@@ -127,18 +128,20 @@ const assertParentMove = async (
     if (found == null) {
       throw new ParentNotFound(id)
     }
-    assertChildAllowed(runtime, found, resolved.card!.kind, resolved.card!.type)
+    assertChildAllowed(
+      runtime, found, resolved.card!.kind, resolved.card!.type, await childViewOf(runtime, facade.scope.entityId, found)
+    )
   }
 }
 
 const assertSpecification = async (
-  exec: TransitionExecution, resolved: Resolved, runtime: PlanningRuntime, facade: PlanningFacade
+  exec: TransitionExecution, resolved: Resolved, facade: PlanningFacade
 ): Promise<void> => {
   const kind = resolved.create ? (exec.card as WorkcardDraft).kind : resolved.card!.kind
   if (kind !== WorkcardKind.Specification) {
     return
   }
-  const schemas = runtime.service().schemas
+  const schemas = resolved.schemas
 
   if (resolved.create) {
     const draft = exec.card as WorkcardDraft
@@ -232,8 +235,9 @@ const assertRelationships = async (
 }
 
 /**
- * Step 6: shape, flow rule, immutables, `fields`, labels, parent moves, the specification slot and
- * relationships — in that order. Nothing is written by a refusal here.
+ * Step 6: shape, flow rule, immutables (`createdBy` among them, {@link assertCreatorFixed}),
+ * `fields`, labels, parent moves, the specification slot and relationships — in that order.
+ * Nothing is written by a refusal here.
  *
  * @throws {PlanningError} `malformed:*` / `immutable:*`
  * @throws {IllegalTransition | FieldsInvalid | LabelNotAllowed | ParentNotFound | CardTypeNotAllowed}
@@ -243,11 +247,12 @@ export const validateExecution = async (
   runtime: PlanningRuntime, facade: PlanningFacade, exec: TransitionExecution, resolved: Resolved
 ): Promise<void> => {
   assertShape(exec, resolved)
-  assertFlow(exec, resolved, runtime)
+  assertFlow(exec, resolved)
   assertMutable(exec, resolved.type)
-  assertFields(exec, resolved, runtime)
+  assertCreatorFixed(exec)
+  assertFields(exec, resolved)
   assertLabels(exec, resolved)
   await assertParentMove(exec, resolved, runtime, facade)
-  await assertSpecification(exec, resolved, runtime, facade)
+  await assertSpecification(exec, resolved, facade)
   await assertRelationships(exec, resolved, facade)
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { planSync, schemaToTableSpec } from '@owlmeans/postgres-resource'
+import { canonicalDefinition, planSync, schemaToTableSpec } from '@owlmeans/postgres-resource'
 import type { LiveColumn, LiveTable, TableSpec } from '@owlmeans/postgres-resource'
 
 const specOf = (idType: 'string' | 'integer'): TableSpec =>
@@ -56,5 +56,56 @@ describe('@owlmeans/postgres-resource — retyping a column that carries a defau
     ])
 
     expect(kinds(spec, live)).toEqual([])
+  })
+})
+
+/**
+ * What Postgres reports (`pg_indexes.indexdef`, `pg_get_constraintdef`) for objects created from the
+ * statements the plan emits — captured from a live server. Each pair must compare equal, or every
+ * boot drops and recreates the object.
+ */
+const RENDERED: Array<[string, string]> = [
+  ['CREATE INDEX "t_a" ON "app"."t" USING btree ("garden", "season")', 'CREATE INDEX t_a ON app.t USING btree (garden, season)'],
+  ['CREATE UNIQUE INDEX "t_b" ON "app"."t" USING btree ("garden", COALESCE("bed", \'\'), "season")',
+    'CREATE UNIQUE INDEX t_b ON app.t USING btree (garden, COALESCE(bed, \'\'::text), season)'],
+  ['CREATE INDEX "t_c" ON "app"."t" USING btree ("garden", "crop") WHERE "crop" IS NOT NULL',
+    'CREATE INDEX t_c ON app.t USING btree (garden, crop) WHERE (crop IS NOT NULL)'],
+  ['CREATE INDEX "t_d" ON "app"."t" USING btree ("garden") WHERE ("soil"->>\'state\') = \'wet\'',
+    'CREATE INDEX t_d ON app.t USING btree (garden) WHERE ((soil ->> \'state\'::text) = \'wet\'::text)'],
+  ['CREATE INDEX "t_f" ON "app"."t" USING btree ("entityId", "crop") WHERE "kind" = \'a\'',
+    'CREATE INDEX t_f ON app.t USING btree ("entityId", crop) WHERE (kind = \'a\'::text)'],
+  ['CREATE INDEX "t_g" ON "app"."t" USING btree (lower("crop"))', 'CREATE INDEX t_g ON app.t USING btree (lower((crop)::text))'],
+  ['CHECK (("season" IN (\'spring\', \'summer\')))', 'CHECK ((season = ANY (ARRAY[\'spring\'::text, \'summer\'::text])))'],
+  ['CHECK (("kind" IS NULL OR "kind" IN (\'a\', \'b\')))', 'CHECK (((kind IS NULL) OR (kind = ANY (ARRAY[\'a\'::text, \'b\'::text]))))'],
+]
+
+describe('@owlmeans/postgres-resource — comparing a declared default with the live one', () => {
+  test('a varchar id\'s generated default, stored with its casts, is no drift', () => {
+    const spec = schemaToTableSpec('shelves', {
+      type: 'object', properties: { id: { type: 'string', maxLength: 128 } }, required: ['id'],
+    } as never, 'app', 'shelf', true)
+    const live = liveOf([columnOf({ name: 'id', type: 'character varying(128)', defaultExpr: '(gen_random_uuid())::character varying' })])
+
+    expect(planSync(spec, live).statements).toEqual([])
+  })
+})
+
+describe('@owlmeans/postgres-resource — comparing a declared definition with the live one', () => {
+  test('a definition Postgres re-rendered compares equal to the statement that created it', () => {
+    for (const [declared, live] of RENDERED) {
+      expect([declared, canonicalDefinition(declared)]).toEqual([declared, canonicalDefinition(live)])
+    }
+  })
+
+  test('a real change still differs: columns, uniqueness, method and predicate', () => {
+    const base = 'CREATE INDEX t_a ON app.t USING btree (garden, season)'
+    for (const changed of [
+      'CREATE INDEX t_a ON app.t USING btree (season, garden)',
+      'CREATE UNIQUE INDEX t_a ON app.t USING btree (garden, season)',
+      'CREATE INDEX t_a ON app.t USING gin (garden, season)',
+      'CREATE INDEX t_a ON app.t USING btree (garden, season) WHERE (season IS NOT NULL)',
+    ]) {
+      expect(canonicalDefinition(changed)).not.toBe(canonicalDefinition(base))
+    }
   })
 })

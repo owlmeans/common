@@ -44,7 +44,7 @@ for a worked example of all three steps.
 
 ## Agent guidance
 
-This project ships agent context in `AGENTS.md` and a `CLAUDE.md` bridge, with skills in
+This project ships agent context in `AGENTS.md`, with skills in
 `.agents/skills/` and a shared memory store at `.agents/memory/`.
 
 Files carrying an `AUTO-GENERATED` banner are managed by
@@ -53,5 +53,5 @@ them; write your own guidance as separate, un-bannered files. Refresh after addi
 `@owlmeans/*` packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```

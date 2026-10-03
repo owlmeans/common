@@ -10,7 +10,7 @@ whose grants decide access (use `@owlmeans/server-oidc-rp`'s guard and gate, or
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-identity@^0.1.18-rc.38
+bun add @owlmeans/server-auth-identity@^0.1.18-rc.44
 ```
 
 ## Concepts
@@ -19,17 +19,23 @@ bun add @owlmeans/server-auth-identity@^0.1.18-rc.38
   never on the wire), `slug` (renameable `entitySlug`, the only value a token carries),
   `formerSlugs` that keep resolving after a rename, a frozen `iamKey`, and `names` minted once for
   systems that cannot be renamed.
-- **Account (`IdentityAccount`)** — one per person, matched on a verified email `name`.
-- **Profile (`IdentityProfile`)** — one person inside one organization entity, with `role`,
-  `scopes` and optional `expiresAt`. The durable authorization record.
-- **Credentials (`IdentityCredentials`)** — one provider link per profile, keyed by
-  `"{type}:{service}:{providerSub}"`.
-- **Linking service** — `IdentityLinkingService` finds or creates the local identity for provider
-  profile details and returns an `AuthPayload`.
+- **Account (`IdentityAccount`)** — one per person: a unique, lower-case `email`, a display `name`,
+  and `entityId`, the personal organization created with it.
+- **Credentials (`IdentityCredentials`)** — one row per sign-in method of an account (`accountId`),
+  keyed by `"{type}:{service}:{providerSub}"`.
+- **Profile row (`IdentityProfile`)** — one person in one organization for one app (`service`):
+  `profileId` (computed by `profileIdOf(service, accountId)`), `owner`, `role`, `scopes`,
+  `permissions`, `groups`. The row in the account's own organization is the app's PRIMARY row.
+- **Groups (`OrgGroup`)** — an app's groups, kept in the organization record, unique per
+  (`service`, `key`).
+- **Primitives** — `ensureAccount` (find-or-register an account by method, then address) and
+  `ensureProfile` (find-or-create a row, primary row first).
+- **Linking service** — `IdentityLinkingService` signs a provider login into the deployment's own
+  app and returns an `AuthPayload`.
 - **Entity resolver** — the `EntityResolverService` registered under `ENTITY_RESOLVER`. Registering
   it tells the server boundary that this deployment has organizations.
-- **Identity events** — `identityEvents(ctx)` returns the `IdentityEventsService`; its
-  `onEntityCreated` listeners run once per newly registered organization entity.
+- **Identity events** — `identityEvents(ctx)` returns the `IdentityEventsService`:
+  `onProfileCreated` runs once per (account, app), `onEntityCreated` once per registration.
 
 ## Usage
 
@@ -62,7 +68,8 @@ import { appendAuthIdentityResources, AUTH_IDENTITY_DB_ALIAS } from '@owlmeans/s
 
 appendMongo<C, T>(context)
 appendAuthService<C, T>(context)
-appendAuthIdentityResources(context, AUTH_IDENTITY_DB_ALIAS)
+// MY_APP: this deployment's own app key — the `service` of the rows its sign-in writes
+appendAuthIdentityResources(context, AUTH_IDENTITY_DB_ALIAS, { service: MY_APP })
 context.registerService(makeMyAppGate())
 ```
 
@@ -89,7 +96,9 @@ export const makeMyAppGate = (alias: string = MY_APP_GATE): GateService => {
 
       const profile = await ctx.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
         .load({ entityId, profileId: req.auth.profileId })
-      if (profile == null || (profile.expiresAt != null && new Date(profile.expiresAt) < new Date())) {
+      // The store also holds other apps' rows of the same organization — only this app's count.
+      if (profile == null || profile.service !== MY_APP || profile.disabled === true
+        || (profile.expiresAt != null && new Date(profile.expiresAt) < new Date())) {
         throw new AuthForbidden('profile')
       }
 
@@ -119,7 +128,7 @@ const api = handlers<Context>()
 
 export const members = api.request(memberProtocols.list, async (request, context) => {
   const { items } = await context.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-    .list({ entityId: requireEntityKey(request) }, { sort: [{ field: 'createdAt', order: 'desc' }] })
+    .list({ entityId: requireEntityKey(request), service: MY_APP }, { size: 0, sort: [{ field: 'createdAt', order: 'desc' }] })
 
   return items.map(({ profileId, role, name }) => ({ profileId, role, name }))
 })
@@ -140,29 +149,42 @@ const details = {
   userId: providerSub,  // the provider's subject claim
 }
 
-// Returning login: find the credential, then its profile.
+// Returning login: the credential, its account, this app's row in the account's organization.
 let payload = await linking.getLinkedProfile(details)
-// First login by this method: link it to the person's identity, registering one if new.
+// Otherwise: the account by the verified address (registered if new), the method attached to it,
+// and this app's owner row in the person's own organization.
 payload ??= await linking.linkProfile(details, { username: 'person@example.org' })
-// payload: { type, role, userId, profileId, entitySlug, scopes }
+// payload: { type, role, userId: accountId, profileId, entitySlug, scopes }
 ```
 
-### Provision when an organization is created
+### Rows for a hosted app
+
+```ts
+import { ensureAccount, ensureProfile } from '@owlmeans/server-auth-identity'
+
+const { account } = await ensureAccount(context, { email }, details) // writes no row
+const row = await ensureProfile(context, { account, service: clientId, entityId: account.entityId, owner: true })
+// a hosted app's rows carry `scopes: []`; a row in another organization brings the primary row with it
+```
+
+### Provision when a person becomes a user of the app
 
 ```ts
 import { identityEvents } from '@owlmeans/server-auth-identity'
 
 // in makeContext, after appendAuthIdentityResources
-identityEvents(context)?.onEntityCreated(async (event, ctx) => {
+identityEvents(context)?.onProfileCreated(async (event, ctx) => {
+  if (event.service !== MY_APP) return
   await ctx.service<PlanService>(PLAN_SERVICE).grantStarterPlan(event.entityId)
 })
 ```
 
-The event carries `entityId`, `entitySlug`, `iamKey`, `accountId`, `profileId`, `username`, the
-login `type` and `service`, and `createdAt`. It fires only when `linkProfile` registers a new
-identity (including `force: true`) — never when a second sign-in method links to an identity that
-exists. Listeners run in order and are awaited; one that throws is logged and never fails the
-sign-in, so anything a listener provisions needs its own backfill.
+`onProfileCreated` carries `entityId`, `entitySlug`, `accountId`, `profileId`, `service` and
+`owner`, and fires once per (account, app), when its primary row is created. `onEntityCreated`
+carries `entityId`, `entitySlug`, `iamKey`, `accountId`, `profileId`, `username`, the login `type`
+and `service`, the owner row's app as `profileService`, and `createdAt`; `linkProfile` fires it when
+the sign-in registered the person. Listeners run in order and are awaited; one that throws is logged
+and never fails the sign-in, so anything a listener provisions needs its own backfill.
 
 ### Rename an organization and mint a durable name
 
@@ -187,12 +209,17 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `appendAuthIdentityResources(context, dbAlias?)` | function | Register the four resources, the linking service, the entity resolver and (unless one is registered) the identity-events service |
+| `appendAuthIdentityResources(context, dbAlias?, { service? })` | function | Register the four resources, the linking service for app `service`, the entity resolver and (unless one is registered) the identity-events service |
+| `profileIdOf(service, accountId)` | function | The computed profile id of an (account, app) |
+| `ensureAccount(ctx, { email, name? }, details?)` | function | The person's account — by method, then address, else registered with a personal organization |
+| `ensureProfile(ctx, { account, service, entityId, … })` | function | Find-or-create a row; the primary row first |
+| `credentialKeyOf(details)`, `credentialOf(ctx, details)`, `normalizeEmail(email)` | function | A method's credential key and stored row; the stored address form |
+| `listOrgGroups`, `putOrgGroup`, `removeOrgGroup` | function | An organization's groups of one app, by guarded field-level writes |
 | `makeOrgEntityResource(dbAlias?)` | function | Mongo resource for `OrgEntity` |
 | `makeIdentityAccountResource(dbAlias?)` | function | Mongo resource for `IdentityAccount` |
 | `makeIdentityProfileResource(dbAlias?)` | function | Mongo resource for `IdentityProfile` |
 | `makeIdentityCredentialsResource(dbAlias?)` | function | Mongo resource for `IdentityCredentials` |
-| `makeIdentityLinkingService()` | function | The `IdentityLinkingService` implementation |
+| `makeIdentityLinkingService({ service? })` | function | The `IdentityLinkingService` implementation for one app |
 | `makeEntityResolverService(alias = ENTITY_RESOLVER)` | function | The `EntityResolverService` implementation, cached 30 s per resolved name |
 | `makeIdentityEventsService(alias = AUTH_IDENTITY_EVENTS)` | function | The `IdentityEventsService` implementation (lazy) |
 | `identityEvents(ctx, alias?)` | function | The registered events service, or `null` |
@@ -206,21 +233,25 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 | `AUTH_IDENTITY_EVENTS` | const | `'auth-identity:events'` — identity-events service alias |
 | `AUTH_IDENTITY_DB_ALIAS` | const | `'auth-identity'` — suggested db config alias |
 | `AUTH_IDENTITY_ORG_ENTITY_COLLECTION`, `AUTH_IDENTITY_ACCOUNT_COLLECTION`, `AUTH_IDENTITY_PROFILE_COLLECTION`, `AUTH_IDENTITY_CREDENTIALS_COLLECTION` | const | Colon-free Mongo collection base names |
+| `DEFAULT_APP_SERVICE` | const | `'app'` — the own app key when none is passed |
 | `MAX_ENTITY_SLUG_ATTEMPTS` | const | `8` — word slugs tried before minting gives up |
+| `MAX_ACCOUNT_KEY_ATTEMPTS`, `MAX_GUARDED_UPDATE_ATTEMPTS`, `PROFILE_DIGEST_LENGTH` | const | Retry bounds; the `profileId` digest length |
 | `LOGIN_SERVICE_PREFIX`, `EXTERNAL_KEY_DELIMITER` | const | `'service'` and `':'` — the derived-key grammar |
 
 ### Types
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `OrgEntity` | type | `id`, `slug`, `formerSlugs?`, `iamKey`, `names?`, `createdAt`, `updatedAt?` |
-| `IdentityAccount` | type | `Profile` without `entitySlug`, plus `id`, `credential`, `entityId?` |
-| `IdentityProfile` | type | `Profile` without `entitySlug`, plus `id`, `profileId`, `userId?`, `role`, `entityId?`, `expiresAt?` |
-| `IdentityCredentials` | type | `AuthCredentials` + `profileId` |
+| `OrgEntity` | type | `id`, `slug`, `formerSlugs?`, `iamKey`, `title?`, `names?`, `groups?`, `createdAt`, `updatedAt?` |
+| `OrgGroup`, `OrgGroupBundle`, `OrgGroupFilter` | type | An app's group in an organization and its permission bundles |
+| `IdentityAccount` | type | `id`, `credential`, `email`, `name`, `entityId`, `scopes` |
+| `IdentityProfile` | type | `id`, `profileId`, `userId`, `service`, `entityId`, `owner?`, `role`, `scopes`, `permissions`, `groups?`, `home?`, `disabled?`, `managed?` |
+| `IdentityCredentials` | type | `AuthCredentials` + `accountId` (`profileId?` reserved) |
+| `EnsureAccountArgs`, `EnsuredAccount`, `EnsureProfileArgs`, `IdentityResourcesOptions` | type | The primitives' arguments and results |
 | `IdentityLinkingService` | type | `getLinkedProfile`, `linkProfile`, `linkCredentials`, `unlinkCredentials`, `getOwnerProfiles`, `getOwnerCredentials` |
-| `AccountMeta` | type | `{ username, force? }` |
-| `IdentityEventsService` | type | `onEntityCreated(callback)`, `propagateEntityCreated(event)` |
-| `EntityCreatedEvent`, `EntityCreatedCallback` | type | The entity-created payload; `(event, ctx) => Promise<void>` |
+| `AccountMeta` | type | `{ username }` — the verified address |
+| `IdentityEventsService` | type | `onEntityCreated` / `propagateEntityCreated`, `onProfileCreated` / `propagateProfileCreated` |
+| `EntityCreatedEvent`, `ProfileCreatedEvent` and their callbacks | type | The event payloads; `(event, ctx) => Promise<void>` |
 | `OrgEntityResource`, `IdentityAccountResource`, `IdentityProfileResource`, `IdentityCredentialsResource` | type | Typed `MongoResource` aliases |
 | `IdentityConfig`, `IdentityContext` | type | Server config and context shapes |
 | `GoogleUserInfo` | type | Google userinfo claims |
@@ -228,12 +259,14 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 
 ## Key derivation
 
-- Account `credential` — a unique 16-character Base58 slug.
-- Account / profile `entityId` — the `OrgEntity` id; a first registration creates the entity first.
-- Profile `userId` — the account's Mongo id, a declared ObjectId reference.
-- Profile `profileId` — `"{type}:{accountId}"`.
+- Account `credential` — a unique 16-character Base58 key.
+- Account `email` — trimmed, lower-case, unique.
+- Account / profile `entityId`, profile `userId` and `home`, credentials `accountId` — record ids,
+  declared ObjectId references; a first registration creates the organization first.
+- Profile `profileId` — `profileIdOf(service, accountId)`: `"{service}:"` + 22 Base58 characters of
+  `sha256("{accountId}:{service}")`. Computed, the same on every row of one (account, app).
 - Credentials `userId` — `"{type}:{service}:{providerSub}"`; unrelated to the profile's `userId`.
-- Credentials / profile `credential` — `"service:{type}:{service}"`; only platform logins carry it.
+- Credentials `credential` — `"service:{type}:{service}"`.
 
 ## Common pitfalls
 
@@ -244,10 +277,12 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 - Without the resolver `request.entity` stays undefined and consumers fall back to the slug — call
   `appendAuthIdentityResources` (or register the resolver) in every service that serves organization
   data.
-- First-login profiles get `ALL_SCOPES` and `AuthRole.User`; narrow scopes where finer authorization
-  is needed.
-- `linkProfile(details, { username, force: true })` always registers a new identity — use it only
-  when a separate identity is intended.
+- `linkProfile` rows get `ALL_SCOPES` and `AuthRole.User`; a hosted app's rows (`ensureProfile`
+  default) get `[]`. A gate of the own app must also require `profile.service`.
+- The address is the identity: whoever names an address to `ensureAccount` / `linkProfile` gets that
+  person's account, so only a verified address may reach them.
+- Never `update()` an organization record — write fields (the resolver, the group helpers, a guarded
+  `collection.updateOne`), or a stale read erases groups and minted names.
 - Provisioning in an `onEntityCreated` listener is best-effort: a throwing listener is logged and the
   sign-in succeeds, so reconcile what it provisions periodically.
 - The resolver caches for 30 seconds, so a rename reaches other replicas within that window; the old
@@ -273,7 +308,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.46
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

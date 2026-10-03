@@ -1,13 +1,13 @@
 ---
 name: agent
-description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin seam, conversation-summarization and memory plugins, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent plugin, safeInvokeTool, or an agent store.
+description: How to use @owlmeans/agent — context-aware LLM agents over the LangGraph functional API, and resumable PIPELINES over a checkpointed StateGraph, with the AgentPlugin and PipelinePlugin seams, CUMULATIVE PIPELINE RESULTS (cumulativeResultsPlugin), conversation-summarization and memory plugins, and storage-independent ports. Auto-invoked when importing makeAgentModel, makePipeline, makeCheckpointSaver, appendAgentsService, an agent or pipeline plugin, cumulativeResultsPlugin, safeInvokeTool, or an agent store.
 user-invocable: false
 ---
 
 # @owlmeans/agent
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/agent": "^0.1.18-rc.39"` in `dependencies`, plus the `@langchain/core` and
+**Install:** `"@owlmeans/agent": "^0.1.18-rc.45"` in `dependencies`, plus the `@langchain/core` and
 `@langchain/langgraph` **peers**
 
 The agent runtime. Contracts live in `@owlmeans/agent-common`.
@@ -17,7 +17,9 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | Export | Description |
 |---|---|
 | `makeAgentModel(options)` | An agent over the LangGraph functional API: `invoke`, `use`, `conversation`. |
-| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. |
+| `makePipeline(spec, options)` | A resumable state machine over a checkpointed LangGraph `StateGraph`: `invoke`, `resume`, `snapshot`, `asStep`. `options.plugins` seats `PipelinePlugin`s. |
+| `cumulativeResultsPlugin(options)` · `CUMULATIVE_RESULTS_PLUGIN` · `DEFAULT_RESULT_SUMMARY_SCHEMA` | CUMULATIVE PIPELINE RESULTS — tells every step what its predecessors produced; see below. |
+| `PipelinePlugin` and its events, `StepResults`, `PipelineParentRef` | The pipeline plugin seam (types, from `./pipeline`). |
 | `makeCheckpointSaver(store)` | A `BaseCheckpointSaver` over the `CheckpointStore` port. |
 | `makeAgentsService(options?, alias?)` · `appendAgentsService(ctx, options?, alias?)` · `agentServiceApi(options, self)` | The service, and its half without `createService` for composition. |
 | `summarizePlugin(options?)` | Compacts each finished run into `summary` + `advice`; replays the last few. |
@@ -27,7 +29,7 @@ The agent runtime. Contracts live in `@owlmeans/agent-common`.
 | `composeCompaction`, `composeRollingSummary`, `renderTranscript`, `messageText` | Summary primitives; both composers are total. |
 | `makeStaticFlowProvider(flows)` | The server-side `FlowProvider` `@owlmeans/flow` does not ship. |
 | `inProcessTransport()`, `AgentTransport` | The scaling seam; default carries messages by direct call. |
-| `createMemory*Store()` | In-memory reference implementations of every port, including `createMemoryPipelineRunStore` and `createMemoryCheckpointStore`. |
+| `createMemory*Store()` | In-memory reference implementations of every port, including `createMemoryPipelineRunStore`, `createMemoryCheckpointStore` and `createMemoryCumulativeResultStore`. |
 | `AgentError` · `AgentMissconfiguredError` · `AgentLoopExhaustedError` | The `ResilientError` family. `AgentMissconfiguredError` is a model or tool set the agent was built without; `AgentLoopExhaustedError` is the tool loop hitting its ceiling. |
 | `DEFAULT_MAX_TURNS` (64) · `DEFAULT_PLUGIN_ORDER` · `DEFAULT_ACTION` · `DEFAULT_ENTRYPOINT` | The loop and plugin defaults. |
 
@@ -69,7 +71,89 @@ as a guard is the same mechanism that makes a resume correct.
 through the engine's config would make a run depend on which config keys a given LangGraph minor
 propagates into a node body. A closure cannot be lost.
 
-## The plugin seam
+## Pipeline plugins
+
+```ts
+interface PipelinePlugin<S, C> {
+  alias: string; order?: number                     // seated by alias, run by ascending order
+  enter?: (event) => void        // once per invoke/resume: mode fresh|continue|restart, inherited steps, parent
+  beforeStep?: (event) => { results?: StepResults } | void   // the step WILL run; may hand it ctx.results
+  afterStep?: (event) => void    // patch merged into state, BEFORE the row commit marks the step done
+  passStep?: (event) => void     // reason: 'skipped' (guard) | 'failed' (optional step, run goes on)
+  exit?: (event) => void         // once, with the result the caller is about to receive
+}
+```
+
+**A plugin watches a run; it never writes the state and never decides where the run stands.**
+Whatever it keeps, it keeps in a store of its own. `afterStep` runs before the commit so a plugin's
+own write lands before the step is durably done — a crash between the two re-runs the step rather
+than leaving a done step with nothing recorded about it.
+
+**A plugin that throws costs a warning, never the run** — unless `options.fatal` calls the error
+fatal: then it takes the exact path a fatal step error takes, the row written `Failed` first and the
+error rethrown (from `enter`, `passStep` and `exit` too). The runner's stop signal passes through.
+
+**Seating nothing changes nothing.** Every hook site is guarded, so a pipeline without plugins awaits
+nothing it did not await before — its parallel steps interleave identically and its step context
+has no `results` key. `tests/pipeline-compat.spec.ts` pins this with golden rows, trace lines and
+progress events recorded from the runner before the seam existed; it must stay green unedited.
+
+`asStep` passes the composing step to the child as `PipelineInvokeArgs.parent` (read-only:
+pipeline, run id, step, and the parent step's `results`); the child's plugins see it on `enter`.
+
+## Cumulative pipeline results
+
+After each step, code reads what the step produced into FACTS (`CumulativeResultFact`: a type's
+shape and import specifier, an endpoint's method/path/guard, a resource's table, a file) and every
+later step is told them — so it uses the authoritative names instead of re-deriving them.
+
+```ts
+const pipeline = makePipeline<State, Deps>(spec, {
+  steps, runs,
+  plugins: [cumulativeResultsPlugin<State, Deps>({
+    spec: { steps: { types: { extractors: ['ts-types'], full: ['endpoints'] } } }, // or run => spec | null
+    extractors: { 'ts-types': { scope: ({ deps }) => deps.glob('src/types/**'), extract: readTypes } },
+    store,                                    // CumulativeResultStore; share it with composed pipelines
+  })],
+})
+// inside a step:
+const exec = executions().withResults(taskExec, ctx.results?.view)   // every model built from it composes the view
+ctx.results?.record({ files: written })                             // what the step touched
+ctx.results?.facts({ kind: 'type', name: 'User' })                  // typed query for code
+```
+
+- **Extractors are deterministic code, never a model call.** A rebuild after a crash must find
+  exactly what the first pass found. `scope` recomputes the files an extractor answers for from
+  DURABLE inputs (state keys, the file tree), never from what a step reported — it is what a rebuild
+  reads. Declarations name extractors; the plugin holds the code.
+- **The ledger is an optimization, never the authority.** A fresh start or restart clears the run's
+  own entries (and those of runs composed under it); a continuation loads them and silently
+  REBUILDS any missing entry of a finished step from its durable scope. Resume correctness never
+  depends on the store; a failing store is a warning. A step's `record({ facts })`-only facts with
+  no extractor cannot be rebuilt.
+- **A view is cut once per step**: predecessors only (siblings may not have run), full within
+  `window` edges (default 2) or when the producer names the step in `full` (`'*'` for every step),
+  names only beyond, never shown when named in `omit`. Over `maxChars` the OLDEST entries not naming
+  the step go to names only, then out (listed in `view.omitted`); named ones last; an entry's own
+  text is never cut. `facts()` answers from every visible entry regardless of the prompt budget.
+- **A fact belongs to the first entry that produced it** — the step's predecessors and the runs
+  composed under the step itself. A later re-extraction never duplicates it.
+- **A later step that rewrites an earlier entry's files refreshes it**: re-extracted from its own
+  sources, revision bumped, facts about untouched files kept (`refresh: false` opts out). Entries of
+  other pipelines are never refreshed — their extractors live elsewhere.
+- **A skipped step** keeps a stored entry, or gets one rebuilt from its files; **a failed optional
+  step** gets a `partial` entry from what it left behind.
+- **Model summaries are OFF unless a step declares `summary`** and the plugin has `summarize`.
+  The request carries a ready prompt and schema; the answer is rendered deterministically, capped
+  in code, always labelled "not verified", and a failure is a warning without the summary.
+- **A composed run shares its parent's ledger** (parent's, else the root run id); its steps see the
+  parent's view for the composing step, and the parent's later steps see the child's entries,
+  labelled `<composingStep>/<childStep>` and ordered inside the composing step. Both pipelines must
+  be given the SAME store.
+- **Seeds** are facts known before any step ran, visible to every step. A declaration resolved to
+  `null`/`false` leaves that run without `ctx.results` at all.
+
+## The agent plugin seam
 
 ```ts
 interface AgentPlugin {
@@ -114,8 +198,9 @@ by default — the agent holds an execution, not the service that knows its poli
 would spend one cheap call on a relevance pick silently degrades until this is passed. What such a
 call returns may never land in a cached block; see [[llm-prompt-caching]].
 
-**`compose()` is called with `files: exec.files`.** Without it, a prompt plugin that resolves
-knowledge from disk is silently inert on agent runs while working fine on plain model calls.
+**`compose()` is called with `files: exec.files` and `results: exec.results`.** Without them, a
+prompt plugin that resolves knowledge from disk — or the cumulative results block — is silently
+inert on agent runs while working fine on plain model calls.
 
 **Use `autoFinish: false` whenever something runs after the agent.** A compaction written before a
 validation or build pass describes a state that did not survive it, so its "what to do next" is
@@ -138,7 +223,7 @@ no model, a failing model or an empty answer they fall back deterministically, s
 history unconditionally. A failed fold costs detail, never the event.
 
 **Ports, not resources.** `ConversationStore`, `MemoryGraphStore`, `MemoryEventStore`,
-`PipelineRunStore` and `CheckpointStore` are narrow interfaces a consumer implements. A port names exactly what the
+`PipelineRunStore`, `CheckpointStore` and `CumulativeResultStore` are narrow interfaces a consumer implements. A port names exactly what the
 plugin needs, which is a far smaller surface than CRUD, and anything can satisfy it — a `Resource`,
 or a file on disk, which is what the project-history equivalent is. An unbound port is a no-op, not
 an error.
@@ -199,7 +284,9 @@ would break every restore.
 Category A (unit, no env, no network). The model is doubled with a small scripted object in
 `tests/_tools/model.ts` because `@langchain/core`'s own `FakeStreamingChatModel` always replays its
 first response and so cannot drive a tool loop. That double stands in for the MODEL, an external
-boundary — never for an `@owlmeans/*` package.
+boundary — never for an `@owlmeans/*` package. The cumulative-results specs keep the project as a
+`Map` of files in `deps` — the durable input extractors read — so a "new process" is a new plugin
+over the same files.
 
 ## Related
 

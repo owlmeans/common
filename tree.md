@@ -74,7 +74,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`consent`](packages/consent) → *(no `@owlmeans/*` deps)*
 - [`mailer`](packages/mailer) → `context`, `error`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
-- [`iam`](packages/iam) → `auth`, `context`, `error`, `oidc`, `route`
+- [`iam`](packages/iam) → `auth`, `context`, `entrypoint`, `error`, `oidc`, `route`
 - [`auth-otp`](packages/auth-otp) → `context`, `error`
 - [`wled`](packages/wled) → `auth`, `entrypoint`, `route`
 - [`payment`](packages/payment) → `auth`, `basic-envelope`, `config`, `context`, `entrypoint`, `error`, `i18n`, `resource`, `route`
@@ -122,6 +122,7 @@ External-system integrations: Mongo, Postgres, Redis, S3-compatible object stora
 - [`redis-queue`](packages/redis-queue) → `basic-ids`, `context`, `error`, `queue`, `redis`, `redis-resource`, `resource`, `server-context`
 - [`postgres-resource`](packages/postgres-resource) → `basic-ids`, `context`, `resource`, `server-context`
 - [`postgres`](packages/postgres) → `basic-keys`, `context`, `postgres-resource`, `resource`, `server-context`
+- [`planning-postgres`](packages/planning-postgres) → `basic-ids`, `context`, `error`, `planning`, `postgres-resource`, `resource`, `server-planning`
 - [`kluster`](packages/kluster) → `config`, `context`, `server-config`, `server-context`
 - [`mailer-smtp`](packages/mailer-smtp) → `context`, `mailer`, `server-context`
 - [`server-mailer-mailgun`](packages/server-mailer-mailgun) → `context`, `error`, `mailer`
@@ -144,7 +145,7 @@ Node/Bun backend implementations built on Fastify. Listed in dependency order.
 - [`server-oauth`](packages/server-oauth) → `auth`, `auth-common`, `auth-token`, `config`, `context`, `entrypoint`, `error`, `mongo-resource`, `oauth`, `resource`, `route`, `server-api`, `server-auth-token`, `server-context`, `static-resource`
 - [`server-auth-otp`](packages/server-auth-otp) → `auth`, `auth-otp`, `basic-ids`, `context`, `mailer`, `oidc`, `redis-resource`, `resource`, `server-auth`, `server-auth-identity`, `server-context`
 - [`server-oidc-rp`](packages/server-oidc-rp) → `auth`, `auth-common`, `basic-envelope`, `client-entrypoint`, `config`, `context`, `did`, `entrypoint`, `oidc`, `resource`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`
-- [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
+- [`server-iam`](packages/server-iam) → `auth`, `context`, `entrypoint`, `error`, `iam`, `oidc`, `server-context`, `server-oidc-rp`
 - [`server-job`](packages/server-job) → `auth`, `auth-common`, `context`, `entrypoint`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-planning`](packages/server-planning) → `auth`, `auth-common`, `basic-ids`, `context`, `entrypoint`, `error`, `planning`, `queue`, `resource`, `route`, `server-api`, `server-context`, `server-entrypoint`, `server-socket`, `socket`
 - [`server-app`](packages/server-app) → `api`, `client-config`, `client-entrypoint`, `config`, `context`, `entrypoint`, `kluster`, `route`, `server-api`, `server-auth`, `server-context`, `server-entrypoint`, `server-route`, `server-socket`, `static-resource`

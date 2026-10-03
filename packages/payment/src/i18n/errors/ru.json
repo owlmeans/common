@@ -3,6 +3,7 @@
   "PaymentErrorPaygate": "Платёжный провайдер не смог выполнить запрос",
   "PaymentErrorPaygateUnknown": "Этот платёжный провайдер не поддерживается",
   "PaymentErrorPaygateMapping": "Не удалось сопоставить данные платёжного провайдера",
+  "PaymentErrorPaygateSignature": "Подпись вебхука отсутствует или недействительна.",
   "PaymentErrorPaygateWebhookSetup": "Уведомления о платежах не настроены",
   "PaymentErrorPaygatePortalUnavailable": "Управление оплатой для этого аккаунта пока недоступно",
   "PaymentErrorProduct": "Этот продукт недоступен",

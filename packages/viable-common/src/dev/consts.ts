@@ -11,6 +11,22 @@ export enum AccessLevel {
 }
 
 /**
+ * Who holds a permission without anybody granting it — the default CLASS of its definition.
+ *
+ * Evaluated by the IAM when it issues claims, never copied onto rows, so a person who joins an
+ * organization later holds what its members hold with nothing written for them. `User` is every
+ * signed-in person of the application; `Member` and `Owner` are the members and the owners of the
+ * organization being acted in, and therefore mean anything only for an organization-bound
+ * permission. `None` is the ordinary permission: held only where it was granted.
+ */
+export enum PermissionDefault {
+  None = 'none',
+  User = 'user',
+  Member = 'member',
+  Owner = 'owner',
+}
+
+/**
  * Alias prefixes of the entrypoints a generated project declares.
  *
  * Everything a target app addresses — a screen or an endpoint — is an entrypoint referenced by

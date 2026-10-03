@@ -37,6 +37,22 @@ export class PaygateMappingError extends PaygateError {
   }
 }
 
+/**
+ * A webhook delivery whose signature is missing or verifies against no known secret. The sender is
+ * refused as a client error (400): a forged or unsigned POST at a public hook is not a server fault,
+ * and answering 500 would page operators for it and invite the sender to retry it.
+ */
+export class PaygateSignatureError extends PaygateError {
+  public static override typeName: string = `${PaygateError.typeName}Signature`
+  /** Read by the HTTP boundary (`server-api` `declaredErrorStatus`). */
+  public static httpStatus: number = 400
+
+  constructor() {
+    super('signature')
+    this.type = PaygateSignatureError.typeName
+  }
+}
+
 export class ProductError extends PaymentError {
   public static override typeName: string = `${PaymentError.typeName}Product`
 
@@ -550,6 +566,7 @@ ResilientError.registerErrorClass(PaymentError)
 ResilientError.registerErrorClass(PaygateError)
 ResilientError.registerErrorClass(UnknownPaygate)
 ResilientError.registerErrorClass(PaygateMappingError)
+ResilientError.registerErrorClass(PaygateSignatureError)
 ResilientError.registerErrorClass(ProductError)
 ResilientError.registerErrorClass(UnknownProduct)
 ResilientError.registerErrorClass(UnknownPlan)

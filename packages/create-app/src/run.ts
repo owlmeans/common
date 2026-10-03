@@ -62,7 +62,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     log(args.install
       ? '\nDeploying agent skills via @owlmeans/agent-skills…'
       : '\nDeploying harness guidance via @owlmeans/agent-skills (general skills only — re-run'
-        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.39` after installing to add the package-specific ones)…')
+        + '\n`npx @owlmeans/agent-skills@^0.1.18-rc.46` after installing to add the package-specific ones)…')
     try {
       const result = await installSkills({
         dir: dest,
@@ -74,7 +74,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
         help: false,
       })
       if (result.code !== 0) {
-        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.39\` later.\n`)
+        process.stderr.write(`  agent-skills exited with code ${result.code} — you can re-run \`npx @owlmeans/agent-skills@^0.1.18-rc.46\` later.\n`)
       }
     } catch (err) {
       process.stderr.write(`  agent-skills failed: ${err instanceof Error ? err.message : String(err)}\n`)
@@ -92,7 +92,7 @@ export const run = async (args: CreateArgs): Promise<number> => {
     ? 'Add your entrypoints in sources/common/src/entrypoints.ts, handlers in sources/api\n'
       + 'and screens in sources/web/src/screens — the Home screen shows where they go.\n'
     : 'Open the "Session" page to exercise the in-memory session resource.\n')
-  log('Agent guidance was scaffolded: AGENTS.md (with a CLAUDE.md bridge), the skills in')
+  log('Agent guidance was scaffolded: AGENTS.md, the skills in')
   log('.agents/skills/ and the shared memory store at .agents/memory/MEMORY.md.')
   log('Open the project in any coding agent — on the first session it will ask what the')
   log('project is for and fill in its purpose for you.\n')

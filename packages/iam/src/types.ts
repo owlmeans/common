@@ -1,7 +1,8 @@
 import type { InitializedService } from '@owlmeans/context'
-import type { OidcProviderConfig } from '@owlmeans/oidc'
+import type { OidcOrganizationClaim, OidcPermissionSetClaim, OidcProviderConfig } from '@owlmeans/oidc'
 import type {
-  GateParamSource, GateParamErrorCode, GateResolutionFailure, IamGrantMode, IamRemovalPolicy
+  GateParamSource, GateParamErrorCode, GateResolutionFailure, IamDefaultClass, IamGrantMode, IamGrantOrigin,
+  IamRemovalPolicy
 } from './consts.js'
 
 /**
@@ -83,6 +84,21 @@ export interface ParsedPermissionName {
   problem?: GateParamProblem
 }
 
+/**
+ * A client's own configuration, stored with its registration.
+ *
+ * The two tenancy flags decide which organizations the client's subjects act in. With NEITHER, every
+ * subject acts in the client's owning organization (a single-tenant app). With either, every subject
+ * acts in organizations of its own, and the runtime IAM API lets their owners manage them — `users`
+ * opens the `user` area to those owners, `operators` the `operator` area. Anything else is the
+ * client's arbitrary configuration, carried through untouched.
+ */
+export interface IamClientConfig {
+  operators?: boolean
+  users?: boolean
+  [key: string]: unknown
+}
+
 export interface IamClient {
   id?: string
   clientId: string
@@ -90,7 +106,11 @@ export interface IamClient {
   name?: string
   /** The entity realm this client belongs to — replaces the old (client as any)._realm hack */
   realm?: string
+  config?: IamClientConfig
 }
+
+/** A client as a reader that must never see its secret gets it. */
+export type IamClientInfo = Omit<IamClient, 'secret'>
 
 export interface IamCredentialsPair {
   token: string
@@ -110,6 +130,11 @@ export interface IamClientOptions {
    * unusable client.
    */
   redirectUris?: string[]
+  /**
+   * Merged SHALLOWLY into the stored configuration: a key passed is written (a flag passed as
+   * `false` included), a key omitted is kept. A backend with no tenancy refuses a tenancy flag.
+   */
+  config?: IamClientConfig
 }
 
 export interface IamPermissionArgs {
@@ -122,6 +147,14 @@ export interface IamPermissionArgs {
    * resource ids covers every resource, which is what `hasPermission` already implements.
    */
   resourceScoped?: boolean
+  /**
+   * Declares that grants of this permission are bound to ONE organization: stored on the row of that
+   * organization (or a group of it) and effective only while the subject acts in it.
+   *
+   * Turning it off while grants exist is refused — every bound grant would silently widen to
+   * every organization of its subject.
+   */
+  entityScoped?: boolean
   /** Optional human-readable title for the permission definition. */
   title?: string
   /**
@@ -141,6 +174,12 @@ export interface IamPermissionArgs {
    * so its absence from the declarations is not evidence that it is unused.
    */
   managed?: boolean
+  /**
+   * Who holds it without an explicit grant. `User` needs an unbound, unmanaged `user`-area
+   * definition; `Member` / `Owner` need an `entityScoped` one. `None` (or omitted on creation) is
+   * nobody.
+   */
+  defaultClass?: IamDefaultClass
 }
 
 export interface IamResourceSpec {
@@ -155,11 +194,15 @@ export interface IamPermissionDefinition {
   resource: string
   action?: string
   resourceScoped?: boolean
+  /** Grants are bound to one organization. See `IamPermissionArgs.entityScoped`. */
+  entityScoped?: boolean
   title?: string
   /** Grouping tag; presentational only. See `IamPermissionArgs.area`. */
   area?: string
   /** Owned by the platform rather than declared by the application. See `IamPermissionArgs.managed`. */
   managed?: boolean
+  /** Who holds it by default. See `IamPermissionArgs.defaultClass`. */
+  defaultClass?: IamDefaultClass
 }
 
 /** Narrows a definition listing. An `areas` entry of `null` matches definitions carrying no tag. */
@@ -167,6 +210,13 @@ export interface IamPermissionFilter {
   areas?: (string | null)[]
   managed?: boolean
   resourceScoped?: boolean
+  entityScoped?: boolean
+}
+
+/** A group, named the way it is on the wire: its organization's slug and its key in that organization. */
+export interface IamGroupRef {
+  entitySlug: string
+  key: string
 }
 
 export interface IamGrantArgs {
@@ -186,12 +236,22 @@ export interface IamGrantArgs {
    * Pass `mode` explicitly rather than depending on the default.
    */
   mode?: IamGrantMode
+  /**
+   * The organization a grant of an `entityScoped` definition is bound to — REQUIRED for one (it
+   * names the subject's row there, which must exist) and refused for any other definition.
+   */
+  entitySlug?: string
 }
 
-/** A permission granted to an end-user subject of an entity's client. */
+/**
+ * A permission held by ONE subject — a person (`profileId`) or a group (`group`), never both — of an
+ * entity's client.
+ */
 export interface IamGrant {
-  /** Backend-specific subject id: integrated = IdentityProfile.profileId, keycloak = KC user id. */
-  profileId: string
+  /** Backend-specific subject id: integrated = the pairwise `profileId`, keycloak = KC user id. */
+  profileId?: string
+  /** A group subject. */
+  group?: IamGroupRef
   clientId: string
   /** Canonical permission name. */
   permission: string
@@ -199,6 +259,12 @@ export interface IamGrant {
   resources?: string[]
   /** Which form this record is. Derived from `resources`, not new information. */
   mode?: IamGrantMode
+  /** The organization the grant is bound to; absent for an unbound one. */
+  entitySlug?: string
+  /** Why the subject holds it. Listings report it; a write answers `Direct`. */
+  origin?: IamGrantOrigin
+  /** The group a `Group`-origin grant reaches the person through. */
+  through?: IamGroupRef
 }
 
 /** Grants every definition a filter selects, plus any named outright. */
@@ -210,6 +276,8 @@ export interface IamGrantBundle {
   mode?: IamGrantMode
   /** Only meaningful with `mode: Resources`. */
   resources?: string[]
+  /** The binding of the bundle's `entityScoped` definitions. See `IamGrantArgs.entitySlug`. */
+  entitySlug?: string
 }
 
 export interface IamPermissionDeleteArgs {
@@ -241,9 +309,19 @@ export interface IamNormalizationReport {
   untouched: string[]
 }
 
-/** An end-user of an entity (customer-wide; shared across that entity's projects). */
+/** One organization a user of a client belongs to there. */
+export interface IamMembershipInfo {
+  entitySlug: string
+  title?: string
+  owner: boolean
+  groups: string[]
+  /** The organization the user starts in. */
+  home?: boolean
+}
+
+/** A subject of one client (app): one account, seen through that app's rows. */
 export interface IamUser {
-  /** Backend-specific subject id: integrated = IdentityProfile.profileId, keycloak = KC user id. */
+  /** Backend-specific subject id: integrated = the pairwise `profileId`, keycloak = KC user id. */
   profileId: string
   /** Primary login identifier (email for the integrated OTP path). */
   email?: string
@@ -253,9 +331,12 @@ export interface IamUser {
   disabled?: boolean
   /** Convenience count of permission grants the user holds (across clients, or for one client). */
   grantCount?: number
+  /** The `entitySlug` of the organization the user starts in. */
+  home?: string
+  memberships?: IamMembershipInfo[]
 }
 
-/** Args to invite/create an end-user under an entity. */
+/** Args to invite/create an end-user of a client. */
 export interface IamUserInvite {
   email: string
   name?: string
@@ -263,11 +344,169 @@ export interface IamUserInvite {
   role?: string
 }
 
-/** Args to update an existing end-user. */
+/** Args to update an existing end-user. `disabled` is written on the user's primary row. */
 export interface IamUserUpdate {
   name?: string
   role?: string
   disabled?: boolean
+}
+
+/** An organization as a client's administration sees it. Named by slug only. */
+export interface IamOrganization {
+  entitySlug: string
+  title?: string
+  /** How many subjects of the client are members. */
+  members?: number
+}
+
+/** `organizations.create`: the organization's title, and the subject who becomes its owner. */
+export interface IamOrganizationArgs {
+  title?: string
+  /** A subject of the client — the creator, on the runtime path. */
+  profileId?: string
+}
+
+export interface IamOrganizationUpdate {
+  title: string
+}
+
+/** A member of an organization, as one client sees it. */
+export interface IamMember {
+  profileId: string
+  email?: string
+  name?: string
+  owner: boolean
+  /** Group keys of (this organization, this client). */
+  groups: string[]
+  /** Written by the staff synchronization; an operator cannot change it. */
+  managed?: boolean
+}
+
+/** Find-or-create by e-mail: an invitation and a first sign-in converge on one account. */
+export interface IamMemberInvite {
+  email: string
+  name?: string
+  owner?: boolean
+}
+
+export interface IamMemberUpdate {
+  owner?: boolean
+  groups?: string[]
+}
+
+/** What a group grants its members: every definition the filter selects, plus names outright. */
+export interface IamGroupBundle {
+  filter?: IamPermissionFilter
+  permissions?: string[]
+}
+
+/** A group of (organization, client) — kept inside the organization record. */
+export interface IamGroup {
+  entitySlug: string
+  key: string
+  title?: string
+  /** Kept by the platform (the staff sync's `members`); an operator cannot write it. */
+  managed?: boolean
+  members?: number
+  bundles: IamGroupBundle[]
+}
+
+export interface IamGroupArgs {
+  title?: string
+  bundles?: IamGroupBundle[]
+}
+
+/** `syncStaff`: what the managed `members` group of the owning organization grants. */
+export interface IamStaffSyncArgs {
+  bundles: IamGroupBundle[]
+}
+
+/** The subjects whose managed rows the sync created and removed. */
+export interface IamStaffSyncReport {
+  added: string[]
+  removed: string[]
+}
+
+/** Who a subject is to a client, as the provider builds its claims. */
+export interface IamSubject {
+  /** The pairwise subject: `subjects.identify(clientId, accountId)`. */
+  profileId: string
+  email?: string
+  name?: string
+  organizations: OidcOrganizationClaim[]
+  /** The FULL claim sets: a set bound to an organization carries its `entitySlug`. */
+  permissions: OidcPermissionSetClaim[]
+}
+
+export interface IamSignInArgs {
+  email: string
+  name?: string
+}
+
+export interface IamSignInResult {
+  accountId: string
+  profileId: string
+}
+
+/**
+ * The organizations a client's subjects act in. Every method takes `(entityId, clientId, …)`: the
+ * entity that OWNS the client, then the client — the organizations themselves are named by slug.
+ */
+export interface IamOrganizationFacet {
+  /** Every organization with a member of the client. */
+  list: (entityId: string, clientId: string) => Promise<IamOrganization[]>
+  get: (entityId: string, clientId: string, entitySlug: string) => Promise<IamOrganization | null>
+  create: (entityId: string, clientId: string, args?: IamOrganizationArgs) => Promise<IamOrganization>
+  update: (entityId: string, clientId: string, entitySlug: string, update: IamOrganizationUpdate) => Promise<IamOrganization>
+  members: (entityId: string, clientId: string, entitySlug: string) => Promise<IamMember[]>
+  /** Idempotent by e-mail. Refused past the membership cap. */
+  addMember: (entityId: string, clientId: string, entitySlug: string, invite: IamMemberInvite) => Promise<IamMember>
+  /** Refused when it would leave the organization without an owner. */
+  updateMember: (
+    entityId: string, clientId: string, entitySlug: string, profileId: string, update: IamMemberUpdate
+  ) => Promise<IamMember>
+  /** Refused for the last owner. */
+  removeMember: (entityId: string, clientId: string, entitySlug: string, profileId: string) => Promise<void>
+}
+
+/**
+ * Groups of (organization, client). Every method takes `(entityId, clientId, entitySlug, …)` and the
+ * group key after it where one is addressed; one client never reads or writes another client's group.
+ */
+export interface IamGroupFacet {
+  list: (entityId: string, clientId: string, entitySlug: string) => Promise<IamGroup[]>
+  ensure: (entityId: string, clientId: string, entitySlug: string, key: string, args?: IamGroupArgs) => Promise<IamGroup>
+  /** Also drops the key from every member row. */
+  remove: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<void>
+  members: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<IamMember[]>
+  addMembers: (entityId: string, clientId: string, entitySlug: string, key: string, profileIds: string[]) => Promise<void>
+  removeMembers: (entityId: string, clientId: string, entitySlug: string, key: string, profileIds: string[]) => Promise<void>
+  /** The binding of a group grant is the group's organization; `args.entitySlug` is not taken. */
+  grant: (
+    entityId: string, clientId: string, entitySlug: string, key: string, permission: string,
+    args?: Omit<IamGrantArgs, 'entitySlug'>
+  ) => Promise<IamGrant>
+  revoke: (
+    entityId: string, clientId: string, entitySlug: string, key: string, permission: string,
+    args?: Omit<IamGrantArgs, 'entitySlug'>
+  ) => Promise<void>
+  grants: (entityId: string, clientId: string, entitySlug: string, key: string) => Promise<IamGrant[]>
+  setBundles: (
+    entityId: string, clientId: string, entitySlug: string, key: string, bundles: IamGroupBundle[]
+  ) => Promise<IamGroup>
+}
+
+/**
+ * The provider's half: who signs in to a client and what the claims say about them. Keyed by the
+ * ACCOUNT, which never leaves the provider; what a client sees is the pairwise subject.
+ */
+export interface IamSubjectFacet {
+  /** `null` = not admitted: no row of the client, or a disabled primary row. */
+  resolve: (clientId: string, accountId: string) => Promise<IamSubject | null>
+  /** Find-or-create the account by e-mail and its rows for the client. Race-safe. */
+  signIn: (clientId: string, args: IamSignInArgs) => Promise<IamSignInResult>
+  /** The pairwise `sub` of the account for the client — computed, the same on every call. */
+  identify: (clientId: string, accountId: string) => string
 }
 
 /** Unified IAM provider interface — all platform/agent code calls only this, never a backend directly */
@@ -303,6 +542,9 @@ export interface IamService extends InitializedService {
    */
   ensureClient: (entityId: string, clientId: string, options?: IamClientOptions) => Promise<IamClient>
 
+  /** The entity's client without its secret, or null when there is none. Never provisions. */
+  getClient: (entityId: string, clientId: string) => Promise<IamClientInfo | null>
+
   /**
    * Reserve a client id for the entity without provisioning it, so a caller can find a free name
    * before committing to it. Returns false when the id is already taken — by this entity or any
@@ -315,8 +557,9 @@ export interface IamService extends InitializedService {
   claimClient: (entityId: string, clientId: string) => Promise<boolean>
 
   /**
-   * Release a client id and everything keyed by it. Called when a project or slot is deleted —
-   * without it a recreated project can inherit a stale registration.
+   * Release a client id and everything keyed by it — its subjects' rows, its groups and its
+   * definitions. Called when a project or slot is deleted; without it a recreated project can
+   * inherit a stale registration.
    */
   deleteClient: (entityId: string, clientId: string) => Promise<void>
 
@@ -325,9 +568,10 @@ export interface IamService extends InitializedService {
    * Returns the canonical resource name (e.g. "res--action" or "res").
    *
    * MERGES into an existing definition rather than replacing it: `resource` and `action` are
-   * re-derived and overwrite, while `title`, `resourceScoped`, `area` and `managed` are set when
-   * provided — including when provided as `false` — and KEPT when omitted. Replacing wholesale made
-   * every flag last-write-wins, so a caller that happened not to pass one erased it.
+   * re-derived and overwrite, while `title`, `resourceScoped`, `entityScoped`, `area`, `managed` and
+   * `defaultClass` are set when provided — including when provided as `false` / `None` — and KEPT
+   * when omitted. Replacing wholesale made every flag last-write-wins, so a caller that happened not
+   * to pass one erased it.
    *
    * It NEVER rewrites the name. Callers round-trip a definition's `resource` + `action` back through
    * this method to copy a definition set between clients, so a rename here would silently orphan
@@ -335,6 +579,7 @@ export interface IamService extends InitializedService {
    *
    * The `resource` argument must not carry a gate selector: `@` is the gate's syntax and is never
    * part of a stored name. Implementations reject one rather than storing a key no gate looks up.
+   * A `defaultClass` the definition's flags do not admit is refused (`IamPermissionError`).
    */
   ensurePermission: (
     entityId: string,
@@ -408,6 +653,7 @@ export interface IamService extends InitializedService {
   /**
    * Grants a permission to an end-user subject. With args.resources the grant is
    * resource-scoped (bound to those resource ids); without it the grant is project-wide.
+   * An `entityScoped` definition is granted on the subject's row of `args.entitySlug`.
    */
   grantPermission: (
     entityId: string,
@@ -446,29 +692,43 @@ export interface IamService extends InitializedService {
     bundle: IamGrantBundle
   ) => Promise<IamGrant[]>
 
-  /** Lists grants for the entity's client, optionally for a single subject. */
+  /**
+   * Lists grants for the entity's client, optionally for a single subject — what each holds
+   * directly, by its definition's default class and through its groups, `origin` telling which.
+   */
   listGrants: (entityId: string, clientId: string, profileId?: string) => Promise<IamGrant[]>
 
-  // --- End-user management (customer-wide users, shared per entityId) ---
+  // --- End-user management (per client: rows of one app) ---
 
   /**
-   * Lists the entity's end-users. End-users are customer-wide — shared across every project of
-   * the entity — so `clientId` scopes the reported `grantCount` to one project's client and does
-   * **not** filter the set: a user who has authenticated against a project but holds no grant
-   * there is still that project's user, and the screen that manages grants is exactly where they
-   * must be visible.
+   * Lists the subjects of the client — every account holding a row of that app, in whichever
+   * organization. Without `clientId` it is a read-only aggregate over every client the entity
+   * owns, for a console; nothing is written through it.
    */
   listUsers: (entityId: string, clientId?: string) => Promise<IamUser[]>
 
-  /** Loads a single end-user by subject id, or null when absent. */
-  getUser: (entityId: string, profileId: string) => Promise<IamUser | null>
+  /** Loads a single subject of the client by its id, or null when absent. */
+  getUser: (entityId: string, clientId: string, profileId: string) => Promise<IamUser | null>
 
-  /** Creates (or resolves, idempotently by email) an end-user under the entity. */
-  inviteUser: (entityId: string, invite: IamUserInvite) => Promise<IamUser>
+  /** Creates (or resolves, idempotently by email) a subject of the client. */
+  inviteUser: (entityId: string, clientId: string, invite: IamUserInvite) => Promise<IamUser>
 
-  /** Updates an end-user's mutable fields (name, role, disabled). */
-  updateUser: (entityId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
+  /** Updates a subject's mutable fields; `disabled` is written on its primary row. */
+  updateUser: (entityId: string, clientId: string, profileId: string, update: IamUserUpdate) => Promise<IamUser>
 
-  /** Removes an end-user from the entity (their grants go with them). */
-  removeUser: (entityId: string, profileId: string) => Promise<void>
+  /** Deletes this account's rows of the client only — the account and its other apps stay. */
+  removeUser: (entityId: string, clientId: string, profileId: string) => Promise<void>
+
+  /**
+   * Admits the owning organization's own staff to the client: keeps the managed `IAM_MEMBERS_GROUP`
+   * group there with `bundles`, a managed row per staff account, and removes the managed rows of
+   * people no longer on the staff.
+   */
+  syncStaff: (entityId: string, clientId: string, args: IamStaffSyncArgs) => Promise<IamStaffSyncReport>
+
+  // --- Tenancy facets — a backend without them answers `unsupportedFacet(...)` ---
+
+  organizations: IamOrganizationFacet
+  groups: IamGroupFacet
+  subjects: IamSubjectFacet
 }

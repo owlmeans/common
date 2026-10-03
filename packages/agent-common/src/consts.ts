@@ -20,6 +20,25 @@ export const AGENT_MEMORY_GRAPH_STORE = 'agent-memory-graph-store'
 export const AGENT_MEMORY_EVENTS_STORE = 'agent-memory-events-store'
 export const AGENT_PIPELINE_RUN_STORE = 'agent-pipeline-run-store'
 export const AGENT_CHECKPOINT_STORE = 'agent-checkpoint-store'
+export const AGENT_CUMULATIVE_RESULT_STORE = 'agent-cumulative-result-store'
+
+/**
+ * Caps and defaults for cumulative pipeline results.
+ *
+ * Every one of them bounds what a later step is TOLD, never what a step may produce: a fact that
+ * does not fit is left out of one view, and it is still on its entry for the next view and for any
+ * code that queries it. `DEFAULT_RESULTS_WINDOW` is a distance in the step graph — a consumer that
+ * many edges or fewer after a producer gets the producer's full entry; anything further back gets
+ * its names only, unless the producer names the consumer outright.
+ */
+export const DEFAULT_RESULTS_MAX_CHARS = 12_000
+export const DEFAULT_RESULT_ENTRY_CHARS = 4_000
+export const DEFAULT_RESULT_COMPACT_CHARS = 400
+export const DEFAULT_RESULTS_WINDOW = 2
+export const DEFAULT_RESULT_SUMMARY_CHARS = 600
+
+/** The consumer wildcard: every later step of the pipeline — and of anything it is composed into. */
+export const RESULTS_EVERY_STEP = '*'
 
 /**
  * Caps and defaults for a pipeline run.

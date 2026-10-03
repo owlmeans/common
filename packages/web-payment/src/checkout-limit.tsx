@@ -4,7 +4,7 @@ import { money, shortMomentUtc } from './format.js'
 import type { CheckoutLimitNoteProps } from './types.js'
 
 /** The reasons the package phrases itself; any other reads the generic sentence. */
-const KNOWN_REASONS = ['per-purchase', 'window', 'hold']
+const KNOWN_REASONS = ['per-purchase', 'window', 'total', 'hold']
 
 /**
  * What an amount checkout is narrowed to for this entity now: the largest amount (or that nothing

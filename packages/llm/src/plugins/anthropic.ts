@@ -11,6 +11,7 @@ import { resolveOutputCap } from '../utils/config.js'
 import { readConfig } from '../utils/config.js'
 import { effortFor, effortRank } from '../utils/effort.js'
 import { escalateMaxTokens, isBadRequest, makeClientOptions } from './utils.js'
+import { isStrictSchema } from '../utils/schema.js'
 
 /** Model-name prefix that supports prompt caching through `cache_control` markers. */
 const CACHEABLE_PREFIX = 'claude-'
@@ -39,56 +40,164 @@ export const NO_SAMPLING_PREFIXES = [
 export const rejectsSampling = (model: string | undefined): boolean =>
   model != null && NO_SAMPLING_PREFIXES.some(prefix => model.startsWith(prefix))
 
-/**
- * Whether the request has to say, on the wire, that the model must not reason.
- *
- * The adaptive family reasons unless told otherwise: an absent `thinking` parameter means
- * "adaptive", and langchain forwards the parameter only when a caller sets it — so a config
- * that asks for no thinking is only honoured if the plugin sends `thinking: disabled` itself.
- * Silent reasoning is what the request pays for twice: its tokens bill as output, and the
- * summarised stream delivers them in bursts minutes apart, which an idle deadline reads as a
- * dead connection and retries from scratch. Older models reason only when asked and get nothing.
- */
-export const suppressesThinking = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): boolean =>
-  config.disableThinking === true && rejectsSampling(config.model)
-
 const ALL_EFFORTS = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max]
 const NO_XHIGH = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High, ModelEffort.Max]
 const UP_TO_HIGH = [ModelEffort.Low, ModelEffort.Medium, ModelEffort.High]
 
+/** The `thinking.type` a model takes to do no up-front thinking. */
+export enum ThinkingOff {
+  Disabled = 'disabled',
+  /** Claude Sonnet 5.5: no extended thinking, only the short notes between tool calls. */
+  BetweenTools = 'between_tools',
+}
+
+/** What one Anthropic model family accepts, where the families differ in ways that are a 400. */
+export interface AnthropicModelSupport extends EffortSupport {
+  /** Model-id prefix; the table below is first match wins, so a longer id comes first. */
+  prefix: string
+  /**
+   * The `thinking.type` that turns up-front thinking off. `null`: the model always thinks and
+   * refuses every off switch, so the request sends no `thinking` and effort is the only control.
+   * Omitted: `disabled`.
+   */
+  thinkingOff?: ThinkingOff | null
+  /** The highest effort the model accepts together with its off switch. */
+  thinkingOffCeiling?: ModelEffort
+  /**
+   * An absent `thinking` field means adaptive thinking here (the 5 family). On Opus 4.8/4.7 it
+   * means none, so they are not marked.
+   */
+  thinksByDefault?: boolean
+  /** `tool_choice` `any` / `tool` is a 400: only `auto` and `none` are accepted. */
+  rejectsForcedTool?: boolean
+  /** The model's own minimum cacheable prefix, in tokens ({@link MIN_CACHEABLE_TOKENS} when omitted). */
+  cacheMinTokens?: number
+}
+
 /**
- * `output_config.effort` levels per model, first prefix match wins. From Anthropic's effort
- * page (2026-09-23): `max` on every model below except Opus 4.5, `xhigh` only on the first
- * seven, `medium` the default on Opus 5.5 and `high` everywhere else. A model not listed
- * (Haiku 4.5, Sonnet 4.5 and older) rejects the field, so it is never sent there.
+ * Per-family facts of the Anthropic models that take `output_config.effort`, first prefix
+ * match wins. From Anthropic's model pages (2026-09-29): `max` on every model below except Opus
+ * 4.5, `xhigh` only on the first eleven, `medium` the default on Opus 5.5 and `high` everywhere
+ * else. A model not listed (Haiku 4.5, Sonnet 4.5 and older) rejects the field, so it is never
+ * sent there — and takes forced tool use and every older thinking shape.
  *
- * `thinkingOffCeiling`: Opus 5 accepts `thinking: disabled` only at `high` or below — the
- * combination with `xhigh`/`max` is a 400 — so a config that suppresses thinking stops there.
+ * - **Thinking off.** Opus 5 accepts `disabled` only at `high` or below. Sonnet 5.5 refuses
+ *   `disabled` and takes `between_tools` instead, again only at `high` or below, with no other
+ *   field beside it. Opus 5.5 and the Fable and Mythos 5 families always think: any off switch
+ *   is a 400, so the request carries none.
+ * - **Forced tool use.** Opus 5.5, Sonnet 5.5, Fable 5.1 and Mythos 5.1 answer `tool_choice`
+ *   `any`/`tool` with a 400; structured output asks them with `auto`, a prompt instruction naming
+ *   the tool, and `strict` when the schema allows it.
+ * - **Cache minimum.** 512 tokens on the 5 family, 1024 on Sonnet 5 and Opus 4.8.
  */
-export const ANTHROPIC_EFFORT_SUPPORT: ReadonlyArray<
-  EffortSupport & { prefix: string, thinkingOffCeiling?: ModelEffort }
-> = [
-  { prefix: 'claude-opus-5-5', levels: ALL_EFFORTS, default: ModelEffort.Medium },
-  { prefix: 'claude-opus-5', levels: ALL_EFFORTS, default: ModelEffort.High, thinkingOffCeiling: ModelEffort.High },
-  { prefix: 'claude-fable-5', levels: ALL_EFFORTS, default: ModelEffort.High },
-  { prefix: 'claude-mythos-5', levels: ALL_EFFORTS, default: ModelEffort.High },
+export const ANTHROPIC_MODEL_SUPPORT: ReadonlyArray<AnthropicModelSupport> = [
+  {
+    prefix: 'claude-opus-5-5', levels: ALL_EFFORTS, default: ModelEffort.Medium,
+    thinkingOff: null, thinksByDefault: true, rejectsForcedTool: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-opus-5', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOffCeiling: ModelEffort.High, thinksByDefault: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-sonnet-5-5', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOff: ThinkingOff.BetweenTools, thinkingOffCeiling: ModelEffort.High, thinksByDefault: true,
+    rejectsForcedTool: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-fable-5-1', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOff: null, thinksByDefault: true, rejectsForcedTool: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-mythos-5-1', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOff: null, thinksByDefault: true, rejectsForcedTool: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-fable-5', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOff: null, thinksByDefault: true, cacheMinTokens: 512,
+  },
+  {
+    prefix: 'claude-mythos-5', levels: ALL_EFFORTS, default: ModelEffort.High,
+    thinkingOff: null, thinksByDefault: true, cacheMinTokens: 512,
+  },
   { prefix: 'claude-opus-4-8', levels: ALL_EFFORTS, default: ModelEffort.High },
   { prefix: 'claude-opus-4-7', levels: ALL_EFFORTS, default: ModelEffort.High },
-  { prefix: 'claude-sonnet-5', levels: ALL_EFFORTS, default: ModelEffort.High },
+  { prefix: 'claude-sonnet-5', levels: ALL_EFFORTS, default: ModelEffort.High, thinksByDefault: true },
   { prefix: 'claude-mythos-preview', levels: NO_XHIGH, default: ModelEffort.High },
   { prefix: 'claude-opus-4-6', levels: NO_XHIGH, default: ModelEffort.High },
   { prefix: 'claude-sonnet-4-6', levels: NO_XHIGH, default: ModelEffort.High },
   { prefix: 'claude-opus-4-5', levels: UP_TO_HIGH, default: ModelEffort.High },
 ]
 
+/** The family entry of a model id, or `undefined` for a model the table does not know. */
+export const anthropicSupportOf = (model: string | undefined): AnthropicModelSupport | undefined =>
+  model != null ? ANTHROPIC_MODEL_SUPPORT.find(entry => model.startsWith(entry.prefix)) : undefined
+
+/**
+ * Whether the request has to say, on the wire, that the model must not reason.
+ *
+ * The adaptive family reasons unless told otherwise: an absent `thinking` parameter means
+ * "adaptive", and langchain forwards the parameter only when a caller sets it — so a config
+ * that asks for no thinking is only honoured if the plugin sends the model's off switch itself
+ * ({@link thinkingOffFor}). Silent reasoning is what the request pays for twice: its tokens bill
+ * as output, and the summarised stream delivers them in bursts minutes apart, which an idle
+ * deadline reads as a dead connection and retries from scratch. Older models reason only when
+ * asked and get nothing.
+ *
+ * True also for a model that cannot be switched off: the switch is still the request's, never a
+ * prompt directive, and such a model is steered by effort alone.
+ */
+export const suppressesThinking = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): boolean =>
+  config.disableThinking === true && rejectsSampling(config.model)
+
+/**
+ * The `thinking.type` this config puts on the wire to turn thinking off, or `undefined` when it
+ * sends none — because thinking was not turned off, or because the model refuses every off
+ * switch.
+ */
+export const thinkingOffFor = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): ThinkingOff | undefined => {
+  if (!suppressesThinking(config)) {
+    return undefined
+  }
+  const off = anthropicSupportOf(config.model)?.thinkingOff
+
+  return off === null ? undefined : off ?? ThinkingOff.Disabled
+}
+
+const THINKING_OFF_TYPES = new Set<string>(Object.values(ThinkingOff))
+
+/**
+ * Make the instance's own view of `thinking` match what the request means, without touching the
+ * request.
+ *
+ * langchain keeps a `thinking: disabled` default it never sends unless a caller set the field,
+ * but its client-side parameter check reads that default anyway: an Opus 5 or 5.5 call at `xhigh`
+ * or `max` with no `thinking` set throws "thinking.type=disabled is not supported" before any
+ * request leaves — and a thrown local error is not a 400, so it was retried to exhaustion. On a
+ * model whose absent field MEANS adaptive, the unsent default is set to what it means; what goes
+ * on the wire (nothing) is unchanged.
+ */
+const withLocalThinking = (model: ChatAnthropic): ChatAnthropic => {
+  const wire = model as unknown as { thinkingExplicitlySet?: boolean, thinking?: { type?: string } }
+  if (wire.thinkingExplicitlySet !== true && anthropicSupportOf(model.modelName ?? model.model)?.thinksByDefault === true) {
+    wire.thinking = { type: 'adaptive' }
+  }
+
+  return model
+}
+
+/** Whether this model id answers a pinned `tool_choice` with a 400. */
+export const rejectsForcedTool = (model: string | undefined): boolean =>
+  anthropicSupportOf(model)?.rejectsForcedTool === true
+
 const anthropicEffort = (config: Pick<ModelConfig, 'model' | 'disableThinking'>): EffortSupport | undefined => {
-  const model = config.model
-  const entry = model != null ? ANTHROPIC_EFFORT_SUPPORT.find(e => model.startsWith(e.prefix)) : undefined
+  const entry = anthropicSupportOf(config.model)
   if (entry == null) {
     return undefined
   }
+  // The ceiling binds only when the off switch is actually sent.
   const ceiling = entry.thinkingOffCeiling
-  const levels = ceiling != null && suppressesThinking(config)
+  const levels = ceiling != null && thinkingOffFor(config) != null
     ? entry.levels.filter(level => effortRank(level) <= effortRank(ceiling))
     : entry.levels
 
@@ -104,9 +213,15 @@ type AnthropicKwargs = Omit<Partial<ChatAnthropic>, 'outputConfig' | 'thinking'>
 type WireOutputConfig = NonNullable<ConstructorParameters<typeof ChatAnthropic>[0]>['outputConfig']
 
 /**
+ * The SDK's `thinking` union predates `between_tools`; langchain forwards the object as given
+ * (`thinking` of an explicitly configured model goes on the wire unchanged).
+ */
+type WireThinking = NonNullable<ConstructorParameters<typeof ChatAnthropic>[0]>['thinking']
+
+/**
  * The `outputConfig` for one attempt, or `undefined` to leave it as `build` wrote it. The model
  * and thinking switch are read back off the instance, since `refine` has no config — and the
- * thinking switch decides Opus 5's ceiling.
+ * thinking switch decides the effort ceiling.
  */
 const escalatedOutputConfig = (
   model: ChatAnthropic, kwargs: AnthropicKwargs, steps: number,
@@ -114,7 +229,7 @@ const escalatedOutputConfig = (
   const effort = effortFor(
     anthropicEffort({
       model: model.modelName ?? model.model,
-      disableThinking: kwargs.thinking?.type === 'disabled',
+      disableThinking: THINKING_OFF_TYPES.has(kwargs.thinking?.type ?? ''),
     }),
     kwargs.outputConfig?.effort,
     steps,
@@ -126,7 +241,7 @@ const escalatedOutputConfig = (
  * The smallest output budget an always-reasoning model is given.
  *
  * The same models that took the sampling knobs away also think ADAPTIVELY unless the request
- * turns it off (`disableThinking` → `thinking: disabled`, see `suppressesThinking`), and by
+ * turns it off (`disableThinking` → the model's off switch, see `thinkingOffFor`), and by
  * default that thinking is not shown — it arrives as thinking blocks with empty text. Reasoning is billed against the same `max_tokens` as the answer, so a budget
  * sized for the answer alone can be spent entirely on thinking: the response is a well-formed
  * completion carrying no text at all, `stop_reason: "max_tokens"`, and every retry at the same
@@ -151,7 +266,9 @@ const supportsCache = (model: BaseChatModel): boolean =>
  * four breakpoints and reports a cache that was never written.
  */
 const minCacheableChars = (model: BaseChatModel): number =>
-  (readConfig(model).cacheMinTokens ?? MIN_CACHEABLE_TOKENS) * CHARS_PER_TOKEN
+  (readConfig(model).cacheMinTokens
+    ?? anthropicSupportOf((model as ChatAnthropic).modelName)?.cacheMinTokens
+    ?? MIN_CACHEABLE_TOKENS) * CHARS_PER_TOKEN
 
 /**
  * The marker itself. `ttl` is omitted for the 5-minute default so the emitted bytes stay
@@ -206,16 +323,26 @@ export const anthropicPlugin: LlmPlugin = {
   owns: model => model instanceof ChatAnthropic,
 
   /**
-   * Anthropic has no `response_format: json_schema` mode, so structured output is
-   * always the forced-tool-call hack. `ModelConfig.structuredOutput` is ignored.
+   * Structured output is a tool call — pinned where the model allows it, asked for where it
+   * does not ({@link rejectsForcedTool}). `ModelConfig.structuredOutput` is ignored.
    */
   structuredMode: () => StructuredMode.Tool,
 
   /**
    * Anthropic 400s on the OpenAI spelling: "tool_choice: Input tag 'function' … does not
-   * match any of the expected tags: 'auto','any','tool','none'".
+   * match any of the expected tags: 'auto','any','tool','none'". A model that refuses a pinned
+   * tool gets `auto` — the only choice left that still offers the tool.
    */
-  toolChoice: (toolName: string): unknown => ({ type: 'tool', name: toolName }),
+  toolChoice: (toolName: string, config?: Pick<ModelConfig, 'model'>): unknown =>
+    rejectsForcedTool(config?.model) ? { type: 'auto' } : { type: 'tool', name: toolName },
+
+  pinsTool: config => !rejectsForcedTool(config.model),
+
+  /**
+   * Grammar-constrained arguments stand in for the pin — but only on a schema inside the subset
+   * strict tool use compiles; anything else is a 400, which no retry fixes, so it goes unstrict.
+   */
+  strictTool: (config, schema) => rejectsForcedTool(config.model) && isStrictSchema(schema),
 
   suppressesThinking: config => suppressesThinking(config),
 
@@ -242,6 +369,7 @@ export const anthropicPlugin: LlmPlugin = {
     const effort = effortFor(
       anthropicEffort({ model, disableThinking: config.disableThinking }), config.effort, 0,
     )
+    const thinkingOff = thinkingOffFor({ model, disableThinking: config.disableThinking })
 
     const cfg = {
       model,
@@ -251,9 +379,7 @@ export const anthropicPlugin: LlmPlugin = {
       metadata: { config },
       callbacks,
       ...sampling,
-      ...(suppressesThinking({ model, disableThinking: config.disableThinking })
-        ? { thinking: { type: 'disabled' as const } }
-        : {}),
+      ...(thinkingOff != null ? { thinking: { type: thinkingOff } as unknown as WireThinking } : {}),
       ...(effort != null ? { outputConfig: { effort } as WireOutputConfig } : {}),
       ...makeClientOptions({ headers: config.headers }),
     }
@@ -262,7 +388,7 @@ export const anthropicPlugin: LlmPlugin = {
       delete cfg.topP
     }
 
-    return new ChatAnthropic(cfg)
+    return withLocalThinking(new ChatAnthropic(cfg))
   },
 
   refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }): BaseChatModel => {
@@ -281,7 +407,7 @@ export const anthropicPlugin: LlmPlugin = {
       delete cfg.temperature
       delete cfg.topP
 
-      return new ChatAnthropic(cfg as Partial<ChatAnthropic>)
+      return withLocalThinking(new ChatAnthropic(cfg as Partial<ChatAnthropic>))
     }
     const cfg: Partial<ChatAnthropic> = {
       ...kwargs, temperature: currentTemperature, maxTokens, ...escalated,

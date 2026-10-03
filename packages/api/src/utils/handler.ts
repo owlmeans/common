@@ -2,7 +2,8 @@ import type { AbstractResponse } from '@owlmeans/entrypoint'
 import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import type { AxiosResponse } from 'axios'
 import {
-  ACCEPTED, CREATED, FINISHED, FORBIDDEN_ERROR, INCIDENT_ID_HEADER, OK, SERVER_ERROR, UNAUTHORIZED_ERROR,
+  ACCEPTED, CREATED, FINISHED, FORBIDDEN_ERROR, INCIDENT_ID_HEADER, DENIAL_KIND_HEADER,
+  ACCESS_DENIED_KIND, OK, SERVER_ERROR, UNAUTHORIZED_ERROR,
 } from '../consts.js'
 import { ResilientError } from '@owlmeans/error'
 import { ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError } from '../errors.js'
@@ -42,12 +43,17 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
 const failureOf = (response: AxiosResponse): Error => {
   const incidentId = headerOf(response.headers, INCIDENT_ID_HEADER)
     ?? (isIncidentBody(response.data) ? response.data.trim() : undefined)
+  const denialKind = response.status === FORBIDDEN_ERROR
+    && headerOf(response.headers, DENIAL_KIND_HEADER) === ACCESS_DENIED_KIND
+    ? ACCESS_DENIED_KIND : undefined
 
   if (typeof response.data === 'string' && response.data.includes(ResilientError.separator)) {
     try {
       const error = ResilientError.ensure(response.data, true)
       error.incidentId ??= incidentId
-      Object.assign(error, { responseStatus: response.status } satisfies ResponseStatusCarrier)
+      Object.assign(error, {
+        responseStatus: response.status, denialKind,
+      } satisfies ResponseStatusCarrier)
 
       return error
     } catch {
@@ -55,7 +61,7 @@ const failureOf = (response: AxiosResponse): Error => {
     }
   }
 
-  return statusError(response.status, incidentId)
+  return Object.assign(statusError(response.status, incidentId), { denialKind })
 }
 
 /**

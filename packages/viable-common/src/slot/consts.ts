@@ -37,7 +37,23 @@ export enum SlotCommandType {
   Files = 'files',
   Shell = 'shell',
   Git = 'git',
+  Database = 'database',
 }
+
+/** Inspection of the live dev database; mutations belong in target source migrations. */
+export enum SlotDatabaseCommand {
+  Info = 'databaseInfo',
+  Query = 'databaseQuery',
+}
+
+export const DATABASE_READ_LIMITS = {
+  defaultRows: 100,
+  maxRows: 1000,
+  maxBytes: 131_072,
+  maxQueryChars: 16_000,
+  maxParams: 100,
+  timeoutMs: 10_000,
+} as const
 
 export enum SlotGitCommand {
   Ensure = 'ensure',
@@ -306,6 +322,7 @@ export const COMMAND_TIMEOUTS: Partial<Record<SlotCommandType, number>> = {
   [SlotCommandType.Files]: 60_000,
   [SlotCommandType.Git]: 120_000,
   [SlotCommandType.Shell]: 1_200_000,
+  [SlotCommandType.Database]: 45_000,
 }
 
 export const DEFAULT_COMMAND_TIMEOUT = 60_000
@@ -356,6 +373,7 @@ const perCommandTimeout = (type: SlotCommandType, command: string): number | und
   switch (type) {
     case SlotCommandType.Shell: return SHELL_COMMAND_TIMEOUTS[command]
     case SlotCommandType.Git: return GIT_COMMAND_TIMEOUTS[command as SlotGitCommand]
+    case SlotCommandType.Database: return COMMAND_TIMEOUTS[SlotCommandType.Database]
     default: return FILE_COMMAND_TIMEOUTS[command as SlotFileCommand]
   }
 }
@@ -387,6 +405,8 @@ export const commandDeadline = (type: SlotCommandType, command: string): number 
       return COMMAND_DEADLINES[command] ?? DEFAULT_COMMAND_DEADLINE
     case SlotCommandType.Git:
       return GIT_COMMAND_DEADLINES[command as SlotGitCommand] ?? DEFAULT_GIT_COMMAND_DEADLINE
+    case SlotCommandType.Database:
+      return 30_000
     default:
       return FILE_COMMAND_DEADLINES[command as SlotFileCommand] ?? DEFAULT_FILE_COMMAND_DEADLINE
   }

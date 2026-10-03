@@ -23,6 +23,17 @@ describe('status flows', () => {
     expect(ruleOf(REVIEW_FLOW, 'reopen', 'reviewing')?.to).toBe('pending')
   })
 
+  test('a status the flow does not declare matches every rule of the name, the first declared answering', () => {
+    // A card whose flow changed under it: `abandoned` is no longer a status of the flow.
+    expect(ruleOf(STORY_FLOW, 'start', 'abandoned')?.to).toBe('in-progress')
+    expect(ruleOf(STORY_FLOW, 'complete', 'abandoned')?.to).toBe('completed')
+    expect(ruleOf(STORY_FLOW, 'reset', 'abandoned')?.to).toBe('planned')
+    expect(ruleOf(STORY_FLOW, 'nope', 'abandoned')).toBeUndefined()
+    // A declared status keeps its own rules only.
+    expect(ruleOf(STORY_FLOW, 'complete', 'planned')).toBeUndefined()
+    expect(transitionsFrom(STORY_FLOW, 'abandoned').map(rule => rule.name)).toEqual(['start', 'complete', 'fail', 'reset'])
+  })
+
   test('canTransit and transitionsFrom read the same rules, one per name', () => {
     expect(canTransit(STORY_FLOW, 'reset', 'planned')).toBe(true)
     expect(canTransit(STORY_FLOW, 'complete', 'planned')).toBe(false)

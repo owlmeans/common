@@ -41,6 +41,9 @@ export interface OwlMeansFetchErrorPayload {
   status: number
   statusText: string
   body: string
+  /** Server-labelled auth/IAM refusal; absent for unrelated HTTP failures. */
+  denialKind?: string
+  incidentId?: string
 }
 
 /**
@@ -76,4 +79,3 @@ export type OwlMenasPreviewPayloads =
   | OwlMeansPromiseRejectionPayload
   | OwlMeansFetchErrorPayload
   | OwlMeansCaughtErrorPayload
-

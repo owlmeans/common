@@ -1,6 +1,6 @@
 ---
 name: llm-prompt-caching
-description: How the OwlMeans LLM layer composes a system prompt from a role and skills, and the prompt-cache rules that layout exists to satisfy — block order, breakpoint budget, determinism invariants, and the provider facts behind them. Auto-invoked when touching prompt composition, skills, LlmPromptPlugin, patchSystem/patchCache, or anything that changes what a request sends before its first per-call byte.
+description: How the OwlMeans LLM layer composes a system prompt from a role, skills and a pipeline step's cumulative-results view, and the prompt-cache rules that layout exists to satisfy — block order, breakpoint budget, determinism invariants, and the provider facts behind them. Auto-invoked when touching prompt composition, skills, LlmPromptPlugin, the Results block, patchSystem/patchCache, or anything that changes what a request sends before its first per-call byte.
 user-invocable: false
 ---
 
@@ -15,7 +15,7 @@ invariants are not style — they are the cache.
 
 ## The block layout
 
-`PromptService.compose()` renders four ordered blocks (`PromptBlock`, `PROMPT_BLOCK_ORDER`)
+`PromptService.compose()` renders five ordered blocks (`PromptBlock`, `PROMPT_BLOCK_ORDER`)
 into a single system message:
 
 | # | Block | Contributed by | Changes | Breakpoint |
@@ -23,7 +23,8 @@ into a single system message:
 | 0 | `Role` | `rolePlugin` ← `PromptPolicy.role` | per role | — |
 | 1 | `Skills` | `skillsPlugin` ← registry + `inline` | per helper | ✅ closes role+skills |
 | 2 | `Packages` | application plugins (`owlmeansPackagesPlugin`) | per request | ✅ its own |
-| 3 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
+| 3 | `Results` | `resultsPlugin` ← `PromptComposeParams.results` (`exec.results`) | per pipeline step | only as the closing block |
+| 4 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
 
 A caller's own leading `SystemMessage` is detached by `makeLlmModel` and re-emitted as
 `Context`, so a helper that has not adopted `prompt: { role, skills }` keeps working —
@@ -43,6 +44,14 @@ its text simply travels a different route.
   into one chunk for the same reason — nothing downstream needs them separable.
 - **Volatile content goes last.** Per-call skills belong in `LlmCallOptions.skills`
   (→ `Context`), not in the execution's `skills` (→ the cached `Skills` block).
+- **`Results` sits below every boundary cached across steps.** A cumulative-results view is
+  stable for every call of ONE pipeline step and different on the next, so it may never sit
+  between role+skills and packages, nor take one of their markers. It is never an interior
+  boundary; `patchSystem`'s closing rule may mark it only when it is the last block (no
+  `Context` after it), which is the breakpoint `Packages` would otherwise have closed with —
+  still within `MAX_SYSTEM_BREAKPOINTS`. With no view the plugin contributes nothing and the
+  composed bytes are exactly what they were before the block existed (golden-tested in
+  `@owlmeans/llm`'s `tests/results.spec.ts`).
 - **Budget: 4 breakpoints per request, total** — across tools, system AND messages.
   Anthropic rejects the fifth outright (`400 A maximum of 4 blocks with cache_control may
   be provided. Found 5.`), and a 400 is fatal, so the whole call fails. The system prompt
@@ -75,7 +84,7 @@ is invalidating it** — diff `PromptResult.blocks` between two calls to find wh
 ```typescript
 ctx.prompts().use({
   alias: 'my-plugin',
-  order: 50,                         // built-ins hold 0 (role), 10 (skills), 90 (context)
+  order: 50,                         // built-ins hold 0 (role), 10 (skills), 80 (results), 90 (context)
   compose: ctx => ctx.add(PromptBlock.Skills, text),   // static, runs first
   inspect: ctx => { /* reads ctx.messages */ },        // after every compose pass
 })
@@ -113,6 +122,13 @@ than fails.
 reproducible byte-for-byte, so a selection made this way belongs in `Packages` or
 `Context`, which carry their own breakpoint or none. Wiring: `makeLlmModel`'s `utility`
 option (beside `files`) and `AgentOptions.utility`; unwired, the field is simply absent.
+
+### `ctx.results` — the view of earlier pipeline steps
+
+`PromptComposeParams.results` is the execution's `results` — passed by `makeLlmModel` from its
+options and by `makeAgentModel` from `exec.results`. `resultsPlugin` renders it with
+`renderCumulativeResults` into `Results`; a plugin of your own reads it the same way and must
+not move it into a cached block.
 
 ## Package skills in a prompt (`@owlmeans/agent-skills/llm`)
 

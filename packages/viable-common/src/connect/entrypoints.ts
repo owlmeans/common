@@ -1,26 +1,23 @@
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
-import type { EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
-import { route, RouteMethod, socket } from '@owlmeans/route'
-import { ConverterProjectLlmBodySchema } from '../convert/schemas.js'
+import { route, RouteMethod } from '@owlmeans/route'
 import { connect } from './consts.js'
 import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
   ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
   ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
-  ConnectProjectIdSchema, ConnectProjectLlmBodySchema, ConnectSessionOpenSchema,
-  ConnectSessionParamsSchema, ConnectPullQuerySchema, ConnectStoryParamsSchema, InquiryAnswerSchema,
+  ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
+  ConnectStoryParamsSchema, InquiryAnswerSchema,
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
   ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
-  ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSessionOpen,
+  ConnectProjectBrandingSave, ConnectSessionOpen,
   ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
   ConnectStoryStatus, ConversionStatusView, ConvertCheck,
 } from './types.js'
 import type { ConnectOpResult } from './ops.js'
-import type { ConverterProjectLlmBody } from '../convert/types.js'
 
 /**
  * What the platform injects when it mounts the connector routes.
@@ -37,19 +34,19 @@ export interface ConnectEntrypointOptions {
   /**
    * The gate that decides whether the caller may use the local-LLM mode.
    *
-   * Applied to the two routes that can turn it on — opening a delegated session and pinning a
-   * project to it. Everything else is free: `cloud` is the default and the platform writes it
-   * back by itself when a plan lapses.
+   * Applied to the one route that turns it on — opening a delegated session. Everything else is
+   * free: `cloud` is the default, and a project's own override is the platform's browser surface,
+   * not the connector's.
    */
   localLlm?: { alias: string, params: string[] }
-  /** The platform-owned websocket-base protocol that carries session updates. */
-  updateBase: EntrypointProtocol<OpenRequest, OpenValue>
   /** Path prefix; defaults to `/connect`. */
   path?: string
 }
 
 /**
- * Declare the connector's HTTP and socket surface.
+ * Declare the connector's HTTP surface — exactly the routes a connector calls: the session (long
+ * poll, no socket), the operation relay, projects, story status, generated files, conversion,
+ * inquiry answers and pipeline state.
  *
  * One immutable tree, mounted directly by the platform's entrypoint tree. Handlers are bound to these protocols
  * server-side and onto client entrypoints in the SDK — the same declarations both times, which is
@@ -69,11 +66,6 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
   return {
     base,
 
-    capabilities: protocol(
-      route(connect.capabilities, '/capabilities', { parent: base, method: RouteMethod.GET }),
-      contract(typed()),
-    ),
-
     // --- session ---------------------------------------------------------------------------
     session: {
     open: protocol(
@@ -86,29 +78,12 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ body: typed<ConnectSessionOpen>(ConnectSessionOpenSchema) }, typed()), paid
     ),
-    get: protocol(
-      route(connect.session.get, '/session/:sessionId', {
-        parent: base, method: RouteMethod.GET
-      }),
-      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
-    ),
-    heartbeat: protocol(
-      route(connect.session.heartbeat, '/session/:sessionId/heartbeat', {
-        parent: base, method: RouteMethod.POST
-      }),
-      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
-    ),
     close: protocol(
       route(connect.session.close, '/session/:sessionId/close', {
         parent: base, method: RouteMethod.POST
       }),
       contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
     ),
-    socket: protocol(
-      route(connect.session.socket, '/connect/:sessionId', socket({ parent: opts.updateBase })),
-      contract.request({ params: typed<ConnectSessionParams>(ConnectSessionParamsSchema) }, typed())
-    ),
-
     },
 
     // --- operations ------------------------------------------------------------------------
@@ -167,27 +142,6 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         parent: base, method: RouteMethod.POST
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
-    ),
-    settings: protocol(
-      route(connect.project.settings, '/project/:id/settings', {
-        parent: base, method: RouteMethod.GET
-      }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed())
-    ),
-    llm: protocol(
-      route(connect.project.llm, '/project/:id/llm', {
-        parent: base, method: RouteMethod.POST
-      }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectProjectLlmBody>(ConnectProjectLlmBodySchema) }, typed()), paid
-    ),
-    converterLlm: protocol(
-      route(connect.project.converterLlm, '/project/:id/converter-llm', {
-        parent: base, method: RouteMethod.POST,
-      }),
-      contract.request({
-        params: typed<{ id: string }>(ConnectProjectIdSchema),
-        body: typed<ConverterProjectLlmBody>(ConverterProjectLlmBodySchema),
-      }, typed()),
     ),
     // Under `base` like every sibling — the guard and the ownership gate — and never under the
     // paid gate: saving branding is free, and the paid credit switch is not reachable from here.
@@ -251,10 +205,6 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         params: typed<{ id: string }>(ConnectProjectIdSchema),
         body: typed<ConnectConvertProceedBody>(ConnectConvertProceedBodySchema),
       }, typed<ConversionStatusView>()),
-    ),
-    cancel: protocol(
-      route(connect.convert.cancel, '/convert/:id/cancel', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
     ),
     status: protocol(
       route(connect.convert.status, '/convert/:id', { parent: base, method: RouteMethod.GET }),

@@ -28,6 +28,7 @@ import {
   makePurchaseResource, makeSubscriptionResource, makeUsageCounterResource, makeUsageResource, makeWebhookResource,
 } from '../src/resource.js'
 import { appendPaymentGatewayService } from '../src/service.js'
+import type { GatewayServiceOptions } from '../src/service.js'
 import { observer } from '../src/utils.js'
 import type {
   CancellationEvent, Config, ConsentEvent, ConsumerRightsDef, ConsumerRightsOptions, DisputeEvent, PaymentFailedEvent,
@@ -814,13 +815,21 @@ export interface FakeContextOptions {
   catalogue?: CatalogueOptions
   /** Declare the catalogue yourself instead. */
   declare?: (cfg: Config) => void
-  /** The public host of the service (default `api.example.com`). */
+  /** This process's `cfg.service` (default `app`). */
+  service?: string
+  /** The public host of this process's service (default `api.example.com`). */
   host?: string
+  /** The base path of this process's service (default none). */
+  base?: string
+  /** Further backend services by alias, each on its own host (and base). */
+  services?: Record<string, { host: string, base?: string }>
   /** The configured webhook override secret. */
   webhookSecret?: string
   portal?: PortalBrandingDef
   pricing?: PricingDef
   stripe?: Partial<FakeStripeState>
+  /** Rows each store (by resource alias) holds before the context initializes — a shared database. */
+  seed?: Record<string, Rec[]>
   /** Declare a consumer-rights policy (with trader and mail options). */
   consumerRights?: ConsumerRightsDef
   /** The consumer-rights usage meter. */
@@ -831,8 +840,8 @@ export interface FakeContextOptions {
   gatewayFirst?: boolean
   /** The application's consumer-rights options (default: managed through the fake, with `meter`). */
   rights?: (stripe: Stripe) => ConsumerRightsOptions
-  /** The gateway's `manage` (default false). */
-  gatewayManage?: boolean
+  /** The gateway's options (default `{ manage: false }`); its Stripe client is always the fake. */
+  gateway?: GatewayServiceOptions
   /** Run on the context after the registrations, before it is configured and initialized. */
   wire?: (ctx: ApiContext) => void
 }
@@ -868,15 +877,19 @@ export interface FakeContext {
 }
 
 /**
- * A real server context — real catalogue, payment service, observer, gateway (unmanaged), gates and
- * entitlement service — over in-memory resources, with a fake Stripe for the plugin functions.
+ * A real server context — real catalogue, payment service, observer, gateway (unmanaged unless
+ * `gateway` says otherwise), gates and entitlement service — over in-memory resources, with a fake
+ * Stripe for the plugin functions and as the gateway's own client.
  */
 export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<FakeContext> => {
-  const cfg = serverConfig<ServerConfig>(SERVICE, {
-    services: {
-      [SERVICE]: { service: SERVICE, type: AppType.Backend, host: opts.host ?? HOST },
-    },
-  } as Partial<ServerConfig>) as unknown as Config
+  const own = opts.service ?? SERVICE
+  const services: Record<string, unknown> = {
+    [own]: { service: own, type: AppType.Backend, host: opts.host ?? HOST, ...(opts.base != null ? { base: opts.base } : {}) },
+  }
+  for (const [alias, { host, base }] of Object.entries(opts.services ?? {})) {
+    services[alias] = { service: alias, type: AppType.Backend, host, ...(base != null ? { base } : {}) }
+  }
+  const cfg = serverConfig<ServerConfig>(own, { services } as Partial<ServerConfig>) as unknown as Config
   if (opts.declare != null) {
     opts.declare(cfg)
   } else {
@@ -911,6 +924,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   ] as const
   for (const [alias, resource] of resources) {
     stores[alias] = memoryResource(resource as unknown as MongoResource<ResourceRecord>)
+    stores[alias].rows.push(...structuredClone(opts.seed?.[alias] ?? []))
     ctx.registerResource(resource as never)
   }
   const { stripe, state } = makeFakeStripe(opts.stripe)
@@ -921,7 +935,7 @@ export const makeFakeContext = async (opts: FakeContextOptions = {}): Promise<Fa
   // The consumer-rights service manages the paygate through the fake; the gateway stays unmanaged.
   const rights = opts.rights?.(stripe)
     ?? { manage: true, stripe: async () => stripe, ...(opts.meter != null ? { usage: opts.meter } : {}) }
-  const gatewayOpts = { manage: opts.gatewayManage ?? false }
+  const gatewayOpts: GatewayServiceOptions = { manage: false, stripe: async () => stripe, ...opts.gateway }
   if (opts.gatewayFirst === true) {
     appendPaymentGatewayService(ctx as never, gatewayOpts)
     appendConsumerRights(ctx as never, rights)

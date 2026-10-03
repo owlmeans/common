@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.48 my-app
+npx @owlmeans/create-app@^0.1.18-rc.55 my-app
 ```
 
 ## What it generates
@@ -18,8 +18,7 @@ A bun-workspace monorepo with three packages and **no authentication**:
 
 ```
 my-app/
-├── AGENTS.md                       # agent context, read by every coding agent
-├── CLAUDE.md                       # thin bridge: imports AGENTS.md, links skills for Claude Code
+├── AGENTS.md                       # agent context, read by every coding agent (Claude Code included)
 ├── .agents/skills/<name>/SKILL.md  # deployed agent skills
 ├── .agents/memory/MEMORY.md        # shared agent memory index
 ├── sources/
@@ -39,7 +38,7 @@ into the project via [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@o
 `AGENTS.md` carries the four mandatory sections a real OwlMeans monorepo uses — **Git Workflow**,
 **Reporting**, **Memory**, **Self-Education** — plus a project-purpose placeholder your agent fills
 in on its first session. GitHub Copilot and Codex read `AGENTS.md` and `.agents/skills/` natively;
-Claude Code reads `CLAUDE.md`, which imports `AGENTS.md` and keeps per-skill symlinks in
+Claude Code reads `AGENTS.md` too and keeps per-skill symlinks in
 `.claude/skills/` fresh through `sh .agents/scripts/link-skills.sh`. The harness guidance (memory
 protocol, self-education, git policy, skill authoring, reuse-first) ships with the template, so it
 is present even with `--no-install`.

@@ -1,9 +1,12 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PromptBlock } from '@owlmeans/llm-common'
 import type { LlmFileProvider } from '@owlmeans/llm-common'
 import { anthropicPlugin, makePromptService } from '@owlmeans/llm'
 import type { ModelConfig, PromptService } from '@owlmeans/llm'
-import { owlmeansPackagesPlugin, stripMeta, unscoped } from '@owlmeans/agent-skills/llm'
+import { loadPackageSkills, owlmeansPackagesPlugin, stripMeta, unscoped } from '@owlmeans/agent-skills/llm'
 
 const model = anthropicPlugin.build({
   alias: 'spec',
@@ -154,5 +157,103 @@ describe('@owlmeans/agent-skills — package skills plugin', () => {
   test('an unreachable package degrades the prompt instead of failing the call', async () => {
     const result = await compose(withPlugin(), 'about @owlmeans/does-not-exist-anywhere')
     expect(result.blocks.find(block => block.block === PromptBlock.Packages)).toBeUndefined()
+  })
+})
+
+/**
+ * A checkout of the canonical repository replaces GitHub: the same `packages/<name>/agent-meta/`
+ * files, read from disk. The package names are ones no `node_modules` holds, so the local walk
+ * misses and what is asserted is the third source alone.
+ */
+describe('@owlmeans/agent-skills — a local checkout in place of GitHub', () => {
+  const realFetch = globalThis.fetch
+  afterEach(() => { globalThis.fetch = realFetch })
+
+  /** A fetch that records every URL and answers from a table. */
+  const fakeFetch = (answers: Record<string, string> = {}): string[] => {
+    const asked: string[] = []
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input)
+      asked.push(url)
+      const hit = Object.entries(answers).find(([key]) => url.endsWith(key))
+      return hit != null ? new Response(hit[1], { status: 200 }) : new Response('', { status: 404 })
+    }) as typeof fetch
+    return asked
+  }
+
+  const manifestOf = (name: string): string => JSON.stringify({
+    schemaVersion: 2,
+    package: `@owlmeans/${name}`,
+    version: '0.0.1-fixture',
+    generatedAt: '',
+    canonicalRepo: '',
+    entries: [{
+      kind: 'skill', name, category: 'package-specific',
+      file: `skills/${name}/SKILL.md`, canonicalPath: `.agents/skills/${name}/SKILL.md`,
+    }],
+  })
+
+  /** A synthetic checkout with one package whose skill carries a `## Target wiring` section. */
+  const checkout = (name: string): string => {
+    const root = mkdtempSync(join(tmpdir(), 'agent-skills-checkout-'))
+    const meta = join(root, 'packages', name, 'agent-meta')
+    mkdirSync(join(meta, 'skills', name), { recursive: true })
+    writeFileSync(join(meta, 'manifest.json'), manifestOf(name))
+    writeFileSync(join(meta, 'skills', name, 'SKILL.md'),
+      `---\nname: ${name}\n---\n# CHECKOUT BODY\n\n## Target wiring\n\n| a | b |\n`)
+    return root
+  }
+
+  test('a configured checkout serves the package, and GitHub is never asked', async () => {
+    const asked = fakeFetch()
+    const root = checkout('zz-checkout-fixture')
+    const found = await loadPackageSkills(
+      '@owlmeans/zz-checkout-fixture', { localRoot: root, dir: root, ref: 'never-read' }, ['package-specific'],
+    )
+    expect(found?.source).toBe('checkout')
+    expect(found?.version).toBe('0.0.1-fixture')
+    expect(found?.skills[0]?.body).toContain('## Target wiring')
+    expect(found?.skills[0]?.body).not.toContain('name: zz-checkout-fixture')
+    expect(asked).toEqual([])
+  })
+
+  test('a package the checkout lacks is a miss, not a GitHub fallback', async () => {
+    const asked = fakeFetch({ 'manifest.json': manifestOf('zz-absent-fixture'), 'SKILL.md': '# REMOTE' })
+    const root = checkout('zz-checkout-fixture')
+    expect(await loadPackageSkills(
+      '@owlmeans/zz-absent-fixture', { localRoot: root, dir: root }, ['package-specific'],
+    )).toBeNull()
+    // A name that would climb out of `packages/` is never joined onto the root.
+    expect(await loadPackageSkills(
+      '@owlmeans/../zz-checkout-fixture', { localRoot: root, dir: root }, ['package-specific'],
+    )).toBeNull()
+    expect(asked).toEqual([])
+  })
+
+  test('without a checkout, the GitHub fallback is read at the ref exactly as before', async () => {
+    const asked = fakeFetch({
+      'manifest.json': manifestOf('zz-remote-fixture'),
+      'skills/zz-remote-fixture/SKILL.md': '---\nname: zz-remote-fixture\n---\n# REMOTE BODY',
+    })
+    const dir = mkdtempSync(join(tmpdir(), 'agent-skills-remote-'))
+    const found = await loadPackageSkills(
+      '@owlmeans/zz-remote-fixture', { dir, ref: 'spec-ref' }, ['package-specific'],
+    )
+    expect(found?.source).toBe('remote')
+    expect(found?.skills[0]?.body).toBe('# REMOTE BODY')
+    expect(asked[0]).toBe(
+      'https://raw.githubusercontent.com/owlmeans/common/spec-ref/packages/zz-remote-fixture/agent-meta/manifest.json',
+    )
+  })
+
+  test('the plugin composes a checkout\'s skill into the packages block', async () => {
+    const asked = fakeFetch()
+    const root = checkout('zz-plugin-fixture')
+    const result = await compose(
+      withPlugin({ localRoot: root, dir: root }), 'build it on @owlmeans/zz-plugin-fixture',
+    )
+    expect(result.blocks.find(block => block.block === PromptBlock.Packages)?.text)
+      .toContain('CHECKOUT BODY')
+    expect(asked).toEqual([])
   })
 })

@@ -26,6 +26,8 @@ const Dialog = () => {
       onOpenChange={setOpen}
       policy={policy}
       pending={pending}
+      disabled={params.get('disabled') === 'true'}
+      details={params.has('details') ? <section data-test-details="">Application tier details</section> : undefined}
       onConfirm={setConfirmed}
       estimate={estimateCase != null ? ESTIMATE_FIXTURES[estimateCase] : undefined}
     />

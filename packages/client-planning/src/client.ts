@@ -6,6 +6,7 @@ import {
 } from '@owlmeans/planning'
 import type { PlanningFacade, PlanningPlugin, PlanningSchemaRegistry } from '@owlmeans/planning'
 import { makeRemoteCommitSource } from './commits.js'
+import { makeRemoteDefinitions } from './definitions.js'
 import { makeRemoteFacade } from './facade.js'
 import { planningStoresOf } from './stores.js'
 import type {
@@ -65,9 +66,15 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
     return await loading
   }
 
+  // A write of data-defined schemas moves the organization's bundle too: the next `model()` reloads it.
+  const definitions = options.protocols.schema.define == null
+    ? undefined
+    : makeRemoteDefinitions(context, options.protocols, { timeout: options.timeout, onWrite: () => { loaded = false; loading = null } })
+
   const facadeFor = (scope: Parameters<PlanningClientService['for']>[0]): PlanningFacade =>
     makeRemoteFacade(context, options.protocols, { ...options.scope, ...scope }, {
       commits, schemas: registry, loadSchemas, timeout: options.timeout, stores,
+      ...(definitions != null ? { definitions } : {}),
     })
 
   let fallback: PlanningFacade | null = null
@@ -106,6 +113,8 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
     },
 
     close: async () => await commits.close(),
+
+    ...(definitions != null ? { definitions } : {}),
   })
 }
 

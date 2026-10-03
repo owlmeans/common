@@ -1,8 +1,8 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { ExecutionLevel } from '@owlmeans/llm-common'
 import type {
-  ExecutionEffort, ExecutionState, ModelConfigOverride, ModelConfigPatch, ModelEffort,
-  ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
+  CumulativeResults, ExecutionEffort, ExecutionState, ModelConfigOverride, ModelConfigPatch,
+  ModelEffort, ModelPolicy, ModelRole, PromptPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
 import { EFFORT_TABLE } from '../consts.js'
 import { effortSupportOf } from '../plugins/index.js'
@@ -11,6 +11,19 @@ import { raiseEffort } from '../utils/effort.js'
 import type { Execution, TaskExecution } from './types.js'
 
 export const freeze = <T extends object>(o: T): Readonly<T> => Object.freeze(o)
+
+/**
+ * A private, deep-frozen copy of a results view.
+ *
+ * Deep because the view is shared by reference down the whole execution chain — every task and
+ * helper derived from the execution carrying it — and one caller editing a section in place would
+ * change the prompt of every other.
+ */
+export const freezeResults = (results: CumulativeResults): CumulativeResults => Object.freeze({
+  ...results,
+  sections: Object.freeze(results.sections.map(section => Object.freeze({ ...section }))),
+  omitted: Object.freeze([...results.omitted]),
+}) as CumulativeResults
 
 /** Overlay a partial policy onto a base one. Override maps are merged, not replaced. */
 export const mergePolicy = (base: ModelPolicy, patch: Partial<ModelPolicy>): ModelPolicy => {

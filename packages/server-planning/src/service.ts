@@ -1,8 +1,12 @@
 import { createLazyService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { makeSchemaRegistry, PlanningError } from '@owlmeans/planning'
-import type { PlanningService, PlanningStore, Transition, WithPlanningService } from '@owlmeans/planning'
+import type {
+  PlanningSchemaRegistry, PlanningService, PlanningStore, SchemaStore, ScopedSchemaRegistry, Transition,
+  WithPlanningService,
+} from '@owlmeans/planning'
 import { DEFAULT_ALIAS } from './consts.js'
+import { makeSchemaViews } from './definitions.js'
 import { makeStoreFacade } from './facade.js'
 import { makePluginRegistry } from './registry.js'
 import type { PluginRegistry } from './registry.js'
@@ -23,6 +27,15 @@ export interface PlanningRuntime {
   reader: () => PlanningStore
   /** Every distinct store: the default one first, then each plugin's. */
   stores: () => PlanningStore[]
+  /** The default store's data-defined schema port, when it has one. */
+  schemaStore: () => SchemaStore | undefined
+  /**
+   * The registry a card of this organization (and project) resolves through. Without a schema
+   * port it is the service's code registry itself — the very same object.
+   */
+  schemasFor: (entityId: string, project?: string) => Promise<PlanningSchemaRegistry>
+  /** The resolved layer. @throws {PlanningUnsupported} without a schema port */
+  scopedSchemas: (entityId: string, project?: string) => Promise<ScopedSchemaRegistry>
 }
 
 const contextOf = (service: PlanningService): BasicContext<BasicConfig> | undefined =>
@@ -54,6 +67,12 @@ export const planningServiceApi = (
 
   let reader: { version: number, store: PlanningStore } | undefined
 
+  const views = makeSchemaViews({
+    code: () => schemas,
+    version: () => registry.version(),
+    port: () => fallback.schemas,
+  })
+
   const runtime: PlanningRuntime = {
     service: self,
     registry,
@@ -66,6 +85,9 @@ export const planningServiceApi = (
       return reader.store
     },
     stores: () => [...new Set([fallback, ...registry.routes(runtime.context()).map(route => route.store)])],
+    schemaStore: () => fallback.schemas,
+    schemasFor: views.of,
+    scopedSchemas: views.scoped,
   }
 
   options.plugins?.forEach(registry.use)

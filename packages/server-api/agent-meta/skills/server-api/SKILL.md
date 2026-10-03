@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.42`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.48`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -37,6 +37,12 @@ export const serverBindings = [
 `body` and `params` are available only for a protocol declaring that section. `request` works for
 any protocol and receives all its typed sections plus request metadata. A successful callback
 return resolves the entrypoint with `EntrypointOutcome.Ok`; a thrown error rejects it.
+
+A body contract may be a scalar (`schema<string>({ type: 'string' })`, a number, a boolean): the
+server's JSON parser takes any JSON value, so `"abc"`, `42` or `false` reach the handler as that
+value. An unquoted string or an empty body under `application/json` is invalid JSON and answers
+400 before the handler runs — `@owlmeans/api` never sends either (it quotes a scalar body).
+`tests/json-body.spec.ts` runs it through `appendApiServer`.
 
 ## Wrap exactly once
 
@@ -74,6 +80,9 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
   that is understood and refused — and a missing configuration, a broken peer, a timeout or a bug
   stays 500, because monitoring, logs, proxies and retry logic read a 5xx as the server failing.
   The table and the leaf-class rule are the `error` skill's.
+- The storage refusals of `@owlmeans/resource` declare theirs: `UnknownRecordError` answers 404,
+  `RecordExists` 409, every other `ResourceError` 500 — so a handler that lets a `get()` miss
+  escape answers 404, and one reading a row the request did not address uses `load` instead.
 - Declare it on the class: `public static httpStatus = 409` (`override` only when an ancestor
   already declares one). The declaration is structural — the package declaring an error never
   imports `@owlmeans/server-api` — and a static property is inherited, so a subclass answers its
@@ -104,6 +113,11 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
 than reaching through `request.original` in application code.
 
 ## Error exposure
+
+An exact IAM `AuthForbidden` or `AccessError` refusal answers with
+`X-OwlMeans-Denial: access-denied`, exposed through CORS. Subclasses such as entitlement refusals
+do not get this marker. The marker survives production exposure so browser clients can present a
+permission message while keeping diagnostic bodies private.
 
 `handleError` always assigns an incident UUID, attaches it to the logged error and returns it in the
 `X-Incident-ID` response header (`INCIDENT_ID_HEADER` in `./utils`, the same name and value

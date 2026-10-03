@@ -6,7 +6,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { StructuredMode } from '@owlmeans/llm-common'
 import type { NullKind } from '@owlmeans/llm-common'
 import { DEFAULT_MODEL_RETRIES, MAX_CACHE_BREAKPOINTS } from './consts.js'
-import { LlmModelError } from './errors.js'
+import { LlmMissconfiguredError, LlmModelError } from './errors.js'
 import type { LlmPlugin } from './plugins/types.js'
 import { coerceToSchema, parseJsonContent } from './helpers/json.js'
 import { normalizeInput } from './helpers/messages.js'
@@ -16,7 +16,7 @@ import type { ModelConfig } from './types.js'
 import { idleTimeout, resolveOutputCap } from './utils/config.js'
 import { reportNull } from './utils/null-report.js'
 import type { NullReportParams } from './utils/null-report.js'
-import { applyNoThink, dropBlankContent, ensureJsonMention, stripCacheMarkers } from './utils/prompt.js'
+import { applyNoThink, dropBlankContent, ensureJsonMention, ensureToolCall, stripCacheMarkers } from './utils/prompt.js'
 import { rungAt, rungsOf } from './utils/rungs.js'
 import type { Rung } from './utils/rungs.js'
 import { resolveSchemaValidator, toToolName, unwrapNamed } from './utils/schema.js'
@@ -95,6 +95,7 @@ export const makeLlmModel = ({
   prompts,
   files,
   utility,
+  results,
 }: LlmModelOptions, spectator: LlmSpectator): LlmModel => {
 
   const ajv = new Ajv({ strict: false })
@@ -124,8 +125,8 @@ export const makeLlmModel = ({
    * is the whole point: a prompt cache is a PREFIX match, so the bytes every call shares
    * have to be physically ahead of the bytes that differ.
    *
-   * Rendered for one rung: the system blocks, cache markers and the thinking switch are
-   * provider dialect, so a fallback on another provider needs its own rendering.
+   * Rendered for one rung: the system blocks, cache markers, the thinking switch and the tool
+   * instruction are provider dialect, so a fallback on another provider needs its own rendering.
    */
   const prepare = async (
     input: ModelInput,
@@ -134,6 +135,7 @@ export const makeLlmModel = ({
     cacheMax: number,
     json: boolean,
     callSkills: string[] | undefined,
+    toolName: string | undefined,
     { model, plugin, config }: Rung,
   ): Promise<MessageFieldWithRole[]> => {
     const msgs = normalizeInput(input)
@@ -153,7 +155,7 @@ export const makeLlmModel = ({
           callSkills: callSkills ?? prompt?.callSkills,
         },
         msgs,
-        { model, provider: plugin, purpose, action, cacheMax, files, utility },
+        { model, provider: plugin, purpose, action, cacheMax, files, utility, results },
       )
       if (composed.system != null) {
         msgs.unshift(composed.system)
@@ -167,6 +169,8 @@ export const makeLlmModel = ({
     }
 
     if (json) ensureJsonMention(msgs)
+    // A model that refuses a pinned tool is asked for it in words; `toolChoice` sends `auto`.
+    if (toolName != null && plugin?.pinsTool?.(config) === false) ensureToolCall(msgs, toolName)
     // The soft switch is for models with no request-level control; a plugin that sends the
     // real parameter must not also get the directive as prompt text.
     applyNoThink(msgs, config.disableThinking === true && plugin?.suppressesThinking?.(config) !== true)
@@ -198,13 +202,14 @@ export const makeLlmModel = ({
     cacheMax: number,
     json: boolean,
     callSkills?: string[],
+    toolName?: string,
   ): (rung: Rung) => Promise<MessageFieldWithRole[]> => {
     let prepared: { family: string | undefined, msgs: MessageFieldWithRole[] } | null = null
     return async rung => {
       const family = rung.plugin?.family
       if (prepared == null || prepared.family !== family) {
         prepared = {
-          family, msgs: await prepare(input, action, useCache, cacheMax, json, callSkills, rung),
+          family, msgs: await prepare(input, action, useCache, cacheMax, json, callSkills, toolName, rung),
         }
       }
       return prepared.msgs
@@ -286,6 +291,18 @@ export const makeLlmModel = ({
     return { ...rung, refined }
   }
 
+  /**
+   * Refuse a schema this rung's provider would not show the model as written — before the rung's
+   * request, and fatally: the model cannot answer a property it is never shown, and each retry
+   * would fail validation the same way.
+   */
+  const assertSchemaShown = ({ plugin, config }: Rung, schema: unknown): void => {
+    const defects = plugin?.schemaDefects?.(config, schema) ?? []
+    if (defects.length > 0) {
+      throw new LlmMissconfiguredError(`schema-hidden:${config.model ?? config.alias}: ${defects.join('; ')}`)
+    }
+  }
+
   /** How this rung should be asked for schema-conforming output. */
   const structuredMode = ({ plugin, config }: Rung): StructuredMode => plugin != null
     ? plugin.structuredMode(config as Parameters<LlmPlugin['structuredMode']>[0])
@@ -319,12 +336,21 @@ export const makeLlmModel = ({
       if (mode === StructuredMode.Native) {
         return refined.stream(msgs, { ...base, ...responseFormat && { response_format: responseFormat } } as unknown as StreamOptions)
       }
-      // langchain converts the OpenAI-shaped tool DEFINITION for either provider, but the
-      // `tool_choice` shape is NOT converted — the plugin supplies the right spelling.
+      // langchain converts the OpenAI-shaped tool DEFINITION (with `strict`) for either provider,
+      // but the `tool_choice` shape is NOT converted — the plugin supplies the right spelling, and
+      // for a model that refuses a pinned tool the automatic choice. A reply with no tool call
+      // then falls to the content fallback below and, failing that, is a null result retried.
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const strict = plugin?.strictTool?.(active.config, innerSchema) === true
       const bound = refined.bindTools!(
-        [{ type: 'function', function: { name: toolName, description: '', parameters: innerSchema } }],
-        { tool_choice: plugin?.toolChoice(toolName) ?? { type: 'function', function: { name: toolName } } }
+        [{
+          type: 'function',
+          function: { name: toolName, description: '', parameters: innerSchema, ...(strict ? { strict } : {}) },
+        }],
+        {
+          tool_choice: plugin?.toolChoice(toolName, active.config)
+            ?? { type: 'function', function: { name: toolName } },
+        }
       )
       return bound.stream(msgs, base)
     }
@@ -485,14 +511,15 @@ export const makeLlmModel = ({
       }: LlmInvokeOptions<T>
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills)
         const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
         const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
 
         const seed = ladderSeed(escalation)
         await prepared(rungAt(rungs, seed).rung)
         return await withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i, temperature)
+        assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
         console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
@@ -542,14 +569,15 @@ export const makeLlmModel = ({
       }: LlmRequestOptions
     ) => {
       return await observeFailure(action, async () => {
-        const prepared = preparing(input, action, useCache, cacheMax, true, skills)
         const { name, innerSchema, validate } = resolveSchemaValidator<T>(ajv, schema)
         const toolName = toToolName((innerSchema as { title?: string }).title ?? name)
+        const prepared = preparing(input, action, useCache, cacheMax, true, skills, toolName)
 
         const seed = ladderSeed(escalation)
         await prepared(rungAt(rungs, seed).rung)
         return await withRetry({ retries, outputErrors, fatal }, async i => {
         const active = refineModel(seed + i)
+        assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
         console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)

@@ -101,3 +101,15 @@ model factory service and the generic execution service. Related: [[versioning]]
   The `ModelProvider.Delegated` runtime is `@owlmeans/llm-delegate` in the `internal` monorepo —
   contracts here, runtime there; consumers reach it through `@owlmeans/viable`.
 - Consumer side: `viable-agent` skills `/llm-model` and `/execution`.
+- `@langchain/anthropic` 1.5.8 validates its own UNSENT `thinking: disabled` default: an Opus 5/5.5
+  call at `xhigh`/`max` with no `thinking` set threw locally (not a 400, so retried to exhaustion).
+  The plugin sets the unsent field to `adaptive` on the 5 family (`withLocalThinking`); the SDK's
+  `ThinkingConfigParam` has no `between_tools`, but langchain forwards the object unchanged.
+- Sonnet 5.5, Opus 5.5 and Fable/Mythos 5.1 answer a pinned `tool_choice` with a 400, and Opus 5.5 /
+  Fable 5 / Mythos 5 refuse every thinking off switch — before the per-family table the plugin sent
+  `disabled` to all of them under `disableThinking` (verified live 2026-09-29: Sonnet 5.5 at
+  `between_tools` + `auto` + `strict` → 200).
+- `@langchain/openai` 1.5.x sends its constructor `reasoning` only for `o*`/`gpt-5*` names, so every
+  `gpt-6-*` effort was silently dropped until it moved to `modelKwargs.reasoning`. The same run found
+  OpenAI's non-strict `json_schema` hiding a PROPERTY named `required` (the type catalogue's
+  `attributes[].required`) — eight identical validation failures; now refused up front.

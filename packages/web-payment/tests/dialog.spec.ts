@@ -10,6 +10,16 @@ afterAll(async () => {
 })
 
 describe('AmountCheckoutDialog', () => {
+  test('renders application details and allows cancel when application reads are unavailable', async () => {
+    const { page, close } = await mountComponent({ url: `${await harnessUrl()}?details=true&disabled=true` })
+    try {
+      await page.locator('[data-test-details]').waitFor()
+      expect(await page.getByLabel('Custom amount').isDisabled()).toBe(true)
+      expect(await page.getByRole('button', { name: 'Continue to Stripe' }).isDisabled()).toBe(true)
+      expect(await page.getByRole('button', { name: 'Cancel' }).isDisabled()).toBe(false)
+    } finally { await close() }
+  }, TIMEOUT)
+
   test('renders presets and the net, adjustment, and pre-tax amounts', async () => {
     const { page, close } = await mountComponent({ url: await harnessUrl() })
     try {

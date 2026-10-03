@@ -14,8 +14,7 @@ export {
   CONSENT_ESSENTIAL, CONSENT_ANALYTICS, CONSENT_MARKETING,
   registerConsentPlugin, consentPlugins, decorateConsentUrl, consentDomains, adoptConsent,
   startConsentPlugins, adoptConsentLanguage, writeConsentLanguage, CONSENT_LANGUAGE_KEY,
-  CONSENT_FUNCTIONAL, CONSENT_EVENT, CONSENT_LANGUAGE_EVENT, CONSENT_PENDING_LANGUAGE,
-  functionalGranted, functionalKeysOf, purgeFunctionalStorage, writeFunctionalPreference,
+  CONSENT_EVENT,
   consentLinker, encodeConsentLink, decodeConsentLink, stripConsentLinkParam, consentLinkerScript,
   CONSENT_LINK_PARAM, CONSENT_LINK_MAX_AGE, CONSENT_LINK_SKEW,
 } from '@owlmeans/consent'
