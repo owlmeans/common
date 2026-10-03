@@ -1,6 +1,6 @@
 import { ENTITLING_STATUSES, SubscriptionStatus } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { findPlan } from './plan.js'
+import { findPlan, overriddenPlan } from './plan.js'
 import { compact, isDuplicateKey, observer, subscriptions } from './utils.js'
 import type {
   PaymentSubscriptionRecord, PropagatedState, SubscriptionChange, SubscriptionSnapshot,
@@ -117,7 +117,8 @@ export const snapshotOf = async (
   ctx: ApiContext, record: PaymentSubscriptionRecord, state?: PropagatedState,
 ): Promise<SubscriptionSnapshot> => {
   const planSku = state?.planSku ?? record.planSku
-  const plan = await findPlan(ctx, planSku)
+  const declared = await findPlan(ctx, planSku)
+  const plan = declared != null ? overriddenPlan(declared, record) : null
 
   return compact<SubscriptionSnapshot>({
     entityId: record.entityId,

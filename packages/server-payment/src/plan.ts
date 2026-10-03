@@ -42,6 +42,39 @@ export const freePlanOf = async (ctx: ApiContext): Promise<PaymentPlan | null> =
     .filter(plan => plan.free === true)
     .sort((a, b) => planRank(a) - planRank(b) || a.sku.localeCompare(b.sku))[0] ?? null
 
+const isCeiling = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+
+/**
+ * A plan as ONE subscription holds it: the row's `overrides` replace the static declaration.
+ *
+ * A limit override sets the ceiling of a key the plan declares and drops that key's promo, so the
+ * ceiling holds whatever the promo says; the kind and the window stay the plan's, because the
+ * counters are keyed by them. A key the plan does not declare, or a ceiling that is not a safe
+ * integer `>= 0`, is ignored. The override belongs to the row: it follows the subscription through
+ * a plan change and ends with it.
+ */
+export const overriddenPlan = (
+  plan: PaymentPlan, row: Pick<PaymentSubscriptionRecord, 'overrides'> | null | undefined,
+): PaymentPlan => {
+  const limits = Object.entries(row?.overrides?.limits ?? {})
+    .filter(([key, override]) => plan.limits?.[key] != null && isCeiling(override?.limit))
+  if (limits.length === 0) {
+    return plan
+  }
+
+  return {
+    ...plan,
+    limits: {
+      ...plan.limits,
+      ...Object.fromEntries(limits.map(([key, override]) => {
+        const { promo: _promo, ...declaration } = plan.limits![key]
+        return [key, { ...declaration, limit: override.limit }]
+      })),
+    },
+  }
+}
+
 /** An internal grant with a period end stops entitling at that instant; a paygate row never does. */
 const stillEntitles = (row: PaymentSubscriptionRecord, at: Date): boolean =>
   row.paygate !== INTERNAL_PAYGATE || row.periodEnd == null || new Date(row.periodEnd).getTime() > at.getTime()
@@ -51,7 +84,8 @@ const unknownPlans = new Set<string>()
 /**
  * The plan an entity holds: its highest-ranked subscription in an entitling status (the catalogue
  * rank, the stored one for a plan the catalogue no longer declares; the newest first on a tie),
- * else the declared free plan.
+ * else the declared free plan. The plan answered carries the winning row's `overrides`
+ * (`overriddenPlan`), so every reader — ceilings, the view, the gates — sees one answer.
  *
  * @throws PlanRequired when there is neither.
  */
@@ -79,7 +113,7 @@ export const resolveEffectivePlan = async (
 
   const best = candidates[0]
   if (best != null) {
-    return { plan: best.plan, subscription: best.row, fallback }
+    return { plan: overriddenPlan(best.plan, best.row), subscription: best.row, fallback }
   }
   if (fallback != null) {
     return { plan: fallback, subscription: null, fallback }

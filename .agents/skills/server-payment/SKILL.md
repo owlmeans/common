@@ -277,6 +277,16 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 
 - **The effective plan** is the highest-ranked row in `ENTITLING_STATUSES` (catalogue rank; the
   newest on a tie), else the declared free plan, else `PlanRequired`.
+- **A subscription row may override its plan.** `PaymentSubscriptionRecord.overrides`
+  (`SubscriptionOverrides`: `limits: { <key>: { limit } }`) is applied by `overriddenPlan(plan, row)`
+  inside `resolveEffectivePlan` and `snapshotOf`, so ceilings, the entitlement view, both gates and
+  observers read one answer and nothing else needs to know. An override sets the ceiling of a key
+  the plan declares and drops that key's promo; kind and window stay the plan's (counters are keyed
+  by them); an undeclared key or a ceiling that is not a safe integer `>= 0` is ignored. An operator
+  writes it, no paygate does: every sync and re-grant spreads the previous row, so it survives. It
+  belongs to the row — it follows the subscription through a plan change, ends with it, and the
+  free-plan fallback (no row) has none. A new overridable parameter is a new optional key of
+  `SubscriptionOverrides`, declared in `PaymentSubscriptionSchema` and merged in `overriddenPlan`.
 - `mapStatus`: `active`→Active, `trialing`→Trial, `past_due`→PastDue, `unpaid`/`paused`→Suspended,
   `incomplete`→Created, `incomplete_expired`→Ended, `canceled`→Canceled; paused collection is
   Suspended with `pausedAt`.

@@ -183,8 +183,10 @@ const describe = (error: PgDriverError): string => {
  * Translate a raw `pg` driver error into the framework's error vocabulary, so a driver
  * type never escapes the package. Errors that already are `ResilientError`s pass through
  * untouched — the reconciler and the migration runner raise their own.
+ * A migration may supply its resolved SQL; placeholders stay intact and parameter values
+ * are never added. The statement travels in the message so error marshalling preserves it.
  */
-export const pgErrorToResourceError = (error: unknown): Error => {
+export const pgErrorToResourceError = (error: unknown, query?: string): Error => {
   if (error instanceof ResilientError) {
     return error
   }
@@ -193,7 +195,7 @@ export const pgErrorToResourceError = (error: unknown): Error => {
     return error instanceof Error ? error : new PostgresError(`${error}`)
   }
 
-  const message = describe(driver)
+  const message = describe(driver) + (query == null ? '' : `\nSQL: ${query}`)
   const produce = (): Error => {
     switch (driver.code) {
       case PgErrorCode.UniqueViolation:

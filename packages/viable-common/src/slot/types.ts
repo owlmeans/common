@@ -1,6 +1,35 @@
-import type { SlotCommandType, SlotFileCommand, SlotGitCommand, SlotShellCommand, SubProject } from './consts.js'
+import type { SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand, SubProject } from './consts.js'
 
-export type SlotCommand = SlotFileCommand | SlotShellCommand | SlotGitCommand
+export type SlotCommand = SlotFileCommand | SlotShellCommand | SlotGitCommand | SlotDatabaseCommand
+
+/** Driver identity is open-ended; inspect it before choosing a query language. No credentials. */
+export interface SlotDatabaseInfo {
+  kind: string
+  queryLanguage: string
+  database: string
+  schema: string
+  role: string
+  version: string
+  readOnly: boolean
+  limits: { defaultRows: number; maxRows: number; maxBytes: number; maxQueryChars: number; maxParams: number; timeoutMs: number }
+}
+
+export interface SlotDatabaseQueryArgs {
+  query: string
+  params?: Array<string | number | boolean | null>
+  maxRows?: number
+  timeoutMs?: number
+}
+
+export type SlotDatabaseQueryResult = {
+  ok: true
+  columns: Array<{ name: string; dataType: string }>
+  rows: Record<string, unknown>[]
+  truncated: boolean
+} | {
+  ok: false
+  error: { message: string; code?: string; detail?: string; hint?: string; position?: string }
+}
 
 export interface SlotCommandPayload {
   type: SlotCommandType

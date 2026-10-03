@@ -659,6 +659,15 @@ export interface PropagatedState {
   renewedInvoiceId?: string
 }
 
+/**
+ * What ONE subscription holds instead of its plan's static declaration. Written by an operator,
+ * never by the paygate: every sync and re-grant carries it over with the rest of the row.
+ */
+export interface SubscriptionOverrides {
+  /** By limit key: the ceiling in force for this subscription, whatever the plan or its promo says. */
+  limits?: { [key: string]: { limit: number } }
+}
+
 /** One row per subscription — paygate (`sub_…`) or internal (`free:<entityId>`, `internal:<planSku>:<entityId>`). */
 export interface PaymentSubscriptionRecord extends ResourceRecord {
   entityId: string
@@ -703,6 +712,8 @@ export interface PaymentSubscriptionRecord extends ResourceRecord {
   termsAccepted?: boolean
   startRequestId?: string
   withdrawnAt?: Date
+  /** This subscription's own plan parameters — `resolveEffectivePlan` answers the plan with them applied. */
+  overrides?: SubscriptionOverrides
 }
 export interface PaymentSubscriptionResource extends MongoResource<PaymentSubscriptionRecord> {
   byExternalId: (externalId: string, paygate: string) => Promise<PaymentSubscriptionRecord | null>

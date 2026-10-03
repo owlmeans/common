@@ -88,7 +88,8 @@
       "per-purchase": "Les recharges individuelles de votre organisation sont limitées pour l’instant ; la limite augmente à mesure que vous utilisez vos crédits.",
       "window": "Vos recharges récentes comptent dans une limite sur les derniers jours.",
       "hold": "Les recharges de votre organisation sont suspendues. Veuillez contacter le support.",
-      "other": "Une limite de recharge s’applique à votre organisation."
+      "other": "Une limite de recharge s’applique à votre organisation.",
+      "total": "Toutes les recharges payées comptent dans la limite cumulée, y compris les achats remboursés."
     }
   },
   "consumer": {
