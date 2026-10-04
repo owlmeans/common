@@ -27,7 +27,8 @@ portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'E
 declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
   tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
   currency: { adaptive: true, estimate: true },
-  stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link'] },
+  stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link'],
+    lockCustomerEmail: true, lockCustomerCountry: true },   // optional: see "Customer locks"
 })
 declareConsumerRights(cfg, {                           // absent: no consumer-rights behaviour at all
   textVersion: 'terms-2026-09', links: { en: { billingTerms, withdrawalInformation, withdrawalFunction, cancellation } },
@@ -196,8 +197,9 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   `adaptive_pricing` only when the charge currency is the settlement currency.
 - **The lock at Stripe.** A locked profile whose customer carries the address:
   `customer_update.address: 'never'` and `billing_address_collection: 'auto'` (tax follows the
-  saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without an
-  address keeps `'auto'`/`'required'`, or automatic tax would have no location.
+  saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without a
+  tax-locatable address (`isTaxLocatable`) keeps `'auto'`/`'required'`, or Stripe refuses the
+  session ("Automatic tax calculation in Checkout requires a valid address on the Customer").
 - **Terms.** `mechanisms.checkoutTerms` puts `consent_collection.terms_of_service: 'required'` and
   `custom_text.terms_of_service_acceptance` (the `checkout.terms-acceptance.in-scope | other` copy
   with the billing language's links, ≤ 1200 characters) on every session.
@@ -208,7 +210,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   terms text, under the same plugin admissions, metadata `termsCollected: 'false'`; a
   `checkout-terms-fallback` event (`recordKind: 'checkout'`, `recordId` = the entity, `externalId`
   = the session, `ok: false`, the Stripe message in `detail`) is appended per fallback and one
-  `console.warn` per context tells the operator what to set. Any other refusal is not retried; a
+  `warn` log per context tells the operator what to set. Any other refusal is not retried; a
   failing retry releases the admissions and propagates its own error.
 - **Texts.** An in-scope top-up without `submitText` says what it buys (`checkout.top-up`, with the
   country's name); a subscription without `submitText` shows the renewal price in the charge
@@ -221,8 +223,37 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 - **Metadata** (session and `subscription_data`): `region`, `country`, `language`, `termsVersion`,
   `copyVersion`, `termsCollected` (`'true'` when the checkbox is on the session, `'false'` when the
   policy has it off or after the fallback), `ipCountry` (the `cf-ipcountry` the app passes),
-  `startRequestId`, `profileId`. The purchase's `termsAccepted` comes only from the completed
+  `startRequestId`, `profileId`, `countryPinned` (`'true'` only under `lockCustomerCountry` when the
+  session kept the pinned address). The purchase's `termsAccepted` comes only from the completed
   session's `consent.terms_of_service` — absent when nothing was collected.
+
+### Customer locks (`declarePaymentPricing` → `stripe`)
+
+Both are opt-in, backend-only, read per call from the Stripe pricing plugin config, and work with
+or without a consumer-rights policy.
+
+- **`lockCustomerEmail`** — every `createLink` must pass `CreateLinkParams.email` (the application's
+  verified e-mail of the buyer), else `PaygateError('customer-email')` before any Stripe call. It is
+  written to the Stripe customer (created with it, or updated — case-insensitively different — in
+  the same call as `preferred_locales`), never as `customer_email`: Checkout shows a customer's
+  valid e-mail read-only, and only while the customer has none asks for one and saves it. The
+  customer carries the LAST payer's e-mail (invoices and renewals go there). Without the lock
+  `email` is ignored.
+- **`lockCustomerCountry`** — the known country (the locked profile's, else `params.country`) is
+  written to the customer as a country-only address (lines and postal code cleared) when the saved
+  one carries no or another country — over another country only before any lock (a locked
+  customer's other country is still `BillingCountryLocked`). When the saved address is
+  tax-locatable the session keeps it (`customer_update.address: 'never'`, collection `'auto'`):
+  no address form, tax on the pinned country; Stripe still shows the card form's "Country or
+  region" picker (a payment-method detail no parameter hides), which then moves neither tax nor the
+  saved address. Metadata `countryPinned: 'true'` makes the first completed purchase lock THAT
+  country (`lockFromSession`: `metadata.country` before `customer_details.address.country`).
+- **Tax-locatable** (`isTaxLocatable`, from Stripe's customer-locations table): a country alone
+  everywhere except US (needs `postal_code`) and CA / IN (`postal_code` or `state`). A pinned US,
+  CA or IN customer without one is not kept: Checkout collects the address — country editable —
+  and the purchase locks what was typed, as without the option.
+- **The portal** never offers `email` under `lockCustomerEmail`, nor `address` under
+  `lockCustomerCountry` (or `countryLock`); both flags are in its fingerprint.
 
 ## Checkout plugins
 
@@ -456,11 +487,11 @@ and prices (above), the portal configuration, the webhook endpoint. A deployment
 webhook URL (`webhookUrlOf`: the `webhookService` alias's host and base); its rows carry the
 `owner`.
 
-- **The portal configuration**: customer update (email, address, tax id — **without address under
-  `mechanisms.countryLock`**), invoice history, payment method update, cancellation at period end
-  without proration, price switching between the active recurring prices. Its fingerprint covers
-  the catalogue (incl. `currencyPrices`), the lock flag, the region currencies, the branding and
-  the deployment key. Each deployment owns its own configuration, tagged `{ owlmeans: 'payment',
+- **The portal configuration**: customer update (tax id; email unless `stripe.lockCustomerEmail`;
+  address unless `mechanisms.countryLock` or `stripe.lockCustomerCountry`), invoice history,
+  payment method update, cancellation at period end without proration, price switching between the
+  active recurring prices. Its fingerprint covers the catalogue (incl. `currencyPrices`), the lock
+  flags, the region currencies, the branding and the deployment key. Each deployment owns its own configuration, tagged `{ owlmeans: 'payment',
   service: <owner>, deployment: webhookUrlOf(ctx) }`; one tagged for another deployment (a former
   webhook URL included) is never touched — a moved URL creates a new configuration.
 - `portalLink(ctx, entityId, { flow, planSku?, returnUrl })`: a customer is required
@@ -542,7 +573,8 @@ concurrent withdrawals.
 
 ## External docs
 
-- https://docs.stripe.com/api/checkout/sessions/create — inline `price_data`; `consent_collection.terms_of_service` needs a terms URL in the Dashboard (else `invalid_request_error` on param `consent_collection[terms_of_service]`); `custom_text.{submit, after_submit, terms_of_service_acceptance}` ≤ 1200 characters each; `currency` forces a Price's currency option; `expires_at` 30 min – 24 h.
+- https://docs.stripe.com/api/checkout/sessions/create — `customer`: "If the Customer already has a valid email set, the email will be prefilled and not editable in Checkout" (else Checkout saves the typed one); `customer_email` only prefills a NEW customer and cannot be combined with `customer`. Inline `price_data`; `consent_collection.terms_of_service` needs a terms URL in the Dashboard (else `invalid_request_error` on param `consent_collection[terms_of_service]`); `custom_text.{submit, after_submit, terms_of_service_acceptance}` ≤ 1200 characters each; `currency` forces a Price's currency option; `expires_at` 30 min – 24 h.
+- https://docs.stripe.com/tax/customer-locations — minimal tax location: country alone except US (postal code), CA and IN (postal code or province); https://docs.stripe.com/tax/checkout/page — an existing customer with `customer_update.address: 'never'` is taxed on its saved address. Verified against test mode (2026-10): a pinned DE customer keeps its VAT when the card country is switched to US; a country-only US/CA customer is refused at session creation.
 - https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices — `currency_options` on a Price, one reusable Price for several currencies; manual options override Adaptive Pricing for that currency.
 - https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — Adaptive Pricing requires the price currency to be a settlement currency; webhook amounts stay in the integration currency.
 - https://docs.stripe.com/invoicing/multi-currency-customers — a customer's subscriptions share one currency; one-time payments may differ.

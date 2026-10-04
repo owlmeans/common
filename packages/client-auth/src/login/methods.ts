@@ -1,6 +1,9 @@
 import type { LoginMethodConfig, LoginScreenConfig } from '@owlmeans/config'
 import { DEFAULT_METHOD_ORDER } from './consts.js'
 import type { LoginMethod, LoginMethodContext, LoginMethodSource } from './types.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-auth:login')
 
 /**
  * The module-global registry of method SOURCES.
@@ -61,7 +64,7 @@ export const resolveLoginMethods = (
     try {
       candidates.push(...source.list(ctx))
     } catch (e) {
-      console.error(`login: method source "${source.alias}" failed`, e)
+      log.warn('Login method source failed', { source: source.alias, error: e })
     }
   }
 

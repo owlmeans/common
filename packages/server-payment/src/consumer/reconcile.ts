@@ -6,7 +6,7 @@ import {
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { PURCHASE_BACKFILL_DAYS, STRIPE_PAYGATE_ALIAS } from '../consts.js'
 import {
-  billingProfiles, consumerConsents, consumerDeclarations, consumerEvents, consumerMailConfig, errorText, idOf,
+  billingProfiles, consumerConsents, consumerDeclarations, consumerEvents, consumerMailConfig, idOf,
   paygateCustomers, payment, purchases, subscriptions,
 } from '../utils.js'
 import {
@@ -22,6 +22,7 @@ import { executeWithdrawal, retryCreditNote } from './withdrawal.js'
 import type {
   ConsumerEventRecord, ConsumerMailKind, ConsumerReconcileOptions, ConsumerReconcileResult, UsageReading,
 } from '../types.js'
+import { log } from '../log.js'
 
 const DAY_MS = 86_400_000
 /** A paygate step failed this often is left to an operator. */
@@ -120,7 +121,7 @@ const retryWithdrawals = async (
       }
     } catch (error) {
       result.failed++
-      console.error(`[payment] reconcile: withdrawal "${id}" failed`, error)
+      log.error('Reconcile: withdrawal failed', { id, error })
     }
   }
 }
@@ -197,7 +198,7 @@ const retryObservers = async (ctx: ApiContext, since: Date, limit: number, resul
         }
       }
     } catch (error) {
-      console.error(`[payment] reconcile: observers of "${event.recordId}" failed`, error)
+      log.error('Reconcile: observers failed', { recordId: event.recordId, error })
     }
     if (told) {
       result.observed++
@@ -246,7 +247,7 @@ const backfillPurchases = async (ctx: ApiContext, stripe: Stripe, limit: number,
         }
       } catch (error) {
         result.failed++
-        console.error(`[payment] reconcile: backfill of "${session.id}" failed`, error)
+        log.error('Reconcile: purchase backfill failed', { sessionId: session.id, error })
       }
     }
     if (!page.has_more || page.data.length === 0 || scanned >= limit * 20) return
@@ -282,7 +283,7 @@ const lockLegacy = async (ctx: ApiContext, stripe: Stripe, limit: number, result
       if (created) result.locked++
     } catch (error) {
       result.failed++
-      console.error(`[payment] reconcile: legacy lock of "${customer.entityId}" failed: ${errorText(error)}`)
+      log.error('Reconcile: legacy billing-country lock failed', { entityId: customer.entityId, error })
     }
   }
 }
@@ -321,7 +322,7 @@ export const reconcileConsumerRights = async (
       await step()
     } catch (error) {
       result.failed++
-      console.error(`[payment] consumer-rights reconcile step "${name}" failed`, error)
+      log.error('Consumer-rights reconcile step failed', { step: name, error })
     }
   }
 

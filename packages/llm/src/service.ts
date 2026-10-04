@@ -1,11 +1,14 @@
 import { createService } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
+import { logThrottle, logger } from '@owlmeans/log'
 import { LLM_SERVICE } from './consts.js'
 import { LlmMissconfiguredError } from './errors.js'
 import { resolveFallbacks } from './helpers/fallback.js'
 import { resolvePlugin } from './plugins/index.js'
 import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService } from './types.js'
+
+const log = logger('llm')
 
 /** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
 export type LlmServiceApi = Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'>
@@ -65,18 +68,20 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
    */
   const fit = (alias: string, config: ModelConfig): ModelConfig => {
     if (config.maxOutput == null || config.maxOutput <= 0) return config
-    const label = `Model "${alias}" (${config.model ?? 'default'})`
+    const model = config.model ?? 'default'
     if (config.maxTokensCap != null && config.maxTokensCap > config.maxOutput) {
-      console.warn(
-        `${label} declares maxTokensCap ${config.maxTokensCap} above the provider's`
-        + ` maxOutput ${config.maxOutput}; the escalator will stop at ${config.maxOutput}.`
-      )
+      if (logThrottle(`llm:fit:${alias}:${model}:maxTokensCap`, 600_000)) {
+        log.warn('Model maxTokensCap is above the provider maxOutput; the escalator stops at maxOutput', {
+          alias, model, outputCap: config.maxTokensCap, maxOutput: config.maxOutput,
+        })
+      }
     }
     if (config.maxTokens != null && config.maxTokens > config.maxOutput) {
-      console.warn(
-        `${label} declares maxTokens ${config.maxTokens} above the provider's`
-        + ` maxOutput ${config.maxOutput}; clamping.`
-      )
+      if (logThrottle(`llm:fit:${alias}:${model}:maxTokens`, 600_000)) {
+        log.warn('Model maxTokens is above the provider maxOutput; clamping', {
+          alias, model, output: config.maxTokens, maxOutput: config.maxOutput,
+        })
+      }
       return { ...config, maxTokens: config.maxOutput }
     }
 

@@ -10,6 +10,7 @@ import {
   hasPermission, parseGateParam, resolveGateResource, validateGateParams, GateResolutionFailure
 } from '@owlmeans/iam'
 import type { GateParamAudit } from '@owlmeans/iam'
+import { logger, logThrottle } from '@owlmeans/log'
 
 /**
  * The gate-param grammar lives in `@owlmeans/iam` so the browser, the adapters and code-generation
@@ -44,12 +45,28 @@ export interface IamGateOptions {
  */
 const reported = new Set<string>()
 
-const reportOnce = (key: string, message: string): void => {
+const log = logger('server-iam:gate')
+
+const reportOnce = (key: string, message: string, data: Record<string, unknown>): void => {
   if (reported.has(key)) {
     return
   }
   reported.add(key)
-  console.error(message)
+  log.error(message, data)
+}
+
+/**
+ * A refusal of the gate. Logged once a minute per route, reason and subject — a hot endpoint
+ * refuses on every request, and one line per window says the same thing.
+ */
+const forbidden = (req: AbstractRequest, reason: string, params: string[]): AuthForbidden => {
+  const auth = req.auth as Auth | undefined
+  if (logThrottle(`access.forbidden\0${req.alias ?? ''}\0${reason}\0${auth?.userId ?? ''}`, 60_000)) {
+    log.warn('Access forbidden', {
+      alias: req.alias, reason, params, userId: auth?.userId, entitySlug: req.entity?.slug ?? (auth != null ? entitySlugOf(auth) : undefined),
+    }, { event: 'access.forbidden' })
+  }
+  return new AuthForbidden(reason)
 }
 
 /** Aliases whose declarations have already been checked. */
@@ -89,10 +106,9 @@ const auditEntrypoint = (ctx: Context, req: AbstractRequest, params: string[]): 
     }
 
     for (const issue of validateGateParams(params, audit)) {
-      console.error(
-        `Gate param "${issue.param}" on entrypoint "${req.alias}" is misconfigured`
-        + ` [${issue.code}]: ${issue.detail}`
-      )
+      log.error('Gate param is misconfigured', {
+        param: issue.param, alias: req.alias, code: issue.code, detail: issue.detail,
+      })
     }
   } catch {
     // An entrypoint that cannot be looked up is not this gate's problem to report.
@@ -121,7 +137,7 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
       const ctx = service.assertCtx<Config, Context>()
 
       if (req.auth == null) {
-        throw new AuthForbidden('auth')
+        throw forbidden(req, 'auth', params)
       }
 
       const auth = req.auth as Auth
@@ -173,10 +189,10 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
         if (!granted) {
           structural.forEach(detail => reportOnce(
             `${req.alias}\0${detail}`,
-            `Gate on entrypoint "${req.alias}" refused a request it could not evaluate: ${detail}`
+            'Gate refused a request it could not evaluate', { alias: req.alias, detail }
           ))
 
-          throw new AuthForbidden('permission')
+          throw forbidden(req, 'permission', params)
         }
 
         return
@@ -188,8 +204,8 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
       const scoped = params.filter(param => parseGateParam(param).resource != null)
       scoped.forEach(param => reportOnce(
         `uma2\0${req.alias}\0${param}`,
-        `Gate param "${param}" on entrypoint "${req.alias}" is resource-scoped, but resource scoping`
-        + ' is not enforced in UMA2 mode — it is checked as a project-wide permission'
+        'Gate param is resource-scoped, but resource scoping is not enforced in UMA2 mode — it is checked as a '
+        + 'project-wide permission', { param, alias: req.alias }
       ))
 
       const usable = opts?.strictResourceScope === true
@@ -197,7 +213,7 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
         : params
 
       if (usable.length < 1) {
-        throw new AuthForbidden('permission')
+        throw forbidden(req, 'permission', params)
       }
 
       const stripped = usable.map(param => parseGateParam(param).permission)
@@ -205,7 +221,7 @@ export const makeIamGate = (alias: string = OIDC_GATE, opts?: IamGateOptions): G
       const permissions = await model.loadPermissions(auth, stripped)
 
       if (permissions.length < 1) {
-        throw new AuthForbidden('permission')
+        throw forbidden(req, 'permission', params)
       }
     }
   })

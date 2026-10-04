@@ -103,7 +103,17 @@ tax-inclusive debit.
   `policy` may be the plan's or one already narrowed (`AmountPolicyView.policy`) — narrowing is
   idempotent. **`blocked`** disables the presets, the input and the confirm button; the pinned
   policy `narrowAmountPolicy` returns for a block is never an offer of the minimum.
-- **`details`** is a reusable application-owned React slot after the limit note and before amounts.
+- **`details`** is a reusable application-owned React slot (`[data-amount-details]`), the dialog's
+  SIDE column, holding the `CheckoutLimitNote` ("You can add up to …") above the details. With it the
+  dialog is sized by the window — `w-[90vw]`, `lg:w-[50vw]` from a landscape tablet up — and every
+  base cap is replaced by its twin (`max-w-none`, `sm:max-w-none`). The two blocks are a WRAPPING
+  flex row filling the content box: purchase `flex-3 min-w-60`, side `flex-2 min-w-44` (basis 0, so
+  side : purchase is exactly 2 : 3), `gap-x-6` (the dialog's padding) between them. The whole side
+  column drops under the purchase block, above the `legalNote` and the buttons, once the dialog
+  cannot hold both minimums — never a viewport breakpoint — so the confirm button's right edge is
+  the side column's, or the purchase block's when it is alone. The preset buttons answer to their
+  own container (`@container` + `@sm:grid-cols-4`). No `details` keeps the single narrow column with
+  the limit note above the presets.
   `disabled` prevents amount selection and submission while application reads are unavailable;
   cancel remains usable. Applications own loading, failed-read, retry and refreshed-limit details.
 - **`legalNote`** is a slot right above the buttons for the application's legal line (the EU

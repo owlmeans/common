@@ -100,7 +100,7 @@ declaration sites merge into one `TableSpec` — the schema root, a per-property
 not an error. Two entries under one name would emit the same `CREATE INDEX` twice in a single DDL
 transaction, and Postgres answers the second with `42P07`, rolling back the plan that created the
 table: the resource then fails every boot with an error naming an index that does not exist.
-The compiler collapses the duplicates itself, keeps the first declaration and warns on the console.
+The compiler collapses the duplicates itself, keeps the first declaration and logs a warning.
 
 ## Reconciliation is authoritative — `PgAutoSync`
 

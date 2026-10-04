@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.46",
-  "generatedAt": "2026-10-03T11:19:50.776Z",
+  "version": "0.1.18-rc.47",
+  "generatedAt": "2026-10-03T20:05:07.587Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -74,6 +74,13 @@
       "category": "general",
       "file": "skills/agent-memory/SKILL.md",
       "canonicalPath": ".agents/skills/agent-memory/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "logging",
+      "category": "general",
+      "file": "skills/logging/SKILL.md",
+      "canonicalPath": ".agents/skills/logging/SKILL.md"
     },
     {
       "kind": "skill",

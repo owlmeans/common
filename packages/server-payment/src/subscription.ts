@@ -5,6 +5,7 @@ import { compact, isDuplicateKey, observer, subscriptions } from './utils.js'
 import type {
   PaymentSubscriptionRecord, PropagatedState, SubscriptionChange, SubscriptionSnapshot,
 } from './types.js'
+import { log } from './log.js'
 
 export interface CommitOptions {
   /** The paygate event being applied; a repeat of the last applied one is ignored. */
@@ -223,7 +224,19 @@ export const commitSubscription = async (
     ...(opts.eventId != null ? { externalEventId: opts.eventId } : {}),
   }, ctx)
 
-  return { record: await resource.update(finalize(stored)), change, updated }
+  const record = await resource.update(finalize(stored))
+  log.info('Subscription changed', compact({
+    entityId: stored.entityId, subscriptionId: stored.externalId, change, planSku: stored.planSku,
+    previousPlanSku: prior != null && prior.planSku !== stored.planSku ? prior.planSku : undefined,
+    status: stored.status, currency: stored.currency ?? undefined, invoiceId: opts.invoiceId, eventId: opts.eventId,
+  }), { event: SUBSCRIPTION_LOG_EVENTS[change] ?? 'subscription.updated' })
+
+  return { record, change, updated }
+}
+
+/** The log event of a change observers were told about; every other change is `subscription.updated`. */
+const SUBSCRIPTION_LOG_EVENTS: Partial<Record<SubscriptionChange, string>> = {
+  created: 'subscription.started', renewed: 'subscription.renewed', canceled: 'subscription.canceled',
 }
 
 const stateDiffers = (state: PropagatedState, record: PaymentSubscriptionRecord): boolean =>

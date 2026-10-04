@@ -2,6 +2,9 @@ import type { BaseMessage } from '@langchain/core/messages'
 import type { JSONSchemaType } from 'ajv'
 import type { LlmModel } from '@owlmeans/llm'
 import { AgentRunStatus, DEFAULT_ADVICE_CHARS, DEFAULT_SUMMARY_CHARS, truncateAt } from '@owlmeans/agent-common'
+import { logger } from '@owlmeans/log'
+
+const log = logger('agent')
 
 export interface Compaction {
   summary: string
@@ -166,7 +169,7 @@ ${renderTranscript(messages, maxTranscriptChars)}
       ? fallback()
       : { summary, ...(advice !== '' ? { advice } : {}) }
   } catch (e) {
-    console.warn('Agent compaction failed, falling back to a deterministic summary:', e)
+    log.warn('Agent compaction failed, falling back to a deterministic summary', e)
     return fallback()
   }
 }

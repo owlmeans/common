@@ -66,15 +66,15 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.45",
+    "@owlmeans/agent-common": "^0.1.18-rc.46",
     "@owlmeans/auth": "^0.1.18-rc.38",
     "@owlmeans/context": "^0.1.18-rc.32",
     "@owlmeans/entrypoint": "^0.1.18-rc.39",
     "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/flow": "^0.1.18-rc.42",
+    "@owlmeans/flow": "^0.1.18-rc.43",
     "@owlmeans/llm-common": "^0.1.18-rc.37",
     "@owlmeans/planning": "^0.1.18-rc.17",
-    "@owlmeans/resource": "^0.1.18-rc.37",
+    "@owlmeans/resource": "^0.1.18-rc.38",
     "@owlmeans/route": "^0.1.18-rc.33"
   },
   "publishConfig": {

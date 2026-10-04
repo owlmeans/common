@@ -23,6 +23,7 @@ import type {
   CheckoutOutcome, CheckoutPlugin, DisputePhase, PaymentFulfillmentRecord, PaymentSubscriptionRecord,
   SubscriptionRef, TopUpCompletion,
 } from '../types.js'
+import { log } from '../log.js'
 
 const customerMutex: Record<string, Mutex> = {}
 
@@ -110,7 +111,7 @@ export const applySubscription = async (
     entityId = (await paygateCustomers(ctx).loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId ?? undefined
   }
   if (entityId == null) {
-    console.warn(`[payment] subscription "${subscription.id}" belongs to no known entity; ignored`)
+    log.warn('Subscription belongs to no known entity; ignored', { subscriptionId: subscription.id })
     return { record: previous, change: null, updated: false }
   }
   if (opts.eventId != null && previous?.lastEventId === opts.eventId) {
@@ -129,7 +130,7 @@ export const applySubscription = async (
   // metadata survives, so a subscription switched to it in the portal still resolves its plan.
   const planSku = item?.price?.lookup_key ?? item?.price?.metadata?.sku ?? metadata.planSku ?? previous?.planSku
   if (planSku == null) {
-    console.warn(`[payment] subscription "${subscription.id}" names no plan; ignored`)
+    log.warn('Subscription names no plan; ignored', { subscriptionId: subscription.id })
     return { record: previous, change: null, updated: false }
   }
   const plan = await findPlan(ctx, planSku)
@@ -259,7 +260,7 @@ export const resyncStripeSubscriptions = async (
     try {
       updated += await resyncStripeSubscription(ctx, stripe, { subscriptionId })
     } catch (error) {
-      console.error(`[payment] resync of "${subscriptionId}" failed`, error)
+      log.error('Subscription resync failed', { subscriptionId, error })
     }
   }
 
@@ -420,6 +421,10 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       }
       await observer(ctx).propagateTopUp(completion, ctx)
       await ledger.update({ ...stored, fulfilledAt: new Date() })
+      log.info('Top-up fulfilled', compact({
+        entityId: base.entityId, productSku: base.productSku, planSku: base.planSku, sessionId: session.id,
+        purchaseId: captured?.purchase.purchaseId, ...record,
+      }), { event: 'payment.topup' })
     })
     await settle(session, 'paid')
   }
@@ -444,7 +449,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
         }
       }
       if (row == null) {
-        console.warn(`[payment] completed checkout "${session.id}" names an unknown subscription "${subscriptionId}"`)
+        log.warn('Completed checkout names an unknown subscription', { sessionId: session.id, subscriptionId })
         return
       }
       let purchase = await purchases(ctx).byPurchaseId(purchaseIdOf(subscriptionId))
@@ -472,6 +477,11 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
         termsAccepted: evidence.termsAccepted ?? current.termsAccepted,
         startRequestId: metadata.startRequestId ?? purchase?.startRequestId ?? current.startRequestId,
       }))
+      log.info('Subscription checkout completed', compact({
+        entityId: current.entityId, sessionId: session.id, subscriptionId, planSku: current.planSku,
+        purchaseId: purchase?.purchaseId, amountTotalMinor: evidence.totalMinor,
+        currency: current.currency ?? (evidence.currency !== '' ? evidence.currency : undefined),
+      }), { event: 'checkout.completed' })
     })
     await settle(session, 'paid')
   }
@@ -482,7 +492,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
     const entityId = metadata.entityId
       ?? (customerId != null ? (await paygateCustomers(ctx).loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId : undefined)
     if (entityId == null) {
-      console.warn(`[payment] failed checkout "${session.id}" belongs to no known entity`)
+      log.warn('Failed checkout belongs to no known entity', { sessionId: session.id })
       return
     }
     if (session.mode === 'payment' && metadata.productSku != null && metadata.service != null) {
@@ -507,6 +517,9 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       entityId, kind: 'checkout' as const, externalId: session.id,
       subscriptionId: idOf(session.subscription), eventKey: `payment-failed:${session.id}:0`,
     }), ctx)
+    log.info('Payment failed', compact({
+      entityId, kind: 'checkout', sessionId: session.id, subscriptionId: idOf(session.subscription),
+    }), { event: 'payment.failed' })
     await settle(session, 'failed', entityId)
   }
 
@@ -571,7 +584,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
     const entityId = result?.record?.entityId
       ?? (customerId != null ? (await paygateCustomers(ctx).loadByPgId(customerId, STRIPE_PAYGATE_ALIAS))?.entityId : undefined)
     if (entityId == null) {
-      console.warn(`[payment] failed invoice "${invoice.id}" belongs to no known entity`)
+      log.warn('Failed invoice belongs to no known entity', { invoiceId: invoice.id })
       return
     }
     const attempt = invoice.attempt_count ?? 0
@@ -580,6 +593,10 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       invoiceId: invoice.id, attempt, actionRequired: event.type === 'invoice.payment_action_required',
       nextAttemptAt: dateOf(invoice.next_payment_attempt), eventKey: `payment-failed:${invoice.id}:${attempt}`,
     }), ctx)
+    log.info('Payment failed', compact({
+      entityId, kind: 'invoice', invoiceId: invoice.id, subscriptionId: subscriptionIdOfInvoice(invoice), attempt,
+      actionRequired: event.type === 'invoice.payment_action_required',
+    }), { event: 'payment.failed' })
   }
 
   const targetFields = (target: PaymentTarget) => target.kind === 'fulfillment'
@@ -613,7 +630,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       paymentIntentId: idOf(refund.payment_intent), chargeId: idOf(refund.charge), charge,
     })
     if (target == null) {
-      console.warn(`[payment] refund "${refund.id}" matches no fulfillment or subscription`)
+      log.warn('Refund matches no fulfillment or subscription', { refundId: refund.id })
       return
     }
     const chargeId = idOf(refund.charge)
@@ -643,6 +660,11 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       // Set by a withdrawal's own refund: its observer takes back the unused units, `onRefund` must not.
       withdrawalId: metadata.withdrawalId != null && metadata.withdrawalId !== '' ? metadata.withdrawalId : undefined,
     }) as Parameters<ReturnType<typeof observer>['propagateRefund']>[0], ctx)
+    log.info('Payment refunded', compact({
+      entityId: target.record.entityId, target: target.kind, externalId: target.record.externalId, refundId: refund.id,
+      amountMinor: refund.amount, refundedTotalMinor: refundedTotal, paidMinor: paid, currency: refund.currency,
+      withdrawalId: metadata.withdrawalId != null && metadata.withdrawalId !== '' ? metadata.withdrawalId : undefined,
+    }), { event: 'payment.refunded' })
   }
 
   const chargeRefunded: EventHandler = async event => {
@@ -664,7 +686,7 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       paymentIntentId: idOf(dispute.payment_intent), chargeId: idOf(dispute.charge),
     })
     if (target == null) {
-      console.warn(`[payment] dispute "${dispute.id}" matches no fulfillment or subscription`)
+      log.warn('Dispute matches no fulfillment or subscription', { disputeId: dispute.id })
       return
     }
     const marks = { disputedAt: target.record.disputedAt ?? new Date(), disputeStatus: dispute.status }
@@ -677,6 +699,10 @@ export const createEventHandler = (ctx: ApiContext, stripe: Stripe) => {
       ...targetFields(target), disputeId: dispute.id, phase, status: dispute.status,
       amountMinor: dispute.amount, currency: dispute.currency, eventKey: `dispute:${dispute.id}:${phase}`,
     }) as Parameters<ReturnType<typeof observer>['propagateDispute']>[0], ctx)
+    log.info('Dispute changed', compact({
+      entityId: target.record.entityId, target: target.kind, externalId: target.record.externalId,
+      disputeId: dispute.id, phase, status: dispute.status, amountMinor: dispute.amount, currency: dispute.currency,
+    }), { event: phase === 'opened' ? 'dispute.opened' : phase === 'closed' ? 'dispute.closed' : 'dispute.updated' })
   }
 
   const handlers: Record<string, EventHandler> = {

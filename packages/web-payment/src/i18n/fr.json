@@ -89,7 +89,7 @@
       "window": "Vos recharges récentes comptent dans une limite sur les derniers jours.",
       "hold": "Les recharges de votre organisation sont suspendues. Veuillez contacter le support.",
       "other": "Une limite de recharge s’applique à votre organisation.",
-      "total": "Toutes les recharges payées comptent dans la limite cumulée, y compris les achats remboursés."
+      "total": "Toutes les recharges payées comptent dans la limite cumulée, sauf les montants remboursés."
     }
   },
   "consumer": {

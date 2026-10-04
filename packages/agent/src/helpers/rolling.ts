@@ -1,5 +1,8 @@
 import type { LlmModel } from '@owlmeans/llm'
 import { truncateAt } from '@owlmeans/agent-common'
+import { logger } from '@owlmeans/log'
+
+const log = logger('agent')
 
 export interface RollingSummaryInput {
   /** Omit to skip the model and take the deterministic path. */
@@ -62,7 +65,7 @@ ${event}${details != null && details !== '' ? `\n\n# Detail\n${details}` : ''}
 
     return summary === '' ? fallback() : summary
   } catch (e) {
-    console.warn('Rolling summary fold failed, keeping the previous account:', e)
+    log.warn('Rolling summary fold failed, keeping the previous account', e)
     return fallback()
   }
 }

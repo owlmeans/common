@@ -6,6 +6,7 @@ import { makeFlowModel } from '@owlmeans/flow'
 import type { FlowModel } from '@owlmeans/flow'
 import { pluginFor } from '@owlmeans/llm'
 import type { HelperExecution, ModelInputItem } from '@owlmeans/llm'
+import { logger } from '@owlmeans/log'
 import {
   AgentRunStatus, AgentRunTransition, agentRunFlow, conversationFor,
 } from '@owlmeans/agent-common'
@@ -15,6 +16,8 @@ import { safeInvokeTool } from './helpers/tools.js'
 import type {
   AgentModel, AgentOptions, AgentPlugin, AgentResult, AgentRun, AgentRunOutcome, AgentToolSet,
 } from './types.js'
+
+const log = logger('agent')
 
 /**
  * An OwlMeans agent over the LangGraph functional API.
@@ -114,7 +117,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
         } catch (e) {
           // A plugin that cannot contribute must not decide the run does not happen. Memory is an
           // enhancement; losing it costs context, and throwing here would cost the work.
-          console.warn(`Agent plugin ${plugin.alias} failed to contribute:`, e)
+          log.warn('Agent plugin failed to contribute', { plugin: plugin.alias, error: e })
         }
       }
 
@@ -178,7 +181,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
             await Promise.all(chain.map(async plugin =>
               plugin.onTurn?.(run, messages as BaseMessage[])))
           } catch (e) {
-            console.warn('Agent plugin failed on turn:', e)
+            log.warn('Agent plugin failed on turn', e)
           }
 
           if (response.tool_calls == null || response.tool_calls.length === 0) {
@@ -237,7 +240,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
             // Finalization is bookkeeping about work that is already done. A compaction that fails
             // must not turn a finished run into a failed one, nor block whatever the caller does
             // after this — unlocking, committing, reporting.
-            console.warn(`Agent plugin ${plugin.alias} failed on finish:`, e)
+            log.warn('Agent plugin failed on finish', { plugin: plugin.alias, error: e })
           }
         }
 

@@ -1,9 +1,12 @@
+import { logger } from '@owlmeans/log'
 import type { DbConfig } from '@owlmeans/resource'
 import { Cluster } from 'ioredis'
 import type { Redis } from 'ioredis'
 import { prepareClusterRedisOptions } from './config.js'
 import { createClient } from './instance.js'
 import type { RedisMeta } from '../types.js'
+
+const log = logger('redis:cluster')
 
 export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluster> => {
   if (!Array.isArray(config.host)) {
@@ -177,7 +180,7 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
       throw new SyntaxError('Not enough slave nodes in redis cluster after configuration')
     }
   } catch (e) {
-    console.error(e)
+    log.error('Redis cluster configuration failed', e)
     throw e
   }
 

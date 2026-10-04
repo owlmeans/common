@@ -12,6 +12,7 @@ import {
   apiVersionOf, gatewayOf, isDuplicateKey, isMissingObject, paymentWebhooks, stripeConfig,
 } from '../utils.js'
 import type { PaymentWebhookRecord } from '../types.js'
+import { log } from '../log.js'
 
 /** The path the webhook route answers for one paygate: `/<base>/webhook/<paygate>`. */
 export const webhookPathOf = (paygate: string): string =>
@@ -166,7 +167,7 @@ export const ensureWebhookEndpoint = async (
 ): Promise<PaymentWebhookRecord | null> => {
   const url = webhookUrlOf(ctx)
   if (!isDeliverableUrl(url)) {
-    console.info(`[payment] webhook endpoint not managed: "${url}" is not a public https URL`)
+    log.info('Webhook endpoint not managed: not a public https URL', { url }, { event: 'payment.webhook.unmanaged' })
     return null
   }
   const owner = gatewayOwnerOf(ctx)

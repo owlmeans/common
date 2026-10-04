@@ -2,6 +2,7 @@ import {
   CommitState, isProject, PlanningUnsupported, TransitionAction,
 } from '@owlmeans/planning'
 import type { CommitEvent, PlanningStore, Transition, Workcard } from '@owlmeans/planning'
+import { logger } from '@owlmeans/log'
 import { advisoryKey } from '@owlmeans/postgres-resource'
 import { failPending, foldPending } from '@owlmeans/server-planning/store'
 import type { CommitHub, CommitListener, FoldResult } from '@owlmeans/server-planning/store'
@@ -18,13 +19,16 @@ import { dropLinks, listLinks, putLink } from './links.js'
 import { bumpRevision, purgeSchemaLayers } from './schemas.js'
 import { commitTransition, listTransitions, readTransition, readTransitionByKey } from './transitions.js'
 
+// Not `log`: the transition table is called that throughout this module.
+const foldLog = logger('planning-postgres:fold')
+
 const EMPTY: FoldResult = Object.freeze({ card: null, folded: 0, failed: 0, followUp: false })
 
 const safely = async (label: string, run: () => Promise<unknown> | unknown): Promise<void> => {
   try {
     await run()
   } catch (error) {
-    console.error(`planning-postgres: ${label} failed:`, error)
+    foldLog.error('Planning store step failed', { step: label, error })
   }
 }
 
@@ -484,11 +488,11 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
           engine.heal(cardId)
           return EMPTY
         }
-        console.error(`planning-postgres: fold of ${cardId} failed twice, failing its pending transitions:`, second)
+        foldLog.error('Planning fold failed twice, failing its pending transitions', { cardId, error: second })
         try {
           outcome = await serial(cardId, () => transaction(cardId, 'wait', ctx => failInside(ctx, cardId, reasonOf(second))))
         } catch (third) {
-          console.error(`planning-postgres: cannot fail the pending transitions of ${cardId}:`, third)
+          foldLog.error('Planning cannot fail the pending transitions', { cardId, error: third })
           return EMPTY
         }
       }
@@ -520,7 +524,7 @@ export const makeFoldEngine = (deps: FoldEngineDeps): FoldEngine => {
       }
       healing.add(cardId)
       void foldWith(cardId, 'try')
-        .catch(error => console.error(`planning-postgres: heal of ${cardId} failed:`, error))
+        .catch(error => foldLog.error('Planning heal failed', { cardId, error }))
         .finally(() => { healing.delete(cardId) })
     },
 

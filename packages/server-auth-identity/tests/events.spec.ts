@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { addLogPlugin, memoryPlugin, removeLogPlugin } from '@owlmeans/log'
 import { AuthenticationType } from '@owlmeans/auth'
 import { makeServerContext, config as serverConfig } from '@owlmeans/server-context'
 import type { ServerConfig } from '@owlmeans/server-context'
@@ -63,16 +64,19 @@ describe('identity events', () => {
     events.onEntityCreated(async event => { reached.push(event.entityId) })
     events.onProfileCreated(async () => { throw new Error('plans are down') })
     events.onProfileCreated(async event => { reached.push(event.profileId) })
-    const quiet = console.error
-    console.error = () => undefined
+    const memory = memoryPlugin('identity-events')
+    addLogPlugin(memory)
 
     try {
       const payload = await linking.linkProfile(details('google-oauth', 'google-sub'), { username: 'person@example.org' })
 
       expect(payload.profileId).toStartWith('app:')
       expect(reached).toHaveLength(2)
+      // Each failed listener is logged, with its error, rather than failing the sign-in.
+      const failed = memory.records.filter(record => record.level === 'error' && record.scope === 'server-auth-identity')
+      expect(failed.map(record => record.error?.message).sort()).toEqual(['plans are down', 'provisioning is down'])
     } finally {
-      console.error = quiet
+      removeLogPlugin('identity-events')
     }
   })
 

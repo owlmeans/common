@@ -23,6 +23,7 @@ import { stripeWebhookSecrets } from './webhook-manager.js'
 import type {
   CheckoutAttempt, CheckoutPlugin, CheckoutTextContext, CreateLinkParams, PaymentPlan, PaymentProduct,
 } from '../types.js'
+import { log } from '../log.js'
 
 /** Stripe's limit on every `custom_text` message. */
 const CUSTOM_TEXT_MAX = 1200
@@ -63,19 +64,46 @@ const checkoutOptions = (
   }
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * The e-mail a checkout pins on its Stripe customer: `params.email` under
+ * `stripe.lockCustomerEmail`, `undefined` without the lock.
+ *
+ * @throws PaygateError('customer-email') — the lock is declared and no usable e-mail was passed
+ */
+const lockedEmailOf = async (ctx: ApiContext, params: CreateLinkParams): Promise<string | undefined> => {
+  if ((await stripePricingConfig(ctx))?.lockCustomerEmail !== true) {
+    return undefined
+  }
+  const email = params.email?.trim()
+  if (email == null || !EMAIL.test(email)) {
+    throw new PaygateError('customer-email')
+  }
+
+  return email
+}
+
+/**
+ * The entity's Stripe customer, created on first use. Under `stripe.lockCustomerEmail` it carries
+ * the buyer's e-mail — written over any other one — because Checkout shows a customer's valid
+ * e-mail read-only (and only asks for one, then saves it, while the customer has none).
+ */
 const ensureStripeCustomer = async (
   ctx: ApiContext, stripe: Stripe, params: CreateLinkParams,
 ): Promise<Stripe.Customer> => {
+  const email = await lockedEmailOf(ctx, params)
   const resource = paygateCustomers(ctx)
   const existing = await resource.byEntity(params.entityId, STRIPE_PAYGATE_ALIAS)
   if (existing != null && existing.deletedAt == null) {
     const retrieved = await stripe.customers.retrieve(existing.externalId)
     if (!(retrieved as Stripe.DeletedCustomer).deleted) {
       const customer = retrieved as Stripe.Customer
-      if (params.locale != null && customer.preferred_locales?.[0] !== params.locale) {
-        return await stripe.customers.update(customer.id, { preferred_locales: [params.locale] })
+      const update: Stripe.CustomerUpdateParams = {
+        ...(params.locale != null && customer.preferred_locales?.[0] !== params.locale ? { preferred_locales: [params.locale] } : {}),
+        ...(email != null && customer.email?.toLowerCase() !== email.toLowerCase() ? { email } : {}),
       }
-      return customer
+      return Object.keys(update).length > 0 ? await stripe.customers.update(customer.id, update) : customer
     }
   }
   const created = await stripe.customers.create({
@@ -84,6 +112,7 @@ const ensureStripeCustomer = async (
       service: params.service,
     },
     ...(params.locale != null ? { preferred_locales: [params.locale] } : {}),
+    ...(email != null ? { email } : {}),
   })
   if (existing != null) {
     const { deletedAt: _deleted, ...kept } = existing
@@ -176,15 +205,54 @@ interface BuyerContext {
   language: string
   /** `null`: the policy names no region currencies — the legacy settlement behaviour. */
   chargeCurrency: string | null
-  /** A locked profile whose country the saved customer address carries. */
+  /**
+   * Checkout keeps the saved customer address (tax follows it, nothing typed at Stripe moves it): a
+   * locked profile, or a `stripe.lockCustomerCountry` pin, whose country it carries — tax-locatable.
+   */
   addressLocked: boolean
+  /** The address is held by `stripe.lockCustomerCountry`: the first completed purchase locks THIS country. */
+  countryPinned: boolean
 }
+
+/** Countries where Stripe Tax cannot place a customer from the country alone (docs: tax/customer-locations). */
+const NEEDS_POSTAL_CODE = new Set(['US'])
+const NEEDS_POSTAL_CODE_OR_STATE = new Set(['CA', 'IN'])
+
+const present = (value: string | null | undefined): boolean => value != null && value.trim() !== ''
+
+/**
+ * Whether Stripe Tax can calculate on a saved address alone — Checkout refuses a session that keeps
+ * the saved address (`customer_update.address: 'never'`) when it cannot.
+ */
+export const isTaxLocatable = (address: Stripe.Address | null | undefined): boolean => {
+  const country = address?.country?.toUpperCase()
+  if (country == null || country === '') {
+    return false
+  }
+  if (NEEDS_POSTAL_CODE.has(country)) {
+    return present(address?.postal_code)
+  }
+  if (NEEDS_POSTAL_CODE_OR_STATE.has(country)) {
+    return present(address?.postal_code) || present(address?.state)
+  }
+
+  return true
+}
+
+/** A saved address holding only `country` — stale lines and a postal code of another country cleared. */
+const countryOnlyAddress = (country: string): Stripe.AddressParam => ({
+  country, line1: '', line2: '', city: '', state: '', postal_code: '',
+})
 
 /**
  * The buyer as the consumer-rights policy sees it — a locked profile overrides the declared
  * country (a different one is `BillingCountryLocked`), an organization that already paid before
  * its country was locked is locked lazily from its paygate customer's address, and a locked
  * customer address that no longer carries the locked country refuses (the operator relocks).
+ *
+ * Under `stripe.lockCustomerCountry` the known country (the locked one, else the declared one) is
+ * written to the customer — over a saved address of another country only before any lock — and
+ * Checkout keeps it wherever Stripe Tax can calculate on it.
  */
 const buyerOf = async (
   ctx: ApiContext, stripe: Stripe, params: CreateLinkParams, catalogueCurrency: string,
@@ -204,17 +272,25 @@ const buyerOf = async (
     // One an operator unlocked is locked again by its next completed purchase instead.
     profile = await rights.lock(params.entityId, customerCountry, 'customer', { customerId: customer.id })
   }
-  if (policy != null && profile == null && declared != null && customerCountry == null) {
-    // Preselect the declared country on Checkout's address form; never over a saved address.
-    customer = await stripe.customers.update(customer.id, { address: { country: declared } })
-  }
   if (profile?.locked === true && declared != null && declared !== profile.country) {
     throw new BillingCountryLocked({ country: profile.country as string, requested: declared })
   }
   if (profile?.locked === true && customerCountry != null && customerCountry !== profile.country) {
     throw new BillingCountryLocked({ country: profile.country as string, requested: customerCountry })
   }
+  const pinning = (await stripePricingConfig(ctx))?.lockCustomerCountry === true
   const country = profile?.country ?? declared
+  if (pinning && country != null && customerCountry !== country) {
+    // Pinned: the known country replaces whatever an unlocked customer saved (a locked customer's
+    // other country was refused above), so Checkout has nothing else to offer.
+    customer = await stripe.customers.update(customer.id, { address: countryOnlyAddress(country) })
+  } else if (policy != null && profile == null && declared != null && customerCountry == null) {
+    // Preselect the declared country on Checkout's address form; never over a saved address.
+    customer = await stripe.customers.update(customer.id, { address: { country: declared } })
+  }
+  const savedCountry = customer.address?.country?.toUpperCase() ?? undefined
+  const kept = savedCountry != null && savedCountry === country && isTaxLocatable(customer.address)
+  const countryPinned = pinning && kept
   const region = policy != null ? regionOf(country, policy) : null
   const settlement = (await stripePricingConfig(ctx))?.settlementCurrency?.toLowerCase()
   const regional = policy?.currencies != null && Object.keys(policy.currencies).length > 0
@@ -231,7 +307,8 @@ const buyerOf = async (
       chargeCurrency: regional
         ? (profile?.currency ?? chargeCurrencyOf(region, policy, settlement ?? catalogueCurrency)).toLowerCase()
         : null,
-      addressLocked: profile?.locked === true && customerCountry != null,
+      addressLocked: kept && (profile?.locked === true || countryPinned),
+      countryPinned,
     },
   }
 }
@@ -239,7 +316,8 @@ const buyerOf = async (
 /**
  * The consumer-rights metadata every session (and its subscription) carries. `termsCollected`
  * says whether Checkout asked for the terms checkbox — `'false'` also after the fallback of a
- * Dashboard without a terms URL.
+ * Dashboard without a terms URL; `countryPinned` that tax was calculated on `country`, held on the
+ * customer by `stripe.lockCustomerCountry`, so that country is the one the purchase locks.
  */
 const consumerMetadata = (buyer: BuyerContext, params: CreateLinkParams, startRequestId?: string): Record<string, string> =>
   buyer.policy == null ? {} : compact({
@@ -251,6 +329,7 @@ const consumerMetadata = (buyer: BuyerContext, params: CreateLinkParams, startRe
     termsCollected: String(buyer.policy.mechanisms.checkoutTerms === true),
     ipCountry: params.ipCountry?.toUpperCase(),
     startRequestId,
+    countryPinned: buyer.countryPinned ? 'true' : undefined,
   }) as Record<string, string>
 
 const limited = (message: string, field: string): string => {
@@ -372,7 +451,7 @@ const createWithoutTerms = async (
   const stripeMessage = errorText(refusal)
   if (!warnedTermsFallback.has(ctx)) {
     warnedTermsFallback.add(ctx)
-    console.warn('[payment] Stripe refused the terms-of-service checkbox: this account has no terms of service URL. '
+    log.warn('Stripe refused the terms-of-service checkbox: this account has no terms of service URL. '
       + 'Checkouts continue WITHOUT the checkbox (metadata termsCollected=false). Operator: set the Billing Terms URL '
       + 'in the Stripe Dashboard → Settings → Public details (test and live mode alike).')
   }
@@ -438,7 +517,7 @@ const createSession = async (
       try {
         await stripe.checkout.sessions.expire(session.id)
       } catch (expireError) {
-        console.error(`[payment] could not expire checkout "${session.id}" after a plugin refused it`, expireError)
+        log.error('Could not expire a checkout a plugin refused', { sessionId: session.id, error: expireError })
       }
       await releaseAdmitted(ctx, holders, attempt, session.id)
       throw error
@@ -457,6 +536,9 @@ const createSession = async (
  * checkout is narrowed by the checkout plugins (`CheckoutLimitExceeded`) and charged without FX
  * when its policy currency is the charge currency; a subscription needs a fresh start request
  * bound to its plan; the terms checkbox and the legal submit texts come from the copy.
+ *
+ * Under `stripe.lockCustomerEmail` the session's customer carries `params.email` (required), so
+ * Checkout shows it read-only.
  */
 export const createCheckoutLink = async (
   ctx: ApiContext, stripe: Stripe, params: CreateLinkParams, plugins: readonly CheckoutPlugin[] = [],
@@ -544,7 +626,7 @@ export const createCheckoutLink = async (
   const forced = buyer.chargeCurrency != null
     ? await priceCarries(ctx, product, plan, price, buyer.chargeCurrency) : { carries: false }
   if (buyer.chargeCurrency != null && !forced.carries) {
-    console.warn(`[payment] plan "${plan.sku}" has no ${buyer.chargeCurrency.toUpperCase()} price; Stripe picks the currency`)
+    log.warn('Plan has no price in the charge currency; Stripe picks the currency', { plan: plan.sku, currency: buyer.chargeCurrency })
   }
   const currency = forced.carries ? buyer.chargeCurrency as string : price.currency
   const adaptive = buyer.chargeCurrency == null || currency === (settlement ?? price.currency)

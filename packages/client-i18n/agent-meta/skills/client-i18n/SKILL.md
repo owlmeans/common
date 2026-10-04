@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-i18n
 
 **Layer:** Client (React)
-**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.47"` in `dependencies`
+**Install:** `"@owlmeans/client-i18n": "^0.1.18-rc.48"` in `dependencies`
 
 ## Purpose
 
@@ -136,6 +136,14 @@ function LangSwitch() {
   )
 }
 ```
+
+## Debug output
+
+i18next's verbose output is off unless the process's log policy asks for it: `debug` follows
+`logEnabled('debug', 'i18n')` (`@owlmeans/log`) — `cfg.log.level: 'debug'`, or `cfg.log.debug: 'i18n'`
+for this scope alone — and its lines (and its warnings) are written through the logger at scope `i18n`,
+not to the bare console. It is decided when the instance is created (the first render), so a browser's
+level must be a build-time value (`/log`); `cfg.debug.all` no longer turns it on.
 
 ## Hooks
 

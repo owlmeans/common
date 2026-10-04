@@ -29,6 +29,19 @@ bun run dev
 > `sources/common/src/config.ts`). If you edit `sources/common`, restart `bun run dev` to
 > rebuild it before the API and web pick up the changes.
 
+## Logging
+
+Log through `@owlmeans/log` (`const log = logger('<scope>')`), never `console.*`. The level is set
+per environment, not in code:
+
+| Runtime | Variables | Default |
+|---|---|---|
+| api (`sources/api/src/config.ts`) | `LOG_LEVEL`, `LOG_DEBUG` | `info` |
+| web (`sources/web/src/config.ts`, build time) | `VITE_LOG_LEVEL`, `VITE_LOG_DEBUG` | `debug` under `vite`, `info` in a build |
+
+`*_DEBUG` lists scopes forced to debug (`*` for all). Local values go in `sources/api/.env` /
+`sources/web/.env` (git-ignored).
+
 ## Adding your first feature
 
 1. **`sources/common/src/entrypoints.ts`** — declare the route as an OwlMeans *entrypoint* and
@@ -53,5 +66,5 @@ them; write your own guidance as separate, un-bannered files. Refresh after addi
 `@owlmeans/*` packages:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.47
 ```

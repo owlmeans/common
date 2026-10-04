@@ -4,8 +4,11 @@ import { MessageType } from '@owlmeans/socket'
 import { JOB_EVENT } from '@owlmeans/job'
 import type { JobViewEvent } from '@owlmeans/job'
 import type { JobEvent } from '@owlmeans/queue'
+import { logger } from '@owlmeans/log'
 import type { Context, JobEntrypoints, JobHandlerOptions } from '../types.js'
 import { jobsOf } from '../utils/index.js'
+
+const log = logger('server-job:watch')
 
 /**
  * Push this caller's job lifecycle events down a socket.
@@ -45,7 +48,7 @@ export const watchJobs = (
       const projected = await project(event)
       if (projected != null) await conn.notify(JOB_EVENT, projected)
     } catch (e) {
-      console.error('Job watch notify error:', e)
+      log.warn('Job watch notify failed', { id: event.id, queue: event.queue, error: e })
     }
   })
 
@@ -58,7 +61,7 @@ export const watchJobs = (
       try {
         await unsubscribe()
       } catch (e) {
-        console.error('Job watch unsubscribe error:', e)
+        log.warn('Job watch unsubscribe failed', e)
       }
     }
   })

@@ -10,10 +10,11 @@ import {
 import { findPlan, findProduct, planRank } from '../plan.js'
 import { planLookupKey, stripePlansOf } from '../sync.js'
 import {
-  fingerprints, isMissingObject, paygateCustomers, payment, portalBrandingConfig, subscriptions,
+  fingerprints, isMissingObject, paygateCustomers, payment, portalBrandingConfig, stripePricingConfig, subscriptions,
 } from '../utils.js'
 import { gatewayOwnerOf, webhookUrlOf } from './webhook-manager.js'
 import type { PaymentProduct, PaymentSubscriptionRecord, PortalLinkOptions } from '../types.js'
+import { log } from '../log.js'
 
 type ConfigurationParams = Stripe.BillingPortal.ConfigurationCreateParams
 
@@ -93,6 +94,8 @@ const listActiveConfigurations = async (stripe: Stripe): Promise<Stripe.BillingP
  * Keep this deployment's own Stripe customer-portal configuration: customer, invoice and payment
  * method self-service, cancellation at period end, and switching between the active recurring
  * prices of every product sold through Stripe (both subscription features off when there are none).
+ * The customer may edit their tax id always, their e-mail unless `stripe.lockCustomerEmail`, their
+ * address unless the consumer-rights `countryLock` or `stripe.lockCustomerCountry`.
  *
  * A deployment's identity is its webhook URL (`webhookUrlOf`, on the gateway's `webhookService`) —
  * also when that URL is undeliverable, as on a local run; its fingerprint row and label carry the
@@ -121,12 +124,18 @@ export const ensurePortalConfiguration = async (
   const catalog = await recurringCatalog(ctx)
   const rights = await payment(ctx).consumerRightsPolicy()
   // A locked billing country is never edited in the portal: tax follows the saved address.
+  const stripeConfig = await stripePricingConfig(ctx)
   const countryLock = rights?.mechanisms.countryLock === true
+  // A pinned country and a locked customer e-mail are the application's: never edited in the portal.
+  const countryPin = stripeConfig?.lockCustomerCountry === true
+  const emailLock = stripeConfig?.lockCustomerEmail === true
   const regionCurrencies = Object.values(rights?.currencies ?? {}).filter(code => code != null).sort()
   const hash = createHash('sha256').update(JSON.stringify({
     service: owner,
     deployment,
     ...(countryLock ? { countryLock } : {}),
+    ...(countryPin ? { countryPin } : {}),
+    ...(emailLock ? { emailLock } : {}),
     ...(regionCurrencies.length > 0 ? { regionCurrencies } : {}),
     branding: branding != null ? {
       headline: branding.headline ?? null, privacyPolicyUrl: branding.privacyPolicyUrl ?? null,
@@ -150,11 +159,12 @@ export const ensurePortalConfiguration = async (
   const cancelable = catalog.length > 0
   const switchable = products.length > 0
   const metadata = { [STRIPE_OWNER_KEY]: STRIPE_OWNER_VALUE, service: owner, [STRIPE_DEPLOYMENT_KEY]: deployment }
+  const allowedUpdates: Stripe.BillingPortal.ConfigurationCreateParams.Features.CustomerUpdate.AllowedUpdate[] = [
+    ...(emailLock ? [] : ['email' as const]), ...(countryLock || countryPin ? [] : ['address' as const]), 'tax_id',
+  ]
   const params: ConfigurationParams = {
     features: {
-      customer_update: {
-        enabled: true, allowed_updates: countryLock ? ['email', 'tax_id'] : ['email', 'address', 'tax_id'],
-      },
+      customer_update: { enabled: true, allowed_updates: allowedUpdates },
       invoice_history: { enabled: true },
       payment_method_update: { enabled: true },
       subscription_cancel: cancelable
@@ -240,7 +250,7 @@ export const createPortalLink = async (
   let configuration = (await fingerprints(ctx).bySku(sku))?.externalId ?? null
   if (configuration == null) {
     await ensurePortalConfiguration(ctx, stripe).catch(error => {
-      console.error('[payment] portal configuration unavailable', error)
+      log.error('Portal configuration unavailable', error)
     })
     configuration = (await fingerprints(ctx).bySku(sku))?.externalId ?? null
   }

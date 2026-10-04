@@ -1,3 +1,4 @@
+import { logger } from '@owlmeans/log'
 import {
   applyRelationship, applyTransition, CommitState, isProject, PlanningUnsupported, TransitionAction,
 } from '@owlmeans/planning'
@@ -5,6 +6,8 @@ import type {
   CommitEvent, PlanningStore, Relationship, SpecificationRevision, Transition, Workcard,
 } from '@owlmeans/planning'
 import type { FoldOptions, FoldResult } from './types.js'
+
+const log = logger('planning:store')
 
 const isoNow = (): string => new Date().toISOString()
 
@@ -18,7 +21,7 @@ const safely = async (label: string, run: () => Promise<void> | void | undefined
   try {
     await run()
   } catch (error) {
-    console.error(`planning: ${label} failed:`, error)
+    log.error('Planning store step failed', { step: label, error })
   }
 }
 
@@ -161,7 +164,7 @@ export const foldPending = async (
         } catch (advance) {
           // The store itself refuses writes: leave the rest pending for a retry rather than
           // failing every later transition as out of order.
-          console.error(`planning: cannot advance ${cardId} past failed seq ${transition.seq}:`, advance)
+          log.error('Planning cannot advance a card past a failed transition', { cardId, seq: transition.seq, error: advance })
           await safely('commit failure', () => transitions.commit(transition.id!, { state: CommitState.Failed, at, error: message }))
           await safely('publish', () => opts.publish?.(commitEventOf(transition, CommitState.Failed, at, { error: message })))
           return { card, folded, failed, followUp: true }

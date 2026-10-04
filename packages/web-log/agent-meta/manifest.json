@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/web-log",
+  "version": "0.1.18-rc.0",
+  "generatedAt": "2026-10-03T20:03:44.511Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "web-log",
+      "category": "package-specific",
+      "file": "skills/web-log/SKILL.md",
+      "canonicalPath": ".agents/skills/web-log/SKILL.md"
+    }
+  ]
+}

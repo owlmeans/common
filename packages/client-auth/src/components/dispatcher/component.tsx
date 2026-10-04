@@ -13,6 +13,9 @@ import { DEFAULT_ALIAS as FLOW_SERVICE } from '@owlmeans/client-flow'
 import { FLOW_PLACEHOLDER, OidcAuthStep, STD_OIDC_FLOW } from '@owlmeans/flow'
 import { SERVICE_PARAM } from '@owlmeans/web-flow'
 import { landAfterLogin } from '../../login/land.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-auth:dispatcher')
 
 export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, alias, query, payload }) => {
   const [forwarding, setForwarding] = useState<StateToken | undefined>()
@@ -104,7 +107,7 @@ export const DispatcherHOC: TDispatcherHOC = Renderer => ({ context, params, ali
           return await navigate()
         }).catch((e: Error) => {
           // @TODO Show error on the component
-          console.error(e)
+          log.error('Authentication failed', e, { event: 'auth.refused' })
         })
       }
     }

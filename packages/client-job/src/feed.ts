@@ -7,9 +7,12 @@ import {
 } from '@owlmeans/job'
 import type { JobView, JobViewEvent } from '@owlmeans/job'
 import type { ListResult } from '@owlmeans/resource'
+import { logger } from '@owlmeans/log'
 import { JOBS } from './consts.js'
 import type { Config, Context, JobFeed, JobFeedOptions } from './types.js'
 import { applyJobEvent } from './utils/index.js'
+
+const log = logger('client-job')
 
 /**
  * Mount the job feed: one socket, seeded once from the list entrypoint.
@@ -65,7 +68,7 @@ export const useJobFeed = (opts?: JobFeedOptions): JobFeed => {
       try {
         await applyJobEvent(store, message.payload)
       } catch (e) {
-        console.error('Job feed apply error:', e)
+        log.warn('Job feed apply failed', e)
       }
     })
 

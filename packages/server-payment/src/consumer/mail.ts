@@ -18,6 +18,7 @@ import type {
   ConsumerConsentRecord, ConsumerDeclarationRecord, ConsumerMailData, ConsumerMailKind, ConsumerMailPluginConfig,
   ConsumerRecordKind, PurchaseRecord, TraderDef,
 } from '../types.js'
+import { log } from '../log.js'
 
 const RECORD_KIND: Record<ConsumerMailKind, ConsumerRecordKind> = {
   purchase: 'purchase', consent: 'consent', start: 'consent', withdrawal: 'declaration', cancellation: 'declaration',
@@ -360,7 +361,7 @@ export const sendConsumerMail = async (
 
     return true
   } catch (error) {
-    console.error(`[payment] consumer mail "${kind}" of "${recordId}" failed`, error)
+    log.error('Consumer mail failed', { kind, recordId, error })
     await recordEvent(ctx, { recordId, recordKind, entityId, action: 'mail', step: kind, ok: false, error: errorText(error) })
 
     return false

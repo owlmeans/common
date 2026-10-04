@@ -15,6 +15,7 @@ import {
 } from './records.js'
 import type { PurchaseDraft } from './records.js'
 import type { BillingProfileRecord, PaymentSubscriptionRecord, PurchaseRecord } from '../types.js'
+import { log } from '../log.js'
 
 /** What a completed Checkout Session says about its buyer and totals. */
 export interface SessionEvidence {
@@ -96,7 +97,7 @@ export const invoiceEvidenceOf = async (stripe: Stripe | null | undefined, invoi
     }) as InvoiceEvidence
   } catch (error) {
     if (!isMissingObject(error)) {
-      console.warn(`[payment] invoice "${invoiceId}" unreadable for its purchase`, error)
+      log.warn('Invoice unreadable for its purchase', { invoiceId, error })
     }
     return {}
   }
@@ -105,13 +106,19 @@ export const invoiceEvidenceOf = async (stripe: Stripe | null | undefined, invoi
 const deadlineOf = (policy: ConsumerRightsPolicy, scoped: boolean, purchasedAt: Date): Date | undefined =>
   scoped ? withdrawalDeadlineOf(purchasedAt, policy) : undefined
 
-/** Lock the entity's billing country from a completed checkout, when the policy locks countries. */
+/**
+ * Lock the entity's billing country from a completed checkout, when the policy locks countries: the
+ * buyer's address at Stripe, else the declared country — the pinned one first when the session held
+ * it (`countryPinned`: tax was calculated on it, the card form's country moved nothing).
+ */
 const lockFromSession = async (
   ctx: ApiContext, policy: ConsumerRightsPolicy, entityId: string, session: Stripe.Checkout.Session,
   evidence: SessionEvidence,
 ): Promise<BillingProfileRecord | null> => {
   const metadata = session.metadata ?? {}
-  const country = evidence.country ?? metadata.country
+  const country = metadata.countryPinned === 'true'
+    ? metadata.country ?? evidence.country
+    : evidence.country ?? metadata.country
   if (!policy.mechanisms.countryLock || country == null || country === '') {
     return null
   }

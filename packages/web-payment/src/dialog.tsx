@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { inputAmount, parseAmountMinor } from './amount.js'
 import { CheckoutLimitNote } from './checkout-limit.js'
 import { PriceEstimateSummary } from './estimate-summary.js'
@@ -62,6 +63,7 @@ export const AmountCheckoutDialog = ({
   const chargeMinor = valid ? chargeAmountMinor(amountMinor, policy) : 0
   const adjustmentMinor = valid && amountMinor != null ? chargeMinor - amountMinor : 0
   const locked = pending || blocked || disabled
+  const limitNote = limit != null ? <CheckoutLimitNote limit={limit} /> : null
   const submit = async () => {
     if (amountMinor == null || !valid || locked) return
     assertCheckoutAmount(policy, amountMinor)
@@ -69,43 +71,58 @@ export const AmountCheckoutDialog = ({
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent closeLabel={t('close')} data-amount-checkout="" data-blocked={blocked ? 'true' : 'false'}>
+    <DialogContent
+      closeLabel={t('close')} data-amount-checkout="" data-blocked={blocked ? 'true' : 'false'}
+      // With `details` the dialog is sized by the window, not by its content: 90% of it, half from `lg`
+      // (a landscape tablet and wider). Every class replaces its base twin (`w-full`,
+      // `max-w-[calc(100%-2rem)]`, `sm:max-w-lg`), so no base cap is left to narrow it.
+      className={details != null ? 'w-[90vw] max-w-none sm:max-w-none lg:w-[50vw]' : undefined}
+    >
       <DialogHeader>
         <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription>{t('description')}</DialogDescription>
       </DialogHeader>
-      <div className="grid gap-5">
-        {limit != null && <CheckoutLimitNote limit={limit} />}
-        {details}
-        {policy.presetsMinor.length > 0 && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label={t('presets')}>
-          {policy.presetsMinor.map(preset => <Button
-            key={preset} type="button" variant={preset === amountMinor ? 'default' : 'outline'} data-amount-preset={preset}
-            disabled={locked} onClick={() => setValue(inputAmount(preset, locale))}
-          >{money(preset, policy.currency, locale)}</Button>)}
-        </div>}
-        <div className="grid gap-2">
-          <Label htmlFor="payment-amount">{t('custom')}</Label>
-          <Input
-            id="payment-amount" inputMode="decimal" autoComplete="off" value={value}
-            disabled={locked} aria-invalid={error != null} aria-describedby="payment-amount-help"
-            onChange={event => setValue(event.target.value)}
-          />
-          {!blocked && <p id="payment-amount-help" className={error == null ? 'text-muted-foreground text-xs' : 'text-destructive text-xs'}>
-            {error ?? t('bounds', {
-              minimum: money(policy.minimumMinor, policy.currency, locale),
-              maximum: money(policy.maximumMinor, policy.currency, locale),
-            })}
-          </p>}
+      {/* With `details` the two blocks are a wrapping flex row that fills the dialog's content box:
+          purchase 3 to side 2 (`flex-3` / `flex-2`, basis 0), a `gap-x-6` between them — the dialog's own
+          padding — and the WHOLE side column drops under the purchase block once the dialog cannot hold
+          both minimums. Both edges therefore meet the footer's: the confirm button ends where the side
+          column does, or the purchase block once it is alone on its row. */}
+      <div className={details != null ? 'flex flex-wrap gap-x-6 gap-y-5' : 'grid gap-5'}>
+        <div className={cn('grid content-start gap-5', details != null && 'min-w-60 flex-3')}>
+          {details == null && limitNote}
+          {policy.presetsMinor.length > 0 && <div className="@container">
+            <div className="grid grid-cols-2 gap-2 @sm:grid-cols-4" aria-label={t('presets')}>
+              {policy.presetsMinor.map(preset => <Button
+                key={preset} type="button" variant={preset === amountMinor ? 'default' : 'outline'} data-amount-preset={preset}
+                disabled={locked} onClick={() => setValue(inputAmount(preset, locale))}
+              >{money(preset, policy.currency, locale)}</Button>)}
+            </div>
+          </div>}
+          <div className="grid gap-2">
+            <Label htmlFor="payment-amount">{t('custom')}</Label>
+            <Input
+              id="payment-amount" inputMode="decimal" autoComplete="off" value={value}
+              disabled={locked} aria-invalid={error != null} aria-describedby="payment-amount-help"
+              onChange={event => setValue(event.target.value)}
+            />
+            {!blocked && <p id="payment-amount-help" className={error == null ? 'text-muted-foreground text-xs' : 'text-destructive text-xs'}>
+              {error ?? t('bounds', {
+                minimum: money(policy.minimumMinor, policy.currency, locale),
+                maximum: money(policy.maximumMinor, policy.currency, locale),
+              })}
+            </p>}
+          </div>
+          <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
+            <dt className="text-muted-foreground">{t('credits')}</dt><dd>{valid && amountMinor != null ? money(amountMinor, policy.currency, locale) : '—'}</dd>
+            <dt className="text-muted-foreground">{t('adjustment')}</dt><dd>{valid ? money(adjustmentMinor, policy.currency, locale) : '—'}</dd>
+            <dt className="font-medium">{t('subtotal')}</dt><dd className="font-medium">{valid ? money(chargeMinor, policy.currency, locale) : '—'}</dd>
+          </dl>
+          {estimate != null
+            ? valid && <PriceEstimateSummary control={estimate} subtotalMinor={chargeMinor} currency={policy.currency} />
+            : <p className="text-muted-foreground text-xs">{t('tax-note')}</p>}
         </div>
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
-          <dt className="text-muted-foreground">{t('credits')}</dt><dd>{valid && amountMinor != null ? money(amountMinor, policy.currency, locale) : '—'}</dd>
-          <dt className="text-muted-foreground">{t('adjustment')}</dt><dd>{valid ? money(adjustmentMinor, policy.currency, locale) : '—'}</dd>
-          <dt className="font-medium">{t('subtotal')}</dt><dd className="font-medium">{valid ? money(chargeMinor, policy.currency, locale) : '—'}</dd>
-        </dl>
-        {estimate != null
-          ? valid && <PriceEstimateSummary control={estimate} subtotalMinor={chargeMinor} currency={policy.currency} />
-          : <p className="text-muted-foreground text-xs">{t('tax-note')}</p>}
-        {legalNote != null && <div className="text-muted-foreground text-xs" data-legal-note="">{legalNote}</div>}
+        {details != null && <aside data-amount-details="" className="grid min-w-44 flex-2 gap-5 self-start">{limitNote}{details}</aside>}
+        {legalNote != null && <div className={cn('text-muted-foreground text-xs', details != null && 'basis-full')} data-legal-note="">{legalNote}</div>}
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>{t('cancel')}</Button>

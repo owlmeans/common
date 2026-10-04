@@ -1,3 +1,4 @@
+import { logger } from '@owlmeans/log'
 import type { PoolClient } from 'pg'
 
 import { PgErrorCode } from '../consts.js'
@@ -5,6 +6,8 @@ import { PostgresCastRequired, PostgresSyncError, describePgError, pgErrorToReso
 import type { DdlPlan, TableSpec } from '../types.js'
 import { countNonNull } from './introspect.js'
 import { advisoryKey, quoteIdent } from './name.js'
+
+const log = logger('postgres-resource')
 
 /**
  * Codes that mean "the cast is legal, the data isn't": a `text` column holding `'a'` retyped to
@@ -75,11 +78,9 @@ export const applyPlan = async (
     for (const statement of plan.statements) {
       current = statement.sql
       if (statement.destructive === true && (statement.affected ?? 0) > 0) {
-        console.warn(
-          `@owlmeans/postgres-resource: dropping ${spec.qualified}.${statement.target} —`
-          + ` ${statement.affected} row(s) hold a value. Declare it under \`pg.unmanaged\``
-          + ' or set `pg: { managed: false }` to keep it.'
-        )
+        log.warn('Dropping a column that holds values; declare it under pg.unmanaged or set pg.managed false to keep it', {
+          table: spec.qualified, column: statement.target, rows: statement.affected,
+        }, { event: 'migration.drop' })
       }
       await client.query(statement.sql)
     }

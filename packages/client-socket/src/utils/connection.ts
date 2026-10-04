@@ -5,6 +5,9 @@ import {
 } from '@owlmeans/socket'
 import { AuthenticationStage } from '@owlmeans/auth'
 import type { ReconnectPolicy, SocketConnectionState } from '../types.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-socket')
 
 /** Close codes that mean "this connection is finished on purpose" — never worth retrying: a
  *  normal closure the SERVER initiated (1000, e.g. the protocol's own one-shot completion) and a
@@ -90,7 +93,7 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
       try {
         await listener(msg)
       } catch (error) {
-        console.error('Socket system listener error:', error)
+        log.error('Socket system listener failed', { error })
       }
     }))
   }
@@ -227,7 +230,7 @@ export const makeConnection = (opts: ManagedConnectionOptions): ManagedConnectio
     }
     const messageHandler = (event: MessageEvent) => {
       void receiveMessage(event).catch(error => {
-        console.error('WebSocket message rejected:', error)
+        log.warn('WebSocket message rejected', { error })
         socket.close(1008)
       })
     }
