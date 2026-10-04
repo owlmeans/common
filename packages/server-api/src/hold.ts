@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import { logger } from '@owlmeans/log'
 import type { ServerConfig } from '@owlmeans/server-context'
 import { CLOSED_HOST, OPENED_HOST, PORT } from './consts.js'
 
@@ -76,7 +77,7 @@ export const holdApiPort = async (
   })
 
   await server.listen({ port, host })
-  console.log(`api-server: holding ${host}:${port} for the boot${opts.okPath != null ? ` (${opts.okPath})` : ''}`)
+  logger('server').info(`api-server: holding ${host}:${port} for the boot${opts.okPath != null ? ` (${opts.okPath})` : ''}`, undefined, { event: 'server.hold' })
 
   return {
     release: async () => { await server.close() },

@@ -1,11 +1,14 @@
 import {
   assertSqlIdentifier, PostgresBootstrapError, quoteIdent, quoteLiteral
 } from '@owlmeans/postgres-resource'
+import { logger } from '@owlmeans/log'
 import { Pool } from 'pg'
 import type { PoolClient } from 'pg'
 
 import type { BootstrapOptions, BootstrapReport, PostgresService } from './types.js'
 import { prepareConfig } from './utils/config.js'
+
+const log = logger('postgres')
 
 const exists = async (client: PoolClient, text: string, value: string): Promise<boolean> => {
   const result = await client.query(text, [value])
@@ -108,12 +111,12 @@ export const bootstrapDb = async (
     await target.end().catch(() => undefined)
   }
 
-  console.log(
-    `@owlmeans/postgres: bootstrap ${role}@${database} —`
-    + ` role ${report.roleCreated ? 'created' : report.passwordRotated ? 'rotated' : 'present'},`
-    + ` database ${report.databaseCreated ? 'created' : 'present'}`
-    + (schema != null ? `, schema ${schema} ready` : '')
-  )
+  log.info('Postgres bootstrap applied', {
+    role, database,
+    roleState: report.roleCreated ? 'created' : report.passwordRotated ? 'rotated' : 'present',
+    databaseState: report.databaseCreated ? 'created' : 'present',
+    ...(schema != null ? { schema } : {}),
+  }, { event: 'db.bootstrap' })
 
   return report
 }

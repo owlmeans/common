@@ -115,9 +115,26 @@ export interface StripePricingDef {
    * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
    * account's own tax-settings default resolves to the opposite one — which changes what an
    * existing subscriber is charged at their next renewal. Absent/`false`: such a price is left
-   * `unspecified` and a `console.error` explains why.
+   * `unspecified` and a `log.error` explains why.
    */
   migrateUnspecifiedPrices?: boolean
+  /**
+   * The Stripe customer's e-mail is the application's: every checkout must pass
+   * `CreateLinkParams.email` (else `PaygateError('customer-email')`), which is written to the
+   * customer before the session — Checkout shows a customer's valid e-mail read-only, so no other
+   * address can be typed — and the portal configuration never offers to edit it.
+   */
+  lockCustomerEmail?: boolean
+  /**
+   * The billing country a checkout knows — the locked profile's, else `CreateLinkParams.country` —
+   * is pinned on the Stripe customer (replacing a saved address of another country before any lock)
+   * and Checkout never collects another (`customer_update.address: 'never'`, collection `'auto'`):
+   * tax is calculated on it whatever the card form's "Country or region" says, the first completed
+   * purchase locks it, and the portal never offers to edit the address. Where Stripe Tax needs more
+   * than a country (US: a postal code; CA, IN: a postal code or province) and the customer carries
+   * none, Checkout still collects the address — Stripe refuses a session otherwise.
+   */
+  lockCustomerCountry?: boolean
 }
 export interface StripePricingPluginConfig extends PluginConfig, StripePricingDef {}
 
@@ -197,6 +214,11 @@ export interface CreateLinkParams {
   consumerLanguage?: string
   /** The request's geolocated country (`cf-ipcountry`) — second location evidence, stored at lock. */
   ipCountry?: string
+  /**
+   * The buyer's e-mail as the application verified it (the signed-in person's account). Read only
+   * under `stripe.lockCustomerEmail`, where it is required and pinned on the Stripe customer.
+   */
+  email?: string
 }
 
 /** What a submit-text function is told about the session it labels. */

@@ -1,4 +1,5 @@
 import { uuid } from '@owlmeans/basic-ids'
+import { logger } from '@owlmeans/log'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
 import type { CommitStatus, Unsubscribe } from '@owlmeans/planning'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
@@ -25,6 +26,8 @@ import { makeLinkPort } from './links.js'
 import { makeSchemaPort } from './schemas.js'
 import { makeSpecPort } from './specs.js'
 import { makeTransitionPort, readTransition } from './transitions.js'
+
+const log = logger('planning-postgres')
 
 export * from './bus.js'
 export * from './cards.js'
@@ -97,7 +100,7 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
         recovered = true
         void engine.recover().catch(error => {
           if (!closed) {
-            console.error('planning-postgres: recovery on first use failed:', error)
+            log.error('Planning recovery on first use failed', error)
           }
         })
       }
@@ -119,7 +122,7 @@ export const makePostgresPlanningStore = (opts: PostgresPlanningStoreOptions): P
       try {
         watcher(entityId)
       } catch (error) {
-        console.error('planning-postgres: schema watcher failed:', error)
+        log.error('Planning schema watcher failed', error)
       }
     }
   }

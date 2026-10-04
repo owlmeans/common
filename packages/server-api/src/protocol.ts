@@ -7,6 +7,7 @@ import type {
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import { HandlerMisconfiguredError } from './errors.js'
+import { logger } from '@owlmeans/log'
 
 /**
  * True for a response the declaration left with no compile-time contract: `typed<any>()` (an
@@ -112,8 +113,8 @@ const toleratedHandler = <Protocol extends EntrypointProtocolDeclaration>(
     if (handler.protocol.alias === protocol.alias) {
       if (!warnedAliases.has(protocol.alias)) {
         warnedAliases.add(protocol.alias)
-        console.warn(
-          `[server-api] ${protocol.alias}: handler is already bound — pass it to bind() directly; `
+        logger('server-api').warn(
+          `${protocol.alias}: handler is already bound — pass it to bind() directly; `
           + 'wrapping it again here is a type error (TS2345 "BoundEntrypointHandler<…> is not '
           + 'assignable"), tolerated at runtime for a project generated before the wrap-once rule.'
         )

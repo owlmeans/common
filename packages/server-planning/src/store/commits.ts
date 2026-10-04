@@ -1,7 +1,10 @@
+import { logger } from '@owlmeans/log'
 import { CommitFailed, CommitState, CommitTimeout, DEFAULT_COMMIT_TIMEOUT, WorkcardNotFound } from '@owlmeans/planning'
 import type { CommitEvent, CommitFilter, CommitStatus, Unsubscribe, Workcard } from '@owlmeans/planning'
 import { COMMIT_POLL_LADDER, DEFAULT_COMMIT_MEMORY } from '../consts.js'
 import type { CommitHub, CommitHubOptions } from './types.js'
+
+const log = logger('planning:store')
 
 type Listener = (event: CommitEvent) => void | Promise<void>
 
@@ -58,7 +61,7 @@ export const makeCommitHub = (options: CommitHubOptions): CommitHub => {
       const results = await Promise.allSettled(targets.map(async entry => await entry.listener(event)))
       results.forEach(result => {
         if (result.status === 'rejected') {
-          console.error('planning: commit listener failed:', result.reason)
+          log.error('Planning commit listener failed', { transition: event.transition, error: result.reason })
         }
       })
     },

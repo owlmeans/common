@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process'
+import { logger } from '@owlmeans/log'
+
+const log = logger('test-integration')
 
 /**
  * Whether the server a connection string names answers at all — asked synchronously, because
@@ -128,7 +131,7 @@ export const unreachableReason = (variable: string, url: string, defaultPort: nu
   const reason = `${variable} is set, but ${unreachable} — start the service (or its port-forward) to run these specs`
   if (!warned.has(reason)) {
     warned.add(reason)
-    console.warn(`@owlmeans/test-integration: skipping — ${reason}`)
+    log.warn('Skipping integration specs: a configured service is unreachable', { variable, unreachable })
   }
 
   return reason

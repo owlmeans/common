@@ -7,6 +7,9 @@ import { DIDInitializationError, makeWallet, MASTER } from '@owlmeans/did'
 import { appendClientResource } from '@owlmeans/client-resource'
 import { appendStateDebug } from '@owlmeans/client'
 import type { ClientContext } from '@owlmeans/client'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-did')
 
 export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServiceDeps): DIDService => {
   const location = `did-service:${alias}`
@@ -53,7 +56,7 @@ export const makeWalletService = (alias: string = DEFAULT_ALIAS, deps?: DIDServi
         await service.intialize()
       }
     } catch (e) {
-      console.error('DID Service initialization error', e)
+      log.warn('DID service initialization failed', { alias, error: e })
     } finally {
       service.initialized = true
     }

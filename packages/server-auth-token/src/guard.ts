@@ -13,6 +13,7 @@ import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
 import type { IdentityProfile, IdentityProfileResource } from '@owlmeans/server-auth-identity'
 import { hashAccessToken } from './hash.js'
 import type { AccessTokenResource, AuthTokenConfig, AuthTokenContext, AuthTokenGuardOptions } from './types.js'
+import { logger, logThrottle } from '@owlmeans/log'
 
 /** Where the deployment's prefix comes from: the guard's own options, then config, then default. */
 export const prefixOf = (context: AuthTokenContext, opts?: AuthTokenGuardOptions): string =>
@@ -36,6 +37,21 @@ export const prefixOf = (context: AuthTokenContext, opts?: AuthTokenGuardOptions
  * - it intersects the token's scopes with its profile's on every request, so a token can never
  *   outlive or outrank the person who minted it.
  */
+const log = logger('server-auth-token')
+
+/**
+ * A presented access token the guard did not accept. Never the token, not even its display form:
+ * its record id only. Once a minute per token and reason — a client retrying a revoked token calls every second.
+ */
+const refuse = (reason: string, record?: { id?: string, entityId?: string }): false => {
+  if (logThrottle(`auth-token:${reason}:${record?.id ?? ''}`, 60_000)) {
+    log.warn('Access token refused', {
+      reason, tokenId: record?.id, entityId: record?.entityId,
+    }, { event: 'auth.refused' })
+  }
+  return false
+}
+
 export const makeAuthTokenGuard = (
   alias: string = GUARD_AUTH_TOKEN, opts: AuthTokenGuardOptions = {}
 ): GuardService => {
@@ -72,9 +88,9 @@ export const makeAuthTokenGuard = (
 
       const tokens = context.resource<AccessTokenResource>(opts.resourceAlias ?? AUTH_TOKEN_RESOURCE)
       const record = await tokens.load({ hash: hashAccessToken(presented) })
-      if (record == null) return false as T
-      if (record.revokedAt != null) return false as T
-      if (record.expiresAt != null && new Date(record.expiresAt) < new Date()) return false as T
+      if (record == null) return refuse('unknown') as T
+      if (record.revokedAt != null) return refuse('revoked', record) as T
+      if (record.expiresAt != null && new Date(record.expiresAt) < new Date()) return refuse('expired', record) as T
       // A token minted through an OAuth grant carries the resource(s) it was issued FOR. A token
       // with no audience is the ordinary hand-minted kind and is admitted everywhere its scopes
       // reach, exactly as before this check existed — the guard has to OPT IN with `resources` to
@@ -83,7 +99,7 @@ export const makeAuthTokenGuard = (
       if (record.audience != null && record.audience.length > 0
         && resources != null && resources.length > 0
         && !record.audience.some(resource => resources.includes(resource))) {
-        return false as T
+        return refuse('audience', record) as T
       }
 
       // A token is only ever as good as the profile behind it. Reading the profile per request is
@@ -96,10 +112,10 @@ export const makeAuthTokenGuard = (
       try {
         profile = await profiles.load({ entityId: record.entityId, profileId: record.profileId })
       } catch {
-        return false as T
+        return refuse('profile-unreadable', record) as T
       }
-      if (profile == null) return false as T
-      if (profile.expiresAt != null && new Date(profile.expiresAt) < new Date()) return false as T
+      if (profile == null) return refuse('profile', record) as T
+      if (profile.expiresAt != null && new Date(profile.expiresAt) < new Date()) return refuse('profile-expired', record) as T
 
       const profileScopes = profile.scopes ?? []
       const scopes = profileScopes.includes(ALL_SCOPES)
@@ -139,7 +155,7 @@ export const makeAuthTokenGuard = (
         // Fire and forget: a usage timestamp is never a reason to fail a request, and awaiting it
         // would put a database write on the critical path of every authenticated call.
         void tokens.save({ ...record, lastUsedAt: new Date() })
-          .catch((e: unknown) => console.error('auth-token: lastUsedAt', e))
+          .catch((e: unknown) => { log.warn('Access token lastUsedAt not saved', { tokenId: record.id, error: e }) })
       }
 
       return true as T

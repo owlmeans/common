@@ -208,7 +208,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   terms text, under the same plugin admissions, metadata `termsCollected: 'false'`; a
   `checkout-terms-fallback` event (`recordKind: 'checkout'`, `recordId` = the entity, `externalId`
   = the session, `ok: false`, the Stripe message in `detail`) is appended per fallback and one
-  `console.warn` per context tells the operator what to set. Any other refusal is not retried; a
+  `warn` log per context tells the operator what to set. Any other refusal is not retried; a
   failing retry releases the admissions and propagates its own error.
 - **Texts.** An in-scope top-up without `submitText` says what it buys (`checkout.top-up`, with the
   country's name); a subscription without `submitText` shows the renewal price in the charge

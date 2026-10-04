@@ -1,6 +1,9 @@
+import { logger } from '@owlmeans/log'
 import { LlmMissconfiguredError, LlmRetryExceededError } from '../errors.js'
 import { plugins } from '../plugins/index.js'
 import type { FatalErrorResolver, RetryOptions } from '../types.js'
+
+const log = logger('llm')
 
 /** A misconfiguration is the same on every attempt: no retry, rung or climb can change it. */
 const resolvers: FatalErrorResolver[] = [e => e instanceof LlmMissconfiguredError ? e : null]
@@ -67,8 +70,7 @@ export const withRetry = async <T>(
       exceeded.cause = e
       exceeded.attempt = i
       if (outputErrors) {
-        console.debug('Retry error on attempt', i)
-        console.error(e)
+        log.warn('Retry error on attempt', { attempt: i, error: e })
       }
     }
   }

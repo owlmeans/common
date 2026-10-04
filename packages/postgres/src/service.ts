@@ -4,6 +4,7 @@ import {
   makeTx, pgErrorToResourceError, pgIdentifier, refOf, resolvePlaceholders
 } from '@owlmeans/postgres-resource'
 import type { PostgresDb, PostgresMeta } from '@owlmeans/postgres-resource'
+import { logThrottle, logger } from '@owlmeans/log'
 import { createDbService } from '@owlmeans/resource'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -17,6 +18,8 @@ import { drainMiddleware } from './middleware.js'
 import type { PostgresService } from './types.js'
 import { poolDatabase, prepareConfig } from './utils/config.js'
 import { ensureSchema, probe } from './utils/connection.js'
+
+const log = logger('postgres')
 
 type Config = ServerConfig
 interface Context<C extends Config = Config> extends ServerContext<C> { }
@@ -73,7 +76,9 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
        * on an EventEmitter terminates the process.
        */
       pool.on('error', error => {
-        console.error(`${location}: idle client error — ${(error as Error).message}`)
+        if (logThrottle(`${location}:idle-error`)) {
+          log.warn('Postgres idle client error', { location, error })
+        }
       })
 
       try {

@@ -1,9 +1,12 @@
+import { logThrottle, logger } from '@owlmeans/log'
 import type { CommitEvent, Unsubscribe } from '@owlmeans/planning'
 import { advisoryKey, quoteIdent } from '@owlmeans/postgres-resource'
 import { Client } from 'pg'
 import type { ClientConfig, Notification, Pool } from 'pg'
 import { BUS_BACKOFF, NOTIFY_PAYLOAD_MAX } from '../consts.js'
 import type { SqlRunner } from '../sql.js'
+
+const log = logger('planning-postgres:bus')
 
 /** A settled commit, without its record — the card is re-read where one is needed. */
 export interface CommitFrame {
@@ -103,7 +106,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
     if (frame.t === 'c') {
       for (const listener of [...commitListeners]) {
         void Promise.resolve().then(() => listener(frame.e as CommitEvent))
-          .catch(error => console.error('planning-postgres: commit listener failed:', error))
+          .catch(error => log.error('Planning commit listener failed', error))
       }
       return
     }
@@ -112,7 +115,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
         try {
           listener(frame.e)
         } catch (error) {
-          console.error('planning-postgres: schema listener failed:', error)
+          log.error('Planning schema listener failed', error)
         }
       }
     }
@@ -129,7 +132,9 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
       return
     }
     if (error != null) {
-      console.warn('planning-postgres: commit bus connection lost, reconnecting:', error instanceof Error ? error.message : error)
+      if (logThrottle('planning-postgres:bus:lost')) {
+        log.warn('Planning commit bus connection lost, reconnecting', { backoff, error })
+      }
     }
     retry = setTimeout(() => { retry = undefined; bus.ensure() }, backoff)
     backoff = Math.min(backoff * 2, BUS_BACKOFF[1])

@@ -6,6 +6,7 @@ import type { TFunction } from 'i18next'
 import { setLanguage, useI18nInstance } from './utils/instance.js'
 import { DEFAULT_LNG, DEFAULT_NAMESPACE, initI18nResource, LIB_NAMESPACE } from '@owlmeans/i18n'
 import { useContext } from '@owlmeans/client'
+import { logger } from '@owlmeans/log'
 
 export const I18nContext: FC<I18nContextProps> = memo(({ config, children }) => {
   const i18n = useI18nInstance(config)
@@ -90,7 +91,7 @@ export const useLanguage = (): [string, (lng: string) => Promise<void>] => {
     try {
       await setLanguage(next)
     } catch (error) {
-      console.error('[i18n] language switch failed', error)
+      logger('i18n').error('language switch failed', error)
     }
   }, [])
 

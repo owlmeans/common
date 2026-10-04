@@ -12,6 +12,9 @@ import {
 import { EntrypointOutcome, provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
+import { logger, logThrottle } from '@owlmeans/log'
+
+const log = logger('server-socket')
 
 export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketService => {
   const service: SocketService = createService<SocketService>(alias, {
@@ -86,7 +89,7 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
             const request = provideRequest(module.alias, req, true)
             request.body = conn
 
-            conn.on('error', (error: Error) => console.error('WebSocket error: ', error))
+            conn.on('error', (error: Error) => log.error('WebSocket error', { route: module.alias, error }))
 
             void module.handle<AbstractRequest<WebSocket>>(request, {
               resolve: (value, outcome) => {
@@ -96,8 +99,13 @@ export const createSocketService = (alias: string = DEFAULT_ALIAS): SocketServic
                 }
               },
               reject: error => {
-                console.error('Connection rejected: ', error)
-                conn.close(1011, ResilientError.ensure(error).marshal().message)
+                const refusal = ResilientError.ensure(error)
+                const details = { route: module.alias, reason: refusal.type, error }
+                log.debug('Connection rejected', details)
+                if (logThrottle(`socket.refused:${module.alias}:${refusal.type}`, 60_000)) {
+                  log.warn('Connection rejected', details, { event: 'socket.refused' })
+                }
+                conn.close(1011, refusal.marshal().message)
               }
             })
 

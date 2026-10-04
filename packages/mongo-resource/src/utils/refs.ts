@@ -1,8 +1,11 @@
 import { MisshapedRecord } from '@owlmeans/resource'
 import { ObjectId } from 'mongodb'
 import type { Collection, Document } from 'mongodb'
+import { logger } from '@owlmeans/log'
 
 import type { MongoReference, MongoTx } from '../types.js'
+
+const log = logger('mongo-resource')
 
 /**
  * The only shape a stored reference is converted from. Deliberately stricter than
@@ -233,10 +236,9 @@ export const reconcileReferences = async (
     )
     if (remnant != null) {
       const converted = await convertReferenceField(collection, ref.field)
-      console.warn(
-        `@owlmeans/mongo-resource: ${alias}.${ref.field} held string ids outside the migration`
-        + ` ledger — converted ${converted} document(s)`
-      )
+      log.warn('Reference field held string ids outside the migration ledger; converted', {
+        resource: alias, field: ref.field, converted,
+      })
     }
   }
 }

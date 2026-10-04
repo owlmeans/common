@@ -9,6 +9,9 @@ import { ResilientError } from '@owlmeans/error'
 import { ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError } from '../errors.js'
 import { isIncidentBody } from '../status/index.js'
 import type { ResponseStatusCarrier } from '../status/index.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('api')
 
 export const processResponse = (response: AxiosResponse, reply: AbstractResponse<any>) => {
   switch (response.status) {
@@ -23,10 +26,11 @@ export const processResponse = (response: AxiosResponse, reply: AbstractResponse
     case FINISHED:
       return processEmptyResponse(response, reply, EntrypointOutcome.Finished)
     default:
-
-      console.error(response.status, response.statusText)
-      console.error(response.config?.url, response.headers)
-      console.error(response.data)
+      // A refusal is ordinary traffic (401, 403, 409, 428): debug, and never the headers.
+      log.debug('Request answered with a failure', {
+        status: response.status, statusText: response.statusText, url: response.config?.url,
+        incidentId: headerOf(response.headers, INCIDENT_ID_HEADER),
+      })
 
       reply.reject(failureOf(response))
   }
@@ -57,7 +61,7 @@ const failureOf = (response: AxiosResponse): Error => {
 
       return error
     } catch {
-      console.error(`Server returned an unrecognizable text error: ${response.status} ${response.data}`)
+      log.warn('Server returned an unrecognizable text error', { status: response.status, body: response.data })
     }
   }
 

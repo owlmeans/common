@@ -1,6 +1,9 @@
 import type { ResourceRecord } from '@owlmeans/resource'
 import type { MongoResource } from '../types.js'
 import type { Collection, Document } from 'mongodb'
+import { logger } from '@owlmeans/log'
+
+const log = logger('mongo-resource')
 
 /** What the SERVER reports about an index rather than what a declaration asks for — never a
  *  reason to recreate one. `collation` is here because a collection's default collation is
@@ -42,14 +45,14 @@ export const updateIndexes = async (collection: Collection, resource: MongoResou
       })
       const existing = present.find(_index => _index.name === index.name)
       if (existing == null) {
-        console.debug(`Create index ${resource.alias} : ${index.name}`)
+        log.debug('Create index', { resource: resource.alias, index: index.name })
         await create()
         return
       }
       if (!indexChanged(existing, { key: index.index, ...index.options })) {
         return
       }
-      console.debug(`Recreate index ${resource.alias} : ${index.name}`)
+      log.debug('Recreate index', { resource: resource.alias, index: index.name })
       try {
         await collection.dropIndex(index.name)
       } catch (e) {

@@ -14,7 +14,7 @@ One-call OIDC RP wiring and IAM gate for OwlMeans servers — `appendIam()` and 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-iam@^0.1.18-rc.54
+bun add @owlmeans/server-iam@^0.1.18-rc.55
 ```
 
 ## Usage
@@ -47,7 +47,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.47
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,4 +1,7 @@
 import type { AgentRunMessage } from '@owlmeans/agent-common'
+import { logger } from '@owlmeans/log'
+
+const log = logger('agent:transport')
 
 /**
  * How a run's advance reaches whoever will carry it out.
@@ -36,7 +39,7 @@ export const inProcessTransport = (): AgentTransport => {
         } catch (e) {
           // One subscriber's failure must not swallow the others', and a transport is not the
           // place a run's error is decided.
-          console.error('AgentTransport handler failed:', e)
+          log.error('AgentTransport handler failed', e)
         }
       }))
     },

@@ -1,3 +1,4 @@
+import { configureLog, logConfig } from '@owlmeans/log'
 import { describe, expect, test } from 'bun:test'
 import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
@@ -91,12 +92,12 @@ describe('@owlmeans/llm — a hidden property fails the call before any request'
   }
 
   const quiet = async <T>(run: () => Promise<T>): Promise<T> => {
-    const error = console.error
-    console.error = () => {}
+    const { level } = logConfig()
+    configureLog({ level: 'silent' })
     try {
       return await run()
     } finally {
-      console.error = error
+      configureLog({ level })
     }
   }
 

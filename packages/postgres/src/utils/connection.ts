@@ -1,8 +1,11 @@
 import { pgErrorToResourceError, PostgresConnectionError, quoteIdent } from '@owlmeans/postgres-resource'
 import type { PostgresMeta } from '@owlmeans/postgres-resource'
+import { logger } from '@owlmeans/log'
 import type { Pool } from 'pg'
 
 import { DEF_RETRIES, DEF_RETRY_DELAY, TERMINAL_CONNECT_CODES } from '../consts.js'
+
+const log = logger('postgres')
 
 /**
  * Retryable means "the server isn't up yet". A driver level failure carries no `code` at
@@ -42,7 +45,7 @@ export const probe = async (pool: Pool, meta: PostgresMeta, location: string): P
       if (attempt === retries || !isTransient(error)) {
         break
       }
-      console.log(`${location}: not ready (${attempt}/${retries}), retrying in ${delay}ms…`)
+      log.debug('Postgres not ready, retrying', { location, attempt, retries, delay })
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }

@@ -1,6 +1,7 @@
 import { MigrationStage, runMigrations } from '@owlmeans/resource'
 import type { DbConfig, MigrationReport, ResourceRecord } from '@owlmeans/resource'
 import type { BasicContext } from '@owlmeans/context'
+import { logger } from '@owlmeans/log'
 import type { MongoReference, MongoResource } from '../types.js'
 import type { Db, Collection, Document, IndexSpecification } from 'mongodb'
 import { DEF_MIGRATIONS_COLLECTION } from '../consts.js'
@@ -10,6 +11,8 @@ import { applyReferenceTypes, schemaToMongoSchema } from './schema.js'
 import { updateIndexes } from './indexes.js'
 import { makeMongoMigrationStore, makeMongoTx } from './migrations.js'
 import { reconcileReferences } from './refs.js'
+
+const log = logger('mongo-resource')
 
 /**
  * Bring a resource's collection to the shape its schema declares.
@@ -109,10 +112,9 @@ const prepareMigrations = (
   return async opts => {
     const report = await runMigrations(resource.alias, registry, store, opts)
     if (report.applied.length > 0) {
-      console.log(
-        `@owlmeans/mongo-resource: ${name} applied ${report.stage} migrations —`
-        + ` ${report.applied.join(', ')}`
-      )
+      log.info('Migrations applied', {
+        resource: resource.alias, collection: name, stage: report.stage, applied: report.applied,
+      }, { event: 'migration.applied' })
     }
 
     return report

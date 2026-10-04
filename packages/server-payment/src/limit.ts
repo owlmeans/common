@@ -7,6 +7,7 @@ import { gateEntityOf } from './gate.js'
 import type { EntityResolverOption } from './gate.js'
 import { entitlements } from './utils.js'
 import type { Config, Context } from './types.js'
+import { log } from './log.js'
 
 export interface LimitGateOptions extends EntityResolverOption {}
 
@@ -37,7 +38,7 @@ export const makeLimitGate = (alias: string = LIMIT_GATE, opts?: LimitGateOption
           state = await entitlements(ctx).limitState(entityId, param.key)
         } catch (error) {
           if (!(error instanceof LimitUnknown)) {
-            console.error(`limit gate: cannot read "${param.key}" of "${entityId}"`, error)
+            log.error('Limit gate cannot read a limit', { key: param.key, entityId, error })
           }
           continue
         }

@@ -16,8 +16,11 @@ import {
 } from './consts.js'
 import { identityEvents } from './events.js'
 import { credentialKeyOf, credentialOf, ensureAccount, ensureProfile, profileIdOf } from './identity.js'
+import { logger } from '@owlmeans/log'
 
 type Context = ServerContext<ServerConfig>
+
+const log = logger('server-auth-identity')
 
 /**
  * The deployment's own sign-in over the identity store: every payload names the row of THIS
@@ -108,6 +111,9 @@ export const makeIdentityLinkingService = (opts: IdentityResourcesOptions = {}):
         }
         const linked = (await credentialOf(ctx, details))?.account
         if (linked != null && linked.id !== account.id) {
+          log.warn('Credential link refused: the method signs into another account', {
+            method: details.type, service: details.service, accountId: account.id, reason: 'linked-elsewhere',
+          }, { event: 'auth.refused' })
           throw new Error('Cannot link credentials: the method signs into another account')
         }
         // By the account's own address, so the method is attached to exactly this account.

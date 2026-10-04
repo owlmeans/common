@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-api
 
-**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.48`
+**Install:** `bun add @owlmeans/server-api@^0.1.18-rc.49`
 
 Make handlers from the protocol declaration so input and output types stay coupled to the shared
 contract:
@@ -111,6 +111,16 @@ exposure) and a status from `errorStatus(error)` (`./utils`), resolved in this o
 
 `uploadedFile(request)` is the Fastify multipart boundary. Keep raw Fastify access there rather
 than reaching through `request.original` in application code.
+
+## Logging
+
+The server logs through `@owlmeans/log`, not a second pino: Fastify gets a pino-shaped adapter as its
+`loggerInstance` (scope `http`) with its own request/response lines disabled. A request is one `debug`
+record from `onResponse` (method, path without the query, status, ms). A failed request is logged once,
+in `handleError`, by what it means: **5xx → `error`** (the error with its stack and the incident id),
+**403 → `warn`, `event: 'access.forbidden'`**, 401 → `debug`, `event: 'auth.refused'`, any other 4xx →
+`debug`. The level and format come from `cfg.log` (`/log`); access lines at info are
+`cfg.log.debug: 'http'`.
 
 ## Error exposure
 

@@ -1,3 +1,7 @@
+import { logger } from '@owlmeans/log'
+
+const log = logger('test-integration')
+
 type CleanupFn = () => void | Promise<void>
 
 const queue: CleanupFn[] = []
@@ -14,7 +18,7 @@ export const registerCleanup = (fn: CleanupFn): void => {
 
 /**
  * Run all pending cleanup functions in reverse registration order.
- * Errors are swallowed and reported to stderr so a failing cleanup
+ * Errors are swallowed and logged as warnings so a failing cleanup
  * cannot mask a test failure.
  */
 export const runCleanups = async (): Promise<void> => {
@@ -24,7 +28,7 @@ export const runCleanups = async (): Promise<void> => {
     try {
       await fn()
     } catch (err) {
-      console.error('@owlmeans/test-integration cleanup failed:', err)
+      log.warn('Cleanup failed', err)
     }
   }
 }

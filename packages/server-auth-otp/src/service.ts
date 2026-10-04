@@ -14,6 +14,12 @@ import { OTP_CHALLENGE_STORE } from './consts.js'
 import { emailThrottleKey } from './throttle.js'
 import { OtpThrottled, OtpUnavailable } from './errors.js'
 import { makeRedisOtpChallengeStore } from './challenge.js'
+import { logger, logThrottle } from '@owlmeans/log'
+
+const log = logger('server-auth-otp')
+
+/** An e-mail as a log may carry it: its domain only. */
+const domainOf = (email: string): string => email.slice(email.lastIndexOf('@') + 1)
 
 const digest = (scope: string, value: string): string =>
   createHash('sha256').update(`owlmeans:otp:${scope}\0${value}`).digest('hex')
@@ -55,7 +61,14 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
       if (throttleAlias != null && throttleRules != null) {
         const decision = await ctx.service<AuthThrottleService>(throttleAlias)
           .consume(emailThrottleKey(email), throttleRules, issuanceId)
-        if (!decision.allowed) throw new OtpThrottled(decision.retryAfter)
+        if (!decision.allowed) {
+          if (logThrottle(`otp-throttled:${otpEmailKey(email)}`, 60_000)) {
+            log.warn('Login code refused: throttled', {
+              reason: 'otp-throttled', emailDomain: domainOf(email), retryAfter: decision.retryAfter,
+            }, { event: 'auth.refused' })
+          }
+          throw new OtpThrottled(decision.retryAfter)
+        }
       }
 
       const issued = await challenges.issue({
@@ -82,6 +95,8 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
         OTP_MAX_FAILED_ATTEMPTS
       )
       if (outcome !== OtpChallengeOutcome.Verified) {
+        // The sign-in refusal itself (`auth.refused`) is logged where the manager decides sign-in.
+        log.debug('OTP challenge refused', { outcome, emailDomain: domainOf(email) })
         throw new AuthenFailed('otp:code')
       }
     },

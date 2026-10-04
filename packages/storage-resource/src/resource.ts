@@ -6,6 +6,9 @@ import { FilePropertyError, FileStreamError, FileTypeError, StorageApiError } fr
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ResilientError } from '@owlmeans/error'
 import { fileTypeFromBuffer } from 'file-type'
+import { logger } from '@owlmeans/log'
+
+const log = logger('storage-resource')
 
 export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?: string) => {
   configKey ??= alias
@@ -70,7 +73,7 @@ export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?:
         if (e instanceof ResilientError) {
           throw e
         }
-        console.error(e)
+        log.error('Storage upload failed', e)
         throw new StorageApiError()
       }
 

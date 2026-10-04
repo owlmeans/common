@@ -11,6 +11,7 @@ import type {
   ConsumeRequest, CounterReconciliation, EffectivePlan, LimitOutcome, OccupancyOutcome,
   PaymentUsageCounterRecord, PaymentUsageRecord, ReleaseRequest,
 } from './types.js'
+import { log } from './log.js'
 
 /**
  * The usage ledger and its counters.
@@ -163,7 +164,7 @@ export const consumeLimit = async (ctx: ApiContext, req: ConsumeRequest): Promis
     })
   } catch (error) {
     // Undo the admission. Should the undo itself fail, the counter over-counts — never over-admits.
-    await decrement(ctx, key, amount, at).catch(undo => { console.error('[payment] usage undo failed', undo) })
+    await decrement(ctx, key, amount, at).catch(undo => { log.error('Usage undo failed', undo) })
     if (!isDuplicateKey(error)) {
       throw error
     }
@@ -386,7 +387,7 @@ export const reconcileLedgerCounters = async (ctx: ApiContext, entityId?: string
     try {
       effective = await resolveEffectivePlan(ctx, entity, at)
     } catch (error) {
-      console.warn(`[payment] reconcile: no plan for "${entity}"`, error)
+      log.warn('Reconcile: no plan for an entity', { entityId: entity, error })
     }
     const limitOf = (limitKey: string, fallback: number): number => {
       const declaration = effective?.plan.limits?.[limitKey]

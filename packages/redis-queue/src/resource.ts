@@ -13,6 +13,7 @@ import {
 } from '@owlmeans/queue'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import { ResilientError } from '@owlmeans/error'
+import { logThrottle, logger } from '@owlmeans/log'
 import type { Job, QueueEventsListener } from 'bullmq'
 import { FlowProducer, Queue, QueueEvents, QueueEventsProducer } from 'bullmq'
 import type { Config, Context, RedisQueueResource } from './types.js'
@@ -22,6 +23,8 @@ import {
 import {
   bullOptionsOf, declaredJob, flowJobOf, jobRecordOf, jobStateOf, mergeJobOptions, queueConnection
 } from './utils/index.js'
+
+const log = logger('redis-queue')
 
 /**
  * The queue named by the job type it carries rather than by the payload type.
@@ -74,7 +77,12 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
   const watched = <T extends { on: (event: 'error', listener: (error: Error) => void) => unknown }>(
     subject: T
   ): T => {
-    subject.on('error', error => console.error(`${location}: connection error`, error))
+    // A broken connection reports on every reconnect attempt: one line per window is enough.
+    subject.on('error', error => {
+      if (logThrottle(`${location}:connection`)) {
+        log.error('Queue connection error', { queue, error })
+      }
+    })
 
     return subject
   }
@@ -531,7 +539,7 @@ export const makeRedisQueueResource = <D = unknown, R = unknown>(
         try {
           await (await opened).close()
         } catch (error) {
-          console.error(`${location}: failed to close`, error)
+          log.error('Queue failed to close', { queue, error })
         }
       }
     }

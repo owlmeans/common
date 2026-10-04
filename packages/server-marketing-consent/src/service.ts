@@ -13,6 +13,9 @@ import { RES_MARKETING_CONSENT_LOG, RES_MARKETING_CONSENT_STATE } from './consts
 import type { MarketingConsentLogRecord, MarketingConsentStateRecord } from './model.js'
 import { subjectKey } from './subject.js'
 import type { MarketingConsentSubject } from './subject.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-marketing-consent')
 
 export type MarketingConsentContext = ServerContext<ServerConfig>
 
@@ -89,7 +92,7 @@ export const makeMarketingConsentService = (
         await listener({ subject, decisions })
       } catch (error) {
         // A listener's failure never fails the write that triggered it.
-        console.error(`${alias}: observer failed for ${subjectKey(subject)}`, error)
+        log.error('Marketing-consent observer failed', { alias, subject: subjectKey(subject), error })
       }
     }
   }

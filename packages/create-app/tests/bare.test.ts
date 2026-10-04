@@ -84,6 +84,29 @@ describe('create-app — bare scaffolding', () => {
     }
   })
 
+  test('sets the log level per runtime environment, never in the shared config', () => {
+    const common = read('sources/common/src/config.ts')
+    expect(common).not.toContain('cfg.debug')
+    expect(common).not.toContain('process.env')
+    expect(common).not.toContain('import.meta.env')
+
+    expect(read('sources/api/src/config.ts')).toContain(
+      "cfg.log = { level: process.env.LOG_LEVEL || 'info', debug: process.env.LOG_DEBUG ?? '' }"
+    )
+    expect(read('sources/web/src/config.ts')).toContain(
+      "cfg.log = { level: env.VITE_LOG_LEVEL || (env.PROD ? 'info' : 'debug'), debug: env.VITE_LOG_DEBUG ?? '' }"
+    )
+    expect(read('sources/web/src/vite-env.d.ts')).toContain('readonly VITE_LOG_LEVEL?: string')
+    expect(read('sources/api/src/index.ts')).toContain("log.error('Start failed', error)")
+
+    for (const pkg of ['sources/api/package.json', 'sources/web/package.json']) {
+      expect(JSON.parse(read(pkg)).dependencies['@owlmeans/log']).toBe('^0.1.18-rc.0')
+    }
+    expect(read('.gitignore').split('\n')).toContain('.env')
+    expect(read('AGENTS.md')).toContain('## Logging (mandatory)')
+    expect(read('AGENTS.md')).toContain('- `/logging` —')
+  })
+
   test('carries the slug, name, language and description into the output', () => {
     expect(JSON.parse(read('package.json')).name).toBe('bare-app')
     expect(read('sources/common/src/consts.ts')).toContain(`'bare-app-api'`)

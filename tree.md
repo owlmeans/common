@@ -2,7 +2,7 @@
 
 This is the canonical, machine-friendly map of every published `@owlmeans/*` package and its direct dependencies on other `@owlmeans/*` packages. Read it whenever you need to understand the dependency structure of the monorepo: build order, layer boundaries, where to plug a new package, or which package to import from.
 
-**Scope.** All 108 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
+**Scope.** All 111 framework packages are included. Test-helper packages (`_tpl`, `test`, `test-auth`, `test-integration`, `test-ui`) are intentionally excluded — they exist to support the testing infrastructure, not to ship to consumers.
 
 **Reading the entries.** Each line `- pkg → dep1, dep2` lists `pkg`'s direct `@owlmeans/*` dependencies (combined `dependencies` + `peerDependencies`, deduplicated, self-references stripped). Non-`@owlmeans/*` deps (React, MUI, Fastify, AJV, axios, etc.) are out of scope here — see each package's own `package.json`.
 
@@ -47,6 +47,7 @@ Build configuration and the command-line tools that scaffold a project and insta
 Environment-agnostic primitives. Everything else builds on this layer. Within this layer, the entries are listed in dependency order (lower-level first).
 
 - [`context`](packages/context) → *(no `@owlmeans/*` deps)*
+- [`log`](packages/log) → `context`
 - [`i18n`](packages/i18n) → *(no `@owlmeans/*` deps)*
 - [`basic-ids`](packages/basic-ids) → *(no `@owlmeans/*` deps)*
 - [`error`](packages/error) → `i18n`
@@ -72,6 +73,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 - [`agent`](packages/agent) → `agent-common`, `basic-ids`, `context`, `error`, `flow`, `llm`, `llm-common`
 - [`queue`](packages/queue) → `auth`, `auth-common`, `context`, `entrypoint`, `error`, `resource`, `route`
 - [`consent`](packages/consent) → *(no `@owlmeans/*` deps)*
+- [`viable-log`](packages/viable-log) → `log`
 - [`mailer`](packages/mailer) → `context`, `error`
 - [`flow`](packages/flow) → `auth`, `config`, `error`, `i18n`, `resource`
 - [`iam`](packages/iam) → `auth`, `context`, `entrypoint`, `error`, `oidc`, `route`
@@ -86,7 +88,7 @@ Domain-level features that are themselves environment-agnostic but sit on top of
 >
 > **Note.** `llm-common` declares the `ModelProvider.Delegated` contracts (`DelegatedTask`, `DelegatedResult`, `DelegateTransport`) but holds no runtime for them: the `BaseChatModel` that performs such a call outside the process is `@owlmeans/llm-delegate` in the `internal` monorepo. `viable-common` is the runtime-free contract package (slot commands, the connector protocol, target integrity, the conversion vocabulary) that the OwlMeans Viable platform, its SDK and its MCP host all read.
 >
-> **Note.** `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
+> **Note.** `log` is the one logging system (levels, scopes, redaction, console override, plugins) — it depends on `context` only, so every layer above may import it; `web-log` is its consent-gated browser analytics plugin and `viable-log` a generated app's link to the OwlMeans Viable platform (two plugins and the stdout/preview contract). `queue` is the abstract job/queue contract — `redis-queue` drives it, `server-job` and `client-job` transport it. `mailer` is the abstract mail contract — `mailer-smtp` and `server-mailer-mailgun` drive it. `consent` holds the consent policy and Consent Mode signalling that `web-consent`, `web-gtm` and `astro` render. `llm-common` carries the serializable LLM/execution contracts that both `llm` (runtime) and `agent-common` (graph contracts) build on.
 
 ## 4. Auth shared
 
@@ -186,6 +188,7 @@ Browser-specific React (DOM, IndexedDB) plus the Astro integration. The panel an
 - [`web-db`](packages/web-db) → `client-context`, `client-resource`, `context`
 - [`web-consent`](packages/web-consent) → `consent`
 - [`web-gtm`](packages/web-gtm) → `consent`
+- [`web-log`](packages/web-log) → `consent`, `log`
 - [`web-client`](packages/web-client) → `auth`, `auth-common`, `client`, `client-auth`, `client-context`, `client-entrypoint`, `client-i18n`, `client-resource`, `client-route`, `config`, `context`, `error`, `i18n`, `route`, `web-db`, `web-router`
 - [`web-flow`](packages/web-flow) → `client`, `client-context`, `client-entrypoint`, `client-flow`, `client-resource`, `context`, `error`, `flow`
 - [`web-auth`](packages/web-auth) → `auth`, `auth-common`, `basic-ids`, `basic-keys`, `client`, `client-auth`, `client-flow`, `config`, `context`, `web-client`
@@ -236,7 +239,7 @@ If you add a new cross-layer dependency, document it here and explain why.
 Lower levels are compiled before higher ones. `bun run build` orchestrates this via workspace dependency resolution; you usually do not need to think about it. Useful when you suspect a build cycle or are reasoning about partial builds. SCCs (see [Cross-layer notes](#cross-layer-notes)) are listed as a single `{a | b | …}` group.
 
 - **L0** (no `@owlmeans/*` deps): `basic-ids`, `client-wl`, `consent`, `context`, `dep-config`, `i18n`, `llm-common`
-- **L1**: `error`, `route`, `router`, `web-consent`, `web-gtm`
+- **L1**: `error`, `log`, `route`, `router`, `web-consent`, `web-gtm`
 - **L2**: `astro`, `auth`, `auth-otp`, `llm`, `mailer`, `resource`, `server-route`, `web-router`, `web-router-react-router`
 - **L3**: `basic-keys`, `config`, `entrypoint`, `server-mailer-mailgun`, `socket`, `state`, `static-resource`, `storage-common`
 - **L4**: `api-config`, `auth-token`, `basic-envelope`, `client-config`, `did`, `flow`, `server-config`, `server-entrypoint`, `wled`

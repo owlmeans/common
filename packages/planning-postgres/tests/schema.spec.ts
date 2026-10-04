@@ -1,4 +1,5 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
+import { addLogPlugin, memoryPlugin } from '@owlmeans/log'
 import { getDeclaration, resetDeclarations, schemaToTableSpec } from '@owlmeans/postgres-resource'
 
 import {
@@ -47,7 +48,8 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
     for (const alias of [RES_PLANNING_CARD, RES_PLANNING_TRANSITION, RES_PLANNING_LINK, RES_PLANNING_SCHEMA]) {
       resetDeclarations(alias)
     }
-    const warn = spyOn(console, 'warn')
+    const memory = memoryPlugin('planning-postgres-schema')
+    const remove = addLogPlugin(memory)
     try {
       for (let run = 0; run < 2; run++) {
         makePlanningCardPostgres()
@@ -70,9 +72,9 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
       expect(names(RES_PLANNING_SCHEMA)).toEqual(['planning_schema_rev', 'planning_schema_scope'])
 
       schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true, getDeclaration(RES_PLANNING_CARD).indexes)
-      expect(warn).not.toHaveBeenCalled()
+      expect(memory.records.filter(record => record.level === 'warn')).toEqual([])
     } finally {
-      warn.mockRestore()
+      remove()
     }
   })
 

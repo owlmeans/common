@@ -1,6 +1,9 @@
 import { createLazyService } from '@owlmeans/context'
 import type { BasicContext, LazyService } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-entrypoint')
 
 export const ENTRYPOINT_FAILURE_SERVICE = 'client-entrypoint:failure'
 
@@ -31,7 +34,7 @@ export const ensureEntrypointFailureService = (ctx: BasicContext<any>): Entrypoi
     notify: async failure => {
       for (const plugin of plugins.values()) {
         try { await plugin.onFailure(failure) } catch (cause) {
-          console.warn('Entrypoint failure observer failed', cause)
+          log.warn('Entrypoint failure observer failed', { plugin: plugin.alias, error: cause })
         }
       }
     },

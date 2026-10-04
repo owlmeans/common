@@ -1,3 +1,4 @@
+import { configureLog, logConfig } from '@owlmeans/log'
 import { describe, expect, test } from 'bun:test'
 import type { ChatAnthropic } from '@langchain/anthropic'
 import { AIMessageChunk } from '@langchain/core/messages'
@@ -263,12 +264,12 @@ describe('@owlmeans/llm — structured output on a model that refuses a pinned t
 
   const spectator = { log: async () => undefined } as unknown as LlmSpectator
   const quiet = async <T>(run: () => Promise<T>): Promise<T> => {
-    const error = console.error
-    console.error = () => {}
+    const { level } = logConfig()
+    configureLog({ level: 'silent' })
     try {
       return await run()
     } finally {
-      console.error = error
+      configureLog({ level })
     }
   }
 

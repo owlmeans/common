@@ -1,4 +1,4 @@
-import { AuthenFailed, AuthorizationError, AuthRole, AuthUnavailable } from '@owlmeans/auth'
+import { AuthenFailed, AuthError, AuthorizationError, AuthRole, AuthUnavailable } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { createService } from '@owlmeans/context'
@@ -22,6 +22,9 @@ import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
 import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
 import type { AuthSessionDecision, AuthSessionManager } from '@owlmeans/server-auth-session'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-rp')
 
 /** Provider errors which affirm that this access token is no longer usable. */
 const isInvalidProviderToken = (error: unknown): boolean => {
@@ -282,7 +285,10 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           // browser session would turn a recoverable outage into forced reauthentication.
           throw err
         }
-        console.error(err)
+        log.warn('OIDC session rejected; its record is dropped', {
+          reason: err instanceof AuthError ? err.message : 'revalidation-failed', userId: user.userId,
+          ...(err instanceof AuthError ? {} : { error: err }),
+        }, { event: 'auth.refused' })
         await cache(ctx).delete(managedId(user.token))
         if (thr) {
           if (err instanceof AuthorizationError) {

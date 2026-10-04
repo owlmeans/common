@@ -8,6 +8,9 @@ import type { GateModel, PermissionRequest, PermissionResponse } from './types.j
 import { ResponseMode } from './consts.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import type { OidcProviderDescriptor } from '@owlmeans/oidc'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-rp')
 
 export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T): GateModel => {
   const model: GateModel = {
@@ -74,7 +77,8 @@ export const createGateModel = <C extends Config, T extends Context<C>>(ctx: T):
           throw new AuthUnknown('invalid')
         }
 
-        console.warn(await response.text())
+        // Never the response body: it is the token endpoint's answer to this user's request.
+        log.warn('Permission request failed at the token endpoint', { status: response.status })
         return []
       }
 

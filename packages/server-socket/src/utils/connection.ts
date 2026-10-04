@@ -10,6 +10,9 @@ import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { isAuth, isAuthCredentials, isAuthToken } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import type { AuthServiceAppend } from '@owlmeans/server-auth'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-socket')
 
 export const makeConnection = <C extends Config, T extends Context<C> = Context<C>>(
   request: AbstractRequest<WebSocket>, context: T
@@ -127,7 +130,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
   // and terminate only this socket when parsing, staging, or dispatch rejects.
   const messageHandler = (_message: Buffer | Buffer[]) => {
     void receiveMessage(_message).catch(error => {
-      console.error('WebSocket message rejected:', error)
+      log.debug('WebSocket message rejected', { error })
       conn.close(1008)
     })
   }
@@ -160,7 +163,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
       try {
         await listener(msg)
       } catch (error) {
-        console.error('Socket close listener error:', error)
+        log.error('Socket close listener failed', { error })
       }
     }))
     conn.off('message', messageHandler)
@@ -169,7 +172,7 @@ export const makeConnection = <C extends Config, T extends Context<C> = Context<
 
   const closeHandler = (code: number) => {
     void handleClose(code).catch(error => {
-      console.error('WebSocket close handling failed:', error)
+      log.error('WebSocket close handling failed', { error })
     })
   }
 
