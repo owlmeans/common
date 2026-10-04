@@ -395,6 +395,14 @@ export const connect = Object.freeze({
     reinit: 'viable:manager-api:connect:project:reinit',
     modify: 'viable:manager-api:connect:project:modify',
     /**
+     * Planning kits — ready sets of card types and status flows the platform writes into a
+     * target's common package (`describe` lists them, `apply` writes one and rebuilds the slot).
+     */
+    kit: Object.freeze({
+      describe: 'viable:manager-api:connect:project:kit:describe',
+      apply: 'viable:manager-api:connect:project:kit:apply',
+    }),
+    /**
      * The project's own branding — copyright, organization, the two legal links, the Google tag.
      * The platform credit is deliberately NOT here: hiding it is a paid capability with its own
      * gated route, and a connector setting the rest must never be able to touch it.

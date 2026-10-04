@@ -3,7 +3,7 @@ import { route, RouteMethod } from '@owlmeans/route'
 import { connect } from './consts.js'
 import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
-  ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
+  ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema, ConnectKitApplyBodySchema,
   ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
   ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
@@ -11,7 +11,8 @@ import {
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
+  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe,
+  ConnectModifyBody,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
   ConnectProjectBrandingSave, ConnectSessionOpen,
   ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
@@ -143,6 +144,24 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
     ),
+    // Planning kits: one path, read and applied under the owned base like every project route.
+    kit: {
+      describe: protocol(
+        route(connect.project.kit.describe, '/project/:id/kits', {
+          parent: base, method: RouteMethod.GET,
+        }),
+        contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConnectKitDescribe>()),
+      ),
+      apply: protocol(
+        route(connect.project.kit.apply, '/project/:id/kits', {
+          parent: base, method: RouteMethod.POST,
+        }),
+        contract.request({
+          params: typed<{ id: string }>(ConnectProjectIdSchema),
+          body: typed<ConnectKitApplyBody>(ConnectKitApplyBodySchema),
+        }, typed<ConnectKitApplyResult>()),
+      ),
+    },
     // Under `base` like every sibling — the guard and the ownership gate — and never under the
     // paid gate: saving branding is free, and the paid credit switch is not reachable from here.
     branding: {

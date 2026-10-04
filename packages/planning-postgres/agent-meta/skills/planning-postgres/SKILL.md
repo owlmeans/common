@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/planning-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.5"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
+**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.7"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
 
 A `PlanningStore` of `@owlmeans/server-planning` on Postgres. It owns no planning semantics: every
 write still goes through the executor, every fold through `foldPending`, every query through
@@ -145,6 +145,13 @@ export const PLANNING: PlanningPlugin = {
   },
 }
 ```
+
+## Mounting in a target
+
+This service is the store under a target's stock planning API (`planning` → Mounting in a target).
+Its `planning-schema` table is what lets the app's people override and extend the kit's
+`overridable` card types and flows through `schema.define` — never drop it from a target that
+mounts the tree.
 
 ## A worked example
 

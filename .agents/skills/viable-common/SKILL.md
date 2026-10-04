@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.41"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.43"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -30,9 +30,9 @@ execution state and card fields name.
 
 | Subpath | What it declares |
 |---|---|
-| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyOf`, `tenantedArea`, `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `resolveTopology`, `packageForRole` — meaning in `/blueprints`); the BA shapes (`mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType`; the agent-output taxonomy (`classifyAgentMessage`, `isAgentMessageHidden` — `/agent-presentation`) and the spectator entry types |
+| `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyOf`, `tenantedArea`, `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `resolveTopology`, `packageForRole` — meaning in `/blueprints`); the BA shapes (`mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType`; the agent-output taxonomy (`classifyAgentMessage`, `isAgentMessageHidden` — `/agent-presentation`) and the spectator entry types |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
 | `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
@@ -97,7 +97,7 @@ the wire and in target files — a parent agent's vocabulary, which never change
 | project `id` / story `id` | `id` (a card id) |
 | project `alias` / `name` / `description` | `code` / `title` / `description` |
 | project `specification` / `vision` / `designSystem` | specification bodies, categories `specification` / `vision` / `design-system` |
-| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
+| project `formerAliases`, `language`, `blueprint`, `blueprintCase`, `gameKind`, `workKind`, `caseQuote`, `target`, `origin`, `connectLlmMode`, `converterLlmMode` | `fields.*` |
 | the landing-gate decision | project `fields.landing` — `{ story: code \| null, at }` |
 | the tenancy decision | project `fields.tenancy` — `ViableTenancyDecision` `{ operators, users, quotes?, by: 'model' \| 'owner', at }` |
 | story narrative (`story`) / `code` / `status` | `title` / `code` / `status` (same strings) |
@@ -242,7 +242,7 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
 |---|---|
 | `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
 | `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
-| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding` |
+| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `kit.describe` GET / `kit.apply` POST `/project/:id/kits` |
 | `story` | `status` GET `/project/:id/story/:storyId/status` |
 | `files` | `list` GET `/project/:id/files` |
 | `convert` | `create` POST `/convert`, `check` GET `/convert/:id/check`, `start`, `proceed`, `purge` POST `/convert/:id/…`, `status` GET `/convert/:id` |
@@ -324,8 +324,15 @@ only through a total helper: `landingGatePreferenceOf` (`LandingGatePreference.A
 no key or an unknown value) and `tenancyOf`. An execution carries a `BlueprintRef` — `id`,
 optional `case`, optional `tenancy`, an override patch — never a resolved blueprint.
 
-`BlueprintCase` (`web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`) and `GameKind` are what
-`fields.blueprintCase` / `fields.gameKind` carry. What a case MEANS (`BLUEPRINT_CASES`,
+`BlueprintCase` (`web`, `scalable`, `ai-pipeline`, `ai-agent`, `game`, `work-management`,
+`work-management-tenanted`) and `GameKind` are what `fields.blueprintCase` / `fields.gameKind`
+carry. `work-management-tenanted` is never classified directly: code picks it from
+`work-management` when the project's tenancy decision has a flag on. `WorkKind` (`project`, `crm`,
+`service-desk`, `inventory`, `recruiting`, `field-service`, `process`) is `fields.workKind` — which
+ready-made card types and flows a work-management product starts from, changing no dependency —
+and `fields.caseQuote` (≤ `CASE_QUOTE_MAX`) is the requester's sentence that case was verified
+against. `TemplateLayer.seeds` names case seed directories under the overlay's `.cases/`, copied
+over the staged tree in order (names, never paths; a variant lists its base seed first). What a case MEANS (`BLUEPRINT_CASES`,
 `applyBlueprintCase`, `applyBlueprintPatch` / `freezeBlueprint`, `joinPersonaSkills`, the
 classification schema) lives in `@owlmeans/viable` (`/blueprints`, `/blueprint-cases`); that table
 is `Record<BlueprintCase, …>`, so a new member fails to compile there until it has a row.
@@ -440,12 +447,12 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 
 | File | Pins |
 |---|---|
-| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, card helpers, the `follows` anchor, refusal type names after a marshal |
+| `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
 | `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyOf` defaults and the literal-`true` rule, `tenantedArea` |
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
 | `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems` |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
-| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body · conversion routes, an unknown executor kind accepted |
+| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, an unknown executor kind accepted |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
 | `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `userStoryOfDesign` |
 | `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip |

@@ -32,6 +32,9 @@ this node keeps what cost time to find.
 - **A narrowed list/count admits what a single read admits.** Broke when violated: under a
   `projects` scope `cards.get` answered a task's document while `cards.list({ kind: specification })`
   came back without it — the list criteria lacked the `through` parent cards.
+- **View and write are separate access sets** (`projects` vs `writes`): a resolver that answers only
+  `projects` lets every viewer execute. Broke when violated: view-only members of a generated
+  target moved and created cards.
 
 ## Gotchas
 

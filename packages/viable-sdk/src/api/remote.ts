@@ -2,7 +2,7 @@ import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { planningOf } from '@owlmeans/client-planning'
 import { connectRef } from '@owlmeans/viable-common'
 import type {
-  ConnectConvertCreateBody, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
+  ConnectConvertCreateBody, ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
   ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
   ConnectStoryStatus, ConnectTarget, ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
 } from '@owlmeans/viable-common'
@@ -115,6 +115,12 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
       modify: async (id: string, prompt: string) =>
         await context.entrypoint(connectRef.project.modify).call({
           params: { id }, body: { prompt }, timeout: TOOL_DEADLINE_MS,
+        }),
+      kitDescribe: async (id: string): Promise<ConnectKitDescribe> => await context
+        .entrypoint(connectRef.project.kit.describe).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
+      kitApply: async (id: string, body: ConnectKitApplyBody): Promise<ConnectKitApplyResult> =>
+        await context.entrypoint(connectRef.project.kit.apply).call({
+          params: { id }, body, timeout: TOOL_DEADLINE_MS,
         }),
     },
 

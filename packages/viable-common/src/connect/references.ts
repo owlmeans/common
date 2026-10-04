@@ -5,7 +5,8 @@ import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectConvertCreateBody,
-  ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectModifyBody, ConnectOpSubmission,
+  ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectKitApplyBody, ConnectKitApplyResult,
+  ConnectKitDescribe, ConnectModifyBody, ConnectOpSubmission,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState, ConnectProjectBranding,
   ConnectProjectBrandingSave, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
   ConnectSessionOpen, ConnectSessionParams, ConnectSessionView, ConnectStoryStatus,
@@ -35,6 +36,10 @@ export interface ConnectReferences {
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
     reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
+    kit: {
+      describe: ConnectReference<{ params: { id: string } }, ConnectKitDescribe>
+      apply: ConnectReference<{ params: { id: string }, body: ConnectKitApplyBody }, ConnectKitApplyResult>
+    }
     branding: {
       get: ConnectReference<{ params: { id: string } }, ConnectProjectBranding>
       save: ConnectReference<{
@@ -96,6 +101,12 @@ export const connectRef: ConnectReferences = {
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
     reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
+    kit: {
+      describe: entrypointRef<{ params: { id: string } }, ConnectKitDescribe>(connect.project.kit.describe),
+      apply: entrypointRef<{
+        params: { id: string }, body: ConnectKitApplyBody
+      }, ConnectKitApplyResult>(connect.project.kit.apply),
+    },
     branding: {
       get: entrypointRef<{ params: { id: string } }, ConnectProjectBranding>(connect.project.branding.get),
       save: entrypointRef<{

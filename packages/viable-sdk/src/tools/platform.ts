@@ -269,6 +269,15 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
       absent: 'project settings are changed in the web application from here',
     },
     {
+      id: 'planning-kits',
+      title: 'Planning kits',
+      what: 'Ready sets of card types and status flows for a work-management product, written into'
+        + ' the project\'s common package: describe them, then apply one (or some of its types). The'
+        + ' platform rebuilds the preview itself.',
+      tools: ['describe_planning_kits', 'apply_planning_kit'],
+      absent: 'planning kits are not offered here',
+    },
+    {
       id: 'stories',
       title: 'User stories',
       what: 'User stories are planning CARDS: each has a code, a status in the story flow'

@@ -4,7 +4,7 @@ import type {
   PlanningDefinitions, PlanningProtocols, SchemaDefineReply, SchemaDefineRequest, ScopedSchemaBundle, ScopedSchemaRecord,
 } from '@owlmeans/planning'
 import type { Context, PlanningHandlerOptions } from '../types.js'
-import { assertGranted, concealed, handlerScopeOf } from '../utils/index.js'
+import { assertGranted, assertWrites, concealed, handlerScopeOf } from '../utils/index.js'
 
 type RequestHandler = ReturnType<ReturnType<typeof handlers<Context>>['request']>
 
@@ -66,8 +66,9 @@ export const applySchemaRequest = async (
 }
 
 /**
- * The write of data-defined types and flows. Gated by `grants.defineSchemas` when the access
- * resolver answers grants (the organization-wide layer needs `true`, a project layer its id).
+ * The write of data-defined types and flows. A project layer needs the project in the access's
+ * `writes` when the resolver answers it; then `grants.defineSchemas` gates when the resolver answers
+ * grants (the organization-wide layer needs `true`, a project layer its id).
  *
  * @throws {PlanningUnsupported} where the store holds no data-defined schemas
  * @throws {PlanningForbidden | SchemaConflict | SchemaSealed | SchemaInvalid | SchemaInUse | WorkcardNotFound}
@@ -80,6 +81,9 @@ export const defineSchemas = (
     const request = (req.body ?? {}) as SchemaDefineRequest
     if (facade.definitions == null) {
       throw new PlanningUnsupported('definitions')
+    }
+    if (request.project != null) {
+      assertWrites(access, request.project)
     }
     assertGranted(access, 'defineSchemas', request.project)
 

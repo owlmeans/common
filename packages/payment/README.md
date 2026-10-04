@@ -8,7 +8,7 @@ server integration (`@owlmeans/server-payment`) implements against these contrac
 ## Installation
 
 ```bash
-bun add @owlmeans/payment@^0.1.18-rc.45
+bun add @owlmeans/payment@^0.1.18-rc.46
 ```
 
 ## Concepts

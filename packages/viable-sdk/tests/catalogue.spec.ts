@@ -1401,3 +1401,82 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     }
   })
 })
+
+describe('viable-sdk — planning kits', () => {
+  const kit = {
+    id: 'project', kind: 'project', title: 'Project tracking', purpose: 'Tasks and bugs moving to done',
+    container: { key: 'workspace', label: 'Project' },
+    types: [{ key: 'task', label: 'Task', flow: 'task' }, { key: 'bug', label: 'Bug', flow: 'bug' }],
+    flows: [
+      { key: 'task', label: 'Task flow', statuses: [{ key: 'open', label: 'Open', intrinsic: 'planned' }, { key: 'done', label: 'Done', intrinsic: 'closed' }] },
+      { key: 'bug', label: 'Bug flow', statuses: [{ key: 'reported', label: 'Reported', intrinsic: 'planned' }] },
+    ],
+  }
+  const kitDeps = (order: string[], h: ToolHost = host({ target: ConnectTarget.Cloud })) => {
+    let attached: string | null = 'p0'
+    return {
+      host: h,
+      api: {
+        project: {
+          kitDescribe: async (projectId: string) => { order.push(`describe:${projectId}`); return { kits: [kit] } },
+          kitApply: async (projectId: string, body: { kit: string, types?: string[] }) => {
+            order.push(`apply:${projectId}:${body.kit}:${body.types?.join('+') ?? '*'}`)
+            return { applied: body.types ?? ['task', 'bug'], skipped: body.types != null ? ['bug'] : [], warnings: ['renamed nothing'] }
+          },
+        },
+      },
+      session: async () => { order.push(`session:${attached}`); return {} as never },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+  }
+
+  test('both tools are offered on every host, and named by the platform catalogue', () => {
+    for (const h of [host(), host({ target: ConnectTarget.Cloud }), host({ kind: ToolHostKind.Http, hasExecutor: false })]) {
+      expect(names(h)).toContain('describe_planning_kits')
+      expect(names(h)).toContain('apply_planning_kit')
+    }
+  })
+
+  test('describe_planning_kits lists each kit, its types and flows, without opening a session', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'describe_planning_kits')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(order).toEqual(['describe:p1'])
+    expect(result.text).toContain('project · Project tracking (project)')
+    expect(result.text).toContain('container: Project (workspace)')
+    expect(result.text).toContain('type bug · Bug — flow Bug flow')
+    expect(result.text).toContain('Open [planned] → Done [closed]')
+    expect(result.text).toContain('apply_planning_kit')
+    expect((result.structured as { kits: unknown[] }).kits).toEqual([kit])
+  })
+
+  test('apply_planning_kit attaches the named project first, then applies the kit with the kept types', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1', kit: 'project', types: ['task'] }, kitDeps(order))
+
+    expect(order).toEqual(['session:p1', 'apply:p1:project:task'])
+    expect(result.isError).toBeUndefined()
+    expect(result.text).toContain('written: task')
+    expect(result.text).toContain('left out: bug')
+    expect(result.text).toContain('warning: renamed nothing')
+
+    const every: string[] = []
+    await tool.run({ kit: 'project' }, kitDeps(every))
+    expect(every).toEqual(['session:p0', 'apply:p0:project:*'])
+  })
+
+  test('apply_planning_kit without a kit is refused before the platform is asked', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('describe_planning_kits')
+    expect(order).toEqual([])
+  })
+})

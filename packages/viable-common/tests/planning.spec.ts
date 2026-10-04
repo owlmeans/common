@@ -263,6 +263,14 @@ describe('viable-common - the viable field schemas', () => {
     expect(project({ alias: 'slot-booker' })).toBe(false)
   })
 
+  test('a project records a work kind from the closed set and a bounded case quote', () => {
+    expect(project({ blueprintCase: 'work-management', workKind: 'crm', caseQuote: 'A CRM for ski resorts.' })).toBe(true)
+    expect(project({ workKind: null, caseQuote: null })).toBe(true)
+    expect(project({ workKind: 'kanban' })).toBe(false)
+    expect(project({ caseQuote: '' })).toBe(false)
+    expect(project({ caseQuote: 'x'.repeat(1025) })).toBe(false)
+  })
+
   test('a story carries the landing flag, spelled or nulled', () => {
     expect(story({ area: ProjectArea.User, primary: false, landing: true })).toBe(true)
     expect(story({ area: ProjectArea.User, primary: false, landing: null })).toBe(true)

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-payment",
-  "version": "0.1.18-rc.28",
+  "version": "0.1.18-rc.29",
   "license": "MIT",
   "description": "Protocol-bound payment resources, entitlement gates, and Stripe checkout for OwlMeans servers.",
   "type": "module",
@@ -33,7 +33,7 @@
     "@owlmeans/iam": "^0.1.18-rc.47",
     "@owlmeans/mailer": "^0.1.18-rc.33",
     "@owlmeans/mongo-resource": "^0.1.18-rc.40",
-    "@owlmeans/payment": "^0.1.18-rc.45",
+    "@owlmeans/payment": "^0.1.18-rc.46",
     "@owlmeans/resource": "^0.1.18-rc.37",
     "@owlmeans/route": "^0.1.18-rc.33",
     "@owlmeans/server-api": "^0.1.18-rc.48",

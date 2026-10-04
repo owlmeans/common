@@ -166,6 +166,13 @@ export interface TemplateLayer {
   patches: BlueprintPatchSpec[]
   /** Overlay subtrees that belong to one role only — the per-package half of a template. */
   perRole?: Partial<Record<SubProject, string>>
+  /**
+   * Case seed directories under the overlay's `.cases/`, copied over the staged tree in order.
+   *
+   * Names, never paths: the host resolves them against the overlay it resolved. A later seed wins
+   * over an earlier one, so a variant lists its base seed first and itself after it.
+   */
+  seeds?: string[]
 }
 
 export interface BlueprintPatchSpec {

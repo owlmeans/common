@@ -1,6 +1,7 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  ConnectCapabilities, ConnectConvertCreateBody, ConnectHarness,
+  ConnectCapabilities, ConnectConvertCreateBody, ConnectHarness, ConnectKitApplyBody,
+  ConnectKitApplyResult, ConnectKitDescribe,
   ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
   ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
   ConnectStoryStatus, ConnectTarget, ConversionDecision,
@@ -44,6 +45,16 @@ export interface ConnectorApi {
     attach: (args: { projectId?: string, slug?: string }) => Promise<ConnectProjectStatus>
     reinit: (projectId: string) => Promise<ConnectProjectStatus>
     modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
+    /**
+     * The planning kits the project can take: ready sets of card types and status flows, each
+     * for one kind of work-management product.
+     */
+    kitDescribe: (projectId: string) => Promise<ConnectKitDescribe>
+    /**
+     * Write one kit's card types and flows into the project's common package (`types` keeps only
+     * those type keys). The platform rebuilds the preview itself; the answer says what was written.
+     */
+    kitApply: (projectId: string, body: ConnectKitApplyBody) => Promise<ConnectKitApplyResult>
   }
 
   /**

@@ -14,7 +14,7 @@ provisioning, and an opt-in least-privilege bootstrap path.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres@^0.1.18-rc.42 @owlmeans/postgres-resource@^0.1.18-rc.40
+bun add @owlmeans/postgres@^0.1.18-rc.43 @owlmeans/postgres-resource@^0.1.18-rc.41
 ```
 
 ## Usage

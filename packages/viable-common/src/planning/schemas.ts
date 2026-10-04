@@ -2,6 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import { CODE_MAX } from '@owlmeans/planning'
 import { ProjectArea } from '../areas/consts.js'
 import { TENANCY_QUOTE_MAX } from '../areas/tenancy.js'
+import { CASE_QUOTE_MAX, WorkKind } from '../blueprint/consts.js'
 import { StoryKind } from '../ba/consts.js'
 import { ConnectLlm, ConnectTarget } from '../connect/consts.js'
 import { ProjectOriginSchema } from '../convert/schemas.js'
@@ -25,6 +26,8 @@ export const ViableProjectFieldsSchema = {
     blueprint: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     blueprintCase: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
     gameKind: { type: 'string', minLength: 1, maxLength: 64, nullable: true },
+    workKind: { type: 'string', enum: [...Object.values(WorkKind), null], nullable: true },
+    caseQuote: { type: 'string', minLength: 1, maxLength: CASE_QUOTE_MAX, nullable: true },
     target: { type: 'string', enum: [...Object.values(ConnectTarget), null], nullable: true },
     origin: { ...ProjectOriginSchema, nullable: true },
     connectLlmMode: { type: 'string', enum: [...Object.values(ConnectLlm), null], nullable: true },

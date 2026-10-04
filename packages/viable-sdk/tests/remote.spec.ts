@@ -68,6 +68,26 @@ describe('viable-sdk — the remote project settings', () => {
   })
 })
 
+describe('viable-sdk — the remote planning kits', () => {
+  test('describe and apply over one project path, under the tool deadline', async () => {
+    const context = await makeSdkContext({
+      apiUrl: 'http://127.0.0.1:9', token: `${CONNECT_TOKEN_PREFIX}offline_test_token`,
+    })
+    const calls = captureTransport(context, call =>
+      call.body != null ? { applied: ['task'], skipped: [], warnings: [] } : { kits: [] })
+    const api = makeRemoteConnectorApi(context)
+
+    expect(await api.project.kitDescribe('p1')).toEqual({ kits: [] })
+    expect(await api.project.kitApply('p1', { kit: 'project', types: ['task'] }))
+      .toEqual({ applied: ['task'], skipped: [], warnings: [] })
+    expect(calls.map(call => [call.alias, call.path, call.timeout])).toEqual([
+      [connect.project.kit.describe, '/connect/project/:id/kits', TOOL_DEADLINE_MS],
+      [connect.project.kit.apply, '/connect/project/:id/kits', TOOL_DEADLINE_MS],
+    ])
+    expect(calls[1]!.body).toEqual({ kit: 'project', types: ['task'] })
+  })
+})
+
 describe('viable-sdk — the remote planning facade', () => {
   test('is the context\'s planning client: one bound route per call, each under the tool deadline', async () => {
     const context = await makeSdkContext({

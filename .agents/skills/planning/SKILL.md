@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/planning
 
 **Layer:** Cross-cutting domain
-**Install:** `"@owlmeans/planning": "^0.1.18-rc.15"` in `dependencies` (`ajv` and `ajv-formats` are peers)
+**Install:** `"@owlmeans/planning": "^0.1.18-rc.17"` in `dependencies` (`ajv` and `ajv-formats` are peers)
 
 The contracts of project planning: record shapes, schemas, refusals, the protocol tree, the pure
 fold and the models. No database, no fastify, no React. The executor, the plugin registry, the
@@ -267,6 +267,24 @@ A client calls `encodeWorkcardQuery(query)` before `call({ query })`; a handler 
 - `actor` in an execute body is ignored on the wire: the server fills it from the request.
 - Responses carry no runtime schema (typed only), so a serializer never strips `fields`.
 
+## Mounting in a target
+
+A generated target serves this tree as it is — no hand-written card, transition, schema or document
+routes; domain rules are `before` plugins. This section is the hub; each package skill has its half.
+
+- **common** declares the one tree the api and the web share: `makePlanningProtocols({ base: {
+  alias: 'api:planning' }, guards: DEFAULT_GUARD, definitions: true })`, in its own module beside
+  the `PLANNING` plugin (`sources/common/src/planning.ts`).
+- **api** — `server-planning` → Mounting in a target (stock handlers, no commit socket, the
+  resolver answering `writes`). **web** — `client-planning` → Mounting in a target. **store** —
+  `planning-postgres`.
+- **Kit literals**: card types and flows are LITERAL objects in `PLANNING.schemas.flows` / `.types`,
+  above the `// owlmeans: add planning flows|types above this line` sentinels — a spread or an
+  imported constant hides them from the library's registration checks. Card types and flows carry
+  `overridable: true` with open `fields` (`additionalProperties: true`); the container project type
+  (always sealed) carries `scopedCardTypes: true`, so the app's people override and extend them as
+  data through `schema.define`.
+
 ## Models
 
 `makeWorkcardModel(record, facade)` (and `makeProjectModel`, `makeSpecificationModel`, `modelOf`
@@ -303,7 +321,7 @@ the marker survives a hop where the class is unknown, so match on it there:
 | `WorkcardConflict` | `workcard-conflict:` — stale `expectSeq` | 409 |
 | `SchemaConflict` / `SchemaInUse` | `schema-conflict:` (lost version CAS) / `schema-in-use:` (retiring a flow a live type runs) | 409 |
 | `SchemaSealed` / `SchemaInvalid` | `schema-sealed:` / `schema-invalid:` | 422 |
-| `PlanningForbidden` | `forbidden:<grant>:<target>` — the request's access lacks a grant | 403 |
+| `PlanningForbidden` | `forbidden:<grant>:<target>` — the request's access lacks a grant; `forbidden:writes:<id>` — the card or project is outside its `writes` | 403 |
 | `CommitTimeout` / `CommitFailed` | `commit-timeout:` (still pending, nothing undone) / `commit-failed:` | 500 |
 | `PlanningScopeMismatch` / `PlanningUnsupported` | `scope-mismatch:` / `unsupported:` | 404 / 500 |
 

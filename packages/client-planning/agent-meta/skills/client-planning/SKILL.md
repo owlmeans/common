@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-planning
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.18"` in `dependencies`
+**Install:** `"@owlmeans/client-planning": "^0.1.18-rc.20"` in `dependencies`
 
 The client half of OwlMeans planning. It answers the `PlanningFacade` interface of
 `@owlmeans/planning` over the protocol tree a server mounted with `@owlmeans/server-planning`, keeps
@@ -86,6 +86,21 @@ whole cache — an organization-wide write reaches every project's layer — and
 `model()` reload the service's own bundle. `records` is the server's alone (`PlanningUnsupported`).
 `model(card)` of a card resolves its type in its project's layer (a project's own id, a card's
 `parent`); a specification's type is always code's. A tree without `definitions` has none of this.
+
+## Mounting in a target
+
+The web half of the target mount (`planning` → Mounting in a target).
+
+- `appendPlanningClient(context, { protocols, bind: false, schemas: false })` — the target binds
+  its whole api tree itself, and a signed-out visitor may read nothing, so the bundle loads on
+  first use — plus `appendPlanningStores(context)`. No `socket`: the target serves no commit socket,
+  so `commits.wait` long-polls.
+- Screens read the mirror with `useStoreList` / `useStoreModel` (`@owlmeans/client`), never a
+  fetched array kept in component state; lists reach the store through `syncCards` or
+  `makePlanningFeed` (with `refresh`), NEVER `replace()` — the one card store holds every kind.
+- Every write is `facade.execute(...)` with a `key` (a retried click or a double submit answers
+  the first receipt) and `{ wait: true }` where the screen shows the result.
+- Never call a route with an empty id; a picker offers no archived parent (`intrinsic: closed`).
 
 ## Reading
 
