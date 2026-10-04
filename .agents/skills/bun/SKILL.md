@@ -30,7 +30,9 @@ sets the linker and no timeout.
 - Build one package: `bun run build` from inside `packages/<name>`, or
   `bun run --filter '@owlmeans/<name>' build` from root
 - Each package compiles with: `tsc -b` (no bundler, pure TypeScript)
-- Output: `packages/<name>/build/`
+- Output: `packages/<name>/build/` — what every consumer loads (`main`, `types`, `exports`). Linked
+  consumers (internal, viable-agent, viable, static) see a change only after it is rebuilt here, and
+  a running environment only after it reloads (viable: `sh deploy/redeploy.sh`).
 - Watch mode: `bun run watch` → `tsc -b -w --preserveWatchOutput --pretty` per package
 - Dev mode: `bun run dev` → nodemon re-running `tsc -p ./tsconfig.json` on `src` changes. Each
   package's `dev` script opens with a `sleep <n>` whose value staggers it against the others, so a

@@ -6,6 +6,7 @@ import { AccessError, AuthFailedError } from '../errors.js'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
 import { isResilientError, ResilientError, SEPARATOR } from '@owlmeans/error'
 import { randomUUID } from 'node:crypto'
+import { logger } from '@owlmeans/log'
 import type { Config, HttpErrorExposure } from '../types.js'
 
 export const INCIDENT_ID_HEADER = 'X-Incident-ID'
@@ -188,6 +189,35 @@ export const applyErrorHeaders = (error: unknown, reply: FastifyReply): void => 
   }
 }
 
+const http = logger('http')
+
+/**
+ * The one log entry of a failed request, by what the failure means:
+ *
+ * | Status | Level | Why |
+ * |---|---|---|
+ * | 5xx | error | a fault — the one entry that owns type, message and stack, keyed by the incident id |
+ * | 403 | warn, `access.forbidden` | an established identity was refused; worth an operator's eye |
+ * | 401 | debug, `auth.refused` | an absent or expired credential is the ordinary shape of a sign-in |
+ * | other 4xx | debug | the caller's mistake, not the server's |
+ *
+ * The method and path are logged; the query string is not — it can carry a token.
+ */
+const logFailure = (error: Error, reply: FastifyReply, status: number, incidentId: string): void => {
+  const request = reply.request
+  const where = { method: request?.method, path: request?.url?.split('?')[0], status, incidentId }
+  if (status >= SERVER_ERROR) {
+    http.error('Request failed', { err: error, ...where })
+  } else if (status === FORBIDDEN_ERROR) {
+    http.warn('Access forbidden', { type: (error as { type?: unknown }).type, message: error.message, ...where },
+      { event: 'access.forbidden' })
+  } else if (status === UNAUTHORIZED_ERROR) {
+    http.debug('Authentication refused', { message: error.message, ...where }, { event: 'auth.refused' })
+  } else {
+    http.debug('Request refused', { message: error.message, ...where })
+  }
+}
+
 /**
  * Answer a thrown error: a status, and the marshalled `ResilientError` as the body.
  *
@@ -204,9 +234,7 @@ export const handleError = (
   if (!reply.sent) {
     const serialized = serializeError(error, exposure)
     applyErrorHeaders(error, reply)
-    // Fastify/Pino's `err` serializer retains the original type, message and full stack. This is
-    // the one log entry that owns those details in production, keyed by the response incident ID.
-    reply.log.error({ err: error, incidentId: serialized.incidentId }, 'Request failed')
+    logFailure(error, reply, serialized.status, serialized.incidentId)
     reply.header(INCIDENT_ID_HEADER, serialized.incidentId)
       .code(serialized.status)
       .send(serialized.body)

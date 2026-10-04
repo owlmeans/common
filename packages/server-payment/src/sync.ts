@@ -8,6 +8,7 @@ import { fingerprints, gatewayOf, payment, stripeClient, stripePricingConfig } f
 import type { PaymentPlan, PaymentProduct, SyncedPrice, SyncedPriceOption } from './types.js'
 import { settlementAmount } from './plugins/fx.js'
 import type { StripeFxRateCache } from './plugins/fx.js'
+import { log } from './log.js'
 
 interface ResolvedPlan {
   plan: PaymentPlan
@@ -160,7 +161,7 @@ const accountDefaultBehavior = async (stripe: Stripe, currency: string): Promise
 
 /**
  * Give `price` the declared `behavior` while it is still `unspecified` (the only state Stripe lets
- * an existing price's `tax_behavior` be set from). Skipped, with a `console.error`, when the
+ * an existing price's `tax_behavior` be set from). Skipped, with a `log.error`, when the
  * account's own default resolves to the opposite behavior — applying ours would then change what an
  * existing renewal actually charges — unless `migrateUnspecifiedPrices` opts into that migration.
  */
@@ -170,11 +171,10 @@ const applyUnspecifiedBehavior = async (
   if (!migrateUnspecifiedPrices) {
     const resolved = await accountDefaultBehavior(stripe, price.currency)
     if (resolved != null && resolved !== behavior) {
-      console.error(
-        `[payment] price '${lookupKey}' left 'unspecified': the Stripe account's default tax `
-        + `behavior for ${price.currency.toUpperCase()} is '${resolved}', not the declared `
-        + `'${behavior}' — applying it would change existing renewal amounts. Set `
-        + '`stripe.migrateUnspecifiedPrices` to override.',
+      log.error(
+        'Price left unspecified: the Stripe account\'s default tax behavior differs from the declared one — '
+        + 'applying it would change existing renewal amounts; set `stripe.migrateUnspecifiedPrices` to override',
+        { lookupKey, currency: price.currency, accountBehavior: resolved, declaredBehavior: behavior },
       )
       return
     }
@@ -283,7 +283,7 @@ export const syncStripeProducts = async (ctx: ApiContext, stripe: Stripe): Promi
     } else {
       await fpRes.create({ sku: product.sku, hash, productId: stripeProduct.id, prices, updatedAt: new Date() })
     }
-    console.info(`[payment] synced product '${product.sku}' to Stripe (${plans.length} plan(s))`)
+    log.info('Product synced to Stripe', { sku: product.sku, plans: plans.length }, { event: 'payment.product.synced' })
   }
 }
 

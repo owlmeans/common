@@ -10,12 +10,15 @@ import type {
   PipelineProgress, PipelineRun, PipelineRunInquiry, PipelineSpec, PipelineState, PipelineStepSpec,
 } from '@owlmeans/agent-common'
 import { DEFAULT_INQUIRY_ANSWER_CHARS, capAnswer, stateAnswerOf } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import type { InquiryAnswer } from '@owlmeans/llm-common'
 import type {
   PipelineEnterMode, PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineParentRef,
   PipelinePlugin, PipelineResult, PipelineRunContext, PipelineStep, PipelineStepContribution,
   PipelineStepMapping, StepResults,
 } from './types.js'
+
+const log = logger('agent:pipeline')
 
 /** Ordering weight of a pipeline plugin that declares none. */
 const DEFAULT_PIPELINE_PLUGIN_ORDER = 50
@@ -173,7 +176,7 @@ export const makePipeline = <S extends PipelineState, C>(
         if (isStop(e) || options.fatal?.(e) === true) {
           throw e
         }
-        console.warn(`Pipeline plugin ${plugin.alias} failed on ${hook} for ${spec.alias}:`, e)
+        log.warn('Pipeline plugin failed', { plugin: plugin.alias, hook, alias: spec.alias, error: e })
       }
     }
 
@@ -218,6 +221,7 @@ export const makePipeline = <S extends PipelineState, C>(
     },
     entry: { mode: PipelineEnterMode, parent?: PipelineParentRef },
   ): Promise<PipelineResult<S>> => {
+    const startedAt = Date.now()
     const deadline = args.budgetMs != null ? Date.now() + args.budgetMs : undefined
     const controller = new AbortController()
     const onAbort = (): void => controller.abort()
@@ -250,7 +254,7 @@ export const makePipeline = <S extends PipelineState, C>(
         args.onProgress?.(progress)
       } catch (e) {
         // Progress is narration. A consumer that throws must not take the work with it.
-        console.warn(`Pipeline progress reporter failed for ${spec.alias}:`, e)
+        log.warn('Pipeline progress reporter failed', { alias: spec.alias, error: e })
       }
     }
 
@@ -318,6 +322,9 @@ export const makePipeline = <S extends PipelineState, C>(
         `[pipe:${spec.alias}:${row.runId}] row saved · completed=${row.completed.length}`
         + `/${total} chars=${row.stateChars}`,
       )
+      log.debug('Pipeline row saved', {
+        alias: spec.alias, runId: row.runId, completed: row.completed.length, steps: total, chars: row.stateChars,
+      })
     }
 
     const contextFor = (step: string): PipelineRunContext<S, C> => {
@@ -390,7 +397,7 @@ export const makePipeline = <S extends PipelineState, C>(
           } catch (e) {
             // The terminal write freezes the state instead of re-serializing it, so the run still
             // parks with its question on the row.
-            console.warn(`Pipeline ${spec.alias}:${step} could not save the state it parked on:`, e)
+            log.warn('Pipeline could not save the state it parked on', { alias: spec.alias, step, error: e })
           }
 
           throw new PipelineStopSignal('inquiry')
@@ -436,6 +443,7 @@ export const makePipeline = <S extends PipelineState, C>(
         // engine decides to replay, which is what makes a resume correct with no checkpointer.
         if (seeded.has(step)) {
           trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (inherited)`)
+          log.debug('Pipeline step inherited', { alias: spec.alias, runId: row.runId, step, index, steps: total })
           report({ pipeline: spec.alias, runId: row.runId, step, index, total, skipped: true })
 
           return { completed: [step] }
@@ -456,11 +464,12 @@ export const makePipeline = <S extends PipelineState, C>(
             outcome.error = asError(e)
             throw e
           }
-          console.warn(`Pipeline guard for ${spec.alias}:${step} failed, running the step:`, e)
+          log.warn('Pipeline guard failed, running the step', { alias: spec.alias, step, error: e })
         }
 
         if (skip) {
           trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (skip)`)
+          log.debug('Pipeline step skipped', { alias: spec.alias, runId: row.runId, step, index, steps: total })
           report({ pipeline: spec.alias, runId: row.runId, step, index, total, skipped: true })
           if (hooked) {
             await passing(step, ctx, 'skipped')
@@ -471,6 +480,7 @@ export const makePipeline = <S extends PipelineState, C>(
         }
 
         trace(`[pipe:${spec.alias}:${row.runId}] step ${index}/${total} ${step} (run)`)
+        log.debug('Pipeline step started', { alias: spec.alias, runId: row.runId, step, index, steps: total })
         report({ pipeline: spec.alias, runId: row.runId, step, index, total })
 
         try {
@@ -521,7 +531,7 @@ export const makePipeline = <S extends PipelineState, C>(
           }
           if (declared.optional === true) {
             const warning = `${step}: ${asError(e).message}`
-            console.warn(`Pipeline ${spec.alias}:${step} failed and is optional:`, e)
+            log.warn('Pipeline optional step failed', { alias: spec.alias, runId: row.runId, step, error: e })
             if (hooked) {
               await passing(step, ctx, 'failed', asError(e))
             }
@@ -603,7 +613,7 @@ export const makePipeline = <S extends PipelineState, C>(
         }))
       } catch (e) {
         if (escaping) {
-          console.warn(`Pipeline plugin failed on exit of ${spec.alias}:${row.runId}:`, e)
+          log.warn('Pipeline plugin failed on exit', { alias: spec.alias, runId: row.runId, error: e })
           return
         }
         await commit({
@@ -611,7 +621,7 @@ export const makePipeline = <S extends PipelineState, C>(
           failedAt: row.completed[row.completed.length - 1] ?? order[0],
           error: asError(e).message,
           freezeState: true,
-        }).catch(saveError => console.error('Pipeline could not record a fatal outcome:', saveError))
+        }).catch(saveError => log.error('Pipeline could not record a fatal outcome', saveError))
         throw e
       }
     }
@@ -649,6 +659,9 @@ export const makePipeline = <S extends PipelineState, C>(
       )
       if (outcome.stopped == null) {
         await commit({ status: PipelineRunStatus.Done })
+        log.info('Pipeline completed', {
+          alias: spec.alias, runId: row.runId, ms: Date.now() - startedAt, completed: row.completed.length, steps: total,
+        }, { event: 'job.complete' })
       }
     } catch (e) {
       if (isStop(e) || outcome.stopped != null) {
@@ -660,13 +673,21 @@ export const makePipeline = <S extends PipelineState, C>(
             : `stopped: ${outcome.stopped ?? 'budget'}`,
           freezeState: true,
         })
+        log.info('Pipeline stopped', {
+          alias: spec.alias, runId: row.runId, reason: outcome.stopped ?? 'budget', ms: Date.now() - startedAt,
+          completed: row.completed.length, steps: total,
+        }, { event: 'job.stop' })
       } else if (outcome.fatal != null) {
         await commit({
           status: PipelineRunStatus.Failed,
           failedAt: outcome.failedAt ?? row.completed[row.completed.length - 1] ?? order[0],
           error: asError(outcome.fatal).message,
           freezeState: true,
-        }).catch(saveError => console.error('Pipeline could not record a fatal outcome:', saveError))
+        }).catch(saveError => log.error('Pipeline could not record a fatal outcome', saveError))
+        log.error('Pipeline failed', {
+          alias: spec.alias, runId: row.runId, step: row.failedAt, ms: Date.now() - startedAt,
+          completed: row.completed.length, message: asError(outcome.fatal).message, error: asError(outcome.fatal),
+        }, { event: 'job.fail' })
         if (hooked) {
           await exiting(resultOf(asError(outcome.fatal)), true)
         }
@@ -678,7 +699,11 @@ export const makePipeline = <S extends PipelineState, C>(
           failedAt: outcome.failedAt ?? '',
           error: outcome.error.message,
           freezeState: true,
-        }).catch(saveError => console.error('Pipeline could not record a failure:', saveError))
+        }).catch(saveError => log.error('Pipeline could not record a failure', saveError))
+        log.warn('Pipeline failed', {
+          alias: spec.alias, runId: row.runId, step: outcome.failedAt ?? '', ms: Date.now() - startedAt,
+          completed: row.completed.length, message: outcome.error.message, error: outcome.error,
+        }, { event: 'job.fail' })
       }
     } finally {
       args.signal?.removeEventListener('abort', onAbort)
@@ -752,6 +777,9 @@ export const makePipeline = <S extends PipelineState, C>(
         `[pipe:${spec.alias}:${row.runId}] ${resuming ? 'continue' : 'start'}`
         + ` · steps=${total} inherited=${seeded.size} attempt=${row.attempts}`,
       )
+      log.info(resuming ? 'Pipeline continued' : 'Pipeline started', {
+        alias: spec.alias, runId: row.runId, steps: total, inherited: seeded.size, attempt: row.attempts,
+      }, { event: resuming ? 'job.continue' : 'job.start' })
 
       return await execute(row, live, seeded, args, {
         mode: args.restart === true ? 'restart' : resuming ? 'continue' : 'fresh',
@@ -810,6 +838,10 @@ export const makePipeline = <S extends PipelineState, C>(
         + `${args.from != null ? ` from=${args.from}` : ''} inherited=${completed.length}/${total}`
         + ` attempt=${row.attempts}`,
       )
+      log.info('Pipeline resumed', {
+        alias: spec.alias, runId, steps: total, inherited: completed.length, attempt: row.attempts,
+        ...(args.from != null ? { from: args.from } : {}),
+      }, { event: 'job.resume' })
 
       return await execute(row, live, new Set(completed), args, { mode: 'continue' })
     },

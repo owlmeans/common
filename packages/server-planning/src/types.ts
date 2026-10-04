@@ -59,6 +59,15 @@ export interface PlanningAccess {
   /** Narrows every read and write to these project cards. Every project when omitted. */
   projects?: string[]
   /**
+   * The project cards the request may WRITE in: `execute` on a card, specification or link inside
+   * one of them (the same rule a narrowed read admits — the project, the cards whose `parents` name
+   * it, a specification through its parent card), and `schema.define` of a project layer. A project
+   * outside `projects` is still unreachable. Omitted — writes reach every project `projects` admits;
+   * present — anything else is refused with `PlanningForbidden` (403). Creating a project is
+   * `grants.createProjects`' alone; the organization-wide schema layer is `grants.defineSchemas`'.
+   */
+  writes?: string[]
+  /**
    * Gates the writes above. Omitted — nothing is gated; present — a flag it leaves out is refused
    * with `PlanningForbidden`.
    */

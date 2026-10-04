@@ -2,7 +2,7 @@ import { requireEntityKey } from '@owlmeans/auth-common'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { PLANNING_SERVICE, PlanningForbidden } from '@owlmeans/planning'
-import type { PlanningFacade, PlanningScope, PlanningService, TransitionActor } from '@owlmeans/planning'
+import type { PlanningFacade, PlanningScope, PlanningService, TransitionActor, Workcard } from '@owlmeans/planning'
 import type {
   PlanningAccess, PlanningAccessGrants, PlanningHandlerOptions, PlanningHostService,
 } from '../types.js'
@@ -107,4 +107,31 @@ export const assertGranted = (
     return
   }
   throw new PlanningForbidden(`${grant}:${target ?? 'root'}`)
+}
+
+/**
+ * A card the access's `writes` admits — the rule a narrowed read admits, over `writes`: a project
+ * it names, or a card whose `parents` name one. A specification is admitted through its parent card
+ * by the caller. No `writes` admits everything.
+ */
+export const writableIn = (access: PlanningAccess | undefined, card: Pick<Workcard, 'id' | 'parents'>): boolean => {
+  const writes = access?.writes
+  if (writes == null) {
+    return true
+  }
+  return (card.id != null && writes.includes(card.id)) || card.parents.some(parent => writes.includes(parent))
+}
+
+/**
+ * Refuse a write into a project the access's `writes` leaves out. No `writes` refuses nothing;
+ * `target` is the project the write is in (`undefined` for the organization's root, which a set
+ * `writes` never admits).
+ *
+ * @throws {PlanningForbidden}
+ */
+export const assertWrites = (access: PlanningAccess | undefined, target?: string): void => {
+  if (access?.writes == null || (target != null && access.writes.includes(target))) {
+    return
+  }
+  throw new PlanningForbidden(`writes:${target ?? 'root'}`)
 }

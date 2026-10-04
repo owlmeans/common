@@ -12,7 +12,7 @@ Client-side payment service integration for the OwlMeans context system.
 ## Installation
 
 ```bash
-bun add @owlmeans/client-payment@^0.1.18-rc.54
+bun add @owlmeans/client-payment@^0.1.18-rc.55
 ```
 
 ## Usage

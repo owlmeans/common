@@ -5,6 +5,7 @@ import type { AIMessageChunk, MessageContent, MessageFieldWithRole } from '@lang
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { StructuredMode } from '@owlmeans/llm-common'
 import type { NullKind } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import { DEFAULT_MODEL_RETRIES, MAX_CACHE_BREAKPOINTS } from './consts.js'
 import { LlmMissconfiguredError, LlmModelError } from './errors.js'
 import type { LlmPlugin } from './plugins/types.js'
@@ -25,6 +26,8 @@ import type {
   LlmAskOptions, LlmInvokeOptions, LlmModel, LlmModelOptions, LlmRequestOptions,
   LlmSpectator, LlmTalkOptions, ModelInput, RefferedResult,
 } from './types.js'
+
+const log = logger('llm')
 
 type StreamOptions = Parameters<BaseChatModel['stream']>[1]
 
@@ -180,10 +183,7 @@ export const makeLlmModel = ({
       model, useCache, cacheMax, reserved, ...(ttl != null ? { ttl } : {}),
     })
     if (reserved > 0 || marked === true) {
-      console.log(
-        `Prompt caching for ${plugin?.type}: ${reserved} system breakpoint(s)`
-        + `${marked === true ? ', 1 message breakpoint' : ''}`
-      )
+      log.debug('Prompt caching', { provider: plugin?.type, systemBreakpoints: reserved, messageBreakpoint: marked === true })
     }
 
     return msgs
@@ -235,7 +235,7 @@ export const makeLlmModel = ({
       try {
         await spectator.error?.({ action, error })
       } catch (observerError) {
-        console.warn('[MODEL-ERROR] spectator observation failed', observerError)
+        log.warn('Model spectator observation failed', observerError)
       }
       throw error
     }
@@ -270,10 +270,9 @@ export const makeLlmModel = ({
   const refineModel = (attempt: number, temperature?: number): ActiveRung => {
     const { rung, rungAttempt } = rungAt(rungs, attempt)
     if (rung.index > 0 && rungAttempt === 0) {
-      console.warn(
-        `${rung.model.getName()}: switching to fallback ${rung.index} (${rung.config.model})`
-        + ` after ${attempt} failed attempts`
-      )
+      log.warn('Switching to fallback model', {
+        model: rung.model.getName(), fallback: rung.index, fallbackModel: rung.config.model, attempts: attempt,
+      })
     }
     if (rung.plugin == null) return { ...rung, refined: rung.model }
 
@@ -285,7 +284,7 @@ export const makeLlmModel = ({
 
     if (attempt > 0) {
       const maxTokens = (refined as unknown as { maxTokens?: number }).maxTokens
-      console.warn(`${refined.getName()}: retry attempt ${attempt}, maxTokens now ${maxTokens}`)
+      log.warn('Model retry attempt', { model: refined.getName(), attempt, outputLimit: maxTokens })
     }
 
     return { ...rung, refined }
@@ -394,7 +393,7 @@ export const makeLlmModel = ({
         const active = refineModel(seed + i)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model to ask: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model to ask', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
         for await (const chunk of streamWithDeadline(
@@ -472,7 +471,7 @@ export const makeLlmModel = ({
         const active = refineModel(seed + i)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model to talk: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model to talk', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         let result: AIMessageChunk | null = null
         for await (const chunk of streamWithDeadline(
@@ -522,7 +521,7 @@ export const makeLlmModel = ({
         assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model invoke: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model invoke', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
         let result: T | null = collected
@@ -580,7 +579,7 @@ export const makeLlmModel = ({
         assertSchemaShown(active, innerSchema)
         const { refined } = active
         const msgs = await prepared(active)
-        console.log('Use model request: ', refined.getName(), refined.lc_kwargs.model)
+        log.debug('Use model request', { model: refined.getName(), id: refined.lc_kwargs.model })
         const startedAt = Date.now()
         const { piece, result: collected } = await streamStructured(active, msgs, innerSchema, toolName, action)
         let result: T | null = collected

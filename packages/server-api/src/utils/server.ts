@@ -8,6 +8,7 @@ import { provideResponse } from '@owlmeans/entrypoint'
 import type { ServerContext } from '@owlmeans/server-context'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
+import { logger } from '@owlmeans/log'
 import { errorExposure, handleError } from './error.js'
 import { executeResponse, provideRequest } from './payload.js'
 import { authorize } from './guards.js'
@@ -62,7 +63,7 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
       // neither `executeResponse` nor the handler itself (hijack) replied.
       const responded = executeResponse(response, reply, true)
       if (!responded && !reply.sent) {
-        console.warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
+        logger('http').warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
         reply.code(OK).send(response.value)
       }
     } catch (error) {

@@ -8,7 +8,7 @@ metadata:
 
 # Using `@owlmeans/mailer`
 
-**Install:** `"@owlmeans/mailer": "^0.1.18-rc.33"` in `dependencies`
+**Install:** `"@owlmeans/mailer": "^0.1.18-rc.34"` in `dependencies`
 
 Provider-agnostic email dispatch service. It defines the `MailerService` interface and ships one
 transport of its own — the console/dev one. Real delivery is a separate package:
@@ -40,7 +40,7 @@ console.log(mailer.captured[0].text) // '123456'
 ```
 
 The console transport:
-- Logs to `console.log` (not `console.error`) — safe to use in tests without noise.
+- Writes each message through `@owlmeans/log` at `info`, scope `mailer`, event `mail.console` — visible at the default level (printing the mail IS its delivery; e2e runs read login codes from it) and silenced by `configureLog({ level: 'warn' })` in a noisy test. Never register it where real mail is sent.
 - Accumulates all sent messages in `mailer.captured: MailMessage[]`.
 - Never throws: it has no transport to fail, which is what makes it the right double in a test.
 

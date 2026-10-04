@@ -1,9 +1,12 @@
 import type { Config, ScheduleDeclaration } from '@owlmeans/queue'
 import { assertSchedule, schedulesOf } from '@owlmeans/queue'
+import { logger } from '@owlmeans/log'
 import type { JobSchedulerJson, JobSchedulerTemplateOptions, Queue, RepeatOptions } from 'bullmq'
 import { SCHEDULE_PREFIX } from '../consts.js'
 import type { ScheduleSync } from '../types.js'
 import { bullOptionsOf, mergeJobOptions } from './record.js'
+
+const log = logger('redis-queue:schedules')
 
 /** What every run of a schedule is enqueued as. */
 export interface ScheduleTemplate {
@@ -112,7 +115,6 @@ const heldAsDeclared = (
 export const syncSchedules = async <C extends Config>(
   bull: Queue, cfg: C, queue: string
 ): Promise<ScheduleSync> => {
-  const location = `redis-queue-schedules:${queue}`
   const result: ScheduleSync = { upserted: [], unchanged: [], removed: [], failed: [] }
   const now = Date.now()
 
@@ -123,7 +125,7 @@ export const syncSchedules = async <C extends Config>(
       assertSchedule(cfg, schedule)
     } catch (error) {
       result.failed.push(String(schedule.id))
-      console.error(`${location}: schedule refused`, error)
+      log.error('Schedule refused', { queue, schedule: String(schedule.id), error })
       continue
     }
     // A schedule past its end is treated as absent, so a scheduler left from it is removed below.
@@ -144,7 +146,7 @@ export const syncSchedules = async <C extends Config>(
         .map(scheduler => [scheduler.key, scheduler])
     )
   } catch (error) {
-    console.error(`${location}: schedulers could not be listed`, error)
+    log.error('Schedulers could not be listed', { queue, error })
   }
 
   for (const schedule of declared.values()) {
@@ -160,7 +162,7 @@ export const syncSchedules = async <C extends Config>(
       result.upserted.push(schedule.id)
     } catch (error) {
       result.failed.push(schedule.id)
-      console.error(`${location}: ${schedule.id} could not be scheduled`, error)
+      log.error('Schedule could not be upserted', { queue, schedule: schedule.id, error })
     }
   }
 
@@ -174,7 +176,7 @@ export const syncSchedules = async <C extends Config>(
         result.removed.push(id)
       }
     } catch (error) {
-      console.error(`${location}: ${id} could not be removed`, error)
+      log.error('Schedule could not be removed', { queue, schedule: id, error })
     }
   }
 

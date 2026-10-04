@@ -13,6 +13,9 @@ import {
   FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction, LOGIN_METHOD_QUERY,
   enterOidcAuthorization,
 } from '@owlmeans/client-auth/login'
+import { logger } from '@owlmeans/log'
+
+const log = logger('web-oidc-rp')
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
   const context = useContext()
@@ -68,7 +71,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       return
     }
     if (error != null) {
-      console.error(`[oidc] authorization failed: ${error}${errorDescription != null ? ` — ${errorDescription}` : ''}`)
+      log.warn('Authorization refused by the provider', { reason: error, description: errorDescription }, { event: 'auth.refused' })
       return
     }
     if (dispatchedRef.current) {

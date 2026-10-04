@@ -5,6 +5,9 @@ import type { Config, Context } from '../types.js'
 import { makeSecurityHelper } from '@owlmeans/config'
 import type { SecurityHelper } from '@owlmeans/config'
 import { SEP } from '@owlmeans/route'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-provider')
 
 export const updateClient = (context: Context, client: ClientMetadata): ClientMetadata => {
   if (client.client_secret == null) {
@@ -12,12 +15,10 @@ export const updateClient = (context: Context, client: ClientMetadata): ClientMe
       throw new SyntaxError('Client secret is required')
     }
     client.client_secret = hex.encode(randomBytes(32))
-
-    console.info('\n')
-    console.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    console.warn('IT IS EXCEPTIONALY UNSECURE, BUT WE GENEREATED A CLIENT SECRET FOR YOU', client.client_secret)
-    console.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    console.info('\n')
+    // The secret itself is never written to a log.
+    log.warn('Exceptionally insecure: a client secret was generated for an OIDC client (debug only)', {
+      clientId: client.client_id,
+    })
   }
 
   const helper = makeSecurityHelper<Config, Context>(context)

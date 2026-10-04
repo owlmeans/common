@@ -1,5 +1,6 @@
 import type { Card, Project, Specification } from '@owlmeans/planning'
 import type { ProjectArea } from '../areas/consts.js'
+import type { WorkKind } from '../blueprint/consts.js'
 import type { ViableTenancyDecision } from '../areas/tenancy.js'
 import type { StoryKind } from '../ba/consts.js'
 import type { ConnectLlm, ConnectTarget } from '../connect/consts.js'
@@ -25,6 +26,10 @@ export type ViableProjectFields = {
   blueprintCase?: string
   /** How a game is played; absent for every other case. */
   gameKind?: string
+  /** Which kind of work a work-management product keeps; absent for every other case. */
+  workKind?: WorkKind
+  /** The requester's sentence the work-management case was verified against. */
+  caseQuote?: string
   /** Where the tree lives; absent is the platform's own slot. */
   target?: ConnectTarget
   /** Where converted code came from; present only on an import. */

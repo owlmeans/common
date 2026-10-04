@@ -12,6 +12,9 @@ import { assertContext } from '@owlmeans/context'
 import { makeSecurityHelper } from '@owlmeans/config'
 import { ENTRYPOINT_FAILURE_SERVICE } from '../failure.js'
 import type { EntrypointFailureService } from '../failure.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-entrypoint')
 
 type Config = ClientConfig
 interface Context<C extends Config = Config> extends ClientContext<C> { }
@@ -100,7 +103,7 @@ export const apiInvoke: <
       try {
         await validate(ref)(request)
       } catch (e) {
-        console.error(e)
+        log.error('Request validation failed', { alias: ep.alias, error: e })
         throw e
       }
     }

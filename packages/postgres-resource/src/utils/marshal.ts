@@ -1,8 +1,11 @@
 import type { ResourceRecord } from '@owlmeans/resource'
+import { logThrottle, logger } from '@owlmeans/log'
 import { types as pgTypes } from 'pg'
 
 import { ID_FIELD, PgTypeOid } from '../consts.js'
 import type { ColumnSpec, TableSpec } from '../types.js'
+
+const log = logger('postgres-resource')
 
 /**
  * Parse a temporal value the way the driver would have.
@@ -23,7 +26,7 @@ const toDate = (value: string, column: ColumnSpec): unknown => {
   return (pgTypes.getTypeParser(oid as never) as (raw: string) => unknown)(value)
 }
 
-const fromDriver = (value: unknown, column: ColumnSpec): unknown => {
+const fromDriver = (value: unknown, column: ColumnSpec, table?: string): unknown => {
   if (value == null) {
     return value
   }
@@ -44,10 +47,12 @@ const fromDriver = (value: unknown, column: ColumnSpec): unknown => {
       }
       const parsed = Number(value)
       if (!Number.isSafeInteger(parsed)) {
-        console.warn(
-          `@owlmeans/postgres-resource: "${column.column}" holds ${value}, which exceeds the safe`
-          + ' integer range — the value read back is imprecise.'
-        )
+        // Fires per row read: one line per window per column is enough.
+        if (logThrottle(`postgres-resource:${table ?? ''}:${column.column}:unsafe-bigint`, 300_000)) {
+          log.warn('Bigint column value exceeds the safe integer range; the value read back is imprecise', {
+            table, column: column.column,
+          })
+        }
       }
 
       return parsed
@@ -100,7 +105,7 @@ export const rowToRecord = <T extends ResourceRecord>(row: Record<string, unknow
       record[key] = value
       continue
     }
-    record[column.property] = fromDriver(value, column)
+    record[column.property] = fromDriver(value, column, spec.qualified)
   }
   if (record[ID_FIELD] != null) {
     record[ID_FIELD] = `${record[ID_FIELD]}`
@@ -123,7 +128,7 @@ export const resultToRecord = <T extends ResourceRecord>(
   const record: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(row)) {
     const column = spec.byProperty[key]
-    record[key] = column == null ? value : fromDriver(value, column)
+    record[key] = column == null ? value : fromDriver(value, column, spec.qualified)
   }
   if (record[ID_FIELD] != null) {
     record[ID_FIELD] = `${record[ID_FIELD]}`

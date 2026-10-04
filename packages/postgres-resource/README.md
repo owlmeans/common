@@ -13,7 +13,7 @@ SQL. Other stores fit other shapes:
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres-resource@^0.1.18-rc.40 @owlmeans/postgres@^0.1.18-rc.42 pg
+bun add @owlmeans/postgres-resource@^0.1.18-rc.41 @owlmeans/postgres@^0.1.18-rc.43 pg
 ```
 
 `pg` and `ajv` are peer dependencies of this package. `@owlmeans/postgres` provides the connection

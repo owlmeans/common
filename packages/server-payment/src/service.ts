@@ -33,6 +33,7 @@ import type {
   Config, Context, GatewayService, GrantInternalPlanOptions, PaymentGatewayOptions, PaymentPlan,
   PaymentSubscriptionRecord,
 } from './types.js'
+import { log } from './log.js'
 
 export interface StripeBootstrapOptions {
   /** Re-verify what the stored fingerprints say is in place. */
@@ -60,7 +61,7 @@ export const bootstrapStripe = async (
     try {
       await step()
     } catch (error) {
-      console.error(`[payment] Stripe ${name} bootstrap failed`, error)
+      log.error('Stripe bootstrap step failed', { step: name, error })
     }
   }
 }
@@ -189,7 +190,7 @@ export const makeGatewayService = (
     if (bootstrap) {
       void ctx.waitForInitialized().then(async () => {
         await bootstrapStripe(ctx, await stripeOf(ctx))
-      }).catch(error => { console.error('[payment] Stripe bootstrap failed', error) })
+      }).catch(error => { log.error('Stripe bootstrap failed', error) })
     }
   })
 

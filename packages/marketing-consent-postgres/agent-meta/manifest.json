@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/marketing-consent-postgres",
-  "version": "0.1.18-rc.12",
-  "generatedAt": "2026-10-03T11:19:50.790Z",
+  "version": "0.1.18-rc.13",
+  "generatedAt": "2026-10-03T15:33:53.023Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

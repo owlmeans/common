@@ -1,5 +1,6 @@
 import type { AuthModel, AppConfig, AppContext } from './types.js'
-import { AuthenFailed, AuthenPayloadError, entitySlugOf } from '@owlmeans/auth'
+import { AuthenFailed, AuthenPayloadError, AuthError, AuthUnavailable, entitySlugOf } from '@owlmeans/auth'
+import { logger } from '@owlmeans/log'
 import type { AuthCredentials } from '@owlmeans/auth'
 import type { EntityResolverService } from '@owlmeans/auth-common'
 import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
@@ -16,6 +17,15 @@ import { AuthChallengeReplayPolicy } from './plugins/replay-policy.js'
 
 type Config = ServerConfig
 type Context = ServerContext<Config>
+
+const log = logger('server-auth')
+
+/** An account id as a log may carry it: an e-mail is reduced to its domain. */
+const accountOf = (userId: string | undefined): string | undefined =>
+  userId == null ? undefined : userId.includes('@') ? `*@${userId.slice(userId.lastIndexOf('@') + 1)}` : userId
+
+const compact = <T extends Record<string, unknown>>(value: T): Partial<T> =>
+  Object.fromEntries(Object.entries(value).filter(([, entry]) => entry != null)) as Partial<T>
 
 export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
   const cache = (context: Context): Resource<AuthSpent> =>
@@ -44,61 +54,79 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
     },
 
     authenticate: async credential => {
-      const [trustedUser, keyPair] = await trusted(context)
-      const envelope: EnvelopeModel = makeEnvelopeModel(credential.challenge, EnvelopeKind.Wrap)
-      if (!await envelope.verify(keyPair)) {
-        throw new AuthenFailed('challenge')
-      }
+      // The one place every manager sign-in method (each plugin) is decided — logged once here.
+      const method = credential.type
+      try {
+        const [trustedUser, keyPair] = await trusted(context)
+        const envelope: EnvelopeModel = makeEnvelopeModel(credential.challenge, EnvelopeKind.Wrap)
+        if (!await envelope.verify(keyPair)) {
+          throw new AuthenFailed('challenge')
+        }
 
-      const msg: string = envelope.message(true)
+        const msg: string = envelope.message(true)
 
-      const plugin = await getPlugin(envelope.type(), context)
+        const plugin = await getPlugin(envelope.type(), context)
 
-      if (plugin.challengeReplayPolicy !== AuthChallengeReplayPolicy.Plugin) {
-        try {
-          await cache(context).create({ id: msg }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
-        } catch (e) {
-          const error = new AuthenFailed('challenge')
-          if (e instanceof Error) {
-            error.oiriginalStack = `${e} : ${e.stack}`
+        if (plugin.challengeReplayPolicy !== AuthChallengeReplayPolicy.Plugin) {
+          try {
+            await cache(context).create({ id: msg }, { ttl: (envelope.envelope.ttl ?? AUTHEN_TIMEFRAME) / 1000 })
+          } catch (e) {
+            const error = new AuthenFailed('challenge')
+            if (e instanceof Error) {
+              error.oiriginalStack = `${e} : ${e.stack}`
+            }
+            throw error
           }
-          throw error
         }
-      }
 
-      if (credential.userId == null) {
-        throw new AuthenPayloadError('userId')
-      }
-
-      // @TODO this token PROBABLY needs to be registered somewhere and rechecked
-      // from time to time to make sure that the session is not deleted 
-      // or permission hasn't changed.
-      // Alternative solution is to have permissions cached and cleaned 
-      // when some broadcast message is sent from authentication system.
-
-      const challenge = credential.challenge
-      const { token } = await plugin.authenticate(Object.assign(credential, { challenge: msg }))
-      credential.challenge = token === '' ? challenge : token
-
-      // Plugins accept whatever the caller typed — a current slug, a slug the organization has
-      // since retired, or (for a token minted before slugs existed) its stable key. The token is
-      // signed once and read for as long as it lives, so the value is canonicalized here rather
-      // than at every place that later reads it back.
-      const entitySlug = entitySlugOf(credential)
-      if (entitySlug != null && context.hasService(ENTITY_RESOLVER)) {
-        const entity = await context.service<EntityResolverService>(ENTITY_RESOLVER).resolve(entitySlug)
-        if (entity == null) {
-          throw new AuthenFailed('entity')
+        if (credential.userId == null) {
+          throw new AuthenPayloadError('userId')
         }
-        credential.entitySlug = entity.slug
-      }
 
-      credential.credential = trustedUser.id
+        // @TODO this token PROBABLY needs to be registered somewhere and rechecked
+        // from time to time to make sure that the session is not deleted 
+        // or permission hasn't changed.
+        // Alternative solution is to have permissions cached and cleaned 
+        // when some broadcast message is sent from authentication system.
 
-      return {
-        token: await makeEnvelopeModel<AuthCredentials>(credential.type)
-          .send(credential, AUTHEN_TIMEFRAME)
-          .sign(keyPair, EnvelopeKind.Token)
+        const challenge = credential.challenge
+        const { token } = await plugin.authenticate(Object.assign(credential, { challenge: msg }))
+        credential.challenge = token === '' ? challenge : token
+
+        // Plugins accept whatever the caller typed — a current slug, a slug the organization has
+        // since retired, or (for a token minted before slugs existed) its stable key. The token is
+        // signed once and read for as long as it lives, so the value is canonicalized here rather
+        // than at every place that later reads it back.
+        const entitySlug = entitySlugOf(credential)
+        if (entitySlug != null && context.hasService(ENTITY_RESOLVER)) {
+          const entity = await context.service<EntityResolverService>(ENTITY_RESOLVER).resolve(entitySlug)
+          if (entity == null) {
+            throw new AuthenFailed('entity')
+          }
+          credential.entitySlug = entity.slug
+        }
+
+        credential.credential = trustedUser.id
+
+        const result = {
+          token: await makeEnvelopeModel<AuthCredentials>(credential.type)
+            .send(credential, AUTHEN_TIMEFRAME)
+            .sign(keyPair, EnvelopeKind.Token)
+        }
+        log.info('Signed in', compact({
+          method, accountId: accountOf(credential.userId), profileId: credential.profileId,
+          entitySlug: credential.entitySlug,
+        }), { event: 'auth.signed-in' })
+
+        return result
+      } catch (error) {
+        // An outage (`AuthUnavailable`) is not a refusal; it propagates and is logged as a failure.
+        if (error instanceof AuthError && !(error instanceof AuthUnavailable)) {
+          log.warn('Sign-in refused', compact({
+            method, accountId: accountOf(credential.userId), reason: error.message,
+          }), { event: 'auth.refused' })
+        }
+        throw error
       }
     },
 

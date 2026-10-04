@@ -2,8 +2,11 @@ import { AIMessage, BaseMessage } from '@langchain/core/messages'
 import type { UsageMetadata } from '@langchain/core/messages'
 import { SpectatorContentType } from '@owlmeans/llm-common'
 import type { SpectatorEntryMessage } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import type { LlmSpectator, ModelInputItem } from '../types.js'
 import { hasCacheActivity, readCacheUsage } from './cache.js'
+
+const log = logger('llm')
 
 /**
  * The trace's `content` column is a string; LangChain content is a string-or-blocks union, and
@@ -77,9 +80,7 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
     // caching is off — and is the one signal that tells a stable prefix from a broken one.
     const cache = readCacheUsage(message)
     if (hasCacheActivity(cache)) {
-      console.log(
-        `Prompt cache [${action}]: read ${cache.read}, written ${cache.creation}, uncached ${cache.input}`
-      )
+      log.debug('Prompt cache activity', { action, read: cache.read, written: cache.creation, uncached: cache.input })
     }
 
     return spectator.log({ action, retries, startedAt, messages: [...messages, completion] })

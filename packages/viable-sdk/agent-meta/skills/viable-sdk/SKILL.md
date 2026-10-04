@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.40"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.42"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -120,7 +120,8 @@ opening one there would claim the project's single connector slot, **supersede t
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
 So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`,
-`modify_project` and `resume_pipeline` call before returning their job — opens one only on a
+`modify_project` and `resume_pipeline` call before returning their job, and `apply_planning_kit`
+before its write — opens one only on a
 `sessionCapable` host, and `next_task`/`submit_task_result` are available on `performsModelTasks`
 (delegated **and** session-capable) rather than on the account setting alone. `serverInstructions`
 reads the same predicate: a parent told to call `next_task` when the tool is not in its list is a
@@ -242,6 +243,20 @@ tag — through `ConnectorApi.projectBranding(projectId)` and
   a parent does not rewrite it into an absolute address that points away from the generated page.
 - **The credit switch is not reachable.** It is a paid capability with its own gated route;
   neither the record nor the patch carries it.
+
+## Planning kits are described, then applied; the platform writes and rebuilds
+
+A planning kit is a ready set of card types and status flows for one kind of work-management
+product, which the platform writes into the target's common package (`PLANNING`).
+`describe_planning_kits` (`ConnectorApi.project.kitDescribe(projectId)`, GET
+`connect.project.kit.describe` → `{ kits: PlanningKitView[] }`) lists each kit's purpose, container,
+types with their main flow and each flow's statuses; it opens no session. `apply_planning_kit`
+(`project.kitApply(projectId, { kit, types? })`, POST `connect.project.kit.apply` →
+`{ applied, skipped, warnings }`) refuses a call without `kit` locally, attaches the connector first
+(`ensureSession`: the write is a file operation a local project's connector answers), runs in
+`answering`, and answers what was written, left out and warned. `types` keeps those kit type keys;
+omitted keeps all. Both are offered on every host, in the `planning-kits` capability group. The SDK
+never renders the literals or rebuilds — the platform does, inside the 45-second ceiling.
 
 ## `describe_platform` also says what a generated application CARRIES
 
@@ -518,11 +533,11 @@ the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing an
 commit failure in `catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
-the landing mark included; the settings tools over a recorded `ConnectorApi` (order of session and
-save, the patch sent, the phrased `AuthenPayloadError`). `platform.spec.ts` pins that every tool a
+the landing mark included; the settings and planning-kit tools over a recorded `ConnectorApi` (order of
+session and save or apply, the patch or kit body sent, the phrased refusal). `platform.spec.ts` pins that every tool a
 pipeline, feature or group names exists and every tool is in a group; `planning-wiring.spec.ts` pins
-the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade and the
-settings routes through a captured transport to pin their paths and deadlines, and pins that the remote
+the planning aliases and paths a context binds, and `remote.spec.ts` drives the remote facade, the
+settings and the kit routes through a captured transport to pin their paths and deadlines, and pins that the remote
 `ConnectorApi` has no member without a connector route and every connector alias is bound.
 
 ## Depends On

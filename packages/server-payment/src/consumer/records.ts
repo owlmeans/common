@@ -14,6 +14,7 @@ import type {
   BillingProfileRecord, BillingProfileSource, ConsumerEventRecord, LockOptions, PaymentSubscriptionRecord,
   PurchaseRecord, PurchaseRef, UnlockOptions,
 } from '../types.js'
+import { log } from '../log.js'
 
 export const purchaseIdOf = (externalId: string): string => `${PURCHASE_ID_PREFIX}:${externalId}`
 
@@ -48,7 +49,7 @@ export const recordEvent = async (
   try {
     await consumerEvents(ctx).create(compact({ ...event, at: event.at ?? new Date() }) as ConsumerEventRecord)
   } catch (error) {
-    console.error(`[payment] consumer event "${event.action}" of "${event.recordId}" not recorded`, error)
+    log.error('Consumer event not recorded', { action: event.action, recordId: event.recordId, error })
   }
 }
 
@@ -314,7 +315,7 @@ export const createPurchase = async (
       }
     }
   }
-  console.error('[payment] no free contract reference after retries', last)
+  log.error('No free contract reference after retries', { purchaseId: draft.purchaseId, error: last })
   throw new ConsumerRightsError('contract-ref')
 }
 

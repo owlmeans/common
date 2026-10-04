@@ -34,6 +34,7 @@ import type {
   Config, ConsumerConsentRecord, ConsumerDeclarationRecord, ConsumerMailRenderer, ConsumerRightsOptions,
   ConsumerRightsService, Context, PaymentSubscriptionRecord, PurchaseRecord, UsageMeter,
 } from '../types.js'
+import { log } from '../log.js'
 
 const latestDeadline = (items: Array<{ deadline?: Date | null }>): Date | undefined => {
   const times = items.map(item => item.deadline != null ? new Date(item.deadline).getTime() : Number.NaN)
@@ -127,7 +128,7 @@ export const runConsumerObservers = async (
 
     return true
   } catch (error) {
-    console.error(`[payment] ${family} observers of "${recordId}" failed; reconcile retries them`, error)
+    log.error('Consumer-rights observers failed; reconcile retries them', { family, recordId, error })
     await recordEvent(ctx, { recordId, recordKind, entityId, action: 'observers', step: family, ok: false, error: errorText(error) })
 
     return false
@@ -293,7 +294,7 @@ export const makeConsumerRightsService = (
           try {
             withdrawable = (await computeWithdrawal(ctx, meter, purchase, at)).refundMinor > 0
           } catch (error) {
-            console.warn(`[payment] usage of "${purchase.purchaseId}" unreadable`, error)
+            log.warn('Purchase usage unreadable', { purchaseId: purchase.purchaseId, error })
           }
         }
         views.push(purchaseViewOf(purchase, withdrawable))
@@ -494,7 +495,7 @@ export const makeConsumerRightsService = (
           try {
             estimate = (await computeWithdrawal(ctx, meter, purchase, at)).estimate
           } catch (error) {
-            console.warn(`[payment] withdrawal estimate of "${purchase.purchaseId}" failed`, error)
+            log.warn('Withdrawal estimate failed', { purchaseId: purchase.purchaseId, error })
           }
         }
         // Credits fully used after consent: the right has expired, nothing would be reimbursed.
@@ -767,7 +768,7 @@ export const makeConsumerRightsService = (
     service.initialized = true
     const ctx = service.assertCtx() as unknown as ApiContext
     void ctx.waitForInitialized?.().then(async () => { await bootWarnings(ctx, isManaged(), () => meter) })
-      .catch(error => { console.error('[payment] consumer-rights boot check failed', error) })
+      .catch(error => { log.error('Consumer-rights boot check failed', error) })
   })
   plumbers.set(service, (plumbing, from) => {
     if (plumbing.manage != null) {
@@ -822,16 +823,16 @@ const bootWarnings = async (ctx: ApiContext, managed: boolean, meter: () => Usag
   if (mailing) {
     const trader = mail?.trader
     if (trader?.address == null || trader.email == null) {
-      console.warn('[payment] consumer rights: the trader has no postal address or e-mail — the legal mails and the '
+      log.warn('Consumer rights: the trader has no postal address or e-mail — the legal mails and the '
         + 'withdrawal information go out without them')
     }
     const alias = mail?.alias ?? MAILER_SERVICE
     if ((ctx as unknown as { hasService?: (alias: string) => boolean }).hasService?.(alias) !== true) {
-      console.warn(`[payment] consumer rights: no mailer "${alias}" — no durable-medium mail is sent`)
+      log.warn('Consumer rights: no mailer — no durable-medium mail is sent', { alias })
     }
   }
   if (managed && mechanisms.withdrawal && mechanisms.automaticRefunds && meter() == null) {
-    console.warn('[payment] consumer rights: no usage meter — every withdrawal is left to an operator (review)')
+    log.warn('Consumer rights: no usage meter — every withdrawal is left to an operator (review)')
   }
 }
 

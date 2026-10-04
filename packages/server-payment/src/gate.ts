@@ -11,6 +11,7 @@ import type { Context as ApiContext } from '@owlmeans/server-api'
 import { resolveEffectivePlan } from './plan.js'
 import { entitlements } from './utils.js'
 import type { Config, Context } from './types.js'
+import { log } from './log.js'
 
 export interface EntityResolverOption {
   /** The stable organization id a request acts for. Default: `req.entity.id`, else the token's entity. */
@@ -96,7 +97,7 @@ export const makeCapabilityGate = (
       try {
         view = await entitlements(ctx).entitlements(entityId)
       } catch (error) {
-        console.error(`capability gate: cannot resolve entitlements of "${entityId}"`, error)
+        log.error('Capability gate cannot resolve entitlements', { entityId, error })
         throw new CapabilityRequired(list)
       }
       if (opts?.productSkus != null && !opts.productSkus.includes(view.plan.productSku)) {

@@ -9,6 +9,9 @@ import type { LoginService } from '@owlmeans/client-auth/login'
 import { USER_ID } from '@owlmeans/client-auth'
 import type { AppContext } from '../types.js'
 import { LoginSurrogateView, SurrogateStage } from './view.js'
+import { logger } from '@owlmeans/log'
+
+const log = logger('web-client:login')
 
 /**
  * The login window an embedded application opens one level up.
@@ -150,7 +153,7 @@ export const SurrogateScreen: FC = () => {
     }
 
     void run().catch((e: Error) => {
-      console.error(e)
+      log.error('Surrogate login failed', e)
       setError(e.message)
       setStage(SurrogateStage.Failed)
     })

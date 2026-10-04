@@ -9,6 +9,7 @@ import { trusted } from '../utils/trusted.js'
 import { RELY_TUNNEL } from '../consts.js'
 import type { RedisResource } from '@owlmeans/redis-resource'
 import { RELY_ACTION_TIMEOUT } from '@owlmeans/auth-common'
+import { logger } from '@owlmeans/log'
 
 // 1. There is a difference between privileged (provider)
 //    and non-privileged (consumer) request 
@@ -19,6 +20,8 @@ import { RELY_ACTION_TIMEOUT } from '@owlmeans/auth-common'
 // 3. General idea is that: when you are connected, the auth
 //    process can be started from scratch following same stages
 //    and using the same plugins but via socket
+
+const log = logger('server-auth:rely')
 
 export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Auth | null): AuthenticateMethod => {
   const auhtenticate = conn.authenticate
@@ -40,9 +43,9 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
       }
     }, { channel: source.nonce })
     // We allow to just forward call messages back and forth
-    conn._receiveCall = async msg => { console.info(source.nonce, 'Forward call', msg.method, msg.id) }
-    conn._receiveResult = async msg => { console.info(source.nonce, 'Forward result', msg.id) }
-    conn._receiveError = async msg => { console.info(source.nonce, 'Forward error', msg.id) }
+    conn._receiveCall = async msg => { log.debug('Forward call', { nonce: source.nonce, method: msg.method, id: msg.id }) }
+    conn._receiveResult = async msg => { log.debug('Forward result', { nonce: source.nonce, id: msg.id }) }
+    conn._receiveError = async msg => { log.debug('Forward error', { nonce: source.nonce, id: msg.id }) }
     conn.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
     const closeSender = conn.listen(async message => {
       if (isMessage(message, true)) {
@@ -94,7 +97,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
         try {
           return [stage, await model.init(_payload as AllowanceRequest) as any]
         } catch (e) {
-          console.error(e)
+          log.warn('Rely init failed; connection closed', e)
           await conn.close()
         }
         break
@@ -118,7 +121,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
 
           return [AuthenticationStage.Authenticated, internalAuth as any]
         } catch (e) {
-          console.error(e)
+          log.warn('Rely authentication failed; connection closed', e)
           await conn.close()
         }
         break

@@ -12,7 +12,8 @@ import type {
   ConnectConvertStartBody,
   ConnectCreateBody, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
   ConnectPipelineResumeBody, ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSession,
-  ConnectSessionOpen, ConnectPullQuery, ConnectSessionParams
+  ConnectSessionOpen, ConnectPullQuery, ConnectSessionParams, ConnectKitApplyBody, ConnectKitApplyResult,
+  ConnectKitDescribe, PlanningKitView
 } from './types.js'
 
 /**
@@ -202,6 +203,91 @@ export const ConnectModifyBodySchema = {
   required: ['prompt'],
   additionalProperties: false,
 } as JSONSchemaType<ConnectModifyBody>
+
+const kitKey = { type: 'string', minLength: 1, maxLength: 128 } as const
+const kitText = { type: 'string', maxLength: 4096 } as const
+const kitStrings = { type: 'array', items: kitKey, maxItems: 256 } as const
+
+/** A planning kit as `project.kit.describe` lists it. Closed, like every view this package pins. */
+export const PlanningKitViewSchema = {
+  type: 'object',
+  properties: {
+    id: kitKey,
+    kind: kitKey,
+    title: kitText,
+    purpose: kitText,
+    container: {
+      type: 'object',
+      properties: { key: kitKey, label: kitText },
+      required: ['key', 'label'],
+      additionalProperties: false,
+    },
+    types: {
+      type: 'array',
+      maxItems: 256,
+      items: {
+        type: 'object',
+        properties: { key: kitKey, label: kitText, flow: kitKey },
+        required: ['key', 'label', 'flow'],
+        additionalProperties: false,
+      },
+    },
+    flows: {
+      type: 'array',
+      maxItems: 256,
+      items: {
+        type: 'object',
+        properties: {
+          key: kitKey,
+          label: kitText,
+          statuses: {
+            type: 'array',
+            maxItems: 256,
+            items: {
+              type: 'object',
+              properties: { key: kitKey, label: kitText, intrinsic: kitKey },
+              required: ['key', 'label', 'intrinsic'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['key', 'label', 'statuses'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['id', 'kind', 'title', 'purpose', 'container', 'types', 'flows'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<PlanningKitView>
+
+export const ConnectKitDescribeSchema = {
+  type: 'object',
+  properties: { kits: { type: 'array', items: PlanningKitViewSchema, maxItems: 64 } },
+  required: ['kits'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectKitDescribe>
+
+/** `types` keeps only these card-type keys of the kit; omitted (or `null`) keeps every type. */
+export const ConnectKitApplyBodySchema = {
+  type: 'object',
+  properties: {
+    kit: kitKey,
+    types: { ...kitStrings, nullable: true },
+  },
+  required: ['kit'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectKitApplyBody>
+
+export const ConnectKitApplyResultSchema = {
+  type: 'object',
+  properties: {
+    applied: kitStrings,
+    skipped: kitStrings,
+    warnings: { type: 'array', items: kitText, maxItems: 256 },
+  },
+  required: ['applied', 'skipped', 'warnings'],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectKitApplyResult>
 
 export const ConnectAttachBodySchema = {
   type: 'object',

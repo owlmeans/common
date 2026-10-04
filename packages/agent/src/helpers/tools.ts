@@ -1,5 +1,8 @@
 import type { ToolCall } from '@langchain/core/messages'
+import { logger } from '@owlmeans/log'
 import type { AgentToolSet } from '../types.js'
+
+const log = logger('agent:tools')
 
 /** The shape a contained tool failure comes back as. Matches what tool bodies return themselves. */
 export interface ToolErrorResponse { error: string }
@@ -51,7 +54,7 @@ export const safeInvokeTool = async (
     if (fatal?.(e) === true) {
       throw e
     }
-    console.warn(`Error during tool call ${toolCall.name}:`, e)
+    log.warn('Tool call failed', { tool: toolCall.name, error: e })
     return toErrorResponse(e)
   }
 }

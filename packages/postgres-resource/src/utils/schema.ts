@@ -1,5 +1,6 @@
 import { UnsupportedArgumentError } from '@owlmeans/resource'
 import type { AnySchema } from 'ajv'
+import { logger } from '@owlmeans/log'
 
 import {
   DEF_ID_DEFAULT, DEF_JSON_TYPE, DEF_SQL_TYPE, ID_FIELD, PG_KEYWORD, PgIndexMethod
@@ -9,6 +10,8 @@ import type {
   PgReferenceSpec, PgUniqueSpec, TableSpec
 } from '../types.js'
 import { pgIdentifier, qualify, quoteIdent } from './name.js'
+
+const log = logger('postgres-resource')
 
 interface RawProperty {
   type?: string | string[]
@@ -244,10 +247,7 @@ const byName = <T extends { name?: string }>(specs: T[], alias: string, kind: st
   for (const spec of specs) {
     const name = spec.name!
     if (seen.has(name)) {
-      console.warn(
-        `@owlmeans/postgres-resource: ${alias} declares ${kind} "${name}" more than once —`
-        + ' keeping the first declaration.'
-      )
+      log.warn('Duplicate declaration, keeping the first one', { resource: alias, kind, name })
       continue
     }
     seen.set(name, spec)
@@ -305,10 +305,9 @@ export const schemaToTableSpec = (
 
     if (override.index != null && override.index !== false) {
       if (column.secure) {
-        console.warn(
-          `@owlmeans/postgres-resource: index on secure column "${alias}.${name}" — encryption`
-          + ' is non-deterministic, so equality lookups through it will never match.'
-        )
+        log.warn('Index on a secure column will never match: encryption is non-deterministic', {
+          resource: alias, column: name,
+        })
       }
       const specs = override.index === true
         ? [{ columns: [name] }]

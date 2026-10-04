@@ -1,4 +1,5 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { logger } from '@owlmeans/log'
 import { criteriaOf, PLANNING_SERVICE } from '@owlmeans/planning'
 import type { Relationship, RelationshipQuery, Unsubscribe } from '@owlmeans/planning'
 import type { Criteria } from '@owlmeans/resource'
@@ -6,6 +7,8 @@ import { applyCards, applyCommitEvent } from './events.js'
 import { planningStoresOf, syncCards, syncLinks } from './stores.js'
 import type { PlanningClientService, PlanningFeed, PlanningFeedOptions, PlanningFeedState } from './types.js'
 import { clean } from './utils/record.js'
+
+const log = logger('client-planning')
 
 const linkCriteriaOf = (query: RelationshipQuery): Criteria<Relationship> =>
   clean({ from: query.from, to: query.to, type: query.type }) as Criteria<Relationship>
@@ -95,7 +98,7 @@ export const makePlanningFeed = <C extends BasicConfig, T extends BasicContext<C
         try {
           await applyCommitEvent(stores, event, facade)
         } catch (e) {
-          console.error('Planning feed apply error:', e)
+          log.warn('Planning feed apply failed', { card: event.card, error: e })
         }
       }, opts.filter)
       if (stopped) {

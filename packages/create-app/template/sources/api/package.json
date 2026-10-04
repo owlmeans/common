@@ -11,8 +11,9 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@owlmeans/server-app": "^0.1.18-rc.49",
-    "@owlmeans/static-resource": "^0.1.18-rc.36",
+    "@owlmeans/log": "^0.1.18-rc.0",
+    "@owlmeans/server-app": "^0.1.18-rc.50",
+    "@owlmeans/static-resource": "^0.1.18-rc.37",
     "__APP_SLUG__-common": "workspace:^"
   },
   "devDependencies": {

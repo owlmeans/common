@@ -6,6 +6,7 @@ import {
 import type {
   CumulativeResults, ExecutionState, ModelPolicy, TaskExecutionState,
 } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
 import { InquiryDeclined } from '../inquiry/errors.js'
 import { inquiryTransportFor } from '../inquiry/transport.js'
@@ -19,6 +20,8 @@ import {
   composeExecState, composeTaskState, effortPatch, freeze, freezeResults, mergeOverride,
   mergePolicy, mergePrompt, raisedEffort, resolveRole,
 } from './utils.js'
+
+const log = logger('llm:execution')
 
 /**
  * Build the execution service implementation WITHOUT registering it as a context
@@ -202,7 +205,7 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
           }
         } catch (e) {
           // Advice is an optimization. A broken advisor must never take the work with it.
-          console.warn(`Execution advisor failed for "${request.kind}":`, e)
+          log.warn('Execution advisor failed', { kind: request.kind, error: e })
         }
       }
 

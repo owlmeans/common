@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/web-gtm
 
 **Layer:** Web
-**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.32"` in `dependencies`
+**Install:** `"@owlmeans/web-gtm": "^0.1.18-rc.33"` in `dependencies`
 
 The tag half of the consent set. It emits **strings and data**, not components, and it holds no
 state — the decision lives in `@owlmeans/consent`, which this package reads through
@@ -163,6 +163,13 @@ page says so.
   `'unsafe-eval'` and fail the same way. Build a container for such a page from Google's
   **built-in tag templates** (GA4, Google Ads, Floodlight, Conversion Linker) and Community
   Gallery templates, which load from the allowed hosts.
+
+## Sending events
+
+This package emits the head snippet and decides when the loader may run; it has no event-push API. An
+application sends its own events through `@owlmeans/log` calls that carry an `analytics` option, and
+`@owlmeans/web-log`'s `gtmAnalyticsPlugin` pushes them onto `window.dataLayer` only while analytics
+consent is granted (`/web-log`).
 
 ## Disclosing it
 

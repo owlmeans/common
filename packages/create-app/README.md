@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.55 my-app
+npx @owlmeans/create-app@^0.1.18-rc.56 my-app
 ```
 
 ## What it generates
@@ -30,6 +30,13 @@ my-app/
 The web app ships a basic shadcn UI **navigation + layout** and a **Session** screen
 that creates, lists and removes items held in a **session-scoped in-memory resource**
 (`@owlmeans/static-resource`) on the backend — no database required.
+
+Logging goes through [`@owlmeans/log`](https://www.npmjs.com/package/@owlmeans/log), with the level
+set per environment and never in code: the api's `config.ts` reads `LOG_LEVEL` (default `info`) and
+`LOG_DEBUG` from the Bun runtime, the web's reads `VITE_LOG_LEVEL` (default `debug` under `vite`,
+`info` in a build) and `VITE_LOG_DEBUG` at build time. The shared `sources/common` config runs in
+both runtimes, so it sets no level and no `cfg.debug` flag. Local values go in the git-ignored
+`sources/api/.env` / `sources/web/.env`.
 
 By default the scaffolder also installs dependencies and **deploys agent guidance**
 into the project via [`@owlmeans/agent-skills`](https://www.npmjs.com/package/@owlmeans/agent-skills)

@@ -3,6 +3,7 @@ import type { EntitlementView } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { entitlements, gateway, subscriptions, usageEvents } from './utils.js'
 import type { ReconcileAllOptions, ReconcileAllResult, ReconcileEntityOptions } from './types.js'
+import { log } from './log.js'
 
 /** Grant the free plan when the entity holds no entitling subscription. @returns whether it granted */
 const backfillFreePlan = async (ctx: ApiContext, entityId: string, freePlanSku: string): Promise<boolean> => {
@@ -29,7 +30,7 @@ const resyncEntity = async (ctx: ApiContext, entityId: string): Promise<void> =>
   try {
     await service.resyncSubscription(ctx, { entityId })
   } catch (error) {
-    console.error(`[payment] reconcile: resync of "${entityId}" failed`, error)
+    log.error('Reconcile: subscription resync failed', { entityId, error })
   }
 }
 
@@ -95,7 +96,7 @@ export const reconcileAll = async (
       result.repaired += counters.repaired
     } catch (error) {
       result.failed++
-      console.error(`[payment] reconcile of "${entityId}" failed`, error)
+      log.error('Reconcile of an entity failed', { entityId, error })
     }
   }
 

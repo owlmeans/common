@@ -8,6 +8,9 @@ import type { AuthServiceAppend } from './types.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { ClientContext } from '@owlmeans/client-context'
 import { AUTH_QUERY, DISPATCHER } from '@owlmeans/auth'
+import { logger } from '@owlmeans/log'
+
+const log = logger('client-auth')
 // import { useFlow } from '@owlmeans/web-flow'
 // import { DEFAULT_ENTITY } from './consts.js'
 // import { OidcAuthStep } from '@owlmeans/flow'
@@ -37,7 +40,7 @@ export const useWs = (
         _request.query[AUTH_QUERY] = ctx.auth().token
       }
     } catch (e) {
-      console.error(e)
+      log.warn('Socket auth token not attached', e)
     }
 
     return _request
@@ -54,7 +57,7 @@ export const useWs = (
           req.query ??= {}
           req.query[AUTH_QUERY] = ctx.auth().token
         } catch (e) {
-          console.error(e)
+          log.warn('Socket auth token not refreshed', e)
         }
       }
       await options?.beforeConnect?.(req)

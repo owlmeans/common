@@ -5,6 +5,7 @@ import { STRIPE_SESSION_TTL_MAX_SECONDS, STRIPE_SESSION_TTL_MIN_SECONDS } from '
 import type {
   CheckoutAttempt, CheckoutNarrowInput, CheckoutPlugin, CheckoutSettled,
 } from '../types.js'
+import { log } from '../log.js'
 
 export interface CheckoutPluginRegistry {
   use: (plugin: CheckoutPlugin) => void
@@ -108,7 +109,7 @@ export const settleCheckout = async (
     try {
       await plugin.settled(ctx, settled)
     } catch (error) {
-      console.error(`[payment] checkout plugin "${plugin.alias ?? 'anonymous'}" failed to settle`, error)
+      log.error('Checkout plugin failed to settle', { plugin: plugin.alias ?? 'anonymous', error })
     }
   }
 }

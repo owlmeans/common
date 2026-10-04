@@ -3,6 +3,7 @@ import type { ProductPlan } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
 import { payment, subscriptions } from './utils.js'
 import type { EffectivePlan, PaymentPlan, PaymentProduct, PaymentSubscriptionRecord } from './types.js'
+import { log } from './log.js'
 
 /** A plan's rank; an absent rank reads as `0`. */
 export const planRank = (plan: Pick<ProductPlan, 'rank'>): number => plan.rank ?? 0
@@ -102,7 +103,7 @@ export const resolveEffectivePlan = async (
     if (plan == null) {
       if (!unknownPlans.has(row.planSku)) {
         unknownPlans.add(row.planSku)
-        console.warn(`[payment] subscription "${row.externalId}" names unknown plan "${row.planSku}"; ignored`)
+        log.warn('Subscription names an unknown plan; ignored', { subscriptionId: row.externalId, planSku: row.planSku })
       }
       continue
     }

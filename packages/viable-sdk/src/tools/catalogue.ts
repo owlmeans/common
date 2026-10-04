@@ -22,6 +22,7 @@ import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, renderPlatform } from './platfor
 import {
   confirmationRequiredPhrase, personRefusalPhrase, refusalMessage, refusalPhrase, unconfirmedConversionPhrase,
 } from './refusal.js'
+import { renderKitApply, renderKits } from './kits.js'
 import { renderProjectSettings, settingsPatch, settingsReach } from './settings.js'
 import {
   conversionNext, renderPipelineStatus, renderProjectStatus, renderStoryStatus,
@@ -746,6 +747,62 @@ export const catalogue: ToolDefinition[] = [
       await ensureSession(deps, project)
       return projectResult(await deps.api.project.reinit(project))
     },
+  },
+
+  {
+    name: 'describe_planning_kits',
+    title: 'The planning kits a project can take',
+    description:
+      'A planning kit is a ready set of card types and status flows — tasks and bugs moving to done,'
+      + ' deals through a sales pipeline, tickets to resolution, and so on — that the platform writes'
+      + ' into the project\'s common package, so the application\'s records and their workflows are'
+      + ' declared once instead of story by story. This lists each kit: its purpose, the container its'
+      + ' cards live in, every card type with its main flow, and each flow\'s statuses. Call it before'
+      + ' apply_planning_kit.',
+    input: { projectId: z.string().optional() },
+    availability: anyHost,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      const { kits } = await deps.api.project.kitDescribe(project)
+
+      return ok(renderKits(project, kits), { projectId: project, kits: kits as unknown as Record<string, unknown>[] })
+    },
+  },
+
+  {
+    name: 'apply_planning_kit',
+    title: 'Write a planning kit into the project',
+    description:
+      'Write one planning kit — its card types and status flows — into the project\'s common package.'
+      + ' Describe the kits first (describe_planning_kits) and pass the kit id; `types` keeps only'
+      + ' those card-type keys of the kit, and leaving it out keeps every type. Applying the same kit'
+      + ' again changes nothing. The platform rebuilds the preview itself; the answer lists the types'
+      + ' written, those left out, and any warnings.',
+    input: {
+      projectId: z.string().optional(),
+      kit: z.string().min(1).describe('The kit id, as describe_planning_kits lists it'),
+      types: z.array(z.string().min(1)).optional()
+        .describe('The card-type keys of the kit to keep; every type when omitted'),
+    },
+    availability: anyHost,
+    run: async (args, deps) => await answering(deps, 'apply_planning_kit', async () => {
+      const project = projectOf(args, deps)
+      const kit = typeof args.kit === 'string' ? args.kit : ''
+      if (kit === '') {
+        return fail('Name the kit: describe_planning_kits lists the kit ids this project can take.')
+      }
+      const types = Array.isArray(args.types)
+        ? args.types.filter((type): type is string => typeof type === 'string' && type !== '')
+        : undefined
+      // The kit is written into the project's files, which for a local project is an operation THIS
+      // connector answers — so it is attached before the platform is asked.
+      await ensureSession(deps, project)
+      const result = await deps.api.project.kitApply(project, { kit, ...(types != null ? { types } : {}) })
+
+      return ok(renderKitApply(project, kit, result), {
+        projectId: project, kit, result: result as unknown as Record<string, unknown>,
+      })
+    }),
   },
 
   {

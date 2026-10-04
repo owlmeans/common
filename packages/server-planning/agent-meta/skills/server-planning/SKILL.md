@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.18"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.20"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
@@ -30,7 +30,7 @@ reuses the `./store` subpath (`foldPending`, `makeCommitHub`) without pulling fa
 | `PlanningHandlerOptions` | `{ service?, event?, maxPoll?, scope?(req, ctx), access?(req, ctx) }` |
 | `PlanningAccessResolver`, `PlanningAccess`, `PlanningAccessGrants`, `PlanningGrant` | The optional access decision a hosting app supplies |
 | `listCards` … `executePlanning`, `getCommit`, `watchCommits`, `listSchemas`, `defineSchemas`, `applySchemaRequest` | The handlers, to bind one by hand |
-| `scopeOf(req, extra?)`, `accessScopeOf(req, access, extra?)`, `handlerScopeOf`, `assertGranted`, `actorOf(req)`, `concealed(run)`, `clampSeconds` | Scope and security helpers |
+| `scopeOf(req, extra?)`, `accessScopeOf(req, access, extra?)`, `handlerScopeOf`, `assertGranted`, `assertWrites`, `writableIn`, `assertExecutionGranted`, `assertExecutionWrites`, `actorOf(req)`, `concealed(run)`, `clampSeconds` | Scope and security helpers |
 | `makeDefinitions(runtime, facade)`, `makeSchemaViews(opts)`, `projectCriteriaOf(projects, through?)` | Data-defined schemas and the project narrowing |
 | `makeProjectionProcessor(ctx, opts?)`, `planningQueueHooks(ctx, opts?)` | A generic projection job body and its `onJobDead` |
 | `./queue`: `declarePlanningQueue(cfg, opts?)`, `PLANNING_PROJECTION_QUEUE` (`planning-projection`), `PLANNING_PROJECT_JOB` (`planning:project`), `ProjectionRequest` | The projection queue's shared address; each process chooses separately whether to listen |
@@ -296,7 +296,7 @@ mapping external records (`mappers`) belongs to that plugin's own store adapter.
 
 ### The access resolver
 
-`opts.access: (req, ctx) => Promise<{ entityId, projects?, grants? }>` is the hosting app's
+`opts.access: (req, ctx) => Promise<{ entityId, projects?, writes?, grants? }>` is the hosting app's
 decision per request; a throw is the request's answer (an `AuthForbidden` answers 403).
 
 - `entityId` is the resolver's — never the token's, never `opts.scope`'s.
@@ -316,11 +316,35 @@ decision per request; a throw is the request's answer (an `AuthForbidden` answer
   shed) is expressed here: the resolver answers the project ids the person's grants list as
   `projects`, and omits the key when a grant covers every project — never a hand-written filter in
   each handler.
+- `writes` is the subset of projects the person may WRITE in (`projects` are the ones they VIEW).
+  `execute` on a card, specification or link needs it to be writable — the rule a narrowed read
+  admits, over `writes`: the project itself, a card whose `parents` name one, a specification
+  through its parent card; a create needs every named parent writable, and a create at the root
+  (no parent, not a project) is refused. `schema.define` of a project layer needs the project in
+  `writes`. A refusal is `PlanningForbidden` (403, `forbidden:writes:<id>`), checked before the grants
+  and before the executor. NOT governed by it: a project create (`grants.createProjects` alone) and
+  the organization layer (`grants.defineSchemas`). A card the scope cannot see is still answered
+  as absent by the executor. Omitted — every visible project is writable.
+  `tests/writes.spec.ts` pins viewer, writer and omitted.
 - `grants` gates the stock handlers' writes: `createProjects` (a project create — `true` for the
   root, a list names the parent projects), `deleteProjects` (the delete of a project card — a list
   names the projects), `defineSchemas` (`schema.define` — `true` for the organization's layer, a
   list names project layers). A `grants` object refuses every flag it leaves out with
   `PlanningForbidden` (403); no `grants` gates nothing. In-process facade writes are not gated.
+
+## Mounting in a target
+
+The api half of the target mount (the common tree and the kit literals: `planning` → Mounting in a
+target).
+
+- Bind `servePlanningEntrypoints(tree, { access })` WITHOUT the commit socket —
+  `.filter(entrypoint => entrypoint.protocol !== tree.commit.events)`: nothing authenticates a
+  target's socket after it opens, so the client long-polls (`commit.get` with `wait`, `execute`
+  with `wait: true`). Never write card, transition or schema routes beside it.
+- The resolver maps container permissions onto the access: `projects` = the containers the person
+  may view, `writes` = those they may modify, `grants` = `createProjects` / `deleteProjects` /
+  `defineSchemas` from their create and admin rights. A creator sees what they created — stamp
+  ownership in a `before` hook and add the card to both lists.
 
 ## Data-defined types and flows
 

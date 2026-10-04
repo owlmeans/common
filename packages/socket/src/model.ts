@@ -7,6 +7,9 @@ import type {
 } from './types.js'
 import { uuid } from '@owlmeans/basic-ids'
 import { AuthenticationStage, AuthError } from '@owlmeans/auth'
+import { logger } from '@owlmeans/log'
+
+const log = logger('socket')
 
 export const createBasicConnection = (): Connection => {
   const listeners: ConnectionListener[] = []
@@ -252,7 +255,7 @@ export const createBasicConnection = (): Connection => {
                 const [stage, response] = await conn.authenticate(authMessage.stage, authMessage.payload)
                 if (stage != null) {
                   void conn.auth(stage, response).catch(error => {
-                    console.error('Error sending socket authentication response:', error)
+                    log.warn('Socket authentication response not sent', { error })
                   })
                 }
               } catch (error) {
@@ -260,7 +263,7 @@ export const createBasicConnection = (): Connection => {
                   null as any,
                   ResilientError.marshal(ResilientError.ensure(error as Error))
                 ).catch(sendError => {
-                  console.error('Error sending socket authentication error:', sendError)
+                  log.warn('Socket authentication error not sent', { error: sendError })
                 })
               } finally {
                 conn._authSequence = undefined
@@ -279,7 +282,7 @@ export const createBasicConnection = (): Connection => {
         try {
           await listener(msg)
         } catch (error) {
-          console.error('Socket listener error:', error)
+          log.error('Socket listener failed', { error })
         }
       }))
     },

@@ -72,20 +72,20 @@ Full map, build order and SCCs: [`tree.md`](tree.md) via `/dependency-tree`.
 | Layer | Packages |
 |---|---|
 | Tooling | `dep-config`, `agent-skills`, `create-app` |
-| Core | `context`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*` |
+| Core | `context`, `log`, `error`, `auth`, `config`, `i18n`, `state`, `entrypoint`, `route`, `router`, `resource`, `socket`, `did`, `basic-*` |
 | Auth shared / API | `auth-common`, `api`, `api-config*` |
 | Server | `server-*` |
 | Client (platform-agnostic) | `client-*` (`client-iam` and `client-auth` pull in the web layer) |
-| Web | `web-*`, `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
+| Web | `web-*` (incl. `web-log`), `astro`; LEGACY `mui-panel`, `mui-oidc-rp` (maintain only) |
 | Infrastructure | `kluster`, `mongo*`, `postgres*`, `redis*`, `storage-*`, `image-resource`, `static-resource` |
-| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-sdk`, `viable-mcp` |
+| AI/LLM | `llm-common`, `llm`, `agent-common`, `agent`, `viable-common`, `viable-log`, `viable-sdk`, `viable-mcp` |
 | Mail | `mailer`, `mailer-smtp`, `server-mailer-mailgun` |
 | Domain | `oidc`, `iam`, `payment`, `consent`, `auth-otp`, `flow`, `wled`, `queue`, `planning` |
 | Not framework | `_tpl`, `test`, `test-auth`, `test-integration`, `test-ui` |
 
 ## Key Facts
 
-- 124 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
+- 127 package manifests under `packages/`, all `@owlmeans/*`; `_tpl` is excluded from root scripts.
 - ESM only, output in `build/`; TypeScript `^7.0.2` (`/tsconfig`, `/bun`).
 - Versions are per package and deliberately uneven — never resynchronise (`/versions`, `/publishing`).
 - React is a peer dependency; crypto via `@noble/*` + `@scure/*`; validation via AJV + ajv-formats.
@@ -108,6 +108,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 `owlmeans-config` avoid built-in command names).
 
 - `/reuse-code` — MANDATORY before planning or writing any feature: find an existing package or code first
+- `/logging` — before adding any log line, catch block or `console` call: `@owlmeans/log` policy (`/log`, `/web-log`, `/viable-log`)
 - `/localization` — before adding any UI string or translation file (`/i18n`, `/client-i18n` per package)
 - `/dependency-tree` — layer placement, new dependency edges, build cycles
 - `/bun` — install, build, scripts, workspace filters

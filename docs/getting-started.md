@@ -44,7 +44,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.55 my-app
+npx @owlmeans/create-app@^0.1.18-rc.56 my-app
 ```
 
 This generates the three-workspace project below, installs dependencies, and — by default —
@@ -64,7 +64,7 @@ The harness guidance ships with the project itself (`agent-memory`, `memory-prom
 it is present even with `--no-install`, and the project can grow its own guidance from day one.
 
 Useful flags: `--pm <bun|npm|yarn>`, `--no-install`, `--no-skills`, `--no-git`, `--name <name>`,
-`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.55 --help`.
+`--yes`. See `npx @owlmeans/create-app@^0.1.18-rc.56 --help`.
 
 Then run it:
 
@@ -181,12 +181,15 @@ import { API_PORT, APP_API, APP_WEB, WEB_PORT } from './consts.js'
 
 const cfg = service({ type: AppType.Frontend, service: APP_WEB, host: 'localhost', port: WEB_PORT })
 service({ type: AppType.Backend, service: APP_API, host: 'localhost', port: API_PORT, base: 'api' }, cfg)
-cfg.debug = { all: true }
 cfg.alias = APP
 // Local dev serves the API over plain HTTP. Remove this in production (use TLS).
 cfg.security = { unsecure: true }
 export const commonConfig = cfg
 ```
+
+This file runs in Bun **and** in the browser, so it sets no log level and no `cfg.debug` flag
+(`debug.all` does not control logging and must never reach production). Each runtime's own
+`config.ts` sets `cfg.log` from its environment — see the api and web steps below.
 
 Add `types.ts` (`SessionItem`, `AddItemPayload`, `SessionParams`, `ItemParams`) and `schemas.ts`
 (AJV `JSONSchemaType` for each payload), then re-export everything from `index.ts`.
@@ -278,7 +281,19 @@ import { appEntrypoints } from './entrypoints.js'
 main(makeContext(config), appEntrypoints)
 ```
 
-(`config.ts` does `config(APP_API, commonConfig)` and sets `cfg.port = API_PORT`.)
+`config.ts` does `config(APP_API, commonConfig)` — the port comes from the `APP_API` service
+route — and takes the log level from the runtime environment (add `@owlmeans/log` to the api's
+dependencies; the type-only import gives the config its `log` field):
+
+```ts
+import type {} from '@owlmeans/log'
+
+cfg.log = { level: process.env.LOG_LEVEL || 'info', debug: process.env.LOG_DEBUG ?? '' }
+```
+
+`LOG_DEBUG` lists scopes forced to debug (`*` for all); Bun reads a local `sources/api/.env` by
+itself. Log through `logger('<scope>')` from `@owlmeans/log`, never `console.*` — the generated
+`index.ts` reports a failed start with `log.error('Start failed', error)`.
 
 ### 4. `sources/web` — shadcn UI navigation + layout
 
@@ -476,6 +491,17 @@ Labels above are literal. Drop them and they resolve through the panel i18n keys
 humanized alias — `NavLayout` takes a `translate` prop for that and never reads an i18n context on
 its own, so this app, which mounts no i18n provider, still renders.
 
+`src/config.ts` sets the browser's log level at build time — the logger is configured before the
+first render, so it cannot wait for the API's config:
+
+```ts
+const env = import.meta.env
+cfg.log = { level: env.VITE_LOG_LEVEL || (env.PROD ? 'info' : 'debug'), debug: env.VITE_LOG_DEBUG ?? '' }
+```
+
+Declare `VITE_LOG_LEVEL` / `VITE_LOG_DEBUG` on `ImportMetaEnv` in `src/vite-env.d.ts`; local values
+go in `sources/web/.env`.
+
 Finally `src/index.tsx` registers entrypoints and service routes, then renders:
 
 ```tsx
@@ -501,7 +527,7 @@ bun run dev      # API :3000, web :3001
 Install the OwlMeans Claude Code skills and Copilot instructions into the project:
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.47
 ```
 
 This scans every `node_modules/@owlmeans/*/agent-meta/` in the workspace — the root **and** any nested
@@ -520,6 +546,7 @@ under `sources/*` (bun often keeps workspace-only deps there) — and copies gui
 | Web shell, routing, i18n | `@owlmeans/web-panel`, `@owlmeans/web-client` | `PanelApp`, `bindScreen(handler(...))` |
 | Client store the screens read | `@owlmeans/state` (hooks: `@owlmeans/client`) | `appendStateResource`, `store.replace`, `useStoreList` |
 | Two-layer navigation + footer | `@owlmeans/web-panel` (model: `@owlmeans/client-panel`) | `src/nav.ts`, `NavLayout` in `src/layout/main.tsx` |
+| Logging, level per environment | `@owlmeans/log` | `cfg.log` in the api's and web's `config.ts` (`LOG_*`, `VITE_LOG_*`) |
 | shadcn UI primitives | (app-provided at `@`) | `src/components/ui/*`, `src/lib/utils.ts`, the `@source` line in `src/index.css` |
 
 **The single source of truth is `sources/common`.** The api materializes its entrypoints with handlers;

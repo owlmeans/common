@@ -6,6 +6,7 @@ import {
   applyQuery, filterRecords, firstMatch, matchCriteria, MisshapedRecord, RecordExists,
   UnknownRecordError, UnsupportedArgumentError
 } from '@owlmeans/resource'
+import { logThrottle, logger } from '@owlmeans/log'
 import type { RedisClient, RedisDbService, RedisResource } from './types.js'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import {
@@ -14,6 +15,8 @@ import {
 } from './consts.js'
 import { appendContextual, assertContext } from '@owlmeans/context'
 import { createIdOfLength, uuid } from '@owlmeans/basic-ids'
+
+const log = logger('redis-resource')
 
 type Config = ServerConfig
 type Context<C extends Config = Config> = ServerContext<C>
@@ -160,7 +163,7 @@ export const makeRedisResource = <
         await subscriber.punsubscribe(pattern)
         await subscriber.quit()
       } catch (e) {
-        console.error(`${location}: failed to unsubscribe ${pattern}`, e)
+        log.error('Redis failed to unsubscribe', { resource: alias, pattern, error: e })
       }
     }
 
@@ -366,7 +369,10 @@ export const makeRedisResource = <
             try {
               yield JSON.parse(fields[1])
             } catch (e) {
-              console.error('Cannot parse redis stream entry', e)
+              // Fires per bad entry: one line per window per resource is enough.
+              if (logThrottle(`${location}:stream-parse`)) {
+                log.warn('Cannot parse redis stream entry', { resource: alias, stream: streamKey, error: e })
+              }
             }
           }
         } while (true)
@@ -385,7 +391,9 @@ export const makeRedisResource = <
               try {
                 yield JSON.parse(fields[1])
               } catch (e) {
-                console.error('Cannot parse reclaimed redis stream entry', e)
+                if (logThrottle(`${location}:stream-reclaim-parse`)) {
+                  log.warn('Cannot parse reclaimed redis stream entry', { resource: alias, stream: streamKey, error: e })
+                }
               }
               await resource.db.client.xack(streamKey, group, id)
             }
@@ -394,7 +402,12 @@ export const makeRedisResource = <
         try {
           await resource.db.client.xgroup('CREATE', streamKey, group, '$', 'MKSTREAM')
         } catch (e) {
-          console.error('Error in redis stream consumer group', e)
+          // BUSYGROUP is the ordinary answer for a group that already exists.
+          if (e instanceof Error && e.message.includes('BUSYGROUP')) {
+            log.debug('Redis stream consumer group exists', { resource: alias, stream: streamKey, group })
+          } else {
+            log.error('Error in redis stream consumer group', { resource: alias, stream: streamKey, group, error: e })
+          }
         }
         do {
           const resp = await resource.db.client.xreadgroup(
@@ -412,7 +425,10 @@ export const makeRedisResource = <
               yield JSON.parse(fields[1])
               await resource.db.client.xack(streamKey, group, entryId)
             } catch (e) {
-              console.error('Cannot parse redis stream entry', e)
+              // Fires per bad entry: one line per window per resource is enough.
+              if (logThrottle(`${location}:stream-parse`)) {
+                log.warn('Cannot parse redis stream entry', { resource: alias, stream: streamKey, error: e })
+              }
             }
           }
         } while (true)

@@ -5,6 +5,17 @@ import type { i18n } from 'i18next'
 import { useMemo } from 'react'
 import type { ClientConfig } from '@owlmeans/client-context'
 import { DEFAULT_LNG, DEFAULT_NAMESPACE, SUPPORTED_LNGS, isI18nLanguageLoaded, loadI18nLanguage } from '@owlmeans/i18n'
+import { logEnabled, logger } from '@owlmeans/log'
+
+const log = logger('i18n')
+
+/** i18next's own logger module: its output goes through `@owlmeans/log`, at the `i18n` scope. */
+const i18nextLogger = {
+  type: 'logger' as const,
+  log: (args: unknown[]) => log.debug(args.map(String).join(' ')),
+  warn: (args: unknown[]) => log.warn(args.map(String).join(' ')),
+  error: (args: unknown[]) => log.error(args.map(String).join(' ')),
+}
 
 const LNG_STORAGE_KEY = 'owlmeans-lng'
 
@@ -74,7 +85,7 @@ export const prepareI18n = async (config: ClientConfig): Promise<string> => {
     await loadI18nLanguage(lng)
     preparedLng = lng
   } catch (error) {
-    console.error(`[i18n] failed to load pack for "${lng}"`, error)
+    log.error(`failed to load pack for "${lng}"`, error)
     preparedLng = fallback
   }
 
@@ -160,17 +171,20 @@ const createI18nInstance = (config: ClientConfig): i18n => {
     fallbackLng,
     lng,
     supportedLngs,
-    debug: config.debug?.all ?? config.debug?.i18n ?? false,
+    // The process's log policy decides, not `cfg.debug.all` (which an application sets for other
+    // reasons and which is on in every OwlMeans app): verbose i18next output is the `i18n` scope
+    // at debug — `cfg.log.level: 'debug'` or `cfg.log.debug: 'i18n'`.
+    debug: logEnabled('debug', 'i18n'),
   })
 
-  instance.use(initReactI18next).init()
+  instance.use(i18nextLogger).use(initReactI18next).init()
 
   i18nInstance = instance
 
   if (!loaded) {
     // Not persisted: `wantedLng` may be a browser-detected language nobody chose.
     switchLanguage(wantedLng, false).catch((error: unknown) => {
-      console.error(`[i18n] failed to load pack for "${wantedLng}"`, error)
+      log.error(`failed to load pack for "${wantedLng}"`, error)
     })
   }
 

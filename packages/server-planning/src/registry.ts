@@ -1,11 +1,14 @@
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { ResilientError } from '@owlmeans/error'
+import { logger } from '@owlmeans/log'
 import { DEFAULT_PLUGIN_ORDER, PlanningRefused } from '@owlmeans/planning'
 import type {
   CommitEvent, PlanningExecContext, PlanningHookContext, PlanningPlugin, PlanningSchemaRegistry,
   PlanningStore, TransitionExecution, WorkcardDraft,
 } from '@owlmeans/planning'
 import type { StoreRoute } from './store/types.js'
+
+const log = logger('planning')
 
 export interface PluginRegistry {
   /** Register, or replace the plugin of the same `name`. Its schemas are contributed now. */
@@ -131,7 +134,7 @@ export const makePluginRegistry = (
         try {
           await plugin.after(event, contextOf(plugin))
         } catch (error) {
-          console.error(`planning: after hook of ${plugin.name} failed on ${event.transition}:`, error)
+          log.error('Planning after hook failed', { plugin: plugin.name, transition: event.transition, error })
         }
       }
     },

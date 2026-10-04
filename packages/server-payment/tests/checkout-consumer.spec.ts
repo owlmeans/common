@@ -1,5 +1,6 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import Stripe from 'stripe'
+import { addLogPlugin, memoryPlugin, removeLogPlugin } from '@owlmeans/log'
 import { BillingCountryLocked, SubscriptionStartRequired } from '@owlmeans/payment'
 import { createCheckoutLink, isMissingTermsUrl } from '../src/plugins/stripe.js'
 import { billingProfiles, consumerConsents, consumerEvents, consumerRights, fulfillments } from '../src/utils.js'
@@ -176,7 +177,8 @@ describe('checkout under a consumer-rights policy — terms', () => {
 
   test('a Dashboard without a terms URL never stops a payment: the session is created again without the checkbox', async () => {
     const fake = await makeRightsContext({ consumerRights: rightsOf({ mechanisms: { ...ALL_ON, checkoutTerms: true } }) })
-    const warned = spyOn(console, 'warn')
+    const memory = memoryPlugin('terms-fallback')
+    addLogPlugin(memory)
     try {
       fake.state.failures['checkout.sessions.create'] = missingTermsUrl()
       const url = await topUp(fake, { country: 'PL' })
@@ -201,11 +203,11 @@ describe('checkout under a consumer-rights policy — terms', () => {
       fake.state.failures['checkout.sessions.create'] = missingTermsUrl()
       await topUp(fake, { country: 'PL' })
       expect((await consumerEvents(fake.ctx).list({ action: 'checkout-terms-fallback' })).items).toHaveLength(2)
-      const operator = warned.mock.calls.filter(args => String(args[0]).includes('terms of service URL'))
+      const operator = memory.records.filter(record => record.level === 'warn' && record.message.includes('terms of service URL'))
       expect(operator).toHaveLength(1)
-      expect(String(operator[0][0])).toContain('Settings → Public details')
+      expect(operator[0].message).toContain('Settings → Public details')
     } finally {
-      warned.mockRestore()
+      removeLogPlugin('terms-fallback')
     }
   })
 

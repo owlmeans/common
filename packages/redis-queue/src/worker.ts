@@ -7,6 +7,7 @@ import {
   DEFAULT_ALIAS, DEFAULT_ATTEMPTS, entrypointProcessor, isListening, JobEventType, JobState,
   queueOf, QueueNotListening, servedJobs, UnknownJobName
 } from '@owlmeans/queue'
+import { logThrottle, logger } from '@owlmeans/log'
 import type { Job, WorkerOptions } from 'bullmq'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
 import type { Config, Context, RedisQueueWorkerService } from './types.js'
@@ -16,6 +17,8 @@ import {
 import {
   byJobId, jobRecordOf, progressOf, queueConnection, scheduleIdOf, syncSchedules
 } from './utils/index.js'
+
+const log = logger('redis-queue:worker')
 
 /**
  * The consuming half.
@@ -44,7 +47,7 @@ export const makeRedisQueueWorker = (
   /** A hook is the application's business: a throwing one must not fail the job it reports on. */
   const report = (result: void | Promise<void> | undefined): void => {
     void Promise.resolve(result).catch(
-      error => console.error(`${location}: queue hook failed`, error)
+      error => log.error('Queue hook failed', { worker: alias, error })
     )
   }
 
@@ -102,6 +105,7 @@ export const makeRedisQueueWorker = (
 
     const handled = jobContext(queue, job, token, signal, lockDuration)
     const run = async (): Promise<unknown> => await processor(handled)
+    log.debug('Job started', { queue, name: job.name, id: job.id, attempt: job.attemptsStarted }, { event: 'job.start' })
 
     try {
       return hooks.wrapHandler != null ? await hooks.wrapHandler(handled, run) : await run()
@@ -123,9 +127,15 @@ export const makeRedisQueueWorker = (
     || job.attemptsMade >= (job.opts.attempts ?? DEFAULT_ATTEMPTS)
 
   const observe = (queue: string, worker: Worker<unknown, unknown>): void => {
-    worker.on('error', error => console.error(`${location}: ${queue} worker error`, error))
+    // Connection trouble repeats on every reconnect attempt: one line per window is enough.
+    worker.on('error', error => {
+      if (logThrottle(`${location}:${queue}:error`)) {
+        log.error('Queue worker error', { worker: alias, queue, error })
+      }
+    })
 
     worker.on('completed', (job, result) => {
+      log.debug('Job finished', { queue, name: job.name, id: job.id }, { event: 'job.stop' })
       report(hooks.onJobResult?.({
         type: JobEventType.Completed, id: job.id ?? '', queue, name: job.name, result
       }))
@@ -136,6 +146,9 @@ export const makeRedisQueueWorker = (
       if (job == null) {
         return
       }
+      log.warn('Job attempt failed', {
+        queue, name: job.name, id: job.id, attempt: job.attemptsMade, error,
+      }, { event: 'job.fail' })
       report(hooks.onJobResult?.({
         type: JobEventType.Failed, id: job.id ?? '', queue, name: job.name, error: error.message
       }))
@@ -143,18 +156,22 @@ export const makeRedisQueueWorker = (
         report(hooks.onJobStalled?.({ id: job.id ?? '', queue, name: job.name }, 'failed'))
       }
       if (settled(job, error)) {
+        log.warn('Job dead', {
+          queue, name: job.name, id: job.id, attempts: job.attemptsMade, reason: error.message,
+        }, { event: 'job.dead' })
         report(hooks.onJobDead?.(jobRecordOf(queue, job, JobState.Failed), error.message))
       }
     })
 
     worker.on('stalled', jobId => {
+      log.warn('Job stalled', { queue, id: jobId }, { event: 'job.stalled' })
       // The stalled report carries an id alone, and the hook describes a job — so the name comes
       // from the queue, and a job already gone is reported nameless rather than not at all.
       void queues.get(queue)?.getJob(jobId).then(
         job => report(hooks.onJobStalled?.(
           { id: jobId, queue, name: job?.name ?? '' }, 'stalled'
         ))
-      ).catch(error => console.error(`${location}: ${queue} stalled report failed`, error))
+      ).catch(error => log.error('Job stalled report failed', { worker: alias, queue, error }))
     })
   }
 
@@ -241,9 +258,10 @@ export const makeRedisQueueWorker = (
         workers.set(name, worker)
 
         void worker.run().catch(
-          error => console.error(`${location}: ${name} stopped consuming`, error)
+          error => log.error('Queue worker stopped consuming', { worker: alias, queue: name, error })
         )
         bound.push(name)
+        log.info('Queue worker started', { worker: alias, queue: name }, { event: 'queue.worker.start' })
       }
 
       // Schedules are reconciled only once every worker is already consuming, and only for the
@@ -253,7 +271,7 @@ export const makeRedisQueueWorker = (
         const bullQueue = queues.get(name)
         if (bullQueue != null) {
           await syncSchedules(bullQueue, ctx.cfg, name).catch(
-            error => console.error(`${location}: ${name} schedules not reconciled`, error)
+            error => log.error('Queue schedules not reconciled', { worker: alias, queue: name, error })
           )
         }
       }))
@@ -268,8 +286,9 @@ export const makeRedisQueueWorker = (
 
     /** Drains: `close` lets the jobs in flight finish before the connections go. */
     stop: async () => {
-      for (const worker of workers.values()) {
+      for (const [name, worker] of workers) {
         await worker.close()
+        log.info('Queue worker stopped', { worker: alias, queue: name }, { event: 'queue.worker.stop' })
       }
       aborts.forEach(controller => controller.abort())
       for (const bullQueue of queues.values()) {

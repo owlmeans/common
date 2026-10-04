@@ -9,6 +9,7 @@ import type {
   ResultSummarySpec, StepResultsSpec,
 } from '@owlmeans/agent-common'
 import { prefixHash } from '@owlmeans/llm'
+import { logger } from '@owlmeans/log'
 import type { CumulativeResults } from '@owlmeans/llm-common'
 import { createMemoryCumulativeResultStore } from '../stores/memory.js'
 import type { CumulativeResultStore } from '../stores/types.js'
@@ -16,6 +17,8 @@ import type {
   PipelineEnterMode, PipelineParentRef, PipelinePlugin, PipelineRunContext, StepResults,
   VisibleResultEntry,
 } from './types.js'
+
+const log = logger('agent:pipeline:results')
 
 /** The plugin's alias. Seated under it, so wiring it twice replaces rather than doubles. */
 export const CUMULATIVE_RESULTS_PLUGIN = 'cumulative-results'
@@ -277,7 +280,7 @@ export const cumulativeResultsPlugin = <S extends PipelineState, C>(
   const runs = new Map<string, RunLedger<C>>()
 
   const warn = (what: string, e?: unknown): void => {
-    console.warn(`Cumulative results (${alias}): ${what}`, ...(e != null ? [e] : []))
+    log.warn('Cumulative results warning', { plugin: alias, what, ...(e != null ? { error: e } : {}) })
   }
 
   const say = (run: RunLedger<C>, line: string): void => {

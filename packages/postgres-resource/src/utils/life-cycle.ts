@@ -1,6 +1,7 @@
 import type { BasicContext } from '@owlmeans/context'
 import { MigrationStage, runMigrations } from '@owlmeans/resource'
 import type { DbConfig, MigrationReport, ResourceRecord } from '@owlmeans/resource'
+import { logger } from '@owlmeans/log'
 import type { PoolClient } from 'pg'
 
 import { DEF_MIGRATIONS_TABLE, PgAutoSync } from '../consts.js'
@@ -17,6 +18,8 @@ import { schemaToTableSpec } from './schema.js'
 import { refOf, resolvePlaceholders } from './sql.js'
 import { acquireLock, applyPlan, ensureSchema, releaseLock } from './sync.js'
 import { specToTable } from './table.js'
+
+const log = logger('postgres-resource')
 
 export interface TableInit {
   spec: TableSpec
@@ -90,10 +93,9 @@ export const initializeTable = async (
 
     for (const report of reports) {
       if (report.applied.length > 0) {
-        console.log(
-          `@owlmeans/postgres-resource: ${spec.qualified} applied ${report.stage} migrations —`
-          + ` ${report.applied.join(', ')}`
-        )
+        log.info('Migrations applied', {
+          resource: resource.alias, table: spec.qualified, stage: report.stage, applied: report.applied,
+        }, { event: 'migration.applied' })
       }
     }
   } finally {
