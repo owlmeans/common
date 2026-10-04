@@ -220,6 +220,7 @@ export const ConsumerConsentSchema = {
     id, kind: ConsentKindSchema, entityId: str, profileId: optStr, name: optStr, email: optStr,
     purchaseIds: { type: 'array', items: str },
     planSku: optStr, planName: optStr, textVersion: str, copyVersion: str, language: str, uiLanguage: optStr, trader: str,
+    context: optStr,
     text: {
       type: 'object',
       properties: { request: str, acknowledgement: str, checkbox: str },

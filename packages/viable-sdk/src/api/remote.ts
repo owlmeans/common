@@ -2,9 +2,10 @@ import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
 import { planningOf } from '@owlmeans/client-planning'
 import { connectRef } from '@owlmeans/viable-common'
 import type {
-  ConnectConvertCreateBody, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
-  ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
-  ConnectStoryStatus, ConnectTarget, ConversionDecision, ConversionStatusView, ConvertCheck, InquiryAnswerPayload,
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConnectOp, ConnectOpResult,
+  ConnectOpSubmission, ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave,
+  ConnectProjectStatus, ConnectSessionView, ConnectStoryStatus, ConnectTarget, ConversionStatusView, ConvertCheck,
+  InquiryAnswerPayload,
 } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
@@ -156,12 +157,11 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
         }),
       check: async (id: string): Promise<ConvertCheck> => await context
         .entrypoint(connectRef.convert.check).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
-      start: async (id: string): Promise<ConversionStatusView> => await context
-        .entrypoint(connectRef.convert.start).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
-      proceed: async (id: string, decision: ConversionDecision, note?: string) =>
+      start: async (id: string, body?: ConnectConvertStartBody): Promise<ConversionStatusView> => await context
+        .entrypoint(connectRef.convert.start).call({ params: { id }, body: body ?? {}, timeout: TOOL_DEADLINE_MS }),
+      proceed: async (id: string, body: ConnectConvertProceedBody) =>
         await context.entrypoint(connectRef.convert.proceed).call({
-          params: { id }, body: { decision, ...(note != null ? { note } : {}) },
-          timeout: TOOL_DEADLINE_MS,
+          params: { id }, body, timeout: TOOL_DEADLINE_MS,
         }),
       status: async (id: string): Promise<ConversionStatusView> => await context
         .entrypoint(connectRef.convert.status).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),

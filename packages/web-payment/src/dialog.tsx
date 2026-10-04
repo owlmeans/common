@@ -69,7 +69,10 @@ export const AmountCheckoutDialog = ({
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent closeLabel={t('close')} data-amount-checkout="" data-blocked={blocked ? 'true' : 'false'}>
+    {/* The tier details, the estimate and the legal note can outgrow a short screen: the body
+        scrolls so the confirm button always stays reachable. */}
+    <DialogContent closeLabel={t('close')} data-amount-checkout="" data-blocked={blocked ? 'true' : 'false'}
+      className="max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription>{t('description')}</DialogDescription>

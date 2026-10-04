@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import {
-  ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus,
+  ConnectConfirmationRequired, ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus,
   ConvertibilityVerdict, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD,
   STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition
 } from '@owlmeans/viable-common'
@@ -19,7 +19,9 @@ import { localStatus, runLocal, stopLocal } from '../run/index.js'
 import { parseTaskResult, renderTaskEnvelope } from '../task/envelope.js'
 import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
 import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
-import { refusalMessage, refusalPhrase } from './refusal.js'
+import {
+  confirmationRequiredPhrase, personRefusalPhrase, refusalMessage, refusalPhrase, unconfirmedConversionPhrase,
+} from './refusal.js'
 import { renderProjectSettings, settingsPatch, settingsReach } from './settings.js'
 import {
   conversionNext, renderPipelineStatus, renderProjectStatus, renderStoryStatus,
@@ -52,6 +54,10 @@ const fail = (text: string) => ({ text, isError: true })
  * it a refused conversion is the one thing an operator can find nothing about in the connector log
  * while every other tool is still recorded there. The marker is what is kept — that is what a
  * person greps for — and the stack belongs to a machine they cannot reach.
+ *
+ * The refusals only a PERSON resolves (the balance, the spend consent, a confirmation) are phrased
+ * and notified exactly as `registerCatalogue` does it — a conversion's balance refusal is no
+ * different from any other tool's.
  */
 const answering = async (
   deps: ToolDeps, name: string, run: () => Promise<ToolResult>
@@ -60,10 +66,71 @@ const answering = async (
     return await run()
   } catch (e) {
     deps.log(`${name} refused: ${refusalMessage(e)}`)
+    const person = personRefusalPhrase(e)
+    if (person != null) {
+      deps.notify?.('warning', person)
+
+      return fail(person)
+    }
 
     return fail(refusalPhrase(e))
   }
 }
+
+/** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
+const BARE_428 = 'api:client:status:428'
+
+/**
+ * The exact call that gives a conversion's confirmation: the same tool, the PROJECT named — a host
+ * that keeps no attachment between calls would otherwise file another conversion on the repeat —
+ * and `confirm: true`.
+ */
+const confirmedCall = (tool: string, args: Record<string, unknown>): string =>
+  `${tool} ${JSON.stringify({ ...args, confirm: true })}`
+
+/**
+ * A conversion verb that may stop for the person's agreement (`ConnectConfirmationRequired`): the
+ * refusal is answered with what to tell them and the exact call to repeat once they agree, and
+ * notified like every refusal only a person resolves. Sent without `confirm`, a bare 428 — all a
+ * production body leaves — is answered as that confirmation, the consent named beside it. Anything
+ * else is left to {@link answering}.
+ */
+const confirming = async (
+  deps: ToolDeps, tool: string, args: Record<string, unknown>, confirmed: boolean,
+  call: () => Promise<ConversionStatusView>,
+): Promise<ToolResult> => {
+  try {
+    return conversionResult(await call())
+  } catch (e) {
+    const retry = confirmedCall(tool, args)
+    const text = e instanceof ConnectConfirmationRequired
+      ? confirmationRequiredPhrase(e, retry)
+      : !confirmed && refusalMessage(e).includes(BARE_428) ? unconfirmedConversionPhrase(retry) : null
+    if (text == null) throw e
+    deps.log(`${tool} refused: ${refusalMessage(e)}`)
+    deps.notify?.('warning', text)
+
+    return fail(text)
+  }
+}
+
+/**
+ * The person's agreement a conversion verb carries — said in its input schema, so a parent knows
+ * what it means before the first refusal explains it.
+ */
+const CONFIRM_INPUT = z.boolean().default(false).describe(
+  'Set true ONLY after the user agreed to what this call said the step costs. Without it, a step'
+  + ' that would use the project conversion the plan includes, or spend the organization\'s credit'
+  + ' limits or topped-up credits, starts nothing and answers with its cost instead.'
+)
+
+/** What a conversion costs, in the words both conversion verbs' descriptions use. */
+const CONVERSION_COST = 'A plan that includes a project conversion covers its AI work up to the'
+  + ' conversion limit (1,000,000 credits); beyond it the organization\'s credit limits are spent first,'
+  + ' then topped-up credits, and every stage has an estimate. A step that would use the plan\'s'
+  + ' conversion or spend credits first answers with what it costs and starts nothing: tell the user,'
+  + ' and repeat the call with confirm: true only after they agree. A conversion your own agent performs'
+  + ' (its model calls delegated to you) spends no credits and is never asked.'
 
 /** The project a tool acts on: the one named, or the one the connector is attached to. */
 /** The roles the platform maps onto each power class, so a caller sees what it is sizing. */
@@ -1212,7 +1279,7 @@ export const catalogue: ToolDefinition[] = [
       'Bring an existing application onto the platform: it reads the code, restores the'
       + ' specification and the user stories nobody wrote down, and rebuilds it on the platform\'s'
       + ' stack. The original is kept beside it. Returns conversion status and stops at your decision after'
-      + ' each stage.',
+      + ` each stage. ${CONVERSION_COST}`,
     input: {
       projectId: z.string().optional().describe('Convert into a project that already exists.'),
       name: z.string().optional(),
@@ -1220,14 +1287,22 @@ export const catalogue: ToolDefinition[] = [
       repoUrl: z.string().optional()
         .describe('A GitHub repository to convert. Named, it is converted rather than this directory.'),
       branch: z.string().optional(),
+      confirm: CONFIRM_INPUT,
     },
     availability: anyHost,
     run: async (args, deps) => await answering(deps, 'convert_project', async () => {
+      const confirm = args.confirm === true
+      // The start is what spends the plan's conversion, so it is the call a confirmation stops —
+      // repeated with the project named, never by filing the conversion again.
+      const start = async (projectId: string): Promise<ToolResult> => await confirming(
+        deps, 'convert_project', { projectId }, confirm,
+        async () => await deps.api.convert.start(projectId, confirm ? { confirm } : {}),
+      )
       const named = typeof args.projectId === 'string' ? args.projectId : deps.attached()
       if (named != null) {
         await ensureSession(deps, named)
 
-        return conversionResult(await deps.api.convert.start(named))
+        return await start(named)
       }
 
       const repoUrl = typeof args.repoUrl === 'string' && args.repoUrl.trim() !== ''
@@ -1263,7 +1338,7 @@ export const catalogue: ToolDefinition[] = [
       deps.attach(status.projectId)
       await ensureSession(deps, status.projectId)
 
-      return conversionResult(await deps.api.convert.start(status.projectId))
+      return await start(status.projectId)
     }),
   },
 
@@ -1273,23 +1348,28 @@ export const catalogue: ToolDefinition[] = [
     description:
       'A conversion stops after each stage and waits for a decision: analyze what was read,'
       + ' extract the user stories, implement them, leave it as it stands, retry a stage that'
-      + ' failed, or cancel. Returns the conversion status.',
+      + ' failed, or cancel. Returns the conversion status. A stage the conversion limit still covers'
+      + ` runs at once. ${CONVERSION_COST}`,
     input: {
       decision: z.enum(Object.values(ConversionDecision) as [string, ...string[]]),
       projectId: z.string().optional(),
       note: z.string().optional().describe('What the user said about the decision. Recorded.'),
+      confirm: CONFIRM_INPUT,
     },
     availability: anyHost,
     run: async (args, deps) => await answering(deps, 'proceed_conversion', async () => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const status = await deps.api.convert.proceed(
-        project,
-        args.decision as ConversionDecision,
-        typeof args.note === 'string' ? args.note : undefined
-      )
+      const decision = args.decision as ConversionDecision
+      const note = typeof args.note === 'string' ? args.note : undefined
+      const confirm = args.confirm === true
 
-      return conversionResult(status)
+      return await confirming(
+        deps, 'proceed_conversion', { projectId: project, decision, ...(note != null ? { note } : {}) }, confirm,
+        async () => await deps.api.convert.proceed(project, {
+          decision, ...(note != null ? { note } : {}), ...(confirm ? { confirm } : {}),
+        }),
+      )
     }),
   },
 

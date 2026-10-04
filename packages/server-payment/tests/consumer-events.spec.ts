@@ -169,7 +169,7 @@ describe('webhook capture — subscriptions', () => {
     const confirmation = fake.mails.find(mail => mail.to === 'owner@shop.eu' && mail.subject.includes('CR-'))
     // The order confirmation is in the billing language; the start request is repeated verbatim, as shown (en).
     expect(confirmation?.subject).toStartWith('Bestellbestätigung')
-    expect(confirmation?.text).toContain('I expressly request and agree that Example starts the Pro platform services')
+    expect(confirmation?.text).toContain('I expressly request and agree that Example starts the Pro services — including the AI work')
     expect(confirmation?.text).toContain('https://app.example.com/legal/cancel')
   })
 

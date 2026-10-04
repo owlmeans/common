@@ -1093,6 +1093,11 @@ export interface ConsumerConsentRecord extends ResourceRecord, RequestOrigin {
   language: string
   uiLanguage?: string
   trader: string
+  /**
+   * The copy variant the statement was rendered with: the policy's `consentContext` for a
+   * performance consent, `startContextOf(plan)` (`'units'`) for a start request; absent for the base.
+   */
+  context?: string
   /** The statement exactly as rendered and recorded. */
   text: { request: string, acknowledgement: string, checkbox: string }
   links: ConsumerRightsLinks
@@ -1315,9 +1320,13 @@ export interface ConsumerRightsService extends LazyService {
   recordConsent: (subject: ConsumerSubject, body: PerformanceConsentBody, origin?: RequestOrigin) => Promise<PerformanceConsentResponse>
   /** @throws PerformanceConsentRequired while an open in-scope window has no consent */
   assertConsent: (entityId: string, at?: Date) => Promise<void>
+  /** `context` = `startContextOf(plan)`: the statement variant the dialog shows and the request records. */
   startView: (entityId: string, planSku: string, opts?: { language?: string }) => Promise<SubscriptionStartView>
-  /** @throws SubscriptionStartRequired (428) for a stale text version */
-  /** `plan`: the plan's short name the statement says (default: its localized catalogue title). */
+  /**
+   * Records the statement in the variant of the plan (`startContextOf`), the one the start view
+   * named. `plan`: the plan's short name the statement says (default: its localized catalogue title).
+   * @throws SubscriptionStartRequired (428) for a stale text version
+   */
   recordStartRequest: (
     subject: ConsumerSubject, body: SubscriptionStartBody, origin?: RequestOrigin, opts?: { plan?: string },
   ) => Promise<SubscriptionStartResponse>

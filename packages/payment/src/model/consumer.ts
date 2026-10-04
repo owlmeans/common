@@ -36,6 +36,10 @@ const EmailSchema: JSONSchemaType<string> = {
   type: 'string', minLength: 3, maxLength: 254, pattern: '^[^\\s@]+@[^\\s@]+$',
 }
 const HoneypotSchema: JSONSchemaType<string> = { type: 'string', maxLength: 256 }
+/** A copy variant suffix: `performance-consent.request_<context>`, `subscription-start.request_units`. */
+const ConsentContextSchema: JSONSchemaType<string> = {
+  type: 'string', minLength: 1, maxLength: 64, pattern: '^[a-z][a-z0-9-]*$',
+}
 const AcknowledgedSchema = { type: 'boolean', const: true } as unknown as JSONSchemaType<true>
 /** A region that may be `null` on the wire — an enum admits `null` only when it lists it. */
 const NullableRegionSchema = {
@@ -107,6 +111,7 @@ export const ConsumerRightsPolicySchema = schema<ConsumerRightsPolicy>({
     renewalOpensWindow: { type: 'boolean', nullable: true },
     startRequestTtlSeconds: { type: 'number', minimum: 1, multipleOf: 1, nullable: true },
     exemptBusinesses: { type: 'boolean', nullable: true },
+    consentContext: { ...ConsentContextSchema, nullable: true },
   },
   required: [
     'textVersion', 'countries', 'unknownCountry', 'withdrawalDays', 'deadline', 'mechanisms', 'defaultLanguage',
@@ -178,6 +183,7 @@ export const PerformanceConsentViewSchema = schema<PerformanceConsentView>({
     country: { ...CountrySchema, nullable: true },
     language: LanguageSchema,
     trader: NameSchema,
+    context: { ...ConsentContextSchema, nullable: true },
     textVersion: VersionSchema,
     copyVersion: VersionSchema,
     links: ConsumerRightsLinksSchema,
@@ -230,6 +236,7 @@ export const SubscriptionStartViewSchema = schema<SubscriptionStartView>({
     planSku: KeySchema,
     language: LanguageSchema,
     trader: NameSchema,
+    context: { ...ConsentContextSchema, nullable: true },
     textVersion: VersionSchema,
     copyVersion: VersionSchema,
     links: ConsumerRightsLinksSchema,

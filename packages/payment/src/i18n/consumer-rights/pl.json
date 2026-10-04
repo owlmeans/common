@@ -1,20 +1,27 @@
 {
   "performance-consent": {
     "title": "Rozpocząć korzystanie z kredytów teraz?",
+    "title_included": "Wykorzystać teraz doładowane kredyty?",
     "intro": "Zakupy nadal objęte terminem do odstąpienia od umowy: {{count}}. Ostatni termin upływa {{deadline}}.",
+    "intro_included": "Zakupy nadal objęte terminem do odstąpienia od umowy: {{count}}. Ostatni termin upływa {{deadline}}. Limity kredytów wliczone w Twój plan są zawsze wykorzystywane w pierwszej kolejności; dotyczy to doładowanych przez Ciebie kredytów po wyczerpaniu tych limitów.",
     "purchase": "Kredyty kupione {{date}} ({{amount}}): jako konsument w UE możesz odstąpić od tego zakupu do końca dnia {{deadline}}.",
     "request": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy.",
+    "request_included": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy, opłacanej z doładowanych przeze mnie kredytów po wyczerpaniu limitów kredytów wliczonych w mój plan, które są zawsze wykorzystywane w pierwszej kolejności.",
     "acknowledgement": "Przyjmuję do wiadomości, że w odniesieniu do wykorzystanych przeze mnie kredytów utracę prawo odstąpienia od umowy po wykonaniu tej pracy, a w razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty.",
     "checkbox": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w odniesieniu do wykorzystanych przeze mnie kredytów utracę prawo odstąpienia od umowy po wykonaniu tej pracy, a w razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty.",
+    "checkbox_included": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia odpłatnej usługi — pracy AI i tworzonych przez nią treści cyfrowych — teraz, przed upływem terminu do odstąpienia od umowy, opłacanej z doładowanych przeze mnie kredytów po wyczerpaniu limitów kredytów wliczonych w mój plan, które są zawsze wykorzystywane w pierwszej kolejności. Przyjmuję do wiadomości, że w odniesieniu do wykorzystanych przeze mnie kredytów utracę prawo odstąpienia od umowy po wykonaniu tej pracy, a w razie odstąpienia od umowy zwrotowi podlegają tylko niewykorzystane kredyty.",
     "confirm": "Rozpocznij teraz",
     "decline": "Nie teraz"
   },
   "subscription-start": {
     "title": "Rozpocząć usługi {{plan}} teraz?",
     "intro": "Jako konsument w UE możesz odstąpić od tej subskrypcji w terminie 14 dni. Przed upływem tego terminu rozpoczynamy świadczenie usług wyłącznie na Twoje wyraźne żądanie.",
-    "request": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy.",
-    "acknowledgement": "Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
-    "checkbox": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
+    "request": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług {{plan}} — w tym pracy AI w ramach użycia wliczonego w plan — teraz, przed upływem 14-dniowego terminu do odstąpienia od umowy.",
+    "request_units": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy.",
+    "acknowledgement": "Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi świadczone do tego czasu, proporcjonalnie do liczby dni, które upłynęły, a cała pozostała kwota podlega zwrotowi.",
+    "acknowledgement_units": "Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
+    "checkbox": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług {{plan}} — w tym pracy AI w ramach użycia wliczonego w plan — teraz, przed upływem 14-dniowego terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi świadczone do tego czasu, proporcjonalnie do liczby dni, które upłynęły, a cała pozostała kwota podlega zwrotowi.",
+    "checkbox_units": "Żądam i wyrażam wyraźną zgodę na rozpoczęcie przez {{trader}} świadczenia usług platformy {{plan}} teraz oraz na wykonywanie pracy AI opłacanej z kredytów wliczonych w cenę za każdym razem, gdy ją uruchomię, przed upływem 14-dniowego terminu do odstąpienia od umowy. Przyjmuję do wiadomości, że w razie odstąpienia od umowy zapłacę za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, oraz że utracę prawo odstąpienia od umowy w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi.",
     "confirm": "Przejdź do płatności",
     "decline": "Anuluj"
   },
@@ -92,7 +99,8 @@
     "start": {
       "subject": "Potwierdzenie: żądanie rozpoczęcia usług {{plan}}",
       "body": "W dniu {{date}} (UTC), przed zakupem subskrypcji {{plan}}, otrzymaliśmy od Ciebie następujące oświadczenie:\n\n„{{statement}}”",
-      "rule": "W razie odstąpienia od umowy w terminie do odstąpienia zapłacisz za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, a prawo odstąpienia od umowy wygasa w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi."
+      "rule": "W razie odstąpienia od umowy w terminie do odstąpienia zapłacisz za usługi świadczone do tego czasu, proporcjonalnie do liczby dni, które upłynęły; cała pozostała kwota podlega zwrotowi.",
+      "rule_units": "W razie odstąpienia od umowy w terminie do odstąpienia zapłacisz za usługi platformy świadczone do tego czasu, proporcjonalnie do upływu czasu, a prawo odstąpienia od umowy wygasa w odniesieniu do wykorzystanych kredytów wliczonych w cenę; cała pozostała kwota podlega zwrotowi."
     },
     "purchase": {
       "subject": "Potwierdzenie zamówienia {{contractRef}}",

@@ -11,6 +11,7 @@ declareConsumerRights(cfg, {
                                            // currencies { eu, other }, countries, withdrawalDays, deadline, …
   trader: { name, legalName, address?, email?, website? },   // backend only; required when any mechanism is on
   mail: { alias?, from?, replyTo?, bcc?: string[] },          // backend only
+  consentContext?: string,                 // advertised: the performance-consent copy variant (`included`)
 }): ConsumerRightsPolicy
 ```
 
@@ -30,7 +31,7 @@ declareConsumerRights(cfg, {
 |---|---|
 | `BillingProfileRecord` | `entityId, country, region, currency, language, source ('checkout'\|'customer'\|'manual'), paygate, customerId?, sessionId?, ipCountry?, email?, name?, business?, lockedAt, createdAt, updatedAt?` |
 | `PurchaseRecord` | `purchaseId, contractRef, entityId, kind, paygate, sessionId?, subscriptionId?, paymentIntentId?, invoiceId?, invoiceNumber?, invoiceLineId?, productSku, planSku?, profileId?, country?, region?, ipCountry?, inScope, language, email?, name?, business?, currency, amountSubtotalMinor, amountTaxMinor, amountTotalMinor, presentmentCurrency?, presentmentAmountMinor?, netAmountMinor?, amountCurrency?, units?, taxBehavior?, termsAccepted?, textVersion?, copyVersion?, startRequestId?, servicesStartedAt?, confirmationMailAt?, purchasedAt, deadline?, consentId?, consentedAt?, withdrawalId?, withdrawnAt?, refundedMinor?, refundedAt?, cancellationId?, cancelEffectiveAt?, createdAt, updatedAt?` |
-| `ConsumerConsentRecord` | `kind ('performance'\|'subscription-start'), entityId, profileId?, name?, email?, purchaseIds[], planSku?, planName?, textVersion, copyVersion, language, uiLanguage?, trader, text {request, acknowledgement, checkbox}, links, deadline?, decidedAt, expiresAt?` + `RequestOrigin` |
+| `ConsumerConsentRecord` | `kind ('performance'\|'subscription-start'), entityId, profileId?, name?, email?, purchaseIds[], planSku?, planName?, textVersion, copyVersion, language, uiLanguage?, trader, context? (the copy variant: the policy's `consentContext` / `startContextOf(plan)`), text {request, acknowledgement, checkbox}, links, deadline?, decidedAt, expiresAt?` + `RequestOrigin` |
 | `ConsumerDeclarationRecord` | `kind ('withdrawal'\|'cancellation'), channel ('in-app'\|'public'), entityId?, purchaseId?, subscriptionId?, contractRef?, name, email, cancellationKind?, reason?, effective?, requestedDate?, language, textVersion?, copyVersion, receivedAt, matched, profileId?, duplicateOf?, status, refundMinor?, currency?, effectiveAt?` + `RequestOrigin` |
 | `ConsumerEventRecord` | `recordId, recordKind ('purchase'\|'consent'\|'declaration'\|'profile'\|'checkout'), entityId?, action, step?, ok, skipped?, externalId?, amountMinor?, currency?, detail? (JSON), error?, at` |
 | `RequestOrigin` | `ip?, forwardedFor?, userAgent?, ipCountry?, acceptLanguage?, via?` |
@@ -59,11 +60,11 @@ Accessors (`src/utils.ts`): `billingProfiles`, `purchases`, `consumerConsents`,
 | `lock(entityId, country, source, { force?, by?, reason?, currency?, … })` | first write wins; `manual` + `force` relocks (event `relock`) |
 | `unlock(entityId, { by?, reason? })` | deletes the profile while it still holds the country read (else `ConsumerRightsError('unlock:changed:<id>')`), event `unlock`; answers the old view or `null`; no lazy lock from the paygate customer follows |
 | `purchases(entityId, { open?, at? })` | `PurchaseView[]`, newest first; `withdrawable` asks the meter for top-ups |
-| `consentView(entityId, at?)` | `PerformanceConsentView`: the open unconsented top-up windows, the billing language, the trader name, links |
-| `recordConsent(subject, body, origin?)` | 428 on a stale version or a view that saw none of the open windows; covers the listed open windows |
+| `consentView(entityId, at?)` | `PerformanceConsentView`: the open unconsented top-up windows, the billing language, the trader name, links, `context` = the policy's `consentContext` (absent without one) |
+| `recordConsent(subject, body, origin?)` | 428 on a stale version or a view that saw none of the open windows; covers the listed open windows; `text` = `consentStatementOf(body.language, Performance, { trader, context: policy.consentContext })`, `context` stored |
 | `assertConsent(entityId, at?)` | one indexed query; `PerformanceConsentRequired {pending, deadline}` |
-| `startView(entityId, planSku, { language? })` | `SubscriptionStartView`; `required` unless locked outside the territories |
-| `recordStartRequest(subject, body, origin?, { plan? })` | 428 `SubscriptionStartRequired` on a stale version; `UnknownPlan`; mails the start confirmation |
+| `startView(entityId, planSku, { language? })` | `SubscriptionStartView`; `required` unless locked outside the territories; `context` = `startContextOf(plan)` |
+| `recordStartRequest(subject, body, origin?, { plan? })` | 428 `SubscriptionStartRequired` on a stale version; `UnknownPlan`; `text` = `consentStatementOf(body.language, SubscriptionStart, { trader, plan, context: startContextOf(plan) })`, `context` stored; mails the start confirmation |
 | `assertStartRequest(entityId, planSku, id?)` | the fresh request bound to entity, plan and text version, or `null` when none is needed; else 428 |
 | `withdrawalCandidates(entityId, subject?)` | open windows with an estimate (a top-up fully used after consent is left out); `automatic` = refunds on, meter present, managed |
 | `withdraw(subject \| null, body, origin?)` | see below |
@@ -135,8 +136,8 @@ unrefunded and rounded in the consumer's favour.
 | Kind | When | Content |
 |---|---|---|
 | `purchase` | an in-scope purchase with an e-mail, once (the conditional `confirmationMailAt` claim) | order (contract, date, product, total incl. tax), the start request verbatim, withdrawal information with the function's address, model form, links |
-| `consent` | a consent covering purchases | the statement verbatim, date/time UTC, the purchases with their last day, the unused-credits rule, links |
-| `start` | a start request | the statement verbatim, the plan, the pro-rata rule, links |
+| `consent` | a consent covering purchases | the statement verbatim (the recorded `text.checkbox` — the `consentContext` variant when declared), date/time UTC, the purchases with their last day, the unused-credits rule, links |
+| `start` | a start request | the statement verbatim, the plan, the rule of the recorded variant (`email.start.rule`, `rule_units` when the record's `context` is `units`), links |
 | `withdrawal` | every declaration (not a repeat) | the declaration, date/time of receipt, refund / review / expired / unmatched |
 | `cancellation` | every declaration | the declaration, the effective date / review / unmatched |
 

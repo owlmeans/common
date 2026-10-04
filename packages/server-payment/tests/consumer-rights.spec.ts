@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  CancellationKind, CancellationStatus, CancellationUnavailable, LimitKind, PerformanceConsentRequired,
-  PlanDuration, WithdrawalStatus, WithdrawalUnavailable,
+  CancellationKind, CancellationStatus, CancellationUnavailable, ConsentKind, consentStatementOf, consumerText,
+  LimitKind, PerformanceConsentRequired, PlanDuration, WithdrawalStatus, WithdrawalUnavailable,
 } from '@owlmeans/payment'
 import {
   consumerDeclarations, consumerEvents, consumerRights, paygateCustomers, purchases, subscriptions,
 } from '../src/utils.js'
 import type { PaymentPlanDef, PurchaseRecord } from '../src/types.js'
 import {
-  buyTopUp, ENTITY, fixedMeter, invoiceOf, makeRightsContext, PLANS_PRODUCT, requestStart, rightsOf, send,
+  buyTopUp, ENTITY, fixedMeter, invoiceOf, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf, send,
   TEXT_VERSION,
 } from './consumer-fixtures.js'
 import type { RecordingMeter } from './consumer-fixtures.js'
@@ -81,6 +81,35 @@ describe('consumer rights — performance consent', () => {
     })])
   })
 
+  test('without a consent context the view names none and the base statement is recorded', async () => {
+    const fake = await makeRightsContext()
+    const purchase = await buyTopUp(fake)
+    expect(await service(fake).consentView(ENTITY)).not.toHaveProperty('context')
+    const response = await consent(fake, purchase)
+    const record = fake.stores['payment-consumer-consent'].rows.find(row => row.id === response.consentId)
+    expect(record?.text).toEqual(consentStatementOf('de', ConsentKind.Performance, { trader: 'Example' }))
+    expect(record?.context).toBeUndefined()
+  })
+
+  test('a declared consent context: the view carries it; the recorded and mailed statement is its variant', async () => {
+    const fake = await makeRightsContext({ consumerRights: rightsOf({ consentContext: 'included' }) })
+    const purchase = await buyTopUp(fake)
+    const view = await service(fake).consentView(ENTITY)
+    expect(view).toEqual(expect.objectContaining({ required: true, language: 'pl', context: 'included' }))
+
+    const response = await consent(fake, purchase)
+    const record = fake.stores['payment-consumer-consent'].rows.find(row => row.id === response.consentId)
+    const variant = consentStatementOf('de', ConsentKind.Performance, { trader: 'Example', context: 'included' })
+    expect(record?.text).toEqual(variant)
+    expect(record?.context).toBe('included')
+    expect(variant.checkbox).not.toBe(consentStatementOf('de', ConsentKind.Performance, { trader: 'Example' }).checkbox)
+    expect(record?.text.checkbox).toStartWith('Ich verlange ausdrücklich und stimme ausdrücklich zu')
+    expect(record?.text.checkbox).toContain('aufgeladenen Credits')
+    expect(record?.text.checkbox).toContain('enthaltenen Credit-Limits')
+    const mail = fake.mails.find(item => item.to === 'owner@shop.eu')
+    expect(mail?.text).toContain(variant.checkbox)
+  })
+
   test('a consent covers only what it was shown; a purchase outside the territories never needs one', async () => {
     const fake = await makeRightsContext()
     const first = await buyTopUp(fake)
@@ -95,6 +124,53 @@ describe('consumer rights — performance consent', () => {
     })
     await service(other).assertConsent(ENTITY)
     expect((await service(other).consentView(ENTITY)).required).toBe(false)
+  })
+})
+
+describe('consumer rights — the subscription start request follows the plan\'s withdrawal arithmetic', () => {
+  const TIMED = 'pro-timed'
+  /** A plan whose components are all `time`: withdrawn pro rata by the days elapsed, like a plan without any. */
+  const TIMED_PLAN: PaymentPlanDef = {
+    ...SPLIT_PLAN, sku: TIMED, rank: 16, title: 'Pro timed',
+    withdrawal: { components: [{ key: 'services', basis: 'time', shareMinor: 2_000 }] },
+  }
+  const startMail = (fake: FakeContext, statement: string) =>
+    fake.mails.find(mail => mail.to === 'owner@shop.eu' && mail.text?.includes(statement) === true)
+  const recorded = (fake: FakeContext, id: string) => fake.stores['payment-consumer-consent'].rows.find(row => row.id === id)
+
+  test('a time-only plan: the view names no variant; the base statement and the base rule are recorded and mailed', async () => {
+    const fake = await makeRightsContext({ catalogue: { plans: [SPLIT_PLAN, TIMED_PLAN] } })
+    for (const [planSku, language] of [[PRO, 'de'], [TIMED, 'pl']] as const) {
+      const view = await service(fake).startView(ENTITY, planSku, { language })
+      expect(view).toEqual(expect.objectContaining({ required: true, planSku, language, trader: 'Example' }))
+      expect(view).not.toHaveProperty('context')
+
+      const id = await requestStart(fake, { planSku, language })
+      const base = consentStatementOf(language, ConsentKind.SubscriptionStart, { trader: 'Example', plan: 'Pro' })
+      expect(recorded(fake, id)?.text).toEqual(base)
+      expect(recorded(fake, id)?.context).toBeUndefined()
+      expect(base.checkbox).toBe(consumerText(language, 'subscription-start.checkbox', { trader: 'Example', plan: 'Pro' }))
+      const mail = startMail(fake, base.checkbox)
+      expect(mail?.text).toContain(consumerText(language, 'email.start.rule'))
+      expect(mail?.text).not.toContain(consumerText(language, 'email.start.rule_units'))
+    }
+  })
+
+  test('a plan with a units component: the view names `units`; that variant is recorded and mailed with its rule', async () => {
+    const fake = await makeRightsContext({ catalogue: { plans: [SPLIT_PLAN] } })
+    const view = await service(fake).startView(ENTITY, SPLIT, { language: 'de' })
+    expect(view).toEqual(expect.objectContaining({ planSku: SPLIT, language: 'de', context: 'units' }))
+
+    const id = await requestStart(fake, { planSku: SPLIT, language: 'de' })
+    const variant = consentStatementOf('de', ConsentKind.SubscriptionStart, { trader: 'Example', plan: 'Pro', context: view.context })
+    expect(recorded(fake, id)?.text).toEqual(variant)
+    expect(recorded(fake, id)?.context).toBe('units')
+    expect(variant.checkbox).toBe(consumerText('de', 'subscription-start.checkbox_units', { trader: 'Example', plan: 'Pro' }))
+    expect(variant.checkbox).toStartWith('Ich verlange ausdrücklich und stimme ausdrücklich zu')
+    expect(variant.checkbox).toContain('enthaltenen Credits')
+    const mail = startMail(fake, variant.checkbox)
+    expect(mail?.text).toContain(consumerText('de', 'email.start.rule_units'))
+    expect(mail?.text).not.toContain(consumerText('de', 'email.start.rule'))
   })
 })
 

@@ -5,7 +5,7 @@ import {
   cancellationEffectiveAt, CancellationKind, CancellationStatus, CancellationUnavailable,
   CancellationUnavailableReason, ConsentKind, consentStatementOf, CONSUMER_RIGHTS_COPY_VERSION, ConsumerRightsError,
   DeclarationChannel, DeclarationKind, ENTITLING_STATUSES, inScope, linksOf, PaygateError,
-  PerformanceConsentRequired, PurchaseKind, SubscriptionStartRequired, TERMINAL_STATUSES, UnknownPlan,
+  PerformanceConsentRequired, PurchaseKind, startContextOf, SubscriptionStartRequired, TERMINAL_STATUSES, UnknownPlan,
   WithdrawalStatus, WithdrawalUnavailable, WithdrawalUnavailableReason,
 } from '@owlmeans/payment'
 import type {
@@ -315,6 +315,7 @@ export const makeConsumerRightsService = (
         country: profile?.country ?? windows[0]?.country ?? null,
         language,
         trader: traderOf(ctx, await consumerMailConfig(ctx)).name,
+        ...(policy.consentContext != null ? { context: policy.consentContext } : {}),
         textVersion: policy.textVersion,
         copyVersion: CONSUMER_RIGHTS_COPY_VERSION,
         links: linksOf(policy, language),
@@ -353,7 +354,10 @@ export const makeConsumerRightsService = (
         language: body.language,
         uiLanguage: body.uiLanguage,
         trader: trader.name,
-        text: consentStatementOf(body.language, ConsentKind.Performance, { trader: trader.name }),
+        context: policy.consentContext,
+        text: consentStatementOf(body.language, ConsentKind.Performance, {
+          trader: trader.name, context: policy.consentContext,
+        }),
         links: linksOf(policy, body.language),
         deadline,
         decidedAt: at,
@@ -388,12 +392,15 @@ export const makeConsumerRightsService = (
       const policy = await requirePolicy(ctx)
       const profile = await billingProfiles(ctx).byEntity(entityId)
       const language = viewOpts.language ?? profile?.language ?? policy.defaultLanguage
+      // The statement follows the plan's withdrawal arithmetic — the variant `recordStartRequest` records.
+      const context = startContextOf(await findPlan(ctx, planSku))
       const view: SubscriptionStartView = {
         required: policy.mechanisms.subscriptionStart
           && (profile == null || inScope(profile.region, profile.country, policy)),
         planSku,
         language,
         trader: traderOf(ctx, await consumerMailConfig(ctx)).name,
+        ...(context != null ? { context } : {}),
         textVersion: policy.textVersion,
         copyVersion: CONSUMER_RIGHTS_COPY_VERSION,
         links: linksOf(policy, language),
@@ -412,9 +419,11 @@ export const makeConsumerRightsService = (
       if (body.textVersion !== policy.textVersion) {
         throw new SubscriptionStartRequired(body.planSku)
       }
-      if (await findPlan(ctx, body.planSku) == null) {
+      const plan = await findPlan(ctx, body.planSku)
+      if (plan == null) {
         throw new UnknownPlan(body.planSku)
       }
+      const context = startContextOf(plan)
       const at = new Date()
       const expiresAt = new Date(at.getTime() + (policy.startRequestTtlSeconds ?? 3600) * 1000)
       const trader = traderOf(ctx, await consumerMailConfig(ctx))
@@ -432,7 +441,8 @@ export const makeConsumerRightsService = (
         copyVersion: CONSUMER_RIGHTS_COPY_VERSION,
         language: body.language,
         trader: trader.name,
-        text: consentStatementOf(body.language, ConsentKind.SubscriptionStart, { trader: trader.name, plan: planName }),
+        context,
+        text: consentStatementOf(body.language, ConsentKind.SubscriptionStart, { trader: trader.name, plan: planName, context }),
         links: linksOf(policy, body.language),
         decidedAt: at,
         expiresAt,

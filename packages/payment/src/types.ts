@@ -422,6 +422,11 @@ export interface ConsumerRightsPolicy {
   startRequestTtlSeconds?: number
   /** Whether a buyer with a business tax id is exempt. Off by default: everyone is protected. */
   exemptBusinesses?: boolean
+  /**
+   * The copy variant of the performance consent (`^[a-z][a-z0-9-]*$`): its texts are read as
+   * `<key>_<consentContext>` first, the base key where no variant exists. Absent: the base texts.
+   */
+  consentContext?: string
 }
 
 /** An entity's billing country, fixed at the first purchase. */
@@ -469,6 +474,8 @@ export interface PerformanceConsentView {
   language: string
   /** The trader named in the statement. */
   trader: string
+  /** The policy's `consentContext`: the copy variant the statement is rendered with. */
+  context?: string
   textVersion: string
   copyVersion: string
   links: ConsumerRightsLinks
@@ -505,6 +512,11 @@ export interface SubscriptionStartView {
   planSku: string
   language: string
   trader: string
+  /**
+   * The copy variant the statement is rendered with — `startContextOf(plan)`: `'units'` for a plan
+   * with a `units` withdrawal component, absent for one withdrawn pro rata by time only.
+   */
+  context?: string
   textVersion: string
   copyVersion: string
   links: ConsumerRightsLinks

@@ -3,7 +3,7 @@ import { route, RouteMethod } from '@owlmeans/route'
 import { connect } from './consts.js'
 import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
-  ConnectConvertProceedBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
+  ConnectConvertProceedBodySchema, ConnectConvertStartBodySchema, ConnectCreateBodySchema, ConnectInquiryParamsSchema,
   ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
   ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
@@ -11,7 +11,7 @@ import {
 } from './schemas.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
+  ConnectConvertStartBody, ConnectCreateBody, ConnectInquiryAnswerBody, ConnectModifyBody,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
   ConnectProjectBrandingSave, ConnectSessionOpen,
   ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
@@ -197,7 +197,10 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
     ),
     start: protocol(
       route(connect.convert.start, '/convert/:id/start', { parent: base, method: RouteMethod.POST }),
-      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema) }, typed<ConversionStatusView>()),
+      contract.request({
+        params: typed<{ id: string }>(ConnectProjectIdSchema),
+        body: typed<ConnectConvertStartBody>(ConnectConvertStartBodySchema),
+      }, typed<ConversionStatusView>()),
     ),
     proceed: protocol(
       route(connect.convert.proceed, '/convert/:id/proceed', { parent: base, method: RouteMethod.POST }),

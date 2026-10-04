@@ -1,5 +1,8 @@
 import { ResilientError } from '@owlmeans/error'
-import { ModerationCategory } from '@owlmeans/viable-common'
+import {
+  ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits, ModerationCategory,
+} from '@owlmeans/viable-common'
+import type { ConnectConfirmation } from '@owlmeans/viable-common'
 import { projectSettingOf } from './settings.js'
 
 /**
@@ -51,6 +54,97 @@ export const consentRequiredPhrase = (url: string, deadline?: Date): string => {
     + ` Ask the user to open ${url !== '' ? url : 'Billing in the OwlMeans web application'}`
     + ' and confirm there in the browser. Do not retry this call automatically — call it again only'
     + ' after the user says they have confirmed.'
+}
+
+/** Credits as a person reads them: whole, with thousands separators. Never money. */
+const creditsOf = (credits: number): string => Math.round(Math.max(0, credits)).toLocaleString('en-US')
+
+/** Where a conversion stage's estimate would come from, in the order the ledger spends it. */
+const splitOf = (fields: ConnectConfirmation): string => {
+  const parts = [
+    ...(fields.fromAllowance > 0 ? [`${creditsOf(fields.fromAllowance)} from the conversion limit`] : []),
+    ...(fields.fromCreditLimits > 0 ? [`${creditsOf(fields.fromCreditLimits)} from the organization's credit limits`] : []),
+    ...(fields.moneyUsd > 0 ? [`$${fields.moneyUsd.toFixed(2)} of topped-up credits`] : []),
+  ]
+
+  return parts.length > 0 ? parts.join(', ') : 'nothing from any balance yet'
+}
+
+/**
+ * What the model tells a PERSON when a conversion verb waits for their agreement — what the plan's
+ * conversion limit covers and has left, what the stage is estimated at and where that comes from
+ * (credit limits as credits, topped-up credits as money) — and the exact call that gives it.
+ * Unlike the consent, this is agreed to in the conversation; the sentence still forbids the model
+ * from sending `confirm: true` on its own, because the call it unlocks spends the user's money.
+ *
+ * `retry` is the call to repeat (the caller knows the project and the arguments); without it, the
+ * same tool with the same arguments and `confirm: true`.
+ */
+export const confirmationRequiredPhrase = (fields: ConnectConfirmation, retry?: string): string => {
+  const limited = fields.cap > 0
+  const said = ['Nothing was started.']
+  if (fields.action === 'convert-proceed') {
+    said.push(`The next conversion stage is estimated at about ${creditsOf(fields.estimate)} credits: ${splitOf(fields)}.`)
+    said.push(limited
+      ? `Conversion limit: ${creditsOf(fields.spent)} of ${creditsOf(fields.cap)} credits used,`
+        + ` ${creditsOf(fields.cap - fields.spent)} left (updated shortly after each stage).`
+      : 'No plan conversion covers this conversion, so it has no conversion limit: every stage is paid'
+        + ' from the organization\'s credit limits first, then from topped-up credits.')
+  } else {
+    said.push(limited
+      ? 'This conversion would use the project conversion the plan includes: its AI work is free up to'
+        + ` ${creditsOf(fields.cap)} credits (the conversion limit). If it needs more, the rest is paid from`
+        + ' the organization\'s credit limits first, then from topped-up credits, and every stage shows'
+        + ' its estimate and asks again before it spends any of them.'
+      : 'This conversion is paid from the organization\'s credit limits first, then from topped-up'
+        + ' credits, and every stage shows its estimate first.')
+    if (fields.estimate > 0) {
+      said.push(`Its first stage is estimated at about ${creditsOf(fields.estimate)} credits: ${splitOf(fields)}.`)
+    }
+  }
+  said.push('Tell the user exactly this and ask whether to go ahead. Only after they agree, call'
+    + ` ${retry ?? 'this tool again with the same arguments and "confirm": true'} — never send confirm: true on`
+    + ' your own.')
+
+  return said.join(' ')
+}
+
+/**
+ * A bare 428 answered to a conversion verb sent WITHOUT `confirm` — what a production body leaves
+ * of a refusal (an incident id and the status). It is the confirmation unless the organization's
+ * spend consent is also missing, and the two cannot be told apart here, so both are said, in the
+ * order they are met: the confirmation, then — only if the confirmed call is refused again — the
+ * consent in the browser.
+ */
+export const unconfirmedConversionPhrase = (retry: string): string =>
+  'Nothing was started: the platform waits for the user\'s go-ahead. A conversion step is refused like'
+  + ' this when it would use the project conversion the plan includes (its AI work is free up to the'
+  + ' conversion limit) or spend the organization\'s credit limits or topped-up credits; conversion_status'
+  + ` shows the stage estimates. Tell the user and ask; only after they agree, call ${retry}. If that call is`
+  + ' refused the same way again, the organization bought credits less than 14 days ago and a person must'
+  + ' first confirm in Billing in the OwlMeans web application, in the browser — do not retry until they say'
+  + ' they did.'
+
+/**
+ * The three refusals only a PERSON can resolve — the balance, the EU spend consent and a
+ * conversion's confirmation — in the words the model relays to them, or `null` for anything else.
+ * Matched by class: their fields travel packed in the message and are rebuilt by
+ * `finalizeUnmarshal()`. `retry` is the confirmation's call to repeat, where the caller knows it.
+ */
+export const personRefusalPhrase = (e: unknown, retry?: string): string | null => {
+  if (e instanceof ConnectOutOfCredits) {
+    return `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
+      + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
+      + `${e.topUpUrl} — then retry.`
+  }
+  if (e instanceof ConnectConsentRequired) {
+    return consentRequiredPhrase(e.consentUrl, e.deadline)
+  }
+  if (e instanceof ConnectConfirmationRequired) {
+    return confirmationRequiredPhrase(e, retry)
+  }
+
+  return null
 }
 
 /** `<gate>:<deadline epoch ms | 0>:<encodeURIComponent(url)>` — `ConnectConsentRequired`'s packed body. */
@@ -261,7 +355,7 @@ export const REFUSALS: RefusalPhrase[] = [
       + ' build a story from. reinitialize_project restores it.',
   },
 
-  // ── A consent only a person can give ─────────────────────────────────────────────────────────
+  // ── A consent or a confirmation only a person can give ───────────────────────────────────────
   // Above the planning markers on purpose: a story start refused for the consent reaches a
   // connector as `planning:commit-failed:<transition>:<the refusal>`, and it is the consent that
   // the person has to act on. The thrown `ConnectConsentRequired` is phrased by `registerCatalogue`
@@ -279,6 +373,12 @@ export const REFUSALS: RefusalPhrase[] = [
     // through a stored run error or a planning commit: no URL travels with it.
     marker: 'performance-consent-required',
     phrase: () => consentRequiredPhrase(''),
+  },
+  {
+    // A conversion's confirmation, where the class did not survive: the fields are in the detail.
+    // The thrown class is phrased by the conversion tools themselves, with the call to repeat.
+    marker: 'viable-connect:confirmation-required:',
+    phrase: detail => confirmationRequiredPhrase(ConnectConfirmationRequired.decode(detail)),
   },
 
   // ── A story refused by the platform's planning ───────────────────────────────────────────────

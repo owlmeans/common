@@ -9,6 +9,7 @@ import {
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
+  ConnectConvertStartBody,
   ConnectCreateBody, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
   ConnectPipelineResumeBody, ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSession,
   ConnectSessionOpen, ConnectPullQuery, ConnectSessionParams
@@ -291,11 +292,21 @@ export const ConnectConvertCreateBodySchema = {
   additionalProperties: false,
 } as unknown as JSONSchemaType<ConnectConvertCreateBody>
 
+export const ConnectConvertStartBodySchema = {
+  type: 'object',
+  properties: {
+    confirm: { type: 'boolean', nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+} as unknown as JSONSchemaType<ConnectConvertStartBody>
+
 export const ConnectConvertProceedBodySchema = {
   type: 'object',
   properties: {
     decision: { type: 'string', enum: Object.values(ConversionDecision) },
     note: { type: 'string', maxLength: 4096, nullable: true },
+    confirm: { type: 'boolean', nullable: true },
   },
   required: ['decision'],
   additionalProperties: false,

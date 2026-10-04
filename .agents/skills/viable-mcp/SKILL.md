@@ -53,7 +53,8 @@ whole of a user's first impression.
 `registerCatalogue` runs — the MCP SDK's `Server.sendLoggingMessage` checks the declared
 capabilities and does **nothing** (no error, no throw) when a server never advertised `logging`, so
 a refusal notice built there would simply vanish with nothing anywhere saying so. This is what
-backs `ToolDeps.notify`: an out-of-credits refusal (`viable-sdk`'s `registerCatalogue`) is pushed to
+backs `ToolDeps.notify`: a refusal only a person resolves — the balance, the spend consent, a
+conversion's confirmation (`viable-sdk`'s `personRefusalPhrase`) — is pushed to
 `server.sendLoggingMessage({ level: 'warning', logger: 'viable', data: text })`, i.e. an MCP
 `notifications/message`, independent of the tool result text. The platform's own stateless `/mcp`
 host has no channel to push through and passes no `notify` at all — treat it as always best-effort.

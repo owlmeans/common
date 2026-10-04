@@ -31,7 +31,8 @@ interface Rendered {
   blocks: Block[]
 }
 
-const text = (lng: string, path: string, vars: CopyValues = {}): string => consumerText(lng, path, vars)
+const text = (lng: string, path: string, vars: CopyValues = {}, context?: string): string =>
+  consumerText(lng, path, vars, context)
 
 const textOf = (blocks: Block[], lng: string): string => blocks
   .map(block => 'text' in block ? block.text : text(lng, 'email.common.link', { label: block.label, url: block.url }))
@@ -153,7 +154,8 @@ const renderStart = async (ctx: ApiContext, data: ConsumerMailData): Promise<Ren
           date: formatDateTime(new Date(consent.decidedAt), lng), plan: title, statement: consent.text.checkbox,
         }),
       },
-      { text: text(lng, 'email.start.rule') },
+      // The rule of the variant the statement was recorded in (`_units` for a plan with a units part).
+      { text: text(lng, 'email.start.rule', {}, consent.context) },
       ...linkBlocks(lng, data.links, ['billingTerms', 'withdrawalInformation', 'withdrawalFunction']),
     ],
   }

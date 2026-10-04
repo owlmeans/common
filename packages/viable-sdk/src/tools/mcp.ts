@@ -1,28 +1,8 @@
-import { ConnectConsentRequired, ConnectOutOfCredits } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import { visibleTools } from './catalogue.js'
-import { consentRequiredPhrase, refusalMessage, refusalPhrase } from './refusal.js'
+import { personRefusalPhrase, refusalMessage, refusalPhrase } from './refusal.js'
 import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
 import type { ToolDeps } from './types.js'
-
-/**
- * Turn a refusal the model can act on into words a model can act on.
- *
- * The amounts and the link travel packed into the error's message (only `type` and `message`
- * survive the trip from the platform), so this is the one place they are read back out and put in
- * front of the model — never the raw `out-of-credits:...` marker.
- */
-const phraseOutOfCredits = (e: ConnectOutOfCredits): string =>
-  `Not enough balance to do this — it needs about $${e.requiredUsd.toFixed(2)} and the account has `
-  + `$${e.balanceUsd.toFixed(2)} left. Nothing was started. Ask the user to top up here: `
-  + `${e.topUpUrl} — then retry.`
-
-/**
- * Turn a consent refusal into what the model has to tell a PERSON — the page to open and that
- * retrying first is pointless. The URL and the deadline travel packed into the message, like the
- * out-of-credits fields.
- */
-const phraseConsentRequired = (e: ConnectConsentRequired): string => consentRequiredPhrase(e.consentUrl, e.deadline)
 
 /** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
 export interface McpServerLike {
@@ -78,13 +58,13 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
             ...(result.isError === true ? { isError: true } : {}),
           }
         } catch (e) {
-          const isOutOfCredits = e instanceof ConnectOutOfCredits
-          const isConsent = e instanceof ConnectConsentRequired
-          const text = isOutOfCredits
-            ? phraseOutOfCredits(e)
-            : isConsent ? phraseConsentRequired(e) : refusalPhrase(e)
+          // The balance, the spend consent and a conversion's confirmation are refusals only a
+          // PERSON resolves: phrased from their packed fields (never the raw marker) and pushed out
+          // of band as well, where the host has a channel for it.
+          const person = personRefusalPhrase(e)
+          const text = person ?? refusalPhrase(e)
           deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
-          if (isOutOfCredits || isConsent) {
+          if (person != null) {
             deps.notify?.('warning', text)
           }
 
@@ -122,7 +102,9 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' project_status → list_stories → develop_story → story_status. An application that already'
     + ' exists is brought onto the same rails instead: convert_project → conversion_status → check_convertible →'
     + ' proceed_conversion at each stage. The check reads what the intake found, so it comes'
-    + ' after the first stage rather than before it.',
+    + ' after the first stage rather than before it. A conversion step that would use the plan\'s'
+    + ' conversion limit or spend credits answers with what it costs instead of starting: tell the'
+    + ' user, and repeat the call with confirm: true only after they agree.',
     '',
     'Call describe_platform for what this platform can build and which of it this session can'
     + ' drive.',

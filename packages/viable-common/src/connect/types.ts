@@ -316,11 +316,28 @@ export interface ConnectConvertCreateBody {
   origin?: { kind: OriginKind, repoUrl?: string, branch?: string }
 }
 
+/**
+ * Start the conversion of a project already filed.
+ *
+ * `confirm` says a PERSON agreed to what the start uses: without it, a start that would spend the
+ * organization's `conversions` unit is refused with `ConnectConfirmationRequired` and nothing runs.
+ * A delegated conversion spends nothing and is never asked.
+ */
+export interface ConnectConvertStartBody {
+  confirm?: boolean
+}
+
 /** Decide what happens at a stage boundary. */
 export interface ConnectConvertProceedBody {
   decision: ConversionDecision
   /** Free text the user added to the decision; recorded, never parsed. */
   note?: string
+  /**
+   * A person agreed to what the stage costs. Without it, a stage that would spend credit limits or
+   * topped-up credits (its estimate past what is left of the conversion limit) is refused with
+   * `ConnectConfirmationRequired` — its estimate split packed — and nothing runs.
+   */
+  confirm?: boolean
 }
 
 /** Answer one question a parked run is waiting on. */

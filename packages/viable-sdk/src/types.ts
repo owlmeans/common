@@ -1,9 +1,9 @@
 import type { PlanningFacade } from '@owlmeans/planning'
 import type {
-  ConnectCapabilities, ConnectConvertCreateBody, ConnectHarness,
+  ConnectCapabilities, ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConnectHarness,
   ConnectLlm, ConnectMarker, ConnectOp, ConnectOpResult, ConnectOpSubmission, ConnectPipelineState,
   ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus, ConnectSessionView,
-  ConnectStoryStatus, ConnectTarget, ConversionDecision,
+  ConnectStoryStatus, ConnectTarget,
   ConversionStatusView, ConvertCheck, InquiryAnswerPayload, InquiryPayload, ModelTask,
   ModelTaskResult, SlotCommandPayload,
 } from '@owlmeans/viable-common'
@@ -97,8 +97,9 @@ export interface ConnectorApi {
   convert: {
     create: (args: ConnectConvertCreateBody) => Promise<ConversionStatusView>
     check: (projectId: string) => Promise<ConvertCheck>
-    start: (projectId: string) => Promise<ConversionStatusView>
-    proceed: (projectId: string, decision: ConversionDecision, note?: string) => Promise<ConversionStatusView>
+    /** `body.confirm`: a person agreed to what the start uses (`ConnectConfirmationRequired` otherwise). */
+    start: (projectId: string, body?: ConnectConvertStartBody) => Promise<ConversionStatusView>
+    proceed: (projectId: string, body: ConnectConvertProceedBody) => Promise<ConversionStatusView>
     status: (projectId: string) => Promise<ConversionStatusView>
     purge: (projectId: string) => Promise<ConversionStatusView>
   }

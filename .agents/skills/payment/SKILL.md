@@ -47,7 +47,7 @@ admission, the usage ledger, the two gate services — is the `entitlements` ski
 | `ConsumerRightsPolicy` (+ `Links`, `Mechanisms`, schemas) · `DEFAULT_CONSUMER_RIGHTS` · `makeConsumerRightsPolicy` · `assertConsumerRightsPolicy` · `linksOf` · `CONSUMER_RIGHTS_RECORD_TYPE`/`_ID` | The consumer-rights policy record. |
 | `BillingProfileView` · `PurchaseView`/`List` · `PerformanceConsentView`/`Body`/`Response` · `SubscriptionStartView`/`Query`/`Body`/`Response` · `WithdrawalEstimate` · `WithdrawalCandidate`/`List` · `WithdrawalBody` · `DeclarationReceipt` · `WithdrawalReceipt` · `CancellationBody` · `CancellationReceipt` · `ConsumerRightsPublicView` (+ schemas) · `revive*` | Consumer-rights wire shapes (ISO dates) and their revivers. |
 | `withdrawalDeadlineOf` · `lastWithdrawalDayOf` · `withdrawalOpen` · `oneTimeWithdrawalRefund` · `subscriptionWithdrawalRefund` · `splitByShares` · `allocateFifo` · `unitsUsedAfter` · `cancellationEffectiveAt` | Pure calculators. |
-| `CONSUMER_RIGHTS_RESOURCE` · `CONSUMER_RIGHTS_COPY_VERSION` · `consumerRightsCopy` · `consumerText` · `consentStatementOf` · `legalLabelsOf` · `placeholdersOf` | The legal copy. |
+| `CONSUMER_RIGHTS_RESOURCE` · `CONSUMER_RIGHTS_COPY_VERSION` · `consumerRightsCopy` · `consumerText` · `consentStatementOf` · `startContextOf` · `legalLabelsOf` · `placeholdersOf` | The legal copy and the start statement's variant. |
 | `makeConsumerRightsProtocols` · `makeCheckoutReadProtocols` | Protocol factories. |
 | `AmountNarrowing` · `narrowAmountPolicy` · `amountAllowed` · `CheckoutLimitView` · `AmountPolicyView`/`Query` · `PlanPriceView`/`List`/`PlanPricesQuery` (+ schemas) | Per-entity narrowing of an amount checkout, and synced plan prices. |
 
@@ -309,15 +309,20 @@ day and holiday clusters need up to five, no per-country calendar is kept —, e
 usable 3600 s) — and `assertConsumerRightsPolicy` (non-empty `textVersion`, `^[A-Z]{2}$`
 countries, `withdrawalDays >= 14`, margin 0..7, lowercase currencies, https links, the default
 language present, `withdrawalInformation` required while `withdrawal` or `performanceConsent` is
-on; throws `ConsumerRightsError('policy:<field>')`). It carries only public links, territories
-and switches — mail options live in a backend-only plugin config — so it is ADVERTISED to the
-browser like the pricing policy. `PaymentService.consumerRightsPolicy()` answers `null` when none
+on, `consentContext` a lowercase key `^[a-z][a-z0-9-]*$`; throws
+`ConsumerRightsError('policy:<field>')`). It carries only public links, territories, switches and
+the consent context — mail options live in a backend-only plugin config — so it is ADVERTISED to
+the browser like the pricing policy. **`consentContext`** names the copy variant of the
+performance consent (`'included'`: the credit limits included in a plan are used first, so the
+consent covers topped-up credits once those limits have run out): the server records and mails, and the dialog
+shows, the `_<context>` texts (§ The legal copy); absent, the base texts. `PaymentService.consumerRightsPolicy()` answers `null` when none
 is declared: no consumer-rights behaviour at all. `linksOf(policy, lng)` merges a language's links
 field by field over the default language's (`de-AT` reads `de`).
 
 `ProductPlan.withdrawal.components: PlanWithdrawalComponent[]` (`{ key, basis: 'time' | 'units',
 shareMinor }`) states the separately priced parts of a subscription (CJEU C-641/19 PE Digital:
-without them the whole price is pro rata by time).
+without them the whole price is pro rata by time). The same declaration picks the subscription start
+statement: a `units` part makes it the `_units` variant (`startContextOf`, § The legal copy).
 
 ### Wire views
 
@@ -326,7 +331,9 @@ Every view schema carries dates as ISO strings (as `model/view.ts` does) and is 
 `reviveConsentResponse`, `reviveStartResponse`, `reviveWithdrawalList`, `reviveReceipt`,
 `reviveCheckoutLimit`, `reviveAmountPolicyView`) — idempotent. A nullable enum on the wire lists
 `null` in its enum (ajv rejects `null` otherwise). The consent and start views carry `trader`, the
-name the statement is rendered with, so the server's record and the dialog's text are identical.
+name the statement is rendered with, and `context`, the variant it is rendered with — the consent
+view the policy's `consentContext`, the start view `startContextOf(plan)` (`'units'`), each absent
+for the base — so the server's record and the dialog's text are identical.
 `WithdrawalBody` and `CancellationBody` ask only for name, contract and e-mail (plus the
 cancellation kind, reason and date) and accept an optional `honeypot` a person never fills. A
 public declaration answers `DeclarationReceipt` — what was declared and when, never whether a
@@ -385,10 +392,11 @@ The i18n resource `payment-consumer-rights` (`CONSUMER_RIGHTS_RESOURCE`, library
 namespace), in en pl ru be uk es de fr, versioned by `CONSUMER_RIGHTS_COPY_VERSION` (bump it on ANY
 change to a bundle). Branches: `performance-consent`, `subscription-start` (`title`, `intro`,
 `request`, `acknowledgement`, `checkbox` = request + space + acknowledgement, `confirm`,
-`decline`; the consent branch also `purchase`), `withdrawal`, `cancellation` (form labels and the
+`decline`; the consent branch also `purchase`; the start branch's `request`/`acknowledgement`/
+`checkbox` also as `_units`), `withdrawal`, `cancellation` (form labels and the
 statutory buttons `function` / `confirm`), `links`, `checkout` (`terms-acceptance.{in-scope,
 other}` markdown, `renewal.{month, year, after-submit}`, `price.{exclusive, inclusive, exclusive-tax}` (VAT wording for the territories, "applicable tax" for a buyer outside them), `top-up`,
-`top-up-note`), `email.{common, consent, start, purchase, withdrawal, cancellation}` (the purchase
+`top-up-note`), `email.{common, consent, start (`rule` + `rule_units`), purchase, withdrawal, cancellation}` (the purchase
 mail carries the CRD Annex I(A) withdrawal information with the function's address and the Annex
 I(B) model form, per language from the national models; there `{{trader}}` is the trader's whole
 identity — legal name, address, e-mail; a `review` withdrawal receipt promises the reimbursement
@@ -397,11 +405,35 @@ whose status is `CancellationStatus.Review`), `credit-note.memo`. In the consent
 STATEMENTS `{{trader}}` is the trader's short name.
 
 - Read it with `consumerRightsCopy(lng)` (any language, merged key by key over English, no i18next
-  instance, never drains a bundle — `resolveI18nResource`), `consumerText(lng, path, vars)` (fills
-  `{{name}}`; throws `ConsumerRightsError('copy:<path>[:<name>]')` on a missing text or value — a
-  legal text never goes out with a hole), `consentStatementOf(lng, kind, { trader, plan? })` (the
-  exact statement the dialog shows, the server records and the mail repeats) and
-  `legalLabelsOf(lng)`.
+  instance, never drains a bundle — `resolveI18nResource`), `consumerText(lng, path, vars,
+  context?)` (fills `{{name}}`; throws `ConsumerRightsError('copy:<path>[:<name>]')` on a missing
+  text or value — a legal text never goes out with a hole), `consentStatementOf(lng, kind, {
+  trader, plan?, context? })` (the exact statement the dialog shows, the server records and the
+  mail repeats) and `legalLabelsOf(lng)`.
+- **Context variants** (the i18next context suffix): with a `context`, `consumerText` reads
+  `<path>_<context>` first and the base `path` only where no such variant exists (a missing value
+  then names the variant: `copy:<path>_<context>:<name>`); an empty context is none.
+  `consentStatementOf` passes its `context` to all three texts. Shipped variants, all eight
+  languages, same placeholders as the base keys, each request keeping the base request's statutory
+  opening verbatim; a new variant lands in every language at once, with its base key's placeholders:
+  - `performance-consent.{title,intro,request,checkbox}_included` — the consuming platform's
+    vocabulary: "topped-up credits" (pl doładowane, ru пополненные, be папоўненыя, uk поповнені, es
+    recargados, de aufgeladene, fr rechargés) are spent once "the credit limits included in my plan"
+    (a plan's non-monetary credits) have run out; `checkbox_included` = `request_included` + space +
+    the BASE `acknowledgement` (generic "credits", so `acknowledgement` has no variant).
+  - **The subscription start statement follows the plan's withdrawal arithmetic.** The BASE
+    `subscription-start.{request,acknowledgement,checkbox}` and `email.start.rule` describe the
+    common case — the plan withdrawn pro rata by the DAYS ELAPSED only ("starts the {{plan}}
+    services — including the AI work within the usage the plan includes — now …; … I pay for the
+    services provided until then, pro rata by the days elapsed, and everything else is
+    reimbursed"); `…_units` (`checkbox_units` = `request_units` + space + `acknowledgement_units`)
+    describe the split — services pro rata by time, the right of withdrawal expiring for the
+    included units used. `startContextOf(plan)` is the ONE decision: `'units'` exactly when the
+    plan's `withdrawal.components` has a `basis: 'units'` part, else `undefined`. Every renderer
+    takes the context from it — the server's start view, the recorded statement and the start mail,
+    and the dialog (from the view's `context`) — so the statement on screen is the one recorded.
+    `title`, `intro`, `confirm`, `decline` have no `_units` variant. Generic statutory text (the
+    purchase mail's withdrawal information) stays generic.
 - Statutory labels are pinned by a test: en "Withdraw from contract here" / "Confirm withdrawal",
   "Cancel contracts here" / "Cancel now"; de "Vertrag widerrufen" / "Widerruf bestätigen",
   "Verträge hier kündigen" / "Jetzt kündigen"; fr "Renoncer au contrat ici" / "Confirmer la
@@ -411,7 +443,9 @@ STATEMENTS `{{trader}}` is the trader's short name.
   "Cancelar ahora"; uk/ru/be are courtesy translations.
 - The express request uses the statutory verbs (PL "Żądam i wyrażam wyraźną zgodę … Przyjmuję do
   wiadomości …", DE "Ich verlange ausdrücklich und stimme ausdrücklich zu … Mir ist bekannt …", FR
-  "Je demande expressément et j’accepte expressément … Je reconnais perdre …").
+  "Je demande expressément et j’accepte expressément … Je reconnais perdre …"). Every start
+  request — base and `_units`, every language — opens with the same three words as that language's
+  performance request (pinned by the copy spec).
 - Wording rule, enforced by a scan of every language: say "the right of withdrawal expires" and
   "only unused credits are reimbursed" — never non-refundable / nicht erstattungsfähig / non
   remboursable / bezzwrotny / no reembolsable / невозвратный / неповоротний / незваротны.

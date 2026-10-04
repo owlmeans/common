@@ -5,7 +5,7 @@ import { connect } from './consts.js'
 import type { ConnectOp, ConnectOpResult } from './ops.js'
 import type {
   ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectConvertCreateBody,
-  ConnectConvertProceedBody, ConnectInquiryAnswerBody, ConnectModifyBody, ConnectOpSubmission,
+  ConnectConvertProceedBody, ConnectConvertStartBody, ConnectInquiryAnswerBody, ConnectModifyBody, ConnectOpSubmission,
   ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState, ConnectProjectBranding,
   ConnectProjectBrandingSave, ConnectProjectStatus, ConnectProjectSummary, ConnectPullQuery,
   ConnectSessionOpen, ConnectSessionParams, ConnectSessionView, ConnectStoryStatus,
@@ -51,7 +51,7 @@ export interface ConnectReferences {
   convert: {
     create: ConnectReference<{ body: ConnectConvertCreateBody }, ConversionStatusView>
     check: ConnectReference<{ params: { id: string } }, ConvertCheck>
-    start: ConnectReference<{ params: { id: string } }, ConversionStatusView>
+    start: ConnectReference<{ params: { id: string }, body: ConnectConvertStartBody }, ConversionStatusView>
     proceed: ConnectReference<{
       params: { id: string }, body: ConnectConvertProceedBody
     }, ConversionStatusView>
@@ -111,7 +111,9 @@ export const connectRef: ConnectReferences = {
   convert: {
     create: entrypointRef<{ body: ConnectConvertCreateBody }, ConversionStatusView>(connect.convert.create),
     check: entrypointRef<{ params: { id: string } }, ConvertCheck>(connect.convert.check),
-    start: entrypointRef<{ params: { id: string } }, ConversionStatusView>(connect.convert.start),
+    start: entrypointRef<{
+      params: { id: string }, body: ConnectConvertStartBody
+    }, ConversionStatusView>(connect.convert.start),
     proceed: entrypointRef<{
       params: { id: string }, body: ConnectConvertProceedBody
     }, ConversionStatusView>(connect.convert.proceed),

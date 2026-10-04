@@ -343,7 +343,7 @@ export const CONSUMER_RIGHTS_RESOURCE = 'payment-consumer-rights'
  * The version of the legal copy this package ships. Bumped on ANY change to a
  * `payment-consumer-rights` bundle, so a consent recorded against an older wording is told apart.
  */
-export const CONSUMER_RIGHTS_COPY_VERSION = '2026-09-23.2'
+export const CONSUMER_RIGHTS_COPY_VERSION = '2026-10-04.2'
 
 export const DEFAULT_ALIAS = 'payment'
 

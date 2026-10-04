@@ -64,11 +64,13 @@ export const makeConsumerRightsPolicy = (def: ConsumerRightsDeclaration): Consum
     ...present('renewalOpensWindow', def.renewalOpensWindow ?? defaults.renewalOpensWindow),
     ...present('startRequestTtlSeconds', def.startRequestTtlSeconds ?? defaults.startRequestTtlSeconds),
     ...present('exemptBusinesses', def.exemptBusinesses ?? defaults.exemptBusinesses),
+    ...present('consentContext', def.consentContext),
   })
 }
 
 const COUNTRY = /^[A-Z]{2}$/
 const CURRENCY = /^[a-z]{3}$/
+const CONSENT_CONTEXT = /^[a-z][a-z0-9-]{0,63}$/
 
 const isHttpsUrl = (value: unknown): boolean => {
   if (typeof value !== 'string') {
@@ -88,8 +90,9 @@ const fail = (field: string): never => {
 /**
  * @throws ConsumerRightsError (`policy:<field>`) when the text version is empty, a country or a
  * currency is malformed, the period is shorter than 14 days, the margin is outside 0..7 days, the
- * default language has no links, a link is not an absolute https URL, or the withdrawal information
- * is missing while the withdrawal function or the performance consent is on.
+ * consent context is not a lowercase key, the default language has no links, a link is not an
+ * absolute https URL, or the withdrawal information is missing while the withdrawal function or the
+ * performance consent is on.
  */
 export const assertConsumerRightsPolicy = (policy: ConsumerRightsPolicy): ConsumerRightsPolicy => {
   if (typeof policy.textVersion !== 'string' || policy.textVersion.trim() === '') fail('text-version')
@@ -102,6 +105,7 @@ export const assertConsumerRightsPolicy = (policy: ConsumerRightsPolicy): Consum
   if (Object.values(policy.currencies ?? {}).some(currency => !CURRENCY.test(currency ?? ''))) fail('currencies')
   if (policy.startRequestTtlSeconds != null
     && (!Number.isSafeInteger(policy.startRequestTtlSeconds) || policy.startRequestTtlSeconds < 1)) fail('start-request-ttl')
+  if (policy.consentContext != null && !CONSENT_CONTEXT.test(policy.consentContext)) fail('consent-context')
 
   const defaults = policy.links?.[policy.defaultLanguage]
   if (defaults == null || !isHttpsUrl(defaults.billingTerms)) fail('links')

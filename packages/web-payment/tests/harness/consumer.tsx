@@ -36,7 +36,7 @@ const ConsentCase = () => {
     <Output id="consent-result" value={result} />
     <Output id="dialog-state" value={open ? 'open' : 'closed'} />
     <PerformanceConsentDialog
-      open={open} onOpenChange={setOpen} view={consentView(lng)} links={LINKS}
+      open={open} onOpenChange={setOpen} view={consentView(lng, params.get('context'))} links={LINKS}
       onConfirm={body => { setResult(body); setOpen(false) }}
       onDecline={() => { setResult('declined'); setOpen(false) }}
     />
@@ -49,7 +49,7 @@ const StartCase = () => {
   return <main className="p-6">
     <Output id="start-result" value={result} />
     <SubscriptionStartDialog
-      open={open} onOpenChange={setOpen} view={startView(lng)} planTitle="Pro" links={LINKS}
+      open={open} onOpenChange={setOpen} view={startView(lng, params.get('context'))} planTitle="Pro" links={LINKS}
       price={<span>€20.00 / month</span>}
       onConfirm={body => { setResult(body); setOpen(false) }}
       onDecline={() => { setResult('declined'); setOpen(false) }}

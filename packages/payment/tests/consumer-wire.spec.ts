@@ -2,12 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import {
   BillingProfileViewSchema, CancellationBodySchema, CancellationReceiptSchema, ConsumerRegion,
-  CreateCheckoutBodySchema, PerformanceConsentBodySchema, PerformanceConsentViewSchema, PlanPriceListSchema,
+  ConsumerRightsError, ConsumerRightsPolicySchema, CreateCheckoutBodySchema, makeConsumerRightsPolicy,
+  PerformanceConsentBodySchema, PerformanceConsentViewSchema, PlanPriceListSchema,
   PlanStatus, PlanDuration, PriceEstimateSchema, ProductPlanSchema, PurchaseKind, reviveConsentView, reviveReceipt,
   reviveWithdrawalList, SubscriptionStartViewSchema, TaxBehavior, TaxEstimateStatus, WithdrawalBodySchema,
   WithdrawalCandidateListSchema, WithdrawalStatus, WithdrawalReceiptSchema, CancellationKind, CancellationStatus,
 } from '../src/index.js'
-import type { PerformanceConsentView, PurchaseView, WithdrawalCandidateList } from '../src/index.js'
+import type {
+  PerformanceConsentView, PurchaseView, SubscriptionStartView, WithdrawalCandidateList,
+} from '../src/index.js'
 
 const ajv = new Ajv({ strict: false, validateFormats: false })
 const wire = <T>(value: T): unknown => JSON.parse(JSON.stringify(value))
@@ -34,6 +37,32 @@ describe('consumer-rights wire shapes', () => {
     expect(revived.purchases[0].purchasedAt).toEqual(purchase.purchasedAt)
     expect(revived.purchases[0].deadline).toEqual(purchase.deadline)
     expect(reviveConsentView(revived)).toEqual(revived)
+  })
+
+  test('a consent view carries the copy variant it is rendered with', () => {
+    const view: PerformanceConsentView = {
+      required: true, region: ConsumerRegion.Eu, country: 'DE', language: 'de', trader: 'Trader Ltd',
+      context: 'included', textVersion: '2026-09-23', copyVersion: '2026-09-23', links, purchases: [purchase],
+      at: new Date('2026-09-24T08:00:00.000Z'),
+    }
+    const sent = wire(view) as PerformanceConsentView
+    expect(ajv.validate(PerformanceConsentViewSchema, sent)).toBe(true)
+    expect(reviveConsentView(sent).context).toBe('included')
+    expect(ajv.validate(PerformanceConsentViewSchema, { ...sent, context: 'Included' })).toBe(false)
+    expect(ajv.validate(PerformanceConsentViewSchema, { ...sent, context: '' })).toBe(false)
+  })
+
+  test('a policy declares a consent context: carried, validated, a malformed one refused', () => {
+    const declared = makeConsumerRightsPolicy({ textVersion: 'v1', links: { en: links }, consentContext: 'included' })
+    expect(declared.consentContext).toBe('included')
+    expect(ajv.validate(ConsumerRightsPolicySchema, wire(declared))).toBe(true)
+    expect(ajv.validate(ConsumerRightsPolicySchema, { ...declared, consentContext: 'in cluded' })).toBe(false)
+    expect(makeConsumerRightsPolicy({ textVersion: 'v1', links: { en: links } })).not.toHaveProperty('consentContext')
+    for (const consentContext of ['Included', '_included', 'in cluded', '']) {
+      const declare = () => makeConsumerRightsPolicy({ textVersion: 'v1', links: { en: links }, consentContext })
+      expect(declare).toThrow(ConsumerRightsError)
+      expect(declare).toThrow('payment:consumer-rights:policy:consent-context')
+    }
   })
 
   test('a consent body must acknowledge', () => {
@@ -91,6 +120,18 @@ describe('consumer-rights wire shapes', () => {
       { planSku: 'pro-monthly', currency: 'eur', unitAmountMinor: 1709, default: true, taxBehavior: TaxBehavior.Exclusive, interval: 'month' },
       { planSku: 'pro-monthly', currency: 'usd', unitAmountMinor: 2000, default: false },
     ] })).toBe(true)
+  })
+
+  test('a start view carries the copy variant of its plan; a malformed one is refused', () => {
+    const view: SubscriptionStartView = {
+      required: true, planSku: 'pro-split', language: 'pl', trader: 'Trader Ltd', context: 'units', textVersion: 'v1',
+      copyVersion: 'v1', links, region: ConsumerRegion.Eu,
+    }
+    expect(ajv.validate(SubscriptionStartViewSchema, wire(view))).toBe(true)
+    expect((wire(view) as SubscriptionStartView).context).toBe('units')
+    for (const context of ['Units', '', '_units', 'un its']) {
+      expect([context, ajv.validate(SubscriptionStartViewSchema, { ...view, context })]).toEqual([context, false])
+    }
   })
 })
 

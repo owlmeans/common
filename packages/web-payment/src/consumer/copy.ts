@@ -61,16 +61,22 @@ export const paymentTextOf = (lng: string): FixedText => {
 }
 
 /**
+ * A legal-copy translator bound to ONE language. A `context` (a policy's `consentContext`) reads
+ * the `<path>_<context>` variant first and the base text where there is none.
+ */
+export type LegalText = (path: string, values?: CopyValues, context?: string) => string
+
+/**
  * The legal copy of `@owlmeans/payment` (`payment-consumer-rights`) in a fixed language. A text
  * that cannot be rendered in the language (a broken application override) falls back to English
  * rather than blanking the page; one that cannot be rendered at all is `''`.
  */
-export const legalTextOf = (lng: string): FixedText => (path, values) => {
+export const legalTextOf = (lng: string): LegalText => (path, values, context) => {
   try {
-    return consumerText(lng, path, values)
+    return consumerText(lng, path, values, context)
   } catch {
     try {
-      return consumerText('en', path, values)
+      return consumerText('en', path, values, context)
     } catch {
       return ''
     }
@@ -81,7 +87,7 @@ export const legalTextOf = (lng: string): FixedText => (path, values) => {
 export const usePaymentText = (lng: string): FixedText => useMemo(() => paymentTextOf(lng), [lng])
 
 /** `legalTextOf(lng)`, memoised for the language. */
-export const useLegalText = (lng: string): FixedText => useMemo(() => legalTextOf(lng), [lng])
+export const useLegalText = (lng: string): LegalText => useMemo(() => legalTextOf(lng), [lng])
 
 /** A language's own name in another language (`de` in `en` → "German"); the code when unknown. */
 export const languageNameOf = (lng: string, inLanguage: string): string => {
