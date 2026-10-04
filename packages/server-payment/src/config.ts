@@ -242,16 +242,29 @@ export const declarePaymentPricing = (cfg: Config, def: PricingDef): void => {
     if (settlementCurrency != null && !/^[a-z]{3}$/.test(settlementCurrency)) {
       throw new PaymentError('pricing-policy:settlement-currency')
     }
-    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes?.map(type => type.toLowerCase())
-    if (subscriptionPaymentMethodTypes != null && (subscriptionPaymentMethodTypes.length === 0
-      || subscriptionPaymentMethodTypes.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
-      || new Set(subscriptionPaymentMethodTypes).size !== subscriptionPaymentMethodTypes.length)) {
-      throw new PaymentError('pricing-policy:subscription-payment-methods')
+    const normalizeMethods = (methods: string[]): string[] => {
+      const normalized = methods.map(type => type.toLowerCase())
+      if (normalized.length === 0 || normalized.some(type => !/^[a-z][a-z0-9_]*$/.test(type))
+        || new Set(normalized).size !== normalized.length) {
+        throw new PaymentError('pricing-policy:subscription-payment-methods')
+      }
+      return normalized
+    }
+    const subscriptionPaymentMethodTypes = stripe.subscriptionPaymentMethodTypes != null
+      ? normalizeMethods(stripe.subscriptionPaymentMethodTypes) : undefined
+    const subscriptionPaymentMethodTypesByCurrency: Record<string, string[]> = {}
+    for (const [key, methods] of Object.entries(stripe.subscriptionPaymentMethodTypesByCurrency ?? {})) {
+      const currency = key.toLowerCase()
+      if (!/^[a-z]{3}$/.test(currency) || Object.hasOwn(subscriptionPaymentMethodTypesByCurrency, currency)) {
+        throw new PaymentError('pricing-policy:subscription-payment-methods-currency')
+      }
+      subscriptionPaymentMethodTypesByCurrency[currency] = normalizeMethods(methods)
     }
     plugin(cfg, {
       ...stripe,
       ...(settlementCurrency != null ? { settlementCurrency } : {}),
       ...(subscriptionPaymentMethodTypes != null ? { subscriptionPaymentMethodTypes } : {}),
+      ...(stripe.subscriptionPaymentMethodTypesByCurrency != null ? { subscriptionPaymentMethodTypesByCurrency } : {}),
     }, STRIPE_PRICING_PLUGIN_CONFIG)
   }
 }

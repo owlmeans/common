@@ -111,6 +111,8 @@ export interface StripePricingDef {
   settlementCurrency?: string
   /** Explicit Stripe payment methods for subscription Checkout; absent keeps Stripe's dynamic selection. */
   subscriptionPaymentMethodTypes?: string[]
+  /** Payment methods for a specific subscription charge currency; overrides the default list. */
+  subscriptionPaymentMethodTypesByCurrency?: Record<string, string[]>
   /**
    * Let a matching `unspecified` price take the declared `tax.behavior` even when the Stripe
    * account's own tax-settings default resolves to the opposite one — which changes what an

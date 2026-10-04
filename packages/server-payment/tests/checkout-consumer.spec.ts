@@ -6,7 +6,7 @@ import { createCheckoutLink, isMissingTermsUrl } from '../src/plugins/stripe.js'
 import { billingProfiles, consumerConsents, consumerEvents, consumerRights, fulfillments } from '../src/utils.js'
 import type { CheckoutPlugin } from '../src/types.js'
 import {
-  ALL_ON, CREDITS_PRODUCT, ENTITY, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf,
+  ALL_ON, CREDITS_PRODUCT, ENTITY, EUR_SETTLEMENT, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf,
 } from './consumer-fixtures.js'
 import { TEAM } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
@@ -49,6 +49,23 @@ const lockTo = async (fake: FakeContext, country: string, customerCountry?: stri
 }
 
 describe('checkout under a consumer-rights policy — currency', () => {
+  test('subscription methods follow the charge currency, with the default list for other currencies', async () => {
+    for (const country of ['US', 'DE']) {
+      const fake = await makeRightsContext({
+        pricing: { ...EUR_SETTLEMENT, stripe: {
+          ...EUR_SETTLEMENT.stripe, subscriptionPaymentMethodTypes: ['card', 'link', 'klarna'],
+          subscriptionPaymentMethodTypesByCurrency: { USD: ['CARD', 'link'] },
+        } },
+        stripe: { prices: [PRO_PRICE] },
+      })
+      const startRequestId = await requestStart(fake)
+      await subscribe(fake, { country, startRequestId })
+      expect(session(fake).currency).toBe(country === 'US' ? 'usd' : 'eur')
+      expect(session(fake).payment_method_types).toEqual(country === 'US'
+        ? ['card', 'link'] : ['card', 'link', 'klarna'])
+    }
+  })
+
   test('an EU buyer is charged in EUR through the FX reference rate, with Adaptive Pricing', async () => {
     const fake = await makeRightsContext()
     await topUp(fake, { country: 'pl', ipCountry: 'pl' })

@@ -132,6 +132,18 @@ describe('Stripe checkout — pricing policy', () => {
     expect(fake.state.checkoutSessions[0].payment_method_types).toEqual(['card', 'link', 'klarna'])
   })
 
+  test('currency-specific subscription methods reject invalid currencies and method lists', async () => {
+    for (const methods of [
+      { US: ['card'] }, { USD: [] }, { USD: ['CARD', 'card'] },
+      { USD: ['not a method'] }, { USD: ['card'], usd: ['link'] },
+    ]) {
+      await expect(makeFakeContext({ pricing: {
+        tax: { automatic: false, collectTaxId: false, estimate: false }, currency: { estimate: false },
+        stripe: { subscriptionPaymentMethodTypesByCurrency: methods },
+      } })).rejects.toThrow('pricing-policy:subscription-payment-methods')
+    }
+  })
+
   test('a declared behavior is set on the inline amount line item', async () => {
     const fake = await makeFakeContext({
       pricing: { tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Inclusive }, currency: { estimate: false } },

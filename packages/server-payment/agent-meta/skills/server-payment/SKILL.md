@@ -27,7 +27,8 @@ portalBranding(cfg, { returnUrl: 'https://app.example.com/billing', headline: 'E
 declarePaymentPricing(cfg, {                           // absent entirely: today's fixed behaviour, unchanged
   tax: { automatic: true, behavior: TaxBehavior.Exclusive, collectTaxId: true, estimate: true },
   currency: { adaptive: true, estimate: true },
-  stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link'],
+  stripe: { settlementCurrency: 'eur', subscriptionPaymentMethodTypes: ['card', 'link', 'klarna'],
+    subscriptionPaymentMethodTypesByCurrency: { usd: ['card', 'link'] },
     lockCustomerEmail: true, lockCustomerCountry: true },   // optional: see "Customer locks"
 })
 declareConsumerRights(cfg, {                           // absent: no consumer-rights behaviour at all
@@ -182,6 +183,11 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 - A plan the paygate does not sell is refused (`ProductError`). `checkoutOptions` puts automatic
   tax, billing address collection, tax-id collection and Adaptive Pricing on the session exactly
   as `PricingPolicy` declares them.
+- Subscription methods come from `stripe.subscriptionPaymentMethodTypesByCurrency[chargeCurrency]`,
+  falling back to `subscriptionPaymentMethodTypes`; with neither, Stripe selects dynamically.
+  Currency keys and method names normalize to lowercase. Currency keys must have three letters;
+  method lists must be nonempty and unique. Choose account-supported methods for each currency:
+  a method the account cannot accept in that currency rejects the whole session.
 - **Without a consumer-rights policy every session is what it always was**: the charge currency
   is the settlement currency (FX from the catalogue), Adaptive Pricing as declared.
 
@@ -590,6 +596,7 @@ concurrent withdrawals.
 - https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices — `currency_options` on a Price, one reusable Price for several currencies; manual options override Adaptive Pricing for that currency.
 - https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — Adaptive Pricing requires the price currency to be a settlement currency; webhook amounts stay in the integration currency.
 - https://docs.stripe.com/api/checkout/sessions/create?query=adaptive_pricing — `adaptive_pricing.enabled` defaults to the Dashboard setting when omitted; send an explicit boolean for every session.
+- https://docs.stripe.com/payments/klarna — Klarna eligibility depends on currency, customer location and purchase use case; verify the account's supported currencies before explicitly requesting it.
 - https://docs.stripe.com/invoicing/multi-currency-customers — a customer's subscriptions share one currency; one-time payments may differ.
 - https://docs.stripe.com/invoicing/integration/programmatic-credit-notes — preview a credit note on an invoice line; link an existing refund with `refund`; custom lines are not allowed with automatic tax.
 - https://docs.stripe.com/tax/reports — a refund or a credit note lowers reported tax; only the credit note is the corrective document of an issued invoice.

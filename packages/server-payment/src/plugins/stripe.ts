@@ -665,9 +665,9 @@ export const createCheckoutLink = async (
   // A subscription starts services at once: in scope (or unknown and protected) it needs the
   // consumer's express start request, fresh and bound to this organization and plan.
   const start = buyer.policy != null ? await consumerRightsOf(ctx)?.assertStartRequest(params.entityId, plan.sku, params.startRequestId) ?? null : null
-  const subscriptionPaymentMethodTypes = (
-    await stripePricingConfig(ctx)
-  )?.subscriptionPaymentMethodTypes as Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined
+  const stripePricing = await stripePricingConfig(ctx)
+  const subscriptionPaymentMethodTypes = (stripePricing?.subscriptionPaymentMethodTypesByCurrency?.[currency]
+    ?? stripePricing?.subscriptionPaymentMethodTypes) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined
   const unitAmount = forced.unitAmount ?? price.unit_amount ?? undefined
   const interval = plan.recurring?.interval
   const context = textContextOf(buyer, currency, compact({ unitAmountMinor: unitAmount, interval }))
