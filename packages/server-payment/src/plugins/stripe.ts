@@ -59,7 +59,7 @@ const checkoutOptions = (
       : {}),
     ...(policy.tax.collectTaxId ? { tax_id_collection: { enabled: true } } : {}),
     ...(Object.keys(customerUpdate).length > 0 ? { customer_update: customerUpdate } : {}),
-    ...(policy.currency.adaptive === true && flags.adaptive !== false ? { adaptive_pricing: { enabled: true } } : {}),
+    adaptive_pricing: { enabled: policy.currency.adaptive === true && flags.adaptive !== false },
     allow_promotion_codes: promotions,
   }
 }

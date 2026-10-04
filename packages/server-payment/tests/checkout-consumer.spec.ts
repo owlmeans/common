@@ -70,7 +70,7 @@ describe('checkout under a consumer-rights policy — currency', () => {
     await topUp(fake, { country: 'US' })
     expect(session(fake).line_items[0].price_data).toEqual(expect.objectContaining({ currency: 'usd', unit_amount: 1_021 }))
     expect(fake.state.rawRequests).toHaveLength(0)
-    expect(session(fake).adaptive_pricing).toBeUndefined()
+    expect(session(fake).adaptive_pricing).toEqual({ enabled: false })
     expect(session(fake).metadata).toEqual(expect.objectContaining({ currency: 'usd', chargeAmountMinor: '1021', region: 'other' }))
     // No legal submit text for a buyer without the rights.
     expect(session(fake).custom_text).toBeUndefined()
@@ -302,7 +302,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
     await consumerRights(fake.ctx).lock(ENTITY, 'US', 'manual')
     await subscribe(fake)
     expect(session(fake).currency).toBe('usd')
-    expect(session(fake).adaptive_pricing).toBeUndefined()
+    expect(session(fake).adaptive_pricing).toEqual({ enabled: false })
     expect(session(fake).custom_text.submit.message).toContain('$20.00')
   })
 

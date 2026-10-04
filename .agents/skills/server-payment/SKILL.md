@@ -196,7 +196,9 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   charged exactly — no FX call; any other goes through the FX reference rate (rounded up). A
   subscription or quantity session is forced to the charge currency (`currency`) only when its
   synced Price carries it (default or option) — otherwise it is left to Stripe and warned.
-  `adaptive_pricing` only when the charge currency is the settlement currency.
+  `adaptive_pricing.enabled` is explicitly true only when the policy enables it and the charge
+  currency is the settlement currency; every other session sends false. Omitting the flag lets
+  Stripe inherit the Dashboard setting and can enable localization for an exact USD checkout.
 - **The lock at Stripe.** A locked profile whose customer carries the address:
   `customer_update.address: 'never'` and `billing_address_collection: 'auto'` (tax follows the
   saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without a
@@ -586,6 +588,7 @@ concurrent withdrawals.
 - https://docs.stripe.com/tax/customer-locations — minimal tax location: country alone except US (postal code), CA and IN (postal code or province); https://docs.stripe.com/tax/checkout/page — an existing customer with `customer_update.address: 'never'` is taxed on its saved address. Verified against test mode (2026-10): a pinned DE customer keeps its VAT when the card country is switched to US; a country-only US/CA customer is refused at session creation.
 - https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices — `currency_options` on a Price, one reusable Price for several currencies; manual options override Adaptive Pricing for that currency.
 - https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — Adaptive Pricing requires the price currency to be a settlement currency; webhook amounts stay in the integration currency.
+- https://docs.stripe.com/api/checkout/sessions/create?query=adaptive_pricing — `adaptive_pricing.enabled` defaults to the Dashboard setting when omitted; send an explicit boolean for every session.
 - https://docs.stripe.com/invoicing/multi-currency-customers — a customer's subscriptions share one currency; one-time payments may differ.
 - https://docs.stripe.com/invoicing/integration/programmatic-credit-notes — preview a credit note on an invoice line; link an existing refund with `refund`; custom lines are not allowed with automatic tax.
 - https://docs.stripe.com/tax/reports — a refund or a credit note lowers reported tax; only the credit note is the corrective document of an issued invoice.

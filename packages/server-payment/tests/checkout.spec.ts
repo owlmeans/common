@@ -88,7 +88,7 @@ describe('Stripe checkout — pricing policy', () => {
       automatic_tax: { enabled: true }, billing_address_collection: 'required',
       tax_id_collection: { enabled: true }, customer_update: { address: 'auto', name: 'auto' },
     }))
-    expect(session.adaptive_pricing).toBeUndefined()
+    expect(session.adaptive_pricing).toEqual({ enabled: false })
   })
 
   test('tax.automatic and tax.collectTaxId are independent switches', async () => {
@@ -107,7 +107,7 @@ describe('Stripe checkout — pricing policy', () => {
     expect(session.customer_update).toEqual({ name: 'auto' })
   })
 
-  test('adaptive_pricing appears on the session only when currency.adaptive is declared', async () => {
+  test('adaptive_pricing is enabled when currency.adaptive is declared', async () => {
     const fake = await makeFakeContext({
       pricing: { tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { adaptive: true, estimate: false } },
       stripe: { prices: [proPrice] },

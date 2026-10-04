@@ -37,6 +37,7 @@ declareConsumerRights(cfg, {                           // absent: no consumer-ri
     withdrawal: true, automaticRefunds: true, cancellation: true, purchaseConfirmation: true },
   trader: { name: 'Example', legalName: 'Example Ltd', address: '…', email: 'support@example.com' },
   mail: { from: 'billing@example.com', bcc: ['archive@example.com'] },   // alias: default MAILER_SERVICE
+  consentContext: 'included',                          // optional: the `_included` consent copy variant
 })
 declarePaymentProduct(cfg, { sku: 'app-plans', type: ProductType.Service, services: ['app'], name: 'Plans' })
 declarePaymentPlan(cfg, { productSku: 'app-plans', sku: 'free', rank: 0, free: true, price: 0, … })
@@ -126,7 +127,9 @@ observer(context).onSubscription(async event => { /* keyed by event.eventKey */ 
   default currency replaces its converted amount. Only for recurring and quantity plans.
 - **`withdrawal.components`** state the separately priced parts of a subscription for a withdrawal
   (CJEU C-641/19): `{ key, basis: 'time' | 'units', shareMinor }`, the shares summing to
-  `round(price × 100)`. Absent: the whole price is one `time` component.
+  `round(price × 100)`. Absent: the whole price is one `time` component. They also pick the start
+  statement: a `units` part → the `_units` variant, otherwise the base (time-only) texts
+  (`startContextOf`, `@owlmeans/payment`).
 - `declarePaymentPlan` refuses before recording: a bad rank or a priced/gatewayed free plan
   (`PlanRankConflict`), a capability set under the reserved `limit` scope, a malformed limit
   (`LimitMisdeclared('<key>:<reason>')`), a malformed or amount-mode `currencyPrices` or components
@@ -194,7 +197,9 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   charged exactly — no FX call; any other goes through the FX reference rate (rounded up). A
   subscription or quantity session is forced to the charge currency (`currency`) only when its
   synced Price carries it (default or option) — otherwise it is left to Stripe and warned.
-  `adaptive_pricing` only when the charge currency is the settlement currency.
+  `adaptive_pricing.enabled` is explicitly true only when the policy enables it and the charge
+  currency is the settlement currency; every other session sends false. Omitting the flag lets
+  Stripe inherit the Dashboard setting and can enable localization for an exact USD checkout.
 - **The lock at Stripe.** A locked profile whose customer carries the address:
   `customer_update.address: 'never'` and `billing_address_collection: 'auto'` (tax follows the
   saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without a
@@ -384,13 +389,20 @@ full contract is in `reference.md`.
 - **Performance consent** (top-ups only — a start request covers a subscription's own invoice):
   required while an open in-scope top-up window has none. `assertConsent` is one indexed query and
   throws `PerformanceConsentRequired` (428, `pending`, latest `deadline`); an application calls it
-  only where credits will actually be spent. `recordConsent` renders the statement itself
-  (`consentStatementOf` with the trader's `name`), refuses a stale `textVersion` with a fresh 428,
-  covers only the open windows the body lists, stamps `consentedAt` conditionally, mails the
-  confirmation, then tells `onConsent`.
-- **Start requests**: `recordStartRequest(subject, body, origin, { plan })` records the statement
-  with the plan's short name the application passes (default: its localized title), usable
-  `startRequestTtlSeconds` (3600); the purchase takes it as `servicesStartedAt`/`consentedAt`.
+  only where credits will actually be spent. `consentView` carries the policy's `consentContext`
+  as `context`. `recordConsent` renders the statement itself (`consentStatementOf` with the
+  trader's `name` and the policy's `consentContext`, so the stored verbatim text and the consent
+  mail are the `_<context>` variant the dialog showed; without a context the base statement),
+  stores that `context` on the record, refuses a stale `textVersion` with a fresh 428, covers only
+  the open windows the body lists, stamps `consentedAt` conditionally, mails the confirmation, then
+  tells `onConsent`.
+- **Start requests follow the plan's withdrawal arithmetic.** `startView(entityId, planSku)` names
+  `context = startContextOf(plan)` (`'units'` for a plan with a `units` component, absent for a
+  time-only one); `recordStartRequest(subject, body, origin, { plan })` renders the statement with
+  the SAME `startContextOf(plan)` and the plan's short name the application passes (default: its
+  localized title), stores it verbatim with its `context`, and the start mail repeats it with
+  `email.start.rule` of that variant (the record's `context`). Usable `startRequestTtlSeconds`
+  (3600); the purchase takes it as `servicesStartedAt`/`consentedAt`.
 - **Withdrawal** (`withdraw(subject | null, body, origin)`, managed only): in-app by `purchaseId`,
   public by contract reference or invoice number plus an e-mail of the purchase, its profile or
   its paygate customer. The declaration and the conditional `withdrawnAt` are written BEFORE
@@ -577,6 +589,7 @@ concurrent withdrawals.
 - https://docs.stripe.com/tax/customer-locations — minimal tax location: country alone except US (postal code), CA and IN (postal code or province); https://docs.stripe.com/tax/checkout/page — an existing customer with `customer_update.address: 'never'` is taxed on its saved address. Verified against test mode (2026-10): a pinned DE customer keeps its VAT when the card country is switched to US; a country-only US/CA customer is refused at session creation.
 - https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices — `currency_options` on a Price, one reusable Price for several currencies; manual options override Adaptive Pricing for that currency.
 - https://docs.stripe.com/payments/currencies/localize-prices/adaptive-pricing — Adaptive Pricing requires the price currency to be a settlement currency; webhook amounts stay in the integration currency.
+- https://docs.stripe.com/api/checkout/sessions/create?query=adaptive_pricing — `adaptive_pricing.enabled` defaults to the Dashboard setting when omitted; send an explicit boolean for every session.
 - https://docs.stripe.com/invoicing/multi-currency-customers — a customer's subscriptions share one currency; one-time payments may differ.
 - https://docs.stripe.com/invoicing/integration/programmatic-credit-notes — preview a credit note on an invoice line; link an existing refund with `refund`; custom lines are not allowed with automatic tax.
 - https://docs.stripe.com/tax/reports — a refund or a credit note lowers reported tax; only the credit note is the corrective document of an issued invoice.
