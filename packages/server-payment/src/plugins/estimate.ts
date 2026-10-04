@@ -267,10 +267,12 @@ export const estimateStripePrice = async (
 
   const region = rights != null ? regionOf(country, rights) : null
   const settlementCurrency = (await stripePricingConfig(ctx))?.settlementCurrency?.toLowerCase()
-  const { subtotalMinor, currency } = await chargedReferenceOf(ctx, product, plan, rights != null && rights.currencies != null
-    && Object.keys(rights.currencies).length > 0
+  // The currency the checkout session charges: the region's (or the locked profile's) under a policy
+  // with region currencies, else none forced.
+  const chargeCurrency = rights != null && rights.currencies != null && Object.keys(rights.currencies).length > 0
     ? (profile?.currency ?? chargeCurrencyOf(region, rights, settlementCurrency ?? (plan.currency ?? 'usd'))).toLowerCase()
-    : null)
+    : null
+  const { subtotalMinor, currency } = await chargedReferenceOf(ctx, product, plan, chargeCurrency)
   const where = { ...(region != null ? { region } : {}), ...(locked ? { locked: true } : {}) }
 
   if (country == null) {
@@ -314,9 +316,13 @@ export const estimateStripePrice = async (
     : unresolvedEstimate(TaxEstimateStatus.AtCheckout, subtotalMinor)
 
   const result: PriceEstimate = { country, source, currency, behavior, tax, ...where }
-  // Adaptive Pricing — and so a local-currency line — applies only to a session charged in the
-  // settlement currency; a forced region currency (exact USD) is shown as it is.
-  const adaptive = rights?.currencies == null || currency === (settlementCurrency ?? currency)
+  // Adaptive Pricing — and so a local-currency line — applies only to a session CHARGED in the
+  // settlement currency; a forced region currency (exact USD) is shown as it is. An amount plan is
+  // estimated in its policy currency but charged in the region's currency (converted per session,
+  // `chargeAmount`), so the session's currency decides, never the reference's: a EUR-charged top-up
+  // gets its local line through the same USD → settlement → local chain the session takes.
+  const charged = chargeCurrency ?? currency
+  const adaptive = rights?.currencies == null || charged === (settlementCurrency ?? charged)
 
   if (pricing.currency.estimate && pricing.currency.adaptive === true && adaptive) {
     const localCurrency = currencyOfCountry(country)

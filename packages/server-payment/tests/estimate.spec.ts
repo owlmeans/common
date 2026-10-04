@@ -4,6 +4,7 @@ import { makeEstimateCache, estimateStripePrice } from '../src/plugins/estimate.
 import { gateway, paygateCustomers } from '../src/utils.js'
 import { CREDITS_PRODUCT, makeFakeContext, PLANS_PRODUCT, PRO } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+import { EUR_SETTLEMENT, makeRightsContext } from './consumer-fixtures.js'
 
 const withCustomer = async (
   fake: FakeContext, entityId: string, country: string, taxIds: Array<{ type: string, value: string, country: string }> = [],
@@ -194,6 +195,39 @@ describe('@owlmeans/server-payment — Stripe Tax price estimate', () => {
       { to_currency: 'eur', 'from_currencies[]': 'usd', lock_duration: 'none' },
       { to_currency: 'eur', 'from_currencies[]': 'pln', lock_duration: 'none' },
     ])
+  })
+
+  test('a top-up CHARGED in the settlement currency (an EU buyer) carries its local line, via USD → EUR → local', async () => {
+    // The amount plan is estimated in its policy currency (USD) but its session is converted to the
+    // region's EUR, which Adaptive Pricing localizes — so the estimate must show the local total too.
+    const fake = await makeRightsContext({
+      pricing: { ...EUR_SETTLEMENT, currency: { adaptive: true, estimate: true } },
+      stripe: {
+        taxRates: { PL: [{ type: 'vat', percentage: '23' }] },
+        fxRates: {
+          usd: { exchangeRate: 0.853568, referenceRate: 0.8726 },
+          pln: { exchangeRate: 0.22, referenceRate: 0.224, fxFeeRate: 0.02 },
+        },
+      },
+    })
+    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+      entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'PL',
+    }, makeEstimateCache())
+    expect(result.currency).toBe('usd')
+    expect(result.local?.currency).toBe('pln')
+    expect(result.local?.exchangeRate).toBeCloseTo(0.22 / 0.8726)
+  })
+
+  test('a top-up charged in exact USD (outside the EU) carries no local line, with no FX call', async () => {
+    const fake = await makeRightsContext({
+      pricing: { ...EUR_SETTLEMENT, currency: { adaptive: true, estimate: true } },
+      stripe: { fxRates: { gbp: { exchangeRate: 1.27, referenceRate: 1.17 } } },
+    })
+    const result = await estimateStripePrice(fake.ctx, fake.stripe, {
+      entityId: 'entity-1', productSku: CREDITS_PRODUCT, country: 'GB',
+    }, makeEstimateCache())
+    expect(result.local).toBeUndefined()
+    expect(fake.state.rawRequests.filter(request => request.path === '/v1/fx_quotes')).toHaveLength(0)
   })
 
   test('omits `local` when the FX Quotes call fails, without failing the estimate', async () => {

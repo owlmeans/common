@@ -312,8 +312,11 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
   are never cached. **A locked profile overrides the requested country** (`source: 'profile'`,
   `locked: true`); the estimate carries `region`. Under a policy with region currencies a
   recurring plan is estimated in the charge currency at its synced unit amount (default or
-  option); the `local` line (FX Quotes, a PREVIEW endpoint) only when that currency is the
-  settlement currency.
+  option); the `local` line (FX Quotes, a PREVIEW endpoint) only when the session's CHARGE currency
+  (the region's, or the locked profile's) is the settlement currency — the same test the session's
+  `adaptive_pricing` takes. An amount plan stays estimated in its policy currency but is charged in
+  the region's currency, so an EU top-up gets its local line through the policy → settlement →
+  local chain, and an exact-USD one none.
 
 ## The subscription store
 
