@@ -198,6 +198,90 @@ export interface LandingGateAnswer {
   note: string
 }
 
+/**
+ * A band of the landing page that the header menu can jump to — the `id` its section carries.
+ * A CLOSED set: each value is one stamped band, so a value nothing draws is a menu entry that
+ * scrolls nowhere. `LANDING_ANCHOR_BAND` maps each to its band.
+ */
+export type LandingAnchor = 'how' | 'features' | 'use-cases' | 'why' | 'approach' | 'community' | 'about'
+
+/**
+ * The bands a landing page can carry, named in the house order `LANDING_BAND_ORDER` declares.
+ * `problem` is the problem-and-solution band. Which of them a page draws is `landingBandsOf`.
+ */
+export type LandingBand =
+  | 'hero' | 'steps' | 'features' | 'use-cases' | 'problem' | 'differentiator' | 'approach'
+  | 'testimonials' | 'about' | 'closing'
+
+/**
+ * A button or link of the landing page that can open a user story — the place a {@link HomeLink}
+ * attaches to. Which of them a given page actually draws is `homeSlotsOf`.
+ */
+export type LandingSlot =
+  | 'hero.cta' | 'hero.secondary' | 'hero.browse'
+  | 'closing.primary' | 'closing.secondary' | 'closing.link.1' | 'closing.link.2'
+  | 'useCase.1' | 'useCase.2' | 'useCase.3' | 'useCase.4'
+
+/** One entry of the guest header menu: a band to jump to and the word it is shown as. */
+export interface LandingMenuEntry {
+  anchor: LandingAnchor
+  /** 1-2 words in the product's language. */
+  label: string
+}
+
+/** A home button that opens a user story instead of its default action. */
+export interface HomeLink {
+  slot: LandingSlot
+  /** The story's CODE. */
+  story: string
+}
+
+/** One use case of the landing page: who, doing what. */
+export interface LandingUseCase {
+  /** Who this case is for, in a few words. */
+  audience: string
+  title: string
+  text: string
+}
+
+/**
+ * The bands added with the gated landing page carry a `basis`: a passage copied word for word from
+ * the person's own words, the specification or the vision. It is checked downstream, and a band
+ * whose basis is not found there is removed — the band exists only when its claim has a source.
+ */
+export interface LandingUseCases {
+  /** Two to four cases. */
+  cases: LandingUseCase[]
+  basis: string
+}
+
+/** "Why us": what this product does differently, as a short usual-vs-ours contrast. */
+export interface LandingDifferentiator {
+  title: string
+  text: string
+  /** Two to three rows, at most six words on each side. */
+  contrast: { usual: string, ours: string }[]
+  /** The heading over the `usual` column; absent falls back to the stamper's own. */
+  usualLabel?: string | null
+  /** The heading over the `ours` column; absent falls back to the stamper's own. */
+  oursLabel?: string | null
+  basis: string
+}
+
+/** "How we work": the principles the product is run by, three to four. */
+export interface LandingApproach {
+  title?: string | null
+  principles: { title: string, text: string }[]
+  basis: string
+}
+
+/** The about band: who is behind the product. */
+export interface LandingAbout {
+  title: string
+  text: string
+  basis: string
+}
+
 /** The guest area's landing page — the product's public face. */
 export interface GuestHomePlan {
   hero: {
@@ -219,9 +303,21 @@ export interface GuestHomePlan {
   solution: { title: string, text: string }
   /** The bento tiles — four, each optionally anchored by a fragment of the product's interface. */
   features: { title: string, text: string, fragment?: BentoFragment }[]
-  testimonials: { quote: string, name: string, role: string }[]
+  /**
+   * None or exactly two. Optional since the gated landing page: a plan stored before carries it,
+   * and a product whose end users do not choose it for themselves leaves it out.
+   */
+  testimonials?: { quote: string, name: string, role: string }[] | null
   /** "How it works" — three steps taken from the main flow. */
   steps?: { title: string, text: string }[]
+  /** Who it is for, case by case. */
+  useCases?: LandingUseCases | null
+  /** "Why us". */
+  differentiator?: LandingDifferentiator | null
+  /** "How we work". */
+  approach?: LandingApproach | null
+  /** Who is behind the product. */
+  about?: LandingAbout | null
   /** The small section labels and section headings; absent ones fall back to the stamper's own. */
   labels?: {
     steps?: string
@@ -232,7 +328,30 @@ export interface GuestHomePlan {
     testimonialsTitle?: string
     problem?: string
     solution?: string
+    useCases?: string | null
+    useCasesTitle?: string | null
+    differentiator?: string | null
+    approach?: string | null
+    approachTitle?: string | null
+    about?: string | null
   }
+  /**
+   * The guest header menu — two to four bands to jump to. Entries whose band the page does not
+   * draw are dropped; `landingMenuOf` is the one reading of it.
+   */
+  menu?: LandingMenuEntry[] | null
+  /**
+   * Which home buttons open which user story. Absent or `null` means NOT DECIDED yet; `[]` means
+   * decided: none. A slot the page does not draw (`homeSlotsOf`) is ignored.
+   */
+  links?: HomeLink[] | null
+  /**
+   * The story codes whose links were decided at DEVELOPMENT time, one per story asked — a decision
+   * of "no control" included. Absent (or `null`) on a plan whose links the planner decided: then
+   * {@link GuestHomePlan.links} speaks for every story of the plan. Written by code, never asked of
+   * the model.
+   */
+  linksDecided?: string[] | null
   /** The closing band: a headline, a lead, the two pills and two link cards. */
   closing?: {
     headline: string

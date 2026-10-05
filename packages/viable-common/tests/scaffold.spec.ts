@@ -3,9 +3,14 @@ import Ajv from 'ajv'
 import { validateSpecificationBody } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
 import { ViableSpecCategory, VIABLE_PROJECT_SLOTS } from '../src/planning/index.js'
-import { BENTO_FRAGMENT_KINDS, LANDING_GATE_FIELD_KINDS, WidgetKind } from '../src/scaffold/consts.js'
+import {
+  BENTO_FRAGMENT_KINDS, LANDING_ANCHOR_BAND, LANDING_ANCHORS, LANDING_BAND_ORDER, LANDING_GATE_FIELD_KINDS,
+  LANDING_GATE_SLOTS, LANDING_SLOTS, WidgetKind,
+} from '../src/scaffold/consts.js'
+import { homeSlotsOf, landingBandsOf, landingMenuOf } from '../src/scaffold/helpers.js'
+import * as barrel from '../src/index.js'
 import { ScaffoldPlanAnswerSchema, ScaffoldPlanSchema } from '../src/scaffold/schemas.js'
-import type { ScaffoldPlan } from '../src/scaffold/types.js'
+import type { GuestHomePlan, ScaffoldPlan } from '../src/scaffold/types.js'
 
 /**
  * The scaffold plan's schema is TWO things at once: the shape a model answers with, and the
@@ -187,5 +192,282 @@ describe('viable-common - the scaffold plan the model answers', () => {
     expect(text).not.toContain('"results"')
     expect(text).not.toContain('minItems')
     expect(text).not.toContain('maxItems')
+  })
+})
+
+const BASIS = 'bakers who want the full method'
+
+/** A plan carrying every key the gated landing page added. */
+const landingPlan = (): ScaffoldPlan => {
+  const plan = newPlan()
+
+  return {
+    ...plan,
+    guestHome: {
+      ...plan.guestHome,
+      testimonials: [
+        { quote: 'I found a rye loaf.', name: 'Mara L.', role: 'Home baker' },
+        { quote: 'The notes saved my bake.', name: 'Jon K.', role: 'Weekend baker' },
+      ],
+      useCases: {
+        cases: [
+          { audience: 'Home bakers', title: 'Bake from the pantry', text: 'Use what is at hand.' },
+          { audience: 'Teachers', title: 'Run a class', text: 'Share one method.' },
+          { audience: 'Clubs', title: 'Swap bakes', text: 'Trade notes.' },
+        ],
+        basis: BASIS,
+      },
+      differentiator: {
+        title: 'The method, not the photo', text: 'Every bake carries its full method.',
+        contrast: [{ usual: 'A photo', ours: 'The full method' }, { usual: 'Guesswork', ours: 'Notes' }],
+        usualLabel: 'Usually', oursLabel: 'With us', basis: BASIS,
+      },
+      approach: {
+        title: 'Honest notes.',
+        principles: [
+          { title: 'Real bakes', text: 'Made at home.' },
+          { title: 'Full methods', text: 'Nothing skipped.' },
+          { title: 'Credit bakers', text: 'Names stay on.' },
+        ],
+        basis: BASIS,
+      },
+      about: { title: 'Who we are', text: 'Bakers sharing bakes.', basis: BASIS },
+      labels: {
+        ...plan.guestHome.labels,
+        useCases: 'Who it is for', useCasesTitle: 'Made for bakers.', differentiator: 'Why us',
+        approach: 'How we work', approachTitle: 'Small batches.', about: 'About',
+      },
+      menu: [{ anchor: 'how', label: 'Steps' }, { anchor: 'why', label: 'Why' }, { anchor: 'about', label: 'Us' }],
+      links: [{ slot: 'hero.browse', story: 'US-ABC12' }, { slot: 'useCase.1', story: 'US-ABC12' }],
+    },
+  }
+}
+
+/** The new optional keys of the guest home and of its labels. */
+const NEW_HOME_KEYS = ['testimonials', 'useCases', 'differentiator', 'approach', 'about', 'menu', 'links'] as const
+const NEW_LABEL_KEYS = ['useCases', 'useCasesTitle', 'differentiator', 'approach', 'approachTitle', 'about'] as const
+
+describe('viable-common - the gated landing page in the scaffold plan schema', () => {
+  const validate = new Ajv({ strict: false, allErrors: true }).compile(ScaffoldPlanSchema)
+  const answer = new Ajv({ strict: false, allErrors: true }).compile(ScaffoldPlanAnswerSchema)
+  const slot = VIABLE_PROJECT_SLOTS.find(entry => entry.category === ViableSpecCategory.Scaffold)!
+
+  test('an old stored plan and a plan with every new key both validate, stored and answered', () => {
+    expect(validate(oldPlan()), JSON.stringify(validate.errors)).toBe(true)
+    expect(validate(landingPlan()), JSON.stringify(validate.errors)).toBe(true)
+    expect(() => validateSpecificationBody(slot, JSON.stringify(landingPlan()))).not.toThrow()
+    expect(answer(landingPlan()), JSON.stringify(answer.errors)).toBe(true)
+  })
+
+  test('every new optional key accepts null', () => {
+    for (const key of NEW_HOME_KEYS) {
+      const plan = landingPlan() as unknown as { guestHome: Record<string, unknown> }
+      plan.guestHome[key] = null
+      expect(validate(plan), `${key}: ${JSON.stringify(validate.errors)}`).toBe(true)
+      expect(answer(plan), `${key}: ${JSON.stringify(answer.errors)}`).toBe(true)
+    }
+    for (const key of NEW_LABEL_KEYS) {
+      const plan = landingPlan() as unknown as { guestHome: { labels: Record<string, unknown> } }
+      plan.guestHome.labels[key] = null
+      expect(validate(plan), `labels.${key}: ${JSON.stringify(validate.errors)}`).toBe(true)
+    }
+    const labels = landingPlan()
+    labels.guestHome.differentiator!.usualLabel = null
+    labels.guestHome.differentiator!.oursLabel = null
+    labels.guestHome.approach!.title = null
+    expect(validate(labels), JSON.stringify(validate.errors)).toBe(true)
+  })
+
+  test('linksDecided is stored (a list, null or absent) and never offered to the model', () => {
+    for (const value of [['US-ABC12', 'US-LATE1'], [], null, undefined]) {
+      const plan = landingPlan() as unknown as { guestHome: Record<string, unknown> }
+      if (value === undefined) delete plan.guestHome.linksDecided
+      else plan.guestHome.linksDecided = value
+      expect(validate(plan), `${JSON.stringify(value)}: ${JSON.stringify(validate.errors)}`).toBe(true)
+      expect(() => validateSpecificationBody(slot, JSON.stringify(plan))).not.toThrow()
+    }
+    const old = oldPlan() as unknown as { guestHome: Record<string, unknown> }
+    old.guestHome.linksDecided = ['US-LATE1']
+    expect(validate(old), JSON.stringify(validate.errors)).toBe(true)
+
+    const wrong = landingPlan() as unknown as { guestHome: Record<string, unknown> }
+    wrong.guestHome.linksDecided = [3]
+    expect(validate(wrong)).toBe(false)
+
+    const answered = ScaffoldPlanAnswerSchema.properties.guestHome as unknown as { properties: Record<string, unknown> }
+    expect(answered.properties.linksDecided).toBeUndefined()
+    expect(answered.properties.links).toBeDefined()
+  })
+
+  test('a plan without testimonials validates', () => {
+    const plan = landingPlan()
+    delete plan.guestHome.testimonials
+    expect(validate(plan), JSON.stringify(validate.errors)).toBe(true)
+    expect(answer(plan), JSON.stringify(answer.errors)).toBe(true)
+  })
+
+  test('refuses a bad anchor, a bad slot and an extra key inside a band', () => {
+    const anchor = landingPlan()
+    anchor.guestHome.menu = [{ anchor: 'pricing' as never, label: 'Pricing' }]
+    expect(validate(anchor)).toBe(false)
+
+    const target = landingPlan()
+    target.guestHome.links = [{ slot: 'hero.logo' as never, story: 'US-ABC12' }]
+    expect(validate(target)).toBe(false)
+
+    for (const band of ['useCases', 'differentiator', 'approach', 'about'] as const) {
+      const plan = landingPlan() as unknown as { guestHome: Record<string, Record<string, unknown>> }
+      plan.guestHome[band].extra = 'x'
+      expect(validate(plan), band).toBe(false)
+    }
+
+    const missing = landingPlan() as unknown as { guestHome: { about: Record<string, unknown> } }
+    delete missing.guestHome.about.basis
+    expect(validate(missing)).toBe(false)
+  })
+
+  test('declares no count as minItems/maxItems, in either schema', () => {
+    for (const schema of [ScaffoldPlanSchema, ScaffoldPlanAnswerSchema]) {
+      const text = JSON.stringify(schema)
+      expect(text).not.toContain('minItems')
+      expect(text).not.toContain('maxItems')
+    }
+    expect(JSON.stringify(ScaffoldPlanAnswerSchema)).toContain('"differentiator"')
+  })
+
+  test('exports the landing vocabulary and helpers through the package barrel', () => {
+    expect(barrel.landingBandsOf).toBe(landingBandsOf)
+    expect(barrel.landingMenuOf).toBe(landingMenuOf)
+    expect(barrel.homeSlotsOf).toBe(homeSlotsOf)
+    expect(barrel.LANDING_GATE_SLOTS).toEqual(['hero.cta', 'hero.secondary', 'closing.primary'])
+    for (const anchor of LANDING_ANCHORS) {
+      expect(LANDING_BAND_ORDER).toContain(LANDING_ANCHOR_BAND[anchor])
+    }
+    for (const gated of LANDING_GATE_SLOTS) {
+      expect(LANDING_SLOTS).toContain(gated)
+    }
+  })
+})
+
+describe('viable-common - landingBandsOf', () => {
+  test('an old stored plan draws the always-on bands; one quote is no testimonials band', () => {
+    expect(landingBandsOf(oldPlan().guestHome)).toEqual(['hero', 'features', 'problem'])
+  })
+
+  test('a full plan draws every band in the house order', () => {
+    expect(landingBandsOf(landingPlan().guestHome)).toEqual(LANDING_BAND_ORDER)
+  })
+
+  test('each optional band follows its own presence rule', () => {
+    const home = landingPlan().guestHome
+    const without = (patch: Partial<GuestHomePlan>) => landingBandsOf({ ...home, ...patch })
+
+    expect(without({ steps: [{ title: '  ', text: 'x' }] })).not.toContain('steps')
+    expect(without({ useCases: { cases: home.useCases!.cases.slice(0, 1), basis: BASIS } })).not.toContain('use-cases')
+    expect(without({ approach: { principles: home.approach!.principles.slice(0, 2), basis: BASIS } })).not.toContain('approach')
+    expect(without({ testimonials: null })).not.toContain('testimonials')
+    expect(without({ about: { title: 'Who', text: ' ', basis: BASIS } })).not.toContain('about')
+    expect(without({ closing: undefined })).not.toContain('closing')
+
+    // The differentiator: enough contrast rows, OR a title and a text.
+    const rowsOnly = { ...home.differentiator!, title: '', text: '' }
+    expect(without({ differentiator: rowsOnly })).toContain('differentiator')
+    const textOnly = { ...home.differentiator!, contrast: [] }
+    expect(without({ differentiator: textOnly })).toContain('differentiator')
+    expect(without({ differentiator: { ...rowsOnly, contrast: rowsOnly.contrast.slice(0, 1) } })).not.toContain('differentiator')
+  })
+})
+
+describe('viable-common - landingMenuOf', () => {
+  test('keeps the planned entries in page order with their own labels', () => {
+    const home = landingPlan().guestHome
+    home.menu = [{ anchor: 'about', label: 'Us' }, { anchor: 'how', label: 'Steps' }, { anchor: 'why', label: ' ' }]
+
+    expect(landingMenuOf(home)).toEqual([
+      { anchor: 'how', label: 'Steps' },
+      { anchor: 'why', label: 'Why us' },
+      { anchor: 'about', label: 'Us' },
+    ])
+  })
+
+  test('drops entries whose band is absent, and duplicates', () => {
+    const home = landingPlan().guestHome
+    home.about = null
+    home.testimonials = null
+    home.menu = [
+      { anchor: 'about', label: 'Us' }, { anchor: 'community', label: 'Reviews' },
+      { anchor: 'features', label: 'Tools' }, { anchor: 'features', label: 'Again' },
+      { anchor: 'approach', label: 'Ways' },
+    ]
+
+    expect(landingMenuOf(home)).toEqual([
+      { anchor: 'features', label: 'Tools' },
+      { anchor: 'approach', label: 'Ways' },
+    ])
+  })
+
+  test('caps at max, never below the minimum', () => {
+    const home = landingPlan().guestHome
+    home.menu = [
+      { anchor: 'how', label: 'Steps' }, { anchor: 'features', label: 'Tools' },
+      { anchor: 'use-cases', label: 'Cases' }, { anchor: 'why', label: 'Why' },
+      { anchor: 'approach', label: 'Ways' }, { anchor: 'about', label: 'Us' },
+    ]
+
+    expect(landingMenuOf(home).map(entry => entry.anchor)).toEqual(['how', 'features', 'use-cases', 'why'])
+    expect(landingMenuOf(home, 3)).toHaveLength(3)
+    expect(landingMenuOf(home, 0).map(entry => entry.anchor)).toEqual(['how', 'features'])
+  })
+
+  test('pads to two with how, features, then the first present optional band', () => {
+    const home = landingPlan().guestHome
+    home.menu = null
+    expect(landingMenuOf(home)).toEqual([
+      { anchor: 'how', label: 'How it works' },
+      { anchor: 'features', label: 'Features' },
+    ])
+
+    home.menu = [{ anchor: 'about', label: 'Us' }]
+    expect(landingMenuOf(home).map(entry => entry.anchor)).toEqual(['how', 'about'])
+
+    const noSteps = landingPlan().guestHome
+    noSteps.steps = []
+    noSteps.menu = []
+    noSteps.labels = { features: 'What you get' }
+    expect(landingMenuOf(noSteps)).toEqual([
+      { anchor: 'features', label: 'What you get' },
+      { anchor: 'use-cases', label: 'Use cases' },
+    ])
+  })
+})
+
+describe('viable-common - homeSlotsOf', () => {
+  test('without a gate: the hero and closing pills exist, plus every labelled link and drawn case', () => {
+    const home = landingPlan().guestHome
+    delete home.gate
+
+    expect(homeSlotsOf(home)).toEqual([
+      'hero.cta', 'hero.secondary', 'hero.browse', 'useCase.1', 'useCase.2', 'useCase.3',
+      'closing.primary', 'closing.secondary', 'closing.link.1', 'closing.link.2',
+    ])
+  })
+
+  test('with a usable gate the gated slots are gone; a gate without fields is no gate', () => {
+    const home = landingPlan().guestHome
+    const slots = homeSlotsOf(home)
+    for (const gated of LANDING_GATE_SLOTS) expect(slots).not.toContain(gated)
+    expect(slots).toContain('hero.browse')
+    expect(slots).toContain('closing.link.1')
+
+    home.gate = { ...home.gate!, fields: [] }
+    expect(homeSlotsOf(home)).toContain('hero.cta')
+  })
+
+  test('an old stored plan has the primary pill alone; too few cases draw no case slots', () => {
+    expect(homeSlotsOf(oldPlan().guestHome)).toEqual(['hero.cta'])
+
+    const home = landingPlan().guestHome
+    home.useCases = { cases: home.useCases!.cases.slice(0, 1), basis: BASIS }
+    expect(homeSlotsOf(home).some(entry => entry.startsWith('useCase.'))).toBe(false)
   })
 })
