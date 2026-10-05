@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/client-iam
 
 **Layer:** Client (browser-only — it depends on `@owlmeans/web-client` and `@owlmeans/web-oidc-rp`)
-**Install:** `"@owlmeans/client-iam": "^0.1.18-rc.62"` in `dependencies`
+**Install:** `"@owlmeans/client-iam": "^0.1.18-rc.63"` in `dependencies`
 
 The browser side of the IAM for an application that signs its people in through an OwlMeans OIDC
 provider. One import wires the relying party, puts the consent precondition in front of every

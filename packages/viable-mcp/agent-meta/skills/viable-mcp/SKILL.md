@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-mcp
 
 **Layer:** Tooling (CLI)
-**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.44`; bin name `viable-mcp`
+**Install:** nothing — a coding agent runs `npx -y @owlmeans/viable-mcp@^0.1.18-rc.45`; bin name `viable-mcp`
 **Everything it does is `@owlmeans/viable-sdk`** — this package is the stdio process around it:
 configuration, sign-in (over `@owlmeans/cli-auth`), the stdout guard, and the server object. The planning client the story tools write
 through is wired inside `makeSdkContext` as well — the planning tree, `appendPlanningClient` with no
@@ -20,7 +20,7 @@ a network call. Operator-facing setup is the viable repo's `mcp.md`.
 | Export | Description |
 |--------|-------------|
 | `makeViableMcpServer(cfg)` → `{ server, close }` | The configured `McpServer` with the catalogue registered |
-| `readConfig(argv, env)` (async) · `parseArgs(argv)` · `HELP` | What this server was started with: flags over the merged environment + `~/.owlmeans` |
+| `configHelper` — `.readConfig(argv, env)` (async) · `.parseArgs(argv)`; `HELP` | What this server was started with: flags over the merged environment + `~/.owlmeans` |
 | `makeCredentials(cfg, log)` · `CLIENT_ID` (`viable-mcp`) | The one credential holder `bin.ts` and `server.ts` both build |
 | `DEFAULT_API_URL` · `DEFAULT_TARGET` (`local`) · `DEFAULT_LLM` (`cloud`) | The defaults a user who set nothing gets |
 | `McpConfig.mcpUrl` | The URL-configured host's address, `resolveMcpUrl(merged)` — printed by `url`; this server never calls it |
@@ -55,14 +55,14 @@ whole of a user's first impression.
 capabilities and does **nothing** (no error, no throw) when a server never advertised `logging`, so
 a refusal notice built there would simply vanish with nothing anywhere saying so. This is what
 backs `ToolDeps.notify`: a refusal only a person resolves — the balance, the spend consent, a
-conversion's confirmation (`viable-sdk`'s `personRefusalPhrase`) — is pushed to
+conversion's confirmation (`viable-sdk`'s `refusalHelper.personRefusalPhrase`) — is pushed to
 `server.sendLoggingMessage({ level: 'warning', logger: 'viable', data: text })`, i.e. an MCP
 `notifications/message`, independent of the tool result text. The platform's own stateless `/mcp`
 host has no channel to push through and passes no `notify` at all — treat it as always best-effort.
 
 ## Sign-in: a browser, not a pasted token
 
-No token is required to start. `readConfig` merges `loadOwlmeansEnv(process.env)` — the dotenv-style
+No token is required to start. `configHelper.readConfig` merges `envFileHelper.loadOwlmeansEnv(process.env)` — the dotenv-style
 credentials file (`~/.owlmeans`, moved by `OWLMEANS_CREDENTIALS`) under the process environment — so
 **the environment always wins over the file**, and an EMPTY environment value is ignored (a harness
 that expands an unset `${VIABLE_API_TOKEN:-}` to `''` must not shadow the file). A missing token is
@@ -94,7 +94,7 @@ Subcommands (`bin.ts`; the first bare argument, absent = the server):
 | `login` | Runs the device sign-in to completion (15 min ceiling), stores the token in the file |
 | `logout` | Revokes the token (`/oauth/revoke`) and forgets it |
 | `status` | Reports on stderr whether this machine is signed in |
-| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.44 url)"` |
+| `url` | Prints the platform's `/mcp` URL to **stdout** — the one command whose answer belongs there, through `protocolStdout` — for `claude mcp add --transport http viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.45 url)"` |
 
 The `/mcp` URL is `VIABLE_MCP_URL` (environment over file), else `https://api.owlmeans.com/mcp`
 (`resolveMcpUrl` in viable-sdk). A test or a self-hosted setup overrides it; a deployment's own

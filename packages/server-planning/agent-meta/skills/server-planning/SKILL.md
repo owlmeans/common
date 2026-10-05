@@ -8,12 +8,12 @@ user-invocable: false
 # @owlmeans/server-planning
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.21"` in `dependencies` (`ajv` is a peer)
+**Install:** `"@owlmeans/server-planning": "^0.1.18-rc.22"` in `dependencies` (`ajv` is a peer)
 
 The general implementation of `@owlmeans/planning`: the planning service (a plugin host), the
 scoped facade, the executor every write goes through, the in-memory reference store, the commit
 hub and the protocol handlers. It holds no database code — a durable store implements the ports and
-reuses the `./store` subpath (`foldPending`, `makeCommitHub`) without pulling fastify in.
+reuses the `./store` subpath (`foldHelper.foldPending`, `makeCommitHub`) without pulling fastify in.
 
 ## Key exports
 
@@ -24,17 +24,17 @@ reuses the `./store` subpath (`foldPending`, `makeCommitHub`) without pulling fa
 | `makePlanningService(opts?, alias?)`, `planningServiceApi(opts, self)` | The service, and its body for a specialised service |
 | `PlanningServiceOptions` | `{ store?, plugins?, schemas?, hooks?, ids?, now? }` |
 | `makePluginRegistry`, `makeStoreFacade`, `executeTransition` | The pieces the service is made of |
-| `creatorOf(scope)`, `withCreator(exec, scope)`, `assertCreatorFixed(exec)` | The subject a create is stamped with as `createdBy`, the defaulting the executor applies, and its refusal of any later move |
+| `creatorHelper` — `.creatorOf(scope)`, `.withCreator(exec, scope)`, `.assertCreatorFixed(exec)` | The subject a create is stamped with as `createdBy`, the defaulting the executor applies, and its refusal of any later move |
 | `servePlanningEntrypoints(protocols, opts?)` | One binding per protocol of a `makePlanningProtocols` tree (`schema.define` too when declared) |
-| `planningFor(ctx, req, extra?)` | The request-scoped facade for a hand-written handler |
+| `planningHandlerOf(ctx).planningFor(req, extra?)` | The request-scoped facade for a hand-written handler |
 | `PlanningHandlerOptions` | `{ service?, event?, maxPoll?, scope?(req, ctx), access?(req, ctx) }` |
 | `PlanningAccessResolver`, `PlanningAccess`, `PlanningAccessGrants`, `PlanningGrant` | The optional access decision a hosting app supplies |
 | `listCards` … `executePlanning`, `getCommit`, `watchCommits`, `listSchemas`, `defineSchemas`, `applySchemaRequest` | The handlers, to bind one by hand |
-| `scopeOf(req, extra?)`, `accessScopeOf(req, access, extra?)`, `handlerScopeOf`, `assertGranted`, `assertWrites`, `writableIn`, `assertExecutionGranted`, `assertExecutionWrites`, `actorOf(req)`, `concealed(run)`, `clampSeconds` | Scope and security helpers |
+| `makeRequestScope(req)` — `.scopeOf(extra?)`, `.accessScopeOf(access, extra?)`, `.actorOf()`; `planningHandlerOf(ctx).handlerScopeOf`; `makePlanningAccessModel(access)` — `.assertGranted`, `.assertWrites`, `.writableIn`; `executionHelper` — `.assertExecutionGranted`, `.assertExecutionWrites`; `guardHelper` — `.concealed(run)`, `.clampSeconds` | Scope and security helpers |
 | `makeDefinitions(runtime, facade)`, `makeSchemaViews(opts)`, `projectCriteriaOf(projects, through?)` | Data-defined schemas and the project narrowing |
-| `makeProjectionProcessor(ctx, opts?)`, `planningQueueHooks(ctx, opts?)` | A generic projection job body and its `onJobDead` |
+| `makeProjectionProcessor(ctx, opts?)`, `makePlanningQueueHooks(ctx, opts?)` | A generic projection job body and its `onJobDead` |
 | `./queue`: `declarePlanningQueue(cfg, opts?)`, `PLANNING_PROJECTION_QUEUE` (`planning-projection`), `PLANNING_PROJECT_JOB` (`planning:project`), `ProjectionRequest` | The projection queue's shared address; each process chooses separately whether to listen |
-| `./store`: `makeMemoryPlanningStore`, `foldPending`, `failPending`, `revisionsFromLog`, `commitEventOf`, `makeCommitHub`, `makeCompositeStore`, `wantsSpecifications` | What stores are built from |
+| `./store`: `makeMemoryPlanningStore`, `foldHelper` (`.foldPending`, `.failPending`, `.revisionsFromLog`, `.commitEventOf`), `makeCommitHub`, `makeCompositeStore`, `wantsSpecifications` | What stores are built from |
 | `./conformance`: `planningConformance`, `conformanceCasesFor`, `planningConformancePlugin`, `conformanceClock`, `ConformanceFailure` | The store conformance suite, runner-agnostic |
 
 ## Wiring
@@ -69,7 +69,7 @@ context.registerEntrypoints(servePlanningEntrypoints(planningProtocols, {
   / `appendPostgresPlanning` install (typed `WithPlanningService`); a context that registered
   `makePlanningService()` / `makePostgresPlanningService()` as a plain service — a generated target's
   `services/planning.ts` — has no `ctx.planning` at all. In a request handler use
-  `planningFor(ctx, req)`: the entity comes from `requireEntityKey(req)`, never the token.
+  `planningHandlerOf(ctx).planningFor(req)`: the entity comes from `makeEntityScope(req).requireEntityKey()`, never the token.
 
 ## Creating and reading a card
 
@@ -131,7 +131,7 @@ wrong form as written.
 Nothing is appended before step 11 — every refusal leaves the log untouched.
 
 1. **Normalize** — deep copy, trimmed text, `parents ∋ parent` (first); a create's draft without
-   `createdBy` gets `creatorOf(scope)` (below).
+   `createdBy` gets `creatorHelper.creatorOf(scope)` (below).
 2. **Scope** — `entityId` must be present.
 3. **Idempotency** — a `key` already in the entity's log answers ITS receipt, before any
    validation or middleware.
@@ -145,14 +145,14 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
    (`UnknownWorkcardType('retired:…')`). Without the port `Resolved.schemas` IS the code registry.
 5. **`before` chain** — in plugin order; re-resolved once when it changed the card, type or parent.
 6. **Validate** — shape (`planning:malformed:*`), the flow rule (`IllegalTransition`), immutables
-   (`planning:immutable:*`, `createdBy` among them — `assertCreatorFixed`), merged `fields` (`FieldsInvalid`), labels (`LabelNotAllowed`), a moved
+   (`planning:immutable:*`, `createdBy` among them — `creatorHelper.assertCreatorFixed`), merged `fields` (`FieldsInvalid`), labels (`LabelNotAllowed`), a moved
    parent, the slot (`SpecificationSlotUnknown`, `SpecificationRevisionConflict`, JSON body schema
    → `FieldsInvalid`), relationships (`RelationshipRefused`: undeclared type, `from` not the card,
    missing target, type constraints, `single`, unlinking an absent edge).
-7. **Card id** — `store.newId?.() ?? options.ids?.() ?? uuid()`. Ids are the store's.
+7. **Card id** — `store.newId?.() ?? options.ids?.() ?? idHelper.uuid()`. Ids are the store's.
 8. **Code** — a supplied code is checked; else the plugins' `mintCode` (first answer wins, checked);
    else the type's `CodePolicy` (a slug policy derives from the title) → `CodeTaken`.
-9. **Changes** — `computeChanges`. An `update` that changes nothing answers the card's latest
+9. **Changes** — `changesHelper.computeChanges`. An `update` that changes nothing answers the card's latest
    receipt and appends nothing.
 10. **Seq** — `transitions.nextSeq(card, expectSeq)`, a CAS against `head` (`WorkcardConflict`).
 11. **Append** — `commit: pending`. A lost race on the key answers the winner's receipt.
@@ -163,14 +163,14 @@ Nothing is appended before step 11 — every refusal leaves the log untouched.
 `actor` is the SCOPE's: `profileId`/`userId`/`service`/`channel` come from the scope only; an
 in-process caller may add `agent`/`runId` on the execution. A handler never passes a wire `actor`.
 
-A create's `createdBy` is the scope's subject too — `creatorOf(scope)`: `profileId`, else `userId`,
+A create's `createdBy` is the scope's subject too — `creatorHelper.creatorOf(scope)`: `profileId`, else `userId`,
 else the same two of `scope.actor`. The executor stamps it on every path, so an in-process facade
 create and the HTTP `execute` produce the same owner. An in-process draft that names `createdBy`
 keeps it (explicit wins — a manager creating on someone's behalf); a scope naming nobody (a service
 or system scope) leaves it unset; the wire drops a draft's `createdBy` before the stamp.
 
 `createdBy` never moves after the create (the rule is `planning` → The record model). The executor
-enforces it itself with `assertCreatorFixed` at step 6, after the `before` chain, so a wire body, an
+enforces it itself with `creatorHelper.assertCreatorFixed` at step 6, after the `before` chain, so a wire body, an
 in-process caller and a plugin are refused alike, whatever `@owlmeans/planning` build the host
 resolves. The conformance suite checks a store folds a stored row naming it as the pure fold does.
 
@@ -230,8 +230,8 @@ the store; `bind` replaces the listener, so a store has exactly one.
   answers the id format the host's references need (ObjectId hex for Mongo).
 - `transitions.list` treats `sinceSeq` as `seq > sinceSeq`; `nextSeq` is the CAS against `head` and
   answers 1 for a card that has no log.
-- The projection body is `foldPending(store, cardId, entityId, { onCommitted, publish, touch, limit })`:
-  it applies pending transitions with `applyTransition` only, marks each committed or failed,
+- The projection body is `foldHelper.foldPending(store, cardId, entityId, { onCommitted, publish, touch, limit })`:
+  it applies pending transitions with `applyHelper.applyTransition` only, marks each committed or failed,
   publishes, then runs `onCommitted`. The caller owns single flight per card. Strip `record` from
   the event before a cross-process bus.
 - **A failed transition never blocks the card.** The fold marks it `failed`, publishes a failed
@@ -239,14 +239,14 @@ the store; `bind` replaces the listener, so a store has exactly one.
   it was, and the next transition folds normally. Without that, every later transition fails as
   out of order and the card is stuck for good. Only two cases stop short: a failed `create` leaves
   no card to advance, and a store that refuses the advancing write stops the fold with `followUp`,
-  leaving the rest pending for a retry. `revisionsFromLog` replays past failed transitions the same
+  leaving the rest pending for a retry. `foldHelper.revisionsFromLog` replays past failed transitions the same
   way.
 - A transactional store passes `FoldOptions.unit` — it wraps each transition's writes (a
   savepoint), so a write the database refuses is undone whole and the fold marks that transition
-  failed and goes past it. `foldPending` folds PAST a failure it produces; a row that is ALREADY
+  failed and goes past it. `foldHelper.foldPending` folds PAST a failure it produces; a row that is ALREADY
   failed at the cursor, or a gap in the seqs, is the store's to step over before calling it
   (`planning-postgres` does it in a prelude).
-- `failPending` is what a dead projection job must do, or waiters hang to their timeout.
+- `foldHelper.failPending` is what a dead projection job must do, or waiters hang to their timeout.
 - The data-defined schema port (`schemas`) is optional; `makeCompositeStore` passes the default
   store's through. A store that has it must purge a project's layer with the project.
 - **Run the conformance suite.** `@owlmeans/server-planning/conformance` exports
@@ -257,8 +257,8 @@ the store; `bind` replaces the listener, so a store has exactly one.
   boot serves them all.
 - `makeCommitHub({ status, remember?, ladder? })` is the `CommitSource`: feed `publish` from the bus,
   answer `status` from transition rows. `wait` subscribes first, polls once, then climbs the ladder.
-- `revisionsFromLog(transitions, limit?)` answers `specs.revisions`.
-- `makeProjectionProcessor(ctx)` + `planningQueueHooks(ctx)` are the store-agnostic job body and
+- `foldHelper.revisionsFromLog(transitions, limit?)` answers `specs.revisions`.
+- `makeProjectionProcessor(ctx)` + `makePlanningQueueHooks(ctx)` are the store-agnostic job body and
   `onJobDead`; a store with an admission CAS wraps its own around them.
 
 ## A foreign provider
@@ -279,19 +279,19 @@ mapping external records (`mappers`) belongs to that plugin's own store adapter.
 
 ## Scope and security
 
-- Without `opts.access`: `entityId` is `requireEntityKey(req)`; `opts.scope(req, ctx)` adds a
+- Without `opts.access`: `entityId` is `makeEntityScope(req).requireEntityKey()`; `opts.scope(req, ctx)` adds a
   `channel` or `service` and can never replace the entity. `actor` and a create's `createdBy` come
-  from the request, never the body (`wireExecution` drops a draft's claim, `withCreator` stamps the
-  subject, `assertCreatorFixed` refuses a body naming `createdBy` — an update never re-owns a card).
-- The organization of a scope is the one the request ACTS IN. `requireEntityKey(req)` answers
+  from the request, never the body (`executionHelper.wireExecution` drops a draft's claim, `creatorHelper.withCreator` stamps the
+  subject, `creatorHelper.assertCreatorFixed` refuses a body naming `createdBy` — an update never re-owns a card).
+- The organization of a scope is the one the request ACTS IN. `makeEntityScope(req).requireEntityKey()` answers
   `req.entity.id`, the stable record id (the token's `entitySlug` only where no entity resolver is
   registered). Behind an OIDC relying party (`@owlmeans/server-oidc-rp`) the acting organization is
   session state: the guard attaches `req.entity` with `id` = the organization claim's frozen
   `entityKey`, so the tenant key survives a rename and follows a switch. Take it in the handler and
   pass it down; never read it from the context or from a body.
 - Another entity's card, specification or transition answers `WorkcardNotFound` — the same as an
-  absent id — on reads and writes alike (`concealed`).
-- Queries arrive in their wire form and are decoded with `decode*Query` before `criteriaOf`, which
+  absent id — on reads and writes alike (`guardHelper.concealed`).
+- Queries arrive in their wire form and are decoded with `wireHelper.decode*Query` before `queryHelper.criteriaOf`, which
   always adds the scope's `entityId`.
 
 ### The access resolver
@@ -349,7 +349,7 @@ target).
 ## Data-defined types and flows
 
 Where the default store has the schema port, `runtime.schemasFor(entityId, project?)` answers the
-resolved layer (`resolveScopedBundle` over the code bundle and the organization's and project's
+resolved layer (`scopedSchemaHelper.resolveScopedBundle` over the code bundle and the organization's and project's
 records), cached per (organization, project) and keyed by the store's `revision()` and the plugin
 registry's version — a write anywhere moves the revision the next lookup reads, so a cached layer is
 never stale; a store's `watch` evicts early. Without the port it answers the code registry itself.

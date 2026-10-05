@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/mailer-smtp",
-  "version": "0.1.18-rc.42",
+  "version": "0.1.18-rc.43",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,15 +22,15 @@
     }
   },
   "dependencies": {
-    "@owlmeans/context": "^0.1.18-rc.33",
-    "@owlmeans/mailer": "^0.1.18-rc.35",
-    "@owlmeans/server-context": "^0.1.18-rc.42",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/mailer": "^0.1.18-rc.36",
+    "@owlmeans/server-context": "^0.1.18-rc.43",
     "nodemailer": "^10.0.14"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test": "^0.1.18-rc.34",
-    "@owlmeans/test-integration": "^0.1.18-rc.32",
+    "@owlmeans/test": "^0.1.18-rc.35",
+    "@owlmeans/test-integration": "^0.1.18-rc.33",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",

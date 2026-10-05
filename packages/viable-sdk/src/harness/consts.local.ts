@@ -18,7 +18,7 @@ Do not use tools. Do not read or write files. Do not plan. The task is self-cont
  * viable-mcp release. A tag (`@next`) is refused by that audit, and a copy per harness was how three
  * of four configs kept a tag while the fourth carried the pin.
  */
-export const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.43'] as const
+export const MCP_COMMAND = ['npx', '-y', '@owlmeans/viable-mcp@^0.1.18-rc.45'] as const
 
 export const MCP_EXECUTABLE = MCP_COMMAND[0]
 

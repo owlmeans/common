@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-auth-token
 
 **Layer:** Web (React, shadcn + Tailwind v4)
-**Install:** `"@owlmeans/web-auth-token": "^0.1.18-rc.32"` in `dependencies`
+**Install:** `"@owlmeans/web-auth-token": "^0.1.18-rc.33"` in `dependencies`
 **Contracts:** `@owlmeans/auth-token` — records, `CreateAccessToken`, `authToken` aliases,
 `makeAuthTokenEntrypoints`
 
@@ -19,8 +19,8 @@ user-invocable: false
 | `ConnectedAccessTokensPanel` | The whole feature — the panel wired to `useAccessTokens`. Props: `aliases?`, `usageHint?` |
 | `AccessTokensPanel` | The same panel, presentational. Props: `items`, `issued`, `loading?`, `error?`, `onCreate`, `onRevoke`, `onDismissIssued`, `usageHint?` |
 | `useAccessTokens(aliases?)` | The I/O half — `{ items, issued, loading, error, reload, create, revoke, dismissIssued }` |
-| `tokenStatus(item)` | `'active' \| 'expired' \| 'revoked'` — revocation outranks expiry |
-| `formatMoment(value, lng?)` | A record's moment in the reader's language, or `null` when there is none |
+| `accessTokenViewHelper.tokenStatus(item)` | `'active' \| 'expired' \| 'revoked'` — revocation outranks expiry |
+| `accessTokenViewHelper.formatMoment(value, lng?)` | A record's moment in the reader's language, or `null` when there is none |
 | `cn(...inputs)` | The class-name merger the components are written against — an app never re-declares it |
 | `AUTH_TOKEN_I18N` | `'auth-token'` — the library-tier i18n resource |
 | `TOKEN_EXPIRY_CHOICES` / `TOKEN_EXPIRY_NEVER` / `DAY_SECONDS` | The lifetimes the create form offers, in days, plus the seconds conversion |
@@ -90,10 +90,10 @@ with `useI18nLib(AUTH_TOKEN_I18N, 'panel')`; there is no English literal in the 
 string is added to all seven files in the same change.
 
 An application overrides any of them at the app tier — and must **name the namespace**, because
-`addI18nApp` defaults it to the resource name while the library's bundle sits in `lib`:
+`i18nHelper.addI18nApp` defaults it to the resource name while the library's bundle sits in `lib`:
 
 ```ts
-addI18nApp('en', 'auth-token', { panel: { title: 'API keys' } }, { ns: LIB_NAMESPACE })
+i18nHelper.addI18nApp('en', 'auth-token', { panel: { title: 'API keys' } }, { ns: LIB_NAMESPACE })
 ```
 
 Drop `{ ns: LIB_NAMESPACE }` and nothing errors — the override simply never renders.

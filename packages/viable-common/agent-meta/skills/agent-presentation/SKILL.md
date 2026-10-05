@@ -6,10 +6,10 @@ description: Shared, runtime-free taxonomy for presenting OwlMeans Viable agent 
 
 # Agent output presentation
 
-**Install:** `"@owlmeans/viable-common": "^0.0.44"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.45"` in `dependencies`
 
 `@owlmeans/viable-common`'s `agent/presentation.ts` owns the browser-safe vocabulary for agent
-output. Keep the server and every client on `classifyAgentMessage()`; consumers may refine a
+output. Keep the server and every client on `agentPresentationHelper.classifyAgentMessage()`; consumers may refine a
 provisional classification as streamed text becomes parseable, but must not invent a competing
 taxonomy.
 
@@ -24,7 +24,7 @@ taxonomy.
   compatibility; the final server hint is based on complete output and the browser refines it while
   it streams. Keep legacy `outputType` intact.
 - Unwrap a single LangChain tool call's `args` before semantic classification
-  (`agentToolCallArguments`). Known schemas render as cards; unknown objects and arrays remain
+  (`agentPresentationHelper.agentToolCallArguments`). Known schemas render as cards; unknown objects and arrays remain
   generic structured output, never raw JSON.
 - `structuredKindOf`'s shape checks are ORDER-SENSITIVE where one payload could match more than
   one: a scaffold plan carries its own `stories` array, so `ScaffoldPlan` (`identity` + `guestHome`
@@ -40,7 +40,7 @@ taxonomy.
   `source-extract`), or the single call's shape only reaches a `Generic*` kind. Without the
   action check, a free-flight `read_sources({ files })` call reads as an `ArtifactSelection` card
   instead of a tool call, because its args happen to shape-match that schema.
-- `isAgentMessageHidden()` owns utility-run suppression. The source extractor's `source-extract`
+- `agentPresentationHelper.isAgentMessageHidden()` owns utility-run suppression. The source extractor's `source-extract`
   range-selection calls are internal context reduction and never render in thinking or history.
 
 ## Consumer rules

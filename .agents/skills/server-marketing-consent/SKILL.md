@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/server-marketing-consent
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.14"` in `dependencies`
+**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.15"` in `dependencies`
 **Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree, the error family
 
 ## Key Exports

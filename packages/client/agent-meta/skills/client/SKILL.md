@@ -1,6 +1,6 @@
 ---
 name: client
-description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, lazyComponent/lazyHandler code-splitting and chunk-failure recovery (retryImport, isChunkLoadError, recoverFromChunkError), the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
+description: How to use @owlmeans/client — the platform-agnostic React client framework (web and native) — makeClientContext, App/Router, useNavigate/Navigator, useEntrypoint/RoutedComponent, useStoreModel/useStoreList, useValue, lazyComponent/lazyHandler code-splitting and chunk-failure recovery (lazyRetryHelper), the modal and debug services. Auto-invoked when importing client framework primitives, navigating between screens, or reading client state from React.
 user-invocable: false
 ---
 <!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->
@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client
 
 **Layer:** Client
-**Install:** `"@owlmeans/client": "^0.1.18-rc.50"` in `dependencies`
+**Install:** `"@owlmeans/client": "^0.1.18-rc.51"` in `dependencies`
 
 The React substrate `@owlmeans/web-client` (browser) and the native equivalent are built on. A
 cross-platform package imports from here; an application normally imports from the platform
@@ -37,8 +37,8 @@ package, which re-exports what it needs — **except the hooks below, which are 
 | `RoutedComponent<Extra>` | Type of a component bound to a frontend protocol |
 | `handler(Component, preprender?)` | Wrap a React component as an entrypoint handler |
 | `lazyComponent(load, exportName, opts?)` / `lazyHandler(load, exportName, opts?)` | A code-split component with a static `.preload()`; and `handler(lazyComponent(...))` with `.preload` carried through. Types `LazyComponent`, `LazyHandler`, `LazyComponentOptions`, `LazyErrorRenderer` — see Code-splitting |
-| `retryImport(load, opts?)` / `isChunkLoadError(error)` | Run a dynamic `import()` again while it fails to FETCH; tell a fetch failure from a module that loaded and broke. `RetryImportOptions` — see Chunk failures |
-| `reloadOnce(key, windowMs)` / `recoverFromChunkError()` | The guarded page reload, and the one every chunk-failure path in a tab shares — see Chunk failures |
+| `lazyRetryHelper.retryImport(load, opts?)` / `lazyRetryHelper.isChunkLoadError(error)` | Run a dynamic `import()` again while it fails to FETCH; tell a fetch failure from a module that loaded and broke. `RetryImportOptions` — see Chunk failures |
+| `lazyRetryHelper.reloadOnce(key, windowMs)` / `lazyRetryHelper.recoverFromChunkError()` | The guarded page reload, and the one every chunk-failure path in a tab shares — see Chunk failures |
 | `useStoreModel` / `useStoreList` | React hooks over a `@owlmeans/state` resource — one record by id, or a live query |
 | `useValue(loader, deps?, forceDefault?)` / `UseValueParams<T>` | Render an async result. The second argument is the **dependency list**, not a default — see Async values |
 | `useToggle(opened?)` / `Toggleable` | An open/close/toggle handle, which is what a modal surface binds to |
@@ -50,7 +50,7 @@ package, which re-exports what it needs — **except the hooks below, which are 
 
 ## Subpath Exports
 
-- `./utils` — `buildEntrypointTree`, `visitEntrypointTree`, `initializeRouter`, `createRouteRenderer`,
+- `./utils` — `clientRouterOf(ctx)` (`buildEntrypointTree`, `visitEntrypointTree`, `initializeRouter`), `createRouteRenderer`,
   `EntrypointContext`. What the router is assembled from; a package building its own routing surface
   uses these, an application does not.
 
@@ -132,7 +132,7 @@ const Chart = lazyComponent(() => import('./chart.js'), 'Chart', {
 - **`fallback`** is a node or `fallback(props)`. **`error`** is a node or a `LazyErrorRenderer`
   `(props, error, retry) => ReactNode`; `retry()` resets the piece's boundary and renders the
   recreated lazy, which loads the chunk again.
-- **`retry`** — the load runs through `retryImport` by default; pass `RetryImportOptions` to tune
+- **`retry`** — the load runs through `lazyRetryHelper.retryImport` by default; pass `RetryImportOptions` to tune
   it or `false` to load once.
 - **An `exportName` the module does not export** rejects with a `SyntaxError` — never retried.
 
@@ -143,7 +143,7 @@ it:
 
 | The piece fails with | `error` given | `error` omitted |
 |---|---|---|
-| a chunk-load failure (`isChunkLoadError`), after `retryImport` gave up | with `reload` (default for `lazyHandler`): the guarded reload starts, `fallback` stays, and `error` renders once the guard refuses; without it: `error` renders in place | `recoverFromChunkError()` starts the guarded reload; `fallback` stays in place |
+| a chunk-load failure (`lazyRetryHelper.isChunkLoadError`), after `retryImport` gave up | with `reload` (default for `lazyHandler`): the guarded reload starts, `fallback` stays, and `error` renders once the guard refuses; without it: `error` renders in place | `lazyRetryHelper.recoverFromChunkError()` starts the guarded reload; `fallback` stays in place |
 | anything else (a module that loaded and broke, its own render) | `error` renders in place | propagates to the nearest boundary above, as if the piece had none |
 
 Give every piece a deliberate `error`: a leaf that has a plain rendering of the same content (a
@@ -151,10 +151,10 @@ formatter, a highlighter) degrades to it; anything else shows a notice with a re
 (`lazyHandler`) reloads once before its notice (`reload: true` by default) — it has nothing to
 degrade to.
 
-- **Retry scope.** `retryImport` covers a TRANSIENT fetch failure — a blip, an edge answering 404
+- **Retry scope.** `lazyRetryHelper.retryImport` covers a TRANSIENT fetch failure — a blip, an edge answering 404
   or 5xx for a moment. Chromium keeps a failed module fetch for the document's lifetime and rejects
   every later `import()` of that URL at once, so a retry imports the URL the error names with a
-  fresh `t` parameter (`chunkUrlOf` + `cacheBustedUrl`, `bustCache` on by default; same-origin
+  fresh `t` parameter (`lazyRetryHelper.chunkUrlOf` + `.cacheBustedUrl`, `bustCache` on by default; same-origin
   http(s) URLs only): a new URL, fetched again. That recovers a built chunk. It cannot recover a
   DEV-served module: React Fast Refresh makes every module import itself by its own URL, so the
   busted copy depends on the remembered failure — only a new document loads it, which is what
@@ -163,20 +163,20 @@ degrade to.
   that instance while recovering from the error, and a fresh load there would suspend again
   forever. A NEW mount — a navigation back, another place in the tree — takes the recreated lazy and
   loads again; so does `preload()`.
-- **`isChunkLoadError(error)`** is true for a browser's failed dynamic import (Chromium "Failed to
+- **`lazyRetryHelper.isChunkLoadError(error)`** is true for a browser's failed dynamic import (Chromium "Failed to
   fetch dynamically imported module", Safari "Importing a module script failed", Firefox "error
   loading dynamically imported module"), Vite's "Unable to preload CSS", webpack's `ChunkLoadError`,
   a `vite:preloadError` event, and an element's `error` event. It is false for a `SyntaxError`
   about a missing export and for a throw while the module evaluated — loading those again changes
   nothing.
-- **`retryImport(load, opts?)`** runs `load` again while `shouldRetry(error)` (default
+- **`lazyRetryHelper.retryImport(load, opts?)`** runs `load` again while `shouldRetry(error)` (default
   `isChunkLoadError`) holds, `attempts` (2) more times at most, pausing `delaysMs[i]` before retry
   `i` (500 ms, 1500 ms; the last entry repeats), and rethrows the last failure.
-- **`reloadOnce(key, windowMs)`** reloads the page at most once per `windowMs` per tab, keeping the
+- **`lazyRetryHelper.reloadOnce(key, windowMs)`** reloads the page at most once per `windowMs` per tab, keeping the
   time in `sessionStorage` under `key`; never while offline and never without storage (with no
   guard kept, a failure that survives the reload would reload forever); a platform with no page to
   reload does nothing. It answers whether a reload started.
-- **`recoverFromChunkError()`** is `reloadOnce(CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS)` — the ONE
+- **`lazyRetryHelper.recoverFromChunkError()`** is `reloadOnce(CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS)` — the ONE
   guard a tab shares. An application that also reloads on `vite:preloadError` calls it rather than
   keeping a guard of its own, so one failure never reloads twice.
 

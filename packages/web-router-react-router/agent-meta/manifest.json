@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-router-react-router",
-  "version": "0.1.18-rc.31",
-  "generatedAt": "2026-10-05T08:32:19.109Z",
+  "version": "0.1.18-rc.32",
+  "generatedAt": "2026-10-05T21:03:06.391Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

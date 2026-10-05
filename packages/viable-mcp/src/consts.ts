@@ -17,7 +17,7 @@ export const DEFAULT_LLM = ConnectLlm.Cloud
 
 export const HELP = `viable-mcp — drive the OwlMeans Viable platform from a coding agent
 
-  npx -y @owlmeans/viable-mcp@^0.1.18-rc.44 [options]
+  npx -y @owlmeans/viable-mcp@^0.1.18-rc.45 [options]
 
 Options
   --api-url <url>       The platform's API. Default: ${DEFAULT_API_URL}

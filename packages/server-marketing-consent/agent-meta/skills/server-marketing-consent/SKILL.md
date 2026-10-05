@@ -8,8 +8,8 @@ user-invocable: false
 # @owlmeans/server-marketing-consent
 
 **Layer:** Server
-**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.14"` in `dependencies`
-**Contracts:** `@owlmeans/marketing-consent` — the catalogue, `consentStatus`, the protocol tree, the error family
+**Install:** `"@owlmeans/server-marketing-consent": "^0.1.18-rc.15"` in `dependencies`
+**Contracts:** `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree, the error family
 
 ## Key Exports
 
@@ -17,7 +17,7 @@ user-invocable: false
 |--------|-------------|
 | `RES_MARKETING_CONSENT_STATE` (`marketing-consent-state`) · `RES_MARKETING_CONSENT_LOG` (`marketing-consent-log`) | Resource aliases — never rename, a later Mongo/Postgres extension's generated resource file names derive from these exact strings |
 | `MarketingConsentStateRecord` · `MarketingConsentLogRecord` · `MarketingConsentStateSchema` · `MarketingConsentLogSchema` | The two record shapes and their AJV `JSONSchemaType` schemas — shared with the `@owlmeans/marketing-consent-mongo` / `@owlmeans/marketing-consent-postgres` extensions, which import them rather than redeclaring |
-| `subjectOf(req)` · `subjectKey(subject)` · `MarketingConsentSubject` | Who a decision is recorded for, and the `subject` key its one state record is addressed by |
+| `marketingConsentSubjectHelper.subjectOf(req)` · `.subjectKey(subject)` · `MarketingConsentSubject` | Who a decision is recorded for, and the `subject` key its one state record is addressed by |
 | `makeMarketingConsentService(opts?)` · `appendMarketingConsentService(ctx, opts?)` | Build/register the `MarketingConsentService` |
 | `MarketingConsentService` | `definitions`, `status`, `save`, `recordTerms`, `isGranted`, `purge`, `observe` |
 | `marketingConsentStatus` · `saveMarketingConsent` · `recordTermsAcceptance` | Handler makers for `makeMarketingConsentProtocols().status/save/terms` |
@@ -54,43 +54,43 @@ exists under this alias before the first `status`/`save`/`terms` call" does).
 
 This is the single most important gotcha in this package. `MarketingConsentStateRecord.decisions`
 holds `MarketingConsentDecision[]`, one entry per key, folded down to the latest per key on read
-(`consentStatus`). It is never stored as `{ [key]: MarketingConsentDecision }`, because every
+(`marketingConsentHelper.consentStatus`). It is never stored as `{ [key]: MarketingConsentDecision }`, because every
 standard consent key is DOTTED (`marketing.email`, `data.profiling`) and a dotted key inside
 an object field is read as a PATH by both Mongo's dot-notation queries (`{'decisions.marketing.email':
 ...}` reaches into a nested `email` field under a nested `marketing` field, not a literal key) and
 Postgres jsonb path operators (`->` chains on segments). An object-keyed shape works in a quick
 manual test with one key and breaks the moment a second dotted key is added — the two fields
 silently merge into one nested tree instead of staying two siblings. Keep it an array in every
-storage backend; fold by key only in memory, in `consentStatus` or in a resource's own read path.
+storage backend; fold by key only in memory, in `.consentStatus` or in a resource's own read path.
 
-## `subjectOf` never uses the slug
+## `marketingConsentSubjectHelper.subjectOf` never uses the slug
 
 ```ts
-export const subjectOf = (req: AbstractRequest): MarketingConsentSubject => {
+const subjectOf = (req: AbstractRequest): MarketingConsentSubject => {
   if (req.auth?.userId == null || req.auth.userId === '') throw new AuthForbidden(...)
   return { userId: req.auth.userId, profileId: req.auth.profileId, entityId: req.entity?.id }
 }
 ```
 
-`entityId` reads `req.entity?.id` ONLY — never `requireEntityKey(req)`, never a slug off the token.
+`entityId` reads `req.entity?.id` ONLY — never `makeEntityScope(req).requireEntityKey()`, never a slug off the token.
 A deployment with no organization concept at all (a generated target app serving its own end users,
 say) registers no entity resolver, so `req.entity` stays `undefined` and `entityId` is simply
-absent — a valid, expected shape this package must never throw on. `subjectKey(subject)` —
+absent — a valid, expected shape this package must never throw on. `marketingConsentSubjectHelper.subjectKey(subject)` —
 `` `${entityId ?? ''}|${userId}|${profileId ?? ''}` `` — is the state record's `subject` field, and
 every read and write addresses the record by it (`load({ subject })`, `purge({ subject })`), never
 by `id`. The record's `id` is whatever the backend mints on `create()`: Mongo and Postgres refuse a
 caller-supplied id outright (`RecordExists('id-present')`, whether or not such a row exists), so a
 natural key can only ever live in a field. Each storage extension makes `subject` unique.
 
-## `isGranted` is not `consentStatus`'s display `granted`
+## `isGranted` is not `marketingConsentHelper.consentStatus`'s display `granted`
 
-`status(subject)` returns what `consentStatus` computes for a settings screen: an unanswered
+`status(subject)` returns what `marketingConsentHelper.consentStatus` computes for a settings screen: an unanswered
 `opt-out` item (e.g. `data.partners`) reads `granted: true` there — the "on until you turn it off"
 copy an unauthenticated-feeling first visit shows. `isGranted(subject, key)` is a DIFFERENT
 question — the SERVER-SIDE gate a send/share actually checks before doing something — and it must
 never honor that display default: an item whose `status` is `'new'` or `'revised'` has never been
 affirmatively answered by this person, so `isGranted` answers `false` for it regardless of what
-`consentStatus.granted` says, and `false` too for a key `definitions()` does not carry at all
+`marketingConsentHelper.consentStatus`'s `granted` says, and `false` too for a key `definitions()` does not carry at all
 (unknown or disabled). Only a `'current'` (i.e. actually saved, unrevised) item's `granted` is
 trusted. Getting this backwards — wiring a send to `status(...).items.find(...).granted` instead of
 `isGranted(...)` — sends to people who opened the settings screen and changed nothing.
@@ -151,7 +151,7 @@ directly — the app never calls `context.init()`/`configure()` in this style of
 
 ## Related
 
-- `@owlmeans/marketing-consent` — the catalogue, `consentStatus`, the protocol tree (read its skill
+- `@owlmeans/marketing-consent` — the catalogue, `marketingConsentHelper.consentStatus`, the protocol tree (read its skill
   first; this package builds on it and repeats nothing it already documents)
 - `@owlmeans/server-oauth`, `@owlmeans/server-auth-token` — `refuseTokenAuth`, the session-guarded
   handler shape this package's `save`/`terms` copy

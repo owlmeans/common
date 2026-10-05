@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/client-flow
 
 **Layer:** Client
-**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.53"` in `dependencies`
+**Install:** `"@owlmeans/client-flow": "^0.1.18-rc.54"` in `dependencies`
 
 Two objects, with different lifetimes. The **service** lives on the context and owns the flow
 definitions and the one live `FlowModel`. The **client** is built per screen, wraps that model with
@@ -26,7 +26,7 @@ a `Navigator`, and is what a component actually calls.
 | `ResolvePair` | The `{ resolve, reject }` behind `service.supplied` |
 | `DEFAULT_ALIAS` (`flow`) | The service alias |
 | `FLOW_STATE` (`state:flow`) | Alias of the client resource the state is persisted in, and the record id inside it |
-| `suspendFlow(context, model, { expiresAt })` · `suspendLanding(context, { entrypoint, query }, { expiresAt })` · `resumeSuspendedFlow(context)` · `discardSuspendedLanding(context)` · `RESUME_FLOW` (`resume-flow`) | The suspended landing: park where a flow was headed (or a known screen) before sign-in, read it back once after, or drop it unread |
+| `flowLandingOf(context)` → `.suspendFlow(model, { expiresAt })` · `.suspendLanding({ entrypoint, query }, { expiresAt })` · `.resumeSuspendedFlow()` · `.discardSuspendedLanding()` · `RESUME_FLOW` (`resume-flow`) | The suspended landing: park where a flow was headed (or a known screen) before sign-in, read it back once after, or drop it unread |
 | `SuspendedLanding` `{ entrypoint, query }` · `SuspendedLandingRecord` | What resumes / what is stored |
 | `EXTRA_FLOW` (`extra-flow`) · `REHACK_MOD` (`__redirect`) | Id of the second, side-band state record kept in the same resource, and the alias of the entrypoint synthesized to address a target service |
 
@@ -127,19 +127,19 @@ record all belong to the OIDC sign-in machinery, so a flow that must leave for s
 side-band record under `RESUME_FLOW` in the same `FLOW_STATE` resource — the `EXTRA_FLOW` precedent —
 which is IndexedDB in a browser and so survives a full-page Google round trip.
 
-- `suspendFlow(context, model, { expiresAt })` asks the model's own `next()` where the current step
+- `flowLandingOf(context).suspendFlow(model, { expiresAt })` asks the model's own `next()` where the current step
   leads and stores that destination step's **`module`** (an entrypoint alias), the model's `payload()`
   as `query`, and `expiresAt` (epoch ms). It answers `false` — and stores nothing — when `FLOW_STATE`
   is not registered, the step has no forward transition, or the destination has no `module`; the
   caller then lands on `HOME` as before. The record is not a serialized flow token: the destination
   is a screen the app can enter fresh, reading its own parameters from the query.
-- `suspendLanding(context, { entrypoint, query }, { expiresAt })` writes the SAME record for a caller
+- `.suspendLanding({ entrypoint, query }, { expiresAt })` writes the SAME record for a caller
   whose destination is already an alias rather than a flow step — `@owlmeans/client-auth`'s login
   facade parks `useLogin(target)`'s screen with it. One record, one reader: the later write replaces
   the earlier, whichever helper wrote it. `false` when `FLOW_STATE` is not registered.
-- `discardSuspendedLanding(context)` deletes the record unread — for a sign-in that ended without
+- `.discardSuspendedLanding()` deletes the record unread — for a sign-in that ended without
   signing anyone in, so its landing cannot hijack the next, unrelated one. A no-op with nothing there.
-- `resumeSuspendedFlow(context)` returns `{ entrypoint, query }` or `null`, and is **delete-on-read** —
+- `.resumeSuspendedFlow()` returns `{ entrypoint, query }` or `null`, and is **delete-on-read** —
   a landing answers exactly one sign-in, so a stale tab's record never resurrects on someone else's
   later sign-in. `null` covers no resource, no record, a failed read and an expired record.
 - **Destinations are entrypoint aliases from a registered flow definition, never stored URLs**, so a

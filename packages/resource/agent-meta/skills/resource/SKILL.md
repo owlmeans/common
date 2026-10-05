@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/resource
 
 **Layer:** Core
-**Install:** `"@owlmeans/resource": "^0.1.18-rc.39"` in `dependencies`
+**Install:** `"@owlmeans/resource": "^0.1.18-rc.40"` in `dependencies`
 
 ## Key Exports
 
@@ -19,7 +19,7 @@ user-invocable: false
 | `Criteria<T>`, `FieldCriteria<V>`, `FieldOperators<V>` | The query language, typed by the record — a mistyped field is a compile error. |
 | `Sort<T>`, `SortField<T>`, `FirstOptions<T>`, `ListOptions<T>`, `ListQuery<T>`, `ListResult<T>` | Ordering, the read options, the one-object form an API carries over the wire, and the answer shape `{ items, total, page?, size? }`. |
 | `WriteOptions`, `Ttl` | `{ ttl }` on `create`/`update`/`save`; seconds from now, or the instant to expire at. Backends without expiry refuse it. |
-| `matchCriteria`, `filterRecords`, `sortRecords`, `firstMatch`, `applyQuery` | The shared in-memory engine — one criteria object means the same thing in a browser store as it does in SQL. |
+| `recordQueryHelper` — `matchCriteria`, `filterRecords`, `sortRecords`, `firstMatch`, `applyQuery` | The shared in-memory engine — one criteria object means the same thing in a browser store as it does in SQL. |
 | `PubSubResource<T>`, `WatchableResource<T>`, `StreamResource<T>`, `LockableResource<T>` | **Optional capabilities**, composed into a concrete resource interface alongside `Resource<T>`. `SubscribeOptions` (`{ channel, once, ttl }`) and `Unsubscribe` come with the first two. |
 | `MigratableResource<Tx, Self>` | **Optional migration capability** — `migration(name, apply, stage?)` (chainable) + `migrations()`. Optional the way pub/sub is on redis resources: mongo and postgres extend it, backends with nothing to migrate don't. |
 | `Migration`, `MigrationRegistry`, `MigrationStore`, `MigrationReport`, `MigrationRunOptions` | The framework's contracts. `MigrationStore` is the *migration register* a database implements to track applied migrations (`ensure`/`applied`/`baseline`/`run`). |
@@ -150,17 +150,17 @@ result set. `page` without `size` against an unpaged backend throws
 
 ### The shared in-memory engine
 
-Every store without a query engine of its own — redis after its SCAN, the client and static
-stores, state — filters through the same helpers, so a criteria object written for an endpoint
-selects the same records when a screen applies it locally:
+Every store without a query engine of its own — redis after its SCAN, the client and static stores,
+state — filters through the same helper, `recordQueryHelper`, so a criteria object written for an
+endpoint selects the same records when a screen applies it locally:
 
-| Helper | Answers |
+| Member | Answers |
 |---|---|
-| `matchCriteria(record, where)` | does this one record match |
-| `filterRecords(records, where)` | every match, in insertion order |
-| `sortRecords(records, sort)` | a sorted copy |
-| `firstMatch(records, where, { sort })` | the record `load(where)` / `get(where)` return |
-| `applyQuery(records, where, opts)` | the whole `ListResult` — filter, sort and page in one call |
+| `recordQueryHelper.matchCriteria(record, where)` | does this one record match |
+| `recordQueryHelper.filterRecords(records, where)` | every match, in insertion order |
+| `recordQueryHelper.sortRecords(records, sort)` | a sorted copy |
+| `recordQueryHelper.firstMatch(records, where, { sort })` | the record `load(where)` / `get(where)` return |
+| `recordQueryHelper.applyQuery(records, where, opts)` | the whole `ListResult` — filter, sort and page in one call |
 
 Reach for them when implementing a backend, and when narrowing a list already in hand rather than
 going back to the store.
@@ -190,10 +190,10 @@ Adding migration support to a new database backend:
 1. Extend the concrete resource interface with `MigratableResource<YourTx>` and design the
    `Tx` façade a migration receives.
 2. Keep registrations in a **module-scope declaration keyed by alias** — the shape mongo and
-   postgres both expose as `getDeclaration(alias)` / `resetDeclarations(alias?)`. A maker that
-   runs more than once for the same alias (a custom maker, a test) then re-declares the same
-   entries and loses nothing, where a registry held on the resource object would silently lose
-   data transformations.
+   postgres both expose as `mongoDeclarationHelper` / `pgDeclarationHelper` with
+   `.getDeclaration(alias)` / `.resetDeclarations(alias?)`. A maker that runs more than once for the
+   same alias (a custom maker, a test) then re-declares the same entries and loses nothing, where a
+   registry held on the resource object would silently lose data transformations.
 3. Implement `MigrationStore` over a durable ledger when the database can store one
    (`_owlmeans_migrations` in both mongo and postgres); a store-less backend may run
    migrations unconditionally if its bodies are self-checking.

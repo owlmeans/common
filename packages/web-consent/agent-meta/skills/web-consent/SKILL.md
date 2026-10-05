@@ -8,13 +8,13 @@ user-invocable: false
 # @owlmeans/web-consent
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.41"` in `dependencies`
+**Install:** `"@owlmeans/web-consent": "^0.1.18-rc.42"` in `dependencies`
 
 The browser components of the consent set. The model — categories, storage, migration, the store,
 Consent Mode signalling — is `@owlmeans/consent`, and this package re-exports a **named selection**
-of it (listed under Key Exports) so an application usually has one import. Five public
+of it (listed under Key Exports) so an application usually has one import. Four public
 `@owlmeans/consent` exports are deliberately not in that list — `makeConsentStore`,
-`normalizeLocale`, `CONSENT_SETUP_FLAG`, `CONSENT_SIGNAL_DEFAULTS` and the `ConsentListener` type —
+`CONSENT_SETUP_FLAG`, `CONSENT_SIGNAL_DEFAULTS` and the `ConsentListener` type —
 so a caller that needs one of them imports it from `@owlmeans/consent` directly. **Read the
 `consent` skill for the model; read this one for the components.**
 
@@ -41,7 +41,7 @@ components — see below.
 | `useConsent(opts?)` | This document's consent state and the actions over it (`UseConsentModel`) — **it also initialises the store on mount**, see below |
 | `useConsentCategory(key)` | Whether one category is granted, for a component gating a single thing |
 | `CookieConsentProps` / `CookiePolicyProps` / `ConsentLink` | The component props |
-| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`, `openConsent`, `isConsented`, `readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`, `applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `defaultConsentTranslate`, `interpolate`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, the plugin seam (`registerConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `startConsentPlugins`, `adoptConsentLanguage`), the linker (`consentLinker`, `encodeConsentLink`, `decodeConsentLink`, `stripConsentLinkParam`, `consentLinkerScript`, `writeConsentLanguage`, `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW`), and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload` |
+| Re-exports from `@owlmeans/consent` | The complete list: `consentStore`; `consentStorageHelper` (`readConsent`, `writeConsent`, `clearConsent`, `migrateConsent`); `consentModeHelper` (`applyConsent`, `pushConsentDefaults`, `consentBootstrapScript`, `consentDefaults`, `consentUpdate`, `gtagConsent`, `trackingGranted`, `consentGateScript`); `consentI18nHelper` (`defaultConsentTranslate`, `interpolate`, `normalizeLocale`); `DEFAULT_CONSENT_CATEGORIES`, `DEFAULT_CONSENT_MESSAGES`, `CONSENT_KEY`, `CONSENT_COOKIE_DAYS`, `CONSENT_SCHEMA_VERSION`, `CONSENT_LOCALES`, `CONSENT_ESSENTIAL` / `CONSENT_ANALYTICS` / `CONSENT_MARKETING`, the plugin seam (`consentPluginHelper`: `registerConsentPlugin`, `consentPlugins`, `decorateConsentUrl`, `consentDomains`, `adoptConsent`, `startConsentPlugins`, `adoptConsentLanguage`), the linker (`consentLinkHelper`: `consentLinker`, `encodeConsentLink`, `decodeConsentLink`, `stripConsentLinkParam`, `consentLinkerScript`, `writeConsentLanguage`; `CONSENT_LANGUAGE_KEY`, `CONSENT_EVENT`, `CONSENT_LINK_PARAM`, `CONSENT_LINK_MAX_AGE`, `CONSENT_LINK_SKEW`), and the types `ConsentCategory`, `ConsentOptions`, `ConsentReason`, `ConsentRecord`, `ConsentService`, `ConsentSignal`, `ConsentState`, `ConsentStore`, `ConsentLocale`, `ConsentLinkerOptions`, `ConsentLinkerLanguage`, `ConsentPlugin`, `ConsentLinkPayload` and the five helper interfaces |
 
 ## Mounting the dialog
 
@@ -67,7 +67,7 @@ import { CookieConsent } from '@owlmeans/web-consent'
 - `policyHref` is a plain string, so an app-resolved path, a framework route and a raw href all
   work — the component must not know how its host does routing.
 - `noReopenButton` hides the floating button for an app that offers a footer link instead; that link
-  calls `openConsent('reopen')`.
+  calls `consentStore.open('reopen')`.
 - **The re-open button is a bare icon in the very corner (`bottom-1 left-1`), not a card.** No
   filled background, no border, no shadow, no hover-scale — `bg-transparent`, dimmed
   (`opacity-70`) at rest and picked out on hover/focus — because it sits on every page of a site
@@ -76,7 +76,7 @@ import { CookieConsent } from '@owlmeans/web-consent'
   (`h-11 w-11`). `[data-consent-reopen]` is what any test or CSS override keys on.
 - **`linker` (`ConsentLinkerOptions`)** turns on cross-domain consent (see the `consent` skill's
   plugin-seam section): `<CookieConsent linker={{ domains: ['owlmeans.com', 'owlmeans.pl'] }} />`
-  passes it straight to `useConsent`, which registers `consentLinker` on mount. With it set and
+  passes it straight to `useConsent`, which registers `consentLinkHelper.consentLinker` on mount. With it set and
   more than just the current host to disclose, a domain line renders right after the description
   (`[data-consent-domains]`, added to the dialog's `aria-describedby`) — computed DIRECTLY from
   `linker.domains` plus the current host, not through the plugin registry, so it never depends on
@@ -134,9 +134,9 @@ required category is disclosure, not a question.
 ## A menu row for a host that already has one
 
 `ConsentMenuWidget` renders one row — icon, translated label, `onClick` reopening the dialog
-(`openConsent('reopen')` by default, or a caller's own `onSelect`) — for a host whose own
+(`consentStore.open('reopen')` by default, or a caller's own `onSelect`) — for a host whose own
 navigation already carries a settings menu and would rather offer cookie preferences there than as
-a second floating button. It calls `openConsent` directly, never `useConsent()`, for the same
+a second floating button. It calls `consentStore.open` directly, never `useConsent()`, for the same
 init-on-mount reason as everywhere else in this document.
 
 **It carries no presence signalling of its own.** A host that wants `CookieConsent`'s floating
@@ -152,11 +152,11 @@ row. A context-free host (an Astro island with its own menu) owns that judgement
 ## Reading the decision
 
 ```tsx
-import { useConsent, useConsentCategory, isConsented } from '@owlmeans/web-consent'
+import { consentStore, useConsent, useConsentCategory } from '@owlmeans/web-consent'
 
 const consent = useConsent()          // { record, open, reason, granted, save, acceptAll, openDialog, close }
 const analytics = useConsentCategory('analytics')   // one category, for a component gating one thing
-if (isConsented('analytics')) { /* outside React — a click handler, a service */ }
+if (consentStore.granted('analytics')) { /* outside React — a click handler, a service */ }
 ```
 
 Both hooks subscribe through `useSyncExternalStore` over the module-singleton store, because consent
@@ -171,9 +171,9 @@ a component that only wanted to read has to plan for:
 - **It opens the dialog.** `init` reads storage, and with no stored record it publishes
   `open: true, reason: 'initial'`. So a `useConsent()` in a card that merely wanted `granted('analytics')`
   gates the page for a first-time visitor. Read a single category with `useConsentCategory(key)` —
-  that hook subscribes and does **not** init — or `isConsented(key)` outside React.
+  that hook subscribes and does **not** init — or `consentStore.granted(key)` outside React.
 - **The first `useConsent` to mount fixes the Consent Mode defaults.** `init` calls
-  `pushConsentDefaults`, which is idempotent through the `CONSENT_SETUP_FLAG` window flag: whoever
+  `consentModeHelper.pushConsentDefaults`, which is idempotent through the `CONSENT_SETUP_FLAG` window flag: whoever
   gets there first declares the `consent/default` signals from *its* categories, and every later
   call returns immediately. A bare `useConsent()` mounting before `CookieConsent` therefore declares
   `DEFAULT_CONSENT_CATEGORIES`' signals and the app's own `categories` never declare theirs — which
@@ -191,11 +191,11 @@ why it is generated rather than written: a hand-written policy drifts the first 
 changes, and nobody notices because nobody reads it until it matters.
 
 ```tsx
-import { googleTagServices } from '@owlmeans/web-gtm'
+import { googleTagHelper } from '@owlmeans/web-gtm'
 
 <CookiePolicy
   operator="Example Sp. z o.o." privacyHref="/legal/privacy" termsHref="/legal/terms"
-  services={googleTag !== '' ? googleTagServices(googleTag) : undefined}
+  services={googleTag !== '' ? googleTagHelper.googleTagServices(googleTag) : undefined}
 />
 ```
 
@@ -270,7 +270,7 @@ incremental `tsc -b` — rebuild `@owlmeans/consent` with `tsc -b --force`, or c
 bundle from `build/i18n`. **Once a `translate` prop is given,
 the packaged bundle is not consulted at all**, so a wrapper that forwards a framework resolver alone
 renders the English default for every key the application has not overridden, in every language. The
-resolver must fall through to `defaultConsentTranslate(locale)` for the default — which is exactly
+resolver must fall through to `consentI18nHelper.defaultConsentTranslate(locale)` for the default — which is exactly
 what `@owlmeans/web-panel/consent` does, and why an app inside the panel family mounts
 `PanelCookieConsent` / `PanelCookiePolicy` rather than these components directly.
 
@@ -287,7 +287,7 @@ caller's, already resolved.
 - `consent` — the model: categories, `globalVar`, storage and migration, Consent Mode v2, the
   ordering rule. Read it before changing anything a category means
 - `web-gtm` — the head snippet that carries a stored decision to a Google tag, and
-  `googleTagServices(id)` for this page's `services`
+  `googleTagHelper.googleTagServices(id)` for this page's `services`
 - `astro` — stamping that snippet from a static site's layout
 - `login-methods` / `login-plugins` — the sign-in precondition that raises this dialog with
   `reason: 'login'`

@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-log
 
 **Layer:** Web (depends on `@owlmeans/log` and `@owlmeans/consent`)
-**Install:** `"@owlmeans/web-log": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/web-log": "^0.1.18-rc.2"` in `dependencies`
 
 The browser half of "analytics are plugins" — see `/log` for the call parameters. A page logs a
 business event once; which systems hear it is the set of plugins registered.
@@ -25,7 +25,7 @@ logger('projects').info('Created', { kind: 'web' }, { analytics: 'project.create
 
 ## Consent
 
-`consentedAnalyticsPlugin(send, options)` sends only while `isConsented(options.category ?? 'analytics')`
+`consentedAnalyticsPlugin(send, options)` sends only while `consentStore.granted(options.category ?? 'analytics')`
 (`@owlmeans/consent`). **An event without consent is dropped, never queued**: a tag manager replays
 everything already waiting in its queue when it loads, so a held event would be sent after a later
 grant — in a window the visitor never agreed to be measured in. The load of the tag itself is gated

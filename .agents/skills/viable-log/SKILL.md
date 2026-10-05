@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-log
 
 **Layer:** Domain (depends on `@owlmeans/log` only)
-**Install:** `"@owlmeans/viable-log": "^0.1.18-rc.1"` in `dependencies`
+**Install:** `"@owlmeans/viable-log": "^0.1.18-rc.2"` in `dependencies`
 
 The platform is "just one of the plugins" of a target's logging: a generated app logs through
 `@owlmeans/log`, and registers these two plugins so what it says reaches Viable. Both are inert

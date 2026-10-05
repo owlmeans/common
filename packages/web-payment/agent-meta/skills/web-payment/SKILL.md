@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/web-payment
 
-**Install:** `bun add @owlmeans/web-payment@^0.1.18-rc.31`
+**Install:** `bun add @owlmeans/web-payment@^0.1.18-rc.32`
 
 Public MIT web package paired with `@owlmeans/server-payment`. It incorporates checkout, balance,
 entitlement and shallow-auth helpers over the underlying `@owlmeans/client-payment` service, plus
@@ -35,7 +35,7 @@ await checkout(ctx.entrypoint(account.topUp), { body: { amountMinor } })
 
 | Hook | Answers |
 |---|---|
-| `useEntitlementView(entry, intervalMs = 60_000, deps = [], ...request)` | The polled `EntitlementView`, revived (`reviveEntitlementView`) so every date is a `Date`; `null` until the first answer. Trailing `request` arguments are the protocol's `CallArguments`. |
+| `useEntitlementView(entry, intervalMs = 60_000, deps = [], ...request)` | The polled `EntitlementView`, revived (`entitlementViewHelper.reviveEntitlementView`) so every date is a `Date`; `null` until the first answer. Trailing `request` arguments are the protocol's `CallArguments`. |
 | `useCapability(view, param)` | `boolean \| null` — the capability predicate over granted rows; `null` for a null view. |
 | `useLimit(view, key)` | `LimitStatus \| null` — the `LimitView` plus `exhausted` and `ratio`; `null` for a null view or an undeclared key. |
 | `usePortal(flow, target = '_self')` | `{ portal(entry, request?), pending }` — calls a protocol whose body is a `PortalLinkBody` with `body.flow = flow`, then `openCheckout(url, target)`. The caller's arguments omit `flow` (a compile error otherwise); navigation is inert without a DOM. |
@@ -51,12 +51,12 @@ await checkout(ctx.entrypoint(account.topUp), { body: { amountMinor } })
 
 | Selector | Returns |
 |---|---|
-| `capabilityStateOf(view, param)` | `boolean \| null` — what `useCapability` memoizes |
-| `limitStatusOf(limitView)` | `LimitStatus \| null` — `exhausted = remaining < 1` (a `limit: 0` row is exhausted); `ratio = used / limit` clamped to `[0, 1]`, and for a `0` ceiling `1` once anything is used, else `0` |
-| `planStatusLineOf(planView)` | `{ kind, tone, date? }` — first match: `created`/`canceled`/`expired`/`ended` (inactive), `blocked` (critical), `paused` (a `pausedAt`, warning), `suspended` (critical), `trial` (`trialEnd`), `past-due` (warning), `cancel-scheduled` (`periodEnd`, warning), `free`, `renews` (`periodEnd`), `active` |
-| `promoInscriptionOf(promoView)` | `'free-until'` (active, not grandfathered) · `'grandfathered'` (active, grandfathered) · `'ended'` (inactive) · `null` |
+| `entitlementSelectorHelper.capabilityStateOf(view, param)` | `boolean \| null` — what `useCapability` memoizes |
+| `entitlementSelectorHelper.limitStatusOf(limitView)` | `LimitStatus \| null` — `exhausted = remaining < 1` (a `limit: 0` row is exhausted); `ratio = used / limit` clamped to `[0, 1]`, and for a `0` ceiling `1` once anything is used, else `0` |
+| `entitlementSelectorHelper.planStatusLineOf(planView)` | `{ kind, tone, date? }` — first match: `created`/`canceled`/`expired`/`ended` (inactive), `blocked` (critical), `paused` (a `pausedAt`, warning), `suspended` (critical), `trial` (`trialEnd`), `past-due` (warning), `cancel-scheduled` (`periodEnd`, warning), `free`, `renews` (`periodEnd`), `active` |
+| `entitlementSelectorHelper.promoInscriptionOf(promoView)` | `'free-until'` (active, not grandfathered) · `'grandfathered'` (active, grandfathered) · `'ended'` (inactive) · `null` |
 
-Use these, plus `capabilityOf` / `limitOf` / `hasLimitRoom` from `@owlmeans/payment`, wherever the
+Use these, plus `planLimitHelper.capabilityOf` / `.limitOf` / `.hasLimitRoom` from `@owlmeans/payment`, wherever the
 browser decides something; the server gate uses the same predicates, so a disabled button and a
 403 cannot disagree.
 
@@ -92,20 +92,20 @@ Confirmation is disabled when invalid or pending. The dialog body scrolls (`max-
 overflow-y-auto`, like the consent dialogs): the tier `details`, the estimate and the legal note can
 outgrow a short screen, and the confirm button must stay reachable — never render it outside.
 
-It shows net credit value, processing adjustment and pre-tax subtotal from `chargeAmountMinor`.
+It shows net credit value, processing adjustment and pre-tax subtotal from `checkoutPricingHelper.chargeAmountMinor`.
 With no `estimate`, the plain note that Stripe calculates applicable tax; with one, `PriceEstimateSummary`
 renders instead (see below) against the SAME `chargeMinor`, so the country picker and its numbers
 track whatever the buyer has typed. The policy maximum bounds net credit, not the adjusted or
 tax-inclusive debit.
 
 - **`limit`** (`AmountPolicyView.limit`, what the entity may buy NOW) narrows `policy` through
-  `@owlmeans/payment`'s `narrowAmountPolicy` — the same computation the server refuses with
+  `@owlmeans/payment`'s `amountNarrowingHelper.narrowAmountPolicy` — the same computation the server refuses with
   (`CheckoutLimitExceeded`), so the control and a refusal cannot disagree. Presets above the
   maximum disappear, the default is clamped, the above-bound error names the narrowed maximum
   ("The most you can add right now is …"), and a `CheckoutLimitNote` shows above the presets.
   `policy` may be the plan's or one already narrowed (`AmountPolicyView.policy`) — narrowing is
   idempotent. **`blocked`** disables the presets, the input and the confirm button; the pinned
-  policy `narrowAmountPolicy` returns for a block is never an offer of the minimum.
+  policy `.narrowAmountPolicy` returns for a block is never an offer of the minimum.
 - **`details`** is a reusable application-owned React slot (`[data-amount-details]`), the dialog's
   SIDE column, holding the `CheckoutLimitNote` ("You can add up to …") above the details. With it the
   dialog is sized by the window — `w-[90vw]`, `lg:w-[50vw]` from a landscape tablet up — and every
@@ -163,7 +163,7 @@ const team = usePriceEstimate(entry, { enabled, country, onCountryChange: setCou
   shares it. `disabled` (a locked country) disables it; `note` is a line under it. Selectors
   `[data-country-select]` with `data-locked` and `data-country`, `[data-country-note]`.
 - **`PriceEstimateAmount({ control, subtotalMinor, currency, suffix?, className? })`** is the
-  numbers alone, no picker: via `estimateOf` re-derived against `subtotalMinor`, a rate row for a
+  numbers alone, no picker: via `priceEstimateHelper.estimateOf` re-derived against `subtotalMinor`, a rate row for a
   `taxed` status, an estimated total, and one sentence for every status that leaves no number to
   trust (reverse charge, no tax, "at checkout", "choose a country"). `data-price-estimate` /
   `data-status` are stable test hooks.
@@ -181,27 +181,27 @@ const team = usePriceEstimate(entry, { enabled, country, onCountryChange: setCou
 
 `import { … } from '@owlmeans/web-payment/consumer'` — a separate subpath, so an application that
 never renders them needs neither their checkbox primitive nor its peer. Legal text comes from
-`@owlmeans/payment`'s `payment-consumer-rights` copy (`consumerText`, `legalLabelsOf`,
-`consentStatementOf` render the same strings the server records and mails); the interface text
+`@owlmeans/payment`'s `payment-consumer-rights` copy (`consumerCopyHelper.consumerText`, `.legalLabelsOf`,
+`.consentStatementOf` render the same strings the server records and mails); the interface text
 comes from this package's `web-payment` resource. Neither carries product copy: the trader, the
 plan title and the price line are the view's or the application's.
 
 **The language rule.** A consent or statutory function is shown in the CONTRACT language — the
 billing country's (`view.language`, `list.language`, the `language` prop) — with a toggle to the
 interface language and back (`useShownLanguage`, `LanguageToggle`). The whole piece switches: the
-legal copy through `legalTextOf(lng)` (a `LegalText`: `(path, values?, context?)`, the context
-reading the `<path>_<context>` variant first), the interface strings through `paymentTextOf(lng)` (both
-read any language without i18next and without draining a bundle — `resolveI18nResource`), dates
+legal copy through `fixedTextHelper.legalTextOf(lng)` (a `LegalText`: `(path, values?, context?)`, the context
+reading the `<path>_<context>` variant first), the interface strings through `.paymentTextOf(lng)` (both
+read any language without i18next and without draining a bundle — `i18nHelper.resolveI18nResource`), dates
 and amounts through `Intl` in that language. The toggle alone is phrased in the INTERFACE language
 ("Show in German") — the reader who needs it reads that one. The links follow the shown language
-(`links` prop: a record by language or a function such as `lng => linksOf(policy, lng)`; absent,
+(`links` prop: a record by language or a function such as `lng => consumerRightsPolicyHelper.linksOf(policy, lng)`; absent,
 the view's own). What a person agrees to is what was on screen: toggling un-ticks the checkbox, and
 the recorded body names the language shown.
 
 | Piece | Props | Behaviour |
 |---|---|---|
-| `PerformanceConsentDialog` | `open, onOpenChange, view: PerformanceConsentView \| null, onConfirm(body: PerformanceConsentBody), onDecline?, uiLanguage?, pending?, error?, links?, onWithdraw?, formatAmount?` | Title and intro (count, last deadline), the purchases with date, amount and last withdrawal day (`performance-consent.purchase`), ONE checkbox carrying the whole statement (`performance-consent.checkbox` with `view.trader`), **unchecked by default**; a `view.context` shows the `_<context>` variants of the title, the intro and the checkbox — exactly the statement `consentStatementOf(lng, Performance, { trader, context })` records — and marks the dialog `data-consent-context`; confirm ("Start now" / "Jetzt beginnen" …) disabled until it is ticked; decline ("Not now"); links Billing Terms · Withdrawal information · the withdrawal function (a button when `onWithdraw`, else the links' `withdrawalFunction` page). `onConfirm` gets `{ purchaseIds, textVersion, language: <shown>, acknowledged: true, uiLanguage }`. |
-| `SubscriptionStartDialog` | `open, onOpenChange, view: SubscriptionStartView \| null, planTitle, price?: ReactNode, onConfirm(body: SubscriptionStartBody), onDecline?, uiLanguage?, pending?, error?, links?, onWithdraw?` | The same shape before a subscription checkout; confirm is "Continue to payment" — the step before the paygate's own order button. The statement follows the plan's withdrawal arithmetic: a `view.context` (`startContextOf(plan)` on the server, `'units'`) shows the `_<context>` texts — exactly the statement `consentStatementOf(lng, SubscriptionStart, { trader, plan, context })` records — and marks the dialog `data-start-context`; without one the base (time-only) statement. |
+| `PerformanceConsentDialog` | `open, onOpenChange, view: PerformanceConsentView \| null, onConfirm(body: PerformanceConsentBody), onDecline?, uiLanguage?, pending?, error?, links?, onWithdraw?, formatAmount?` | Title and intro (count, last deadline), the purchases with date, amount and last withdrawal day (`performance-consent.purchase`), ONE checkbox carrying the whole statement (`performance-consent.checkbox` with `view.trader`), **unchecked by default**; a `view.context` shows the `_<context>` variants of the title, the intro and the checkbox — exactly the statement `consumerCopyHelper.consentStatementOf(lng, Performance, { trader, context })` records — and marks the dialog `data-consent-context`; confirm ("Start now" / "Jetzt beginnen" …) disabled until it is ticked; decline ("Not now"); links Billing Terms · Withdrawal information · the withdrawal function (a button when `onWithdraw`, else the links' `withdrawalFunction` page). `onConfirm` gets `{ purchaseIds, textVersion, language: <shown>, acknowledged: true, uiLanguage }`. |
+| `SubscriptionStartDialog` | `open, onOpenChange, view: SubscriptionStartView \| null, planTitle, price?: ReactNode, onConfirm(body: SubscriptionStartBody), onDecline?, uiLanguage?, pending?, error?, links?, onWithdraw?` | The same shape before a subscription checkout; confirm is "Continue to payment" — the step before the paygate's own order button. The statement follows the plan's withdrawal arithmetic: a `view.context` (`consumerCopyHelper.startContextOf(plan)` on the server, `'units'`) shows the `_<context>` texts — exactly the statement `consumerCopyHelper.consentStatementOf(lng, SubscriptionStart, { trader, plan, context })` records — and marks the dialog `data-start-context`; without one the base (time-only) statement. |
 | `WithdrawalFunctionButton` | `language, onClick, uiLanguage?, disabled?, variant? = 'outline'` | The statutory entry ("Withdraw from contract here", "Vertrag widerrufen", "Renoncer au contrat ici", "Odstąp od umowy tutaj") in the contract language; the interface language's label as `title` when they differ. |
 | `WithdrawalForm` / `WithdrawalDialog` | `mode: 'in-app' \| 'public', language, onSubmit(body: WithdrawalBody), list?, defaults?, uiLanguage?, pending?, error?, receipt?, formatAmount?` (+ `open, onOpenChange` for the dialog; `onClose` for the form) | Three steps. **Form**: in-app a contract picker over `list.candidates` (bought, paid, last day, estimated refund), publicly a contract-reference field — plus name and e-mail, NOTHING else is asked (a public form also carries the honeypot). **Review**: the summary and the statutory confirm ("Confirm withdrawal", "Widerruf bestätigen", "Confirmer la rétractation", "Potwierdź odstąpienie od umowy"). **Receipt** (whenever `receipt` is set): the received sentence with date AND time in UTC, reference, status, refund. The dialog does not clear the receipt the application holds — reset it on close. |
 | `CancellationForm` | `mode, language, onSubmit(body: CancellationBody), defaults?, uiLanguage?, pending?, error?, receipt?, onPrint?, onClose?` | **Form**: kind (ordinary / extraordinary — the reason becomes required), name, contract or customer reference, effective (earliest / a date from today), e-mail, and a honeypot. **Summary** with the statutory confirm ("Cancel now", "Jetzt kündigen", "Notification de la résiliation", "Wypowiedz teraz"). **Receipt**: received date and time in UTC, the effective date when known, status, a print button (`onPrint`, default `window.print()`). |
@@ -240,7 +240,7 @@ useCancellation(cancel) → { submit, receipt, pending, error, reset, form }
   checkout's own refusal then decides), `null` on a decline.
 - **`withConsent(action)`** runs the action; on a SPEND-consent refusal it asks with
   `ensure({ force: true })` and retries exactly ONCE. A decline throws `ConsentDeclined`
-  (`isConsentDeclined`); a second refusal and every other failure propagate unchanged. Outside a
+  (`consentRefusalHelper.isConsentDeclined`); a second refusal and every other failure propagate unchanged. Outside a
   provider the gate passes through (`ensure` → `true`, refusals propagate).
 - The asking state machine is `makeAsker` and the gate `makeConsentGate` (pure, React-free).
 - `dialog` / `form` objects are spread into ONE piece each; `form.error` is a boolean, the raw
@@ -248,14 +248,14 @@ useCancellation(cancel) → { submit, receipt, pending, error, reset, form }
 
 ### Recognising a consent refusal
 
-`isConsentRefusal(e)` — `consentRefusalOf(e) != null` (the class after the registry, or its marker
-in `message`/`type`) OR `httpStatusOf(e) === 428` (`@owlmeans/api/status`: a production body is only
+`consentRefusalHelper.isConsentRefusal(e)` — `consentRefusalOf(e) != null` (the class after the registry, or its marker
+in `message`/`type`) OR `apiStatusHelper.httpStatusOf(e) === 428` (`@owlmeans/api/status`: a production body is only
 an incident id, so the status is all that is left). Read on the error AND on what it wraps —
 `cause`, `error`, `original`, `originalError`, `inner`, `reason`, an aggregate's `errors`, and
 strings — five levels deep with a cycle guard, so a planning `CommitFailed`
 (`planning:commit-failed:<transition>:<the refusal's text>`) is recognised without depending on
-planning. `consentRefusalKindOf(e)` → `'performance' | 'subscription-start' | 'unknown'` (a bare
-428) `| null`; `isPerformanceConsentRefusal(e)` is what the gate retries on (performance or
+planning. `consentRefusalHelper.consentRefusalKindOf(e)` → `'performance' | 'subscription-start' | 'unknown'` (a bare
+428) `| null`; `.isPerformanceConsentRefusal(e)` is what the gate retries on (performance or
 unknown — never a subscription start).
 
 ### Selectors
@@ -306,13 +306,13 @@ receipt labels, validation), `withdrawal` (candidate lines, estimate, kinds, `st
   unused credits ARE reimbursed). Every `WithdrawalStatus`, `CancellationStatus` (incl. `review` —
   extraordinary and unmatched public cancellations) and `PurchaseKind` value has its string; the
   spec iterates the enums, so a new status fails it until all eight languages phrase it.
-- The last withdrawal day shown anywhere is `@owlmeans/payment`'s `lastWithdrawalDayOf(deadline)`
+- The last withdrawal day shown anywhere is `@owlmeans/payment`'s `withdrawalDeadlineHelper.lastWithdrawalDayOf(deadline)`
   (the deadline is exclusive), formatted as a UTC date — the rule the server's e-mails use.
 - The `consumer`/`withdrawal`/`cancellation` branches take the register of the legal copy they sit
   beside (de and es formal, like `payment-consumer-rights`), while `amount-checkout` and
   `checkout-limit` keep the dialog's.
-- An application overrides a string with `addI18nApp(lng, 'web-payment', data, { ns: LIB_NAMESPACE })`
-  — `paymentTextOf` reads that override too.
+- An application overrides a string with `i18nHelper.addI18nApp(lng, 'web-payment', data, { ns: LIB_NAMESPACE })`
+  — `fixedTextHelper.paymentTextOf` reads that override too.
 
 ## Tests
 

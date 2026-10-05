@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/server-entrypoint",
-  "version": "0.1.18-rc.39",
-  "generatedAt": "2026-10-05T08:32:19.117Z",
+  "version": "0.1.18-rc.40",
+  "generatedAt": "2026-10-05T21:03:06.395Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

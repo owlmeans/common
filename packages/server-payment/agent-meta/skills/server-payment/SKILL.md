@@ -7,7 +7,7 @@ user-invocable: false
 
 # @owlmeans/server-payment
 
-**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.30`
+**Install:** `bun add @owlmeans/server-payment@^0.1.18-rc.31`
 
 Public MIT package. It embeds Stripe into an application backend and owns everything between
 Stripe and an entity's entitlements: the subscription store, one-time fulfillments, the usage
@@ -53,8 +53,8 @@ appendPaymentGatewayService(context, { manage: false })  // a worker that only r
 appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks' })                   // receives the webhook, bootstraps at boot
 appendPaymentGatewayService(context, { owner: 'app-api', webhookService: 'app-hooks', bootstrap: false }) // checkout and portal only
 appendConsumerRights(context, { manage, usage: myUsageMeter })   // before or after the gateway; idempotent
-consumerRights(context).useMailRenderer(myRenderer)      // lazy service: works while wiring
-gateway(context).use(myCheckoutPlugin)                   // a tier / cap / hold plugin — once the context is initialized
+paymentAccessOf(context).consumerRights().useMailRenderer(myRenderer)   // lazy service: works while wiring
+paymentAccessOf(context).gateway().use(myCheckoutPlugin)  // a tier / cap / hold plugin — once the context is initialized
 export const serverBindings = [
   ...paymentGateEntrypoints,                            // the library's own, unpinned `paymentGate`
   ...consumerRightsEntrypoints(consumerProtocols, { guardMoney, throttle, subjectOf, planNameOf }),
@@ -67,7 +67,7 @@ export const hookBindings = [
   bind(own.resync, paymentGateHandlers.resync),
   bind(own.resyncSubscriptions, paymentGateHandlers.resyncSubscriptions),
 ]
-observer(context).onSubscription(async event => { /* keyed by event.eventKey */ })
+paymentAccessOf(context).observer().onSubscription(async event => { /* keyed by event.eventKey */ })
 ```
 
 - `appendPaymentGatewayService` registers twelve resources, the catalogue service
@@ -79,9 +79,9 @@ observer(context).onSubscription(async event => { /* keyed by event.eventKey */ 
   `usage` and `stripe` are installed on the one service, and `manage` resolves as the application's
   explicit value, else the gateway's, else managed. The consumer-rights resources keep the aliases
   of the first registration.
-- **The consumer-rights service is lazy** (like the completion observer): `consumerRights(ctx)`,
+- **The consumer-rights service is lazy** (like the completion observer): `paymentAccessOf(ctx).consumerRights()`,
   `useMeter` and `useMailRenderer` work while the application is wired; the gateway's initialization
-  initializes it, so its boot checks still run at boot. The gateway is NOT lazy: `gateway(ctx)` (and
+  initializes it, so its boot checks still run at boot. The gateway is NOT lazy: `paymentAccessOf(ctx).gateway()` (and
   `.use(plugin)`) needs the initialized context.
 - **`manage: false`** registers the same surface with no Stripe client: no bootstrap at init, and
   `createLink`, `portalLink`, `resyncSubscription`, `resyncAll`, the webhook route, `withdraw` and
@@ -89,24 +89,24 @@ observer(context).onSubscription(async event => { /* keyed by event.eventKey */ 
   `amountPolicy`, `planPrices` and the consumer-rights reads, `recordConsent`,
   `recordStartRequest` and `assertConsent` work, because they are Mongo only.
 - **Three keys of a deployment's Stripe state**, each a `PaymentGatewayOptions` field, each read
-  back on the gateway (`gateway(ctx).webhookService / owner / bootstrap`):
+  back on the gateway (`paymentAccessOf(ctx).gateway().webhookService / owner / bootstrap`):
   - `webhookService` (default `cfg.service`) — the `cfg.services` alias whose host and base form
-    `webhookUrlOf`, the portal's deployment key too. Name the process that RECEIVES the webhook
+    `webhookOf(ctx).webhookUrlOf`, the portal's deployment key too. Name the process that RECEIVES the webhook
     (the one serving `paymentGate`) in every process, so every bootstrap computes one URL.
   - `owner` (default `cfg.service`) — the `payment-webhook` rows' `service`, the signing-secret
     lookup, the endpoint's `owlmeans:<owner>` description and `service` metadata, the
     `portal:<owner>` fingerprint and the portal's `service` metadata. One value in every process of
     the database, so each finds and replaces the others' rows.
-  - `bootstrap` (default: `manage`) — run `bootstrapStripe` at boot. Exactly one kind of process
+  - `bootstrap` (default: `manage`) — run `stripeBootstrapOf(ctx).bootstrapStripe` at boot. Exactly one kind of process
     keeps it (the receiver). A managed process with `bootstrap: false` still serves checkout, the
     portal, estimates, the resyncs and the webhook route, and a FORCED bootstrap (`resync`, an
-    application's maintenance `bootstrapStripe(ctx, stripe, { force: true })`) still runs there —
+    application's maintenance `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`) still runs there —
     same URL, same rows, fingerprinted, so idempotent from any process.
   - Refused at construction: `bootstrap: true` with `manage: false`, an empty `owner` or
     `webhookService` (`PaygateError`). A managed, bootstrapping gateway fails its initialization when
     `webhookService` is not declared in `cfg.services` (`WebhookSetupError('service:<alias>')`).
-- `stripe` (a `StripeFactory`, default `stripeClient`) is the gateway's own Stripe client —
-  `gateway(ctx).stripe(ctx)`, used by its methods, its boot bootstrap and the `paymentGate` handlers.
+- `stripe` (a `StripeFactory`, default `paymentAccessOf(ctx).stripeClient`) is the gateway's own Stripe client —
+  `paymentAccessOf(ctx).gateway().stripe(ctx)`, used by its methods, its boot bootstrap and the `paymentGate` handlers.
   The consumer-rights service takes its own (`appendConsumerRights({ stripe })`).
 - Every process that registers the gateway runs the collection validators (`collMod`) of all
   twelve records at init: a process of an older version narrows the validators again, so roll
@@ -130,12 +130,12 @@ observer(context).onSubscription(async event => { /* keyed by event.eventKey */ 
   (CJEU C-641/19): `{ key, basis: 'time' | 'units', shareMinor }`, the shares summing to
   `round(price × 100)`. Absent: the whole price is one `time` component. They also pick the start
   statement: a `units` part → the `_units` variant, otherwise the base (time-only) texts
-  (`startContextOf`, `@owlmeans/payment`).
+  (`consumerCopyHelper.startContextOf`, `@owlmeans/payment`).
 - `declarePaymentPlan` refuses before recording: a bad rank or a priced/gatewayed free plan
   (`PlanRankConflict`), a capability set under the reserved `limit` scope, a malformed limit
   (`LimitMisdeclared('<key>:<reason>')`), a malformed or amount-mode `currencyPrices` or components
   that do not add up (`ProductError('currency-prices:…' | 'withdrawal:<sku>:…')`).
-- `assertPlanDeclarations` runs when the gateway initializes and fails the boot on two free plans
+- `makePlanDeclarationsModel(cfg).assertPlans()` runs when the gateway initializes and fails the boot on two free plans
   at one rank, or two paid non-consumable plans of one product at one rank.
 - A limit key may use a different kind on different plans; each kind counts separately and a
   lifetime count stays with the entity through upgrades, downgrades and cancellations.
@@ -167,7 +167,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 - A compound sparse index still indexes a row that lacks only some of its keys — a unique index
   that must skip absent values is single-field (`{sessionId}`).
 - Conditional writes (`consentedAt`, `withdrawnAt`) are raw `$set`s guarded by the old value
-  (`conditionalSet`), so a concurrent declaration of the same purchase loses; declarations,
+  (`paymentUtils.conditionalSet`), so a concurrent declaration of the same purchase loses; declarations,
   consents and events are only ever created.
 
 ## Checkout
@@ -198,7 +198,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
   (an operator relocks). An organization that already paid before its country was locked is
   locked lazily from its Stripe customer's address (`source: 'customer'`). Before any lock, the
   declared country is prefilled on a customer without an address.
-- **The currency.** Charge currency = the profile's currency, else `chargeCurrencyOf(region)`
+- **The currency.** Charge currency = the profile's currency, else `consumerRegionHelper.chargeCurrencyOf(region)`
   (`policy.currencies`). An amount checkout whose policy currency IS the charge currency is
   charged exactly — no FX call; any other goes through the FX reference rate (rounded up). A
   subscription or quantity session is forced to the charge currency (`currency`) only when its
@@ -209,7 +209,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 - **The lock at Stripe.** A locked profile whose customer carries the address:
   `customer_update.address: 'never'` and `billing_address_collection: 'auto'` (tax follows the
   saved address, Checkout cannot move it); `name: 'auto'` stays. A locked customer without a
-  tax-locatable address (`isTaxLocatable`) keeps `'auto'`/`'required'`, or Stripe refuses the
+  tax-locatable address (`stripeSessionHelper.isTaxLocatable`) keeps `'auto'`/`'required'`, or Stripe refuses the
   session ("Automatic tax calculation in Checkout requires a valid address on the Customer").
 - **Terms.** `mechanisms.checkoutTerms` puts `consent_collection.terms_of_service: 'required'` and
   `custom_text.terms_of_service_acceptance` (the `checkout.terms-acceptance.in-scope | other` copy
@@ -217,7 +217,7 @@ None declares an ObjectId reference: `entityId` is an organization key and every
 - **A missing Dashboard terms URL never breaks a payment.** Stripe refuses the checkbox then
   (`invalid_request_error`, param `consent_collection[terms_of_service]`, "You cannot collect consent
   to your terms of service unless a URL is set in the Stripe Dashboard", matched by
-  `isMissingTermsUrl`): the session is created ONCE more without `consent_collection` and without the
+  `stripeSessionHelper.isMissingTermsUrl`): the session is created ONCE more without `consent_collection` and without the
   terms text, under the same plugin admissions, metadata `termsCollected: 'false'`; a
   `checkout-terms-fallback` event (`recordKind: 'checkout'`, `recordId` = the entity, `externalId`
   = the session, `ok: false`, the Stripe message in `detail`) is appended per fallback and one
@@ -259,7 +259,7 @@ or without a consumer-rights policy.
   region" picker (a payment-method detail no parameter hides), which then moves neither tax nor the
   saved address. Metadata `countryPinned: 'true'` makes the first completed purchase lock THAT
   country (`lockFromSession`: `metadata.country` before `customer_details.address.country`).
-- **Tax-locatable** (`isTaxLocatable`, from Stripe's customer-locations table): a country alone
+- **Tax-locatable** (`stripeSessionHelper.isTaxLocatable`, from Stripe's customer-locations table): a country alone
   everywhere except US (needs `postal_code`) and CA / IN (`postal_code` or `state`). A pinned US,
   CA or IN customer without one is not kept: Checkout collects the address — country editable —
   and the purchase locks what was typed, as without the option.
@@ -268,7 +268,7 @@ or without a consumer-rights policy.
 
 ## Checkout plugins
 
-`gateway(ctx).use(plugin)` seats a `CheckoutPlugin` per gateway instance (the `ExecutionService.use`
+`paymentAccessOf(ctx).gateway().use(plugin)` seats a `CheckoutPlugin` per gateway instance (the `ExecutionService.use`
 registry: a plugin whose `alias` is registered already replaces it). All hooks are optional:
 
 | Hook | Called | Contract |
@@ -280,7 +280,7 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 | `sessionTtlSeconds` | — | the smallest declared, clamped to 30 min – 24 h, becomes `expires_at`; none declared: Stripe's default |
 
 - **One narrowing path.** `createLink` and `gateway.amountPolicy(ctx, entityId, productSku,
-  planSku?)` both call `narrowAmountFor` → `narrowAmountPolicy` (`@owlmeans/payment`); an amount
+  planSku?)` both call `checkoutPluginsOf(ctx).narrowAmountFor` → `amountNarrowingHelper.narrowAmountPolicy` (`@owlmeans/payment`); an amount
   above the narrowed maximum, or any amount while `blocked`, is `CheckoutLimitExceeded` (409). A
   control and a refusal cannot disagree. An amount above the plan's own maximum stays the base
   policy's error.
@@ -291,7 +291,7 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 
 ## Price sync and the tax estimate
 
-- `syncStripeProducts` gives a matching, still-`unspecified` price the declared `tax.behavior` IN
+- `productSyncOf(ctx).syncStripeProducts` gives a matching, still-`unspecified` price the declared `tax.behavior` IN
   PLACE and a fresh one on creation; a price carrying the OPPOSITE behavior is replaced. Before an
   in-place update it checks the account's tax-settings default and skips — logging why — when that
   would change existing renewals, unless `stripe.migrateUnspecifiedPrices` opts in.
@@ -324,7 +324,7 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 - **The effective plan** is the highest-ranked row in `ENTITLING_STATUSES` (catalogue rank; the
   newest on a tie), else the declared free plan, else `PlanRequired`.
 - **A subscription row may override its plan.** `PaymentSubscriptionRecord.overrides`
-  (`SubscriptionOverrides`: `limits: { <key>: { limit } }`) is applied by `overriddenPlan(plan, row)`
+  (`SubscriptionOverrides`: `limits: { <key>: { limit } }`) is applied by `planHelper.overriddenPlan(plan, row)`
   inside `resolveEffectivePlan` and `snapshotOf`, so ceilings, the entitlement view, both gates and
   observers read one answer and nothing else needs to know. An override sets the ceiling of a key
   the plan declares and drops that key's promo; kind and window stay the plan's (counters are keyed
@@ -332,7 +332,7 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
   writes it, no paygate does: every sync and re-grant spreads the previous row, so it survives. It
   belongs to the row — it follows the subscription through a plan change, ends with it, and the
   free-plan fallback (no row) has none. A new overridable parameter is a new optional key of
-  `SubscriptionOverrides`, declared in `PaymentSubscriptionSchema` and merged in `overriddenPlan`.
+  `SubscriptionOverrides`, declared in `PaymentSubscriptionSchema` and merged in `planHelper.overriddenPlan`.
 - `mapStatus`: `active`→Active, `trialing`→Trial, `past_due`→PastDue, `unpaid`/`paused`→Suspended,
   `incomplete`→Created, `incomplete_expired`→Ended, `canceled`→Canceled; paused collection is
   Suspended with `pausedAt`.
@@ -354,12 +354,12 @@ registry: a plugin whose `alias` is registered already replaces it). All hooks a
 admission reads. `consume` increments the counter FIRST by one conditional upsert (`used <= limit
 - amount`), then appends the event — **the counter may over-count, never over-admit**. An event
 key is idempotent; `release` appends `release:<eventKey>` first. `reconcileCounters`,
-`reconcileOccupancy`, `reconcileEntity` and `reconcileAll` repair it (details: the `entitlements`
+`reconcileOccupancy`, `reconcileOf(ctx).reconcileEntity` and `.reconcileAll` repair it (details: the `entitlements`
 skill).
 
 ## Entitlements and gates
 
-- `entitlements(ctx)` → `effectivePlan`, `entitlements` (the `EntitlementView`), `hasCapability`,
+- `paymentAccessOf(ctx).entitlements()` → `effectivePlan`, `entitlements` (the `EntitlementView`), `hasCapability`,
   `limitState`, the ledger operations. Never calls Stripe.
 - **Capability gate** (`ENTITLEMENT_GATE`) passes when the view grants ANY parameter; **limit gate**
   (`LIMIT_GATE`) when any `limit:<key>[>=n]` has room — it never consumes. Both refuse with
@@ -370,7 +370,7 @@ skill).
 
 The EU right of withdrawal (with the Art. 11a withdrawal function), spend consent for prepaid
 credits, subscription start requests, the cancellation function and a billing country fixed at the
-first purchase. The service is `consumerRights(ctx)` (`consumerRightsOf(ctx)` is null-safe); its
+first purchase. The service is `paymentAccessOf(ctx).consumerRights()` (`.consumerRightsOf()` is null-safe); its
 full contract is in `reference.md`.
 
 - **A purchase** is a paid one-time checkout, or a subscription's FIRST invoice — renewals,
@@ -379,7 +379,7 @@ full contract is in `reference.md`.
   collision) is written **before anything is granted**: in `checkout.session.completed` before
   `onTopUp`, in the first subscription commit before the `created` observers. A completed
   subscription checkout then refines it with the buyer's own country, e-mail, totals and terms
-  acceptance. Window = in scope, before `deadline` (`withdrawalDeadlineOf`, policy margin),
+  acceptance. Window = in scope, before `deadline` (`withdrawalDeadlineHelper.withdrawalDeadlineOf`, policy margin),
   neither withdrawn nor refunded; a full refund closes it (`refundedAt`).
 - **In scope** when the buyer's own country or the organization's locked country is in the policy's
   territories; an unknown country is protected by default. A business tax id does not exempt.
@@ -399,16 +399,16 @@ full contract is in `reference.md`.
   required while an open in-scope top-up window has none. `assertConsent` is one indexed query and
   throws `PerformanceConsentRequired` (428, `pending`, latest `deadline`); an application calls it
   only where credits will actually be spent. `consentView` carries the policy's `consentContext`
-  as `context`. `recordConsent` renders the statement itself (`consentStatementOf` with the
+  as `context`. `recordConsent` renders the statement itself (`consumerCopyHelper.consentStatementOf` with the
   trader's `name` and the policy's `consentContext`, so the stored verbatim text and the consent
   mail are the `_<context>` variant the dialog showed; without a context the base statement),
   stores that `context` on the record, refuses a stale `textVersion` with a fresh 428, covers only
   the open windows the body lists, stamps `consentedAt` conditionally, mails the confirmation, then
   tells `onConsent`.
 - **Start requests follow the plan's withdrawal arithmetic.** `startView(entityId, planSku)` names
-  `context = startContextOf(plan)` (`'units'` for a plan with a `units` component, absent for a
+  `context = consumerCopyHelper.startContextOf(plan)` (`'units'` for a plan with a `units` component, absent for a
   time-only one); `recordStartRequest(subject, body, origin, { plan })` renders the statement with
-  the SAME `startContextOf(plan)` and the plan's short name the application passes (default: its
+  the SAME `consumerCopyHelper.startContextOf(plan)` and the plan's short name the application passes (default: its
   localized title), stores it verbatim with its `context`, and the start mail repeats it with
   `email.start.rule` of that variant (the record's `context`). Usable `startRequestTtlSeconds`
   (3600); the purchase takes it as `servicesStartedAt`/`consentedAt`.
@@ -444,7 +444,7 @@ address and the model form), consent confirmation, start confirmation, withdrawa
 cancellation receipt. User values are HTML-escaped; a deadline is shown as its last included day.
 The mails and the withdrawal information name the trader's `legalName, address, email`; the
 statements its `name`. Every send, skip or failure is a `mail` event (step = kind); addresses on
-`.test`/`.example`/`.invalid`/`.localhost` and every subdomain of them (`isReservedAddress`; case, a
+`.test`/`.example`/`.invalid`/`.localhost` and every subdomain of them (`consumerFormatHelper.isReservedAddress`; case, a
 display-name form and a trailing dot read through) are never sent (recorded as skipped); each `bcc`
 address gets its own copy. **The purchase confirmation goes out once per purchase**: a delivery
 sends it only after winning the conditional `confirmationMailAt` claim on the purchase row (a mail
@@ -457,7 +457,7 @@ mailer is registered.
 
 ## Reconcile
 
-`consumerRights(ctx).reconcile({ since?, limit? })` — the application's nightly job: retries the
+`paymentAccessOf(ctx).consumerRights().reconcile({ since?, limit? })` — the application's nightly job: retries the
 paygate steps of withdrawals (refund, credit note, subscription cancel) and scheduled
 cancellations, failed mails and failed observers; backfills purchases (records only, no mail) from
 completed sessions of the last 16 days without a row; locks organizations that paid before the
@@ -477,7 +477,7 @@ made (found by `metadata.withdrawalId`). Five failures of a step leave it to an 
   `@owlmeans/server-entrypoint` / `@owlmeans/server-app`, and never registers `paymentGate` or
   `paymentGateEntrypoints`. A handler reads its context from the entrypoint it is bound to, so the
   application's declaration is the one mounted and run. Its declarations keep the library's paths
-  (`webhookUrlOf` forms the Stripe URL from `paymentGate`'s), contracts (`PaygateParams`,
+  (`webhookOf(ctx).webhookUrlOf` forms the Stripe URL from `paymentGate`'s), contracts (`PaygateParams`,
   `ResyncResult`, `ResyncSubscriptionsResult` — `bind` refuses another shape at compile time) and
   guards. Two ways to get it wrong: `bindAll(declarations, [paymentGateHandlers.webhook])` pairs by
   object identity and leaves the application's declaration without a handler, and
@@ -496,16 +496,16 @@ made (found by `metadata.withdrawalId`). Five failures of a step leave it to an 
   least `publicMinMs` (1000 ms) so a match is not visible in the timing either.
 - `checkoutReadEntrypoints(protocols, { resolveEntity?, gatewayAlias? })` binds
   `makeCheckoutReadProtocols`: `amountPolicy` and `planPrices`; its `resolveEntity(req, ctx)` too.
-- **`requestOriginOf(req)`** is the evidence of every consumer act (the default `metaOf`): `ip` =
+- **`originHelper.requestOriginOf(req)`** is the evidence of every consumer act (the default `metaOf`): `ip` =
   `cf-connecting-ip` → the LAST `x-forwarded-for` entry → `x-real-ip` → the socket; the raw
   `x-forwarded-for`, `user-agent` (≤ 512), `cf-ipcountry`, `accept-language`.
 
 ## Stripe self-management
 
 Runs in `initialize()` of a managed gateway with `bootstrap` (default), after the context is
-ready, and on a forced `bootstrapStripe` from any managed process; each step independent: products
+ready, and on a forced `stripeBootstrapOf(ctx).bootstrapStripe` from any managed process; each step independent: products
 and prices (above), the portal configuration, the webhook endpoint. A deployment's identity is its
-webhook URL (`webhookUrlOf`: the `webhookService` alias's host and base); its rows carry the
+webhook URL (`webhookOf(ctx).webhookUrlOf()`: the `webhookService` alias's host and base); its rows carry the
 `owner`.
 
 - **The portal configuration**: customer update (tax id; email unless `stripe.lockCustomerEmail`;
@@ -513,11 +513,11 @@ webhook URL (`webhookUrlOf`: the `webhookService` alias's host and base); its ro
   payment method update, cancellation at period end without proration, price switching between the
   active recurring prices. Its fingerprint covers the catalogue (incl. `currencyPrices`), the lock
   flags, the region currencies, the branding and the deployment key. Each deployment owns its own configuration, tagged `{ owlmeans: 'payment',
-  service: <owner>, deployment: webhookUrlOf(ctx) }`; one tagged for another deployment (a former
+  service: <owner>, deployment: webhookOf(ctx).webhookUrlOf() }`; one tagged for another deployment (a former
   webhook URL included) is never touched — a moved URL creates a new configuration.
 - `portalLink(ctx, entityId, { flow, planSku?, returnUrl })`: a customer is required
   (`PortalUnavailable`, 409); `Cancel`/`Update`/`Change` need an entitling Stripe subscription.
-- **The webhook endpoint** at `webhookUrlOf(ctx)`, subscribed to `WEBHOOK_EVENTS`, on the API version
+- **The webhook endpoint** at `webhookOf(ctx).webhookUrlOf()`, subscribed to `WEBHOOK_EVENTS`, on the API version
   read back from the client; only an https public host. A deployment deletes only the endpoints its
   own rows name. A new URL (a moved host, a new `webhookService`) creates the endpoint there, then
   deletes the endpoints of the owner's rows at other URLs and those rows — no migration step. The

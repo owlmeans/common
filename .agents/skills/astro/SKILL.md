@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/astro
 
 **Layer:** Web (Astro)
-**Install:** `"@owlmeans/astro": "^0.1.18-rc.34"` in `dependencies`
+**Install:** `"@owlmeans/astro": "^0.1.18-rc.35"` in `dependencies`
 
 ## Why it exists
 

@@ -6,7 +6,7 @@ description: Category-C integration tests for OwlMeans Common packages that talk
 
 # Integration Tests — Category C
 
-**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.32"` in `devDependencies`
+**Install:** `"@owlmeans/test-integration": "^0.1.18-rc.33"` in `devDependencies`
 
 Category C applies to packages that integrate with external services: `postgres`,
 `postgres-resource`, `mongo`, `mongo-resource`, `redis`, `redis-resource`, `redis-queue`,
@@ -25,29 +25,29 @@ service hands it is category C even when it names no driver of its own.
 
 | Helper | Purpose |
 |---|---|
-| `postgresGate()`, `mongoGate()`, `redisGate()`, `s3Gate()`, `kubeGate()`, `smtpGate()` | Read env (and, for the three datastores, probe the address — below), return `IntegrationGate<E>` = `{ skip, reason?, env }`. |
+| `gateHelper` — `.postgresGate()`, `.mongoGate()`, `.redisGate()`, `.s3Gate()`, `.kubeGate()`, `.smtpGate()` | Read env (and, for the three datastores, probe the address — below), return `IntegrationGate<E>` = `{ skip, reason?, env }`. |
 | `IntegrationGate<E>` | `{ skip: boolean, reason?: string, env: Partial<E> }`. `env` holds only the variables that were actually populated. `skip` is a plain `boolean`, not a discriminant, so `env` stays `Partial<E>` on the open branch too — a suite reads a required variable through a cast: `gate.env.MONGO_URL as string`. |
 | `PostgresEnv`, `MongoEnv`, `RedisEnv`, `S3Env`, `KubeEnv`, `SmtpEnv` | The variable set each gate reads, so `tests/context.ts` types its exported gate. |
 | `randomNamespace(prefix, len?)` | Schema / DB / key / object-prefix namespacing for parallel-safe runs. Default 6 hex chars. |
-| `registerCleanup(fn)` + `runCleanups()` | Process-global LIFO queue. Only where **one** spec file of the package provisions anything — see below. |
+| `cleanupHelper.registerCleanup(fn)` + `.runCleanups()` | Process-global LIFO queue. Only where **one** spec file of the package provisions anything — see below. |
 
 Each gate fails closed on its **required** variables and treats the rest as optional:
 
 | Gate | Required | Optional |
 |---|---|---|
-| `mongoGate()` | `MONGO_URL` | `MONGO_TEST_DB_PREFIX` |
-| `postgresGate()` | `POSTGRES_URL` | `POSTGRES_TEST_DB_PREFIX` |
-| `redisGate()` | `REDIS_URL` | `REDIS_TEST_KEY_PREFIX` |
-| `s3Gate()` | `S3_ENDPOINT`, `S3_KEY`, `S3_SECRET`, `S3_TEST_BUCKET` | `S3_REGION` |
-| `kubeGate()` | `KUBE_CONFIG`, `KUBE_TEST_OK` | — |
-| `smtpGate()` | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TEST_TO` | `SMTP_PORT`, `SMTP_SECURE` |
+| `gateHelper.mongoGate()` | `MONGO_URL` | `MONGO_TEST_DB_PREFIX` |
+| `gateHelper.postgresGate()` | `POSTGRES_URL` | `POSTGRES_TEST_DB_PREFIX` |
+| `gateHelper.redisGate()` | `REDIS_URL` | `REDIS_TEST_KEY_PREFIX` |
+| `gateHelper.s3Gate()` | `S3_ENDPOINT`, `S3_KEY`, `S3_SECRET`, `S3_TEST_BUCKET` | `S3_REGION` |
+| `gateHelper.kubeGate()` | `KUBE_CONFIG`, `KUBE_TEST_OK` | — |
+| `gateHelper.smtpGate()` | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TEST_TO` | `SMTP_PORT`, `SMTP_SECURE` |
 
 `SMTP_TEST_TO` is required rather than optional because an open SMTP gate sends **real mail** — the
 suite must never guess a recipient.
 
 ### A datastore gate also asks whether the server answers
 
-`mongoGate()`, `redisGate()` and `postgresGate()` open only when their connection string is set
+`gateHelper.mongoGate()`, `.redisGate()` and `.postgresGate()` open only when their connection string is set
 **and** one of the hosts in it accepts a TCP connect (default ports 27017 / 6379 / 5432). A local
 `.env` keeps the port-forward address long after the forward is gone, and a gate that trusted the
 variable alone left `beforeAll` to spend its whole budget on `ECONNREFUSED` and fail the suite. An
@@ -64,12 +64,12 @@ Bun decides `test` vs `test.skip` synchronously and every consumer reads its gat
 so no `tests/context.ts` changes to get it. It is TCP only: no driver and no login, so a wrong
 password still opens the gate and fails in the suite, where it belongs. It answers "reachable" when
 it cannot tell — an SRV (`mongodb+srv://`) or unix-socket address, a string it cannot parse, a probe
-that cannot spawn — which is exactly the behaviour a gate had before it probed. `s3Gate()`,
-`kubeGate()` and `smtpGate()` do not probe: they name remote services, not a local forward.
+that cannot spawn — which is exactly the behaviour a gate had before it probed. `gateHelper.s3Gate()`,
+`.kubeGate()` and `.smtpGate()` do not probe: they name remote services, not a local forward.
 
 An optional variable is only in `env` when it was actually populated, which is why a suite reads a
 defaulted one — `POSTGRES_TEST_DB_PREFIX ?? 'omt'` — straight from `process.env` instead: calling
-any gate has already run `loadEnv`, so the `.env` values are in `process.env` by then.
+any gate has already run `envHelper.loadEnv`, so the `.env` values are in `process.env` by then.
 
 **Six services, six gates — a category-C package outside that set writes its own.** There is no
 gate for an LLM provider or for the Mailgun HTTP API, and none should be added to
@@ -90,7 +90,7 @@ asserts on the request it builds and the API's reply.
 ## Env contract
 
 One `.env.example` at the workspace root documents every variable, grouped by service, with
-comments; the `.env` beside it supplies real values for local runs and `loadEnv` (from
+comments; the `.env` beside it supplies real values for local runs and `envHelper.loadEnv` (from
 `@owlmeans/test`) picks it up. CI sets the same variables from secrets. **Empty value = skip, and
 so is a datastore address nothing answers at** — never a failure. A developer's `.env` may keep the
 port-forward address permanently: with the forward up the suites run, without it they skip.
@@ -143,7 +143,7 @@ A resource package (`*-resource`) owns the `Resource<T>` contract; the db packag
   translation — live in the **resource** package and gate on nothing: they leave the process
   alone. `@owlmeans/postgres-resource` is entirely this shape.
 - **Raw-driver specs** belong there too when the subject is the round trip and not the service.
-  `@owlmeans/mongo-resource` opens `mongoGate()`, derives a namespaced database with
+  `@owlmeans/mongo-resource` opens `gateHelper.mongoGate()`, derives a namespaced database with
   `randomNamespace`, registers a cleanup that drops it, and drives `mongodb` directly with the
   driver as its own devDependency — legitimate precisely because it never constructs the db
   service. It is also the one package that may use the global cleanup queue, because only that
@@ -156,10 +156,10 @@ A resource package (`*-resource`) owns the `Resource<T>` contract; the db packag
 ## Per-suite namespaces, not the global cleanup queue
 
 Bun runs **every spec file of a package in one process** with one shared module registry, and the
-queue is one array for that whole process. A process-global `registerCleanup`/`runCleanups()`
+queue is one array for that whole process. A process-global `cleanupHelper.registerCleanup`/`.runCleanups()`
 therefore misfires as soon as two spec files provision: the first to reach `afterAll` drains the
 entire queue and drops the namespaces of the files still to come. The queue is safe only where a
-**single** spec file provisions anything and that same file calls `runCleanups()`. That is the
+**single** spec file provisions anything and that same file calls `cleanupHelper.runCleanups()`. That is the
 shape `@owlmeans/mongo-resource` has — one gated round-trip spec registering one dropped database,
 beside two ungated spec files that translate criteria and references in memory and open nothing.
 
@@ -168,7 +168,7 @@ own teardown instead:
 
 ```ts
 // tests/context.ts
-export const gate: IntegrationGate<PostgresEnv> = postgresGate()
+export const gate: IntegrationGate<PostgresEnv> = gateHelper.postgresGate()
 
 export const makeSuite = (label: string): PgSuite => {
   const prefix = process.env.POSTGRES_TEST_DB_PREFIX ?? 'omt'
@@ -228,7 +228,7 @@ maker that runs more than once for the same alias re-declares the same entries a
 A `boot()` builds a whole new context, but the declarations belong to the module registry rather
 than to any context, so they carry across every boot in the process — deliberately.
 Never reset them inside a shared `boot()` helper: a `.migration()` registered before the boot
-would be silently dropped. A spec that wants a clean slate calls `resetDeclarations(alias)`
+would be silently dropped. A spec that wants a clean slate calls `pgDeclarationHelper.resetDeclarations(alias)` (or `mongoDeclarationHelper`'s)
 itself, which is what a spec simulating a restarted process should have to say out loud.
 
 Migration bodies belong at **module scope**, not inside the spec callback: the checksum
@@ -275,11 +275,11 @@ devDependencies.
 
 **Nothing auto-loads the workspace `.env`.** Bun reads a `.env` beside the working directory, so
 `bun test` inside a package never sees the one at the workspace root. The gates work because
-`@owlmeans/test`'s `loadEnv` does the loading itself and every gate calls it before reading a
+`@owlmeans/test`'s `envHelper.loadEnv` does the loading itself and every gate calls it before reading a
 variable: it walks up from the working directory for a `bun.lock`, or for a `package.json`
 sitting beside a directory named `packages`, and reads the `.env` it finds there. A variable
 already set to a non-empty value always wins, so `MONGO_URL=… bun test ./tests` still overrides
-the file. A workspace shaped any other way names the file itself — `loadEnv({ file })` at the top
+the file. A workspace shaped any other way names the file itself — `envHelper.loadEnv({ file })` at the top
 of `tests/context.ts`, before the gates run.
 
 Bun's per-test timeout is 5s, and **`bunfig.toml`'s `[test] timeout` does not raise it** — bun
@@ -301,7 +301,7 @@ bun test --timeout=60000 ./tests
 value instead, which also proves the call returned:
 
 ```ts
-expect(pgErrorToResourceError(circular)).toBe(circular)   // not: expect(() => …).not.toThrow()
+expect(pgErrorHelper.pgErrorToResourceError(circular)).toBe(circular)   // not: expect(() => …).not.toThrow()
 ```
 
 ## Rules
@@ -320,5 +320,5 @@ expect(pgErrorToResourceError(circular)).toBe(circular)   // not: expect(() => �
 ## When the env is partially populated
 
 Each gate fails closed. A test that needs both `S3_KEY` and `S3_SECRET` does not run if only
-one is set — `s3Gate()` reports `skip: true`. This is intentional: a half-configured
+one is set — `gateHelper.s3Gate()` reports `skip: true`. This is intentional: a half-configured
 environment must not produce false positives or partial coverage.

@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/marketing-consent
 
 **Layer:** Domain (beside `consent`, `payment`, `planning`)
-**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.9"` in `dependencies`
+**Install:** `"@owlmeans/marketing-consent": "^0.1.18-rc.10"` in `dependencies`
 **Cookies are not part of this package.** `@owlmeans/consent` is the cookie dialog — a device-level
 ePrivacy choice with its own storage and its own cross-domain linker — and this catalogue neither
 reads nor writes it: no `trackers.*` keys, no cookie category on a definition, no bridge, no seeding

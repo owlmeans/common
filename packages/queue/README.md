@@ -16,7 +16,7 @@ and on the driver only where the application wires itself up.
 ## Installation
 
 ```bash
-bun add @owlmeans/queue@^0.1.18-rc.40
+bun add @owlmeans/queue@^0.1.18-rc.41
 ```
 
 ## Concepts
@@ -302,7 +302,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.48
+npx @owlmeans/agent-skills@^0.1.18-rc.49
 ```
 
 The embedded files are version-matched to this package release. Do not edit them
