@@ -225,6 +225,18 @@ schema, and a count the model should respect lives in the `description` and is c
 never as `minItems`/`maxItems`. The descriptions are what the planning model reads; `gate.target`
 is filled by code and described as such.
 
+**One reading of the landing page.** What a guest home draws is decided by the pure
+`landingPlanHelper` beside the schema, never re-derived by a consumer: `landingBandsOf` (the bands, in `LANDING_BAND_ORDER`,
+one presence rule each), `landingMenuOf` (the header menu: present bands only, page order, capped,
+padded to `LANDING_MENU.min`) and `homeSlotsOf` (the buttons a home link can attach to; a gate with
+fields removes `LANDING_GATE_SLOTS`). The optional bands (`useCases`, `differentiator`, `approach`,
+`about`) each carry a `basis` copied word for word from a source and checked downstream;
+`testimonials` is optional; `links` absent/`null` means undecided, `[]` decided none.
+`linksDecided` (optional, nullable, strings) lists the story codes whose links were decided at
+DEVELOPMENT time — a decision of no control included; absent on a plan whose links the planner
+decided. It is written by code only, so `ScaffoldPlanAnswerSchema` leaves it out of what the model
+is offered while the stored `ScaffoldPlanSchema` validates it.
+
 **A field that crosses a version skew carries no `enum`.** Users run `viable-mcp` from a moving
 `npx` range against a separately deployed platform, so `ConnectCapabilitiesSchema.executors.items`
 is a bare string: a newer executor kind is an unused capability on an older platform, never a
@@ -461,7 +473,7 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 | `planning.spec.ts` | the two flows and transition tables, type declarations, slots, code policies, reserved types outside `cardTypes`, field schemas (null optionals, refused strays and closed-set values), landing fields and sentence, the tenancy decision, the work kind and bounded case quote, card helpers, the `follows` anchor, refusal type names after a marshal |
 | `tenancy.spec.ts` | `NO_TENANCY` frozen, `tenancyOf` defaults and the literal-`true` rule, `tenantedArea` |
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
-| `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems` |
+| `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems`, closed anchors/slots, the landing helpers |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
 | `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
