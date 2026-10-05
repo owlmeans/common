@@ -22,6 +22,25 @@ export interface FlowLandingHelper {
    */
   suspendFlow: (model: FlowModel, opts: { expiresAt: number }) => Promise<boolean>
   /**
+   * Suspend a landing whose destination is already known — an entrypoint alias, not a flow step —
+   * into the same side-band record {@link suspendFlow} writes and {@link resumeSuspendedFlow} reads.
+   *
+   * For a caller that has no flow to derive a destination from: a sign-in control aimed at one
+   * screen (`useLogin(target)` in `@owlmeans/client-auth`) parks that screen here and sends the person
+   * to the dispatcher, whose ordinary post-sign-in landing then resumes on it. One record, one reader:
+   * a landing parked this way and one parked by a flow are indistinguishable on the other side, and
+   * the later write replaces the earlier one.
+   *
+   * Returns `false` when there is nowhere to persist this (no `FLOW_STATE` resource registered).
+   */
+  suspendLanding: (landing: SuspendedLanding, opts: { expiresAt: number }) => Promise<boolean>
+  /**
+   * Drop a suspended landing without acting on it — for a sign-in that ended before it signed anyone
+   * in (a refused popup, a window the person closed), so the landing it parked cannot hijack the next,
+   * unrelated sign-in. Safe to call when nothing is suspended or nowhere to keep it exists.
+   */
+  discardSuspendedLanding: () => Promise<void>
+  /**
    * Read back a suspended landing, once. Delete-on-read: the record answers exactly one sign-in,
    * because a landing a stale browser tab left behind must never resurrect on somebody else's
    * sign-in later in the same session.

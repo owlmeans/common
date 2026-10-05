@@ -115,3 +115,10 @@ export enum LoginIntent {
   Login = 'login',
   Logout = 'logout',
 }
+
+/**
+ * How long a sign-in aimed at a screen (`LoginRequest.target`) keeps that screen parked: long
+ * enough for a sign-in with an emailed code, short enough that a tab abandoned mid-way never lands
+ * a later, unrelated sign-in on it.
+ */
+export const LOGIN_TARGET_TTL = 30 * 60 * 1000

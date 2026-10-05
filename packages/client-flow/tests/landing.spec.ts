@@ -71,3 +71,38 @@ describe('suspendFlow / resumeSuspendedFlow', () => {
     expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
   })
 })
+
+describe('suspendLanding / discardSuspendedLanding', () => {
+  test('parks a known destination in the record resumeSuspendedFlow reads, once', async () => {
+    const context = makeTestContext()
+
+    expect(await flowLandingOf(context).suspendLanding({ entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 })).toBe(true)
+
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toEqual({ entrypoint: 'guarded-screen', query: {} })
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
+  })
+
+  test('the later write replaces a landing a flow suspended earlier', async () => {
+    const context = makeTestContext()
+    await flowLandingOf(context).suspendFlow(await makeFlowModel(testFlow), { expiresAt: Date.now() + 60_000 })
+    await flowLandingOf(context).suspendLanding({ entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 })
+
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toEqual({ entrypoint: 'guarded-screen', query: {} })
+  })
+
+  test('a discarded landing resumes to nothing', async () => {
+    const context = makeTestContext()
+    await flowLandingOf(context).suspendLanding({ entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 })
+    await flowLandingOf(context).discardSuspendedLanding()
+
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
+  })
+
+  test('with no FLOW_STATE resource registered, both are safe no-ops', async () => {
+    const context = makeTestContext(false)
+
+    expect(await flowLandingOf(context).suspendLanding({ entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 })).toBe(false)
+    await flowLandingOf(context).discardSuspendedLanding()
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
+  })
+})

@@ -100,9 +100,10 @@ browsing context the round trip can complete at all.
 | `registerNotifier(notifier)` (on `LoginService`), `LoginNotifier` | Surfaces a `begin`/`logout` outcome that has no inline screen to render it on — e.g. a toast on `LoginOutcome.Blocked` for a header "Log in"/"Log out" control. `web-panel`'s `appendLoginScreen` registers a default; unregistered, it is silence |
 | `enterOidcAuthorization(model)` | Move a flow to the step that can authorize — idempotent, call it before every `authenticate` |
 | `adoptToken(ctx, token)`, `revokeToken(ctx)` | The single adoption and de-adoption paths |
-| `useLogin(target?)`, `useLogout(target?)` | Wiring for a sign-in / sign-out control; `target` is the entrypoint alias the flow lands on when it is over |
+| `useLogin(target?)`, `useLogout(target?)` | Wiring for a sign-in / sign-out control. `useLogin`'s `target` is the screen to land on AFTER sign-in (parked, never navigated to first); `useLogout`'s is where the document goes once the session is gone |
+| `startLogin(ctx, { url, target?, go })`, `LoginStart` | The React-free decision behind `useLogin` (`src/login/start.ts`): a target with a session already held goes straight there; otherwise `begin` with the target and a continuation to `DISPATCHER` |
 | `isEmbedded`, `isSurrogate`, `markSurrogate`, `clearSurrogate`, `defaultLoginEnv` | Environment probes the host builds `LoginEnv` from |
-| `LOGIN_SERVICE`, `LOGIN_SURROGATE_NAME`, `LOGIN_TOKEN_MESSAGE`, `LOGIN_LOGOUT_MESSAGE`, `LOGIN_SURROGATE_MARKER`, `LOGIN_SURROGATE_WIDTH`, `LOGIN_SURROGATE_HEIGHT`, `LOGIN_WATCH_INTERVAL`, `LOGIN_INTENT_QUERY`, `LOGIN_NEXT_QUERY`, `LOGIN_METHOD_QUERY`, `LOGIN_TERMS_STORAGE`, `DEFAULT_LOGIN_PRIORITY`, `DEFAULT_METHOD_ORDER` | Aliases and the fixed cross-document wire values. `LOGIN_SURROGATE_FEATURES` also still exports (deprecated, never centered) — `@owlmeans/web-client`'s `centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT)` is what the surrogate plugin actually opens the window with |
+| `LOGIN_SERVICE`, `LOGIN_SURROGATE_NAME`, `LOGIN_TOKEN_MESSAGE`, `LOGIN_LOGOUT_MESSAGE`, `LOGIN_SURROGATE_MARKER`, `LOGIN_SURROGATE_WIDTH`, `LOGIN_SURROGATE_HEIGHT`, `LOGIN_WATCH_INTERVAL`, `LOGIN_INTENT_QUERY`, `LOGIN_NEXT_QUERY`, `LOGIN_METHOD_QUERY`, `LOGIN_TERMS_STORAGE`, `LOGIN_TARGET_TTL`, `DEFAULT_LOGIN_PRIORITY`, `DEFAULT_METHOD_ORDER` | Aliases and the fixed cross-document wire values. `LOGIN_SURROGATE_FEATURES` also still exports (deprecated, never centered) — `@owlmeans/web-client`'s `centeredPopupFeatures(LOGIN_SURROGATE_WIDTH, LOGIN_SURROGATE_HEIGHT)` is what the surrogate plugin actually opens the window with |
 
 ```typescript
 import { useLogin, useLogout } from '@owlmeans/client-auth/login'
@@ -117,13 +118,27 @@ entrypoint **inside** the hook, never at module scope — `DISPATCHER` for `useL
 path for `useLogout`. A module body runs before `registerEntrypoints`, so `useLogin`'s lookup at
 top level throws `Entrypoint dispatcher not found` during import, taking the whole render down.
 
-`target` is an entrypoint alias, and it is what supplies the request's `navigate` continuation —
-the in-app step the plugin runs once the round trip is done. `useLogin` always sends one, falling
-back to `DISPATCHER`; `useLogout` sends one only when a target is given. Omitting it does not leave
-the session behind: the token is revoked either way, and the plugin decides what the document does
-with no continuation to run — `@owlmeans/web-client`'s redirect plugin reloads the page, because
-cached auth reads only forget a session when the application is rebuilt. `useLogin` returns
-`[path, handler]` and `useLogout` a bare handler — a logout control has no address to point at.
+`useLogin(target)` signs in FIRST and lands on `target` after, in an ordinary tab (redirect plugin)
+and in a framed application (surrogate popup) alike, with every pending post-sign-in step run on the
+way. Its `navigate` continuation is ALWAYS `DISPATCHER` — never the target, because a guarded screen
+reached before sign-in renders signed out. The target travels as `LoginRequest.target`: the facade's
+`begin`, past the preconditions, parks it with `suspendLanding` (`@owlmeans/client-flow`, the
+`RESUME_FLOW` record `resumeSuspendedFlow` reads, expiring after `LOGIN_TARGET_TTL`) — the write is
+started, never awaited before the plugin, so a popup still opens inside the gesture — and holds the
+continuation until the write has landed. The dispatcher's `landAfterLogin` (landing hooks → pending
+steps such as a consent screen → the parked target) then ends on it. An attempt that signs nobody in
+(`Blocked`, `Failed`, `Gesture`) discards the parked target; a refused precondition never parks it.
+A session already held (the auth service's in-memory `token`) goes straight to the target. Without a
+target, `useLogin()` is the plain sign-in to the ordinary landing. A caller of `login().begin` that
+passes a `target` without a `navigate` leaves the document at once, so its parked target is
+best-effort.
+
+`useLogout` sends a continuation only when a target is given. Omitting it does not leave the session
+behind: the token is revoked either way, and the plugin decides what the document does with no
+continuation to run — `@owlmeans/web-client`'s redirect plugin reloads the page, because cached auth
+reads only forget a session when the application is rebuilt. `useLogin` returns `[path, handler]`
+(the path is the dispatcher's, with or without a target) and `useLogout` a bare handler — a logout
+control has no address to point at.
 
 Plugin selection, the shipped browser flows and the full invariant list: the `login-plugins` skill.
 
@@ -153,8 +168,12 @@ a web application only calls these when it builds its context by hand.
   restore before submitting the credential, and clean up after.
 - After a sign-in, `DispatcherHOC.navigate` calls `landAfterLogin` — a pending `LoginStep`, else a
   landing suspended in `@owlmeans/client-flow` (`resumeSuspendedFlow`, one-shot, an entrypoint alias
-  plus its query), else `HOME` — read BEFORE `alias` is defaulted to `HOME`. Login plugins that
-  navigate on their own do the same — see `login-plugins`.
+  plus its query — parked by a flow's `suspendFlow` or by `useLogin(target)`), else `HOME` — read
+  BEFORE `alias` is defaulted to `HOME`. Login plugins that navigate on their own do the same — see
+  `login-plugins`.
+- A control that leads to a screen through sign-in is `useLogin(target)`. Never navigate to a guarded
+  screen to start a sign-in, and never hand a plugin a continuation that goes anywhere but the
+  dispatcher: the landing is the dispatcher's decision.
 - The browser ends up holding an ordinary OwlMeans bearer token whichever provider issued the
   login. Product authorization stays server-side, in entrypoint gates and handler checks — never in
   client-only state.

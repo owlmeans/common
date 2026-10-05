@@ -1,13 +1,19 @@
 import { createLazyService, type BasicConfig, type BasicContext } from '@owlmeans/context'
 import type { CommonConfig } from '@owlmeans/config'
-import { DEFAULT_ALIAS, LoginOutcome } from './consts.js'
+import type { ClientContext } from '@owlmeans/client'
+import { flowLandingOf } from '@owlmeans/client-flow'
+import { logger } from '@owlmeans/log'
+import { DEFAULT_ALIAS, LOGIN_TARGET_TTL, LoginOutcome } from './consts.js'
+import { UNSIGNED_OUTCOMES } from './consts.local.js'
 import { loginEnvHelper } from './env.js'
 import { loginTokenOf } from './adopt.js'
 import { loginMethodsHelper } from './methods.js'
 import type {
   LoginContext, LoginLandingHook, LoginMethodSource, LoginNotifier, LoginPlugin, LoginPrecondition,
-  LoginScreenComponent, LoginService, LoginServiceAppend, LoginStep
+  LoginRequest, LoginScreenComponent, LoginService, LoginServiceAppend, LoginStep
 } from './types.js'
+
+const log = logger('client-auth:login')
 
 /**
  * Login service = plugin host. It holds a registry of login plugins and, on every facade call,
@@ -37,6 +43,45 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
   let notifier: LoginNotifier | null = null
 
   const ctx = (): LoginContext => service.ctx as LoginContext
+
+  /**
+   * Park `request.target` for the post-sign-in landing, and hand back the request whose continuation
+   * waits for that write.
+   *
+   * The write is STARTED here and never awaited on the way in: `begin` must reach the plugin's
+   * `window.open` inside the gesture. Only the continuation waits — the redirect plugin's in-app hop
+   * to the dispatcher and the surrogate's hop after the popup has handed its token back — so the
+   * dispatcher that resumes the landing always finds the record, whatever the storage behind it.
+   * A write that fails costs the landing, never the sign-in.
+   */
+  const parkTarget = (
+    ctx: LoginContext, request: LoginRequest
+  ): [LoginRequest, Promise<boolean> | null] => {
+    if (request.target == null || request.target === '') {
+      return [request, null]
+    }
+    const parked = flowLandingOf(ctx as unknown as ClientContext).suspendLanding(
+      { entrypoint: request.target, query: {} },
+      { expiresAt: Date.now() + LOGIN_TARGET_TTL }
+    ).catch((error: unknown) => {
+      log.warn('Could not park the sign-in target; the landing falls back', {
+        target: request.target, error,
+      })
+
+      return false
+    })
+    const navigate = request.navigate
+
+    return [
+      navigate == null ? request : {
+        ...request, navigate: async () => {
+          await parked
+          await navigate()
+        },
+      },
+      parked,
+    ]
+  }
 
   const service: LoginService = createLazyService<LoginService>(alias, {
     registerPlugin: (plugin: LoginPlugin) => {
@@ -127,10 +172,19 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
         }
       }
 
+      // Parked only past the preconditions: a refused attempt leaves no landing behind for the
+      // next, unrelated sign-in to resume.
+      const [parkedRequest, parked] = parkTarget(ctx(), request)
+
       // Notified here, in the facade, rather than by each caller: `useLogin` fires the flow and
       // forgets the result, and this is the one place every caller — the header hook and the
       // sign-in screen's method buttons alike — passes through on the way to a settled outcome.
-      return service.plugin(env).begin(ctx(), request, env).then(outcome => {
+      return service.plugin(env).begin(ctx(), parkedRequest, env).then(outcome => {
+        if (parked != null && UNSIGNED_OUTCOMES.has(outcome)) {
+          void parked.then(async () => {
+            await flowLandingOf(ctx() as unknown as ClientContext).discardSuspendedLanding()
+          })
+        }
         notifier?.(outcome, env)
 
         return outcome

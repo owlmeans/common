@@ -26,11 +26,25 @@ export const makeFlowLandingHelper = <C extends ClientConfig, T extends ClientCo
     }
     if (destinationModule == null) return false
 
+    return await suspendLanding({ entrypoint: destinationModule, query: model.payload() }, opts)
+  }
+
+  const suspendLanding = async (landing: SuspendedLanding, opts: { expiresAt: number }): Promise<boolean> => {
+    const resource = landingResource()
+    if (resource == null) return false
+
     await resource.save({
-      id: RESUME_FLOW, entrypoint: destinationModule, query: model.payload(), expiresAt: opts.expiresAt,
+      id: RESUME_FLOW, entrypoint: landing.entrypoint, query: landing.query, expiresAt: opts.expiresAt,
     })
 
     return true
+  }
+
+  const discardSuspendedLanding = async (): Promise<void> => {
+    const resource = landingResource()
+    if (resource == null) return
+
+    await resource.delete(RESUME_FLOW).catch(() => undefined)
   }
 
   const resumeSuspendedFlow = async (): Promise<SuspendedLanding | null> => {
@@ -51,7 +65,7 @@ export const makeFlowLandingHelper = <C extends ClientConfig, T extends ClientCo
     return { entrypoint: record.entrypoint, query: record.query }
   }
 
-  return { suspendFlow, resumeSuspendedFlow }
+  return { suspendFlow, suspendLanding, discardSuspendedLanding, resumeSuspendedFlow }
 }
 
 export const flowLandingOf = memoHelper.oncePer(makeFlowLandingHelper)

@@ -1,3 +1,4 @@
+import { LoginOutcome } from './consts.js'
 import type { CSSProperties } from 'react'
 
 /**
@@ -26,3 +27,8 @@ export const DEFAULT_LABEL: Record<string, string> = {
   billing: 'Billing Terms',
   product: '{{product}} Product Terms',
 }
+
+/** Outcomes after which nobody was signed in, so a screen parked for the landing must not wait. */
+export const UNSIGNED_OUTCOMES: ReadonlySet<LoginOutcome> = new Set<LoginOutcome>([
+  LoginOutcome.Blocked, LoginOutcome.Failed, LoginOutcome.Gesture,
+])
