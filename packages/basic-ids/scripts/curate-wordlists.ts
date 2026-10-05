@@ -1,4 +1,25 @@
 /**
+ * Regenerate `src/wordlists/list-a.ts` and `src/wordlists/list-b.ts`.
+ *
+ * Run: `bun run scripts/curate-wordlists.ts` (needs network access; writes the two source files).
+ *
+ * The lists are an editorial asset, not a random sample: every word ends up in hostnames, OIDC
+ * client ids and support conversations, so the pipeline below screens three ways — a profanity
+ * list, a substring screen for words that read badly inside a hostname even when the word itself
+ * is innocent, and a frequency floor so nothing unrecognisable survives. Proper nouns are dropped
+ * (Moby capitalises them) because a place or brand name makes a poor generic slug, and stopwords
+ * are dropped because `not-for` is not a name.
+ *
+ * Sources (all public, fetched at run time so no corpus is vendored into the repo):
+ * - Moby part-of-speech list — github.com/en-wl/wordlist, `pos/part-of-speech.txt`.
+ *   Tab-separated `word<TAB>|CODES`; N noun, V/t/i verb, A adjective, v adverb.
+ * - google-10000-english (USA) — github.com/first20hours/google-10000-english. Primary frequency
+ *   ranking; the 50k list below only orders what google's 10k does not cover.
+ * - FrequencyWords en_50k — github.com/hermitdave/FrequencyWords.
+ * - stopwords-en — github.com/stopwords-iso/stopwords-en.
+ * - LDNOOBW `en` — github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words.
+ */
+/**
  * Regenerate `src/wordlists/consts.ts` (`WORDLIST_A` and `WORDLIST_B`).
  *
  * Run: `bun run scripts/curate-wordlists.ts` (needs network access; writes the constants file).
