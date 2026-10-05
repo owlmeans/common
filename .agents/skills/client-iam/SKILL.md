@@ -25,7 +25,7 @@ reads permissions only to show or hide a control.
 | `listOrganizations(ctx)` | `OidcOrganizationItem[]` of the session — `{ entitySlug, title?, owner, groups?, home?, acting }` |
 | `switchOrganization(ctx, entitySlug)` | Moves the session into another of its organizations and adopts the re-signed token with `adoptToken` |
 | `requireConsentForLogin(ctx, opts?)`, `CONSENT_LOGIN_PRECONDITION`, `ConsentLoginOptions` | The consent precondition on its own (`'consent-before-login'`, priority 100), for a context wired another way |
-| `useLogin` / `useLogout`, `LoginOutcome`, `LoginIntent` and the login types | Re-exported from `@owlmeans/client-auth/login`, so an application has one IAM import |
+| `useLogin` / `useLogout`, `LoginOutcome`, `LoginIntent` and the login types | Re-exported from `@owlmeans/client-auth/login`, so an application has one IAM import. `useLogin(target)` signs in first and lands on `target` after, consent and other post-sign-in steps included (`client-auth`) |
 | `hasPermission(auth, permission, { scope?, resourceId?, entitySlug? }?)` | Re-exported from `@owlmeans/iam` — the same check the server gate runs |
 | `ORGANIZATION_REFUSAL`, `ORGANIZATION_OWNER_REFUSAL` | `'organization'` / `'organization:owner'` — the `AuthForbidden` reasons of a non-member and of a non-owner |
 | `OidcOrganizationItem` and every `@owlmeans/iam` type | Re-exported types |

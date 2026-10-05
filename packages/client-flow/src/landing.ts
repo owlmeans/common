@@ -59,11 +59,48 @@ export const suspendFlow = async <C extends ClientConfig, T extends ClientContex
   }
   if (destinationModule == null) return false
 
+  return await suspendLanding(
+    context, { entrypoint: destinationModule, query: model.payload() }, opts
+  )
+}
+
+/**
+ * Suspend a landing whose destination is already known — an entrypoint alias, not a flow step —
+ * into the same side-band record {@link suspendFlow} writes and {@link resumeSuspendedFlow} reads.
+ *
+ * For a caller that has no flow to derive a destination from: a sign-in control aimed at one
+ * screen (`useLogin(target)` in `@owlmeans/client-auth`) parks that screen here and sends the person
+ * to the dispatcher, whose ordinary post-sign-in landing then resumes on it. One record, one reader:
+ * a landing parked this way and one parked by a flow are indistinguishable on the other side, and
+ * the later write replaces the earlier one.
+ *
+ * Returns `false` when there is nowhere to persist this (no `FLOW_STATE` resource registered).
+ */
+export const suspendLanding = async <C extends ClientConfig, T extends ClientContext<C>>(
+  context: T, landing: SuspendedLanding, opts: { expiresAt: number }
+): Promise<boolean> => {
+  const resource = landingResource(context)
+  if (resource == null) return false
+
   await resource.save({
-    id: RESUME_FLOW, entrypoint: destinationModule, query: model.payload(), expiresAt: opts.expiresAt,
+    id: RESUME_FLOW, entrypoint: landing.entrypoint, query: landing.query, expiresAt: opts.expiresAt,
   })
 
   return true
+}
+
+/**
+ * Drop a suspended landing without acting on it — for a sign-in that ended before it signed anyone
+ * in (a refused popup, a window the person closed), so the landing it parked cannot hijack the next,
+ * unrelated sign-in. Safe to call when nothing is suspended or nowhere to keep it exists.
+ */
+export const discardSuspendedLanding = async <C extends ClientConfig, T extends ClientContext<C>>(
+  context: T
+): Promise<void> => {
+  const resource = landingResource(context)
+  if (resource == null) return
+
+  await resource.delete(RESUME_FLOW).catch(() => undefined)
 }
 
 /**

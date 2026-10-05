@@ -41,7 +41,15 @@ import { useLogin, useLogout } from '@owlmeans/client-iam'
 
 const [, onLogIn] = useLogin()
 const onLogOut = useLogout()
+// sign in FIRST, then land on one screen (a guarded one included):
+const [, onLogInThere] = useLogin(web.orders.alias)
 ```
+
+`useLogin(target)` never navigates to `target` before sign-in. The facade parks it
+(`LoginRequest.target` → `suspendLanding`, `client-auth`), the plugin's continuation goes to the
+dispatcher as always — after the popup's token in a framed app, client-side in an ordinary tab — and
+the dispatcher's landing below ends on the target, steps first. A session already held goes straight
+there.
 
 To add a mechanic, register a plugin at a higher priority in your own `makeContext` — the cascade
 picks it wherever its `match` is true and falls back to the shipped ones everywhere else.
@@ -136,7 +144,7 @@ replace it with a throw.
 | Situation | What happens |
 |---|---|
 | Ordinary tab, signing in | redirect plugin: `begin` prefers the caller's in-app `navigate`, else a full load |
-| Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE` |
+| Framed, signing in | surrogate plugin opens `/surrogate?intent=login&next=<dispatcher>` **synchronously**, then waits for a `LOGIN_TOKEN_MESSAGE`, adopts the token and runs the caller's continuation — the in-app hop to the dispatcher, whose landing runs the steps and any parked target |
 | Surrogate, signing in | a session already on this origin is dropped and the window forwards to `next`, which owns the authorization round trip; only without `next` is a stored session handed back via `resume()` |
 | Framed, session already there | `resume` → `Passed`; the document simply uses it, and no window opens |
 | Framed, signing out | surrogate plugin opens the window FIRST, revokes locally **unconditionally**, then awaits `LOGIN_LOGOUT_MESSAGE` |
@@ -157,7 +165,7 @@ replace it with a throw.
   a step whose whole point is to gate the landing on something the person must actually do — a Terms
   confirmation moved off the sign-in screen (`confirmsTerms`, `termsDeferred` — see `login-methods`)
   is the shipped case, and a broken read there must show the step, never wave the confirmation
-  through), else a flow parked with `suspendFlow`
+  through), else a landing parked with `suspendFlow` or by `useLogin(target)`
   (`@owlmeans/client-flow`, read back once via `resumeSuspendedFlow`), else `HOME`. A step whose
   `entrypoint` is not bound in this tree is skipped, never thrown. `landAfterLogin` also runs every
   registered `LoginLandingHook` once per distinct authenticated token (tracked in `localStorage`

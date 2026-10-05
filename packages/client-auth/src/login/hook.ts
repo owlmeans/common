@@ -8,6 +8,7 @@ import type { LoginContext, LoginService } from './types.js'
 import { LoginIntent } from './types.js'
 import { LOGIN_SERVICE } from './consts.js'
 import { surrogatePath } from './surrogate.js'
+import { startLogin } from './start.js'
 
 /**
  * Wiring for a "Log in" control: where it points, and what it does when clicked.
@@ -16,6 +17,12 @@ import { surrogatePath } from './surrogate.js'
  * actually complete in is the login service's problem, not the app's. An ordinary tab redirects;
  * an app embedded in a frame runs the flow one window up, because the provider refuses to be
  * framed and its cookies are third-party there.
+ *
+ * `target` is the screen to land on once signed in — sign-in FIRST, then the screen, in an ordinary
+ * tab and in a framed application alike, with any pending post-sign-in step (a consent screen) run
+ * on the way. The control still leads to the dispatcher; the target is parked for the landing
+ * (`LoginRequest.target`), and somebody already signed in goes straight to it ({@link startLogin}).
+ * Without a target the landing is the ordinary one.
  *
  * The returned handler is deliberately NOT async and awaits nothing before delegating: a window
  * opened after the user gesture has finished being handled is eaten by the popup blocker.
@@ -33,13 +40,8 @@ export const useLogin = (target?: string): readonly [string, (event?: MouseEvent
 
   const onLogin = useCallback((event?: MouseEvent) => {
     event?.preventDefault()
-    const login = context.service<LoginService>(LOGIN_SERVICE)
-    void login.begin({
-      url: path,
-      target,
-      // Only a component may call `useNavigate`, so the in-app continuation is handed to the
-      // plugin rather than reinvented by it.
-      navigate: () => { nav.go(target ?? DISPATCHER) },
+    void startLogin(context as unknown as LoginContext, {
+      url: path, target, go: alias => nav.go(alias),
     })
   }, [context, path, target])
 

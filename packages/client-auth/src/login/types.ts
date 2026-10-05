@@ -68,7 +68,18 @@ export interface LoginRequest {
    * fallback is a full page load of {@link url}.
    */
   navigate?: () => void | Promise<void>
-  /** Entrypoint alias to return to after login. */
+  /**
+   * Entrypoint alias to land on once sign-in completes.
+   *
+   * The facade parks it (`suspendLanding` from `@owlmeans/client-flow`, the record
+   * `resumeSuspendedFlow` reads) once the preconditions have passed, and holds {@link navigate}
+   * until the write has landed — so the continuation still goes to the dispatcher, whose ordinary
+   * post-sign-in landing (`landAfterLogin`: landing hooks, pending steps such as a consent screen,
+   * then the suspended landing) ends on this screen. It is never a navigation target of its own:
+   * a guarded screen reached before sign-in renders signed out. An attempt that ends without a
+   * sign-in (`Blocked`, `Failed`, `Gesture`) discards the parked screen again. A caller with no
+   * {@link navigate} leaves the document at once, so its parked screen is best-effort only.
+   */
   target?: string
 }
 

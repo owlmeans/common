@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { makeFlowModel } from '@owlmeans/flow'
 import type { ShallowFlow } from '@owlmeans/flow'
-import { resumeSuspendedFlow, suspendFlow } from '../src/landing.js'
+import {
+  discardSuspendedLanding, resumeSuspendedFlow, suspendFlow, suspendLanding,
+} from '../src/landing.js'
 import { makeTestContext } from './context.js'
 
 const testFlow: ShallowFlow = {
@@ -68,6 +70,49 @@ describe('suspendFlow / resumeSuspendedFlow', () => {
     const model = await makeFlowModel(testFlow)
 
     expect(await suspendFlow(context, model, { expiresAt: Date.now() + 60_000 })).toBe(false)
+    expect(await resumeSuspendedFlow(context)).toBeNull()
+  })
+})
+
+describe('suspendLanding / discardSuspendedLanding', () => {
+  test('parks a known destination in the record resumeSuspendedFlow reads, once', async () => {
+    const context = makeTestContext()
+
+    expect(await suspendLanding(
+      context, { entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 }
+    )).toBe(true)
+
+    expect(await resumeSuspendedFlow(context)).toEqual({ entrypoint: 'guarded-screen', query: {} })
+    expect(await resumeSuspendedFlow(context)).toBeNull()
+  })
+
+  test('the later write replaces a landing a flow suspended earlier', async () => {
+    const context = makeTestContext()
+    await suspendFlow(context, await makeFlowModel(testFlow), { expiresAt: Date.now() + 60_000 })
+    await suspendLanding(
+      context, { entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 }
+    )
+
+    expect(await resumeSuspendedFlow(context)).toEqual({ entrypoint: 'guarded-screen', query: {} })
+  })
+
+  test('a discarded landing resumes to nothing', async () => {
+    const context = makeTestContext()
+    await suspendLanding(
+      context, { entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 }
+    )
+    await discardSuspendedLanding(context)
+
+    expect(await resumeSuspendedFlow(context)).toBeNull()
+  })
+
+  test('with no FLOW_STATE resource registered, both are safe no-ops', async () => {
+    const context = makeTestContext(false)
+
+    expect(await suspendLanding(
+      context, { entrypoint: 'guarded-screen', query: {} }, { expiresAt: Date.now() + 60_000 }
+    )).toBe(false)
+    await discardSuspendedLanding(context)
     expect(await resumeSuspendedFlow(context)).toBeNull()
   })
 })
