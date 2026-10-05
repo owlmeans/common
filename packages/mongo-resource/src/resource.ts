@@ -1,27 +1,16 @@
 import { appendContextual, assertContext } from '@owlmeans/context'
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE } from './consts.js'
-import { MigrationStage } from '@owlmeans/resource'
-import type {
-  Criteria, FirstOptions, ListOptions, ListResult, ResourceRecord, WriteOptions
-} from '@owlmeans/resource'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { MigrationStage, type Criteria, type FirstOptions, type ListOptions, type ListResult, type ResourceRecord, type WriteOptions, MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed } from '@owlmeans/resource'
 import type { MongoDbService, MongoReference, MongoRefOptions, MongoResource, MongoTx } from './types.js'
-import { initializeCollection } from './utils/life-cycle.js'
-import { getDeclaration } from './declarations.js'
-import { ObjectId } from 'mongodb'
-import type { CreateIndexesOptions, Document, IndexSpecification } from 'mongodb'
-import {
-  MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, RecordUpdateFailed
-} from '@owlmeans/resource'
+import { makeMongoLifeCycleUtils } from './utils/life-cycle.js'
+import { mongoDeclarationHelper } from './declarations.js'
+import { ObjectId, type CreateIndexesOptions, type Document, type IndexSpecification } from 'mongodb'
 import type { JSONSchemaType } from 'ajv'
 import { getSchemaSecureFeilds } from './helper.js'
-import { criteriaToFilter, sortToMongo } from './utils/criteria.js'
-import {
-  demarshalRefs, identityCriteria, makeRefMigration, marshalReference, refMigrationName
-} from './utils/refs.js'
+import { mongoCriteriaHelper } from './utils/criteria.js'
+import { makeRefMigration, mongoRefHelper } from './utils/refs.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context<C extends Config = Config> = ServerContext<C>
 
 export const makeMongoResource = <
   R extends ResourceRecord, T extends MongoResource<R> = MongoResource<R>
@@ -36,12 +25,12 @@ export const makeMongoResource = <
    * declarations live at module scope keyed by alias, so a second maker run for the
    * same alias sees everything already declared for it.
    */
-  const refs = (): Map<string, MongoReference> => getDeclaration(alias).references
+  const refs = (): Map<string, MongoReference> => mongoDeclarationHelper.getDeclaration(alias).references
 
   const demarshal = <Type extends ResourceRecord>(record: Type & { _id?: unknown }): Type => {
     record.id = record._id instanceof ObjectId ? record._id.toString() : record._id as string
     delete record._id
-    return demarshalRefs(record, refs())
+    return mongoRefHelper.demarshalRefs(record, refs())
   }
 
   /**
@@ -51,8 +40,8 @@ export const makeMongoResource = <
    */
   const filterOf = (idOrWhere: string | Criteria<R>): Document =>
     typeof idOrWhere === 'string'
-      ? identityCriteria('id', idOrWhere, refs())
-      : criteriaToFilter(idOrWhere, refs())
+      ? mongoRefHelper.identityCriteria('id', idOrWhere, refs())
+      : mongoCriteriaHelper.criteriaToFilter(idOrWhere, refs())
 
   /**
    * The single implementation both overloads of `load` and `get` stand on — an id and a
@@ -61,7 +50,7 @@ export const makeMongoResource = <
   const loadOne = async (
     idOrWhere: string | Criteria<R>, opts?: FirstOptions<R>
   ): Promise<R | null> => {
-    const sort = sortToMongo(opts?.sort)
+    const sort = mongoCriteriaHelper.sortToMongo(opts?.sort)
     const record = await resource.collection.findOne(
       filterOf(idOrWhere), sort != null ? { sort } : {}
     )
@@ -84,7 +73,7 @@ export const makeMongoResource = <
     load: loadOne as T['load'],
 
     list: async (where?: Criteria<R>, opts?: ListOptions<R>): Promise<ListResult<R>> => {
-      const filter = criteriaToFilter(where, refs())
+      const filter = mongoCriteriaHelper.criteriaToFilter(where, refs())
       const total = await resource.collection.countDocuments(filter)
 
       /** `size: 0` is the explicit ask for everything; an omitted size pages by default. */
@@ -100,7 +89,7 @@ export const makeMongoResource = <
       }
 
       let cursor = resource.collection.find(filter)
-      const sort = sortToMongo(opts?.sort)
+      const sort = mongoCriteriaHelper.sortToMongo(opts?.sort)
       if (sort != null) {
         cursor = cursor.sort(sort)
       }
@@ -114,7 +103,7 @@ export const makeMongoResource = <
     },
 
     count: async (where?: Criteria<R>): Promise<number> =>
-      await resource.collection.countDocuments(criteriaToFilter(where, refs())),
+      await resource.collection.countDocuments(mongoCriteriaHelper.criteriaToFilter(where, refs())),
 
     update: async (record: Partial<R>, opts?: WriteOptions): Promise<R> => {
       if (opts?.ttl != null) {
@@ -136,7 +125,7 @@ export const makeMongoResource = <
       delete replace.id
 
       const result = await resource.collection.replaceOne(
-        identityCriteria('id', original.id as string, refs()),
+        mongoRefHelper.identityCriteria('id', original.id as string, refs()),
         _prepareValues(replace, resource.schema as JSONSchemaType<any>, refs())
       )
       if (!result.acknowledged) {
@@ -189,7 +178,7 @@ export const makeMongoResource = <
 
     /** Atomic: the record is handed back by the very operation that removed it. */
     delete: async (id: string): Promise<R | null> => {
-      const record = await resource.collection.findOneAndDelete(identityCriteria('id', id, refs()))
+      const record = await resource.collection.findOneAndDelete(mongoRefHelper.identityCriteria('id', id, refs()))
 
       return record != null ? demarshal(record as unknown as R) : null
     },
@@ -204,7 +193,7 @@ export const makeMongoResource = <
     },
 
     purge: async (where: Criteria<R>): Promise<number> => {
-      const filter = criteriaToFilter(where, refs())
+      const filter = mongoCriteriaHelper.criteriaToFilter(where, refs())
       if (Object.keys(filter).length < 1) {
         /** An empty filter here would empty the collection. */
         throw new UnsupportedArgumentError('purge:no-criteria')
@@ -263,14 +252,14 @@ export const makeMongoResource = <
     }) as T['index'],
 
     migration: ((name: string, apply: (tx: MongoTx) => Promise<void>, stage?: MigrationStage) => {
-      getDeclaration(alias).migrations.register(name, apply, stage)
+      mongoDeclarationHelper.getDeclaration(alias).migrations.register(name, apply, stage)
       return resource
     }) as T['migration'],
 
-    migrations: () => getDeclaration(alias).migrations,
+    migrations: () => mongoDeclarationHelper.getDeclaration(alias).migrations,
 
     reference: ((field: string, opts?: string | MongoRefOptions) => {
-      const declaration = getDeclaration(alias)
+      const declaration = mongoDeclarationHelper.getDeclaration(alias)
       const options = typeof opts === 'string' ? { resource: opts } : opts ?? {}
       declaration.references.set(field, { field, resource: options.resource, noIndex: options.noIndex })
       /**
@@ -278,12 +267,12 @@ export const makeMongoResource = <
        * here rather than at init so it precedes migrations the app declares after its
        * `reference()` calls — the field's type contract is the foundation those build on.
        */
-      declaration.migrations.register(refMigrationName(field), makeRefMigration(field), MigrationStage.Pre)
+      declaration.migrations.register(mongoRefHelper.refMigrationName(field), makeRefMigration(field), MigrationStage.Pre)
 
       return resource
     }) as T['reference'],
 
-    references: () => [...getDeclaration(alias).references.values()]
+    references: () => [...mongoDeclarationHelper.getDeclaration(alias).references.values()]
   } as Partial<T>)
 
   // Explicit collection name override (decoupled from the registration alias, which may
@@ -300,8 +289,8 @@ export const makeMongoResource = <
     await mongo.ready()
     const db = await mongo.db(dbAlias)
     const config = mongo.config(dbAlias)
-    resource.collection = await initializeCollection(
-      db, config, resource as unknown as MongoResource<ResourceRecord>, context
+    resource.collection = await makeMongoLifeCycleUtils(db).initializeCollection(
+      config, resource as unknown as MongoResource<ResourceRecord>, context
     )
   }
 
@@ -318,7 +307,7 @@ const _prepareValues = <T extends ResourceRecord>(
    */
   if (refs != null && refs.size > 0) {
     obj = Object.fromEntries(Object.entries(obj).map(([key, value]) =>
-      refs.has(key) ? [key, marshalReference(key, value)] : [key, value]
+      refs.has(key) ? [key, mongoRefHelper.marshalReference(key, value)] : [key, value]
     )) as T
   }
   // @TODO Validate keys from additional properties in the root

@@ -1,8 +1,8 @@
 import type { Auth } from '@owlmeans/auth'
 import { ALL_SCOPES, AuthroizationType } from '@owlmeans/auth'
 import {
-  AUTH_TOKEN_DEFAULT_PREFIX, AUTH_TOKEN_SCHEME, AUTH_TOKEN_RESOURCE, AUTH_TOKEN_TOUCH_INTERVAL,
-  BEARER_SCHEME, GUARD_AUTH_TOKEN, isAccessToken, parseAuthorizationHeader
+  AUTH_TOKEN_SCHEME, AUTH_TOKEN_RESOURCE, AUTH_TOKEN_TOUCH_INTERVAL,
+  BEARER_SCHEME, GUARD_AUTH_TOKEN, tokenFormatHelper
 } from '@owlmeans/auth-token'
 import { AUTH_HEADER } from '@owlmeans/auth'
 import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
@@ -11,13 +11,12 @@ import { createService } from '@owlmeans/context'
 import type { AbstractRequest, AbstractResponse, GuardService } from '@owlmeans/entrypoint'
 import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
 import type { IdentityProfile, IdentityProfileResource } from '@owlmeans/server-auth-identity'
-import { hashAccessToken } from './hash.js'
+import { tokenHashHelper } from './hash.js'
+import { prefixOf } from './prefix.js'
 import type { AccessTokenResource, AuthTokenConfig, AuthTokenContext, AuthTokenGuardOptions } from './types.js'
 import { logger, logThrottle } from '@owlmeans/log'
 
-/** Where the deployment's prefix comes from: the guard's own options, then config, then default. */
-export const prefixOf = (context: AuthTokenContext, opts?: AuthTokenGuardOptions): string =>
-  opts?.prefix ?? (context.cfg as AuthTokenConfig).authToken?.prefix ?? AUTH_TOKEN_DEFAULT_PREFIX
+const log = logger('server-auth-token')
 
 /**
  * The guard that verifies a long-lived access token.
@@ -37,32 +36,30 @@ export const prefixOf = (context: AuthTokenContext, opts?: AuthTokenGuardOptions
  * - it intersects the token's scopes with its profile's on every request, so a token can never
  *   outlive or outrank the person who minted it.
  */
-const log = logger('server-auth-token')
-
-/**
- * A presented access token the guard did not accept. Never the token, not even its display form:
- * its record id only. Once a minute per token and reason — a client retrying a revoked token calls every second.
- */
-const refuse = (reason: string, record?: { id?: string, entityId?: string }): false => {
-  if (logThrottle(`auth-token:${reason}:${record?.id ?? ''}`, 60_000)) {
-    log.warn('Access token refused', {
-      reason, tokenId: record?.id, entityId: record?.entityId,
-    }, { event: 'auth.refused' })
-  }
-  return false
-}
-
 export const makeAuthTokenGuard = (
   alias: string = GUARD_AUTH_TOKEN, opts: AuthTokenGuardOptions = {}
 ): GuardService => {
+  /**
+   * A presented access token the guard did not accept. Never the token, not even its display form:
+   * its record id only. Once a minute per token and reason — a client retrying a revoked token calls every second.
+   */
+  const refuse = (reason: string, record?: { id?: string, entityId?: string }): false => {
+    if (logThrottle(`auth-token:${reason}:${record?.id ?? ''}`, 60_000)) {
+      log.warn('Access token refused', {
+        reason, tokenId: record?.id, entityId: record?.entityId,
+      }, { event: 'auth.refused' })
+    }
+    return false
+  }
+
   const touchInterval = opts.touchInterval ?? AUTH_TOKEN_TOUCH_INTERVAL
 
   const present = (req: Partial<AbstractRequest>, prefix: string): string | null => {
-    const parsed = parseAuthorizationHeader(req.headers?.[AUTH_HEADER])
+    const parsed = tokenFormatHelper.parseAuthorizationHeader(req.headers?.[AUTH_HEADER])
     if (parsed == null) return null
     if (parsed.scheme !== AUTH_TOKEN_SCHEME && parsed.scheme !== BEARER_SCHEME) return null
 
-    return isAccessToken(parsed.value, prefix) ? parsed.value : null
+    return tokenFormatHelper.isAccessToken(parsed.value, prefix) ? parsed.value : null
   }
 
   const service: GuardService = createService<GuardService>(alias, {
@@ -87,7 +84,7 @@ export const makeAuthTokenGuard = (
       if (presented == null) return false as T
 
       const tokens = context.resource<AccessTokenResource>(opts.resourceAlias ?? AUTH_TOKEN_RESOURCE)
-      const record = await tokens.load({ hash: hashAccessToken(presented) })
+      const record = await tokens.load({ hash: tokenHashHelper.hashAccessToken(presented) })
       if (record == null) return refuse('unknown') as T
       if (record.revokedAt != null) return refuse('revoked', record) as T
       if (record.expiresAt != null && new Date(record.expiresAt) < new Date()) return refuse('expired', record) as T

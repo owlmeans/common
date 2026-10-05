@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/web-payment",
-  "version": "0.1.18-rc.30",
-  "generatedAt": "2026-10-04T08:02:44.734Z",
+  "version": "0.1.18-rc.31",
+  "generatedAt": "2026-10-05T08:32:19.126Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {

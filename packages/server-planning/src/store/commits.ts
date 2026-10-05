@@ -1,12 +1,10 @@
 import { logger } from '@owlmeans/log'
-import { CommitFailed, CommitState, CommitTimeout, DEFAULT_COMMIT_TIMEOUT, WorkcardNotFound } from '@owlmeans/planning'
-import type { CommitEvent, CommitFilter, CommitStatus, Unsubscribe, Workcard } from '@owlmeans/planning'
+import { CommitFailed, CommitState, CommitTimeout, DEFAULT_COMMIT_TIMEOUT, WorkcardNotFound, type CommitEvent, type CommitFilter, type CommitStatus, type Unsubscribe, type Workcard } from '@owlmeans/planning'
 import { COMMIT_POLL_LADDER, DEFAULT_COMMIT_MEMORY } from '../consts.js'
 import type { CommitHub, CommitHubOptions } from './types.js'
+import type { Listener } from './types.local.js'
 
 const log = logger('planning:store')
-
-type Listener = (event: CommitEvent) => void | Promise<void>
 
 const matches = (event: CommitEvent, filter?: CommitFilter): boolean =>
   filter == null || (

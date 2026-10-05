@@ -13,7 +13,7 @@ target. Do not use it in a shared `common` package that only declares protocols 
 ## Installation
 
 ```bash
-bun add @owlmeans/server-app@^0.1.18-rc.50
+bun add @owlmeans/server-app@^0.1.18-rc.51
 ```
 
 ## Concepts
@@ -253,7 +253,7 @@ await boot()
 |---|---|---|
 | `config` | function | `@owlmeans/server-context` — `config(service, cfg?)` |
 | `sservice` | function | `@owlmeans/server-config` — declare a backend service route |
-| `service`, `toConfigRecord`, `PLUGINS` | function / const | `@owlmeans/config` |
+| `service`, `configHelper`, `toConfigRecord` (deprecated, use `configHelper.toConfigRecord`), `PLUGINS` | function / helper / const | `@owlmeans/config` |
 | `PluginConfig` | type | `@owlmeans/config` |
 | `addWebService` | function | `@owlmeans/client-config` |
 | `contract`, `protocol`, `typed`, `EntrypointOutcome` | function / enum | `@owlmeans/entrypoint` |
@@ -310,7 +310,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,17 +1,12 @@
 import { appendContextual } from '@owlmeans/context'
 import { AuthenFailed } from '@owlmeans/auth'
-import type { OtpService } from '@owlmeans/auth-otp'
-import {
-  OTP_SERVICE, OTP_TTL_SECONDS, OTP_CODE_LENGTH, OTP_MAX_FAILED_ATTEMPTS,
-  OTP_RESOURCE,
-} from '@owlmeans/auth-otp'
-import type { MailerService } from '@owlmeans/mailer'
-import { MAILER_SERVICE } from '@owlmeans/mailer'
-import { createHash, randomBytes, randomInt } from 'node:crypto'
+import { type OtpService, OTP_SERVICE, OTP_TTL_SECONDS, OTP_CODE_LENGTH, OTP_MAX_FAILED_ATTEMPTS, OTP_RESOURCE } from '@owlmeans/auth-otp'
+import { type MailerService, MAILER_SERVICE } from '@owlmeans/mailer'
+import { randomBytes, randomInt } from 'node:crypto'
 import type { AuthThrottleService, OtpChallengeStore, OtpConfig, OtpContext } from './types.js'
-import { OtpChallengeOutcome } from './types.js'
-import { OTP_CHALLENGE_STORE } from './consts.js'
-import { emailThrottleKey } from './throttle.js'
+import { OtpChallengeOutcome, OTP_CHALLENGE_STORE } from './consts.js'
+import { throttleKeyHelper } from './throttle-keys.js'
+import { otpKeyHelper } from './keys.js'
 import { OtpThrottled, OtpUnavailable } from './errors.js'
 import { makeRedisOtpChallengeStore } from './challenge.js'
 import { logger, logThrottle } from '@owlmeans/log'
@@ -21,13 +16,10 @@ const log = logger('server-auth-otp')
 /** An e-mail as a log may carry it: its domain only. */
 const domainOf = (email: string): string => email.slice(email.lastIndexOf('@') + 1)
 
-const digest = (scope: string, value: string): string =>
-  createHash('sha256').update(`owlmeans:otp:${scope}\0${value}`).digest('hex')
-
-export const otpChallengeKey = (issuanceId: string): string => `challenge:${digest('issuance', issuanceId)}`
-export const otpEmailKey = (email: string): string => digest('email', email.trim().toLowerCase())
-export const otpCodeHash = (issuanceId: string, code: string): string =>
-  digest('code', `${issuanceId}\0${code.trim()}`)
+const generateCode = (): string => {
+  const digits = randomInt(0, Math.pow(10, OTP_CODE_LENGTH))
+  return String(digits).padStart(OTP_CODE_LENGTH, '0')
+}
 
 export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
   let fallbackChallenges: OtpChallengeStore | undefined
@@ -60,9 +52,9 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
       const throttleRules = ctx.cfg.otp?.throttleRules
       if (throttleAlias != null && throttleRules != null) {
         const decision = await ctx.service<AuthThrottleService>(throttleAlias)
-          .consume(emailThrottleKey(email), throttleRules, issuanceId)
+          .consume(throttleKeyHelper.emailThrottleKey(email), throttleRules, issuanceId)
         if (!decision.allowed) {
-          if (logThrottle(`otp-throttled:${otpEmailKey(email)}`, 60_000)) {
+          if (logThrottle(`otp-throttled:${otpKeyHelper.otpEmailKey(email)}`, 60_000)) {
             log.warn('Login code refused: throttled', {
               reason: 'otp-throttled', emailDomain: domainOf(email), retryAfter: decision.retryAfter,
             }, { event: 'auth.refused' })
@@ -72,9 +64,9 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
       }
 
       const issued = await challenges.issue({
-        id: otpChallengeKey(issuanceId),
-        emailKey: otpEmailKey(email),
-        codeHash: otpCodeHash(issuanceId, code),
+        id: otpKeyHelper.otpChallengeKey(issuanceId),
+        emailKey: otpKeyHelper.otpEmailKey(email),
+        codeHash: otpKeyHelper.otpCodeHash(issuanceId, code),
       }, OTP_TTL_SECONDS)
       if (!issued) throw new OtpUnavailable('issuance-collision')
 
@@ -91,7 +83,7 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
     verifyChallenge: async (email: string, issuanceId: string, code: string): Promise<void> => {
       const ctx = service.ctx as OtpContext<OtpConfig>
       const outcome = await challengeStore(ctx).verify(
-        otpChallengeKey(issuanceId), otpEmailKey(email), otpCodeHash(issuanceId, code),
+        otpKeyHelper.otpChallengeKey(issuanceId), otpKeyHelper.otpEmailKey(email), otpKeyHelper.otpCodeHash(issuanceId, code),
         OTP_MAX_FAILED_ATTEMPTS
       )
       if (outcome !== OtpChallengeOutcome.Verified) {
@@ -103,9 +95,4 @@ export const makeOtpService = (alias = OTP_SERVICE): OtpService => {
   })
 
   return service
-}
-
-const generateCode = (): string => {
-  const digits = randomInt(0, Math.pow(10, OTP_CODE_LENGTH))
-  return String(digits).padStart(OTP_CODE_LENGTH, '0')
 }

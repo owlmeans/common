@@ -4,10 +4,11 @@ import type { FastifyInstance } from 'fastify'
 import { AuthForbidden, AuthorizationError, AuthUnknown } from '@owlmeans/auth'
 import { ResilientError, SEPARATOR } from '@owlmeans/error'
 import { provideResponse } from '@owlmeans/entrypoint'
-import { errorExposure, errorStatus, handleError, INCIDENT_ID_HEADER } from '../src/utils/error.js'
-import { executeResponse } from '../src/utils/payload.js'
+import { httpErrorHelper } from '../src/utils/error.js'
+import { INCIDENT_ID_HEADER } from '../src/utils/consts.js'
+import { payloadHelper } from '../src/utils/payload.js'
 import { AccessError, AuthFailedError } from '../src/errors.js'
-import { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND, httpStatusOf } from '@owlmeans/api'
+import { DENIAL_KIND_HEADER, ACCESS_DENIED_KIND, apiStatusHelper } from '@owlmeans/api'
 import {
   MigrationError, MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError,
   UnsupportedArgumentError, UnsupportedMethodError,
@@ -158,17 +159,17 @@ let thrown: unknown
 beforeAll(async () => {
   server = Fastify()
   server.get('/handle', async (_req, reply) => {
-    handleError(thrown as Error, reply)
+    httpErrorHelper.handleError(thrown as Error, reply)
     return reply
   })
   server.get('/handle-development', async (_req, reply) => {
-    handleError(thrown as Error, reply, 'development')
+    httpErrorHelper.handleError(thrown as Error, reply, 'development')
     return reply
   })
   server.get('/execute', async (_req, reply) => {
     const response = provideResponse(reply)
     response.reject(thrown as Error)
-    executeResponse(response, reply)
+    payloadHelper.executeResponse(response, reply)
     return reply
   })
   await server.ready()
@@ -212,8 +213,8 @@ describe('@owlmeans/server-api — production error exposure', () => {
     expect(syntax.body).toBe(syntax.incidentId)
     expect(syntax.body).not.toContain('bad wiring')
 
-    expect(errorExposure()).toBe('production')
-    expect(errorExposure({ http: { errors: { exposure: 'development' } } })).toBe('development')
+    expect(httpErrorHelper.errorExposure()).toBe('production')
+    expect(httpErrorHelper.errorExposure({ http: { errors: { exposure: 'development' } } })).toBe('development')
   })
 })
 
@@ -283,13 +284,13 @@ describe('@owlmeans/server-api — auth status across a rebuild and duplicate mo
   test('an AuthFailedError answers 401 as thrown and after a marshal round trip', async () => {
     expect((await answer(new AuthFailedError())).status).toBe(401)
     expect((await answer(ResilientError.marshal(new AuthFailedError()))).status).toBe(401)
-    expect(errorStatus(ResilientError.ensure(ResilientError.marshal(new AuthFailedError())))).toBe(401)
+    expect(httpErrorHelper.errorStatus(ResilientError.ensure(ResilientError.marshal(new AuthFailedError())))).toBe(401)
     expect((await answer(new AuthFailedError(), '/execute')).status).toBe(401)
   })
 
   test('a class from another module copy answers by its registered type name', async () => {
     // The rebuild alone loses it — the regression this resolution exists for.
-    expect(errorStatus(ResilientError.ensure(new ForeignAuthFailedError()))).toBe(500)
+    expect(httpErrorHelper.errorStatus(ResilientError.ensure(new ForeignAuthFailedError()))).toBe(500)
     expect((await answer(new ForeignAuthFailedError())).status).toBe(401)
     expect((await answer(new ForeignAuthorizationError())).status).toBe(401)
     expect((await answer(new ForeignAuthForbidden())).status).toBe(403)
@@ -333,7 +334,7 @@ describe('@owlmeans/server-api — storage refusals of @owlmeans/resource', () =
       const rebuilt = Object.assign(ResilientError.ensure(response.body, true), { responseStatus: response.status })
       expect(rebuilt.constructor).toBe(error.constructor)
       expect(rebuilt.message).toBe(error.message)
-      expect(httpStatusOf(rebuilt)).toBe(status)
+      expect(apiStatusHelper.httpStatusOf(rebuilt)).toBe(status)
     }
     const rebuilt = ResilientError.ensure((await answer(new UnknownRecordError('shelf/3'), '/handle-development')).body, true)
     expect((rebuilt as UnknownRecordError).id).toBe('shelf/3')

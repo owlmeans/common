@@ -2,7 +2,8 @@
 // FIRST, before anything that might log: stdout belongs to the protocol.
 import { protocolStdout } from './stdout-guard.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { HELP, parseArgs, readConfig } from './config.js'
+import { configHelper } from './config.js'
+import { HELP } from './consts.js'
 import { makeCredentials } from './credentials.js'
 import { makeViableMcpServer } from './server.js'
 import { serveHttp } from './http.js'
@@ -14,7 +15,7 @@ const log = (line: string): void => { process.stderr.write(`[viable-mcp] ${line}
  * this up for the first time gets an immediate answer instead of a wait buried in their agent's
  * first tool call. */
 const login = async (argv: string[]): Promise<number> => {
-  const cfg = await readConfig(argv, process.env)
+  const cfg = await configHelper.readConfig(argv, process.env)
   const credentials = makeCredentials(cfg, log)
 
   if ((await credentials.token()) != null) {
@@ -40,7 +41,7 @@ const login = async (argv: string[]): Promise<number> => {
 
 /** `viable-mcp logout` — revoke and forget the stored token. */
 const logout = async (argv: string[]): Promise<number> => {
-  const cfg = await readConfig(argv, process.env)
+  const cfg = await configHelper.readConfig(argv, process.env)
   const credentials = makeCredentials(cfg, log)
   await credentials.signOut()
   log(`signed out of ${cfg.apiUrl}`)
@@ -49,10 +50,10 @@ const logout = async (argv: string[]): Promise<number> => {
 }
 
 /** `viable-mcp url` — print the platform's `/mcp` address, for `claude mcp add --transport http
- * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.41 url)"`. The ONE command whose answer belongs on stdout: no
+ * viable "$(npx -y @owlmeans/viable-mcp@^0.1.18-rc.44 url)"`. The ONE command whose answer belongs on stdout: no
  * protocol runs in this mode, and a caller capturing it must get the bare URL and nothing else. */
 const url = async (argv: string[]): Promise<number> => {
-  const cfg = await readConfig(argv, process.env)
+  const cfg = await configHelper.readConfig(argv, process.env)
   protocolStdout.write(`${cfg.mcpUrl}\n`)
 
   return 0
@@ -60,7 +61,7 @@ const url = async (argv: string[]): Promise<number> => {
 
 /** `viable-mcp status` — report, on stderr only, whether this machine can already authenticate. */
 const status = async (argv: string[]): Promise<number> => {
-  const cfg = await readConfig(argv, process.env)
+  const cfg = await configHelper.readConfig(argv, process.env)
   const credentials = makeCredentials(cfg, log)
   const token = await credentials.token()
   log(token != null ? `signed in for ${cfg.apiUrl}` : `not signed in for ${cfg.apiUrl} — run \`viable-mcp login\``)
@@ -69,7 +70,7 @@ const status = async (argv: string[]): Promise<number> => {
 }
 
 const serve = async (argv: string[]): Promise<number> => {
-  const cfg = await readConfig(argv, process.env)
+  const cfg = await configHelper.readConfig(argv, process.env)
   const { server, close } = await makeViableMcpServer(cfg)
 
   let stopHttp: (() => Promise<void>) | null = null
@@ -98,7 +99,7 @@ const serve = async (argv: string[]): Promise<number> => {
 }
 
 const main = async (): Promise<number> => {
-  const { help } = parseArgs(process.argv)
+  const { help } = configHelper.parseArgs(process.argv)
   if (help) {
     process.stderr.write(HELP)
 

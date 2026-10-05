@@ -14,7 +14,7 @@ imports everything from here. Server code never uses this package; its equivalen
 ## Installation
 
 ```bash
-bun add @owlmeans/client@^0.1.18-rc.49
+bun add @owlmeans/client@^0.1.18-rc.50
 ```
 
 `react` and `@remix-run/router` are peer dependencies.
@@ -227,8 +227,8 @@ The surface is mounted once. It calls `useSetupModalNavigator()`, links a `useTo
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `buildEntrypointTree`, `visitEntrypointTree`, `EntrypointTreeVisitor` | function / type | Build and walk the frontend entrypoint tree |
-| `initializeRouter(context)` | function | Initialize the router for a context |
+| `clientRouterOf(context).buildEntrypointTree()`, `.visitEntrypointTree(tree, visitor)`, `EntrypointTreeVisitor` | helper member / type | Build and walk the frontend entrypoint tree |
+| `clientRouterOf(context).initializeRouter()` | helper member | Initialize the router for a context |
 | `createRouteRenderer`, `HandledRenderer` | function / type | Render one route with guards applied |
 | `EntrypointContext` | React context | What `useEntrypoint` reads |
 
@@ -273,7 +273,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

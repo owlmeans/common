@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/planning-postgres
 
 **Layer:** Infra extension
-**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.7"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
+**Install:** `"@owlmeans/planning-postgres": "^0.1.18-rc.8"` in `dependencies` (peers `pg`, `ajv`, `ajv-formats`)
 
 A `PlanningStore` of `@owlmeans/server-planning` on Postgres. It owns no planning semantics: every
 write still goes through the executor, every fold through `foldPending`, every query through

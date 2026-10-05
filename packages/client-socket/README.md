@@ -4,7 +4,7 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 
 ## Overview
 
-- `ws(entrypoint, request?)` — creates a `Connection` from the entrypoint's URL and opens a WebSocket
+- `socketClientHelper.ws(entrypoint, request?)` — creates a `Connection` from the entrypoint's URL and opens a WebSocket
 - `useWs(entrypoint, request?)` — React hook wrapping `ws()` with lifecycle management; pass a
   protocol-bound entrypoint directly
 - The returned `Connection` implements `@owlmeans/socket`'s `Connection` interface
@@ -12,7 +12,7 @@ React hook and factory for WebSocket connections via OwlMeans entrypoint routing
 ## Installation
 
 ```bash
-bun add @owlmeans/client-socket@^0.1.18-rc.47
+bun add @owlmeans/client-socket@^0.1.18-rc.48
 ```
 
 ## Usage
@@ -42,16 +42,16 @@ function ThinkingPanel({ storyId }: { storyId: string }) {
 Direct connection (non-hook):
 
 ```typescript
-import { ws } from '@owlmeans/client-socket'
+import { socketClientHelper } from '@owlmeans/client-socket'
 import { appProtocols } from 'my-app-common'
 
 const wsEntrypoint = context.entrypoint(appProtocols.api.storyThinking)
-const connection = await ws(wsEntrypoint, { params: { id: storyId } })
+const connection = await socketClientHelper.ws(wsEntrypoint, { params: { id: storyId } })
 ```
 
 ## API
 
-### `ws(entrypoint, request?): Promise<Connection>`
+### `socketClientHelper.ws(entrypoint, request?): Promise<Connection>`
 
 Builds the entrypoint's URL, opens a WebSocket, and returns a `Connection` once the socket opens.
 
@@ -75,7 +75,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

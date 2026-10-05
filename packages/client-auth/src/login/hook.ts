@@ -1,12 +1,12 @@
-import { useCallback } from 'react'
-import type { MouseEvent } from 'react'
+import { useCallback, type MouseEvent } from 'react'
 import { useContext, useNavigate } from '@owlmeans/client'
 import type { ClientContext } from '@owlmeans/client-context'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DISPATCHER } from '@owlmeans/auth'
 import type { LoginContext, LoginService } from './types.js'
-import { LoginIntent } from './types.js'
-import { LOGIN_SERVICE } from './consts.js'
+import type { LandOptions } from './land/types.js'
+import { LoginIntent, LOGIN_SERVICE } from './consts.js'
+import { loginLandingOf } from './land.js'
 import { surrogatePath } from './surrogate.js'
 
 /**
@@ -77,4 +77,21 @@ export const useLogout = (target?: string): ((event?: MouseEvent) => void) => {
       ...(target != null ? { navigate: () => { nav.go(target) } } : {}),
     })
   }, [context, path, target])
+}
+
+/**
+ * For a component that runs its own post-login step (the marketing-consent screen, for one) to
+ * call once it is satisfied — moves the flow on to the next step, or the ordinary landing.
+ *
+ * Not async at the call site by accident of its own — it is a callback a component holds and
+ * fires later, so nothing here needs the synchronous-gesture discipline `useLogin`/`useLogout` do.
+ */
+export const useContinueLogin = (): ((opts?: LandOptions) => Promise<void>) => {
+  const context = useContext() as unknown as ClientContext
+  const nav = useNavigate()
+
+  return useCallback(async (opts?: LandOptions) => {
+    const landing = await loginLandingOf(context as unknown as LoginContext).continueLogin(opts)
+    await nav.go(landing.alias, { params: landing.params, query: landing.query })
+  }, [context, nav])
 }

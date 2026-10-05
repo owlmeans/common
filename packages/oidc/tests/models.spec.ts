@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
-import { OIDCAuthInitParamsSchema, OidcOrganizationSwitchSchema } from '../src/models.js'
+import { OIDCAuthInitParamsSchema, OidcOrganizationSwitchSchema } from '../src/schemas.js'
 
 const strict = new Ajv()
 // The server's own options: a closed schema STRIPS what it does not declare instead of failing,

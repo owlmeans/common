@@ -4,17 +4,16 @@ import {
   CONNECT_BRANDING_COPYRIGHT_MAX, CONNECT_BRANDING_GOOGLE_TAG_MAX,
   CONNECT_BRANDING_ORGANIZATION_MAX, CONNECT_BRANDING_URL_MAX, CONNECT_INQUIRY_MAX_TEXT,
   ConnectHarness, ConnectLlm, ConnectOpErrorKind, ConnectSessionStatus, ConnectTarget,
-  ConnectTransport, ModelTaskResultKind, ModelTier
+  ConnectTransport, ModelTaskResultKind
 } from './consts.js'
-import type { ConnectOpResult, InquiryAnswerPayload } from './ops.js'
-import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectConvertStartBody,
-  ConnectCreateBody, ConnectLlmBody, ConnectModifyBody, ConnectPipelineParams,
-  ConnectPipelineResumeBody, ConnectProjectBrandingSave, ConnectProjectLlmBody, ConnectSession,
-  ConnectSessionOpen, ConnectPullQuery, ConnectSessionParams, ConnectKitApplyBody, ConnectKitApplyResult,
-  ConnectKitDescribe, PlanningKitView
-} from './types.js'
+import type { ConnectProjectBrandingSave } from './branding/types.js'
+import type { ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody } from './conversion/types.js'
+import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe, PlanningKitView } from './kit/types.js'
+import type { ConnectOpResult, InquiryAnswerPayload } from './ops/types.js'
+import type { ConnectPipelineParams, ConnectPipelineResumeBody } from './pipeline/types.js'
+import type { ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody } from './project/types.js'
+import type { ConnectPullQuery, ConnectSession, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
+import type { ConnectLlmBody, ConnectProjectLlmBody } from './settings/types.js'
 
 /**
  * A nullable ENUM carries `null` as one of its values.
@@ -478,6 +477,3 @@ export const ModelTaskResultSchema = {
   required: ['taskId', 'kind'],
   additionalProperties: false,
 } as any
-
-/** Tier → the model the parent will run it on. Free-form; display only. */
-export const ModelTierValues = Object.values(ModelTier)

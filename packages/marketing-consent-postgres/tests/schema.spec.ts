@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { getDeclaration, resetDeclarations, schemaToTableSpec } from '@owlmeans/postgres-resource'
 import {
   MarketingConsentLogSchema, MarketingConsentStateSchema,
   RES_MARKETING_CONSENT_LOG, RES_MARKETING_CONSENT_STATE
 } from '@owlmeans/server-marketing-consent'
 
 import { makeMarketingConsentLogPostgres, makeMarketingConsentStatePostgres } from '../src/resource.js'
+import { pgDeclarationHelper, pgSchemaHelper } from '@owlmeans/postgres-resource'
 
 /**
  * No live database needed — `schemaToTableSpec` is the same compiler `init()` runs against a
@@ -15,8 +15,8 @@ import { makeMarketingConsentLogPostgres, makeMarketingConsentStatePostgres } fr
  */
 describe('@owlmeans/marketing-consent-postgres — schema shape', () => {
   test('the maker assigns the imported schema, not a copy', () => {
-    resetDeclarations(RES_MARKETING_CONSENT_STATE)
-    resetDeclarations(RES_MARKETING_CONSENT_LOG)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_STATE)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_LOG)
 
     const state = makeMarketingConsentStatePostgres()
     const log = makeMarketingConsentLogPostgres()
@@ -26,9 +26,7 @@ describe('@owlmeans/marketing-consent-postgres — schema shape', () => {
   })
 
   test('decisions and terms compile to one jsonb column each, never a child table', () => {
-    const spec = schemaToTableSpec(
-      RES_MARKETING_CONSENT_STATE, MarketingConsentStateSchema, 'app', 'marketing_consent_state', true
-    )
+    const spec = pgSchemaHelper.schemaToTableSpec(RES_MARKETING_CONSENT_STATE, MarketingConsentStateSchema, 'app', 'marketing_consent_state', true)
 
     const decisions = spec.byProperty.decisions
     const terms = spec.byProperty.terms
@@ -50,9 +48,7 @@ describe('@owlmeans/marketing-consent-postgres — schema shape', () => {
   })
 
   test('the log table\'s documents/notices are also single jsonb columns', () => {
-    const spec = schemaToTableSpec(
-      RES_MARKETING_CONSENT_LOG, MarketingConsentLogSchema, 'app', 'marketing_consent_log', true
-    )
+    const spec = pgSchemaHelper.schemaToTableSpec(RES_MARKETING_CONSENT_LOG, MarketingConsentLogSchema, 'app', 'marketing_consent_log', true)
 
     expect(spec.byProperty.documents.jsonb).toBe(true)
     expect(spec.byProperty.documents.array).toBe(false)
@@ -61,12 +57,12 @@ describe('@owlmeans/marketing-consent-postgres — schema shape', () => {
   })
 
   test('the makers declare the indexes the API sketch promises', () => {
-    resetDeclarations(RES_MARKETING_CONSENT_STATE)
-    resetDeclarations(RES_MARKETING_CONSENT_LOG)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_STATE)
+    pgDeclarationHelper.resetDeclarations(RES_MARKETING_CONSENT_LOG)
     makeMarketingConsentStatePostgres()
     makeMarketingConsentLogPostgres()
 
-    const stateIndexes = getDeclaration(RES_MARKETING_CONSENT_STATE).indexes
+    const stateIndexes = pgDeclarationHelper.getDeclaration(RES_MARKETING_CONSENT_STATE).indexes
     expect(stateIndexes).toContainEqual(
       expect.objectContaining({ name: 'idx_mc_state_subject', columns: ['subject'], unique: true })
     )
@@ -74,7 +70,7 @@ describe('@owlmeans/marketing-consent-postgres — schema shape', () => {
       expect.objectContaining({ name: 'idx_mc_state_user', columns: ['userId'] })
     )
 
-    const logIndexes = getDeclaration(RES_MARKETING_CONSENT_LOG).indexes
+    const logIndexes = pgDeclarationHelper.getDeclaration(RES_MARKETING_CONSENT_LOG).indexes
     expect(logIndexes).toContainEqual(
       expect.objectContaining({ name: 'idx_mc_log_subject_key', columns: ['subject', 'key', 'decidedAt'] })
     )

@@ -8,7 +8,7 @@ import {
   watchCommits,
 } from './actions/index.js'
 import type { PlanningHandlerOptions } from './types.js'
-import { planningServiceOf, scopeOf } from './utils/index.js'
+import { planningHandlerOf } from './utils/handler.js'
 
 /**
  * Bind this package's handlers to a tree declared by `makePlanningProtocols` — one binding per
@@ -36,13 +36,8 @@ export const servePlanningEntrypoints = (protocols: PlanningProtocols, opts?: Pl
   bind(protocols.commit.events, watchCommits(protocols.commit.events, opts)),
 ]
 
-/**
- * The facade a hand-written handler works through: the request's entity and subject, plus `extra`
- * (a `channel`) — never an entity from the request body.
- *
- * @throws {AuthorizationError} when the request carries no organization
- */
+/** @deprecated compat:factory-refactor — use `planningHandlerOf(ctx).planningFor(…)` */
 export const planningFor = (
   ctx: BasicContext<BasicConfig>, req: AbstractRequest, extra?: Partial<PlanningScope>,
   opts?: Pick<PlanningHandlerOptions, 'service'>
-): PlanningFacade => planningServiceOf(ctx, opts).for(scopeOf(req, extra))
+): PlanningFacade => planningHandlerOf(ctx).planningFor(req, extra, opts)

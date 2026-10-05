@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { makePostgresResource, resetDeclarations } from '@owlmeans/postgres-resource'
+import { makePostgresResource, pgDeclarationHelper } from '@owlmeans/postgres-resource'
 import type { PostgresResource, PostgresTx } from '@owlmeans/postgres-resource'
 import { MigrationConflict, MigrationError, MigrationStage } from '@owlmeans/resource'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -253,7 +253,7 @@ describe('@owlmeans/postgres — code registered migrations', () => {
     })
 
     /** A restarted process with an edited source file — the registry has to be rebuilt. */
-    resetDeclarations('mig-e')
+    pgDeclarationHelper.resetDeclarations('mig-e')
 
     await expect(boot({
       alias: 'mig-e',
@@ -262,7 +262,7 @@ describe('@owlmeans/postgres — code registered migrations', () => {
   })
 
   it('rejects a changed body under a name already registered in this process', () => {
-    resetDeclarations('mig-conflict')
+    pgDeclarationHelper.resetDeclarations('mig-conflict')
     const resource = makePostgresResource<Note, PostgresResource<Note>>('mig-conflict')
     resource.migration('0001-drift', driftBody)
 

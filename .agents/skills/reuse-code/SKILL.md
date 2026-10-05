@@ -46,7 +46,7 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
 
 This is the same dev-linked detection `@owlmeans/agent-skills` uses (see its `detectLinked`). After
-adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.47` to deploy its
+adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.48` to deploy its
 skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
 
 ### Never add an OwlMeans dependency without an explicit range
@@ -94,7 +94,8 @@ members table, an invitation flow, a role column or an organization picker:
 
 When no package solves it, search the codebase for code that already solves a **similar** problem.
 Prefer factoring out a shared helper, base, or generic function — extract an abstraction — over
-duplicating logic or writing from scratch. Only write genuinely new code when nothing reusable exists.
+duplicating logic or writing from scratch. A shared helper is ONE factory-built object whose interface is declared
+first; it lives in its own `<name>.ts`, with a same-named folder for its types and parts (`/owlmeans-code-structure`). Only write genuinely new code when nothing reusable exists.
 
 ## 4. Simplify after writing
 

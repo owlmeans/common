@@ -1,15 +1,13 @@
 import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
-import type { KlusterConfig, KlusterService } from './types.js'
+import type { KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { KubeConfig, CoreV1Api, ApiException, NetworkingV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node'
-import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
 import { logger } from '@owlmeans/log'
+import type { Config, Context } from './types.local.js'
 
 const log = logger('kluster')
 
-type Config = KlusterConfig
-type Context = ServerContext<Config>
 
 export const isNotFoundError = (e: unknown): boolean => {
   if (e == null || typeof e !== 'object') return false

@@ -1,4 +1,4 @@
-import type { ResilientError } from './resilient.js'
+import type { ResilientError } from './errors.js'
 
 export type ValueOrError<T> = T | ResilientError
 

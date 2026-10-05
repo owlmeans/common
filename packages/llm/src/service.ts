@@ -1,17 +1,13 @@
-import { createService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { createService, type BasicConfig, type BasicContext } from '@owlmeans/context'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { logThrottle, logger } from '@owlmeans/log'
 import { LLM_SERVICE } from './consts.js'
 import { LlmMissconfiguredError } from './errors.js'
 import { resolveFallbacks } from './helpers/fallback.js'
-import { resolvePlugin } from './plugins/index.js'
-import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService } from './types.js'
+import { llmPluginRegistry } from './plugins/registry.js'
+import type { LlmService, LlmServiceOptions, ModelConfig, WithLlmService, LlmServiceApi } from './types.js'
 
 const log = logger('llm')
-
-/** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
-export type LlmServiceApi = Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'>
 
 /**
  * Build the model-factory half of an LLM service, WITHOUT registering it as a context
@@ -37,7 +33,7 @@ export const llmServiceApi = (options: LlmServiceOptions, self: () => LlmService
       throw new LlmMissconfiguredError(alias)
     }
     const { secret, ...rest } = config
-    return resolvePlugin(rest).build({
+    return llmPluginRegistry.resolvePlugin(rest).build({
       alias, config: rest as ModelConfig, secret, callbacks: self().callbacks,
     })
   }

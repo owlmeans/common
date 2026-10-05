@@ -1,10 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  ConnectHarness, ConnectInquiryKind, CONNECT_INQUIRY_MAX_TEXT
-} from '@owlmeans/viable-common'
-import type { InquiryPayload } from '@owlmeans/viable-common'
+import { ConnectHarness, ConnectInquiryKind, CONNECT_INQUIRY_MAX_TEXT, type InquiryPayload } from '@owlmeans/viable-common'
 
-import { CONFIRM_NO, CONFIRM_YES, parseAnswer, renderQuestionEnvelope } from '../src/task/inquiry.js'
+import { makeQuestionEnvelopeModel } from '../src/task/inquiry.js'
+import { CONFIRM_NO, CONFIRM_YES } from '../src/task/consts.js'
 
 const inquiry = (patch: Partial<InquiryPayload> = {}): InquiryPayload => ({
   id: 'q1',
@@ -20,7 +18,7 @@ const inquiry = (patch: Partial<InquiryPayload> = {}): InquiryPayload => ({
 })
 
 const render = (payload: InquiryPayload): string =>
-  renderQuestionEnvelope(payload, { harness: ConnectHarness.ClaudeCode })
+  makeQuestionEnvelopeModel(payload).renderQuestionEnvelope({ harness: ConnectHarness.ClaudeCode })
 
 /**
  * What a parent agent is handed when the platform needs a person, and what its answer is checked
@@ -90,11 +88,11 @@ describe('viable-sdk — the question envelope', () => {
 
     // And what it prints is what the parser takes back — in whatever case the parent sends it.
     for (const said of [CONFIRM_YES, CONFIRM_YES.toUpperCase(), ' Yes ']) {
-      expect(parseAnswer(inquiry({ kind: ConnectInquiryKind.Confirm, options: undefined }), { answer: said }).answer?.value)
+      expect(makeQuestionEnvelopeModel(inquiry({ kind: ConnectInquiryKind.Confirm, options: undefined })).parseAnswer({ answer: said }).answer?.value)
         .toBe(CONFIRM_YES)
     }
     for (const said of [CONFIRM_NO, CONFIRM_NO.toUpperCase(), ' No ']) {
-      expect(parseAnswer(inquiry({ kind: ConnectInquiryKind.Confirm, options: undefined }), { answer: said }).answer?.value)
+      expect(makeQuestionEnvelopeModel(inquiry({ kind: ConnectInquiryKind.Confirm, options: undefined })).parseAnswer({ answer: said }).answer?.value)
         .toBe(CONFIRM_NO)
     }
   })
@@ -122,10 +120,10 @@ describe('viable-sdk — the question envelope', () => {
       expect(text).toContain('"text": "<what they said>"')
 
       // What it prints is what comes back; a value is refused by naming the field that works.
-      expect(parseAnswer(empty, { text: 'they want both' }).answer)
+      expect(makeQuestionEnvelopeModel(empty).parseAnswer({ text: 'they want both' }).answer)
         .toEqual({ inquiryId: 'q1', text: 'they want both' })
 
-      const { answer, problem } = parseAnswer(empty, { answer: 'three' })
+      const { answer, problem } = makeQuestionEnvelopeModel(empty).parseAnswer({ answer: 'three' })
       expect(answer).toBeUndefined()
       expect(problem).toContain('offers no choices')
       expect(problem).not.toContain('choices ()')
@@ -152,14 +150,14 @@ describe('viable-sdk — the question envelope', () => {
 
 describe('viable-sdk — reading what the parent sent back', () => {
   test('declined short-circuits everything else', () => {
-    const { answer, problem } = parseAnswer(inquiry(), { declined: true, answer: 'one' })
+    const { answer, problem } = makeQuestionEnvelopeModel(inquiry()).parseAnswer({ declined: true, answer: 'one' })
 
     expect(problem).toBeUndefined()
     expect(answer).toEqual({ inquiryId: 'q1', declined: true })
   })
 
   test('an empty answer says what would be accepted', () => {
-    const { problem } = parseAnswer(inquiry(), {})
+    const { problem } = makeQuestionEnvelopeModel(inquiry()).parseAnswer({})
 
     expect(problem).toBe('Send an answer, a text, or declined: true.')
   })
@@ -167,50 +165,50 @@ describe('viable-sdk — reading what the parent sent back', () => {
   test('a confirm takes the words a model actually sends', () => {
     const confirm = inquiry({ kind: ConnectInquiryKind.Confirm, options: undefined })
     for (const said of ['yes', 'YES', 'y', 'true', true]) {
-      expect(parseAnswer(confirm, { answer: said }).answer?.value).toBe(CONFIRM_YES)
+      expect(makeQuestionEnvelopeModel(confirm).parseAnswer({ answer: said }).answer?.value).toBe(CONFIRM_YES)
     }
     for (const said of ['no', 'N', 'false', false]) {
-      expect(parseAnswer(confirm, { answer: said }).answer?.value).toBe(CONFIRM_NO)
+      expect(makeQuestionEnvelopeModel(confirm).parseAnswer({ answer: said }).answer?.value).toBe(CONFIRM_NO)
     }
 
-    const { problem } = parseAnswer(confirm, { answer: 'maybe' })
+    const { problem } = makeQuestionEnvelopeModel(confirm).parseAnswer({ answer: 'maybe' })
     expect(problem).toContain(CONFIRM_YES)
     expect(problem).toContain(CONFIRM_NO)
   })
 
   test('a choice must be one of the choices, and the refusal lists them', () => {
-    const { answer } = parseAnswer(inquiry(), { answer: 'one' })
+    const { answer } = makeQuestionEnvelopeModel(inquiry()).parseAnswer({ answer: 'one' })
     expect(answer).toEqual({ inquiryId: 'q1', value: 'one' })
 
-    const { problem } = parseAnswer(inquiry(), { answer: 'three' })
+    const { problem } = makeQuestionEnvelopeModel(inquiry()).parseAnswer({ answer: 'three' })
     expect(problem).toBe('"three" is not one of the choices (one, two).')
   })
 
   test('several answers need a question that asked for several', () => {
-    expect(parseAnswer(inquiry(), { answer: ['one', 'two'] }).problem)
+    expect(makeQuestionEnvelopeModel(inquiry()).parseAnswer({ answer: ['one', 'two'] }).problem)
       .toBe('This question takes ONE answer (one, two).')
 
-    const { answer } = parseAnswer(inquiry({ multiple: true }), { answer: ['one', 'two'] })
+    const { answer } = makeQuestionEnvelopeModel(inquiry({ multiple: true })).parseAnswer({ answer: ['one', 'two'] })
     expect(answer?.value).toEqual(['one', 'two'])
   })
 
   test('text alone answers a choice only where the question allows it', () => {
     // Accepting it elsewhere silently loses the decision: the asker matches a value against its
     // own options and finds nothing.
-    const refused = parseAnswer(inquiry(), { text: 'neither, really' })
+    const refused = makeQuestionEnvelopeModel(inquiry()).parseAnswer({ text: 'neither, really' })
     expect(refused.answer).toBeUndefined()
     expect(refused.problem).toContain('one, two')
 
-    const accepted = parseAnswer(inquiry({ allowText: true }), { text: 'neither, really' })
+    const accepted = makeQuestionEnvelopeModel(inquiry({ allowText: true })).parseAnswer({ text: 'neither, really' })
     expect(accepted.answer).toEqual({ inquiryId: 'q1', text: 'neither, really' })
   })
 
   test('a text question takes text, or a string sent as the answer', () => {
     const text = inquiry({ kind: ConnectInquiryKind.Text, options: undefined })
 
-    expect(parseAnswer(text, { text: '  a reporting tool  ' }).answer)
+    expect(makeQuestionEnvelopeModel(text).parseAnswer({ text: '  a reporting tool  ' }).answer)
       .toEqual({ inquiryId: 'q1', text: 'a reporting tool' })
-    expect(parseAnswer(text, { answer: 'a reporting tool' }).answer)
+    expect(makeQuestionEnvelopeModel(text).parseAnswer({ answer: 'a reporting tool' }).answer)
       .toEqual({ inquiryId: 'q1', text: 'a reporting tool' })
   })
 
@@ -220,21 +218,18 @@ describe('viable-sdk — reading what the parent sent back', () => {
     const text = inquiry({ kind: ConnectInquiryKind.Text, options: undefined })
     const long = 'x'.repeat(CONNECT_INQUIRY_MAX_TEXT + 1)
 
-    const { answer, problem } = parseAnswer(text, { text: long })
+    const { answer, problem } = makeQuestionEnvelopeModel(text).parseAnswer({ text: long })
     expect(answer).toBeUndefined()
     expect(problem).toContain(String(CONNECT_INQUIRY_MAX_TEXT))
 
-    expect(parseAnswer(text, { text: 'x'.repeat(CONNECT_INQUIRY_MAX_TEXT) }).problem).toBeUndefined()
+    expect(makeQuestionEnvelopeModel(text).parseAnswer({ text: 'x'.repeat(CONNECT_INQUIRY_MAX_TEXT) }).problem).toBeUndefined()
   })
 
   test('the ceiling covers the words sent BESIDE a chosen value', () => {
     // The rider on a choice is the one path a length the wire schema refuses could otherwise
     // take: accepted here, it is sent on the operation and refused by `InquiryAnswerSchema` —
     // exactly the round trip on an already-answered question that this refusal exists to avoid.
-    const { answer, problem } = parseAnswer(
-      inquiry({ allowText: true }),
-      { answer: 'one', text: 'x'.repeat(CONNECT_INQUIRY_MAX_TEXT + 1) }
-    )
+    const { answer, problem } = makeQuestionEnvelopeModel(inquiry({ allowText: true })).parseAnswer({ answer: 'one', text: 'x'.repeat(CONNECT_INQUIRY_MAX_TEXT + 1) })
 
     expect(answer).toBeUndefined()
     expect(problem).toContain(String(CONNECT_INQUIRY_MAX_TEXT))

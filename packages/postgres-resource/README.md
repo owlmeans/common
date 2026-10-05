@@ -13,7 +13,7 @@ SQL. Other stores fit other shapes:
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres-resource@^0.1.18-rc.41 @owlmeans/postgres@^0.1.18-rc.43 pg
+bun add @owlmeans/postgres-resource@^0.1.18-rc.42 @owlmeans/postgres@^0.1.18-rc.44 pg
 ```
 
 `pg` and `ajv` are peer dependencies of this package. `@owlmeans/postgres` provides the connection
@@ -224,7 +224,7 @@ are `@>`/`<@`/`&&` on array columns.
 `PostgresError` and its subclasses are `PostgresSyncError`, `PostgresCastRequired`,
 `PostgresConstraintError`, `PostgresForeignKeyError`, `PostgresCheckError`, `PostgresDeadlockError`
 (`retryable`), `PostgresPlaceholderError`, `PostgresConnectionError` and `PostgresBootstrapError`.
-Driver errors are translated by `pgErrorToResourceError`, which unwraps Drizzle's
+Driver errors are translated by `pgErrorHelper.pgErrorToResourceError`, which unwraps Drizzle's
 `DrizzleQueryError` to reach the `pg` error underneath and preserves the raw
 `code`/`detail`/`hint`/`severity` in the message. Unique violations surface as `RecordExists` and
 not-null violations as `MisshapedRecord`.
@@ -240,17 +240,17 @@ not-null violations as `MisshapedRecord`.
 | `PgPropertyOverride`, `PgRootOverride`, `PgIndexSpec`, `PgUniqueSpec`, `PgCheckSpec`, `PgReferenceSpec` | type | The `pg:` vocabulary and `index()` spec |
 | `LiveTable`, `LiveColumn`, `LiveIndex`, `LiveConstraint`, `DdlPlan`, `DdlStatement`, `DdlKind` | type | Introspection results and the reconciliation plan |
 | `pgKeyword` | const | `{ keyword: 'pg', valid: true }` for AJV strict mode |
-| `schemaToTableSpec`, `toFormatType` | function | The schema compiler |
-| `criteriaToSql`, `sortToSql` | function | `Criteria<T>` to a WHERE clause and `Sort<T>` to ORDER BY over the same table |
-| `refOf`, `resolvePlaceholders`, `resetPlaceholderCache`, `PlaceholderContext` | function / type | `{{alias}}` resolution, identifiers only |
-| `pgTableName`, `pgIdentifier`, `assertSqlIdentifier`, `quoteIdent`, `quoteLiteral`, `qualify`, `advisoryKey` | function | Identifier helpers |
-| `rowToRecord`, `resultToRecord`, `recordToValues`, `recordToFullValues`, `specToTable` | function | Row and record marshalling, Drizzle table construction |
-| `initializeTable`, `applyForeignKeys`, `TableInit` | function / type | The `init()` lifecycle |
-| `introspectTable`, `countNonNull`, `planSync`, `planForeignKeys`, `applyPlan`, `ensureSchema`, `acquireLock`, `releaseLock` | function | Reconciliation machinery |
+| `pgSchemaHelper` (`PgSchemaHelper`) | helper | The schema compiler: `schemaToTableSpec`, `toFormatType` |
+| `pgCriteriaHelper` (`PgCriteriaHelper`) | helper | `criteriaToSql` — `Criteria<T>` to a WHERE clause; `sortToSql` — `Sort<T>` to ORDER BY over the same table |
+| `pgPlaceholdersOf(context)` (`makePgPlaceholderHelper`, `PgPlaceholderHelper`), `resetPlaceholderCache`, `PlaceholderContext` | helper / function / type | `{{alias}}` resolution through one context — `refOf(self, alias?)`, `resolvePlaceholders(text, self)` — identifiers only |
+| `pgNameHelper` (`PgNameHelper`) | helper | Identifier helpers: `pgTableName`, `pgIdentifier`, `assertSqlIdentifier`, `quoteIdent`, `quoteLiteral`, `qualify`, `advisoryKey` |
+| `pgMarshalHelper` (`PgMarshalHelper`), `specToTable` | helper / function | Row and record marshalling (`rowToRecord`, `resultToRecord`, `recordToValues`, `recordToFullValues`), Drizzle table construction |
+| `makePgLifeCycleHelper(db)` (`PgLifeCycleHelper`), `TableInit` | helper / type | The `init()` lifecycle: `initializeTable`, `applyForeignKeys` |
+| `makePgIntrospectHelper(client)`, `makePgSyncHelper(client)`, `pgDiffHelper` | helper | Reconciliation machinery: `introspectTable`, `countNonNull`; `acquireLock`, `releaseLock`, `ensureSchema`, `applyPlan`; `planSync`, `planForeignKeys`, `canonicalDefinition` |
 | `makeTx`, `makeMigrationStore` | function | The migration façade and ledger |
-| `getDeclaration`, `resetDeclarations`, `PostgresDeclaration` | function / type | Module-scope declarations per alias; `resetDeclarations` is the testing seam |
+| `pgDeclarationHelper` (`PgDeclarationHelper`), `PostgresDeclaration` | helper / type | Module-scope declarations per alias: `getDeclaration`, and `resetDeclarations` — the testing seam |
 | `getSchemaSecureFeilds` | function | `secure: true` properties used by `lock`/`unlock` |
-| `pgErrorToResourceError`, `describePgError`, `PostgresError` family | function / class | Driver error translation |
+| `pgErrorHelper` (`PgErrorHelper`), `PostgresError` family | helper / class | Driver error translation: `pgErrorToResourceError`, `describePgError` |
 | `DEFAULT_DB_ALIAS`, `DEFAULT_PAGE_SIZE`, `DEF_MIGRATIONS_TABLE` | const | `'postgres'`, `100`, `'_owlmeans_migrations'` |
 | `PG_KEYWORD`, `PG_MAX_IDENTIFIER`, `ID_FIELD`, `DEF_SQL_TYPE`, `DEF_JSON_TYPE`, `DEF_ID_DEFAULT`, `STRING_RETURNING_TYPES` | const | Compiler constants |
 | `PgAutoSync`, `PgIndexMethod`, `PgReferentialAction`, `PgErrorCode`, `PgTypeOid` | enum | Reconciliation policy, index methods, FK actions, driver codes, type OIDs |
@@ -293,7 +293,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

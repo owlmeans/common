@@ -7,7 +7,7 @@ allowed-tools: Bash(bun *)
 # Bun — OwlMeans Monorepo
 
 This monorepo is managed with **Bun** — always `bun`, never `yarn` or `npm`. The root pins
-`packageManager: bun@1.4.0`; every linked consumer repo pins the same version. `bunfig.toml` sets
+`packageManager: bun@1.4.2`; every linked consumer repo pins the same version. `bunfig.toml` sets
 `linker = "hoisted"` and a 15s default `bun test` timeout. A package whose specs need longer
 raises it in its own `bunfig.toml`, and `redis-queue` is the only one that does (60s, because its
 specs drive a real broker end to end); its file repeats `linker = "hoisted"` next to the timeout.
@@ -84,7 +84,7 @@ sets the linker and no timeout.
   per-package pass/fail counts, not the aggregate exit code.
 - **The pinned Bun floor is load-bearing for MongoDB.** `bson@7.3.x` runs a static initializer that
   calls `process.getBuiltinModule('v8').startupSnapshot.isBuildingSnapshot()`, and Bun implements
-  that call from **1.4.0** on. Every repo here pins `packageManager: bun@1.4.0`, so the driver's own
+  that call from **1.4.0** on. Every repo here pins `packageManager: bun@1.4.2`, so the driver's own
   `bson: ^7.2.0` range resolves freely and **no repo carries a `bson` override** — do not add one.
   Every runtime that loads `mongodb` must be at 1.4.0 or above: the local shell, CI, and the
   `oven/bun` image in the pod. Below it `import 'mongodb'` throws `NotImplementedError: node:v8

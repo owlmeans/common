@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { consentBootstrapScript } from '@owlmeans/consent'
+import { consentModeHelper } from '@owlmeans/consent'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -19,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const consentBootstrap = (): Plugin => ({
   name: 'owlmeans-consent-bootstrap',
   transformIndexHtml: html =>
-    html.replace('<!--owlmeans:consent-->', `<script>${consentBootstrapScript()}</script>`),
+    html.replace('<!--owlmeans:consent-->', `<script>${consentModeHelper.consentBootstrapScript()}</script>`),
 })
 
 let url: string | null = null

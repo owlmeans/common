@@ -1,16 +1,11 @@
 
-import {
-  AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, AllowanceRequestSchema, AuthCredentialsSchema,
-  AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER,
-  DISPATCHER_AUTHEN, DISPATCHER_SURROGATE, OptionalAuthTokenSchema, CAUTHEN_FLOW_ENTER
-} from '@owlmeans/auth'
-import type { AllowanceRequest, AllowanceResponse, AuthCredentials, AuthToken } from '@owlmeans/auth'
+import { AUTHEN, AUTHEN_AUTHEN, AUTHEN_INIT, AUTHEN_RELY, AllowanceRequestSchema, AuthCredentialsSchema, AuthTokenSchema, CAUTHEN, CAUTHEN_AUTHEN, CAUTHEN_AUTHEN_DEFAULT, CAUTHEN_AUTHEN_TYPED, DISPATCHER, DISPATCHER_AUTHEN, DISPATCHER_SURROGATE, OptionalAuthTokenSchema, CAUTHEN_FLOW_ENTER, type AllowanceRequest, type AllowanceResponse, type AuthCredentials, type AuthToken } from '@owlmeans/auth'
 // import { AppType } from '@owlmeans/context'
 import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
 import { route, RouteMethod, frontend, backend, socket } from '@owlmeans/route'
 import { DISPATCHER_PATH, SURROGATE_PATH, WEB_API, authApi } from './consts.js'
 import { SurrogateQuerySchema } from './schemas.js'
-import type { SurrogateQuery } from './schemas.js'
+import type { SurrogateQuery } from './types.js'
 
 /** Shared authentication protocols, bound independently by server and browser packages. */
 export const authProtocols = {

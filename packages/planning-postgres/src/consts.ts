@@ -52,3 +52,7 @@ export const PLANNING_RESOURCE_FILES = Object.freeze({
   link: 'src/resources/planning/link.ts',
   schema: 'src/resources/planning/schema.ts',
 })
+
+export const UNIQUE_VIOLATION = '23505'
+
+export const LOCK_NOT_AVAILABLE = '55P03'

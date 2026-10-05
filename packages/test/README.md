@@ -2,9 +2,9 @@
 
 Foundation helpers shared by the OwlMeans test packages and individual package test suites.
 
-- `loadEnv(opts?)` — locate `<monorepo-root>/.env`, parse it, merge into `process.env` (idempotent; no-op when Bun already loaded the file via `--env-file`).
-- `requireEnv(keys)` — returns `{ ok: true }` or `{ skip: true, reason }` so callers can `test.skip(...)` when an integration variable is missing.
-- `hasEnv(key)` — boolean shorthand for conditional service provisioning in `tests/context.ts`.
+- `envHelper.loadEnv(opts?)` — locate `<monorepo-root>/.env`, parse it, merge into `process.env` (idempotent; no-op when Bun already loaded the file via `--env-file`).
+- `envHelper.requireEnv(keys)` — returns `{ ok: true }` or `{ skip: true, reason }` so callers can `test.skip(...)` when an integration variable is missing.
+- `envHelper.hasEnv(key)` — boolean shorthand for conditional service provisioning in `tests/context.ts`.
 - `makeGates(spec)` — builds a frozen record of `{ <name>: { skip, reason } }` so a per-package `tests/context.ts` exposes one source of truth and individual specs can self-skip.
 - `loadFixture<T>(relPath)` — JSON fixture loader rooted at the consuming package's `tests/fixtures/`.
 
@@ -18,7 +18,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.42
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

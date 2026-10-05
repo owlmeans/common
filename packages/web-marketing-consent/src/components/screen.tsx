@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react'
-import type { FC } from 'react'
+import { useEffect, useRef, type FC } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import type { RoutedComponent } from '@owlmeans/client'
 import { useContinueLogin, useLogout } from '@owlmeans/client-auth/login'
@@ -9,10 +8,7 @@ import { Button } from '../@/components/ui/button.js'
 import { cn } from '../@/lib/utils.js'
 import { ConsentFields } from './fields.js'
 import { ConsentPrivacyNotice } from './terms.js'
-
-export interface MarketingConsentBodyProps {
-  className?: string
-}
+import type { MarketingConsentBodyProps } from './types.js'
 
 /**
  * Everything the post-sign-in marketing-consent step does, and none of the page around it — the

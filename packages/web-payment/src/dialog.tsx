@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
-import { assertCheckoutAmount, chargeAmountMinor, narrowAmountPolicy } from '@owlmeans/payment'
-import type { AmountCheckoutPolicy, CheckoutLimitView } from '@owlmeans/payment'
+import { type AmountCheckoutPolicy, type CheckoutLimitView, checkoutPricingHelper, amountNarrowingHelper } from '@owlmeans/payment'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -9,11 +8,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { inputAmount, parseAmountMinor } from './amount.js'
+import { amountInputHelper } from './amount.js'
 import { CheckoutLimitNote } from './checkout-limit.js'
 import { PriceEstimateSummary } from './estimate-summary.js'
-import { money } from './format.js'
 import type { AmountCheckoutDialogProps } from './types.js'
+import { formatHelper } from './format.js'
 
 /**
  * The policy the dialog offers: `policy` narrowed by `limit` — the same `narrowAmountPolicy` the
@@ -24,7 +23,7 @@ const effectivePolicyOf = (policy: AmountCheckoutPolicy, limit?: CheckoutLimitVi
     return policy
   }
   try {
-    return narrowAmountPolicy(policy, [{
+    return amountNarrowingHelper.narrowAmountPolicy(policy, [{
       maximumMinor: limit.maximumMinor,
       reason: limit.reason ?? 'limit',
       ...(limit.resetsAt != null ? { resetsAt: limit.resetsAt } : {}),
@@ -44,29 +43,29 @@ export const AmountCheckoutDialog = ({
   const blocked = limit?.blocked === true
   // The limit, not the plan, set the maximum — also when `policy` arrives already narrowed.
   const limited = limit != null && limit.narrowed && limit.maximumMinor <= policy.maximumMinor
-  const [value, setValue] = useState(() => inputAmount(policy.defaultMinor, locale))
+  const [value, setValue] = useState(() => amountInputHelper.inputAmount(policy.defaultMinor, locale))
   useEffect(() => {
-    if (open) setValue(inputAmount(policy.defaultMinor, locale))
+    if (open) setValue(amountInputHelper.inputAmount(policy.defaultMinor, locale))
   }, [open, policy.defaultMinor, locale])
 
-  const amountMinor = useMemo(() => parseAmountMinor(value, locale), [value, locale])
+  const amountMinor = useMemo(() => amountInputHelper.parseAmountMinor(value, locale), [value, locale])
   const error = blocked
     ? null
     : amountMinor == null
       ? t('invalid')
       : amountMinor < policy.minimumMinor
-        ? t('below', { amount: money(policy.minimumMinor, policy.currency, locale) })
+        ? t('below', { amount: formatHelper.money(policy.minimumMinor, policy.currency, locale) })
         : amountMinor > policy.maximumMinor
-          ? t(limited ? 'above-limit' : 'above', { amount: money(policy.maximumMinor, policy.currency, locale) })
+          ? t(limited ? 'above-limit' : 'above', { amount: formatHelper.money(policy.maximumMinor, policy.currency, locale) })
           : null
   const valid = !blocked && error == null && amountMinor != null
-  const chargeMinor = valid ? chargeAmountMinor(amountMinor, policy) : 0
+  const chargeMinor = valid ? checkoutPricingHelper.chargeAmountMinor(amountMinor, policy) : 0
   const adjustmentMinor = valid && amountMinor != null ? chargeMinor - amountMinor : 0
   const locked = pending || blocked || disabled
   const limitNote = limit != null ? <CheckoutLimitNote limit={limit} /> : null
   const submit = async () => {
     if (amountMinor == null || !valid || locked) return
-    assertCheckoutAmount(policy, amountMinor)
+    checkoutPricingHelper.assertCheckoutAmount(policy, amountMinor)
     await onConfirm(amountMinor, estimate?.country)
   }
 
@@ -96,8 +95,8 @@ export const AmountCheckoutDialog = ({
             <div className="grid grid-cols-2 gap-2 @sm:grid-cols-4" aria-label={t('presets')}>
               {policy.presetsMinor.map(preset => <Button
                 key={preset} type="button" variant={preset === amountMinor ? 'default' : 'outline'} data-amount-preset={preset}
-                disabled={locked} onClick={() => setValue(inputAmount(preset, locale))}
-              >{money(preset, policy.currency, locale)}</Button>)}
+                disabled={locked} onClick={() => setValue(amountInputHelper.inputAmount(preset, locale))}
+              >{formatHelper.money(preset, policy.currency, locale)}</Button>)}
             </div>
           </div>}
           <div className="grid gap-2">
@@ -109,15 +108,15 @@ export const AmountCheckoutDialog = ({
             />
             {!blocked && <p id="payment-amount-help" className={error == null ? 'text-muted-foreground text-xs' : 'text-destructive text-xs'}>
               {error ?? t('bounds', {
-                minimum: money(policy.minimumMinor, policy.currency, locale),
-                maximum: money(policy.maximumMinor, policy.currency, locale),
+                minimum: formatHelper.money(policy.minimumMinor, policy.currency, locale),
+                maximum: formatHelper.money(policy.maximumMinor, policy.currency, locale),
               })}
             </p>}
           </div>
           <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
-            <dt className="text-muted-foreground">{t('credits')}</dt><dd>{valid && amountMinor != null ? money(amountMinor, policy.currency, locale) : '—'}</dd>
-            <dt className="text-muted-foreground">{t('adjustment')}</dt><dd>{valid ? money(adjustmentMinor, policy.currency, locale) : '—'}</dd>
-            <dt className="font-medium">{t('subtotal')}</dt><dd className="font-medium">{valid ? money(chargeMinor, policy.currency, locale) : '—'}</dd>
+            <dt className="text-muted-foreground">{t('credits')}</dt><dd>{valid && amountMinor != null ? formatHelper.money(amountMinor, policy.currency, locale) : '—'}</dd>
+            <dt className="text-muted-foreground">{t('adjustment')}</dt><dd>{valid ? formatHelper.money(adjustmentMinor, policy.currency, locale) : '—'}</dd>
+            <dt className="font-medium">{t('subtotal')}</dt><dd className="font-medium">{valid ? formatHelper.money(chargeMinor, policy.currency, locale) : '—'}</dd>
           </dl>
           {estimate != null
             ? valid && <PriceEstimateSummary control={estimate} subtotalMinor={chargeMinor} currency={policy.currency} />

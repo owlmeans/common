@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
@@ -14,13 +13,15 @@ const owlMeansSingletons = [
 ]
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths(), tailwindcss()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 3001,
     host: '0.0.0.0',
     strictPort: true,
   },
   resolve: {
+    // Vite resolves the `paths` of tsconfig.json itself since 8.
+    tsconfigPaths: true,
     alias: [
       { find: '@', replacement: path.resolve(__dirname, 'src') },
     ],

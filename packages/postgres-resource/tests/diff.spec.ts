@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
-import { canonicalDefinition, planSync, schemaToTableSpec } from '@owlmeans/postgres-resource'
+import { pgDiffHelper, pgSchemaHelper } from '@owlmeans/postgres-resource'
 import type { LiveColumn, LiveTable, TableSpec } from '@owlmeans/postgres-resource'
+
+const { canonicalDefinition, planSync } = pgDiffHelper
+const { schemaToTableSpec } = pgSchemaHelper
 
 const specOf = (idType: 'string' | 'integer'): TableSpec =>
   schemaToTableSpec('tasks', {
@@ -109,3 +112,27 @@ describe('@owlmeans/postgres-resource — comparing a declared definition with t
     }
   })
 })
+
+describe('@owlmeans/postgres-resource — NOT NULL constraints of Postgres 18', () => {
+  test('a not-null constraint row is never planned for a drop', () => {
+    // From 18 every NOT NULL is a pg_constraint row named `<table>_<column>_not_null`. The platform
+    // names its own constraints after the table too, so it took these for its own leftovers and sent
+    // `DROP CONSTRAINT …_id_not_null` — which Postgres refuses on a primary key column.
+    const live: LiveTable = {
+      exists: true,
+      columns: [
+        columnOf({ name: 'id', type: 'text' }),
+        columnOf({ name: 'title', type: 'text', notNull: false }),
+      ],
+      indexes: [],
+      constraints: [
+        { name: 'tasks_id_not_null', type: 'n', definition: 'NOT NULL id' },
+        { name: 'task_entry_id_not_null', type: 'n', definition: 'NOT NULL id' },
+      ],
+    }
+
+    const dropped = planSync(specOf('string'), live).statements.filter(statement => statement.kind === 'drop-constraint')
+    expect(dropped).toEqual([])
+  })
+})
+

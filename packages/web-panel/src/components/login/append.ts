@@ -1,15 +1,9 @@
-import type { ComponentType, ReactNode } from 'react'
 import { ensureLoginService } from '@owlmeans/client-auth/login'
-import type { LoginScreenProps } from '@owlmeans/client-auth/login'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import type { ClientConfig } from '@owlmeans/client-context'
 import { LocalizedLoginScreen } from './screen.js'
 import { notifyPopupBlocked } from './notify.js'
-
-export interface LoginScreenSetup extends Omit<LoginScreenProps, 'translate'> {
-  /** The one thing an application is expected to supply. */
-  Logo?: ComponentType<{ className?: string }> | ReactNode
-}
+import type { LoginScreenSetup } from './types.js'
 
 /**
  * Give this context the shadcn sign-in screen, with the application's own logo and copy on it.

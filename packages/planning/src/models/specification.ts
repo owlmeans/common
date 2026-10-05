@@ -1,4 +1,5 @@
-import type { PlanningFacade, Specification, SpecificationModel } from '../types.js'
+import type { PlanningFacade, Specification } from '../types.js'
+import type { SpecificationModel } from './types.js'
 import { makeWorkcardModel } from './workcard.js'
 
 /** A workcard model over one document: its body, a revision of it, and its history from the log. */

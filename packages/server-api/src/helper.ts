@@ -1,12 +1,9 @@
 
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { assertContext } from '@owlmeans/context'
-import { EntrypointOutcome } from '@owlmeans/entrypoint'
-import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
+import { type BasicConfig, type BasicContext, assertContext } from '@owlmeans/context'
+import { EntrypointOutcome, type AbstractRequest, type AbstractResponse } from '@owlmeans/entrypoint'
 import type { RefedEntrypointHandler } from '@owlmeans/server-entrypoint'
-import type { Config, Context } from './types.js'
+import type { Config, Context, UploadedFile } from './types.js'
 import type { FastifyRequest } from 'fastify'
-import type { MultipartFile } from '@fastify/multipart'
 
 /**
  * The context a handler runs against.
@@ -95,4 +92,3 @@ export const extractUploadedFile = async <T extends {} = {}>(req: AbstractReques
   return request.file()
 }
 
-export interface UploadedFile extends MultipartFile { }

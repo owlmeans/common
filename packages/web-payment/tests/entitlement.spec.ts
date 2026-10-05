@@ -3,12 +3,12 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { RegisteredEntrypoint } from '@owlmeans/entrypoint'
 import {
-  LimitKind, LimitWindow, PortalFlow, SubscriptionStatus, entitlementViewOf,
-  type EntitlementPlanView, type EntitlementView, type LimitView, type PortalLinkBody,
-  type PortalLinkResponse, type ProductPlan,
+  LimitKind, LimitWindow, PortalFlow, SubscriptionStatus, type EntitlementPlanView,
+  type EntitlementView, type LimitView, type PortalLinkBody, type PortalLinkResponse,
+  type ProductPlan, entitlementViewHelper,
 } from '@owlmeans/payment'
 import { useCapability, useLimit, usePortal } from '../src/entitlement.js'
-import { limitStatusOf, planStatusLineOf } from '../src/selectors.js'
+import { entitlementSelectorHelper } from '../src/selectors.js'
 
 const AT = new Date('2026-09-16T12:00:00Z')
 
@@ -17,7 +17,7 @@ const planView: EntitlementPlanView = {
   status: SubscriptionStatus.Active, paygate: 'stripe', subscribedAt: new Date('2026-01-01T00:00:00Z'),
 }
 
-const view: EntitlementView = entitlementViewOf({
+const view: EntitlementView = entitlementViewHelper.entitlementViewOf({
   capabilities: [
     { scope: 'feature', permissions: { whitelabel: true } },
     { scope: 'feature', permissions: { beta: true }, promo: { until: new Date('2026-09-01T00:00:00Z') } },
@@ -51,32 +51,32 @@ describe('entitlement hooks — null means unknown', () => {
 
 describe('limitStatusOf', () => {
   test('clamps the ratio to [0, 1] and flags exhaustion', () => {
-    expect(limitStatusOf(row(5, 3))).toMatchObject({ ratio: 0.6, exhausted: false })
-    expect(limitStatusOf(row(5, 5))).toMatchObject({ ratio: 1, exhausted: true })
-    expect(limitStatusOf({ ...row(2, 3), remaining: 0 })).toMatchObject({ ratio: 1, exhausted: true })
-    expect(limitStatusOf({ ...row(5, -1), remaining: 5 })).toMatchObject({ ratio: 0, exhausted: false })
+    expect(entitlementSelectorHelper.limitStatusOf(row(5, 3))).toMatchObject({ ratio: 0.6, exhausted: false })
+    expect(entitlementSelectorHelper.limitStatusOf(row(5, 5))).toMatchObject({ ratio: 1, exhausted: true })
+    expect(entitlementSelectorHelper.limitStatusOf({ ...row(2, 3), remaining: 0 })).toMatchObject({ ratio: 1, exhausted: true })
+    expect(entitlementSelectorHelper.limitStatusOf({ ...row(5, -1), remaining: 5 })).toMatchObject({ ratio: 0, exhausted: false })
   })
 
   test('reads a limit that is not included as empty and exhausted', () => {
-    expect(limitStatusOf(row(0, 0))).toMatchObject({ ratio: 0, exhausted: true })
-    expect(limitStatusOf(row(0, 1))).toMatchObject({ ratio: 1, exhausted: true })
-    expect(limitStatusOf(null)).toBeNull()
+    expect(entitlementSelectorHelper.limitStatusOf(row(0, 0))).toMatchObject({ ratio: 0, exhausted: true })
+    expect(entitlementSelectorHelper.limitStatusOf(row(0, 1))).toMatchObject({ ratio: 1, exhausted: true })
+    expect(entitlementSelectorHelper.limitStatusOf(null)).toBeNull()
   })
 })
 
 describe('planStatusLineOf', () => {
   test('picks the first matching line and the date it names', () => {
     const periodEnd = new Date('2026-10-16T00:00:00Z')
-    expect(planStatusLineOf({ ...planView, periodEnd })).toEqual({ kind: 'renews', tone: 'ok', date: periodEnd })
-    expect(planStatusLineOf({ ...planView, periodEnd, cancelAtPeriodEnd: true }).kind).toBe('cancel-scheduled')
-    expect(planStatusLineOf({ ...planView, status: SubscriptionStatus.PastDue, pastDue: true, cancelAtPeriodEnd: true }).kind)
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, periodEnd })).toEqual({ kind: 'renews', tone: 'ok', date: periodEnd })
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, periodEnd, cancelAtPeriodEnd: true }).kind).toBe('cancel-scheduled')
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, status: SubscriptionStatus.PastDue, pastDue: true, cancelAtPeriodEnd: true }).kind)
       .toBe('past-due')
-    expect(planStatusLineOf({ ...planView, status: SubscriptionStatus.Suspended }).kind).toBe('suspended')
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, status: SubscriptionStatus.Suspended }).kind).toBe('suspended')
     // A wire view whose dates were never revived still names its date.
-    expect(planStatusLineOf({ ...planView, status: SubscriptionStatus.Suspended, pausedAt: '2026-09-01T00:00:00Z' as never }))
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, status: SubscriptionStatus.Suspended, pausedAt: '2026-09-01T00:00:00Z' as never }))
       .toEqual({ kind: 'paused', tone: 'warning', date: new Date('2026-09-01T00:00:00Z') })
-    expect(planStatusLineOf({ ...planView, free: true, periodEnd }).kind).toBe('free')
-    expect(planStatusLineOf({ ...planView, status: SubscriptionStatus.Canceled, periodEnd }).kind).toBe('canceled')
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, free: true, periodEnd }).kind).toBe('free')
+    expect(entitlementSelectorHelper.planStatusLineOf({ ...planView, status: SubscriptionStatus.Canceled, periodEnd }).kind).toBe('canceled')
   })
 })
 

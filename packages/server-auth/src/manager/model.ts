@@ -1,22 +1,17 @@
 import type { AuthModel, AppConfig, AppContext } from './types.js'
-import { AuthenFailed, AuthenPayloadError, AuthError, AuthUnavailable, entitySlugOf } from '@owlmeans/auth'
+import { AuthenFailed, AuthenPayloadError, AuthError, AuthUnavailable, authHelper, type AuthCredentials } from '@owlmeans/auth'
 import { logger } from '@owlmeans/log'
-import type { AuthCredentials } from '@owlmeans/auth'
-import type { EntityResolverService } from '@owlmeans/auth-common'
-import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
-import { getPlugin } from './plugins/utils.js'
+import { type EntityResolverService, ENTITY_RESOLVER } from '@owlmeans/auth-common'
+import { authPluginHelper } from './plugins/utils.js'
 import { AUTH_CACHE, AUTHEN_TIMEFRAME } from '../consts.js'
-import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import type { EnvelopeModel } from '@owlmeans/basic-envelope'
+import { EnvelopeKind, makeEnvelopeModel, type EnvelopeModel } from '@owlmeans/basic-envelope'
 import { createRelyFlow } from './rely/flow.js'
 import { trusted } from './utils/trusted.js'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
 import type { Resource } from '@owlmeans/resource'
 import type { AuthSpent } from '../types.js'
-import { AuthChallengeReplayPolicy } from './plugins/replay-policy.js'
+import { AuthChallengeReplayPolicy } from './plugins/consts.js'
+import type { Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
 
 const log = logger('server-auth')
 
@@ -33,7 +28,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
   const model: AuthModel = {
     init: async request => {
-      const plugin = await getPlugin(request.type, context)
+      const plugin = await authPluginHelper.getPlugin(request.type, context)
       const response = await plugin.init(request)
 
       const envelope = makeEnvelopeModel(plugin.type)
@@ -65,7 +60,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
 
         const msg: string = envelope.message(true)
 
-        const plugin = await getPlugin(envelope.type(), context)
+        const plugin = await authPluginHelper.getPlugin(envelope.type(), context)
 
         if (plugin.challengeReplayPolicy !== AuthChallengeReplayPolicy.Plugin) {
           try {
@@ -97,7 +92,7 @@ export const makeAuthModel = (context: AppContext<AppConfig>): AuthModel => {
         // since retired, or (for a token minted before slugs existed) its stable key. The token is
         // signed once and read for as long as it lives, so the value is canonicalized here rather
         // than at every place that later reads it back.
-        const entitySlug = entitySlugOf(credential)
+        const entitySlug = authHelper.entitySlugOf(credential)
         if (entitySlug != null && context.hasService(ENTITY_RESOLVER)) {
           const entity = await context.service<EntityResolverService>(ENTITY_RESOLVER).resolve(entitySlug)
           if (entity == null) {

@@ -2,7 +2,9 @@ import { handlers } from '@owlmeans/server-api'
 import { CommitState, MAX_COMMIT_POLL } from '@owlmeans/planning'
 import type { CommitStatus, PlanningProtocols } from '@owlmeans/planning'
 import type { Context, PlanningHandlerOptions } from '../types.js'
-import { clampSeconds, concealed, handlerFacade } from '../utils/index.js'
+import { guardHelper } from '../utils/guard.js'
+import { planningHandlerOf } from '../utils/handler.js'
+import type { RequestHandler } from './types.js'
 
 /**
  * The poll tool: a commit's status, held open up to `wait` seconds (clamped to `maxPoll`).
@@ -15,13 +17,13 @@ import { clampSeconds, concealed, handlerFacade } from '../utils/index.js'
  */
 export const getCommit = (
   protocol: PlanningProtocols['commit']['get'], opts?: PlanningHandlerOptions
-): ReturnType<ReturnType<typeof handlers<Context>>['request']> =>
-  handlers<Context>().request(protocol, async (req, ctx) => concealed(async (): Promise<CommitStatus> => {
-    const facade = await handlerFacade(ctx, req, opts)
+): RequestHandler =>
+  handlers<Context>().request(protocol, async (req, ctx) => guardHelper.concealed(async (): Promise<CommitStatus> => {
+    const facade = await planningHandlerOf(ctx).handlerFacade(req, opts)
     const transition = `${req.params.transition}`
 
     let status = await facade.commits.status(transition)
-    const wait = clampSeconds(req.query?.wait, opts?.maxPoll ?? MAX_COMMIT_POLL)
+    const wait = guardHelper.clampSeconds(req.query?.wait, opts?.maxPoll ?? MAX_COMMIT_POLL)
     if (status.state !== CommitState.Pending || wait <= 0) {
       return status
     }

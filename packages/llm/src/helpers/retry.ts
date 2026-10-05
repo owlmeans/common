@@ -1,78 +1,72 @@
 import { logger } from '@owlmeans/log'
 import { LlmMissconfiguredError, LlmRetryExceededError } from '../errors.js'
-import { plugins } from '../plugins/index.js'
-import type { FatalErrorResolver, RetryOptions } from '../types.js'
+import { llmPluginRegistry } from '../plugins/registry.js'
+import type { FatalErrorResolver, RetryHelper, RetryOptions } from './retry/types.js'
 
 const log = logger('llm')
 
-/** A misconfiguration is the same on every attempt: no retry, rung or climb can change it. */
+/**
+ * A misconfiguration is the same on every attempt: no retry, rung or climb can change it.
+ *
+ * Module-level on purpose: the registry is process-wide — a rule registered through any
+ * instance must stop every retry loop of the process.
+ */
 const resolvers: FatalErrorResolver[] = [e => e instanceof LlmMissconfiguredError ? e : null]
 
-/**
- * Register a globally-applicable rule that turns a thrown error into an immediate
- * abort of every retry loop in this package. Use it for conditions no amount of
- * retrying can fix — an exhausted budget, a revoked credential, a cancelled job.
- *
- * Provider plugins contribute their own through `LlmPlugin.isFatal`; both sets are
- * consulted, plus the per-call {@link RetryOptions.fatal}.
- */
-export const registerFatalError = (resolver: FatalErrorResolver): void => {
-  resolvers.push(resolver)
-}
-
-/**
- * The one answer to "can any retry fix this?", exported so callers above the retry loop can ask it.
- *
- * A retry loop is not the only place that decides to carry on: a fix ladder rescues a failed
- * repair and climbs to a stronger model, an agent runner catches a round that threw and reports
- * "gave up". Both of those are right for a model that answered badly and wrong for a budget that
- * ran out — and a blanket `catch` cannot tell them apart, so an exhausted balance became more
- * expensive calls rather than a halt. Rather than each caller re-deriving the rule (and drifting
- * from it), they ask the same resolvers, in the same order, that `withRetry` uses.
- *
- * Returns the error to abort WITH — a resolver may unwrap a carrier and hand back the real
- * cause — or `null` when nothing considers it terminal.
- */
-export const isFatalError = (e: unknown, fatal?: FatalErrorResolver): Error | null =>
-  resolveFatal(e, fatal)
-
-const resolveFatal = (e: unknown, fatal?: FatalErrorResolver): Error | null => {
-  const own = fatal?.(e)
-  if (own != null) return own
-  for (const resolver of resolvers) {
-    const found = resolver(e)
-    if (found != null) return found
+export const createRetryHelper = (): RetryHelper => {
+  const registerFatalError = (resolver: FatalErrorResolver): void => {
+    resolvers.push(resolver)
   }
-  for (const plugin of Object.values(plugins)) {
-    const found = plugin.isFatal?.(e)
-    if (found != null) return found
-  }
-  return null
-}
 
-/**
- * Run `fn` up to `retries` times, passing the 0-based attempt number so the callee can
- * escalate (a bigger output budget, a stronger model). Every non-fatal error is
- * swallowed and retained as the `cause` of the {@link LlmRetryExceededError} thrown when
- * the attempts run out; a fatal error (see {@link registerFatalError}) is rethrown at once.
- */
-export const withRetry = async <T>(
-  { retries, outputErrors = false, fatal }: RetryOptions,
-  fn: (attempt: number) => Promise<T>
-): Promise<T> => {
-  const exceeded = new LlmRetryExceededError('max-retries')
-  for (let i = 0; i < retries; ++i) {
-    try {
-      return await fn(i)
-    } catch (e) {
-      const abort = resolveFatal(e, fatal)
-      if (abort != null) throw abort
-      exceeded.cause = e
-      exceeded.attempt = i
-      if (outputErrors) {
-        log.warn('Retry error on attempt', { attempt: i, error: e })
+  const resolveFatal = (e: unknown, fatal?: FatalErrorResolver): Error | null => {
+    const own = fatal?.(e)
+    if (own != null) return own
+    for (const resolver of resolvers) {
+      const found = resolver(e)
+      if (found != null) return found
+    }
+    for (const plugin of Object.values(llmPluginRegistry.plugins)) {
+      const found = plugin.isFatal?.(e)
+      if (found != null) return found
+    }
+    return null
+  }
+
+  const isFatalError = (e: unknown, fatal?: FatalErrorResolver): Error | null =>
+    resolveFatal(e, fatal)
+
+  const withRetry = async <T>(
+    { retries, outputErrors = false, fatal }: RetryOptions,
+    fn: (attempt: number) => Promise<T>
+  ): Promise<T> => {
+    const exceeded = new LlmRetryExceededError('max-retries')
+    for (let i = 0; i < retries; ++i) {
+      try {
+        return await fn(i)
+      } catch (e) {
+        const abort = resolveFatal(e, fatal)
+        if (abort != null) throw abort
+        exceeded.cause = e
+        exceeded.attempt = i
+        if (outputErrors) {
+          log.warn('Retry error on attempt', { attempt: i, error: e })
+        }
       }
     }
+    throw exceeded
   }
-  throw exceeded
+
+  return { registerFatalError, isFatalError, withRetry }
 }
+
+export const retryHelper = createRetryHelper()
+
+/** @deprecated compat:factory-refactor — use `retryHelper.registerFatalError(…)` */
+export const registerFatalError = (resolver: FatalErrorResolver): void => retryHelper.registerFatalError(resolver)
+
+/** @deprecated compat:factory-refactor — use `retryHelper.isFatalError(…)` */
+export const isFatalError = (e: unknown, fatal?: FatalErrorResolver): Error | null => retryHelper.isFatalError(e, fatal)
+
+/** @deprecated compat:factory-refactor — use `retryHelper.withRetry(…)` */
+export const withRetry = <T>(options: RetryOptions, fn: (attempt: number) => Promise<T>): Promise<T> =>
+  retryHelper.withRetry(options, fn)

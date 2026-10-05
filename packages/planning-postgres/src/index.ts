@@ -1,4 +1,5 @@
 export type * from './types.js'
+export type * from './sql/types.js'
 
 export * from './consts.js'
 export * from './errors.js'

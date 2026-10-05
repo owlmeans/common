@@ -1,56 +1,14 @@
 import { createLazyService } from '@owlmeans/context'
-import type { AbstractRequest, GateService } from '@owlmeans/entrypoint'
-import { AuthForbidden, entitySlugOf } from '@owlmeans/auth'
-import type { Auth, PermissionSet } from '@owlmeans/auth'
+import type { GateService, AbstractRequest } from '@owlmeans/entrypoint'
+import type { Auth } from '@owlmeans/auth'
 import { hasPermission } from '@owlmeans/iam'
-import {
-  CapabilityRequired, ENTITLEMENT_GATE, parseEntitlementParam, promoActive,
-} from '@owlmeans/payment'
-import { capabilityOf } from '@owlmeans/payment'
+import { CapabilityRequired, ENTITLEMENT_GATE, parseEntitlementParam, capabilityOf } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { resolveEffectivePlan } from './plan.js'
-import { entitlements } from './utils.js'
-import type { Config, Context } from './types.js'
+import type { Config, Context, CapabilityGateOptions, EntityResolverOption } from './types.js'
 import { log } from './log.js'
-
-export interface EntityResolverOption {
-  /** The stable organization id a request acts for. Default: `req.entity.id`, else the token's entity. */
-  resolveEntity?: (req: AbstractRequest) => string | null
-}
-
-export interface CapabilityGateOptions extends EntityResolverOption {
-  /** Refuse unless the effective plan belongs to one of these products. */
-  productSkus?: string[]
-  /**
-   * Also require the token to grant the permission (IAM `hasPermission`). Off by default: a
-   * platform token carries no permissions, and the subscription is the authority.
-   */
-  requirePermission?: boolean
-}
-
-/** @deprecated use `CapabilityGateOptions` */
-export type EntitlementGateOptions = CapabilityGateOptions
-
-export const defaultEntity = (req: AbstractRequest): string | null =>
-  req.entity?.id ?? entitySlugOf(req.auth as Auth | undefined) ?? null
-
-/**
- * The capability sets an entity's effective plan grants now — sets behind a lapsed promo left out.
- * Empty when the plan is not of one of `productSkus`.
- */
-export const entitlementsOf = async (
-  ctx: ApiContext, entityId: string, productSkus?: string[],
-): Promise<PermissionSet[]> => {
-  const { plan, subscription } = await resolveEffectivePlan(ctx, entityId)
-  if (productSkus != null && !productSkus.includes(plan.productSku)) {
-    return []
-  }
-  const at = new Date()
-
-  return (plan.capabilities ?? [])
-    .filter(set => promoActive(set.promo, subscription?.createdAt, at))
-    .map(({ promo: _promo, ...set }) => set)
-}
+import { paymentAccessOf } from './access.js'
+import { makeGateRequestScope } from './gate/request.js'
+import type { GateEntity } from './gate/types.js'
 
 /** An explicit `false` for the permission in the token denies, whatever the plan grants. */
 const tokenDenies = (auth: Auth, param: string): boolean => {
@@ -65,19 +23,6 @@ const tokenGrants = (auth: Auth, param: string): boolean => {
   return hasPermission(auth, permission, scope != null ? { scope } : undefined)
 }
 
-/** Resolve the authenticated entity a gate asserts for, or refuse. */
-export const gateEntityOf = (req: AbstractRequest, opts?: EntityResolverOption): { auth: Auth, entityId: string } => {
-  if (req.auth == null) {
-    throw new AuthForbidden('auth')
-  }
-  const entityId = (opts?.resolveEntity ?? defaultEntity)(req)
-  if (entityId == null || entityId === '') {
-    throw new AuthForbidden('entity')
-  }
-
-  return { auth: req.auth, entityId }
-}
-
 /**
  * The capability gate (`ENTITLEMENT_GATE`): passes when the effective plan grants ANY of the
  * parameters (`[scope:]permission[>=n]`) and the token does not deny it. Fails closed — an unreadable
@@ -90,12 +35,12 @@ export const makeCapabilityGate = (
     assert: async (req, _, params) => {
       await service.ready()
       const ctx = service.assertCtx<Config, Context>() as unknown as ApiContext
-      const { auth, entityId } = gateEntityOf(req, opts)
+      const { auth, entityId } = makeGateRequestScope(req).gateEntityOf(opts)
       const list = (Array.isArray(params) ? params : [params]).filter(param => typeof param === 'string')
 
       let view
       try {
-        view = await entitlements(ctx).entitlements(entityId)
+        view = await paymentAccessOf(ctx).entitlements().entitlements(entityId)
       } catch (error) {
         log.error('Capability gate cannot resolve entitlements', { entityId, error })
         throw new CapabilityRequired(list)
@@ -117,3 +62,7 @@ export const makeCapabilityGate = (
 
 /** The capability gate under its historical name. */
 export const makeEntitlementGate = makeCapabilityGate
+
+/** @deprecated compat:factory-refactor — use `makeGateRequestScope(req).gateEntityOf(…)` */
+export const gateEntityOf = (req: AbstractRequest, opts?: EntityResolverOption): GateEntity =>
+  makeGateRequestScope(req).gateEntityOf(opts)

@@ -11,7 +11,7 @@ in a queue (`@owlmeans/server-job`).
 ## Installation
 
 ```bash
-bun add @owlmeans/server-socket@^0.1.18-rc.52
+bun add @owlmeans/server-socket@^0.1.18-rc.53
 ```
 
 ## Concepts
@@ -209,7 +209,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

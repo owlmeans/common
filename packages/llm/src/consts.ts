@@ -1,5 +1,4 @@
-import { ExecutionEffort } from '@owlmeans/llm-common'
-import type { CacheTtl, ModelConfigPatch } from '@owlmeans/llm-common'
+import { ExecutionEffort, type CacheTtl, type ModelConfigPatch } from '@owlmeans/llm-common'
 
 /** Context-service alias for the {@link LlmService} (model factory / registry). */
 export const LLM_SERVICE = 'owlmeans-llm-service'
@@ -102,14 +101,6 @@ export const JSON_INSTRUCTION = 'Respond with a single complete and valid JSON o
  * whole output budget on thinking and return empty content with `finish_reason="length"`.
  */
 export const NO_THINK_DIRECTIVE = '/no_think'
-
-/**
- * Appended to the prompt of `invoke`/`request` on a model that refuses a pinned tool: with
- * `tool_choice: auto` the instruction is what asks for the call. Generic on purpose — it names
- * only the tool.
- */
-export const toolCallInstruction = (toolName: string): string =>
-  `Answer by calling the tool \`${toolName}\` with the complete result as its input. Do not reply in text.`
 
 /** Tool name used for structured output when a schema carries no usable title/name. */
 export const DEFAULT_TOOL_NAME = 'extract'

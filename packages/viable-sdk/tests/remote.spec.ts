@@ -2,10 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { CommitState, TransitionAction } from '@owlmeans/planning'
 import { CONNECT_TOKEN_PREFIX, connect, VIABLE_STORY_TYPE } from '@owlmeans/viable-common'
 
-import { isTransientTransportError, makeRemoteConnectorApi, recoverLongPoll } from '../src/api/remote.js'
+import { makeRemoteConnectorApi } from '../src/api/remote.js'
+import { transportHelper } from '../src/api/transport.js'
 import { COMMIT_POLL_SEC, COMMIT_WAIT_MS, TOOL_DEADLINE_MS } from '../src/consts.js'
 import { makeSdkContext } from '../src/context/index.js'
-import { storyQuery } from '../src/tools/stories.js'
+import { storyHelper } from '../src/tools/stories.js'
 import { captureTransport } from './context.js'
 
 describe('viable-sdk — remote transport recovery', () => {
@@ -13,18 +14,16 @@ describe('viable-sdk — remote transport recovery', () => {
     const direct = Object.assign(new Error('socket closed'), { code: 'ECONNRESET' })
     const nested = new TypeError('fetch failed', { cause: direct })
 
-    expect(isTransientTransportError(direct)).toBe(true)
-    expect(isTransientTransportError(nested)).toBe(true)
-    expect(isTransientTransportError(new Error('project was refused'))).toBe(false)
+    expect(transportHelper.isTransientTransportError(direct)).toBe(true)
+    expect(transportHelper.isTransientTransportError(nested)).toBe(true)
+    expect(transportHelper.isTransientTransportError(new Error('project was refused'))).toBe(false)
   })
 
   test('answers a dropped long poll from one immediate durable snapshot', async () => {
     const calls: string[] = []
     const reset = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })
-    const result = await recoverLongPoll(
-      async () => { calls.push('poll'); throw reset },
-      async () => { calls.push('snapshot'); return { status: 'running' } },
-    )
+    const result = await transportHelper.recoverLongPoll(async () => { calls.push('poll'); throw reset },
+      async () => { calls.push('snapshot'); return { status: 'running' } },)
 
     expect(result).toEqual({ status: 'running' })
     expect(calls).toEqual(['poll', 'snapshot'])
@@ -34,10 +33,8 @@ describe('viable-sdk — remote transport recovery', () => {
     let snapshots = 0
     const refusal = new Error('Forbidden')
 
-    await expect(recoverLongPoll(
-      async () => { throw refusal },
-      async () => { snapshots++; return 'wrong' },
-    )).rejects.toBe(refusal)
+    await expect(transportHelper.recoverLongPoll(async () => { throw refusal },
+      async () => { snapshots++; return 'wrong' },)).rejects.toBe(refusal)
     expect(snapshots).toBe(0)
   })
 })
@@ -107,7 +104,7 @@ describe('viable-sdk — the remote planning facade', () => {
     })
     const { planning } = makeRemoteConnectorApi(context)
 
-    await planning.cards.list(storyQuery('p1', { area: 'user' }))
+    await planning.cards.list(storyHelper.storyQuery('p1', { area: 'user' }))
     const receipt = await planning.execute({
       card: 'c1', action: TransitionAction.Transit, transition: 'start', actor: { agent: 'forged' },
     }, { wait: true, timeout: COMMIT_WAIT_MS })

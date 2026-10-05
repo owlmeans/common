@@ -12,7 +12,7 @@ framework packages already ship: authentication and authorization failures from
 ## Installation
 
 ```bash
-bun add @owlmeans/error@^0.1.18-rc.36
+bun add @owlmeans/error@^0.1.18-rc.37
 ```
 
 ## Concepts
@@ -117,15 +117,15 @@ is caught as the same class around `context.entrypoint(invoiceProtocols.settle).
 client. A boundary you own — a WebSocket close reason, a stored failure record — does the same by hand:
 
 ```ts
-import { enuserError, marshalError } from '@owlmeans/error'
+import { errorHelper } from '@owlmeans/error'
 import { InvoiceError } from '@my-app/common'
 
 // Producer: send only the flattened string.
-socket.close(1011, marshalError(caught).message)
+socket.close(1011, errorHelper.marshalError(caught).message)
 
 // Consumer: rebuild the registered class, typed to the family you expect.
 socket.addEventListener('close', event => {
-  const err = enuserError<InvoiceError>(event.reason)
+  const err = errorHelper.enuserError<InvoiceError>(event.reason)
   if (err instanceof InvoiceError) {
     showInvoiceProblem(err.type)
   }
@@ -215,8 +215,8 @@ Panel components resolve an error through `errors.<type>` — a form- or screen-
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `enuserError<T>(err, throwOnUnknown?)` | function | `ResilientError.ensure`, typed to the subclass you expect |
-| `marshalError(err)` | function | `ensure` then `marshal`, for a boundary that only carries an `Error` or a string |
+| `errorHelper.enuserError<T>(err, throwOnUnknown?)` | helper member | `ResilientError.ensure`, typed to the subclass you expect |
+| `errorHelper.marshalError(err)` | helper member | `ensure` then `marshal`, for a boundary that only carries an `Error` or a string |
 | `isResilientError(value)` | function | Structural check (shared brand + `type` + `marshal`) that holds across duplicate module copies |
 | `SEPARATOR` | constant | Three pipe characters — joins the marshalled fields |
 | `RESILENT_ERROR` | constant | `'ResilientError'` — the base type name |
@@ -232,7 +232,7 @@ Panel components resolve an error through `errors.<type>` — a form- or screen-
 
 ### Side effect
 
-Importing the package registers the `errors` i18n library (via `addI18nLib` from
+Importing the package registers the `errors` i18n library (via `i18nHelper.addI18nLib` from
 `@owlmeans/i18n`) for `en`, `pl`, `ru`, `be`, `uk`, `es` and `de`. There are no subpath exports.
 
 ## Common pitfalls
@@ -272,7 +272,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.39
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

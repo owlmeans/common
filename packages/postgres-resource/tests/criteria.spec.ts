@@ -6,8 +6,11 @@ import { sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 
-import { criteriaToSql, schemaToTableSpec, sortToSql, specToTable } from '@owlmeans/postgres-resource'
+import { pgCriteriaHelper, pgSchemaHelper, specToTable } from '@owlmeans/postgres-resource'
 import type { PgRuntimeTable, TableSpec } from '@owlmeans/postgres-resource'
+
+const { criteriaToSql, sortToSql } = pgCriteriaHelper
+const { schemaToTableSpec } = pgSchemaHelper
 
 /**
  * Criteria translation is where a typo becomes either an error or a whole-table scan, and

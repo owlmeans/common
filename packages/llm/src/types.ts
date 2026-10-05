@@ -22,22 +22,6 @@ export interface RefferedResult<T> {
   callback?: (arg: T) => Promise<void>
 }
 
-export interface RetryOptions {
-  retries: number
-  outputErrors?: boolean
-  /**
-   * Abort the retry loop for this call. Return the error to throw, or `null` to keep
-   * retrying. Consulted in addition to the globally registered resolvers
-   * (`registerFatalError`) and the provider plugins' `isFatal`.
-   */
-  fatal?: (e: unknown) => Error | null
-}
-
-/** Decides whether an error must abort a retry loop instead of being retried. */
-export interface FatalErrorResolver {
-  (e: unknown): Error | null
-}
-
 export interface LlmLogging {
   /** Print every swallowed retry error to the console. */
   outputErrors?: boolean
@@ -363,3 +347,6 @@ export interface LlmService extends InitializedService {
 export interface WithLlmService {
   llm: () => LlmService
 }
+
+/** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
+export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'> {}

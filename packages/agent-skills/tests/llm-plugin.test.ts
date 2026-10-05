@@ -6,7 +6,7 @@ import { PromptBlock } from '@owlmeans/llm-common'
 import type { LlmFileProvider } from '@owlmeans/llm-common'
 import { anthropicPlugin, makePromptService } from '@owlmeans/llm'
 import type { ModelConfig, PromptService } from '@owlmeans/llm'
-import { loadPackageSkills, owlmeansPackagesPlugin, stripMeta, unscoped } from '@owlmeans/agent-skills/llm'
+import { loadPackageSkills, manifestHelper, owlmeansPackagesPlugin } from '@owlmeans/agent-skills/llm'
 
 const model = anthropicPlugin.build({
   alias: 'spec',
@@ -54,7 +54,7 @@ const fakeProvider = (asked: string[], body: string): LlmFileProvider => ({
 
 describe('@owlmeans/agent-skills — embedded metadata', () => {
   test('frontmatter and the generated banner are stripped from a skill body', () => {
-    const body = stripMeta([
+    const body = manifestHelper.stripMeta([
       '---',
       'name: auth',
       'description: something',
@@ -67,11 +67,11 @@ describe('@owlmeans/agent-skills — embedded metadata', () => {
   })
 
   test('content without frontmatter survives untouched', () => {
-    expect(stripMeta('# Plain\n\nbody')).toBe('# Plain\n\nbody')
+    expect(manifestHelper.stripMeta('# Plain\n\nbody')).toBe('# Plain\n\nbody')
   })
 
   test('the repo lays packages out under their unscoped name', () => {
-    expect(unscoped('@owlmeans/llm-common')).toBe('llm-common')
+    expect(manifestHelper.unscoped('@owlmeans/llm-common')).toBe('llm-common')
   })
 })
 

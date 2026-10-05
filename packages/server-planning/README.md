@@ -10,7 +10,7 @@ the `@owlmeans/server-planning/store` subpath.
 ## Installation
 
 ```sh
-bun add @owlmeans/server-planning@^0.1.18-rc.20 @owlmeans/planning@^0.1.18-rc.17 ajv
+bun add @owlmeans/server-planning@^0.1.18-rc.21 @owlmeans/planning@^0.1.18-rc.18 ajv
 ```
 
 ## Concepts
@@ -93,39 +93,46 @@ ensurePlanningService(context).use({
 Hand-written handler and the memory store in a test:
 
 ```ts
-import { appendPlanningService, planningFor } from '@owlmeans/server-planning'
+import { appendPlanningService, planningHandlerOf } from '@owlmeans/server-planning'
 import { makeMemoryPlanningStore } from '@owlmeans/server-planning/store'
 
 appendPlanningService(testContext, { store: makeMemoryPlanningStore({ sync: false }), plugins: [fixtures] })
-const cards = await planningFor(ctx, req, { channel: 'web' }).cards.list({ parent: projectId })
+const cards = await planningHandlerOf(ctx).planningFor(req, { channel: 'web' }).cards.list({ parent: projectId })
 ```
 
 ## API
 
 - Service: `appendPlanningService`, `ensurePlanningService`, `makePlanningService`,
   `planningServiceApi`, `makePluginRegistry`, `makeStoreFacade`, `executeTransition`,
-  `creatorOf`, `withCreator`, `assertCreatorFixed`, `PlanningServiceOptions`, `PlanningHostService`,
+  `creatorHelper` (`creatorOf`, `withCreator`, `assertCreatorFixed`), `PlanningServiceOptions`, `PlanningHostService`,
   `PlanningRuntime`, `PluginRegistry`
-- Handlers: `servePlanningEntrypoints`, `planningFor`, `listSchemas`, `listCards`,
+- Handlers (one per file under `actions/`): `servePlanningEntrypoints`, `listSchemas`, `listCards`,
   `summarizeCards`, `getCard`, `listCardTransitions`, `listCardSpecifications`, `getSpecification`,
-  `listSpecificationRevisions`, `listLinks`, `getTransition`, `executePlanning`, `wireExecution`,
-  `executeOptionsOf`, `assertExecutionGranted`, `getCommit`, `watchCommits`, `defineSchemas`,
-  `applySchemaRequest`, `PlanningHandlerOptions`, `PlanningScopeExtractor`, `PlanningAccessResolver`,
-  `PlanningAccess`, `PlanningAccessGrants`, `PlanningGrant`
-- Scope: `scopeOf`, `accessScopeOf`, `actorOf`, `handlerFacade`, `handlerScopeOf`, `assertGranted`,
-  `planningServiceOf`, `concealed`, `assertScope`, `notFoundOf`, `clampSeconds`, `projectCriteriaOf`
+  `listSpecificationRevisions`, `listLinks`, `getTransition`, `executePlanning`, `getCommit`,
+  `watchCommits`, `defineSchemas`, `applySchemaRequest`; `executionHelper` (`wireExecution`,
+  `executeOptionsOf`, `assertExecutionWrites`, `assertExecutionGranted`); `PlanningHandlerOptions`,
+  `PlanningScopeExtractor`, `PlanningAccessResolver`, `PlanningAccess`, `PlanningAccessGrants`,
+  `PlanningGrant`
+- Scope: `planningHandlerOf(ctx)` (`planningServiceOf`, `handlerScopeOf`, `handlerFacade`,
+  `planningFor`), `makeRequestScope(req)` (`scopeOf`, `accessScopeOf`, `actorOf`),
+  `makePlanningAccessModel(access)` (`assertGranted`, `writableIn`, `assertWrites`), `guardHelper`
+  (`concealed`, `assertScope`, `notFoundOf`, `clampSeconds`), `projectCriteriaOf`
 - Data-defined schemas: `makeDefinitions`, `makeSchemaViews`, `SchemaViews`, `SchemaViewsOptions`
-- Projection: `makeProjectionProcessor`, `planningQueueHooks`, `ProjectionOptions`
+- Projection: `makeProjectionProcessor`, `makePlanningQueueHooks`, `ProjectionOptions`
 - Constants: `DEFAULT_ALIAS`, `MEMORY_STORE_ALIAS`, `DEFAULT_COMMIT_MEMORY`, `COMMIT_POLL_LADDER`,
   `DEFAULT_SCHEMA_VIEWS`
-- `@owlmeans/server-planning/store`: `makeMemoryPlanningStore`, `foldPending`, `failPending`,
-  `revisionsFromLog`, `commitEventOf`, `makeCommitHub`, `makeCompositeStore`, `wantsSpecifications`,
+- `@owlmeans/server-planning/store`: `makeMemoryPlanningStore`, `foldHelper` (`foldPending`,
+  `failPending`, `revisionsFromLog`, `commitEventOf`), `makeCommitHub`, `makeCompositeStore`,
+  `wantsSpecifications`,
   and the types `BindablePlanningStore`, `CommitListener`, `CommitHub`, `CommitHubOptions`,
   `FoldOptions`, `FoldResult`, `MemoryPlanningStore`, `MemoryPlanningStoreOptions`, `StoreRoute`
 - `@owlmeans/server-planning/conformance`: `planningConformance`, `conformanceCasesFor`,
-  `planningConformancePlugin`, `conformanceClock`, `ConformanceFailure`, `check`, `same`,
-  `sameSet`, `rejects`, the library fixtures (`LIBRARY`, `createBranch`, `createBook`, `transit`)
+  `planningConformancePlugin`, `conformanceClock`, `ConformanceFailure`, `assertHelper` (`check`,
+  `same`, `sameSet`, `rejects`), the library fixtures (`LIBRARY`, `conformanceFixturesOf(facade)` —
+  `createBranch`, `createBook`, `transit`)
   and the types `ConformanceCase`, `ConformanceSubject`, `ConformanceCapability`
+- The former plain functions (`planningFor`, `foldPending`, `creatorOf`, `scopeOf`, `concealed`,
+  `planningQueueHooks`, `check`, `createBranch`, …) remain as deprecated delegates.
 
 ## Common pitfalls
 
@@ -169,7 +176,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

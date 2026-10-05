@@ -1,15 +1,8 @@
 import { CONSENT_ESSENTIAL, consentStore } from '@owlmeans/consent'
 import { ensureLoginService } from '@owlmeans/client-auth/login'
 import type { BasicContext } from '@owlmeans/context'
-
-export const CONSENT_LOGIN_PRECONDITION = 'consent-before-login'
-
-export interface ConsentLoginOptions {
-  /** The category that must be granted. Defaults to `essential`. */
-  category?: string
-  /** Off switch, for an application that genuinely sets no cookie at all. */
-  disabled?: boolean
-}
+import { CONSENT_LOGIN_PRECONDITION } from './consts.js'
+import type { ConsentLoginOptions } from './types.js'
 
 /**
  * Refuse to start a sign-in flow until the required consent category is granted, and open the

@@ -10,40 +10,19 @@ import {
   ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
   ConnectStoryParamsSchema, InquiryAnswerSchema,
 } from './schemas.js'
+import type { ConnectProjectBranding, ConnectProjectBrandingSave } from './branding/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectConvertCreateBody, ConnectConvertProceedBody,
-  ConnectConvertStartBody, ConnectCreateBody, ConnectInquiryAnswerBody, ConnectKitApplyBody,
-  ConnectKitApplyResult, ConnectKitDescribe, ConnectModifyBody,
-  ConnectPipelineParams, ConnectPipelineResumeBody, ConnectProjectBranding,
-  ConnectProjectBrandingSave, ConnectSessionOpen,
-  ConnectPipelineState, ConnectProjectStatus, ConnectPullQuery, ConnectSessionParams,
-  ConnectStoryStatus, ConversionStatusView, ConvertCheck,
-} from './types.js'
-import type { ConnectOpResult } from './ops.js'
-
-/**
- * What the platform injects when it mounts the connector routes.
- *
- * The names of the guard and the gates belong to the deployment, not to the contract: a connector
- * API on another platform would guard the same paths with its own vocabulary. Everything else —
- * paths, methods, schemas, parents — is fixed here so a client cannot address them differently.
- */
-export interface ConnectEntrypointOptions {
-  /** The guard alias every connector route carries. */
-  guard: string
-  /** The gate alias and parameters that decide project ownership. */
-  gate?: { alias: string, params: string[] }
-  /**
-   * The gate that decides whether the caller may use the local-LLM mode.
-   *
-   * Applied to the one route that turns it on — opening a delegated session. Everything else is
-   * free: `cloud` is the default, and a project's own override is the platform's browser surface,
-   * not the connector's.
-   */
-  localLlm?: { alias: string, params: string[] }
-  /** Path prefix; defaults to `/connect`. */
-  path?: string
-}
+  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConversionStatusView, ConvertCheck
+} from './conversion/types.js'
+import type { ConnectEntrypointOptions } from './entrypoints/types.js'
+import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } from './kit/types.js'
+import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
+import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
+import type {
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectStoryStatus
+} from './project/types.js'
+import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 
 /**
  * Declare the connector's HTTP surface — exactly the routes a connector calls: the session (long

@@ -1,10 +1,5 @@
 import { spawn } from 'node:child_process'
-
-const COMMAND_BY_PLATFORM: Record<string, string> = {
-  darwin: 'open',
-  win32: 'start',
-  linux: 'xdg-open',
-}
+import { COMMAND_BY_PLATFORM } from './consts.local.js'
 
 /**
  * Best-effort: open `url` in the person's default browser. `false` on any failure — a CLI whose

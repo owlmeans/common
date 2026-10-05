@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { ConsentKind, consentStatementOf, consumerText } from '@owlmeans/payment'
-import { closeBrowser, mountComponent, type Page } from '@owlmeans/test-ui'
+import { ConsentKind, consumerCopyHelper } from '@owlmeans/payment'
+import { mountComponent, type Page, browserHelper } from '@owlmeans/test-ui'
 import { closeHarness, harnessUrl } from './context.js'
 
 const TIMEOUT = 60_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
   await closeHarness()
 })
 
@@ -103,10 +103,10 @@ describe('PerformanceConsentDialog — a consent context', () => {
       await dialog.waitFor()
       expect(await dialog.getAttribute('data-consent-context')).toBe('included')
       const recorded = (lng: string) =>
-        consentStatementOf(lng, ConsentKind.Performance, { trader: 'Example Trader', context: 'included' }).checkbox
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.Performance, { trader: 'Example Trader', context: 'included' }).checkbox
       expect(await text(page, '[data-consent-statement]')).toBe(recorded('pl'))
       expect(await text(page, '[data-consent-statement]')).toStartWith('Żądam i wyrażam wyraźną zgodę')
-      expect(await text(page, '[data-consent-dialog] h2')).toBe(consumerText('pl', 'performance-consent.title', {}, 'included'))
+      expect(await text(page, '[data-consent-dialog] h2')).toBe(consumerCopyHelper.consumerText('pl', 'performance-consent.title', {}, 'included'))
       expect(await dialog.innerText()).toContain('Limity kredytów wliczone w Twój plan są zawsze wykorzystywane w pierwszej kolejności')
       expect(FORBIDDEN.test(await dialog.innerText())).toBe(false)
 
@@ -126,7 +126,7 @@ describe('PerformanceConsentDialog — a consent context', () => {
       await dialog.waitFor()
       expect(await dialog.getAttribute('data-consent-context')).toBeNull()
       expect(await text(page, '[data-consent-statement]'))
-        .toBe(consentStatementOf('en', ConsentKind.Performance, { trader: 'Example Trader' }).checkbox)
+        .toBe(consumerCopyHelper.consentStatementOf('en', ConsentKind.Performance, { trader: 'Example Trader' }).checkbox)
       expect(await text(page, '[data-consent-dialog] h2')).toBe('Start using your credits now?')
     } finally { await close() }
   }, TIMEOUT)
@@ -163,7 +163,7 @@ describe('SubscriptionStartDialog', () => {
       await dialog.waitFor()
       expect(await dialog.getAttribute('data-start-context')).toBeNull()
       const recorded = (lng: string) =>
-        consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro' }).checkbox
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro' }).checkbox
       expect(await text(page, '[data-start-statement]')).toBe(recorded('de'))
       expect(await text(page, '[data-start-statement]')).toStartWith('Ich verlange ausdrücklich und stimme ausdrücklich zu')
       expect(await text(page, '[data-start-statement]')).not.toContain('Credits')
@@ -182,14 +182,14 @@ describe('SubscriptionStartDialog', () => {
       await dialog.waitFor()
       expect(await dialog.getAttribute('data-start-context')).toBe('units')
       const recorded = (lng: string) =>
-        consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro', context: 'units' }).checkbox
+        consumerCopyHelper.consentStatementOf(lng, ConsentKind.SubscriptionStart, { trader: 'Example Trader', plan: 'Pro', context: 'units' }).checkbox
       expect(await text(page, '[data-start-statement]')).toBe(recorded('pl'))
       expect(await text(page, '[data-start-statement]')).toBe(
-        consumerText('pl', 'subscription-start.checkbox_units', { trader: 'Example Trader', plan: 'Pro' }),
+        consumerCopyHelper.consumerText('pl', 'subscription-start.checkbox_units', { trader: 'Example Trader', plan: 'Pro' }),
       )
       expect(await text(page, '[data-start-statement]')).toStartWith('Żądam i wyrażam wyraźną zgodę')
       // Title and intro have no `_units` variant: the base shows.
-      expect(await text(page, '[data-start-dialog] h2')).toBe(consumerText('pl', 'subscription-start.title', { plan: 'Pro' }))
+      expect(await text(page, '[data-start-dialog] h2')).toBe(consumerCopyHelper.consumerText('pl', 'subscription-start.title', { plan: 'Pro' }))
       expect(FORBIDDEN.test(await dialog.innerText())).toBe(false)
 
       await page.locator('[data-start-language-toggle]').click()

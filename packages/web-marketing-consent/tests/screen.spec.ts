@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser } from '@owlmeans/test-ui'
 import { MARKETING_CONSENT_SCREEN_PATH, STANDARD_MARKETING_CONSENTS } from '@owlmeans/marketing-consent'
 import en from '../src/i18n/en.json' with { type: 'json' }
 import { allItemsCurrent, bearer, open, statusView, TIMEOUT, withDefinition } from './helpers.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 const keys = STANDARD_MARKETING_CONSENTS.map(definition => definition.key)
 

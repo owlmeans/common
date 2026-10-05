@@ -3,22 +3,22 @@
 The core authentication and authorization vocabulary shared by server and client: the `Auth` /
 `AuthPayload` / `AuthCredentials` types, the `AuthRole` and `AuthenticationType` enums, the auth
 error hierarchy, AJV schemas for request bodies and record fields, the auth entrypoint aliases, and
-`entitySlugOf()` for reading the organization entity off a token. An app imports it whenever code
+`authHelper.entitySlugOf()` for reading the organization entity off a token. An app imports it whenever code
 on either side of the wire needs to name an identity, throw an auth error, or reuse a scalar schema
 (`IdValueSchema`, `DateSchema`). It contains no services and no wiring: guards, the Ed25519 guard,
-shared auth protocols and organization-entity resolution (`entityKeyOf`, `requireEntityKey`,
-`attachEntity`) live in [`@owlmeans/auth-common`](../auth-common); the server auth service in
+shared auth protocols and organization-entity resolution (`makeEntityScope(req)` —
+`entityKeyOf`, `requireEntityKey`, `attachEntity`) live in [`@owlmeans/auth-common`](../auth-common); the server auth service in
 [`@owlmeans/server-auth`](../server-auth); the browser auth service in
 [`@owlmeans/client-auth`](../client-auth).
 
 ## Installation
 
 ```bash
-bun add @owlmeans/auth@^0.1.18-rc.38
+bun add @owlmeans/auth@^0.1.18-rc.39
 ```
 
-`ajv` is a **peer** dependency — install it alongside, or `verifyAuth` / `verifyAuthCredentials`
-fail to resolve.
+`ajv` is a **peer** dependency — install it alongside, or `authHelper.verifyAuth` /
+`authHelper.verifyAuthCredentials` fail to resolve.
 
 ## Concepts
 
@@ -30,9 +30,9 @@ fail to resolve.
 - **Allowance / credentials** — the two-step handshake: a client posts an `AllowanceRequest` to get
   a `challenge`, then posts `AuthCredentials` (`challenge` + `credential`) to authenticate.
 - **Organization entity** — `entitySlug` is the renameable organization name and the only
-  organization value on the wire. Read it with `entitySlugOf(payload)`. The stable `entityId` is
-  never on the wire and is not declared here; server handlers get it from `requireEntityKey(req)` /
-  `requireEntity(req)` in `@owlmeans/auth-common`.
+  organization value on the wire. Read it with `authHelper.entitySlugOf(payload)`. The stable `entityId` is
+  never on the wire and is not declared here; server handlers get it from
+  `makeEntityScope(req).requireEntityKey()` / `.requireEntity()` in `@owlmeans/auth-common`.
 - **Error hierarchy** — `AuthError` is the root of i18n-aware `ResilientError` subclasses that
   survive marshalling across a service boundary: `AuthUnknown` (no identity), `AuthenFailed`
   (credential rejected), `AuthForbidden` (authenticated, not allowed).
@@ -73,11 +73,11 @@ export const InvoiceSchema: JSONSchemaType<Invoice> = {
 
 A handler that finds no identity throws `AuthUnknown`; one that finds an identity without the right
 to act throws `AuthForbidden`. Organization-scoped records are keyed by the resolved id from
-`requireEntityKey`, never by the slug on the token.
+`makeEntityScope(req).requireEntityKey()`, never by the slug on the token.
 
 ```ts
 import { AuthForbidden, AuthUnknown } from '@owlmeans/auth'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { handlers } from '@owlmeans/server-api'
 import { invoiceProtocols } from 'my-app-common'
 import type { AppContext } from '../types.js'
@@ -88,13 +88,13 @@ export const listInvoices = api.request(invoiceProtocols.list, async (req, conte
   if (req.auth?.profileId == null) {
     throw new AuthUnknown('profile')
   }
-  const entityId = requireEntityKey(req)          // stable record id, never from the token
+  const entityId = makeEntityScope(req).requireEntityKey()          // stable record id, never from the token
 
   return await loadInvoices(context, entityId, req.params.projectId)
 })
 
 export const archiveInvoice = api.request(invoiceProtocols.archive, async (req, context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   if (!req.auth!.scopes.includes('invoice-admin')) {
     throw new AuthForbidden('permission')
   }
@@ -112,14 +112,14 @@ A gate service declared on a protocol (`gate: { alias, params }`) asserts scopes
 import { createLazyService } from '@owlmeans/context'
 import type { GateService } from '@owlmeans/entrypoint'
 import { ALL_SCOPES, AuthForbidden } from '@owlmeans/auth'
-import { entityKeyOf } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 
 export const makeProjectGate = (alias: string = 'my-app:project-gate'): GateService =>
   createLazyService<GateService>(alias, {
     assert: async (req, _, params) => {
       if (req.auth == null) throw new AuthForbidden('auth')
 
-      const entityId = entityKeyOf(req)
+      const entityId = makeEntityScope(req).entityKeyOf()
       if (entityId == null) throw new AuthForbidden('entity')
 
       // Params name the organization by its stable id, matching how grants are stored.
@@ -135,12 +135,12 @@ export const makeProjectGate = (alias: string = 'my-app:project-gate'): GateServ
 ### Authenticate a socket connection
 
 A socket authenticates after its connection is open, so it moves through `AuthenticationStage`
-itself, sets the bearer token under `AUTH_HEADER`, and must call `attachEntity`.
+itself, sets the bearer token under `AUTH_HEADER`, and must call `makeEntityScope(req).attachEntity(context)`.
 
 ```ts
 import type { Auth, AuthToken } from '@owlmeans/auth'
 import { AUTH_HEADER, AuthenFailed, AuthenticationStage, AuthUnknown } from '@owlmeans/auth'
-import { attachEntity, DEFAULT_GUARD } from '@owlmeans/auth-common'
+import { DEFAULT_GUARD, makeEntityScope } from '@owlmeans/auth-common'
 import type { AbstractRequest, AbstractResponse, GuardService } from '@owlmeans/entrypoint'
 import { provideResponse } from '@owlmeans/entrypoint'
 import type { AppContext } from '../types.js'
@@ -158,7 +158,7 @@ export const authenticateSocket = (context: AppContext, req: AbstractRequest) =>
     }
 
     req.auth = res.value
-    await attachEntity(context, req)
+    await makeEntityScope(req).attachEntity(context)
 
     return [AuthenticationStage.Authenticated, true]
   }
@@ -166,14 +166,14 @@ export const authenticateSocket = (context: AppContext, req: AbstractRequest) =>
 
 ### Build payloads, read the organization, widen a token schema
 
-`AuthRole` is a string enum, `entitySlugOf` is the only supported way to read the organization off a
+`AuthRole` is a string enum, `authHelper.entitySlugOf` is the only supported way to read the organization off a
 payload, and `AuthTokenSchema` caps `token` at 1024 characters — a route carrying a wrapped
 credential envelope declares its own wider schema.
 
 ```ts
 import type { JSONSchemaType } from 'ajv'
 import type { AuthPayload, AuthToken } from '@owlmeans/auth'
-import { AuthRole, AuthenticationType, entitySlugOf, isAuthToken } from '@owlmeans/auth'
+import { AuthRole, AuthenticationType, authHelper } from '@owlmeans/auth'
 
 const payload: AuthPayload = {
   type: AuthenticationType.OneTimeToken,
@@ -184,7 +184,7 @@ const payload: AuthPayload = {
   scopes: ['my-app-project'],
 }
 
-const orgLabel = entitySlugOf(payload)   // string | undefined — opaque, never a database key
+const orgLabel = authHelper.entitySlugOf(payload)   // string | undefined — opaque, never a database key
 
 export const WrappedTokenSchema: JSONSchemaType<AuthToken> = {
   type: 'object',
@@ -194,7 +194,7 @@ export const WrappedTokenSchema: JSONSchemaType<AuthToken> = {
 }
 
 export const tokenOf = (body: unknown): string | undefined =>
-  isAuthToken(body) ? body.token : undefined
+  authHelper.isAuthToken(body) ? body.token : undefined
 ```
 
 ## API
@@ -286,23 +286,24 @@ an optional message suffix (default `'error'`).
 
 | Symbol | Kind | Purpose |
 |--------|------|---------|
-| `entitySlugOf(payload?)` | function | The organization carried by a payload: `entitySlug`, falling back to a legacy `entityId` |
-| `verifyAuth(auth)` | function | Validate against `AuthSchema` (AJV with formats) |
-| `verifyAuthCredentials(auth)` | function | Validate against `AuthCredentialsSchema` |
-| `isAuth(value)` | type guard | Has `token` and `isUser` |
-| `isAuthCredentials(value)` | type guard | Has `challenge` and `credential` |
-| `isAuthToken(value)` | type guard | Has a string `token` |
+| `authHelper.entitySlugOf(payload?)` | method | The organization carried by a payload: `entitySlug`, falling back to a legacy `entityId` |
+| `authHelper.verifyAuth(auth)` | method | Validate against `AuthSchema` (AJV with formats) |
+| `authHelper.verifyAuthCredentials(auth)` | method | Validate against `AuthCredentialsSchema` |
+| `authHelper.isAuth(value)` | type guard | Has `token` and `isUser` |
+| `authHelper.isAuthCredentials(value)` | type guard | Has `challenge` and `credential` |
+| `authHelper.isAuthToken(value)` | type guard | Has a string `token` |
 | `buildSupervisorPayload(challenge, userId, salt)` | function | The canonical payload the PK supervisor login signs and verifies |
 
 ## Common pitfalls
 
 - `AuthRole` is a **string** enum — use the members; numeric literals do not compile.
-- Read the organization with `entitySlugOf()`, never `payload.entitySlug` directly. Its result may
+- Read the organization with `authHelper.entitySlugOf()`, never `payload.entitySlug` directly. Its result may
   be a legacy `entityId`, so treat it as an opaque key: never compose names from it and never write
-  it as a database key — use `requireEntityKey` / `requireEntity` from `@owlmeans/auth-common`.
+  it as a database key — use `makeEntityScope(req).requireEntityKey()` / `.requireEntity()` from
+  `@owlmeans/auth-common`.
 - Never put `entityId` on the wire (tokens, URLs, query params, forms) — only `entitySlug`.
 - Any code path that establishes authentication outside the HTTP boundary (sockets) must call
-  `attachEntity(context, request)`, or `request.entity` stays empty.
+  `makeEntityScope(request).attachEntity(context)`, or `request.entity` stays empty.
 - Pick the right error: a gate denial is `AuthForbidden`, a missing identity is `AuthUnknown`, a
   failed credential check is `AuthenFailed`.
 - `AuthCredentialsSchema` requires `type`, `role` and `scopes` on every authenticate call.
@@ -330,7 +331,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

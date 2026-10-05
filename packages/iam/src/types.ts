@@ -1,88 +1,6 @@
 import type { InitializedService } from '@owlmeans/context'
 import type { OidcOrganizationClaim, OidcPermissionSetClaim, OidcProviderConfig } from '@owlmeans/oidc'
-import type {
-  GateParamSource, GateParamErrorCode, GateResolutionFailure, IamDefaultClass, IamGrantMode, IamGrantOrigin,
-  IamRemovalPolicy
-} from './consts.js'
-
-/**
- * The parts of a request a gate selector may read.
- *
- * Structural on purpose: `AbstractRequest` is assignable to it, so `@owlmeans/server-iam` passes its
- * request straight through, while tooling outside the server stack can resolve a selector against a
- * plain object without taking a dependency on `@owlmeans/entrypoint`.
- */
-export interface GateRequestLike {
-  params?: unknown
-  query?: unknown
-  body?: unknown
-  headers?: unknown
-  auth?: unknown
-}
-
-/** Where one gate param reads its resource id from. */
-export interface GateResourceSelector {
-  /** The selector text exactly as written, for diagnostics. */
-  readonly selector: string
-  /** Undefined for the bare form, which searches `sources` in order. */
-  readonly source?: GateParamSource
-  /** Length 1 and UNSPLIT for the bare form — a bare key may legally contain dots. */
-  readonly path: string[]
-  /** The explicit source, or `DEFAULT_GATE_PARAM_SOURCES`. */
-  readonly sources: GateParamSource[]
-}
-
-export interface GateParamProblem {
-  code: GateParamErrorCode
-  detail: string
-}
-
-export interface ParsedGateParam {
-  permission: string
-  /**
-   * @deprecated The bare-form flat key, kept so existing readers keep compiling. Read `resource`,
-   * which carries the source and the path for both forms.
-   */
-  resourceParam?: string
-  resource?: GateResourceSelector
-  error?: GateParamProblem
-}
-
-export interface GateResourceResolution {
-  id?: string
-  from?: GateParamSource
-  reason?: GateResolutionFailure
-}
-
-/** What an entrypoint declares, so a selector can be checked against it before it is ever deployed. */
-export interface GateParamAudit {
-  routePath?: string
-  routeParams?: string[]
-  filter?: {
-    query?: object
-    params?: object
-    body?: object
-    headers?: object
-  }
-}
-
-export interface GateParamIssue {
-  param: string
-  code: GateParamErrorCode
-  detail: string
-}
-
-/** A permission NAME taken apart. Never carries a selector — `@` is the gate's syntax alone. */
-export interface ParsedPermissionName {
-  /** The whole name, exactly as it must be stored and granted. */
-  name: string
-  /** What IAM stores as `resource`. The whole name when there is no action separator. */
-  resource: string
-  /** What IAM stores as `action`. Absent for a bare, unsplittable legacy name. */
-  action?: string
-  /** Set when the argument carried an `@` — which a NAME never legally does. */
-  problem?: GateParamProblem
-}
+import { type IamDefaultClass, type IamGrantMode, type IamGrantOrigin, type IamRemovalPolicy, IAM_AREAS, IAM_MODE_INTEGRATED, IAM_MODE_KEYCLOAK } from './consts.js'
 
 /**
  * A client's own configuration, stored with its registration.
@@ -110,7 +28,7 @@ export interface IamClient {
 }
 
 /** A client as a reader that must never see its secret gets it. */
-export type IamClientInfo = Omit<IamClient, 'secret'>
+export interface IamClientInfo extends Omit<IamClient, 'secret'> {}
 
 export interface IamCredentialsPair {
   token: string
@@ -732,3 +650,8 @@ export interface IamService extends InitializedService {
   groups: IamGroupFacet
   subjects: IamSubjectFacet
 }
+
+// Kept as a type: a union of the mode constants' literal types.
+export type IamMode = typeof IAM_MODE_KEYCLOAK | typeof IAM_MODE_INTEGRATED
+
+export type IamArea = typeof IAM_AREAS[number]

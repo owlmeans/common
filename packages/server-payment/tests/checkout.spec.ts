@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { CheckoutPricingMode, PlanDuration, PlanStatus, ProductError, ProductType, TaxBehavior } from '@owlmeans/payment'
+import {
+  CheckoutPricingMode, PlanDuration, PlanStatus, ProductError, ProductType, TaxBehavior,
+} from '@owlmeans/payment'
 import { createEventHandler } from '../src/plugins/events.js'
-import { amountCheckoutLineItem, createCheckoutLink, quantityCheckoutLineItem } from '../src/plugins/stripe.js'
 import type { PaymentPlan, PaymentProduct } from '../src/types.js'
 import { CREDITS_PRODUCT, FREE, makeFakeContext, PLANS_PRODUCT, PRO, TEAM } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+import { stripeCheckoutOf } from '../src/plugins/stripe.js'
+import { stripeSessionHelper } from '../src/plugins/session.js'
 
 const proPrice = { id: 'price_pro', product: PLANS_PRODUCT, lookup_key: PRO, active: true, recurring: { interval: 'month' } }
 const successUrl = 'https://app.example.com/ok'
@@ -38,7 +41,7 @@ const fulfillment = (fake: FakeContext) => fake.stores['payment-fulfillment'].ro
 
 describe('Stripe checkout', () => {
   test('amount checkout uses one inline, tax-exclusive item and no reusable Price', () => {
-    const result = amountCheckoutLineItem(product, plan, 1_000)
+    const result = stripeSessionHelper.amountCheckoutLineItem(product, plan, 1_000)
     expect(result.chargeMinor).toBe(1_021)
     expect(result.lineItem).toEqual({
       price_data: { product: 'credits', currency: 'usd', unit_amount: 1_021, tax_behavior: 'exclusive' },
@@ -48,7 +51,7 @@ describe('Stripe checkout', () => {
   })
 
   test('quantity checkout keeps a reusable Price and an adjustable quantity', () => {
-    expect(quantityCheckoutLineItem({ id: 'price_1' } as never, {
+    expect(stripeSessionHelper.quantityCheckoutLineItem({ id: 'price_1' } as never, {
       minimum: 5, maximum: 500, default: 10,
     })).toEqual({
       price: 'price_1', quantity: 10,
@@ -60,7 +63,7 @@ describe('Stripe checkout', () => {
     const fake = await makeFakeContext({
       stripe: { prices: [{ id: 'price_team', product: PLANS_PRODUCT, lookup_key: TEAM, active: true, recurring: { interval: 'month' } }] },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: TEAM, entityId: 'entity-1', service: 'app', successUrl: 'https://app.example.com/ok',
       locale: 'fr', submitText: 'Comprend des crédits prépayés obligatoires.',
     })
@@ -71,7 +74,7 @@ describe('Stripe checkout', () => {
     expect(fake.state.checkoutSessions[0].subscription_data.metadata).toEqual(expect.objectContaining({ entityId: 'entity-1', planSku: TEAM }))
     expect(fake.state.customers.cus_1.preferred_locales).toEqual(['fr'])
 
-    await expect(createCheckoutLink(fake.ctx, fake.stripe, {
+    await expect(stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: FREE, entityId: 'entity-1', service: 'app',
     })).rejects.toBeInstanceOf(ProductError)
   })
@@ -80,7 +83,7 @@ describe('Stripe checkout', () => {
 describe('Stripe checkout — pricing policy', () => {
   test('an undeclared policy reproduces exactly the session hard-coded before this policy existed', async () => {
     const fake = await makeFakeContext({ stripe: { prices: [proPrice] } })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
     })
     const session = fake.state.checkoutSessions[0]
@@ -96,7 +99,7 @@ describe('Stripe checkout — pricing policy', () => {
       pricing: { tax: { automatic: false, collectTaxId: true, estimate: false }, currency: { estimate: false } },
       stripe: { prices: [proPrice] },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
     })
     const session = fake.state.checkoutSessions[0]
@@ -112,7 +115,7 @@ describe('Stripe checkout — pricing policy', () => {
       pricing: { tax: { automatic: true, collectTaxId: true, estimate: false }, currency: { adaptive: true, estimate: false } },
       stripe: { prices: [proPrice] },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
     })
     expect(fake.state.checkoutSessions[0].adaptive_pricing).toEqual({ enabled: true })
@@ -126,7 +129,7 @@ describe('Stripe checkout — pricing policy', () => {
       },
       stripe: { prices: [proPrice] },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: PRO, entityId: 'entity-1', service: 'app', successUrl,
     })
     expect(fake.state.checkoutSessions[0].payment_method_types).toEqual(['card', 'link', 'klarna'])
@@ -148,7 +151,7 @@ describe('Stripe checkout — pricing policy', () => {
     const fake = await makeFakeContext({
       pricing: { tax: { automatic: true, collectTaxId: true, estimate: false, behavior: TaxBehavior.Inclusive }, currency: { estimate: false } },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1_000, successUrl,
     })
     expect(fake.state.checkoutSessions[0].line_items[0].price_data.tax_behavior).toBe('inclusive')
@@ -162,7 +165,7 @@ describe('Stripe checkout — pricing policy', () => {
       },
       stripe: { fxRates: { usd: { exchangeRate: 0.853568, referenceRate: 0.8726 } } },
     })
-    await createCheckoutLink(fake.ctx, fake.stripe, {
+    await stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: CREDITS_PRODUCT, entityId: 'entity-1', service: 'app', amountMinor: 1_000, successUrl,
     })
     const session = fake.state.checkoutSessions[0]

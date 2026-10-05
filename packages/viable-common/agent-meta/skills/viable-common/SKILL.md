@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-common
 
 **Layer:** Cross-cutting domain (contracts only)
-**Install:** `"@owlmeans/viable-common": "^0.0.43"` in `dependencies`
+**Install:** `"@owlmeans/viable-common": "^0.0.44"` in `dependencies`
 **Subpaths:** `.` · `./slot` · `./connect` · `./convert` · `./integrity` · `./intent` — the barrel
 re-exports every subpath except `./intent`.
 **Runtime-free:** no `@langchain/*`, no filesystem, no Ajv at run time (a devDependency, for the
@@ -33,7 +33,7 @@ execution state and card fields name.
 |---|---|
 | `.` (barrel) | The planning module (`VIABLE_*_TYPE`, `VIABLE_TYPE_SCHEMAS`, `VIABLE_FLOW_SCHEMAS`, `ViableStoryStatus`/`ViableProjectStatus` and their transitions, `ViableSpecCategory`, `ViableRelationship`, `ViableChannel`, `ViableProjectCard`/`ViableStoryCard`, the card helpers, the landing sentence helpers, the `Project*` refusals); `SlotMetadata` and the three metadata vocabularies (`metadataConfigs`, `metadataLists`, `metadataSecrets`), `BRANDING_ENV_KEYS` / `brandingEnv`; `ProjectArea` / `AREA_PATHS` / `AREA_ACCESS` / `AREA_TIER`, `ADMIN_PERMISSION` / `OPERATOR_PERMISSION`; the tenancy contract (`ProjectTenancy`, `ViableTenancyDecision`, `NO_TENANCY`, `tenancyOf`, `tenantedArea`, `TENANCY_QUOTE_MAX`); `ModelRole` and the viable `ExecutionState`; the `ViableSkill` / `ViablePersona` enums; the `Blueprint` layer types, `BlueprintRef` / `BlueprintPatch`, `BlueprintCase` / `GameKind` / `WorkKind`, `CASE_QUOTE_MAX`, `DEFAULT_BLUEPRINT_ID` / `BLUEPRINT_META_KEY`, `landingGatePreferenceOf`; the target topology (`TopologyDescriptor`, `LAYOUT_TOPOLOGIES`, `resolveTopology`, `packageForRole` — meaning in `/blueprints`); the BA shapes (`mergeConnectingStories`), the dev (`AccessBlock`, `AccessLevel`, `PermissionDefault`), UX, design and scaffold shapes and their schemas, `StoryDesignPort`; `ModerationCategory` / `ModerationSubject` / `decideModeration`; the `docs/` metadata paths; `PreviewEventType` (error kinds plus `Analytics` — an analytics event a target's web posted through the preview reporter's channel; the target-side plugins live in `@owlmeans/viable-log`) and the `OwlMeansAnalyticsPayload` shape; the agent-output taxonomy (`classifyAgentMessage`, `isAgentMessageHidden` — `/agent-presentation`) and the spectator entry types |
 | `./slot` | `SlotCommandType` and the `SlotFileCommand` / `SlotShellCommand` / `SlotGitCommand` / `SlotDatabaseCommand` sets; `SlotDatabaseInfo`, `SlotDatabaseQueryArgs` / `SlotDatabaseQueryResult`, `DATABASE_READ_LIMITS`; the per-command deadlines and timeouts (`commandDeadline`, `commandTimeout`), `SubProject`, `LAYOUTS` / `ROLE_DIRS` / `subprojectDirOf`, `WorkloadKind`, the target ports and process markers, `slotOrigin` / `targetRedirectUrisForOrigin` |
-| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the `Connect*` error family, `connectProtocols(opts)` and every `*Schema` behind them |
+| `./connect` | `ConnectTarget`, `ConnectLlm`, `ConnectHarness`, `ConnectExecutor`, `ConnectOpKind`, `ConnectProjectStatus`, `ConnectStoryStatus`, `ConnectPipelineState`, `ConnectWaitReason`, `ConnectProjectBranding` / `ConnectProjectBrandingSave`, the planning-kit views (`PlanningKitView`, `ConnectKitDescribe`, `ConnectKitApplyBody`, `ConnectKitApplyResult` and their `*Schema`s), `ModelTier` + `tierOfRole`/`clampTier`, `ModelTask*`, `InquiryPayload` + `ConnectInquiryKind`, the session and domain-status views, the convert bodies (`ConnectConvertCreateBody`, `ConnectConvertStartBody`, `ConnectConvertProceedBody`), the `Connect*` error family with `ConnectConfirmation` / `ConnectConfirmationAction`, `connectProtocols(opts)` and every `*Schema` behind them |
 | `./convert` | `ConversionStage`/`Status`/`Decision` and the `stageAfter`/`decisionFor`/`canEnter` transitions, `OriginKind`/`OriginShape`/`OriginState`, `StackId` + `STACK_FAMILY`, `ArchitectureCase`, `ConvertibilityVerdict`/`ConvertibilityReason`, the census classifiers (`fileClassOf`, `sizeClassOf`, `entropyClassOf`, `binaryByExtension`), the `docs/conversion/` paths, `CONVERTED_ORIGIN_DIR`, `SOURCE_LIST_EXCLUSIONS`, `CENSUS_SKIP_DIRS`, `RELOCATE_ALWAYS_KEEP`, and the model-answer schemas the conversion asks with |
 | `./integrity` | `TargetLayout` + `TARGET_LAYOUTS`, `detectTargetLayout`, `verifyTargetShape`, `TARGET_INTEGRITY_FILES`, `TARGET_PROTECTED_FILES`, `isLegacyLayout`, `targetPackageName` |
 | `./intent` | `intent` (the four aliases), `makeIntentProtocols(opts?)`, `intentFlow` + `IntentFlowStep` + `INTENT_PAYLOAD_REF`, `IntentStashBodySchema` / `IntentPickupBodySchema`, the `INTENT_*` constants, `IntentDraft`, `IntentExpired` (404) / `IntentThrottled` (429) |
@@ -262,6 +262,10 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
   `ConnectProjectStatus.project` flattens the project card into a parent agent's names (`name` =
   title, `alias` = code, the three brief bodies) plus `status` and `intrinsic`;
   `ConnectConfirmBody` carries the three brief parts including `designSystem`.
+- `convert.start` and `convert.proceed` carry `confirm?: boolean` (`ConnectConvertStartBody(Schema)`
+  — the start's whole body — and `ConnectConvertProceedBody(Schema)`): a PERSON agreed to what the
+  step costs. The platform refuses a step that would use the plan's conversion or spend credits
+  without it (`ConnectConfirmationRequired`); a `null` is "not confirmed", never a refused body.
 - Branding routes hang under `base` (guard + ownership gate, no paid gate). The save body
   (`ConnectProjectBrandingSaveSchema`) is a PATCH of strings with structural bounds only
   (`CONNECT_BRANDING_*_MAX`, each equal to its platform twin); value acceptability is the
@@ -404,16 +408,23 @@ silently at the smaller; never introduce a local cap.
 
 `ConnectError` and its family (`ConnectSessionNotFound`, `ConnectSessionGone`, `ConnectOpTimeout`,
 `ConnectOpRefused`, `LocalSlotUnsupported`, `ConnectOpUnknown`, `ConnectOutOfCredits`,
-`ConnectConsentRequired`) are `ResilientError` classes with `viable-connect:` markers. The two
-refusals a connector phrases for a person pack their fields into the message (only `type` and
-`message` survive a marshal), are built with `static encode(...)` and rebuilt in
-`finalizeUnmarshal()`:
+`ConnectConsentRequired`, `ConnectConfirmationRequired`) are `ResilientError` classes with
+`viable-connect:` markers. The three refusals a connector phrases for a person pack their fields
+into the message (only `type` and `message` survive a marshal), are built with `static encode(...)`
+and rebuilt in `finalizeUnmarshal()`:
 
 - `ConnectOutOfCredits` — `out-of-credits:<gate>:<requiredUsd>:<balanceUsd>:<encodeURIComponent(topUpUrl)>`;
 - `ConnectConsentRequired` — `consent-required:<gate>:<deadline epoch ms | 0>:<encodeURIComponent(consentUrl)>`
   (`0` = unknown; epoch ms and the URL last because ISO dates and URLs contain colons). It is the
   connector's face of the EU spend consent (`PerformanceConsentRequired` on the web, `/payment`):
-  only a PERSON gives it, in the browser at `consentUrl`.
+  only a PERSON gives it, in the browser at `consentUrl`;
+- `ConnectConfirmationRequired` — `confirmation-required:<action>:<cap>:<spent>:<estimate>:<fromAllowance>:<fromCreditLimits>:<moneyUsd>`,
+  `encode(fields: ConnectConfirmation)` and its inverse `decode(packed)` (an unreadable number reads
+  back as `0`, never `NaN`). A conversion verb (`action`: `convert-start` / `convert-proceed`) would
+  use the plan's conversion or spend credits: `cap` and `spent` are the conversion limit and what the
+  conversion used of it (`0` with no plan unit), `estimate` the stage's, split into `fromAllowance`
+  and `fromCreditLimits` (credits) and `moneyUsd` (topped-up credits, the only money figure). A person
+  agrees in the CONVERSATION and the caller repeats the call with `confirm: true`.
 
 `ConnectSessionGone` is registered FATAL on the agent side: the step fails as an OUTCOME, so the
 run row records where it stopped and `pipeline.resume` picks it up when a connector returns.
@@ -432,7 +443,7 @@ refuses an exported class whose status was not decided:
 | Status | Classes |
 |---|---|
 | 402 | `ConnectOutOfCredits` |
-| 428 | `ConnectConsentRequired` |
+| 428 | `ConnectConsentRequired`, `ConnectConfirmationRequired` |
 | 404 | `ProjectNotFound`, `ProjectStoryNotFound`, `ConnectSessionNotFound`, `ConnectOpUnknown` |
 | 409 | `ProjectAgentOccupied`, `ProjectStoryMissconfigured`, `ConnectSessionGone` (no connector attached), `LocalSlotUnsupported` |
 | 422 | `ConnectOpRefused` |
@@ -453,10 +464,10 @@ the manager's `useErrorPhrase` read the same substrings. A marker change changes
 | `access-schema.spec.ts` | the model-facing access schema: model keys only, byte-identical |
 | `scaffold.spec.ts` | old- and new-shape plans passing the schema and slot, `null` optionals, no `minItems` |
 | `blueprint.spec.ts` · `branding.spec.ts` | `landingGatePreferenceOf` defaults · the build env and metadata vocabulary |
-| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, an unknown executor kind accepted |
+| `connect-entrypoints.spec.ts` · `connect-convert.spec.ts` | every route's method and path, aliases = `connectRef`, the paid gate on the delegated session alone, no socket or story route, branding body, the kit routes and their closed shapes · conversion routes, the start's body and both verbs' `confirm`, an unknown executor kind accepted |
 | `convert.spec.ts` | the three structural walks over the barrel, nullable enums under Ajv, census classifiers, stage transitions |
 | `design.spec.ts` | the design aggregate, staleness ranking, schema refusals, `userStoryOfDesign` |
-| `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip |
+| `error-status.spec.ts` · `connect-errors.spec.ts` | declared statuses through a marshal · packed refusal fields fresh and after a round trip, the confirmation's `decode` |
 | `intent.spec.ts` | the four declarations without guards, schema cases incl. crafted refs, the flow walk and `suspendFlow` payload, error statuses |
 | `presentation.spec.ts` | the agent-output classifier (`/agent-presentation`) |
 

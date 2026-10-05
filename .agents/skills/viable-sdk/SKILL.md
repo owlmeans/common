@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.44"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -431,7 +431,7 @@ environment otherwise hides the credentials file). The result is safe to commit.
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
 **The server command is written once, too.** Every harness configuration starts the connector from
-`MCP_COMMAND` in `src/harness/templates.ts` — viable-mcp through `npx -y`, pinned with a caret at the
+`MCP_COMMAND` in `src/harness/consts.local.ts` — viable-mcp through `npx -y`, pinned with a caret at the
 viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
 command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
 never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.

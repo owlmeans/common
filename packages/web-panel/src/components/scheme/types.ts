@@ -1,4 +1,4 @@
-import type { ColorSchemeChoice } from '../../scheme/scheme.js'
+import type { ColorSchemeChoice } from '../../scheme/types.js'
 import type { StyledProps } from '../types.js'
 
 export interface ColorSchemeModel {

@@ -14,7 +14,7 @@ provisioning, and an opt-in least-privilege bootstrap path.
 ## Installation
 
 ```bash
-bun add @owlmeans/postgres@^0.1.18-rc.43 @owlmeans/postgres-resource@^0.1.18-rc.41
+bun add @owlmeans/postgres@^0.1.18-rc.44 @owlmeans/postgres-resource@^0.1.18-rc.42
 ```
 
 ## Usage
@@ -102,8 +102,9 @@ Extends `PostgresDbService` from `@owlmeans/postgres-resource`:
 
 ### Helpers
 
-- `parseUrl(url)` / `prepareConfig(config, overrides?)` / `poolDatabase(pool)`
-- `probe(pool, meta, location)` / `ensureSchema(pool, schema)`
+- `pgConfigHelper` (`PgConfigHelper`) — `parseUrl(url)` / `prepareConfig(config, overrides?)` /
+  `poolDatabase(pool)`
+- `makePgConnectionHelper(pool)` (`PgConnectionHelper`) — `probe(meta, location)` / `ensureSchema(schema)`
 - `bootstrapDb(...)` — the bootstrap implementation, usable without a context
 - `drainMiddleware(alias?)`
 
@@ -129,7 +130,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.46
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

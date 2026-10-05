@@ -27,3 +27,10 @@ export interface OIDCAuthCache extends AuthSpent {
   /** Session record: the provider's last permission claim, bound sets included. Server-side only. */
   sets?: OidcPermissionSetClaim[]
 }
+
+export interface OrganizationSelector {
+  /** The organization a running session acts in. When given it is the only acceptable answer. */
+  entityKey?: string
+  /** The organization a person asked to act in at sign-in. */
+  entitySlug?: string
+}

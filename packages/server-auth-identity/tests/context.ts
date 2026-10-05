@@ -1,9 +1,8 @@
 import { ObjectId } from 'mongodb'
 import { config as serverConfig, makeServerContext } from '@owlmeans/server-context'
 import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import { applyQuery, firstMatch, matchCriteria, RecordExists, UnknownRecordError } from '@owlmeans/resource'
+import { RecordExists, UnknownRecordError, recordQueryHelper } from '@owlmeans/resource'
 import type { Criteria, ListOptions, ResourceRecord } from '@owlmeans/resource'
-import { marshalReference } from '@owlmeans/mongo-resource'
 import type { MongoResource } from '@owlmeans/mongo-resource'
 import { appendAuthIdentityResources } from '../src/helper.js'
 import {
@@ -13,6 +12,7 @@ import {
 import type {
   EntityCreatedEvent, IdentityEventsService, IdentityLinkingService, ProfileCreatedEvent,
 } from '../src/types.js'
+import { mongoRefHelper } from '@owlmeans/mongo-resource'
 
 type Rec = Record<string, any>
 
@@ -38,12 +38,12 @@ const reach = (record: Rec, path: string): unknown =>
 const matchRaw = (row: Rec, filter: Rec): boolean => Object.entries(filter).every(([key, cond]) => {
   if (cond != null && typeof cond === 'object' && '$elemMatch' in cond) {
     const items = reach(row, key)
-    return Array.isArray(items) && items.some(item => matchCriteria(item, cond.$elemMatch))
+    return Array.isArray(items) && items.some(item => recordQueryHelper.matchCriteria(item, cond.$elemMatch))
   }
   if (cond != null && typeof cond === 'object' && '$not' in cond) {
     return !matchRaw(row, { [key]: cond.$not })
   }
-  return matchCriteria(row, { [key]: cond })
+  return recordQueryHelper.matchCriteria(row, { [key]: cond })
 })
 
 const setPath = (doc: Rec, path: string, value: unknown): void => {
@@ -62,7 +62,7 @@ const applyUpdate = (doc: Rec, update: Rec, filter: Rec): void => {
     if (path.endsWith('.$')) {
       const field = path.slice(0, -2)
       const items = doc[field] as Rec[]
-      const at = items.findIndex(item => matchCriteria(item, filter[field].$elemMatch))
+      const at = items.findIndex(item => recordQueryHelper.matchCriteria(item, filter[field].$elemMatch))
       items[at] = structuredClone(value) as Rec
       continue
     }
@@ -72,7 +72,7 @@ const applyUpdate = (doc: Rec, update: Rec, filter: Rec): void => {
     doc[field] = [...(doc[field] ?? []), structuredClone(value)]
   }
   for (const [field, where] of Object.entries(update.$pull ?? {})) {
-    doc[field] = (doc[field] ?? []).filter((item: Rec) => !matchCriteria(item, where as Rec))
+    doc[field] = (doc[field] ?? []).filter((item: Rec) => !recordQueryHelper.matchCriteria(item, where as Rec))
   }
 }
 
@@ -97,12 +97,12 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
     !(sparse && keys.every(key => doc[key] == null)) && store.rows.some(row =>
       row !== self && keys.every(key => plain(row[key] ?? null) === plain(doc[key] ?? null))))
   const checkRefs = (doc: Rec): void => {
-    for (const ref of resource.references()) marshalReference(ref.field, doc[ref.field])
+    for (const ref of resource.references()) mongoRefHelper.marshalReference(ref.field, doc[ref.field])
   }
   const out = (row: Rec): T => structuredClone(row) as T
   const byId = (id: string) => store.rows.find(row => row.id === id)
   const find = (idOrWhere: string | Criteria<T>, opts?: { sort?: never[] }) =>
-    typeof idOrWhere === 'string' ? byId(idOrWhere) : firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
+    typeof idOrWhere === 'string' ? byId(idOrWhere) : recordQueryHelper.firstMatch(store.rows, idOrWhere as Criteria<any>, opts)
 
   const target = resource as unknown as Rec
   target.init = async () => undefined
@@ -119,10 +119,10 @@ export const memoryResource = <T extends ResourceRecord>(resource: MongoResource
   }
   target.list = async (where?: Criteria<T>, opts?: ListOptions<T>) => {
     await tick()
-    const result = applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
+    const result = recordQueryHelper.applyQuery(store.rows, where as Criteria<any>, opts as ListOptions<any>)
     return { ...result, items: result.items.map(out) }
   }
-  target.count = async (where?: Criteria<T>) => store.rows.filter(row => matchCriteria(row, where)).length
+  target.count = async (where?: Criteria<T>) => store.rows.filter(row => recordQueryHelper.matchCriteria(row, where)).length
   target.create = async (record: Rec) => {
     await tick()
     if (record.id != null) throw new RecordExists('id-present')

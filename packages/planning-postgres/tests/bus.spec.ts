@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { uuid } from '@owlmeans/basic-ids'
 import { CommitState, IntrinsicStatus, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import type { CommitEvent, Transition } from '@owlmeans/planning'
-import { createBook, createBranch, LIBRARY } from '@owlmeans/server-planning/conformance'
+import { conformanceFixturesOf, LIBRARY } from '@owlmeans/server-planning/conformance'
 
 import type { Booted } from './context.js'
 import { eventually, gate, makeSuite } from './context.js'
+import { idHelper } from '@owlmeans/basic-ids'
 
 /**
  * Two (and three) processes over one schema — each a booted context of its own, exactly as two
@@ -41,11 +41,11 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
   })
 
   it('another process hears a commit; a process hears its own exactly once', async () => {
-    const org = `library-${uuid()}`
+    const org = `library-${idHelper.uuid()}`
     const heard: CommitEvent[] = []
     const unsubscribe = await first.facade(org).commits.subscribe(event => { heard.push(event) })
     try {
-      const branch = await createBranch(second.facade(org))
+      const branch = await conformanceFixturesOf(second.facade(org)).createBranch()
       // The LISTEN connection opens with the first subscription; write until it carries a frame.
       await eventually(async () => {
         if (heard.some(event => event.card === branch.id)) {
@@ -58,7 +58,7 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
       expect(remote.record).toBeUndefined()
       expect(remote.entityId).toBe(org)
 
-      const own = await createBook(first.facade(org), branch.id!)
+      const own = await conformanceFixturesOf(first.facade(org)).createBook(branch.id!)
       const receipt = (await first.facade(org).transitions.list({ card: own.id!, size: 0 })).items[0]
       expect(heard.filter(event => event.transition === receipt.id)).toHaveLength(1)
       expect(heard.find(event => event.transition === receipt.id)?.record?.id).toBe(own.id)
@@ -68,8 +68,8 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
   })
 
   it('concurrent writers in two processes each commit once, and the card folds every one', async () => {
-    const org = `library-${uuid()}`
-    const book = await createBook(first.facade(org), (await createBranch(first.facade(org))).id!)
+    const org = `library-${idHelper.uuid()}`
+    const book = await conformanceFixturesOf(first.facade(org)).createBook((await conformanceFixturesOf(first.facade(org)).createBranch()).id!)
     const writes = Array.from({ length: 24 }, (_, index) => (index % 2 === 0 ? first : second).facade(org)
       .execute({ card: book.id!, action: TransitionAction.Update, changes: { fields: { signed: index % 3 === 0 } } }))
     const receipts = await Promise.all(writes)
@@ -87,8 +87,8 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
   }, 30_000)
 
   it('a waiter in one process is answered when another process folds', async () => {
-    const org = `library-${uuid()}`
-    const book = await createBook(second.facade(org), (await createBranch(second.facade(org))).id!)
+    const org = `library-${idHelper.uuid()}`
+    const book = await conformanceFixturesOf(second.facade(org)).createBook((await conformanceFixturesOf(second.facade(org)).createBranch()).id!)
     const row = await second.store.transitions.append(pendingRow(org, book.id!, await second.store.transitions.nextSeq(book.id!, null)))
 
     const waiting = first.facade(org).commits.wait(row.id!, { timeout: 8_000 })
@@ -98,13 +98,13 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
   })
 
   it('a schema write in one process reaches the watchers of another', async () => {
-    const org = `library-${uuid()}`
+    const org = `library-${idHelper.uuid()}`
     const heard: string[] = []
     const unwatch = first.store.schemas.watch!(entityId => { heard.push(entityId) })
     try {
       await eventually(async () => {
         await second.facade(org).definitions!.define({
-          flows: [{ id: `library:shelving-${uuid()}`, version: 1, statuses: [{ key: 'open', intrinsic: IntrinsicStatus.Planned }], transitions: [] }],
+          flows: [{ id: `library:shelving-${idHelper.uuid()}`, version: 1, statuses: [{ key: 'open', intrinsic: IntrinsicStatus.Planned }], transitions: [] }],
         })
         return heard.includes(org)
       })
@@ -115,21 +115,21 @@ describe('@owlmeans/planning-postgres — the commit bus', () => {
   })
 
   it('without the bus nothing is sent or heard, and a wait still resolves by polling', async () => {
-    const org = `library-${uuid()}`
+    const org = `library-${idHelper.uuid()}`
     const quiet: CommitEvent[] = []
     const loud: CommitEvent[] = []
     const releaseQuiet = await silent.facade(org).commits.subscribe(event => { quiet.push(event) })
     const releaseLoud = await first.facade(org).commits.subscribe(event => { loud.push(event) })
     try {
-      const branch = await createBranch(second.facade(org), 'Heard by the loud one')
+      const branch = await conformanceFixturesOf(second.facade(org)).createBranch('Heard by the loud one')
       await eventually(() => loud.some(event => event.card === branch.id))
-      const unheard = await createBranch(silent.facade(org), 'Never announced')
+      const unheard = await conformanceFixturesOf(silent.facade(org)).createBranch('Never announced')
       await new Promise(resolve => setTimeout(resolve, 300))
 
       expect(quiet.some(event => event.card === branch.id)).toBe(false)
       expect(loud.some(event => event.card === unheard.id)).toBe(false)
 
-      const book = await createBook(second.facade(org), branch.id!)
+      const book = await conformanceFixturesOf(second.facade(org)).createBook(branch.id!)
       const row = await second.store.transitions.append(pendingRow(org, book.id!, await second.store.transitions.nextSeq(book.id!, null)))
       const waiting = silent.facade(org).commits.wait(row.id!, { timeout: 8_000 })
       await second.store.cards.project(book.id!)

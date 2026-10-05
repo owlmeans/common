@@ -1,56 +1,18 @@
 import { logThrottle, logger } from '@owlmeans/log'
-import type { CommitEvent, Unsubscribe } from '@owlmeans/planning'
-import { advisoryKey, quoteIdent } from '@owlmeans/postgres-resource'
-import { Client } from 'pg'
-import type { ClientConfig, Notification, Pool } from 'pg'
+import type { CommitEvent } from '@owlmeans/planning'
+import { Client, type ClientConfig, type Notification, type Pool } from 'pg'
 import { BUS_BACKOFF, NOTIFY_PAYLOAD_MAX } from '../consts.js'
-import type { SqlRunner } from '../sql.js'
+import type { BusFrame, PlanningBus, PlanningBusOptions } from './types.js'
+import { pgNameHelper } from '@owlmeans/postgres-resource'
 
 const log = logger('planning-postgres:bus')
-
-/** A settled commit, without its record — the card is re-read where one is needed. */
-export interface CommitFrame {
-  p: string
-  t: 'c'
-  e: Omit<CommitEvent, 'record'>
-}
-
-/** A write of an organization's data-defined schemas. */
-export interface SchemaFrame {
-  p: string
-  t: 's'
-  e: string
-}
-
-export type BusFrame = CommitFrame | SchemaFrame
-
-export interface PlanningBus {
-  enabled: boolean
-  /** NOTIFY a frame inside a transaction — delivered only if it commits. A no-op when disabled. */
-  notify: (runner: SqlRunner, frame: Omit<CommitFrame, 'p'> | Omit<SchemaFrame, 'p'>) => Promise<void>
-  onCommit: (listener: (event: CommitEvent) => void | Promise<void>) => Unsubscribe
-  onSchema: (listener: (entityId: string) => void) => Unsubscribe
-  /** Open the LISTEN connection if it is not open (lazily, on the first subscription or wait). */
-  ensure: () => void
-  connected: () => boolean
-  close: () => Promise<void>
-}
-
-export interface PlanningBusOptions {
-  enabled: boolean
-  processId: string
-  /** The qualified transition table — what the channel name is derived from. */
-  table: () => Promise<string>
-  /** The pool whose configuration the dedicated connection copies. */
-  pool: () => Promise<Pool>
-}
 
 /**
  * The channel of one transition table: `planning_` and a short hash of its qualified name, so two
  * schemas in one database never hear each other.
  */
 export const planningChannel = (qualified: string): string => {
-  const [first, second] = advisoryKey(`planning-channel:${qualified}`)
+  const [first, second] = pgNameHelper.advisoryKey(`planning-channel:${qualified}`)
   return `planning_${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}`
 }
 
@@ -164,7 +126,7 @@ export const makePlanningBus = (opts: PlanningBusOptions): PlanningBus => {
     client = target
     try {
       await target.connect()
-      await target.query(`LISTEN ${quoteIdent(listen)}`)
+      await target.query(`LISTEN ${pgNameHelper.quoteIdent(listen)}`)
       live = true
       backoff = BUS_BACKOFF[0]
     } catch (error) {

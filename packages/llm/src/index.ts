@@ -1,5 +1,6 @@
 
 export * from './consts.js'
+export * from './utils.js'
 export * from './errors.js'
 export type * from './types.js'
 export * from './model.js'
@@ -9,16 +10,16 @@ export * from './execution/index.js'
 export * from './inquiry/index.js'
 export * from './prompt/index.js'
 export type * from './plugins/types.js'
+export type * from './plugins/registry/types.js'
+export type * from './plugins/anthropic/support/types.js'
 export {
   plugins, registerLlmPlugin, pluginOf, pluginFor, resolvePlugin, effortSupportOf,
 } from './plugins/index.js'
-export {
-  anthropicPlugin, ANTHROPIC_FAMILY, ANTHROPIC_MODEL_SUPPORT, anthropicSupportOf, NO_SAMPLING_PREFIXES,
-  rejectsForcedTool, rejectsSampling, ThinkingOff, thinkingOffFor,
-} from './plugins/anthropic.js'
-export type { AnthropicModelSupport } from './plugins/anthropic.js'
+export { createLlmPluginRegistry, llmPluginRegistry } from './plugins/registry.js'
+export { anthropicPlugin, anthropicSupportOf, rejectsForcedTool, rejectsSampling, thinkingOffFor } from './plugins/anthropic.js'
+export { anthropicSupportHelper, createAnthropicSupportHelper } from './plugins/anthropic/support.js'
+export { ANTHROPIC_FAMILY, ANTHROPIC_MODEL_SUPPORT, NO_SAMPLING_PREFIXES, ThinkingOff } from './plugins/consts.js'
+export type { AnthropicModelSupport } from './plugins/types.js'
 export { compatiblePlugin } from './plugins/compatible.js'
-export {
-  openAiPlugin, openAiFamily, OPENAI_FAMILY, OPENAI_EFFORT_SUPPORT, OPENAI_HIDDEN_PROPERTY_NAMES,
-  REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES, usesResponsesApi,
-} from './plugins/openai.js'
+export { openAiPlugin, openAiFamily, usesResponsesApi } from './plugins/openai.js'
+export { OPENAI_FAMILY, OPENAI_EFFORT_SUPPORT, OPENAI_HIDDEN_PROPERTY_NAMES, REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES } from './plugins/consts.js'

@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { indexChanged } from '../src/utils/indexes.js'
+import { mongoIndexUtils } from '../src/utils/indexes.js'
+
+const { indexChanged } = mongoIndexUtils
 
 /**
  * No gate: this is the pure decision behind `updateIndexes`, and the case that matters needs no

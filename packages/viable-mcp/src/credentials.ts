@@ -1,14 +1,7 @@
-import { makeCliCredentials } from '@owlmeans/cli-auth'
-import type { CliCredentials } from '@owlmeans/cli-auth'
+import { makeCliCredentials, type CliCredentials } from '@owlmeans/cli-auth'
 import { ENV_API_URL, ENV_TOKEN } from '@owlmeans/viable-sdk'
-import type { McpConfig } from './config.js'
-
-/**
- * This server's own OAuth client — a static client the platform declares by this exact id
- * (`@owlmeans/server-oauth`'s configuration), so no registration round trip is needed before the
- * very first sign-in.
- */
-export const CLIENT_ID = 'viable-mcp'
+import type { McpConfig } from './types.js'
+import { CLIENT_ID } from './consts.js'
 
 /** One credential holder per configuration — `bin.ts`'s `login`/`logout`/`status` and `server.ts`
  * build it the same way, so they can never disagree about which file or which API URL a token

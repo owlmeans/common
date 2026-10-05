@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
-import { validateSpecificationBody } from '@owlmeans/planning'
 import { ProjectArea } from '../src/areas/consts.js'
 import { ViableSpecCategory, VIABLE_PROJECT_SLOTS } from '../src/planning/index.js'
 import { BENTO_FRAGMENT_KINDS, LANDING_GATE_FIELD_KINDS, WidgetKind } from '../src/scaffold/consts.js'
 import { ScaffoldPlanAnswerSchema, ScaffoldPlanSchema } from '../src/scaffold/schemas.js'
 import type { ScaffoldPlan } from '../src/scaffold/types.js'
+import { validateHelper } from '@owlmeans/planning'
 
 /**
  * The scaffold plan's schema is TWO things at once: the shape a model answers with, and the
@@ -104,12 +104,12 @@ describe('viable-common - the scaffold plan schema', () => {
 
   test('a plan stored before the landing overhaul still validates', () => {
     expect(validate(oldPlan()), JSON.stringify(validate.errors)).toBe(true)
-    expect(() => validateSpecificationBody(slot, JSON.stringify(oldPlan()))).not.toThrow()
+    expect(() => validateHelper.validateSpecificationBody(slot, JSON.stringify(oldPlan()))).not.toThrow()
   })
 
   test('a plan carrying every new field validates', () => {
     expect(validate(newPlan()), JSON.stringify(validate.errors)).toBe(true)
-    expect(() => validateSpecificationBody(slot, JSON.stringify(newPlan()))).not.toThrow()
+    expect(() => validateHelper.validateSpecificationBody(slot, JSON.stringify(newPlan()))).not.toThrow()
   })
 
   test('a provider that spells an unset optional as null is accepted', () => {
@@ -144,7 +144,7 @@ describe('viable-common - the scaffold plan schema', () => {
     stored.guestHome.gate = legacyGate()
 
     expect(validate(stored), JSON.stringify(validate.errors)).toBe(true)
-    expect(() => validateSpecificationBody(slot, JSON.stringify(stored))).not.toThrow()
+    expect(() => validateHelper.validateSpecificationBody(slot, JSON.stringify(stored))).not.toThrow()
   })
 
   test('a field kind nothing can draw is refused', () => {

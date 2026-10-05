@@ -1,16 +1,13 @@
 import { assertContext } from '@owlmeans/context'
 import { DEFAULT_ALIAS } from './consts.js'
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
-import { MongoClient } from 'mongodb'
-import type { Db } from 'mongodb'
-import { prepareConfig } from './utils/config.js'
+import { MongoClient, type Db } from 'mongodb'
+import { mongoConfigUtils } from './utils/config.js'
 import { setUpCluster } from './utils/cluster.js'
 import type { MongoDbService } from '@owlmeans/mongo-resource'
 import { createDbService } from '@owlmeans/resource'
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbService => {
   const location = `mongo:${alias}`
@@ -32,7 +29,7 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
         return
       }
 
-      let [url, options] = prepareConfig(config)
+      let [url, options] = mongoConfigUtils.prepareConfig(config)
 
       let client = new MongoClient(url, options)
 
@@ -44,7 +41,7 @@ export const makeMongoDbService = (alias: string = DEFAULT_ALIAS): MongoDbServic
           }
         }
         await client.close()
-        let [url, options] = prepareConfig(config, false)
+        let [url, options] = mongoConfigUtils.prepareConfig(config, false)
         client = new MongoClient(url, options)
       }
 

@@ -1,18 +1,7 @@
 import type { FC, ReactNode } from 'react'
 import { cn } from '../../@/lib/utils.js'
-import type { LoginTermsModel } from '@owlmeans/client-panel/auth'
-import { termsLabelResolver, termsSentence } from '@owlmeans/client-auth/login'
-import type { TermsSentencePart } from '@owlmeans/client-auth/login'
-
-export interface LoginTermsProps {
-  model: LoginTermsModel
-  translate: (key: string, defaultValue: string) => string
-  /** The current language, for `Intl.ListFormat` and a document's own locale-keyed label. */
-  locale?: string
-  className?: string
-}
-
-export type LoginPrivacyNoticeProps = LoginTermsProps
+import { type TermsSentencePart, loginTermsHelper } from '@owlmeans/client-auth/login'
+import type { LoginPrivacyNoticeProps, LoginTermsProps } from './types.js'
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
@@ -30,13 +19,10 @@ const renderParts = (parts: TermsSentencePart[]): ReactNode =>
  * own — the disclosure does not move just because the confirmation did.
  */
 export const LoginPrivacyNotice: FC<LoginPrivacyNoticeProps> = ({ model, translate, locale, className }) => {
-  const resolveLabel = termsLabelResolver(translate, locale)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(translate, locale)
 
   return <p data-login-privacy className={cn('text-xs text-muted-foreground', className)}>
-    {renderParts(termsSentence(
-      translate('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
-      model, locale, resolveLabel
-    ))}
+    {renderParts(loginTermsHelper.termsSentence(translate('login.terms.notice', 'How we handle your personal data: {{notices}}.'), model, locale, resolveLabel))}
   </p>
 }
 
@@ -47,7 +33,7 @@ export const LoginPrivacyNotice: FC<LoginPrivacyNoticeProps> = ({ model, transla
  * because nothing is being agreed to there.
  */
 export const LoginTerms: FC<LoginTermsProps> = ({ model, translate, locale, className }) => {
-  const resolveLabel = termsLabelResolver(translate, locale)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(translate, locale)
 
   // Centred, like every other row in the card. The checkbox stays at the start of the sentence
   // rather than above it, so `justify-center` centres the pair and `text-center` centres the
@@ -72,10 +58,7 @@ export const LoginTerms: FC<LoginTermsProps> = ({ model, translate, locale, clas
         onChange={event => model.accept(event.target.checked)}
       />
       <span>
-        {renderParts(termsSentence(
-          translate('login.terms.accept', 'I have read and agree to the {{documents}}.'),
-          model, locale, resolveLabel
-        ))}
+        {renderParts(loginTermsHelper.termsSentence(translate('login.terms.accept', 'I have read and agree to the {{documents}}.'), model, locale, resolveLabel))}
       </span>
     </label>
 
@@ -86,10 +69,7 @@ export const LoginTerms: FC<LoginTermsProps> = ({ model, translate, locale, clas
     <LoginPrivacyNotice model={model} translate={translate} locale={locale} />
 
     {model.attempted && !model.accepted && <p role="alert" className="text-sm text-destructive">
-      {renderParts(termsSentence(
-        translate('login.terms.required', 'Please confirm the {{documents}} to continue.'),
-        model, locale, resolveLabel
-      ))}
+      {renderParts(loginTermsHelper.termsSentence(translate('login.terms.required', 'Please confirm the {{documents}} to continue.'), model, locale, resolveLabel))}
     </p>}
   </div>
 }

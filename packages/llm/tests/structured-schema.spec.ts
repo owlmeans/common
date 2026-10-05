@@ -3,12 +3,8 @@ import { describe, expect, test } from 'bun:test'
 import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { JSONSchemaType } from 'ajv'
-import {
-  anthropicPlugin, isFatalError, LlmMissconfiguredError, makeLlmModel, OPENAI_HIDDEN_PROPERTY_NAMES,
-  openAiPlugin, registerLlmPlugin,
-} from '@owlmeans/llm'
-import type { LlmPlugin, LlmSpectator } from '@owlmeans/llm'
-import { hiddenPropertyNames } from '../src/utils/schema.js'
+import { anthropicPlugin, LlmMissconfiguredError, makeLlmModel, OPENAI_HIDDEN_PROPERTY_NAMES, openAiPlugin, type LlmPlugin, type LlmSpectator, llmPluginRegistry, retryHelper } from '@owlmeans/llm'
+import { schemaUtils } from '../src/utils/schema.js'
 
 /**
  * OpenAI's non-strict `json_schema` rendering strips JSON-schema keywords by KEY NAME, a
@@ -26,7 +22,7 @@ const field = (name: string) => ({
 
 describe('@owlmeans/llm — property names a provider does not show', () => {
   test('a property named like a keyword is found, with its JSON pointer, at any depth', () => {
-    expect(hiddenPropertyNames(field('required'), OPENAI_HIDDEN_PROPERTY_NAMES))
+    expect(schemaUtils.hiddenPropertyNames(field('required'), OPENAI_HIDDEN_PROPERTY_NAMES))
       .toEqual(['#/properties/required: a property named "required" is not shown to the model'])
     const nested = {
       type: 'object',
@@ -36,7 +32,7 @@ describe('@owlmeans/llm — property names a provider does not show', () => {
       },
       $defs: { bin: { type: 'object', properties: { pattern: { type: 'string' } } } },
     }
-    expect(hiddenPropertyNames(nested, OPENAI_HIDDEN_PROPERTY_NAMES).map(line => line.split(':')[0])).toEqual([
+    expect(schemaUtils.hiddenPropertyNames(nested, OPENAI_HIDDEN_PROPERTY_NAMES).map(line => line.split(':')[0])).toEqual([
       '#/properties/tools/items/properties/default',
       '#/properties/spare/anyOf/0/properties/format',
       '#/$defs/bin/properties/pattern',
@@ -44,9 +40,9 @@ describe('@owlmeans/llm — property names a provider does not show', () => {
   })
 
   test('the same schema with another name, and keywords in keyword position, pass', () => {
-    expect(hiddenPropertyNames(field('mandatory'), OPENAI_HIDDEN_PROPERTY_NAMES)).toEqual([])
+    expect(schemaUtils.hiddenPropertyNames(field('mandatory'), OPENAI_HIDDEN_PROPERTY_NAMES)).toEqual([])
     for (const shown of ['type', 'properties', 'items', 'enum', 'const', 'description', 'title', 'nullable', 'anyOf', 'oneOf']) {
-      expect([shown, hiddenPropertyNames(field(shown), OPENAI_HIDDEN_PROPERTY_NAMES)]).toEqual([shown, []])
+      expect([shown, schemaUtils.hiddenPropertyNames(field(shown), OPENAI_HIDDEN_PROPERTY_NAMES)]).toEqual([shown, []])
     }
   })
 
@@ -59,7 +55,7 @@ describe('@owlmeans/llm — property names a provider does not show', () => {
 
   test('a misconfiguration is fatal to every retry loop', () => {
     const error = new LlmMissconfiguredError('x')
-    expect(isFatalError(error)).toBe(error)
+    expect(retryHelper.isFatalError(error)).toBe(error)
   })
 })
 
@@ -83,7 +79,7 @@ describe('@owlmeans/llm — a hidden property fails the call before any request'
       stream: answer,
       bindTools: () => ({ stream: answer }),
     } as unknown as BaseChatModel
-    registerLlmPlugin({
+    llmPluginRegistry.register({
       ...base, type: provider, family: provider, owns: candidate => candidate === fake,
       refine: ({ base: same }) => same, patchCache: undefined, patchSystem: undefined, isFatal: undefined,
     })

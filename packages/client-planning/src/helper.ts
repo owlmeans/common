@@ -1,18 +1,35 @@
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import { memoHelper, type BasicConfig, type BasicContext } from '@owlmeans/context'
 import { PLANNING_SERVICE } from '@owlmeans/planning'
 import type { PlanningFacade, PlanningScope, Workcard, WorkcardModel } from '@owlmeans/planning'
-import type { PlanningClientService } from './types.js'
+import type { PlanningContextHelper } from './helper/types.js'
+import type { PlanningClientService, PlanningStores, WithPlanningStores } from './types.js'
 
-/** The facade of the context's planning client — `context.planning().for(scope)` without the mixin type. */
+export const makePlanningContextHelper = (context: BasicContext<BasicConfig>): PlanningContextHelper => {
+  const facade = (scope?: Partial<PlanningScope>): PlanningFacade =>
+    context.service<PlanningClientService>(PLANNING_SERVICE).for(scope)
+
+  const model = async <R extends Workcard = Workcard>(
+    card: R | string, scope?: Partial<PlanningScope>
+  ): Promise<WorkcardModel<R>> => await facade(scope).model<R>(card)
+
+  const stores = (): PlanningStores | null => {
+    const ctx = context as Partial<WithPlanningStores>
+
+    return typeof ctx.planningStores === 'function' ? ctx.planningStores() : null
+  }
+
+  return { facade, model, stores }
+}
+
+/** The planning helper of a context — one per context. */
+export const planningContextOf = memoHelper.oncePer(makePlanningContextHelper)
+
+/** @deprecated compat:factory-refactor — use `planningContextOf(context).facade(…)` */
 export const planningOf = <C extends BasicConfig, T extends BasicContext<C>>(
   context: T, scope?: Partial<PlanningScope>
-): PlanningFacade => context.service<PlanningClientService>(PLANNING_SERVICE).for(scope)
+): PlanningFacade => planningContextOf(context).facade(scope)
 
-/**
- * The model of a card (read by id when given one), with the schema bundle loaded first so `can()` and
- * `available()` answer from real flows. Named apart from `@owlmeans/planning`'s `modelOf(record,
- * facade)`, which it calls.
- */
+/** @deprecated compat:factory-refactor — use `planningContextOf(context).model(…)` */
 export const planningModelOf = async <R extends Workcard = Workcard, C extends BasicConfig = BasicConfig, T extends BasicContext<C> = BasicContext<C>>(
   context: T, card: R | string, scope?: Partial<PlanningScope>
-): Promise<WorkcardModel<R>> => await planningOf<C, T>(context, scope).model<R>(card)
+): Promise<WorkcardModel<R>> => await planningContextOf(context).model<R>(card, scope)

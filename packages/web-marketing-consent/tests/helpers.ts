@@ -1,9 +1,10 @@
-import { launchBrowser } from '@owlmeans/test-ui'
+
 import type { Page } from '@owlmeans/test-ui'
 import { makeBearer, USER } from '@owlmeans/test-auth'
 import { STANDARD_MARKETING_CONSENTS } from '@owlmeans/marketing-consent'
 import type { MarketingConsentStatusItem, MarketingConsentStatusView } from '@owlmeans/marketing-consent'
 import { HARNESS_URL } from './context.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
 /** Generous: a cold harness compiles the whole app on its first request. */
 export const TIMEOUT = 60_000
@@ -78,7 +79,7 @@ export const open = async (
   path: string,
   opts: { stubs?: Stubs, signedIn?: boolean, lng?: string, termsMode?: boolean } = {},
 ): Promise<Opened> => {
-  const browser = await launchBrowser({ headless: true })
+  const browser = await browserHelper.launchBrowser({ headless: true })
   const context = await browser.newContext()
   const page = await context.newPage()
   page.setDefaultTimeout(30_000)

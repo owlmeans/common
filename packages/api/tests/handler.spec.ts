@@ -6,12 +6,12 @@ import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
 import { RecordExists, UnknownRecordError } from '@owlmeans/resource'
 import {
-  ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError, httpStatusOf, incidentIdOf,
+  ApiClientError, ApiStatusError, ServerAuthError, ServerCrashedError, apiStatusHelper,
   INCIDENT_ID_HEADER,
   DENIAL_KIND_HEADER, ACCESS_DENIED_KIND,
 } from '../src/index.js'
-import { processResponse, statusError } from '../src/utils/handler.js'
-import * as status from '../src/status/index.js'
+import { responseUtils } from '../src/utils/response.js'
+import * as statusModule from '../src/status/index.js'
 
 const INCIDENT = '6f1c1a52-8a0e-4f5e-9a7c-1f2d3e4c5b6a'
 
@@ -41,7 +41,7 @@ const respond = (
     resolve: (value, outcome) => { reply.value = value; reply.outcome = outcome },
     reject: error => { reply.error = error },
   }
-  processResponse({
+  responseUtils.processResponse({
     status: statusCode, statusText: '', data, headers, config: { url: '/spec' },
   } as unknown as AxiosResponse, reply)
 
@@ -63,64 +63,64 @@ describe('2xx', () => {
 describe('a production incident body keeps its status and incident id', () => {
   test('only a labelled 403 is an auth/IAM denial', () => {
     const denied = respond(403, INCIDENT, { [DENIAL_KIND_HEADER]: ACCESS_DENIED_KIND }).error
-    expect(status.isAccessDenied(denied)).toBe(true)
-    expect(status.isAccessDenied(respond(403, INCIDENT).error)).toBe(false)
-    expect(status.isAccessDenied(respond(401, INCIDENT, { [DENIAL_KIND_HEADER]: ACCESS_DENIED_KIND }).error)).toBe(false)
+    expect(statusModule.apiStatusHelper.isAccessDenied(denied)).toBe(true)
+    expect(statusModule.apiStatusHelper.isAccessDenied(respond(403, INCIDENT).error)).toBe(false)
+    expect(statusModule.apiStatusHelper.isAccessDenied(respond(401, INCIDENT, { [DENIAL_KIND_HEADER]: ACCESS_DENIED_KIND }).error)).toBe(false)
   })
   test('428 with the header becomes ApiStatusError', () => {
     const { error } = respond(428, INCIDENT, { [INCIDENT_ID_HEADER.toLowerCase()]: INCIDENT })
     expect(error).toBeInstanceOf(ApiStatusError)
     expect(error!.message).toBe(`api:client:status:428:${INCIDENT}`)
-    expect(httpStatusOf(error)).toBe(428)
-    expect(incidentIdOf(error)).toBe(INCIDENT)
+    expect(apiStatusHelper.httpStatusOf(error)).toBe(428)
+    expect(apiStatusHelper.incidentIdOf(error)).toBe(INCIDENT)
     expect((error as ApiStatusError).status).toBe(428)
   })
 
   test('the header is read from AxiosHeaders too, and the body alone suffices', () => {
     const headers = new AxiosHeaders({ [INCIDENT_ID_HEADER]: INCIDENT })
-    expect(incidentIdOf(respond(409, 'x', headers).error)).toBe(INCIDENT)
-    expect(incidentIdOf(respond(402, INCIDENT).error)).toBe(INCIDENT)
-    expect(httpStatusOf(respond(402, INCIDENT).error)).toBe(402)
+    expect(apiStatusHelper.incidentIdOf(respond(409, 'x', headers).error)).toBe(INCIDENT)
+    expect(apiStatusHelper.incidentIdOf(respond(402, INCIDENT).error)).toBe(INCIDENT)
+    expect(apiStatusHelper.httpStatusOf(respond(402, INCIDENT).error)).toBe(402)
   })
 
   test('500, 401 and 403 keep their classes and markers', () => {
     const crashed = respond(500, INCIDENT).error
     expect(crashed).toBeInstanceOf(ServerCrashedError)
     expect(crashed!.message).toBe(`api:client:crashed:${INCIDENT}`)
-    expect(httpStatusOf(crashed)).toBe(500)
+    expect(apiStatusHelper.httpStatusOf(crashed)).toBe(500)
 
     const auth = respond(401, INCIDENT).error
     expect(auth).toBeInstanceOf(ServerAuthError)
     expect(auth!.message).toBe(`api:client:auth:${INCIDENT}`)
-    expect(httpStatusOf(auth)).toBe(401)
+    expect(apiStatusHelper.httpStatusOf(auth)).toBe(401)
 
     const forbidden = respond(403, INCIDENT).error
     expect(forbidden).toBeInstanceOf(ApiClientError)
     expect(forbidden).not.toBeInstanceOf(ApiStatusError)
     expect(forbidden!.message).toBe(`api:client:forbidden:${INCIDENT}`)
-    expect(httpStatusOf(forbidden)).toBe(403)
+    expect(apiStatusHelper.httpStatusOf(forbidden)).toBe(403)
   })
 
   test('without an incident id the markers stay as before', () => {
-    expect(statusError(500).message).toBe('api:client:crashed:error')
-    expect(statusError(403).message).toBe('api:client:forbidden')
-    expect(incidentIdOf(statusError(500))).toBeNull()
-    expect(statusError(418).message).toBe('api:client:status:418')
+    expect(responseUtils.statusError(500).message).toBe('api:client:crashed:error')
+    expect(responseUtils.statusError(403).message).toBe('api:client:forbidden')
+    expect(apiStatusHelper.incidentIdOf(responseUtils.statusError(500))).toBeNull()
+    expect(responseUtils.statusError(418).message).toBe('api:client:status:418')
   })
 
   test('a proxy HTML page or framework JSON becomes a status error', () => {
     const html = respond(502, '<html><body>Bad Gateway</body></html>').error
     expect(html).toBeInstanceOf(ApiStatusError)
-    expect(httpStatusOf(html)).toBe(502)
-    expect(incidentIdOf(html)).toBeNull()
+    expect(apiStatusHelper.httpStatusOf(html)).toBe(502)
+    expect(apiStatusHelper.incidentIdOf(html)).toBeNull()
 
     const json = respond(400, { statusCode: 400, error: 'Bad Request', message: 'body/x' }).error
     expect(json).toBeInstanceOf(ApiStatusError)
-    expect(httpStatusOf(json)).toBe(400)
+    expect(apiStatusHelper.httpStatusOf(json)).toBe(400)
   })
 
   test('no class declares a static httpStatus, so a rethrow upstream stays 500', () => {
-    for (const error of [statusError(428), statusError(500), statusError(401), statusError(403)]) {
+    for (const error of [responseUtils.statusError(428), responseUtils.statusError(500), responseUtils.statusError(401), responseUtils.statusError(403)]) {
       expect((error.constructor as { httpStatus?: unknown }).httpStatus).toBeUndefined()
     }
   })
@@ -133,8 +133,8 @@ describe('a development body stays its typed class', () => {
     expect(error).toBeInstanceOf(ConsentRequired)
     expect(error!.message).toBe('spec:consent-required:2')
     expect((error as { responseStatus?: number }).responseStatus).toBe(428)
-    expect(httpStatusOf(error)).toBe(428)
-    expect(incidentIdOf(error)).toBe(INCIDENT)
+    expect(apiStatusHelper.httpStatusOf(error)).toBe(428)
+    expect(apiStatusHelper.incidentIdOf(error)).toBe(INCIDENT)
   })
 
   test('a typed api error keeps its marker fields', () => {
@@ -153,8 +153,8 @@ describe('a development body stays its typed class', () => {
       const { error } = respond(code, body, { [INCIDENT_ID_HEADER]: INCIDENT })
       expect(error!.constructor).toBe(refusal.constructor)
       expect(error!.message).toBe(refusal.message)
-      expect(httpStatusOf(error)).toBe(code)
-      expect(incidentIdOf(error)).toBe(INCIDENT)
+      expect(apiStatusHelper.httpStatusOf(error)).toBe(code)
+      expect(apiStatusHelper.incidentIdOf(error)).toBe(INCIDENT)
     }
     const body = ResilientError.marshal(new UnknownRecordError('shelf/3')).message
     expect((respond(404, body).error as UnknownRecordError).id).toBe('shelf/3')
@@ -164,8 +164,8 @@ describe('a development body stays its typed class', () => {
     const body = `ApiSpecUnregisteredRefusal${ResilientError.separator}spec:unregistered:x`
     const { error } = respond(404, body, { [INCIDENT_ID_HEADER]: INCIDENT })
     expect(error).not.toBeInstanceOf(ServerCrashedError)
-    expect(httpStatusOf(error)).toBe(404)
-    expect(incidentIdOf(error)).toBe(INCIDENT)
+    expect(apiStatusHelper.httpStatusOf(error)).toBe(404)
+    expect(apiStatusHelper.incidentIdOf(error)).toBe(INCIDENT)
   })
 })
 
@@ -176,7 +176,7 @@ describe('a production body of a storage refusal keeps the declared status', () 
       expect(error).toBeInstanceOf(ApiStatusError)
       expect(error).not.toBeInstanceOf(ServerCrashedError)
       expect(error!.message).toBe(`api:client:status:${code}:${INCIDENT}`)
-      expect(httpStatusOf(error)).toBe(code)
+      expect(apiStatusHelper.httpStatusOf(error)).toBe(code)
     }
   })
 })
@@ -195,35 +195,35 @@ describe('marshal round trips', () => {
       const back = roundTrip(error)
       expect(back.constructor).toBe(error.constructor)
       expect((back as ApiClientError).status).toBe(code)
-      expect(httpStatusOf(back)).toBe(code)
-      expect(incidentIdOf(back)).toBe(INCIDENT)
+      expect(apiStatusHelper.httpStatusOf(back)).toBe(code)
+      expect(apiStatusHelper.incidentIdOf(back)).toBe(INCIDENT)
     }
   })
 
   test('a legacy bare-status marker still reads', () => {
-    expect(httpStatusOf(new ApiClientError('404'))).toBe(404)
+    expect(apiStatusHelper.httpStatusOf(new ApiClientError('404'))).toBe(404)
   })
 })
 
 describe('./status', () => {
   test('a declared static 428 answers without any marker; an undeclared 5xx does not', () => {
-    expect(status.httpStatusOf(new ConsentRequired())).toBe(428)
-    expect(status.httpStatusOf(new Unavailable())).toBeNull()
-    expect(status.httpStatusOf(new Error('plain'))).toBeNull()
-    expect(status.httpStatusOf(null)).toBeNull()
+    expect(statusModule.apiStatusHelper.httpStatusOf(new ConsentRequired())).toBe(428)
+    expect(statusModule.apiStatusHelper.httpStatusOf(new Unavailable())).toBeNull()
+    expect(statusModule.apiStatusHelper.httpStatusOf(new Error('plain'))).toBeNull()
+    expect(statusModule.apiStatusHelper.httpStatusOf(null)).toBeNull()
   })
 
   test('reads a marker from a plain error message or a type', () => {
-    expect(status.httpStatusOf(new Error(`${status.API_STATUS_MARKER}428:${INCIDENT}`))).toBe(428)
-    expect(status.httpStatusOf({ type: 'api:client:auth:error' })).toBe(401)
-    expect(status.incidentIdOf(new Error(`api:client:crashed:${INCIDENT}`))).toBe(INCIDENT)
+    expect(statusModule.apiStatusHelper.httpStatusOf(new Error(`${statusModule.API_STATUS_MARKER}428:${INCIDENT}`))).toBe(428)
+    expect(statusModule.apiStatusHelper.httpStatusOf({ type: 'api:client:auth:error' })).toBe(401)
+    expect(statusModule.apiStatusHelper.incidentIdOf(new Error(`api:client:crashed:${INCIDENT}`))).toBe(INCIDENT)
   })
 
   test('isIncidentBody accepts a bare incident UUID only', () => {
-    expect(status.isIncidentBody(INCIDENT)).toBe(true)
-    expect(status.isIncidentBody(`${INCIDENT}\n`)).toBe(true)
-    expect(status.isIncidentBody('Unauthorized')).toBe(false)
-    expect(status.isIncidentBody(`ApiError|||api:x|||${INCIDENT}`)).toBe(false)
-    expect(status.isIncidentBody({ id: INCIDENT })).toBe(false)
+    expect(statusModule.apiStatusHelper.isIncidentBody(INCIDENT)).toBe(true)
+    expect(statusModule.apiStatusHelper.isIncidentBody(`${INCIDENT}\n`)).toBe(true)
+    expect(statusModule.apiStatusHelper.isIncidentBody('Unauthorized')).toBe(false)
+    expect(statusModule.apiStatusHelper.isIncidentBody(`ApiError|||api:x|||${INCIDENT}`)).toBe(false)
+    expect(statusModule.apiStatusHelper.isIncidentBody({ id: INCIDENT })).toBe(false)
   })
 })

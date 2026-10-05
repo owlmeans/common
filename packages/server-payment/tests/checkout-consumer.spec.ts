@@ -2,17 +2,18 @@ import { describe, expect, test } from 'bun:test'
 import Stripe from 'stripe'
 import { addLogPlugin, memoryPlugin, removeLogPlugin } from '@owlmeans/log'
 import { BillingCountryLocked, SubscriptionStartRequired } from '@owlmeans/payment'
-import { createCheckoutLink, isMissingTermsUrl } from '../src/plugins/stripe.js'
-import { billingProfiles, consumerConsents, consumerEvents, consumerRights, fulfillments } from '../src/utils.js'
 import type { CheckoutPlugin } from '../src/types.js'
 import {
   ALL_ON, CREDITS_PRODUCT, ENTITY, EUR_SETTLEMENT, makeRightsContext, PLANS_PRODUCT, PRO, requestStart, rightsOf,
 } from './consumer-fixtures.js'
 import { TEAM } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { stripeCheckoutOf } from '../src/plugins/stripe.js'
+import { stripeSessionHelper } from '../src/plugins/session.js'
 
 const successUrl = 'https://app.example.com/ok'
-const topUp = (fake: FakeContext, extra: Record<string, unknown> = {}, plugins: CheckoutPlugin[] = []) => createCheckoutLink(fake.ctx, fake.stripe, {
+const topUp = (fake: FakeContext, extra: Record<string, unknown> = {}, plugins: CheckoutPlugin[] = []) => stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
   productSku: CREDITS_PRODUCT, entityId: ENTITY, service: 'app', amountMinor: 1_000, successUrl, ...extra,
 }, plugins)
 
@@ -23,7 +24,7 @@ const TERMS_URL_MESSAGE = 'You cannot collect consent to your terms of service u
 const missingTermsUrl = () => new Stripe.errors.StripeInvalidRequestError({
   type: 'invalid_request_error', message: TERMS_URL_MESSAGE, param: 'consent_collection[terms_of_service]', statusCode: 400,
 })
-const subscribe = (fake: FakeContext, extra: Record<string, unknown> = {}) => createCheckoutLink(fake.ctx, fake.stripe, {
+const subscribe = (fake: FakeContext, extra: Record<string, unknown> = {}) => stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
   productSku: PLANS_PRODUCT, planSku: PRO, entityId: ENTITY, service: 'app', successUrl, ...extra,
 })
 const session = (fake: FakeContext, index = 0) => fake.state.checkoutSessions[index]
@@ -40,11 +41,10 @@ const TEAM_PRICE = {
 }
 
 const lockTo = async (fake: FakeContext, country: string, customerCountry?: string) => {
-  await consumerRights(fake.ctx).lock(ENTITY, country, 'manual')
+  await paymentAccessOf(fake.ctx).consumerRights().lock(ENTITY, country, 'manual')
   if (customerCountry !== undefined) {
     fake.state.customers.cus_locked = { id: 'cus_locked', object: 'customer', address: customerCountry == null ? null : { country: customerCountry } }
-    const { paygateCustomers } = await import('../src/utils.js')
-    await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: 'cus_locked', entityId: ENTITY })
+    await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: 'cus_locked', entityId: ENTITY })
   }
 }
 
@@ -143,20 +143,19 @@ describe('checkout under a consumer-rights policy — the country lock', () => {
 
   test('an organization that paid before the lock is locked lazily from its customer address', async () => {
     const fake = await makeRightsContext()
-    const { paygateCustomers } = await import('../src/utils.js')
     fake.state.customers.cus_old = { id: 'cus_old', object: 'customer', address: { country: 'US' } }
-    await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: 'cus_old', entityId: ENTITY })
-    await fulfillments(fake.ctx).create({
+    await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: 'cus_old', entityId: ENTITY })
+    await paymentAccessOf(fake.ctx).fulfillments().create({
       entityId: ENTITY, productSku: CREDITS_PRODUCT, service: 'app', paygate: 'stripe', externalId: 'cs_old',
       mode: 'amount' as never, createdAt: new Date(), fulfilledAt: new Date(),
     })
     await topUp(fake)
-    expect(await billingProfiles(fake.ctx).byEntity(ENTITY)).toEqual(expect.objectContaining({
+    expect(await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY)).toEqual(expect.objectContaining({
       country: 'US', source: 'customer', currency: 'usd',
     }))
     expect(session(fake).metadata.currency).toBe('usd')
     await expect(topUp(fake, { country: 'PL' })).rejects.toBeInstanceOf(BillingCountryLocked)
-    expect((await consumerEvents(fake.ctx).list({ action: 'lock' })).items).toHaveLength(1)
+    expect((await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'lock' })).items).toHaveLength(1)
   })
 })
 
@@ -207,7 +206,7 @@ describe('checkout under a consumer-rights policy — terms', () => {
       expect(session(fake).custom_text.submit.message).toContain('Polska')
       expect(session(fake).metadata).toEqual(expect.objectContaining({ termsCollected: 'false', termsVersion: 'terms-v1' }))
 
-      const [event] = (await consumerEvents(fake.ctx).list({ action: 'checkout-terms-fallback' })).items
+      const [event] = (await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'checkout-terms-fallback' })).items
       expect(event).toEqual(expect.objectContaining({
         recordId: ENTITY, recordKind: 'checkout', entityId: ENTITY, ok: false, externalId: expect.stringMatching(/^cs_\d+$/),
       }))
@@ -219,7 +218,7 @@ describe('checkout under a consumer-rights policy — terms', () => {
       // Once per process: a second fallback is audited again, but not warned again.
       fake.state.failures['checkout.sessions.create'] = missingTermsUrl()
       await topUp(fake, { country: 'PL' })
-      expect((await consumerEvents(fake.ctx).list({ action: 'checkout-terms-fallback' })).items).toHaveLength(2)
+      expect((await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'checkout-terms-fallback' })).items).toHaveLength(2)
       const operator = memory.records.filter(record => record.level === 'warn' && record.message.includes('terms of service URL'))
       expect(operator).toHaveLength(1)
       expect(operator[0].message).toContain('Settings → Public details')
@@ -257,7 +256,7 @@ describe('checkout under a consumer-rights policy — terms', () => {
     fake.state.failures['checkout.sessions.create'] = [missingTermsUrl(), 'rate limited']
     await expect(topUp(fake, { country: 'PL' }, [hold])).rejects.toThrow('rate limited')
     expect(settled).toEqual([expect.objectContaining({ outcome: 'failed', reservationId: 'hold-1' })])
-    const failed = (await consumerEvents(fake.ctx).list({ action: 'checkout-terms-fallback' })).items
+    const failed = (await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'checkout-terms-fallback' })).items
       .find(event => event.error != null)
     expect(failed).toEqual(expect.objectContaining({ ok: false, error: 'rate limited' }))
     expect(failed?.externalId).toBeUndefined()
@@ -268,19 +267,19 @@ describe('checkout under a consumer-rights policy — terms', () => {
     fake.state.failures['checkout.sessions.create'] = 'Invalid currency: xyz'
     await expect(topUp(fake, { country: 'PL' })).rejects.toThrow('Invalid currency')
     expect(fake.state.calls.filter(call => call === 'checkout.sessions.create')).toHaveLength(1)
-    expect((await consumerEvents(fake.ctx).list({ action: 'checkout-terms-fallback' })).items).toHaveLength(0)
+    expect((await paymentAccessOf(fake.ctx).consumerEvents().list({ action: 'checkout-terms-fallback' })).items).toHaveLength(0)
   })
 
   test('only the missing-terms-URL refusal is recognised', () => {
-    expect(isMissingTermsUrl(missingTermsUrl())).toBe(true)
+    expect(stripeSessionHelper.isMissingTermsUrl(missingTermsUrl())).toBe(true)
     // The message alone (no param), as a plain error carries it.
-    expect(isMissingTermsUrl(new Error(TERMS_URL_MESSAGE))).toBe(true)
+    expect(stripeSessionHelper.isMissingTermsUrl(new Error(TERMS_URL_MESSAGE))).toBe(true)
     // The param with a terms message.
-    expect(isMissingTermsUrl({ type: 'StripeInvalidRequestError', param: 'consent_collection[terms_of_service]', message: 'Terms of service consent is not available.' })).toBe(true)
-    expect(isMissingTermsUrl(new Stripe.errors.StripeCardError({ type: 'card_error', message: TERMS_URL_MESSAGE }))).toBe(false)
-    expect(isMissingTermsUrl({ type: 'StripeInvalidRequestError', param: 'line_items', message: 'Invalid line items' })).toBe(false)
-    expect(isMissingTermsUrl({ message: 'Please accept our terms of service' })).toBe(false)
-    expect(isMissingTermsUrl(null)).toBe(false)
+    expect(stripeSessionHelper.isMissingTermsUrl({ type: 'StripeInvalidRequestError', param: 'consent_collection[terms_of_service]', message: 'Terms of service consent is not available.' })).toBe(true)
+    expect(stripeSessionHelper.isMissingTermsUrl(new Stripe.errors.StripeCardError({ type: 'card_error', message: TERMS_URL_MESSAGE }))).toBe(false)
+    expect(stripeSessionHelper.isMissingTermsUrl({ type: 'StripeInvalidRequestError', param: 'line_items', message: 'Invalid line items' })).toBe(false)
+    expect(stripeSessionHelper.isMissingTermsUrl({ message: 'Please accept our terms of service' })).toBe(false)
+    expect(stripeSessionHelper.isMissingTermsUrl(null)).toBe(false)
   })
 })
 
@@ -291,7 +290,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
     await expect(subscribe(fake, { startRequestId: 'nope' })).rejects.toBeInstanceOf(SubscriptionStartRequired)
 
     const startRequestId = await requestStart(fake)
-    await expect(createCheckoutLink(fake.ctx, fake.stripe, {
+    await expect(stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
       productSku: PLANS_PRODUCT, planSku: TEAM, entityId: ENTITY, service: 'app', successUrl, startRequestId,
     })).rejects.toBeInstanceOf(SubscriptionStartRequired)
 
@@ -316,7 +315,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
 
   test('an organization locked outside the territories subscribes without one, in exact USD', async () => {
     const fake = await makeRightsContext({ stripe: { prices: [PRO_PRICE] } })
-    await consumerRights(fake.ctx).lock(ENTITY, 'US', 'manual')
+    await paymentAccessOf(fake.ctx).consumerRights().lock(ENTITY, 'US', 'manual')
     await subscribe(fake)
     expect(session(fake).currency).toBe('usd')
     expect(session(fake).adaptive_pricing).toEqual({ enabled: false })
@@ -335,7 +334,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
 
   test('the application submit text is a function of the charge currency and price', async () => {
     const fake = await makeRightsContext({ stripe: { prices: [PRO_PRICE] } })
-    await consumerRights(fake.ctx).lock(ENTITY, 'US', 'manual')
+    await paymentAccessOf(fake.ctx).consumerRights().lock(ENTITY, 'US', 'manual')
     const seen: unknown[] = []
     await subscribe(fake, {
       submitText: (context: Record<string, unknown>) => { seen.push(context); return `Pay ${String(context.unitAmountMinor)} ${String(context.currency)}` },
@@ -348,7 +347,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
     const fake = await makeRightsContext({
       stripe: { prices: [{ ...PRO_PRICE, currency_options: undefined }] },
     })
-    await consumerRights(fake.ctx).lock(ENTITY, 'US', 'manual')
+    await paymentAccessOf(fake.ctx).consumerRights().lock(ENTITY, 'US', 'manual')
     await subscribe(fake)
     expect(session(fake).currency).toBeUndefined()
   })
@@ -356,7 +355,7 @@ describe('checkout under a consumer-rights policy — subscriptions', () => {
   test('the start request records the statement it was shown, with the plan name the application passed', async () => {
     const fake = await makeRightsContext({ stripe: { prices: [PRO_PRICE] } })
     const startRequestId = await requestStart(fake, { language: 'de' })
-    const record = await consumerConsents(fake.ctx).load(startRequestId)
+    const record = await paymentAccessOf(fake.ctx).consumerConsents().load(startRequestId)
     expect(record).toEqual(expect.objectContaining({
       kind: 'subscription-start', planSku: PRO, planName: 'Pro', language: 'de', trader: 'Example', ip: '203.0.113.7',
     }))

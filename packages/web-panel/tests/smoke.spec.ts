@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 
 const harness = `data:text/html,${encodeURIComponent(`
 <!doctype html>
@@ -13,7 +13,7 @@ const harness = `data:text/html,${encodeURIComponent(`
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 describe('@owlmeans/web-panel — Playwright-library smoke', () => {

@@ -1,21 +1,8 @@
 import { TOOL_DEADLINE_MS } from '../consts.js'
-import { visibleTools } from './catalogue.js'
-import { personRefusalPhrase, refusalMessage, refusalPhrase } from './refusal.js'
-import { delegatedLlm, performsModelTasks, sessionCapable } from './types.js'
-import type { ToolDeps } from './types.js'
-
-/** The minimum of an MCP server this adapter needs. Typed structurally so the SDK stays optional. */
-export interface McpServerLike {
-  registerTool: (
-    name: string,
-    config: { title?: string, description?: string, inputSchema?: unknown },
-    cb: (args: Record<string, unknown>) => Promise<{
-      content: Array<{ type: 'text', text: string }>
-      structuredContent?: object
-      isError?: boolean
-    }>
-  ) => unknown
-}
+import { catalogueHelper } from './catalogue.js'
+import { refusalHelper } from './refusal.js'
+import { toolHostHelper } from './host.js'
+import type { ToolDeps, McpServerLike } from './types.js'
 
 const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -43,7 +30,7 @@ const withDeadline = async <T>(label: string, ms: number, fn: () => Promise<T>):
 export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string[] => {
   const registered: string[] = []
 
-  for (const tool of visibleTools(deps.host)) {
+  for (const tool of catalogueHelper.visibleTools(deps.host)) {
     server.registerTool(
       tool.name,
       { title: tool.title, description: tool.description, inputSchema: tool.input },
@@ -61,9 +48,9 @@ export const registerCatalogue = (server: McpServerLike, deps: ToolDeps): string
           // The balance, the spend consent and a conversion's confirmation are refusals only a
           // PERSON resolves: phrased from their packed fields (never the raw marker) and pushed out
           // of band as well, where the host has a channel for it.
-          const person = personRefusalPhrase(e)
-          const text = person ?? refusalPhrase(e)
-          deps.log(`${tool.name} failed: ${refusalMessage(e)}`)
+          const person = refusalHelper.personRefusalPhrase(e)
+          const text = person ?? refusalHelper.refusalPhrase(e)
+          deps.log(`${tool.name} failed: ${refusalHelper.refusalMessage(e)}`)
           if (person != null) {
             deps.notify?.('warning', text)
           }
@@ -121,11 +108,11 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
     + ' write your own.',
   ]
 
-  if (sessionCapable(host)) {
+  if (toolHostHelper.sessionCapable(host)) {
     lines.push(
       '',
       'MODEL TASKS: '
-      + (performsModelTasks(host)
+      + (toolHostHelper.performsModelTasks(host)
         ? 'this session runs the platform\'s model calls on YOUR side.'
         : 'the platform performs its own model calls for stories and free flight, but a'
           + ' CONVERSION\'s are yours by default.')
@@ -141,7 +128,7 @@ export const serverInstructions = (deps: Pick<ToolDeps, 'host'>): string => {
       + ' answer it yourself; if they are unavailable, submit declined: true so the platform records'
       + ' an assumption.'
     )
-  } else if (delegatedLlm(host)) {
+  } else if (toolHostHelper.delegatedLlm(host)) {
     // The account asks for the delegated mode and this host cannot serve it: it answers one
     // request and forgets, so there is nothing here to hold a task until an answer comes back.
     // Said plainly, because the alternative is a parent waiting for a next_task tool that is not

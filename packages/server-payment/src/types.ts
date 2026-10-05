@@ -18,6 +18,7 @@ import type {
   SubscriptionStatus, WithdrawalBody, WithdrawalCandidateList, WithdrawalReceipt, WithdrawalStatus,
 } from '@owlmeans/payment'
 
+
 export interface Config extends ApiConfig {}
 export interface Context<C extends Config = Config> extends ApiContext<C> {}
 
@@ -152,6 +153,7 @@ export interface PricingDef extends PricingPolicy {
  */
 // A type alias, not an interface: it is stored inside a plugin config record, whose values must be
 // index-signature compatible.
+// Kept as a type: it is stored in config values that need an implicit index signature.
 export type TraderDef = {
   name: string
   legalName: string
@@ -175,7 +177,7 @@ export interface ConsumerMailPluginConfig extends PluginConfig, ConsumerMailDef 
 }
 
 /** `declareConsumerRights`'s argument: the advertised policy plus the backend-only trader and mail options. */
-export type ConsumerRightsDef = ConsumerRightsDeclaration & { trader?: TraderDef, mail?: ConsumerMailDef }
+export interface ConsumerRightsDef extends ConsumerRightsDeclaration { trader?: TraderDef, mail?: ConsumerMailDef }
 
 /** What the managed customer portal configuration shows. */
 export interface PortalBrandingDef {
@@ -300,9 +302,10 @@ export interface CheckoutSettled {
 }
 
 /**
- * A seam around amount and subscription checkout, registered with `gateway(ctx).use(plugin)` (a
- * plugin with an `alias` registered twice replaces the first). Errors from `narrow` and `admit`
- * propagate — a plugin fails closed; `settled` errors are logged, since holds carry their own TTL.
+ * A seam around amount and subscription checkout, registered with
+ * `paymentAccessOf(ctx).gateway().use(plugin)` (a plugin with an `alias` registered twice replaces
+ * the first). Errors from `narrow` and `admit` propagate — a plugin fails closed; `settled` errors
+ * are logged, since holds carry their own TTL.
  */
 export interface CheckoutPlugin {
   alias?: string
@@ -395,7 +398,7 @@ export interface PaymentGatewayOptions {
    * Whether this process brings Stripe to the declared state at boot (`bootstrapStripe`: products,
    * portal configuration, webhook endpoint). Default: `manage`. A managed process with `false`
    * still serves checkout, the portal, estimates and the resyncs, and still runs a FORCED
-   * bootstrap (`resync`, an application's `bootstrapStripe(ctx, stripe, { force: true })`).
+   * bootstrap (`resync`, an application's `stripeBootstrapOf(ctx).bootstrapStripe(stripe, { force: true })`).
    * `true` on an unmanaged gateway is refused at construction.
    */
   bootstrap?: boolean
@@ -419,7 +422,7 @@ export interface PaymentGatewayOptions {
 }
 
 /** A Stripe client for one context — the default reads the configured secret. */
-export type StripeFactory = (ctx: ApiContext) => Promise<Stripe>
+export interface StripeFactory { (ctx: ApiContext): Promise<Stripe> }
 
 /** @deprecated use `PaymentGatewayOptions` */
 export type PaymentResourceOptions = PaymentGatewayOptions
@@ -1275,9 +1278,7 @@ export interface ConsumerMailData {
  * Replace or suppress a consumer-rights mail: answer a message to send it instead, `null` to send
  * nothing (recorded as skipped), `undefined` to send the rendered one.
  */
-export type ConsumerMailRenderer = (
-  kind: ConsumerMailKind, data: ConsumerMailData, rendered: MailMessage,
-) => MailMessage | null | undefined | Promise<MailMessage | null | undefined>
+export interface ConsumerMailRenderer { (kind: ConsumerMailKind, data: ConsumerMailData, rendered: MailMessage): MailMessage | null | undefined | Promise<MailMessage | null | undefined> }
 
 export interface LockOptions {
   customerId?: string
@@ -1429,4 +1430,61 @@ export interface ConsumerRightsHandlerOptions {
 export interface CheckoutReadHandlerOptions {
   resolveEntity?: (req: AbstractRequest, ctx: ApiContext) => string | null | undefined
   gatewayAlias?: string
+}
+
+export interface PaygateParams { paygate: string }
+
+export interface ResyncResult { ok: boolean }
+
+export interface ResyncSubscriptionsResult { scanned: number; updated: number }
+
+export interface EntityResolverOption {
+  /** The stable organization id a request acts for. Default: `req.entity.id`, else the token's entity. */
+  resolveEntity?: (req: AbstractRequest) => string | null
+}
+
+export interface CapabilityGateOptions extends EntityResolverOption {
+  /** Refuse unless the effective plan belongs to one of these products. */
+  productSkus?: string[]
+  /**
+   * Also require the token to grant the permission (IAM `hasPermission`). Off by default: a
+   * platform token carries no permissions, and the subscription is the authority.
+   */
+  requirePermission?: boolean
+}
+
+/** @deprecated use `CapabilityGateOptions` */
+export type EntitlementGateOptions = CapabilityGateOptions
+
+export interface LimitGateOptions extends EntityResolverOption {}
+
+export interface StripeBootstrapOptions {
+  /** Re-verify what the stored fingerprints say is in place. */
+  force?: boolean
+}
+
+/** The gateway options a service instance takes — the resource aliases belong to the registration. */
+export interface GatewayServiceOptions extends Omit<PaymentGatewayOptions, 'dbAlias' | 'serviceAlias'> {}
+
+export interface CommitOptions {
+  /** The paygate event being applied; a repeat of the last applied one is ignored. */
+  eventId?: string
+  /** A paid renewal invoice. */
+  renewal?: boolean
+  invoiceId?: string
+  /** The paygate announced the trial ends soon. */
+  trialEnding?: boolean
+  /**
+   * Runs after the new state is written and BEFORE observers hear the change — what must exist
+   * before an observer grants anything (a subscription's purchase row). A throw propagates: the
+   * observers are not told and the paygate retries.
+   */
+  beforePropagate?: (record: PaymentSubscriptionRecord, change: SubscriptionChange) => Promise<void>
+}
+
+export interface CommitResult {
+  record: PaymentSubscriptionRecord | null
+  change: SubscriptionChange | null
+  /** The stored subscription state changed. */
+  updated: boolean
 }

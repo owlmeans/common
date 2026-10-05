@@ -29,4 +29,4 @@ export interface TargetEvent {
 }
 
 /** The payload of a preview `Analytics` message (browser → manager). */
-export type PreviewAnalyticsPayload = AnalyticsEvent
+export interface PreviewAnalyticsPayload extends AnalyticsEvent {}

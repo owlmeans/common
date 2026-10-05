@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { createPkcePair, makeOAuthProtocols } from '@owlmeans/oauth'
+import { makeOAuthProtocols, pkceHelper } from '@owlmeans/oauth'
 import { handleAuthorize } from '../src/handlers/authorize.js'
-import { approveConsent, denyConsent, loadConsent } from '../src/handlers/consent.js'
+import { approveConsent, denyConsent, loadConsent } from '../src/handlers/consent/index.js'
 import { handleToken } from '../src/handlers/token.js'
 import {
   makeTestContext, seedProfile, session, TEST_CLIENT_ID, TEST_REDIRECT_URI
@@ -22,7 +22,7 @@ const invoke = async (handler: any, context: any, req: any): Promise<any> => {
 
 const consentReq = (ref: string): any => ({ ...session(), params: { ref } })
 
-const authorize = (overrides: Record<string, string | undefined> = {}, pkce = createPkcePair()) => ({
+const authorize = (overrides: Record<string, string | undefined> = {}, pkce = pkceHelper.createPkcePair()) => ({
   pkce,
   query: {
     response_type: 'code', client_id: TEST_CLIENT_ID, redirect_uri: TEST_REDIRECT_URI,

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "package": "@owlmeans/agent-skills",
-  "version": "0.1.18-rc.47",
-  "generatedAt": "2026-10-03T20:05:07.587Z",
+  "version": "0.1.18-rc.48",
+  "generatedAt": "2026-10-05T14:04:49.976Z",
   "canonicalRepo": "https://github.com/owlmeans/common",
   "entries": [
     {
@@ -74,6 +74,13 @@
       "category": "general",
       "file": "skills/agent-memory/SKILL.md",
       "canonicalPath": ".agents/skills/agent-memory/SKILL.md"
+    },
+    {
+      "kind": "skill",
+      "name": "owlmeans-code-structure",
+      "category": "general",
+      "file": "skills/owlmeans-code-structure/SKILL.md",
+      "canonicalPath": ".agents/skills/owlmeans-code-structure/SKILL.md"
     },
     {
       "kind": "skill",

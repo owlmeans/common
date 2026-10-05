@@ -1,16 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { ApiStatusError } from '@owlmeans/api'
-import {
-  ConnectConfirmationRequired, ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget,
-  ConversionDecision,
-} from '@owlmeans/viable-common'
-import type { ConnectConfirmation } from '@owlmeans/viable-common'
+import { ConnectConfirmationRequired, ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ConversionDecision, type ConnectConfirmation } from '@owlmeans/viable-common'
 import { catalogue } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
-import type { McpServerLike } from '../src/tools/mcp.js'
-import { confirmationRequiredPhrase, refusalPhrase } from '../src/tools/refusal.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolDeps, ToolHost } from '../src/tools/types.js'
+import type { McpServerLike, ToolDeps, ToolHost } from '../src/tools/types.js'
+import { refusalHelper } from '../src/tools/refusal.js'
+import { ToolHostKind } from '../src/tools/consts.js'
 
 /**
  * A conversion verb that would use the plan's conversion or spend credits answers with what it costs
@@ -149,7 +144,7 @@ describe('viable-sdk — the conversion tools carry the person\'s confirmation',
   })
 
   test('a conversion no plan unit covers says so, and its split is credit limits then money', () => {
-    const text = confirmationRequiredPhrase({
+    const text = refusalHelper.confirmationRequiredPhrase({
       action: 'convert-proceed', cap: 0, spent: 0, estimate: 300_000, fromAllowance: 0, fromCreditLimits: 0,
       moneyUsd: 6,
     })
@@ -161,7 +156,7 @@ describe('viable-sdk — the conversion tools carry the person\'s confirmation',
 
   test('the same refusal stored as text is phrased from its marker', () => {
     const stored = confirmation({ action: 'convert-proceed', spent: 1_000_000, estimate: 200_000, fromCreditLimits: 200_000 })
-    const text = refusalPhrase(stored.message)
+    const text = refusalHelper.refusalPhrase(stored.message)
 
     expect(text).toContain('200,000 from the organization\'s credit limits')
     expect(text).toContain('1,000,000 of 1,000,000 credits used, 0 left')

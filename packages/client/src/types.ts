@@ -119,7 +119,7 @@ export interface RetryImportOptions {
  * What a lazily-loaded piece renders once it failed: the props it was given, the error, and
  * `retry`, which resets the piece's boundary so its chunk loads again.
  */
-export type LazyErrorRenderer = (props: any, error: unknown, retry: () => void) => ReactNode
+export interface LazyErrorRenderer { (props: any, error: unknown, retry: () => void): ReactNode }
 
 /** How a lazily-loaded component behaves while its chunk loads and when the load fails. */
 export interface LazyComponentOptions {
@@ -154,11 +154,12 @@ export interface LazyPreload<P = {}> {
   preload: () => Promise<ComponentType<P>>
 }
 
+// Kept as a type: `ComponentType` is a union; an interface cannot extend it.
 /** A lazily-loaded component: renders like the real one, and can be preloaded ahead of use. */
 export type LazyComponent<P = {}> = ComponentType<P> & LazyPreload<P>
 
 /** An entrypoint handler over a lazily-loaded component, carrying its `.preload()`. */
-export type LazyHandler<P = {}> = RefedEntrypointHandler<P> & LazyPreload<P>
+export interface LazyHandler<P = {}> extends RefedEntrypointHandler<P>, LazyPreload<P> {}
 
 /** Names of a module's exports that are React components. */
 export type ComponentExport<M> = {

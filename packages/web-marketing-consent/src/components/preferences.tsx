@@ -1,19 +1,11 @@
-import { useState } from 'react'
-import type { FC } from 'react'
+import { useState, type FC } from 'react'
 import { useI18nLib, useLanguage } from '@owlmeans/client-i18n'
 import { MARKETING_CONSENT_I18N } from '../consts.js'
 import { useMarketingConsent } from '../hooks/use-marketing-consent.js'
 import { Button } from '../@/components/ui/button.js'
 import { cn } from '../@/lib/utils.js'
 import { ConsentFields } from './fields.js'
-
-export interface MarketingConsentPreferencesProps {
-  /** `(key, defaultValue) => string`, e.g. an app's own `useI18nApp` translator. Defaults to this
-   * package's own bundle (`useI18nLib(MARKETING_CONSENT_I18N)`). */
-  translate?: (key: string, defaultValue: string) => string
-  className?: string
-  onSaved?: () => void
-}
+import type { MarketingConsentPreferencesProps } from './types.js'
 
 /**
  * The SAME group/item/select-all body as `MarketingConsentScreen`, without the full-page chrome —

@@ -1,60 +1,9 @@
-import type { ClientConfig, ClientContext } from '@owlmeans/client-context'
-import { planningOf } from '@owlmeans/client-planning'
-import { connectRef } from '@owlmeans/viable-common'
-import type {
-  ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConvertStartBody, ConnectKitApplyBody,
-  ConnectKitApplyResult, ConnectKitDescribe, ConnectOp, ConnectOpResult, ConnectOpSubmission,
-  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus,
-  ConnectSessionView, ConnectStoryStatus, ConnectTarget, ConversionStatusView,
-  ConvertCheck, InquiryAnswerPayload,
-} from '@owlmeans/viable-common'
+
+import { connectRef, type ConnectConvertCreateBody, type ConnectConvertProceedBody, type ConnectConvertStartBody, type ConnectKitApplyBody, type ConnectKitApplyResult, type ConnectKitDescribe, type ConnectOp, type ConnectOpResult, type ConnectOpSubmission, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectSessionView, type ConnectStoryStatus, type ConnectTarget, type ConversionStatusView, type ConvertCheck, type InquiryAnswerPayload } from '@owlmeans/viable-common'
 import { TOOL_DEADLINE_MS } from '../consts.js'
 import type { ConnectorApi, OpenSessionArgs, ProjectEdits } from '../types.js'
-
-type Ctx = ClientContext<ClientConfig>
-
-const TRANSIENT_TRANSPORT_CODES = new Set([
-  'ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT',
-  'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_SOCKET',
-])
-
-/** A broken HTTP connection, as opposed to a refusal the platform deliberately answered. */
-export const isTransientTransportError = (value: unknown): boolean => {
-  const seen = new Set<unknown>()
-  let current: unknown = value
-
-  while (current != null && !seen.has(current)) {
-    seen.add(current)
-    const error = current as { code?: unknown, message?: unknown, cause?: unknown }
-    if (typeof error.code === 'string' && TRANSIENT_TRANSPORT_CODES.has(error.code)) return true
-    const message = typeof error.message === 'string' ? error.message : String(current)
-    if (/\b(?:ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|UND_ERR_(?:CONNECT_TIMEOUT|HEADERS_TIMEOUT|SOCKET))\b/.test(message)) {
-      return true
-    }
-    current = error.cause
-  }
-
-  return false
-}
-
-/**
- * Recover a long poll with one non-blocking snapshot.
- *
- * Repeating the whole poll can exceed the MCP host's 45-second tool ceiling after a proxy drops a
- * response near the end of its 30-second window. A snapshot asks for the same durable state with
- * no wait, so the caller receives the current state without duplicating or restarting any work.
- */
-export const recoverLongPoll = async <T>(
-  poll: () => Promise<T>, snapshot: () => Promise<T>
-): Promise<T> => {
-  try {
-    return await poll()
-  } catch (error) {
-    if (!isTransientTransportError(error)) throw error
-
-    return await snapshot()
-  }
-}
+import type { Ctx } from './types.local.js'
+import { planningContextOf } from '@owlmeans/client-planning'
 
 /**
  * The connector API over HTTP.
@@ -140,7 +89,7 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
         .entrypoint(connectRef.story.status).call({ params: { id, storyId }, timeout: TOOL_DEADLINE_MS }),
     },
 
-    planning: planningOf(context, {}),
+    planning: planningContextOf(context).facade({}),
 
     files: {
       list: async (id: string) => await context.entrypoint(connectRef.files.list).call({

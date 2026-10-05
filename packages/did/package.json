@@ -1,10 +1,11 @@
 {
   "name": "@owlmeans/did",
-  "version": "0.1.18-rc.44",
+  "version": "0.1.18-rc.45",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
+    "test": "bun test ./tests",
     "dev": "sleep 153 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
@@ -21,15 +22,15 @@
     }
   },
   "dependencies": {
-    "@noble/curves": "^1.6.0",
-    "@noble/hashes": "^1.5.0",
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/basic-keys": "^0.1.18-rc.46",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/i18n": "^0.1.18-rc.37",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@scure/base": "^2.3.0",
-    "@scure/bip39": "^1.4.0"
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@owlmeans/auth": "^0.1.18-rc.39",
+    "@owlmeans/basic-keys": "^0.1.18-rc.47",
+    "@owlmeans/error": "^0.1.18-rc.37",
+    "@owlmeans/i18n": "^0.1.18-rc.38",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@scure/base": "^2.4.0",
+    "@scure/bip39": "^2.4.0"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

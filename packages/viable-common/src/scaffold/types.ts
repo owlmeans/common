@@ -266,3 +266,6 @@ export interface ScaffoldPlan {
    */
   motifs: string
 }
+
+/** Which field the arrow is being followed along. */
+export type ShareKind = 'widget' | 'screen'

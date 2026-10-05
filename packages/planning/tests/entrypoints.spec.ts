@@ -2,14 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { protocols } from '@owlmeans/entrypoint'
 import { RouteMethod, RouteProtocols } from '@owlmeans/route'
 import { makePlanningProtocols } from '../src/entrypoints.js'
-import { PLANNING_PATH, planningAliases, planningDefinitionAliases } from '../src/consts.js'
+import { PLANNING_PATH } from '../src/consts.js'
+import { planningAliasHelper } from '../src/aliases.js'
 
 const BASE = 'app:api:planning'
 
 describe('makePlanningProtocols', () => {
   test('declares every leaf once, each alias derived from the base alias', () => {
     const tree = makePlanningProtocols({ base: { alias: BASE }, guards: 'guard:default' })
-    const aliases = planningAliases(BASE)
+    const aliases = planningAliasHelper.planningAliases(BASE)
     const declared = protocols(tree as never).map(protocol => protocol.alias)
 
     expect(new Set(declared).size).toBe(declared.length)
@@ -49,7 +50,7 @@ describe('makePlanningProtocols', () => {
   test('definitions add the scoped schema list and the schema write; without them neither exists', () => {
     const plain = makePlanningProtocols({ base: { alias: BASE }, guards: 'guard:default' })
     const scoped = makePlanningProtocols({ base: { alias: BASE }, guards: 'guard:default', definitions: true })
-    const define = planningDefinitionAliases(BASE).define
+    const define = planningAliasHelper.planningDefinitionAliases(BASE).define
 
     expect(plain.schema.define).toBeUndefined()
     expect(plain.schema.list.contract?.requestSchemas.query).toBeUndefined()

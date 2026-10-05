@@ -2,11 +2,13 @@ import { describe, expect, test } from 'bun:test'
 import { MisshapedRecord } from '@owlmeans/resource'
 import { ObjectId } from 'mongodb'
 
-import {
+import { mongoRefHelper } from '../src/utils/refs.js'
+import type { MongoReference } from '../src/types.js'
+
+const {
   demarshalReference, demarshalRefs, identityCriteria, isObjectIdHex, marshalCriteria,
   marshalReference, refMigrationName
-} from '../src/utils/refs.js'
-import type { MongoReference } from '../src/types.js'
+} = mongoRefHelper
 
 const HEX = '6712abcdef0123456789abcd'
 const OTHER = '6712abcdef0123456789abce'

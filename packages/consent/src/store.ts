@@ -1,8 +1,8 @@
 import { CONSENT_KEY, DEFAULT_CONSENT_CATEGORIES } from './consts.js'
-import { applyConsent, pushConsentDefaults } from './gtm.js'
-import { consentLinker, stripConsentLinkParam, writeConsentLanguage } from './linker.js'
-import { adoptConsent, adoptConsentLanguage, registerConsentPlugin, startConsentPlugins } from './plugins.js'
-import { readConsent, writeConsent } from './storage.js'
+import { consentModeHelper } from './gtm.js'
+import { consentLinkHelper } from './linker.js'
+import { consentPluginHelper } from './plugins.js'
+import { consentStorageHelper } from './storage.js'
 import type {
   ConsentListener, ConsentOptions, ConsentReason, ConsentRecord, ConsentState, ConsentStore,
 } from './types.js'
@@ -43,41 +43,41 @@ export const makeConsentStore = (): ConsentStore => {
     init: opts => {
       options = { ...options, ...opts }
       // Before anything is read, so a page with no stored answer still declares what is denied.
-      pushConsentDefaults(options)
+      consentModeHelper.pushConsentDefaults(options)
 
       if (options.linker != null) {
         // Replace-by-alias (`registerConsentPlugin`), so a second `init` (a re-mounted provider,
         // StrictMode) never double-installs the click listener — `consentLinker().start` also
         // guards itself with its own closured flag, belt and braces.
-        registerConsentPlugin(consentLinker())
-        startConsentPlugins(options)
+        consentPluginHelper.registerConsentPlugin(consentLinkHelper.consentLinker())
+        consentPluginHelper.startConsentPlugins(options)
       }
 
-      let record = readConsent(options)
+      let record = consentStorageHelper.readConsent(options)
       // Only when THIS document has no decision yet — an existing one always wins, exactly as the
       // ordinary "ask" path would never overwrite a stored record either.
       if (record == null && options.linker != null) {
-        record = adoptConsent(options)
+        record = consentPluginHelper.adoptConsent(options)
         if (record != null) {
-          writeConsent(record, options)
+          consentStorageHelper.writeConsent(record, options)
         }
       }
       if (options.linker != null) {
         // The language the link carried, stored at once — the interface language is strictly
         // necessary storage, so no decision is consulted. A page that stamped the inline head
         // fragment has already done this and stripped the parameter, which leaves nothing here.
-        const carried = adoptConsentLanguage(options)
+        const carried = consentPluginHelper.adoptConsentLanguage(options)
         if (carried != null) {
-          writeConsentLanguage(carried, options)
+          consentLinkHelper.writeConsentLanguage(carried, options)
         }
         // Always, whether or not anything was adopted — a stale or foreign parameter is exactly as
         // much noise in the visible URL as an adopted one, and a page that already had its own
         // decision may still have arrived with one attached.
-        stripConsentLinkParam(options)
+        consentLinkHelper.stripConsentLinkParam(options)
       }
 
       if (record != null) {
-        applyConsent(record, options)
+        consentModeHelper.applyConsent(record, options)
         publish({ record, open: false, reason: null })
 
         return
@@ -86,8 +86,8 @@ export const makeConsentStore = (): ConsentStore => {
     },
 
     save: record => {
-      writeConsent(record, options)
-      applyConsent(record, options)
+      consentStorageHelper.writeConsent(record, options)
+      consentModeHelper.applyConsent(record, options)
       publish({ record, open: false, reason: null })
     },
 
@@ -119,8 +119,8 @@ export const makeConsentStore = (): ConsentStore => {
 
 export const consentStore: ConsentStore = makeConsentStore()
 
-/** Open the preferences dialog from anywhere — a footer link, a policy page, a login gate. */
+/** @deprecated compat:factory-refactor — use `consentStore.open(…)` */
 export const openConsent = (reason?: ConsentReason): void => consentStore.open(reason)
 
-/** Whether a category is granted, for the callers that are not components. */
+/** @deprecated compat:factory-refactor — use `consentStore.granted(…)` */
 export const isConsented = (key: string): boolean => consentStore.granted(key)

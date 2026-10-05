@@ -2,13 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import { ProjectArea } from '../src/areas/consts.js'
 import { SpecCategory } from '../src/ba/consts.js'
-import {
-  DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, designHash, designStaleness,
-  emptyStoryDesign, screenMapOf, userStoryOfDesign,
-} from '../src/design/index.js'
+import { DesignStaleness, STORY_DESIGN_VERSION, StoryDesignSchema, storyDesignHelper } from '../src/design/index.js'
 import type { StoryDesign } from '../src/design/index.js'
 
-const design = (extra: Partial<StoryDesign> = {}): StoryDesign => emptyStoryDesign({
+const design = (extra: Partial<StoryDesign> = {}): StoryDesign => storyDesignHelper.emptyStoryDesign({
   code: 'US-ABC12',
   narrative: 'A visitor books a slot.',
   area: ProjectArea.User,
@@ -45,7 +42,7 @@ describe('viable-common - the design aggregate', () => {
   test('derives the UserStory the coders take, carrying the story code', () => {
     // The scaffold stamps every placeholder it draws with the code, so a run keyed by anything
     // else cannot recognise its own reservation.
-    const story = userStoryOfDesign(withScreens())
+    const story = storyDesignHelper.userStoryOfDesign(withScreens())
 
     expect(story.code).toBe('US-ABC12')
     expect(story.area).toBe(ProjectArea.User)
@@ -60,11 +57,11 @@ describe('viable-common - the design aggregate', () => {
     const broken = withScreens()
     broken.screens[0].components = ['BookingList', 'Ghost']
 
-    expect(userStoryOfDesign(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
+    expect(storyDesignHelper.userStoryOfDesign(broken).screens[0].components.map(entry => entry.name)).toEqual(['BookingList'])
   })
 
   test('screenMapOf is the shape every UX and UI prompt takes', () => {
-    expect(screenMapOf(withScreens())).toEqual({ 'booking/list/overview': ['BookingList'] })
+    expect(storyDesignHelper.screenMapOf(withScreens())).toEqual({ 'booking/list/overview': ['BookingList'] })
   })
 })
 
@@ -78,7 +75,7 @@ describe('viable-common - design staleness', () => {
   }
 
   test('answers fresh when nothing moved', () => {
-    expect(designStaleness(fresh(), now)).toBe(DesignStaleness.Fresh)
+    expect(storyDesignHelper.designStaleness(fresh(), now)).toBe(DesignStaleness.Fresh)
   })
 
   test('ranks by severity: version, then narrative, then project, then tree', () => {
@@ -86,17 +83,17 @@ describe('viable-common - design staleness', () => {
     // them the most expensive of the four.
     const versioned = fresh()
     versioned.version = STORY_DESIGN_VERSION + 1
-    expect(designStaleness(versioned, now)).toBe(DesignStaleness.Version)
+    expect(storyDesignHelper.designStaleness(versioned, now)).toBe(DesignStaleness.Version)
 
-    expect(designStaleness(fresh(), { ...now, narrativeHash: 'x' })).toBe(DesignStaleness.Narrative)
-    expect(designStaleness(fresh(), { ...now, projectHash: 'x' })).toBe(DesignStaleness.Project)
-    expect(designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, narrativeHash: 'x' })).toBe(DesignStaleness.Narrative)
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, projectHash: 'x' })).toBe(DesignStaleness.Project)
+    expect(storyDesignHelper.designStaleness(fresh(), { ...now, registryHash: 'x' })).toBe(DesignStaleness.Tree)
   })
 
   test('the hash is stable and distinguishes its inputs', () => {
-    expect(designHash('a', 'b')).toBe(designHash('a', 'b'))
-    expect(designHash('a', 'b')).not.toBe(designHash('a', 'c'))
-    expect(designHash('a', undefined)).toBe(designHash('a'))
+    expect(storyDesignHelper.designHash('a', 'b')).toBe(storyDesignHelper.designHash('a', 'b'))
+    expect(storyDesignHelper.designHash('a', 'b')).not.toBe(storyDesignHelper.designHash('a', 'c'))
+    expect(storyDesignHelper.designHash('a', undefined)).toBe(storyDesignHelper.designHash('a'))
   })
 })
 

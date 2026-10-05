@@ -2,26 +2,7 @@ import Fastify from 'fastify'
 import { logger } from '@owlmeans/log'
 import type { ServerConfig } from '@owlmeans/server-context'
 import { CLOSED_HOST, OPENED_HOST, PORT } from './consts.js'
-
-export interface ApiPortHoldOptions {
-  /**
-   * The one path answered 200 while the hold is in place — the app's health endpoint, so
-   * whatever supervises the process keeps a conventional liveness answer through the boot.
-   * Everything else answers 503 with the same body. Absent, everything is 503.
-   */
-  okPath?: string
-  /** Body of every answer, evaluated per request so a changing boot phase is reported live. */
-  payload?: () => unknown
-}
-
-export interface ApiPortHold {
-  /**
-   * Free the port for the real server. Awaits the actual close — `listen()` follows immediately,
-   * and a predecessor still bound makes it throw — and force-closes keep-alive sockets, so a
-   * supervisor's own poller cannot hold the release open.
-   */
-  release: () => Promise<void>
-}
+import type { ApiPortHold, ApiPortHoldOptions } from './types.js'
 
 /**
  * Own the app's port while the context initializes, and answer for the app until `listen()`

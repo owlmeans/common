@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { ProductError, SubscriptionStatus } from '@owlmeans/payment'
-import { createEventHandler, mapStatus } from '../src/plugins/events.js'
-import { resyncStripeSubscription, resyncStripeSubscriptions } from '../src/plugins/events.js'
-import { classifySubscriptionChange } from '../src/subscription.js'
-import { gateway } from '../src/utils.js'
+import { createEventHandler } from '../src/plugins/events.js'
 import type { PaymentSubscriptionRecord, PropagatedState } from '../src/types.js'
 import {
   CAP_WHITELABEL, CREDITS_PRODUCT, eventOf, FREE, future, makeFakeContext, PRO, subscriptionOf, TEAM,
 } from './fake-stripe.js'
 import type { FakeContext, SubscriptionShape } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { subscriptionHelper } from '../src/subscription.js'
+import { stripeSubscriptionsOf } from '../src/plugins/subscriptions.js'
+import { mapStatus } from '../src/plugins/status.js'
 
 const send = async (fake: FakeContext, type: string, object: unknown, overrides: Record<string, unknown> = {}) => {
   const event = eventOf(type, object, overrides)
@@ -36,28 +37,28 @@ const state = (overrides: Partial<PropagatedState> = {}): PropagatedState => ({
 
 describe('@owlmeans/server-payment — subscription change classification', () => {
   test('created once entitling; canceled; paused; resumed from a pause or a suspension', () => {
-    expect(classifySubscriptionChange(null, record(SubscriptionStatus.Active))).toBe('created')
-    expect(classifySubscriptionChange(null, record(SubscriptionStatus.Trial))).toBe('created')
-    expect(classifySubscriptionChange(null, record(SubscriptionStatus.Created))).toBeNull()
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Canceled))).toBe('canceled')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Ended))).toBe('canceled')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Suspended, { pausedAt: new Date() }))).toBe('paused')
-    expect(classifySubscriptionChange(state({ status: SubscriptionStatus.Suspended, pausedAt: new Date() }), record(SubscriptionStatus.Active))).toBe('resumed')
-    expect(classifySubscriptionChange(state({ status: SubscriptionStatus.Suspended }), record(SubscriptionStatus.Active))).toBe('resumed')
+    expect(subscriptionHelper.classifySubscriptionChange(null, record(SubscriptionStatus.Active))).toBe('created')
+    expect(subscriptionHelper.classifySubscriptionChange(null, record(SubscriptionStatus.Trial))).toBe('created')
+    expect(subscriptionHelper.classifySubscriptionChange(null, record(SubscriptionStatus.Created))).toBeNull()
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Canceled))).toBe('canceled')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Ended))).toBe('canceled')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Suspended, { pausedAt: new Date() }))).toBe('paused')
+    expect(subscriptionHelper.classifySubscriptionChange(state({ status: SubscriptionStatus.Suspended, pausedAt: new Date() }), record(SubscriptionStatus.Active))).toBe('resumed')
+    expect(subscriptionHelper.classifySubscriptionChange(state({ status: SubscriptionStatus.Suspended }), record(SubscriptionStatus.Active))).toBe('resumed')
   })
 
   test('plan changes by rank, cancel scheduling, renewal once per invoice, dunning, trial end, else nothing', () => {
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { planSku: TEAM, rank: 20 }))).toBe('upgraded')
-    expect(classifySubscriptionChange(state({ planSku: TEAM, rank: 20 }), record(SubscriptionStatus.Active))).toBe('downgraded')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { planSku: 'pro-yearly', rank: 10 }))).toBe('upgraded')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { cancelAtPeriodEnd: true }))).toBe('cancel-scheduled')
-    expect(classifySubscriptionChange(state({ cancelAtPeriodEnd: true }), record(SubscriptionStatus.Active))).toBe('cancel-undone')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Active), { renewal: true, invoiceId: 'in_2' })).toBe('renewed')
-    expect(classifySubscriptionChange(state({ renewedInvoiceId: 'in_2' }), record(SubscriptionStatus.Active), { renewal: true, invoiceId: 'in_2' })).toBeNull()
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.PastDue))).toBe('past-due')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Suspended))).toBe('suspended')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Trial), { trialEnding: true })).toBe('trial-ending')
-    expect(classifySubscriptionChange(state(), record(SubscriptionStatus.Active))).toBeNull()
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { planSku: TEAM, rank: 20 }))).toBe('upgraded')
+    expect(subscriptionHelper.classifySubscriptionChange(state({ planSku: TEAM, rank: 20 }), record(SubscriptionStatus.Active))).toBe('downgraded')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { planSku: 'pro-yearly', rank: 10 }))).toBe('upgraded')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Active, { cancelAtPeriodEnd: true }))).toBe('cancel-scheduled')
+    expect(subscriptionHelper.classifySubscriptionChange(state({ cancelAtPeriodEnd: true }), record(SubscriptionStatus.Active))).toBe('cancel-undone')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Active), { renewal: true, invoiceId: 'in_2' })).toBe('renewed')
+    expect(subscriptionHelper.classifySubscriptionChange(state({ renewedInvoiceId: 'in_2' }), record(SubscriptionStatus.Active), { renewal: true, invoiceId: 'in_2' })).toBeNull()
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.PastDue))).toBe('past-due')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Suspended))).toBe('suspended')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Trial), { trialEnding: true })).toBe('trial-ending')
+    expect(subscriptionHelper.classifySubscriptionChange(state(), record(SubscriptionStatus.Active))).toBeNull()
   })
 
   test('maps paygate statuses: past_due entitles, unpaid, paused and paused collection revoke', () => {
@@ -329,26 +330,26 @@ describe('@owlmeans/server-payment — resync and internal grants', () => {
     fake.state.subscriptions.sub_1 = subscriptionOf({ cancelAtPeriodEnd: true }) as never
     delete fake.state.subscriptions.sub_2
 
-    expect(await resyncStripeSubscriptions(fake.ctx, fake.stripe)).toEqual({ scanned: 2, updated: 2 })
+    expect(await stripeSubscriptionsOf(fake.ctx).resyncStripeSubscriptions(fake.stripe)).toEqual({ scanned: 2, updated: 2 })
     expect(changes(fake)).toEqual(['created', 'created', 'cancel-scheduled', 'canceled'])
     expect(rows(fake).find(row => row.externalId === 'sub_2')?.status).toBe(SubscriptionStatus.Canceled)
 
-    expect(await resyncStripeSubscriptions(fake.ctx, fake.stripe)).toEqual({ scanned: 1, updated: 0 })
-    expect(await resyncStripeSubscription(fake.ctx, fake.stripe, { entityId: 'entity-2' })).toBe(0)
+    expect(await stripeSubscriptionsOf(fake.ctx).resyncStripeSubscriptions(fake.stripe)).toEqual({ scanned: 1, updated: 0 })
+    expect(await stripeSubscriptionsOf(fake.ctx).resyncStripeSubscription(fake.stripe, { entityId: 'entity-2' })).toBe(0)
   })
 
   test('an internal grant is created once, keeps its creation date and needs force for a paid plan', async () => {
     const fake = await makeFakeContext()
-    const first = await gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', FREE)
-    const again = await gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', FREE)
+    const first = await paymentAccessOf(fake.ctx).gateway().grantInternalPlan(fake.ctx, 'entity-1', FREE)
+    const again = await paymentAccessOf(fake.ctx).gateway().grantInternalPlan(fake.ctx, 'entity-1', FREE)
     expect(first.externalId).toBe('free:entity-1')
     expect(again.createdAt.getTime()).toBe(first.createdAt.getTime())
     expect(fake.observed.subscription).toEqual([expect.objectContaining({
       change: 'created', eventKey: `subscription:free:entity-1:created:${first.createdAt.toISOString()}`,
     })])
 
-    await expect(gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', PRO)).rejects.toBeInstanceOf(ProductError)
-    const comp = await gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', PRO, { force: true, periodEnd: future(365) })
+    await expect(paymentAccessOf(fake.ctx).gateway().grantInternalPlan(fake.ctx, 'entity-1', PRO)).rejects.toBeInstanceOf(ProductError)
+    const comp = await paymentAccessOf(fake.ctx).gateway().grantInternalPlan(fake.ctx, 'entity-1', PRO, { force: true, periodEnd: future(365) })
     expect(comp).toEqual(expect.objectContaining({ externalId: `internal:${PRO}:entity-1`, paygate: 'internal', rank: 10 }))
     expect(fake.observed.subscription[1].current.capabilities?.some(set => set.permissions.whitelabel === true)).toBe(true)
     expect(CAP_WHITELABEL).toBe('feature:whitelabel')

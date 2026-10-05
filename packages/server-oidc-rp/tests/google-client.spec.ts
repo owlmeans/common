@@ -7,7 +7,7 @@ import { googleClientPlugin } from '../src/auth/plugins/google-client.js'
 import { GOOGLE_SERVICE } from '@owlmeans/oidc'
 import { AuthenFailed, AuthenPayloadError, AuthRole } from '@owlmeans/auth'
 import { UnknownRecordError } from '@owlmeans/resource'
-import { verifierId } from '../src/utils/cache.js'
+import { makeOidcCacheHelper } from '../src/utils/cache.js'
 import { AUTH_CACHE } from '@owlmeans/server-auth'
 import type { Resource } from '@owlmeans/resource'
 import type { OIDCAuthCache } from '../src/utils/types.js'
@@ -65,7 +65,7 @@ describe('@owlmeans/server-oidc-rp — googleClientPlugin.init', () => {
     const state = url.searchParams.get('state')!
 
     const cache = (ctx as unknown as BasicContext<Config>).resource<Resource<OIDCAuthCache>>(AUTH_CACHE)
-    const record = await cache.load(verifierId(state))
+    const record = await cache.load(makeOidcCacheHelper(ctx as unknown as Context).verifierId(state))
 
     expect(record).not.toBeNull()
     expect(record!.verifier).toBeDefined()
@@ -146,7 +146,7 @@ describe('@owlmeans/server-oidc-rp — googleClientPlugin.authenticate and the v
     ctx.configure()
     await ctx.init()
     const cache = (ctx as unknown as BasicContext<Config>).resource<Resource<OIDCAuthCache>>(AUTH_CACHE)
-    await cache.create({ id: verifierId('google-state'), verifier: 'v', client: 'google-client-id-123', redirectUri: 'https://example.com/cb' })
+    await cache.create({ id: makeOidcCacheHelper(ctx as unknown as Context).verifierId('google-state'), verifier: 'v', client: 'google-client-id-123', redirectUri: 'https://example.com/cb' })
 
     return googleClientPlugin(ctx as unknown as Context, GOOGLE_SERVICE).authenticate({
       type: 'google-oauth', challenge: '', credential: 'code=abc123&state=google-state',

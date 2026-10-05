@@ -2,9 +2,9 @@ import type { ClientEntrypoint, ClientEntrypointOptions, EntrypointRef, RefedEnt
 import type { AbstractRequest, CommonEntrypoint } from '@owlmeans/entrypoint'
 import { validate } from './utils/entrypoint.js'
 import { route } from '@owlmeans/client-route'
-import { apiInvoke, apiHandler, entrypointUrl } from './utils/handler.js'
+import { apiCallOf } from './utils/handler.js'
 import { AppType } from '@owlmeans/context'
-import { provideRequest } from './helper.js'
+import { clientRequestHelper } from './helper.js'
 
 /** Attach client behaviour to an entrypoint already materialized from a protocol. */
 export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = AbstractRequest>(
@@ -16,6 +16,7 @@ export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = Abstra
 
   let _entrypoint: ClientEntrypoint<T, R>
 
+  const apiHandler: RefedEntrypointHandler<T, R> = ref => apiCallOf(ref).apiHandler
   const _handler = handler ?? (arg.route.route.type === AppType.Backend ? apiHandler : undefined)
 
   assertExplicitHandler(arg.route.route.type, handler)
@@ -29,7 +30,7 @@ export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = Abstra
   _entrypoint.gateParams = opts?.gateParams ?? arg.gateParams
 
   _entrypoint.url = ((req?: Partial<R>, urlOpts?: { absolute?: boolean }) =>
-    entrypointUrl<T, R>(entrypointHandle, req as never, urlOpts)) as ClientEntrypoint<T, R>['url']
+    apiCallOf(entrypointHandle).entrypointUrl(req as never, urlOpts)) as ClientEntrypoint<T, R>['url']
 
   // An entrypoint carrying a renderer IS a screen: it is addressed by URL, never called over the
   // wire. Saying so here turns what used to be a URL-shaped answer from `call()` into a report.
@@ -39,7 +40,7 @@ export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = Abstra
         `Entrypoint ${_entrypoint.alias} renders a screen - address it with url() instead of call()/invoke()`
       )
     })
-    : apiInvoke<T, R>(entrypointHandle, opts)) as ClientEntrypoint<T, R>['invoke']
+    : apiCallOf(entrypointHandle).apiInvoke(opts)) as ClientEntrypoint<T, R>['invoke']
 
   _entrypoint.call = (async (req?: Partial<R>) =>
     (await _entrypoint.invoke(req)).value) as ClientEntrypoint<T, R>['call']
@@ -48,7 +49,7 @@ export const bindMaterializedEntrypoint = <T, R extends AbstractRequest = Abstra
     if (entrypointHandle.ref == null) {
       throw SyntaxError(`Try to request uninitialized entrypoint ${JSON.stringify(arg)}`)
     }
-    const _request = provideRequest(entrypointHandle.ref.alias, entrypointHandle.ref.path()) as R
+    const _request = clientRequestHelper.provideRequest(entrypointHandle.ref.alias, entrypointHandle.ref.path()) as R
 
     request != null && Object.entries(request).forEach(([key, value]) => {
       _request[key as keyof R] = value

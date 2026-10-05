@@ -1,27 +1,9 @@
-import { createLazyService } from '@owlmeans/context'
-import type { BasicContext, LazyService } from '@owlmeans/context'
-import type { AbstractRequest } from '@owlmeans/entrypoint'
+import { createLazyService, type BasicContext } from '@owlmeans/context'
 import { logger } from '@owlmeans/log'
+import { ENTRYPOINT_FAILURE_SERVICE } from './consts.js'
+import type { EntrypointFailurePlugin, EntrypointFailureService } from './types.js'
 
 const log = logger('client-entrypoint')
-
-export const ENTRYPOINT_FAILURE_SERVICE = 'client-entrypoint:failure'
-
-export interface EntrypointFailure {
-  alias: string
-  request: AbstractRequest
-  error: unknown
-}
-
-export interface EntrypointFailurePlugin {
-  alias: string
-  onFailure: (failure: EntrypointFailure) => void | Promise<void>
-}
-
-export interface EntrypointFailureService extends LazyService {
-  registerPlugin: (plugin: EntrypointFailurePlugin) => void
-  notify: (failure: EntrypointFailure) => Promise<void>
-}
 
 /** Context-local observers for rejected client calls; observers never replace the thrown error. */
 export const ensureEntrypointFailureService = (ctx: BasicContext<any>): EntrypointFailureService => {

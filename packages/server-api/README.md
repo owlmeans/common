@@ -10,7 +10,7 @@ only when composing a context without that package. WebSocket routes belong to
 ## Installation
 
 ```bash
-bun add @owlmeans/server-api@^0.1.18-rc.49
+bun add @owlmeans/server-api@^0.1.18-rc.50
 ```
 
 ## Concepts
@@ -190,14 +190,15 @@ code does not need it.
 | `authorize(context, module, req, reply)` | function | Run guards, set `auth`, call `attachEntity` |
 | `createServerHandler(module, location)` | function | The Fastify handler: authorize, gates, handle, respond |
 | `canServeModule(context, module)` | function | Whether an entrypoint belongs on this HTTP server |
-| `provideRequest(alias, req, provision?)` | function | Build an `AbstractRequest` from a Fastify request |
-| `executeResponse(response, reply, throwOnError?)` | function | Send an `AbstractResponse` onto a reply |
-| `handleError(error, reply)` | function | Answer an error with `errorStatus` and the marshalled body |
-| `errorStatus(error)` | function | 403 / 401 for auth errors (by class or type name), else the class's declared 4xx, else 500 |
-| `declaredErrorStatus(error)` | function | The integer 4xx a class declares through `static httpStatus`, or `null` |
+| `payloadHelper.provideRequest(alias, req, provision?)` | helper member | Build an `AbstractRequest` from a Fastify request |
+| `payloadHelper.executeResponse(response, reply, throwOnError?)` | helper member | Send an `AbstractResponse` onto a reply |
+| `httpErrorHelper.handleError(error, reply, exposure?)` | helper member | Answer an error with `errorStatus` and the marshalled body |
+| `httpErrorHelper.errorStatus(error)` | helper member | 403 / 401 for auth errors (by class or type name), else the class's declared 4xx, else 500 |
+| `httpErrorHelper.declaredErrorStatus(error)` | helper member | The integer 4xx a class declares through `static httpStatus`, or `null` |
+| `httpErrorHelper.errorExposure(config?)`, `.serializeError(error, exposure?)`, `.applyErrorHeaders(error, reply)` | helper member | The exposure policy, the wire shape and the response headers of an error |
 | `HttpStatusDeclaration` | type | `{ httpStatus?: unknown }` — the structural shape a declaring class has |
 | `fixFormatDates(schema)` | function | Rewrite `date-time` object schemas as strings |
-| `populateContext(req, context)`, `extractContext(req, ctx?, location?)` | function | Carry the request-scoped context on the raw request |
+| `makeRequestContextHelper(req).populateContext(context)`, `.extractContext(ctx?, location?)` | helper member | Carry the request-scoped context on the raw request |
 
 ## Common pitfalls
 
@@ -240,7 +241,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

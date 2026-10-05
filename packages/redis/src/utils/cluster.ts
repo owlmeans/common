@@ -2,9 +2,10 @@ import { logger } from '@owlmeans/log'
 import type { DbConfig } from '@owlmeans/resource'
 import { Cluster } from 'ioredis'
 import type { Redis } from 'ioredis'
-import { prepareClusterRedisOptions } from './config.js'
+import { redisOptionsUtils } from './config.js'
 import { createClient } from './instance.js'
 import type { RedisMeta } from '../types.js'
+import type { ClusterNode, NodeInfo } from '../types.local.js'
 
 const log = logger('redis:cluster')
 
@@ -12,7 +13,7 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
   if (!Array.isArray(config.host)) {
     throw new SyntaxError('We may connect to redis cluster only knowing its nodes')
   }
-  const setup = prepareClusterRedisOptions(config)
+  const setup = redisOptionsUtils.cluster(config)
   // 1. Create single clients for testing
   const clients = await Promise.all(setup.nodes.map(
     async node => {
@@ -193,7 +194,7 @@ export const ensuerCluster = async (config: DbConfig<RedisMeta>): Promise<Cluste
   return new Cluster(setup.nodes, setup.options)
 }
 
-const parseClusterNodeInfo = (clusterNodes: string) => {
+const parseClusterNodeInfo = (clusterNodes: string): NodeInfo[] => {
   const nodesInfo = clusterNodes.split('\n').filter(line => line.trim() !== '')
   return nodesInfo.map(line => {
     const [nodeId, addr, flags, master, , , , state, ...slots] = line.split(' ')
@@ -210,9 +211,3 @@ const parseClusterNodeInfo = (clusterNodes: string) => {
   })
 }
 
-type NodeInfo = ReturnType<typeof parseClusterNodeInfo>[0]
-
-interface ClusterNode {
-  node: Redis
-  info: NodeInfo
-}

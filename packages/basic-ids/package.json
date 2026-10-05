@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/basic-ids",
-  "version": "0.1.18-rc.35",
+  "version": "0.1.18-rc.36",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,14 +23,13 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/uuid": "^11.0.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
-    "@scure/base": "^2.3.0",
-    "uuid": "^14.0.1"
+    "@noble/hashes": "^2.4.0",
+    "@scure/base": "^2.4.0",
+    "uuid": "^14.0.2"
   },
   "publishConfig": {
     "access": "public"

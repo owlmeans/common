@@ -11,7 +11,7 @@ but never started.
 ## Installation
 
 ```sh
-bun add @owlmeans/web-panel@^0.1.18-rc.69
+bun add @owlmeans/web-panel@^0.1.18-rc.70
 ```
 
 Peer requirements (the consuming app provides these): `react`, `react-dom`,
@@ -363,7 +363,7 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 |---|---|
 | everything (`usePanelNav`, `PanelNavConfig` / `PanelNavItem` / `PanelNavSection` / `PanelNavLink` / `NavTranslate`, `PanelContext`, `BlockScaling`, `useFormRef`, `FormContext`, ...) | `@owlmeans/client-panel` |
 | `handler`, `useNavigate`, `useValue`, `useEntrypoint` | `@owlmeans/client` |
-| `bind`, `bindAll`, `bindScreen`, `provideRequest`, `stab`; type `Module` | `@owlmeans/client-entrypoint` |
+| `bind`, `bindAll`, `bindScreen`, `clientRequestHelper`, `provideRequest` (deprecated, use `clientRequestHelper.provideRequest`), `stab`; type `Module` | `@owlmeans/client-entrypoint` |
 | `route`, `frontend` / `croute` | `@owlmeans/route` / `@owlmeans/client-route` |
 | `config` / `service` / `addWebService` | `@owlmeans/client-context` / `@owlmeans/config` / `@owlmeans/client-config` |
 | `AppType`, `HOME`, `ROOT`, `BASE`, `GUEST` | `@owlmeans/context` |
@@ -371,7 +371,7 @@ The dialog's strings are the lib-tier `socket` namespace (`reload.title`, `reloa
 | `DAUTH_GUARD` (`DEFAULT_ALIAS`), `bindExternalAuthentication` | `@owlmeans/client-auth` |
 | `Dispatcher`, `appendWebAuthService` | `@owlmeans/web-client` |
 | `composePrefix`, `useI18n`, `useI18nApp`, `useI18nLib`, `useLanguage` | `@owlmeans/client-i18n` |
-| `addI18nApp`, `addI18nLib`, `SUPPORTED_LNGS` | `@owlmeans/i18n` |
+| `i18nHelper`, `addI18nApp` / `addI18nLib` (deprecated, use `i18nHelper.*`), `SUPPORTED_LNGS` | `@owlmeans/i18n` |
 | `flow`, `configureFlows` / `FLOW_PARAM`, `SERVICE_PARAM`, `useFlow` | `@owlmeans/flow` / `@owlmeans/web-flow` |
 
 ### `@owlmeans/web-panel/auth`
@@ -400,14 +400,14 @@ React-free — it imports nothing, so a Node build script can load it.
 | `COLOR_SCHEME_KEY` | const | `'owlmeans:color-scheme'`, the `localStorage` key |
 | `COLOR_SCHEME_EVENT` | const | The `window` event every change dispatches |
 | `ColorSchemeChoice` | type | `'light' \| 'dark'` |
-| `readColorScheme()` | function | The stored choice or `null` (storage errors swallowed) |
-| `applyColorScheme(choice \| null)` | function | Sets the `light`/`dark` class on `<html>`, stores or clears the key, dispatches the event |
-| `colorSchemeBootstrapScript()` | function | The inline head script that applies a stored choice before first paint |
+| `colorSchemeHelper.readColorScheme()` | helper member | The stored choice or `null` (storage errors swallowed) |
+| `colorSchemeHelper.applyColorScheme(choice \| null)` | helper member | Sets the `light`/`dark` class on `<html>`, stores or clears the key, dispatches the event |
+| `colorSchemeHelper.colorSchemeBootstrapScript()` | helper member | The inline head script that applies a stored choice before first paint |
 
 The class contract: `.dark` = chosen dark, `.light` = chosen light, neither = follow the OS. A
 consumer's CSS puts dark tokens under `.dark` AND under
 `@media (prefers-color-scheme: dark) { :root:not(.light) { … } }`, and inlines
-`colorSchemeBootstrapScript()` in the document head.
+`colorSchemeHelper.colorSchemeBootstrapScript()` in the document head.
 
 ### `@owlmeans/web-panel/consent`
 
@@ -496,7 +496,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

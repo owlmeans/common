@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/viable-sdk
 
 **Layer:** Tooling (Node/Bun; not a browser or React package)
-**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.42"` in `dependencies`
+**Install:** `"@owlmeans/viable-sdk": "^0.1.18-rc.44"` in `dependencies`
 **Subpaths:** `.` · `./executor` · `./run` · `./tools` · `./task` · `./harness`
 **Contracts:** `@owlmeans/viable-common` (`./connect`, `./slot`, `./integrity`, and the planning
 vocabulary — story type and story flow) and `@owlmeans/planning` (the planning protocol tree
@@ -106,8 +106,8 @@ without the capability is refused at the boundary rather than by a check somewhe
 
 `ConnectorApi` has exactly one member per connector route plus the planning facade — the session
 (`openSession`, `closeSession`, `pullOps`, `submitOp`), projects, branding, story status, files,
-pipeline state, conversion (`create`, `check`, `start`, `proceed`, `status`, `purge`) and inquiry
-answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
+pipeline state, conversion (`create`, `check`, `start(projectId, body?)`, `proceed(projectId, body)`
+— the bodies are the route's, `confirm` included —, `status`, `purge`) and inquiry answers. There is no capability view, no session read or heartbeat and no conversion cancel, and a
 project's inference settings are not a connector call: a person sets them in the browser, through
 the platform's own API. A member is added together with the route in `connectProtocols` and its
 `connectRef` entry — never one without the others.
@@ -269,10 +269,12 @@ same facts in one sentence, because it is read at the same moment by a parent th
 `describe_platform`; the two sit side by side in `platform.ts`. The pipelines' `stages` name the steps
 a run can stop at (`landing` and `legal` in init, `landing` in story development).
 
-## A balance or consent refusal is phrased for a person, and pushed through `notify`
+## A balance, consent or confirmation refusal is phrased for a person, and pushed through `notify`
 
-`registerCatalogue`'s catch special-cases the two refusals only a PERSON can resolve
-(`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`:
+`personRefusalPhrase(e, retry?)` (`tools/refusal.ts`) phrases the three refusals only a PERSON can
+resolve (`@owlmeans/viable-common` `connect/errors.ts`), by `instanceof`, and answers `null` for
+anything else. Both `registerCatalogue`'s catch and the conversion tools' `answering` use it, so a
+conversion's balance refusal reads exactly like any other tool's:
 
 - `ConnectOutOfCredits` — rather than the raw `viable-connect:out-of-credits:...` marker, the tool
   result reads as a sentence: what it needed, what the account has, and a link to top up.
@@ -280,18 +282,42 @@ a run can stop at (`landing` and `legal` in init, `landing` in story development
   than 14 days ago may only be used once a person expressly asks, the purchase still withdrawable up
   to the last day), the `consentUrl` to open and confirm in the browser, and that the call must NOT
   be retried automatically — only after the user says they confirmed (`consentRequiredPhrase(url,
-  deadline)` in `tools/refusal.ts`, shared with the stored-text entry below).
+  deadline)`, shared with the stored-text entry below).
+- `ConnectConfirmationRequired` — a conversion step that would use the plan's conversion or spend
+  credits (`confirmationRequiredPhrase(fields, retry?)`): "Nothing was started"; for a start, what the
+  plan's conversion covers (free up to `cap` credits, the conversion limit; beyond it credit limits
+  first, then topped-up credits; every stage quoted and asked first); for a stage, its estimate
+  split ("580,000 from the conversion limit, 150,000 from the organization's credit limits, $2.40
+  of topped-up credits" — credit limits as credits, topped-up credits as money) and what the limit
+  has used and left. Then: tell the user exactly this, and only after they agree make the call it
+  prints — never `confirm: true` on the model's own. Every variant names the conversion limit (a
+  conversion with no plan unit "has no conversion limit").
 
 Their fields travel packed into the message (only `type` and `message` survive the platform's
-internal HTTP hop) and are read back with `finalizeUnmarshal()`. Both are also handed to the
+internal HTTP hop) and are read back with `finalizeUnmarshal()`. All three are also handed to the
 optional `ToolDeps.notify?('warning', text)`, which a host wires to its own out-of-band channel —
 the stdio `viable-mcp` host sends an MCP `notifications/message`; the platform's stateless `/mcp`
 host has no channel and omits it, so `notify` is always best-effort and optional. Every other
 error returns through `refusalPhrase` and never calls `notify`.
 
+**A conversion's confirmation is answered inside its tool, with the exact call to repeat**
+(`confirming` in `catalogue.ts`): `convert_project` / `proceed_conversion` print
+`<tool> {"projectId":…[,"decision":…,"note":…],"confirm":true}` — the project NAMED, because the
+URL-configured host keeps no attachment between calls and a bare repeat of `convert_project` there
+would file a second conversion (the start is what a confirmation stops; the create before it is
+never repeated). Both take `confirm` (`z.boolean().default(false)`, described), sent only when the
+parent passed `true`, and their descriptions explain the conversion limit (1,000,000 credits today),
+the spend order and that a delegated conversion is never asked — so a parent can say it before it is
+refused. A production body carries only the status: a bare `api:client:status:428` to a call sent
+WITHOUT `confirm` is answered with `unconfirmedConversionPhrase(retry)` (the confirmation, and the
+consent as what a second refusal of the confirmed call would mean); to a confirmed call it can only
+be the consent and falls to `REFUSALS`. `serverInstructions` says the same in one sentence of the
+workflow paragraph.
+
 The same refusals also arrive where no class survives, and `REFUSALS` phrases them by marker:
 `viable-connect:consent-required:` (a stored run error; the URL and deadline parsed from the
-detail), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
+detail), `viable-connect:confirmation-required:` (`ConnectConfirmationRequired.decode` of the
+detail, the generic "same arguments and confirm: true" repeat), `performance-consent-required` (the web refusal inside a planning `commit-failed:` or a
 stored error — no URL, so "Billing in the OwlMeans web application") — both ABOVE the planning
 markers, because the consent is what the person acts on — and, for a production body that carries
 only an incident id (`@owlmeans/api` `ApiStatusError`), `api:client:status:428` (the consent
@@ -406,7 +432,7 @@ environment otherwise hides the credentials file). The result is safe to commit.
 into every harness's instruction file, so the four cannot drift into four different protocols.
 
 **The server command is written once, too.** Every harness configuration starts the connector from
-`MCP_COMMAND` in `src/harness/templates.ts` — viable-mcp through `npx -y`, pinned with a caret at the
+`MCP_COMMAND` in `src/harness/consts.local.ts` — viable-mcp through `npx -y`, pinned with a caret at the
 viable-mcp release, on ONE line with its `npx` so the release pin audit reads it as an install
 command and moves it with every viable-mcp bump. Never a tag (`@next` is refused by that audit) and
 never a per-harness literal: three copies spelled `@next` while the fourth carried the pin.
@@ -530,7 +556,10 @@ reader looking for a database that was never configured.
 `bun test ./tests` — offline: the envelope and its parser, the harness installer, the tool catalogue,
 the `registerCatalogue` out-of-credits, consent and planning-refusal phrasing and `notify` wiring
 (`mcp-catalogue.spec.ts`; the consent marker, the bare 428/402 statuses and a consent inside a
-commit failure in `catalogue.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
+commit failure in `catalogue.spec.ts`; the conversion confirmation — schemas and descriptions, the
+start and stage phrasing, the repeat call naming a freshly filed project, the stored marker, the
+bare 428 either side of `confirm`, the confirmed call's balance and consent refusals and the MCP
+boundary — in `conversion-confirmation.spec.ts`), the executor's files/git/layout rules, and the marker + managed-`.env`
 block. The story tools run over a REAL `@owlmeans/server-planning` service (memory store, the Viable
 types and flows, one plugin standing in for the platform's format seam) built in `tests/context.ts`,
 the landing mark included; the settings and planning-kit tools over a recorded `ConnectorApi` (order of

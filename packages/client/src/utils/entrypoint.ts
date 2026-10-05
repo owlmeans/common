@@ -1,10 +1,8 @@
 
 import { createContext } from 'react'
-import type { EntrypointContextParams, ClientContext } from '../types.js'
-import type { ClientConfig } from '@owlmeans/client-context'
+import type { EntrypointContextParams } from '../types.js'
+import type { Context } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const EntrypointContext = createContext<EntrypointContextParams>({
   alias: '',

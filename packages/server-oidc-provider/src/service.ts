@@ -10,7 +10,7 @@ import type { BasicRoute } from '@owlmeans/route'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { PARAM, SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { combineConfig } from './utils/config.js'
+import { oidcConfigOf } from './utils/config.js'
 import { makeInteractionPolicy } from './utils/policy.js'
 
 const log = logger('server-oidc-provider')
@@ -57,7 +57,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
 
       const oidc = new Provider(url, {
-        ...await combineConfig(context, unsecure),
+        ...await oidcConfigOf(context).combineConfig(unsecure),
 
         adapter: cfg.adapterService != null
           ? name => context.service<OidcAdapterService>(cfg.adapterService!).instance(name)

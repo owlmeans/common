@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { RouteMethod } from '@owlmeans/route'
 import { oidcProtocols } from '../src/entrypoints.js'
 import { DISPATCHER_OIDC_ORGANIZATION, DISPATCHER_OIDC_ORGANIZATIONS, OIDC_GUARD } from '../src/consts.js'
-import { OidcOrganizationSwitchSchema } from '../src/models.js'
+import { OidcOrganizationSwitchSchema } from '../src/schemas.js'
 
 describe('oidcProtocols — organization switch', () => {
   test('lists organizations on GET, behind the wrapped-token guard alone', () => {

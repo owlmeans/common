@@ -76,3 +76,35 @@ export interface Config extends ServerConfig, OidcConfigAppend {
 
 export interface Context<C extends Config = Config> extends ServerContext<C>
   , ApiServerAppend { }
+
+/** A registered OIDC client stored in the provider's Client adapter. */
+export interface OidcRegisteredClient {
+  clientId: string
+  secret: string
+  /** The entity (realm) this client belongs to — used for identity scoping. */
+  entityId?: string
+  /** Application display name */
+  name?: string
+  redirectUris?: string[]
+  grantTypes?: string[]
+  responseTypes?: string[]
+  scope?: string
+}
+
+/** Full oidc-provider ClientMetadata with our entity extension. */
+export interface OidcClientMetadata extends ClientMetadata { entityId?: string; owlEntityId?: string }
+
+/** Converts a stored client record to oidc-provider ClientMetadata. */
+export interface ToClientMetadata {
+  (client: OidcRegisteredClient): OidcClientMetadata
+}
+
+/** Extension seam for IAM integration into the OIDC provider — Phase 2 fills this */
+export interface OidcProviderIamExtension {
+  /** Convert a stored client record to oidc-provider ClientMetadata */
+  toClientMetadata: ToClientMetadata
+  /** Type of a stored client record */
+  OidcRegisteredClient: OidcRegisteredClient
+  /** Extended metadata type */
+  OidcClientMetadata: OidcClientMetadata
+}

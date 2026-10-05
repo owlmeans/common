@@ -1,107 +1,88 @@
 import { logger } from '@owlmeans/log'
 import type { PoolClient } from 'pg'
 
-import { PgErrorCode } from '../consts.js'
-import { PostgresCastRequired, PostgresSyncError, describePgError, pgErrorToResourceError } from '../errors.js'
+import { PostgresCastRequired, PostgresSyncError } from '../errors.js'
+import { pgErrorHelper } from '../pg-error.js'
 import type { DdlPlan, TableSpec } from '../types.js'
-import { countNonNull } from './introspect.js'
-import { advisoryKey, quoteIdent } from './name.js'
+import { makePgIntrospectHelper } from './introspect.js'
+import { pgNameHelper } from './name.js'
+import { CAST_DATA_CODES } from './consts.local.js'
+import type { PgSyncHelper } from './sync/types.js'
 
 const log = logger('postgres-resource')
 
-/**
- * Codes that mean "the cast is legal, the data isn't": a `text` column holding `'a'` retyped to
- * `integer`, a value too wide for the new length, a number past the new range. Postgres refuses
- * each of these rather than truncating, and the remedy is the same one a refused cast needs — so
- * they are only read as a cast problem here, inside DDL. On the CRUD path the identical code means
- * a caller passed a bad value, which is a different bug with a different fix.
- */
-const CAST_DATA_CODES: string[] = [
-  PgErrorCode.InvalidTextRepresentation,
-  PgErrorCode.StringDataRightTruncation,
-  PgErrorCode.NumericValueOutOfRange
-]
+export const makePgSyncHelper = (client: PoolClient): PgSyncHelper => {
+  const { describePgError, pgErrorToResourceError } = pgErrorHelper
+  const { advisoryKey, quoteIdent } = pgNameHelper
+  const introspect = makePgIntrospectHelper(client)
 
-/**
- * Serialize initialization across replicas. A session level lock, not `xact`, because
- * migrations run in their own transactions inside the critical section.
- */
-export const acquireLock = async (client: PoolClient, qualified: string): Promise<void> => {
-  const [first, second] = advisoryKey(qualified)
-  await client.query('SELECT pg_advisory_lock($1, $2)', [first, second])
-}
-
-export const releaseLock = async (client: PoolClient, qualified: string): Promise<void> => {
-  const [first, second] = advisoryKey(qualified)
-  try {
-    await client.query('SELECT pg_advisory_unlock($1, $2)', [first, second])
-  } catch {
-    /** Releasing the session drops the lock anyway — never mask the original failure. */
-  }
-}
-
-export const ensureSchema = async (client: PoolClient, schema: string): Promise<void> => {
-  try {
-    await client.query(`CREATE SCHEMA IF NOT EXISTS ${quoteIdent(schema)}`)
-  } catch (error) {
-    throw pgErrorToResourceError(error)
-  }
-}
-
-/**
- * Apply a reconciliation plan in a single transaction.
- *
- * Postgres DDL is transactional, so a plan that fails partway leaves the table exactly as
- * it was. That property is what makes converging without confirmation prompts tolerable —
- * the table is either fully converged or untouched, never half migrated.
- *
- * @throws {PostgresCastRequired} Postgres refused an automatic cast.
- * @throws {PostgresSyncError} any other statement failed — the message names the statement.
- */
-export const applyPlan = async (
-  client: PoolClient, spec: TableSpec, plan: DdlPlan
-): Promise<DdlPlan> => {
-  if (plan.statements.length < 1) {
-    return plan
+  const acquireLock = async (qualified: string): Promise<void> => {
+    const [first, second] = advisoryKey(qualified)
+    await client.query('SELECT pg_advisory_lock($1, $2)', [first, second])
   }
 
-  /** Read what a drop would cost before the transaction opens, so the log can say it. */
-  for (const statement of plan.statements) {
-    if (statement.destructive === true) {
-      statement.affected = await countNonNull(client, spec.qualified, statement.target)
+  const releaseLock = async (qualified: string): Promise<void> => {
+    const [first, second] = advisoryKey(qualified)
+    try {
+      await client.query('SELECT pg_advisory_unlock($1, $2)', [first, second])
+    } catch {
+      /** Releasing the session drops the lock anyway — never mask the original failure. */
     }
   }
 
-  await client.query('BEGIN')
-  let current = ''
-  try {
+  const ensureSchema = async (schema: string): Promise<void> => {
+    try {
+      await client.query(`CREATE SCHEMA IF NOT EXISTS ${quoteIdent(schema)}`)
+    } catch (error) {
+      throw pgErrorToResourceError(error)
+    }
+  }
+
+  const applyPlan = async (spec: TableSpec, plan: DdlPlan): Promise<DdlPlan> => {
+    if (plan.statements.length < 1) {
+      return plan
+    }
+
+    /** Read what a drop would cost before the transaction opens, so the log can say it. */
     for (const statement of plan.statements) {
-      current = statement.sql
-      if (statement.destructive === true && (statement.affected ?? 0) > 0) {
-        log.warn('Dropping a column that holds values; declare it under pg.unmanaged or set pg.managed false to keep it', {
-          table: spec.qualified, column: statement.target, rows: statement.affected,
-        }, { event: 'migration.drop' })
+      if (statement.destructive === true) {
+        statement.affected = await introspect.countNonNull(spec.qualified, statement.target)
       }
-      await client.query(statement.sql)
     }
-    await client.query('COMMIT')
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => undefined)
-    const translated = pgErrorToResourceError(error)
-    const code = (error as { code?: string } | null)?.code
-    if (translated instanceof PostgresCastRequired || (code != null && CAST_DATA_CODES.includes(code))) {
-      const failure = new PostgresCastRequired(
-        `${spec.qualified}: ${describePgError(error)} — statement: ${current}.`
-        + ' Declare `pg: { using: \'<expr>\' }` on the property, or perform the change in a'
-        + ' `pre` migration so reconciliation observes no drift.'
-      )
+
+    await client.query('BEGIN')
+    let current = ''
+    try {
+      for (const statement of plan.statements) {
+        current = statement.sql
+        if (statement.destructive === true && (statement.affected ?? 0) > 0) {
+          log.warn('Dropping a column that holds values; declare it under pg.unmanaged or set pg.managed false to keep it', {
+            table: spec.qualified, column: statement.target, rows: statement.affected,
+          }, { event: 'migration.drop' })
+        }
+        await client.query(statement.sql)
+      }
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      const translated = pgErrorToResourceError(error)
+      const code = (error as { code?: string } | null)?.code
+      if (translated instanceof PostgresCastRequired || (code != null && CAST_DATA_CODES.includes(code))) {
+        const failure = new PostgresCastRequired(
+          `${spec.qualified}: ${describePgError(error)} — statement: ${current}.`
+          + ' Declare `pg: { using: \'<expr>\' }` on the property, or perform the change in a'
+          + ' `pre` migration so reconciliation observes no drift.'
+        )
+        failure.cause = error
+        throw failure
+      }
+      const failure = new PostgresSyncError(`${spec.qualified}: ${describePgError(error)} — statement: ${current}`)
       failure.cause = error
       throw failure
     }
-    const failure = new PostgresSyncError(`${spec.qualified}: ${describePgError(error)} — statement: ${current}`)
-    failure.cause = error
-    throw failure
+
+    return plan
   }
 
-  return plan
+  return { acquireLock, releaseLock, ensureSchema, applyPlan }
 }

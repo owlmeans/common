@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { CommitState, makePlanningProtocols, PlanningError, TransitionAction, WorkcardKind } from '@owlmeans/planning'
 import type { PlanningFacade, Transition, TransitionExecution, WorkcardChanges, WorkcardDraft } from '@owlmeans/planning'
-import { executePlanning, wireExecution } from '../src/actions/index.js'
-import { assertCreatorFixed, creatorOf, withCreator } from '../src/executor.js'
+import { executePlanning, executionHelper } from '../src/actions/index.js'
 import { createProject, createTask, ENTITY, invoke, makeTestPlanning, PROFILE, PROJECT, session, TASK } from './context.js'
+import { creatorHelper } from '../src/executor.js'
 
 const tree = makePlanningProtocols({ base: { alias: 'test:planning' }, guards: 'test-guard' })
 
@@ -101,21 +101,21 @@ describe('@owlmeans/server-planning — a create\'s createdBy', () => {
   test('wireExecution still answers the execution the executor will run', () => {
     const body = { card: { kind: WorkcardKind.Project, type: PROJECT, title: 'W', createdBy: 'intruder' }, action: TransitionAction.Create }
 
-    expect(draftOf(wireExecution(body, { entityId: ENTITY, profileId: PROFILE, userId: 'user-1' })).createdBy).toBe(PROFILE)
-    expect(draftOf(wireExecution(body, { entityId: ENTITY, userId: 'user-1' })).createdBy).toBe('user-1')
-    expect(draftOf(wireExecution(body, { entityId: ENTITY })).createdBy).toBeUndefined()
+    expect(draftOf(executionHelper.wireExecution(body, { entityId: ENTITY, profileId: PROFILE, userId: 'user-1' })).createdBy).toBe(PROFILE)
+    expect(draftOf(executionHelper.wireExecution(body, { entityId: ENTITY, userId: 'user-1' })).createdBy).toBe('user-1')
+    expect(draftOf(executionHelper.wireExecution(body, { entityId: ENTITY })).createdBy).toBeUndefined()
   })
 
   test('creatorOf and withCreator', () => {
-    expect(creatorOf({ entityId: ENTITY, profileId: 'p', userId: 'u', actor: { profileId: 'a' } })).toBe('p')
-    expect(creatorOf({ entityId: ENTITY, profileId: '', userId: 'u' })).toBe('u')
-    expect(creatorOf({ entityId: ENTITY, actor: { userId: 'au', service: 's' } })).toBe('au')
-    expect(creatorOf({ entityId: ENTITY, service: 's' })).toBeUndefined()
+    expect(creatorHelper.creatorOf({ entityId: ENTITY, profileId: 'p', userId: 'u', actor: { profileId: 'a' } })).toBe('p')
+    expect(creatorHelper.creatorOf({ entityId: ENTITY, profileId: '', userId: 'u' })).toBe('u')
+    expect(creatorHelper.creatorOf({ entityId: ENTITY, actor: { userId: 'au', service: 's' } })).toBe('au')
+    expect(creatorHelper.creatorOf({ entityId: ENTITY, service: 's' })).toBeUndefined()
 
     const update: TransitionExecution = { card: 'card-1', action: TransitionAction.Update, changes: { title: 'T' } }
-    expect(withCreator(update, { entityId: ENTITY, profileId: 'p' })).toBe(update)
+    expect(creatorHelper.withCreator(update, { entityId: ENTITY, profileId: 'p' })).toBe(update)
     const blank: TransitionExecution = { card: { kind: WorkcardKind.Project, type: PROJECT, title: 'T', createdBy: '' }, action: TransitionAction.Create }
-    expect(draftOf(withCreator(blank, { entityId: ENTITY, profileId: 'p' })).createdBy).toBe('p')
+    expect(draftOf(creatorHelper.withCreator(blank, { entityId: ENTITY, profileId: 'p' })).createdBy).toBe('p')
   })
 })
 
@@ -246,12 +246,12 @@ describe('@owlmeans/server-planning — createdBy never moves after the create',
   test('assertCreatorFixed', () => {
     const draft = { kind: WorkcardKind.Project, type: PROJECT, title: 'T', createdBy: 'owner' }
 
-    expect(() => assertCreatorFixed({ card: draft, action: TransitionAction.Create })).not.toThrow()
-    expect(() => assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { title: 'T', createdBy: undefined } })).not.toThrow()
-    expect(() => assertCreatorFixed({ card: 'c', action: TransitionAction.Update, unset: ['fields.createdBy'] })).not.toThrow()
-    expect(() => assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { fields: { createdBy: 'x' } } })).not.toThrow()
-    expect(() => assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { createdBy: 'x' } })).toThrow('planning:immutable:createdBy')
-    expect(() => assertCreatorFixed({ card: 'c', action: TransitionAction.Delete, unset: ['createdBy'] })).toThrow('planning:immutable:createdBy')
-    expect(() => assertCreatorFixed({ card: draft, action: TransitionAction.Create, changes: { createdBy: 'x' } })).toThrow('planning:immutable:createdBy')
+    expect(() => creatorHelper.assertCreatorFixed({ card: draft, action: TransitionAction.Create })).not.toThrow()
+    expect(() => creatorHelper.assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { title: 'T', createdBy: undefined } })).not.toThrow()
+    expect(() => creatorHelper.assertCreatorFixed({ card: 'c', action: TransitionAction.Update, unset: ['fields.createdBy'] })).not.toThrow()
+    expect(() => creatorHelper.assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { fields: { createdBy: 'x' } } })).not.toThrow()
+    expect(() => creatorHelper.assertCreatorFixed({ card: 'c', action: TransitionAction.Update, changes: { createdBy: 'x' } })).toThrow('planning:immutable:createdBy')
+    expect(() => creatorHelper.assertCreatorFixed({ card: 'c', action: TransitionAction.Delete, unset: ['createdBy'] })).toThrow('planning:immutable:createdBy')
+    expect(() => creatorHelper.assertCreatorFixed({ card: draft, action: TransitionAction.Create, changes: { createdBy: 'x' } })).toThrow('planning:immutable:createdBy')
   })
 })

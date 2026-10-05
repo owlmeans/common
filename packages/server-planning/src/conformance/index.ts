@@ -6,4 +6,9 @@
  */
 export * from './assert.js'
 export * from './cases.js'
+export type * from './types.js'
+export type * from './assert/types.js'
+export type * from './fixtures/types.js'
+export * from './clock.js'
 export * from './fixtures.js'
+export * from './consts.js'

@@ -1,7 +1,9 @@
 import type { ProjectArea } from '../areas/consts.js'
-import type { StoryDesignRuntime } from './runtime.js'
+
 import type { AccessList } from '../dev/types.js'
 import type { UXTransition } from '../ux/types.js'
+
+import { StoryActor, StoryAgentKind } from './consts.js'
 
 /**
  * One screen, as the design decided it.
@@ -189,4 +191,82 @@ export interface StoryDesignPort {
   current: (cardId: string) => Promise<{ revision: number, design: StoryDesign } | null>
   /** Write a design as the card's next revision and answer the revision number it received. */
   put: (cardId: string, design: StoryDesign, opts?: StoryDesignPutOptions) => Promise<number>
+}
+
+/** One queued unit of work. */
+export interface StoryDesignJob {
+  /** The queue it is enqueued onto. */
+  queue: string
+  /** The job name, which becomes the backend-only `job:<name>` protocol alias. */
+  name: string
+  /** The processor module, relative to the worker package's `src`. */
+  path: string
+  /** What it does, in one sentence, for the coder that writes the processor. */
+  purpose: string
+  /**
+   * Why it may not run on the request path.
+   *
+   * Recorded because it is the thing a later run has to be able to disagree with. "It might be
+   * slow" is not a reason; "it calls a model" and "it walks every row of a table the user owns"
+   * are.
+   */
+  reason: string
+  /**
+   * Whether running it twice is safe, and how it was made so.
+   *
+   * A worker can die mid-job; the lock expires and the step re-runs. There is no way to make that
+   * automatic, so the answer is written down where the processor's author has to read it.
+   */
+  idempotency: string
+}
+
+/** An LLM agent or pipeline generated INTO the target. */
+export interface StoryDesignAgent {
+  /** Its alias in the target's own agent registry. */
+  alias: string
+  /** The module, relative to the shared backend package's `src`. */
+  path: string
+  /** What it is for. */
+  purpose: string
+  /** Which of the three shapes this is — a call, a pipeline, or a tool-using agent. */
+  kind: StoryAgentKind
+  /** The job that runs it — an agent is never invoked on the request path. */
+  job?: string
+}
+
+/**
+ * The gate, as the design stage recorded it.
+ *
+ * Absent on a design written before this existed, and read as "none of it" everywhere — which is
+ * both the safe answer and the true one for every story developed until now.
+ */
+export interface StoryDesignRuntime {
+  actor: StoryActor
+  /** Whether this story puts work on the queue at all. */
+  worker: boolean
+  jobs: StoryDesignJob[]
+  agents: StoryDesignAgent[]
+  /**
+   * Whether this story's data belongs in the key/value store rather than in Postgres.
+   *
+   * Postgres is the default and being wrong with it is cheap. This is true only for data with an
+   * expiry, a lock, a counter or a fan-out, and a bounded, namespaced key set.
+   */
+  kv: boolean
+  /**
+   * Which HUMAN story shows the progress of this story's queued work.
+   *
+   * An ephemeral actor cannot report to anybody: there is no screen it owns and no session it runs
+   * in. A story that enqueues work therefore names the story whose screen carries the job feed, and
+   * the permission to enqueue and to watch is granted to that area's role.
+   */
+  feedback?: string
+}
+
+/** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */
+export interface RuntimeDecision {
+  kv: boolean
+  feedback: string
+  jobs: StoryDesignJob[]
+  agents: StoryDesignAgent[]
 }

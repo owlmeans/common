@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { gate, makeSuite } from './context.js'
+import { gate, makeSuite, TEARDOWN_TIMEOUT } from './context.js'
 
 /**
  * The criteria surface.
@@ -17,9 +17,11 @@ describe('@owlmeans/redis — resource queries', () => {
 
   const suite = makeSuite('query')
 
+  // The teardown SCANs a shared store for this suite's prefix; under a full-repo run that walk
+  // outlasts the default 5 s hook budget.
   afterAll(async () => {
     await suite.teardown()
-  })
+  }, TEARDOWN_TIMEOUT)
 
   /** `rec-0` … `rec-<count-1>`, alternating `even` / `odd`, in a namespace of their own. */
   const seed = async (alias: string, count: number) => {

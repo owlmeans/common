@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/error",
-  "version": "0.1.18-rc.36",
+  "version": "0.1.18-rc.37",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@owlmeans/i18n": "^0.1.18-rc.37"
+    "@owlmeans/i18n": "^0.1.18-rc.38"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",

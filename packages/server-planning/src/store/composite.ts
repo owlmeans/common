@@ -3,9 +3,9 @@ import type {
   CommitSource, PlanningStore, ProjectionStore, Relationship, RelationshipStore, SpecificationStore,
   TransitionStore, Unsubscribe, Workcard,
 } from '@owlmeans/planning'
-import { applyQuery } from '@owlmeans/resource'
 import type { Criteria, ListResult } from '@owlmeans/resource'
 import type { CommitHub, StoreRoute } from './types.js'
+import { recordQueryHelper } from '@owlmeans/resource'
 
 const firstOf = async <S, T>(
   stores: S[], read: (store: S) => Promise<T | null | undefined> | undefined
@@ -122,7 +122,7 @@ export const makeCompositeStore = (routes: StoreRoute[], fallback: PlanningStore
     list: async (where, opts) => {
       const results = await Promise.all(linked.map(store => store.links!.list(where, { size: 0 })))
       const items = results.flatMap((result: ListResult<Relationship>) => result.items)
-      return applyQuery(items, undefined, opts)
+      return recordQueryHelper.applyQuery(items, undefined, opts)
     },
     put: link => (fallback.links ?? linked[0].links!).put(link),
     drop: where => sum(linked, store => store.links!.drop(where)),

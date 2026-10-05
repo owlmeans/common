@@ -1,11 +1,9 @@
 import { assertContext, createService } from '@owlmeans/context'
-import type { AbstractRequest, AbstractResponse, EntrypointTransport } from '@owlmeans/entrypoint'
-import { EntrypointOutcome, transportAlias } from '@owlmeans/entrypoint'
+import { type AbstractRequest, type AbstractResponse, type EntrypointTransport, EntrypointOutcome, transportAlias, type CommonEntrypoint } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import type { Config, Context, JobEnvelope, JobReply, QueueAppend } from './types.js'
-import { DEFAULT_JOB_TIMEOUT } from './consts.js'
-import { QUEUE_PROTOCOL, queueRouteOptions } from './route.js'
+import { DEFAULT_JOB_TIMEOUT, QUEUE_PROTOCOL } from './consts.js'
+import { queueRouteHelper } from './queue-route.js'
 
 /**
  * The producing half of the bridge: it turns a call on a QUEUE entrypoint into a job, and the
@@ -17,7 +15,7 @@ import { QUEUE_PROTOCOL, queueRouteOptions } from './route.js'
  * the request rather than from the entrypoint: the far side rebuilds a request, and anything only
  * HTTP understands would not survive the trip anyway.
  */
-export const makeQueueTransport = (alias: string = transportAlias(QUEUE_PROTOCOL)) => {
+export const makeQueueTransport = (alias: string = transportAlias(QUEUE_PROTOCOL)): EntrypointTransport => {
   const location = `queue-transport:${alias}`
 
   const service = createService<EntrypointTransport>(alias, {
@@ -28,7 +26,7 @@ export const makeQueueTransport = (alias: string = transportAlias(QUEUE_PROTOCOL
       const entrypoint = context.entrypoint<CommonEntrypoint>(req.alias)
       const route = entrypoint.route.route
 
-      const { queue, reply: waitsForReply } = queueRouteOptions(route)
+      const { queue, reply: waitsForReply } = queueRouteHelper.queueRouteOptions(route)
 
       const jobs = (context as unknown as QueueAppend).jobs<JobEnvelope, JobReply<T>>(queue)
 

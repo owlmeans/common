@@ -2,6 +2,7 @@ import type { BasicConfig, BasicContext, InitializedService } from '@owlmeans/co
 import type { PubSubResource, Resource, ResourceRecord } from '@owlmeans/resource'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { JobEventType, JobState } from './consts.js'
+import type { RouteOptions } from '@owlmeans/route'
 
 /**
  * Everything the monorepo knows about its queues, declared in the shared backend package so that
@@ -314,3 +315,12 @@ export interface QueueTransportRequest extends AbstractRequest {
 
 export interface QueueTransportResponse extends AbstractResponse<unknown> {
 }
+
+/** Queue-owned options stored in a generic route declaration. */
+export interface QueueRouteOptions extends Omit<RouteOptions, 'protocol' | 'protocolOptions'> {
+  queue: string
+  reply?: boolean
+}
+
+/** The context the queue protocol helper is bound to: an app context with the queue appended. */
+export interface QueueContext extends Context<Config>, QueueAppend {}

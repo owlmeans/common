@@ -116,7 +116,7 @@ export interface Resource<T extends ResourceRecord> extends BasicResource {
   purge(where: Criteria<T>): Promise<number>
 }
 
-export type Unsubscribe = () => Promise<void>
+export interface Unsubscribe { (): Promise<void> }
 
 export interface SubscribeOptions {
   channel?: string

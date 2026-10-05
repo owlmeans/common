@@ -3,7 +3,7 @@ import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { DEFAULT_METHOD_ORDER, LOGIN_SERVICE } from '../../login/consts.js'
 import type { LoginMethod, LoginMethodContext, LoginMethodSource, LoginService } from '../../login/types.js'
 import type { AuthenticationPlugin } from './types.js'
-import { listAuthPlugins } from './registry.js'
+import { authPluginHelper } from './registry.js'
 
 /**
  * Whether a registered plugin may be put on the sign-in screen of THIS application.
@@ -36,7 +36,7 @@ const offerable = (plugin: AuthenticationPlugin, ctx: LoginMethodContext): boole
 export const pluginMethodSource: LoginMethodSource = {
   alias: 'authentication-plugins',
 
-  list: ctx => listAuthPlugins()
+  list: ctx => authPluginHelper.listAuthPlugins()
     .filter(plugin => offerable(plugin, ctx))
     .map((plugin): LoginMethod => {
       const meta = plugin.method!

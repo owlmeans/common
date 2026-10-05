@@ -3,7 +3,7 @@ import {
   INQUIRY_ANSWERS_KEY, PipelineNotResumableError, PipelineRunStatus,
 } from '@owlmeans/agent-common'
 import type { PipelineSpec } from '@owlmeans/agent-common'
-import { INQUIRY_STATE_TEXT_CHARS, InquiryKind, answeredWith } from '@owlmeans/llm-common'
+import { INQUIRY_STATE_TEXT_CHARS, InquiryKind, inquiryHelper } from '@owlmeans/llm-common'
 import type { Inquiry, InquiryAnswer } from '@owlmeans/llm-common'
 import { createMemoryPipelineRunStore, makePipeline } from '../src/index.js'
 import type { PipelineModel, PipelineRunStore } from '../src/index.js'
@@ -61,7 +61,7 @@ const build = (
           for (const asked of questions) {
             const answer = await ctx.ask(asked)
             ctx.deps.got.push(answer)
-            picked.push(answeredWith(answer) ?? '')
+            picked.push(inquiryHelper.answeredWith(answer) ?? '')
           }
 
           return { picked: picked.join('+') }
@@ -143,7 +143,7 @@ describe('agent — a pipeline that asks', () => {
 
     expect(finished.status).toBe(PipelineRunStatus.Done)
     // `q1` was answered live before the run parked; a resume carrying only `q2` must not cost it.
-    expect(answeredWith(ran.got[0])).toBe('one')
+    expect(inquiryHelper.answeredWith(ran.got[0])).toBe('one')
     // What the state holds is what a resumed step reads back — there is no fuller copy anywhere.
     expect(ran.got[1].text).toHaveLength(INQUIRY_STATE_TEXT_CHARS)
     expect(answersOf(finished.state).q2.text).toHaveLength(INQUIRY_STATE_TEXT_CHARS)

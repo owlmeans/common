@@ -1,7 +1,7 @@
 import { KeyType } from '../consts.js'
 import type { KeyPlugin } from './types.js'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
-import { randomBytes, managedNonce } from '@noble/ciphers/webcrypto'
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
+import { randomBytes, managedNonce } from '@noble/ciphers/utils.js'
 
 
 export const xChahaPlugin: KeyPlugin = {

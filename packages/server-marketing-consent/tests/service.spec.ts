@@ -1,12 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import { MARKETING_CONSENT_SERVICE, MC_EMAIL, MC_SMS } from '@owlmeans/marketing-consent'
-import type { MarketingConsentDecision } from '@owlmeans/marketing-consent'
-import { UnknownMarketingConsentError } from '@owlmeans/marketing-consent'
+import { MARKETING_CONSENT_SERVICE, MC_EMAIL, MC_SMS, type MarketingConsentDecision, UnknownMarketingConsentError } from '@owlmeans/marketing-consent'
 import type { Resource } from '@owlmeans/resource'
 import { RES_MARKETING_CONSENT_LOG } from '../src/consts.js'
-import type { MarketingConsentLogRecord } from '../src/model.js'
-import type { MarketingConsentService } from '../src/service.js'
-import type { MarketingConsentSubject } from '../src/subject.js'
+import type { MarketingConsentLogRecord, MarketingConsentService, MarketingConsentSubject } from '../src/types.js'
 import { makeTestContext, TEST_ENTITY, TEST_PROFILE, TEST_USER } from './context.js'
 
 const subjectOf = (): MarketingConsentSubject => ({

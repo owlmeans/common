@@ -4,7 +4,7 @@ import type { DbConfig } from '@owlmeans/resource'
 
 import { MongoServerError } from 'mongodb'
 import { DEF_REPLSET } from '../consts.js'
-import { port } from './config.js'
+import { mongoConfigUtils } from './config.js'
 
 export const setUpCluster = async (client: MongoClient, config: DbConfig): Promise<boolean> => {
   const meta: MongoMeta | undefined = config.meta
@@ -19,7 +19,7 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
     const { config: currentConfig } = await admin.command({ replSetGetConfig: 1 })
 
     if (hosts.some(host => {
-      const _host = port(host, { ...config, port: config.port ?? 27017 })
+      const _host = mongoConfigUtils.port(host, { ...config, port: config.port ?? 27017 })
       if (currentConfig.members.some((member: { host: string }) => member.host === _host)) {
         return false
       }
@@ -39,7 +39,7 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
         await admin.command({
           replSetInitiate: {
             _id: meta?.replicaSet ?? DEF_REPLSET,
-            members: hosts.map((host, index) => ({ _id: index, host: port(host, config) }))
+            members: hosts.map((host, index) => ({ _id: index, host: mongoConfigUtils.port(host, config) }))
           }
         })
       } else if (e instanceof MongoServerError && e.codeName === 'InvalidReplicaSetConfig') {
@@ -49,7 +49,7 @@ export const setUpCluster = async (client: MongoClient, config: DbConfig): Promi
         currentConfig.version++
 
         currentConfig.members = hosts.map((host, index) => ({
-          ...currentConfig.members[index], _id: index, host: port(host, config)
+          ...currentConfig.members[index], _id: index, host: mongoConfigUtils.port(host, config)
         }))
 
         await admin.command({ replSetReconfig: currentConfig, force: true })

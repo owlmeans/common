@@ -1,12 +1,8 @@
-import {
-  AnyWorkcardSchema, PlanningSchemaKind, RelationshipSchema, ScopedSchemaRecordSchema, TransitionSchema,
-} from '@owlmeans/planning'
-import type { Relationship, Transition } from '@owlmeans/planning'
+import { AnyWorkcardSchema, PlanningSchemaKind, RelationshipSchema, ScopedSchemaRecordSchema, TransitionSchema, type Relationship, type Transition } from '@owlmeans/planning'
 import type { JSONSchemaType } from 'ajv'
 import { SCHEMA_HEAD_KIND } from './consts.js'
 import type { PlanningCardRecord, PlanningSchemaRow } from './types.js'
-
-type Properties = Record<string, Record<string, unknown>>
+import type { Properties } from './types.local.js'
 
 const propertiesOf = (schema: object): Properties =>
   structuredClone((schema as { properties: Properties }).properties)

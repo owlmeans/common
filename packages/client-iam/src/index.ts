@@ -4,6 +4,8 @@ export { ORGANIZATION_REFUSAL, ORGANIZATION_OWNER_REFUSAL } from '@owlmeans/oidc
 export type { OidcOrganizationItem } from '@owlmeans/oidc'
 export * from './consts.js'
 export * from './append.js'
+export type * from './types.js'
+export type * from './organization/types.js'
 export * from './consent.js'
 export * from './login.js'
 export * from './organization.js'

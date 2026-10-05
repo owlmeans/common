@@ -8,13 +8,13 @@ and its translations. The contracts it is written against live in `@owlmeans/aut
 - `ConnectedAccessTokensPanel` — the whole feature: the panel wired to the token entrypoints
 - `AccessTokensPanel` — the same panel, presentational: no I/O, renders what it is given
 - `useAccessTokens(aliases?)` — the I/O half: list, create, revoke, and the issued token
-- `tokenStatus` / `formatMoment` — the row helpers, exported for a host that builds its own view
+- `accessTokenViewHelper` (`tokenStatus` / `formatMoment`, typed `AccessTokenViewHelper`) — the row helpers, exported for a host that builds its own view
 - `cn` — the class-name merger the components are written against
 
 ## Installation
 
 ```bash
-bun add @owlmeans/web-auth-token@^0.1.18-rc.31
+bun add @owlmeans/web-auth-token@^0.1.18-rc.32
 ```
 
 The package ships its own private shadcn primitives and imports them with relative specifiers.
@@ -73,7 +73,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -3,32 +3,13 @@ import { useContext, useNavigate } from '@owlmeans/client'
 import { DEFAULT_ALIAS as AUTH_SERVICE } from '@owlmeans/client-auth'
 import type { AuthService } from '@owlmeans/auth-common'
 import { DISPATCHER } from '@owlmeans/auth'
-import { suspendFlow } from '@owlmeans/client-flow'
 import { makeFlowModel } from '@owlmeans/flow'
 import { ResilientError } from '@owlmeans/error'
-import {
-  makeOAuthProtocols, oauthFlow, OAuthFlowStep, OAUTH_PAYLOAD_KIND, OAUTH_PAYLOAD_REF
-} from '@owlmeans/oauth'
-import type { ConsentView, OAuthEntrypointOptions } from '@owlmeans/oauth'
+import { makeOAuthProtocols, oauthFlow, OAuthFlowStep, OAUTH_PAYLOAD_KIND, OAUTH_PAYLOAD_REF, type ConsentView, type OAuthEntrypointOptions } from '@owlmeans/oauth'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { OAUTH_SUSPEND_TTL_MS } from '../consts.js'
-
-export type ConsentStage = 'checking' | 'signing-in' | 'loading' | 'ready' | 'deciding' | 'done' | 'error'
-
-/** Why the screen cannot go on — the screen phrases each kind as ONE sentence, never the wire text. */
-export type ConsentErrorKind = 'missing' | 'not-found' | 'expired' | 'forbidden' | 'failed'
-
-export interface UseOAuthConsent {
-  stage: ConsentStage
-  view: ConsentView | null
-  /** The raw failure, for a log; what a person reads is `errorKind`. */
-  error: string | null
-  errorKind: ConsentErrorKind | null
-  approve: () => Promise<void>
-  deny: () => Promise<void>
-  /** Sign the current session out and go through the sign-in again, returning to this request. */
-  switchAccount: () => Promise<void>
-}
+import type { ConsentErrorKind, ConsentStage, UseOAuthConsent } from './types.js'
+import { flowLandingOf } from '@owlmeans/client-flow'
 
 const errorKindOf = (message: string): ConsentErrorKind =>
   message.includes('request-expired') ? 'expired'
@@ -72,7 +53,7 @@ export const useOAuthConsent = (ref: string | null, aliases?: OAuthEntrypointOpt
     const model = await makeFlowModel(oauthFlow)
     model.updatePayload({ [OAUTH_PAYLOAD_REF]: target })
     model.transit(OAuthFlowStep.SignIn, true)
-    await suspendFlow(context, model, { expiresAt: Date.now() + OAUTH_SUSPEND_TTL_MS })
+    await flowLandingOf(context).suspendFlow(model, { expiresAt: Date.now() + OAUTH_SUSPEND_TTL_MS })
 
     const dispatcher = await context.entrypoint<ClientEntrypoint<string>>(DISPATCHER).url()
     window.location.href = dispatcher

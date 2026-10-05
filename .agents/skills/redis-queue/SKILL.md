@@ -7,7 +7,7 @@ user-invocable: false
 # @owlmeans/redis-queue
 
 **Layer:** Infra
-**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.33"` in `dependencies`
+**Install:** `"@owlmeans/redis-queue": "^0.1.18-rc.35"` in `dependencies`
 
 The driver behind `@owlmeans/queue`, on BullMQ over the existing Redis connection. Contracts live
 in `queue`; nothing here belongs in an application's imports beyond the wiring call.
@@ -67,9 +67,10 @@ hash-tagged prefix to keep one queue's keys in one slot, and this prefix is shar
 namespace — so a cluster would fail per-command with `CROSSSLOT` at runtime instead. Refusing at
 connection time is the honest failure.
 
-**Valkey works — verified, not assumed.** The whole suite passes against `valkey/valkey:8` started
-as `docker run -d -p 6399:6379 valkey/valkey:8 valkey-server --requirepass <pw> --maxmemory-policy
-noeviction`, then `REDIS_URL='redis://:<pw>@127.0.0.1:6399/0' bun test`. Password auth, the BullMQ
+**Valkey works — verified, not assumed.** The whole suite passes against `valkey/valkey:9.1.2` (BullMQ 6,
+ioredis 6 pinned to RESP2) started as `docker run -d -p 6399:6379 valkey/valkey:9.1.2 valkey-server
+--requirepass <pw> --maxmemory-policy noeviction`, then `REDIS_URL='redis://:<pw>@127.0.0.1:6399/0' bun test`
+(pick a free port: a leftover check container may hold 6399). Password auth, the BullMQ
 Lua/EVALSHA paths, stalled-job reclaim, flows and QueueEvents all behave as on Redis.
 
 That holds because the driver is RESP-only — standard commands plus BullMQ's bundled Lua — with no

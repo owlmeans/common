@@ -5,11 +5,11 @@ import type { AddressInfo } from 'node:net'
 import { generateKeyPairSync } from 'node:crypto'
 import Provider from 'oidc-provider'
 import type { ClientMetadata, KoaContextWithOIDC } from 'oidc-provider'
-import { sha256 } from '@noble/hashes/sha2'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { base58 } from '@scure/base'
 import { AppType, makeBasicContext } from '@owlmeans/context'
 import { ORGANIZATIONS_CLAIM, ORGANIZATIONS_SCOPE, PERMISSIONS_CLAIM, PERMISSIONS_SCOPE } from '@owlmeans/oidc'
-import { combineConfig } from '../src/utils/config.js'
+import { makeOidcConfigUtils } from '../src/utils/config.js'
 import { makeInteractionPolicy } from '../src/utils/policy.js'
 import type { Config } from '../src/types.js'
 
@@ -80,7 +80,7 @@ const start = async () => {
 
   const loaded: string[] = []
   const provider = new Provider(base, {
-    ...await combineConfig(context as any, true),
+    ...await makeOidcConfigUtils(context as any).combineConfig(true),
     findAccount: async (_, id) => {
       loaded.push(id)
       return {

@@ -1,36 +1,10 @@
-import {
-  assertFlowSchema, assertOverridable, assertTypeSchema, flowInUse, isProject, PlanningSchemaKind,
-  PlanningUnsupported, resolveScopedBundle, SchemaConflict, SchemaInUse, scopedRegistryOf,
-  UnknownStatusFlow, UnknownWorkcardType, WorkcardNotFound,
-} from '@owlmeans/planning'
-import type {
-  PlanningDefinitions, PlanningFacade, PlanningSchemaRegistry, SchemaDeclarations, SchemaStore,
-  SchemaWriteOptions, ScopedSchemaRecord, ScopedSchemaRegistry, StatusFlowSchema, TransitionExecution,
-  Unsubscribe, WorkcardTypeSchema,
-} from '@owlmeans/planning'
+import { cardHelper, PlanningSchemaKind, PlanningUnsupported, SchemaConflict, SchemaInUse, scopedSchemaHelper, UnknownStatusFlow, UnknownWorkcardType, WorkcardNotFound, type PlanningDefinitions, type PlanningFacade, type PlanningSchemaRegistry, type SchemaDeclarations, type SchemaStore, type SchemaWriteOptions, type ScopedSchemaRecord, type ScopedSchemaRegistry, type StatusFlowSchema, type TransitionExecution, type Unsubscribe, type WorkcardTypeSchema } from '@owlmeans/planning'
 import { DEFAULT_SCHEMA_VIEWS } from './consts.js'
-import { actorOf } from './executor/changes.js'
-import type { PlanningRuntime } from './service.js'
+import { changesUtils } from './executor/changes.js'
+import type { PlanningRuntime, SchemaViews, SchemaViewsOptions } from './types.js'
+import type { Planned } from './types.local.js'
 
 const isoNow = (): string => new Date().toISOString()
-
-export interface SchemaViewsOptions {
-  /** The code registry every layer starts from. */
-  code: () => PlanningSchemaRegistry
-  /** Bumps whenever the code registry changes (a plugin's `use`). */
-  version: () => number
-  /** The schema port, when the store has one. */
-  port: () => SchemaStore | undefined
-  /** How many resolved layers are kept. */
-  limit?: number
-}
-
-export interface SchemaViews {
-  /** The code registry itself without a port; the resolved layer with one. */
-  of: (entityId: string, project?: string) => Promise<PlanningSchemaRegistry>
-  /** @throws {PlanningUnsupported} without a port */
-  scoped: (entityId: string, project?: string) => Promise<ScopedSchemaRegistry>
-}
 
 /**
  * The resolved layers of one planning service, cached per (organization, project) and keyed by the
@@ -78,7 +52,7 @@ export const makeSchemaViews = (opts: SchemaViewsOptions): SchemaViews => {
       ...await store.list({ entityId, project: null }),
       ...(project != null ? await store.list({ entityId, project }) : []),
     ]
-    const view = scopedRegistryOf(resolveScopedBundle(opts.code().bundle(), records, { entityId, project, revision }))
+    const view = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(opts.code().bundle(), records, { entityId, project, revision }))
     cache.delete(key)
     cache.set(key, { revision, version, view })
     while (cache.size > limit) {
@@ -96,12 +70,6 @@ export const makeSchemaViews = (opts: SchemaViewsOptions): SchemaViews => {
     of: async (entityId, project) => opts.port() == null ? opts.code() : await scoped(entityId, project),
     scoped,
   }
-}
-
-interface Planned {
-  kind: PlanningSchemaKind
-  key: string
-  definition: WorkcardTypeSchema | StatusFlowSchema
 }
 
 const planOf = (declarations: SchemaDeclarations): Planned[] => [
@@ -138,7 +106,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
       return
     }
     const card = await facade.cards.load(project)
-    if (card == null || !isProject(card)) {
+    if (card == null || !cardHelper.isProject(card)) {
       throw new WorkcardNotFound(project)
     }
   }
@@ -156,11 +124,11 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
     const flows: Pick<PlanningSchemaRegistry, 'flow'> = { flow: id => pending.get(id) ?? layer.flow(id) }
 
     for (const entry of plan) {
-      assertOverridable(code, entry.kind, entry.key)
+      scopedSchemaHelper.assertOverridable(code, entry.kind, entry.key)
       if (entry.kind === PlanningSchemaKind.Flow) {
-        assertFlowSchema(entry.definition as StatusFlowSchema)
+        scopedSchemaHelper.assertFlowSchema(entry.definition as StatusFlowSchema)
       } else {
-        assertTypeSchema(entry.definition as WorkcardTypeSchema, flows)
+        scopedSchemaHelper.assertTypeSchema(entry.definition as WorkcardTypeSchema, flows)
       }
     }
   }
@@ -169,7 +137,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
     entry: Planned, version: number, project: string | undefined, current?: ScopedSchemaRecord, retired?: boolean
   ): ScopedSchemaRecord => {
     const at = now()
-    const by = actorOf(scope, {} as TransitionExecution)
+    const by = changesUtils.actorOf(scope, {} as TransitionExecution)
     return Object.fromEntries(Object.entries({
       entityId,
       project,
@@ -267,7 +235,7 @@ export const makeDefinitions = (runtime: PlanningRuntime, facade: PlanningFacade
           ? [opts.project]
           : [undefined, ...new Set(all.map(record => record.project).filter((id): id is string => id != null))]
         for (const project of projects) {
-          const user = flowInUse(resolveScopedBundle(code, all, { entityId, project }), key)
+          const user = scopedSchemaHelper.flowInUse(scopedSchemaHelper.resolveScopedBundle(code, all, { entityId, project }), key)
           if (user != null) {
             throw new SchemaInUse(`flow:${key}:type:${user}${project != null ? `:project:${project}` : ''}`)
           }

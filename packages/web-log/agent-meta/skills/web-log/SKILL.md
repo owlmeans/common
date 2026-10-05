@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-log
 
 **Layer:** Web (depends on `@owlmeans/log` and `@owlmeans/consent`)
-**Install:** `"@owlmeans/web-log": "^0.1.18-rc.0"` in `dependencies`
+**Install:** `"@owlmeans/web-log": "^0.1.18-rc.1"` in `dependencies`
 
 The browser half of "analytics are plugins" — see `/log` for the call parameters. A page logs a
 business event once; which systems hear it is the set of plugins registered.

@@ -1,41 +1,13 @@
 import { tool } from '@langchain/core/tools'
 import { IdStyle, createIdOfLength } from '@owlmeans/basic-ids'
-import { DEFAULT_INQUIRY_OPTIONS, InquiryKind, capAnswer } from '@owlmeans/llm-common'
-import type { Inquiry, InquiryAnswer, InquiryOption } from '@owlmeans/llm-common'
+import { DEFAULT_INQUIRY_OPTIONS, InquiryKind, type Inquiry, inquiryHelper } from '@owlmeans/llm-common'
 import { InquiryDeclined, InquiryUnavailable } from '@owlmeans/llm'
-import { toErrorResponse } from '../helpers/tools.js'
-import type { AgentPlugin, AgentRun, AgentToolSet } from '../types.js'
+import type { AgentPlugin, AgentToolSet } from '../types.js'
+import { ASK_USER_TOOL, INQUIRY_PLUGIN } from './consts.js'
+import type { AskUserArgs } from './types.local.js'
+import type { InquiryPluginOptions } from './types.js'
+import { toolHelper } from '../helpers/tools.js'
 
-export const INQUIRY_PLUGIN = 'agent-inquiry'
-export const ASK_USER_TOOL = 'ask_user'
-
-export interface InquiryPluginOptions {
-  /**
-   * How a question reaches a person.
-   *
-   * `null` answers "nobody is there", which the tool reports to the model as something it must
-   * decide itself. Absent means there is no channel at all, and then the tool is not offered:
-   * a tool nobody can serve is one the model tries once and remembers as broken.
-   */
-  ask?: (inquiry: Inquiry, run: AgentRun) => Promise<InquiryAnswer | null>
-  /** How question ids are minted. They are what routes an answer back. */
-  idOf?: () => string
-  name?: string
-  /** Whether the Context block explains when the tool may be used. Default `true`. */
-  instruct?: boolean
-  maxOptions?: number
-  maxAnswerChars?: number
-}
-
-interface AskUserArgs {
-  question: string
-  kind: InquiryKind
-  context?: string
-  options?: InquiryOption[]
-  multiple?: boolean
-  allowText?: boolean
-  default?: string
-}
 
 /**
  * `ask_user` — one short question to the person driving the run.
@@ -106,7 +78,7 @@ export const inquiryPlugin = (options: InquiryPluginOptions = {}): AgentPlugin =
                 }
               }
 
-              return JSON.stringify(capAnswer(answer, options.maxAnswerChars))
+              return JSON.stringify(inquiryHelper.capAnswer(answer, options.maxAnswerChars))
             } catch (e) {
               if (e instanceof InquiryUnavailable) {
                 // The one throw. A channel that has gone cannot be argued with, and containing it
@@ -119,7 +91,7 @@ export const inquiryPlugin = (options: InquiryPluginOptions = {}): AgentPlugin =
                 }
               }
 
-              return toErrorResponse(e)
+              return toolHelper.toErrorResponse(e)
             }
           },
           {

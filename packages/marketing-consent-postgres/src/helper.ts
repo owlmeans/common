@@ -2,11 +2,7 @@ import type { BasicContext } from '@owlmeans/context'
 import { RES_MARKETING_CONSENT_LOG, RES_MARKETING_CONSENT_STATE } from '@owlmeans/server-marketing-consent'
 
 import { makeMarketingConsentLogPostgres, makeMarketingConsentStatePostgres } from './resource.js'
-
-export interface MarketingConsentPostgresOptions {
-  dbAlias?: string
-  serviceAlias?: string
-}
+import type { MarketingConsentPostgresOptions } from './types.js'
 
 /**
  * Registers the two Postgres resources this package owns, once. A context that already has

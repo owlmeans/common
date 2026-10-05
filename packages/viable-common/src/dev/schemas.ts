@@ -1,6 +1,7 @@
 import type { JSONSchemaType } from "ajv"
 import type { FileBlock, AccessList, AccessBlock, EntrypointRef } from "./types.js"
 import { AccessLevel } from "./consts.js"
+import type { ModelAccessBlock } from './types.local.js'
 
 export const FileBlockSchema: JSONSchemaType<FileBlock> = {
   type: "object",
@@ -79,9 +80,6 @@ export const EntrypointRefListSchema: JSONSchemaType<{entries: EntrypointRef[]}>
   required: ["entries"],
   additionalProperties: false
 }
-
-/** The part of an {@link AccessBlock} a model is asked for. */
-type ModelAccessBlock = Omit<AccessBlock, 'defaults' | 'entityScoped'>
 
 const ModelAccessBlockSchema: JSONSchemaType<ModelAccessBlock> = {
   type: "object",

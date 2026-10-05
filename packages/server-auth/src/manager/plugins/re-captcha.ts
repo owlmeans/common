@@ -7,15 +7,15 @@ import { PluginMissconfigured } from '@owlmeans/config'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { EntrypointOutcome } from '@owlmeans/entrypoint'
 import { base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { assertType } from './utils.js'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { authPluginHelper } from './utils.js'
 
-export const reCaptcha = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {
+export const makeReCaptchaPlugin = <C extends AppConfig, T extends AppContext<C>>(context: T): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: AuthenticationType.ReCaptcha,
 
     init: async request => {
-      assertType(request.type, plugin)
+      authPluginHelper.assertType(request.type, plugin)
 
       const challenge = base64.encode(randomBytes(32))
 

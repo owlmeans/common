@@ -1,12 +1,10 @@
-import {
-  assertSqlIdentifier, PostgresBootstrapError, quoteIdent, quoteLiteral
-} from '@owlmeans/postgres-resource'
+import { pgNameHelper, PostgresBootstrapError } from '@owlmeans/postgres-resource'
 import { logger } from '@owlmeans/log'
 import { Pool } from 'pg'
 import type { PoolClient } from 'pg'
 
 import type { BootstrapOptions, BootstrapReport, PostgresService } from './types.js'
-import { prepareConfig } from './utils/config.js'
+import { pgConfigHelper } from './utils/config.js'
 
 const log = logger('postgres')
 
@@ -32,6 +30,7 @@ const exists = async (client: PoolClient, text: string, value: string): Promise<
 export const bootstrapDb = async (
   service: PostgresService, configAlias: string, opts: BootstrapOptions
 ): Promise<BootstrapReport> => {
+  const { assertSqlIdentifier, quoteIdent, quoteLiteral } = pgNameHelper
   const role = assertSqlIdentifier(opts.role, 'role')
   const database = assertSqlIdentifier(opts.database ?? opts.role, 'database')
   const schema = opts.schema != null ? assertSqlIdentifier(opts.schema, 'schema') : null
@@ -83,7 +82,7 @@ export const bootstrapDb = async (
     client.release()
   }
 
-  const target = new Pool(prepareConfig(config, { database, max: 1 }))
+  const target = new Pool(pgConfigHelper.prepareConfig(config, { database, max: 1 }))
   try {
     if (schema != null) {
       /**

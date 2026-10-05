@@ -20,6 +20,13 @@ export const DEF_MIGRATIONS_TABLE = '_owlmeans_migrations'
 /** JSON Schema keyword carrying the Postgres specific overrides. */
 export const PG_KEYWORD = 'pg'
 
+/**
+ * AJV keyword registration for consumers running in strict mode. The mapper reads the raw
+ * schema object and never validates through AJV, so this is purely to stop strict mode
+ * rejecting a schema that carries `pg` overrides.
+ */
+export const pgKeyword = { keyword: PG_KEYWORD, valid: true }
+
 /** Postgres `NAMEDATALEN - 1`. Identifiers past this are silently truncated by the server. */
 export const PG_MAX_IDENTIFIER = 63
 

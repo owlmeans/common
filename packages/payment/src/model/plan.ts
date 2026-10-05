@@ -7,7 +7,7 @@ import {
 } from '../consts.js'
 import { LimitDeclarationSchema, PlanCapabilitySchema } from './limit.js'
 import { AmountCheckoutPolicySchema, QuantityCheckoutPolicySchema } from './pricing.js'
-import { PlanWithdrawalComponentSchema } from './consumer.js'
+import { PlanWithdrawalComponentSchema } from './consts.js'
 
 export const ProductPlanSchema: JSONSchemaType<ProductPlan> = {
   type: 'object',

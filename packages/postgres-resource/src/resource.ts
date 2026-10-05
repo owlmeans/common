@@ -1,32 +1,24 @@
 import { appendContextual, assertContext } from '@owlmeans/context'
-import {
-  MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError, UnsupportedArgumentError
-} from '@owlmeans/resource'
-import type {
-  Criteria, FirstOptions, ListOptions, ListResult, MigrationStage, ResourceRecord, WriteOptions
-} from '@owlmeans/resource'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError, UnsupportedArgumentError, type Criteria, type FirstOptions, type ListOptions, type ListResult, type MigrationStage, type ResourceRecord, type WriteOptions } from '@owlmeans/resource'
 import type { AnySchema, JSONSchemaType } from 'ajv'
-import { eq, sql } from 'drizzle-orm'
-import type { SQL } from 'drizzle-orm'
+import { eq, sql, type SQL } from 'drizzle-orm'
 import type { PoolClient, QueryResultRow } from 'pg'
 
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE, ID_FIELD } from './consts.js'
-import { getDeclaration } from './declarations.js'
-import { pgErrorToResourceError } from './errors.js'
+import { pgDeclarationHelper } from './declarations.js'
 import { getSchemaSecureFeilds } from './helper.js'
+import { pgErrorHelper } from './pg-error.js'
 import type {
   ColumnSpec, PgIndexSpec, PgRuntimeTable, PostgresDb, PostgresDbService, PostgresResource,
   PostgresTx, TableSpec
 } from './types.js'
-import { criteriaToSql, sortToSql } from './utils/criteria.js'
-import { initializeTable } from './utils/life-cycle.js'
-import { recordToFullValues, recordToValues, resultToRecord, rowToRecord } from './utils/marshal.js'
+import { pgCriteriaHelper } from './utils/criteria.js'
+import { makePgLifeCycleHelper } from './utils/life-cycle.js'
+import { pgMarshalHelper } from './utils/marshal.js'
 import { makeTx } from './utils/migrations.js'
-import { refOf, resolvePlaceholders } from './utils/sql.js'
+import { pgPlaceholdersOf } from './utils/sql.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context<C extends Config = Config> = ServerContext<C>
 
 /** Postgres has no row expiry — silently ignoring a TTL would lose data. */
 const refuseTtl = (opts?: WriteOptions): void => {
@@ -42,7 +34,10 @@ export const makePostgresResource = <
   tableName?: string
 ): T => {
   const location = `postgres-resource:${alias}`
-  const declaration = getDeclaration(alias)
+  const declaration = pgDeclarationHelper.getDeclaration(alias)
+  const { pgErrorToResourceError } = pgErrorHelper
+  const { criteriaToSql, sortToSql } = pgCriteriaHelper
+  const { recordToFullValues, recordToValues, resultToRecord, rowToRecord } = pgMarshalHelper
 
   /** Set by `init()`; every data method goes through `ensure()`, which guarantees them. */
   let spec: TableSpec | undefined
@@ -115,7 +110,7 @@ export const makePostgresResource = <
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     try {
       const result = await db.pool.query<Row>(
-        resolvePlaceholders(text, context, table), params as never[]
+        pgPlaceholdersOf(context).resolvePlaceholders(text, table), params as never[]
       )
 
       return { rows: result.rows, count: result.rowCount ?? 0 }
@@ -405,19 +400,20 @@ export const makePostgresResource = <
         throw new SyntaxError(`Postgres resource not initialized: ${alias}`)
       }
 
-      return refOf(context, spec, resourceAlias)
+      return pgPlaceholdersOf(context).refOf(spec, resourceAlias)
     },
 
     transaction: async fn => {
       const { db, spec: table } = await ensure()
       const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const placeholders = pgPlaceholdersOf(context)
       const client: PoolClient = await db.pool.connect()
       try {
         await client.query('BEGIN')
         const result = await fn(makeTx(
           client,
-          text => resolvePlaceholders(text, context, table),
-          resourceAlias => refOf(context, table, resourceAlias)
+          text => placeholders.resolvePlaceholders(text, table),
+          resourceAlias => placeholders.refOf(table, resourceAlias)
         ))
         await client.query('COMMIT')
 
@@ -512,8 +508,8 @@ export const makePostgresResource = <
     const db = await postgres.db(dbAlias)
     const config = postgres.config(dbAlias)
 
-    const initialized = await initializeTable(
-      db, config, resource as unknown as PostgresResource<ResourceRecord>, context,
+    const initialized = await makePgLifeCycleHelper(db).initializeTable(
+      config, resource as unknown as PostgresResource<ResourceRecord>, context,
       task => postgres.defer(dbAlias, task)
     )
     spec = initialized.spec

@@ -1,15 +1,12 @@
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
-import type { EntrypointContextParams, RoutedComponent, ClientContext } from './types.js'
+import type { RoutedComponent } from './types.js'
 import type { RefedEntrypointHandler } from '@owlmeans/client-entrypoint'
-import { HandledRenderer } from './utils/route.js'
+import type { HandledRenderer } from './utils/types.js'
 import { isValidElement } from 'react'
-import type { PropsWithChildren } from 'react'
 import { EntrypointContext } from './utils/entrypoint.js'
-import type { ClientConfig } from '@owlmeans/client-context'
 import { assertContext } from '@owlmeans/context'
+import type { Config, Context, RendererType } from './types.local.js'
 
-type Config = ClientConfig
-interface Context<C extends Config = Config> extends ClientContext<C> { }
 
 export const handler = <T extends {}>(
   Component: HandledRenderer<T>, preprender?: boolean
@@ -48,4 +45,3 @@ export const handler = <T extends {}>(
   return Renderer
 }
 
-type RendererType = HandledRenderer<PropsWithChildren<EntrypointContextParams>> & RoutedComponent

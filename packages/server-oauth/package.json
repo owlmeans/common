@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-oauth",
-  "version": "0.1.18-rc.18",
+  "version": "0.1.18-rc.19",
   "license": "MIT",
   "description": "The server half of @owlmeans/oauth — a standards-facing OAuth 2.1 authorization server (device authorization + authorization code with PKCE, RFC 9728/8414 metadata, Client ID Metadata Documents, Dynamic Client Registration) that mints ordinary @owlmeans/auth-token access tokens on approval.",
   "type": "module",
@@ -23,32 +23,32 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/auth-common": "^0.1.18-rc.45",
-    "@owlmeans/auth-token": "^0.1.18-rc.30",
-    "@owlmeans/config": "^0.1.18-rc.42",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/mongo-resource": "^0.1.18-rc.41",
-    "@owlmeans/oauth": "^0.1.18-rc.14",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@owlmeans/route": "^0.1.18-rc.33",
-    "@owlmeans/server-api": "^0.1.18-rc.49",
-    "@owlmeans/server-auth-token": "^0.1.18-rc.30",
-    "@owlmeans/server-context": "^0.1.18-rc.41",
-    "@owlmeans/static-resource": "^0.1.18-rc.37"
+    "@owlmeans/auth": "^0.1.18-rc.39",
+    "@owlmeans/auth-common": "^0.1.18-rc.46",
+    "@owlmeans/auth-token": "^0.1.18-rc.31",
+    "@owlmeans/config": "^0.1.18-rc.43",
+    "@owlmeans/context": "^0.1.18-rc.33",
+    "@owlmeans/entrypoint": "^0.1.18-rc.40",
+    "@owlmeans/error": "^0.1.18-rc.37",
+    "@owlmeans/mongo-resource": "^0.1.18-rc.42",
+    "@owlmeans/oauth": "^0.1.18-rc.15",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@owlmeans/route": "^0.1.18-rc.34",
+    "@owlmeans/server-api": "^0.1.18-rc.50",
+    "@owlmeans/server-auth-token": "^0.1.18-rc.31",
+    "@owlmeans/server-context": "^0.1.18-rc.42",
+    "@owlmeans/static-resource": "^0.1.18-rc.38"
   },
   "peerDependencies": {
-    "fastify": "^5.0.0"
+    "fastify": "^5.12.5"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/redis-resource": "^0.1.18-rc.42",
-    "@owlmeans/server-auth-identity": "^0.1.18-rc.45",
-    "@types/bun": "^1.4.0",
-    "ajv": "^8.17.1",
-    "fastify": "^5.0.0",
+    "@owlmeans/redis-resource": "^0.1.18-rc.43",
+    "@owlmeans/server-auth-identity": "^0.1.18-rc.46",
+    "@types/bun": "^1.4.2",
+    "ajv": "^8.20.0",
+    "fastify": "^5.12.5",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { AppType, makeBasicContext } from '@owlmeans/context'
 import type { BasicConfig } from '@owlmeans/context'
+import type { NativeConsole } from '@owlmeans/log'
 import {
-  addLogPlugin, appendLog, configureLog, logConfig, logEnabled, logger, logThrottle, memoryPlugin,
-  nativeConsole, overrideConsole, parseLogLevel, redact, resetLog, restoreConsole,
+  addLogPlugin, appendLog, configureLog, logConfig, logEnabled, logger, logThrottle, memoryPlugin, overrideConsole, resetLog, restoreConsole, logStateHelper, logLevelHelper, redactHelper
 } from '@owlmeans/log'
 
 type Written = { method: string, args: unknown[] }
 
 const captured: Written[] = []
-let saved: ReturnType<typeof nativeConsole>
+let saved: NativeConsole
 
 const capture = () => {
-  const native = nativeConsole()
+  const native = logStateHelper.nativeConsole()
   saved = { ...native }
   for (const method of Object.keys(native) as (keyof typeof native)[]) {
     native[method] = (...args: unknown[]) => { captured.push({ method, args }) }
@@ -27,16 +27,16 @@ beforeEach(() => {
 
 afterEach(() => {
   restoreConsole()
-  Object.assign(nativeConsole(), saved)
+  Object.assign(logStateHelper.nativeConsole(), saved)
   resetLog()
 })
 
 describe('levels', () => {
   test('parseLogLevel trims, lowercases and rejects unknown values', () => {
-    expect(parseLogLevel(' INFO\n')).toBe('info')
-    expect(parseLogLevel('warning')).toBe('warn')
-    expect(parseLogLevel('/etc/app-config/log-level', 'info')).toBe('info')
-    expect(parseLogLevel(undefined)).toBeUndefined()
+    expect(logLevelHelper.parseLogLevel(' INFO\n')).toBe('info')
+    expect(logLevelHelper.parseLogLevel('warning')).toBe('warn')
+    expect(logLevelHelper.parseLogLevel('/etc/app-config/log-level', 'info')).toBe('info')
+    expect(logLevelHelper.parseLogLevel(undefined)).toBeUndefined()
   })
 
   test('info level admits info and above, drops debug', () => {
@@ -174,7 +174,7 @@ describe('redaction', () => {
   test('secret-looking keys are replaced, strings clipped, cycles cut', () => {
     const cyclic: Record<string, unknown> = { name: 'a' }
     cyclic.self = cyclic
-    const out = redact({
+    const out = redactHelper.redact({
       token: 'abc', nested: { Authorization: 'Bearer x', password: '', fine: 1 },
       long: 'x'.repeat(5000), cyclic,
     }) as Record<string, any>
@@ -187,7 +187,7 @@ describe('redaction', () => {
   })
 
   test('token is a secret only at the end of a key — usage counters are not', () => {
-    const out = redact({
+    const out = redactHelper.redact({
       token: 'a', accessToken: 'b', id_token: 'c', 'x-auth-token': 'd',
       maxTokens: 10, inputTokens: 5, tokens: 3, tokenCount: 2, apiKey: 'k', clientSecret: 's',
     }) as Record<string, unknown>

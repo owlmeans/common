@@ -4,7 +4,8 @@ import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
 import { ResilientError } from '@owlmeans/error'
 import { IAM_API_METADATA, ORGANIZATION_OWNER_REFUSAL, ORGANIZATION_REFUSAL } from '@owlmeans/oidc'
 import { IamClientError, IamError, IamGrantMode, IamGrantOrigin } from '@owlmeans/iam'
-import { iamRuntime } from '@owlmeans/server-iam'
+import { makeIamRuntimeClient } from '@owlmeans/server-iam'
+import type { IamRuntimeClient } from '@owlmeans/server-iam'
 import { ACCESS_TOKEN, requestOf, seedSession, start } from './context.js'
 
 /**
@@ -53,7 +54,7 @@ const runtimeOf = async (token: string, metadata?: Record<string, unknown>) => {
   const env = await start(metadata ?? { [IAM_API_METADATA]: `${base}/` })
   await seedSession(env.context, token)
 
-  return { ...env, client: iamRuntime(env.context, requestOf(token)) }
+  return { ...env, client: makeIamRuntimeClient(env.context, requestOf(token)) }
 }
 
 describe('@owlmeans/server-iam — iamRuntime', () => {
@@ -160,9 +161,9 @@ describe('@owlmeans/server-iam — iamRuntime', () => {
     await seedSession(env.context, 'runtime-8', { payload: { token_type: 'Bearer' } })
     const before = seen.length
 
-    await expect(iamRuntime(env.context, requestOf('runtime-8')).organizations.list()).rejects.toBeInstanceOf(AuthForbidden)
+    await expect(makeIamRuntimeClient(env.context, requestOf('runtime-8')).organizations.list()).rejects.toBeInstanceOf(AuthForbidden)
     expect(seen.length).toBe(before)
   })
 })
 
-type Client = ReturnType<typeof iamRuntime>
+type Client = IamRuntimeClient

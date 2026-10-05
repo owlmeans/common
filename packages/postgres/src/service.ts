@@ -1,31 +1,27 @@
 import { makeKeyPairModel } from '@owlmeans/basic-keys'
 import { assertContext } from '@owlmeans/context'
-import {
-  makeTx, pgErrorToResourceError, pgIdentifier, refOf, resolvePlaceholders
-} from '@owlmeans/postgres-resource'
-import type { PostgresDb, PostgresMeta } from '@owlmeans/postgres-resource'
+import { makeTx, pgErrorHelper, pgNameHelper, pgPlaceholdersOf, type PostgresDb, type PostgresMeta } from '@owlmeans/postgres-resource'
 import { logThrottle, logger } from '@owlmeans/log'
 import { createDbService } from '@owlmeans/resource'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
-import type { QueryResultRow } from 'pg'
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
+import { Pool, type QueryResultRow } from 'pg'
 
 import { DEFAULT_ALIAS } from './consts.js'
 import { bootstrapDb } from './bootstrap.js'
 import { drainMiddleware } from './middleware.js'
 import type { PostgresService } from './types.js'
-import { poolDatabase, prepareConfig } from './utils/config.js'
-import { ensureSchema, probe } from './utils/connection.js'
+import { pgConfigHelper } from './utils/config.js'
+import { makePgConnectionHelper } from './utils/connection.js'
+import type { Config, Context } from './types.local.js'
 
 const log = logger('postgres')
 
-type Config = ServerConfig
-interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresService => {
   const location = `postgres:${alias}`
+  const { pgErrorToResourceError } = pgErrorHelper
+  const { pgIdentifier } = pgNameHelper
+  const { poolDatabase, prepareConfig } = pgConfigHelper
 
   /**
    * Handles are cached per config alias rather than rebuilt per call: `db()` runs on every
@@ -69,6 +65,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
 
       const meta = (config.meta ?? {}) as PostgresMeta
       const pool = new Pool(prepareConfig(config))
+      const connection = makePgConnectionHelper(pool)
 
       /**
        * Not optional: node-postgres emits `error` on *idle* clients when the server closes
@@ -82,7 +79,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
       })
 
       try {
-        await probe(pool, meta, location)
+        await connection.probe(meta, location)
       } catch (error) {
         await pool.end().catch(() => undefined)
         throw error
@@ -102,7 +99,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
        * from the service alias would leave an empty `postgres` schema behind on every boot.
        */
       if (config.schema != null) {
-        await ensureSchema(pool, pgIdentifier(service.name(configAlias)))
+        await connection.ensureSchema(pgIdentifier(service.name(configAlias)))
       }
     },
 
@@ -114,7 +111,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
     qualify: resourceAlias => {
       const context = assertContext<Config, Context>(service.ctx as Context, location)
 
-      return refOf(context, null, resourceAlias)
+      return pgPlaceholdersOf(context).refOf(null, resourceAlias)
     },
 
     query: async <Row extends QueryResultRow = QueryResultRow>(
@@ -124,7 +121,7 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
       const context = assertContext<Config, Context>(service.ctx as Context, location)
       try {
         const result = await db.pool.query<Row>(
-          resolvePlaceholders(text, context, null), params as never[]
+          pgPlaceholdersOf(context).resolvePlaceholders(text, null), params as never[]
         )
 
         return result.rows
@@ -136,13 +133,14 @@ export const makePostgresDbService = (alias: string = DEFAULT_ALIAS): PostgresSe
     transaction: async (fn, configAlias) => {
       const db = await service.db(configAlias)
       const context = assertContext<Config, Context>(service.ctx as Context, location)
+      const placeholders = pgPlaceholdersOf(context)
       const client = await db.pool.connect()
       try {
         await client.query('BEGIN')
         const result = await fn(makeTx(
           client,
-          text => resolvePlaceholders(text, context, null),
-          resourceAlias => refOf(context, null, resourceAlias)
+          text => placeholders.resolvePlaceholders(text, null),
+          resourceAlias => placeholders.refOf(null, resourceAlias)
         ))
         await client.query('COMMIT')
 

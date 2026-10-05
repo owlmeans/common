@@ -1,16 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { PaygateError } from '@owlmeans/payment'
-import { ensurePortalConfiguration } from '../src/plugins/portal.js'
-import { createCheckoutLink, isTaxLocatable } from '../src/plugins/stripe.js'
-import { billingProfiles, consumerRights, paygateCustomers } from '../src/utils.js'
 import type { PricingDef } from '../src/types.js'
 import {
   ALL_ON, buyTopUp, CREDITS_PRODUCT, ENTITY, EUR_SETTLEMENT, makeRightsContext, rightsOf,
 } from './consumer-fixtures.js'
 import type { FakeContext } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { portalOf } from '../src/plugins/portal.js'
+import { stripeCheckoutOf } from '../src/plugins/stripe.js'
+import { stripeSessionHelper } from '../src/plugins/session.js'
 
 const successUrl = 'https://app.example.com/ok'
-const topUp = (fake: FakeContext, extra: Record<string, unknown> = {}) => createCheckoutLink(fake.ctx, fake.stripe, {
+const topUp = (fake: FakeContext, extra: Record<string, unknown> = {}) => stripeCheckoutOf(fake.ctx).createCheckoutLink(fake.stripe, {
   productSku: CREDITS_PRODUCT, entityId: ENTITY, service: 'app', amountMinor: 1_000, successUrl, ...extra,
 })
 const session = (fake: FakeContext) => fake.state.checkoutSessions[0]
@@ -23,7 +24,7 @@ const blank = { line1: '', line2: '', city: '', state: '', postal_code: '' }
 /** An existing paygate customer of `ENTITY`. */
 const seedCustomer = async (fake: FakeContext, fields: Record<string, unknown>) => {
   fake.state.customers.cus_saved = { id: 'cus_saved', object: 'customer', address: null, ...fields }
-  await paygateCustomers(fake.ctx).create({ paygate: 'stripe', externalId: 'cus_saved', entityId: ENTITY })
+  await paymentAccessOf(fake.ctx).paygateCustomers().create({ paygate: 'stripe', externalId: 'cus_saved', entityId: ENTITY })
 }
 
 describe('checkout — the locked customer e-mail', () => {
@@ -67,13 +68,13 @@ describe('checkout — the locked customer e-mail', () => {
     const fake = await makeRightsContext({
       pricing: locks({ lockCustomerEmail: true }), portal: { returnUrl: 'https://app.example.com/billing' },
     })
-    await ensurePortalConfiguration(fake.ctx, fake.stripe)
+    await portalOf(fake.ctx).ensurePortalConfiguration(fake.stripe)
     expect(fake.state.portalConfigurations[0].features.customer_update).toEqual({ enabled: true, allowed_updates: ['tax_id'] })
     const open = await makeRightsContext({
       pricing: locks({ lockCustomerEmail: true }), portal: { returnUrl: 'https://app.example.com/billing' },
       consumerRights: rightsOf({ mechanisms: { ...ALL_ON, countryLock: false } }),
     })
-    await ensurePortalConfiguration(open.ctx, open.stripe)
+    await portalOf(open.ctx).ensurePortalConfiguration(open.stripe)
     expect(open.state.portalConfigurations[0].features.customer_update.allowed_updates).toEqual(['address', 'tax_id'])
   })
 })
@@ -116,7 +117,7 @@ describe('checkout — the pinned country', () => {
 
   test('a locked organization whose customer saved no address gets the locked country pinned', async () => {
     const fake = await makeRightsContext({ pricing: locks({ lockCustomerCountry: true }) })
-    await consumerRights(fake.ctx).lock(ENTITY, 'PL', 'manual')
+    await paymentAccessOf(fake.ctx).consumerRights().lock(ENTITY, 'PL', 'manual')
     await seedCustomer(fake, {})
     await topUp(fake)
     expect(fake.state.customers.cus_saved.address).toEqual({ country: 'PL', ...blank })
@@ -136,7 +137,7 @@ describe('checkout — the pinned country', () => {
       id: 'cs_pinned', customer_details: { address: { country: 'US' }, email: 'buyer@shop.eu' },
       metadata: { country: 'DE', countryPinned: 'true' },
     })
-    expect((await billingProfiles(fake.ctx).byEntity(ENTITY))?.country).toBe('DE')
+    expect((await paymentAccessOf(fake.ctx).billingProfiles().byEntity(ENTITY))?.country).toBe('DE')
   })
 
   test('the portal never offers to edit a pinned address, with or without a consumer-rights policy', async () => {
@@ -144,17 +145,17 @@ describe('checkout — the pinned country', () => {
       pricing: locks({ lockCustomerCountry: true }), portal: { returnUrl: 'https://app.example.com/billing' },
       consumerRights: undefined,
     })
-    await ensurePortalConfiguration(fake.ctx, fake.stripe)
+    await portalOf(fake.ctx).ensurePortalConfiguration(fake.stripe)
     expect(fake.state.portalConfigurations[0].features.customer_update.allowed_updates).toEqual(['email', 'tax_id'])
   })
 
   test('tax-locatable addresses follow Stripe Tax: US needs a postal code, CA and IN a postal code or province', () => {
-    expect(isTaxLocatable({ country: 'DE' } as never)).toBe(true)
-    expect(isTaxLocatable({ country: 'US' } as never)).toBe(false)
-    expect(isTaxLocatable({ country: 'US', state: 'OR' } as never)).toBe(false)
-    expect(isTaxLocatable({ country: 'US', postal_code: '97712' } as never)).toBe(true)
-    expect(isTaxLocatable({ country: 'CA', state: 'BC' } as never)).toBe(true)
-    expect(isTaxLocatable({ country: 'IN', postal_code: '' } as never)).toBe(false)
-    expect(isTaxLocatable(null)).toBe(false)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'DE' } as never)).toBe(true)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'US' } as never)).toBe(false)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'US', state: 'OR' } as never)).toBe(false)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'US', postal_code: '97712' } as never)).toBe(true)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'CA', state: 'BC' } as never)).toBe(true)
+    expect(stripeSessionHelper.isTaxLocatable({ country: 'IN', postal_code: '' } as never)).toBe(false)
+    expect(stripeSessionHelper.isTaxLocatable(null)).toBe(false)
   })
 })

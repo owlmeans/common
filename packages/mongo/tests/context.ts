@@ -1,4 +1,4 @@
-import { mongoGate, randomNamespace } from '@owlmeans/test-integration'
+import { randomNamespace, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, MongoEnv } from '@owlmeans/test-integration'
 import type { MongoResource } from '@owlmeans/mongo-resource'
 import type { ResourceRecord } from '@owlmeans/resource'
@@ -19,7 +19,7 @@ import type { MongoDbService } from '@owlmeans/mongo-resource'
  * which is why it lives here rather than there (the reverse would make
  * `@owlmeans/mongo-resource` dev-depend on its own dependent).
  */
-export const gate: IntegrationGate<MongoEnv> = mongoGate()
+export const gate: IntegrationGate<MongoEnv> = gateHelper.mongoGate()
 
 const url = (): string => gate.env.MONGO_URL as string
 

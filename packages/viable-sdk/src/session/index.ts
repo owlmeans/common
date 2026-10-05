@@ -1,26 +1,11 @@
-import {
-  ConnectOpErrorKind, ConnectOpKind, ConnectSessionStatus
-} from '@owlmeans/viable-common'
-import type {
-  ConnectOp, ConnectOpResult, ConnectSessionView, ConfigurePayload, InquiryPayload, ModelTask,
-  SlotCommandPayload
-} from '@owlmeans/viable-common'
+import { ConnectOpErrorKind, ConnectOpKind, ConnectSessionStatus, type ConnectOp, type ConnectOpResult, type ConnectSessionView, type ConfigurePayload, type InquiryPayload, type ModelTask, type SlotCommandPayload } from '@owlmeans/viable-common'
 import { PULL_WAIT_MS } from '../consts.js'
-import type { ConnectorApi, LocalExecutor, OpenSessionArgs, SessionRuntime, SessionStats } from '../types.js'
-import { writeEnv } from '../project/env.js'
-import { readMarker, writeMarker } from '../project/marker.js'
+import type { LocalExecutor, SessionRuntime, SessionStats } from '../types.js'
+import { makeProjectEnvHelper } from '../project/env.js'
+import { makeMarkerHelper } from '../project/marker.js'
 import { QuestionQueue } from './questions.js'
 import { TaskQueue } from './tasks.js'
-
-export interface SessionOptions {
-  api: ConnectorApi
-  open: OpenSessionArgs
-  /** Absent for a cloud target: the platform's own pod executes its commands. */
-  executor?: LocalExecutor
-  /** Which deployment this is, recorded in the project's marker so a later connector finds it. */
-  apiUrl?: string
-  log?: (line: string) => void
-}
+import type { SessionOptions } from './types.js'
 
 /**
  * One attached connector, running.
@@ -51,12 +36,13 @@ const recordMarker = async (opts: SessionOptions, projectId: string): Promise<vo
   const dir = opts.open.projectDir
   if (dir == null) return
 
+  const markers = makeMarkerHelper(dir)
   try {
-    const existing = await readMarker(dir)
+    const existing = await markers.readMarker()
     if (existing?.projectId === projectId) return
 
     const status = await opts.api.project.status(projectId)
-    await writeMarker(dir, {
+    await markers.writeMarker({
       version: 1,
       apiUrl: opts.apiUrl ?? '',
       projectId,
@@ -134,7 +120,7 @@ export const openSession = async (opts: SessionOptions): Promise<SessionRuntime>
 
     try {
       const value = op.kind === ConnectOpKind.Configure
-        ? await writeEnv(requireExecutor().dir, op.payload as ConfigurePayload)
+        ? await makeProjectEnvHelper(requireExecutor().dir).writeEnv(op.payload as ConfigurePayload)
         : await requireExecutor().execute(op.payload as SlotCommandPayload)
       stats.opsDone += 1
       await submit({ opId: op.id, sessionId: session.id, ok: true, value })
@@ -262,3 +248,5 @@ export { ConnectSessionStatus }
 export * from './queue.js'
 export * from './tasks.js'
 export * from './questions.js'
+
+export type { SessionOptions } from './types.js'

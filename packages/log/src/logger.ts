@@ -1,13 +1,9 @@
 import { CONSOLE_SCOPE } from './consts.js'
-import { levelAdmits, parseDebugScopes, parseLogConsole, parseLogFormat, parseLogLevel } from './level.js'
-import { errorData, redact } from './redact.js'
-import { isBrowser, state } from './state.js'
-import type { ConsoleMethod } from './state.js'
-import type {
-  AnalyticsEvent, LogConfig, LogLevel, LogOptions, LogPlugin, LogRecord, Logger, LogMethod,
-} from './types.js'
-
-type Severity = Exclude<LogLevel, 'silent'>
+import { logLevelHelper } from './level.js'
+import { redactHelper } from './redact.js'
+import { logStateHelper } from './state.js'
+import type { ConsoleMethod, AnalyticsEvent, LogConfig, LogLevel, LogOptions, LogPlugin, LogRecord, Logger, LogMethod } from './types.js'
+import type { Severity } from './types.local.js'
 
 /**
  * Apply what a deployment decided. A field that is absent or does not parse leaves the previous
@@ -17,20 +13,20 @@ export const configureLog = (config: LogConfig | undefined): void => {
   if (config == null) {
     return
   }
-  const current = state()
-  const level = parseLogLevel(config.level)
+  const current = logStateHelper.state()
+  const level = logLevelHelper.parseLogLevel(config.level)
   if (level != null) {
     current.level = level
   }
-  const scopes = parseDebugScopes(config.debug)
+  const scopes = logLevelHelper.parseDebugScopes(config.debug)
   if (scopes != null) {
     current.debugScopes = scopes
   }
-  const format = parseLogFormat(config.format)
+  const format = logLevelHelper.parseLogFormat(config.format)
   if (format != null) {
     current.format = format
   }
-  const mode = parseLogConsole(config.console)
+  const mode = logLevelHelper.parseLogConsole(config.console)
   if (mode != null) {
     current.consoleMode = mode
   }
@@ -38,7 +34,7 @@ export const configureLog = (config: LogConfig | undefined): void => {
 
 /** The effective configuration, as written back by `configureLog`. */
 export const logConfig = (): Required<Pick<LogConfig, 'level' | 'format' | 'console'>> & { debug: string[] } => {
-  const current = state()
+  const current = logStateHelper.state()
   return { level: current.level, format: current.format, console: current.consoleMode, debug: [...current.debugScopes] }
 }
 
@@ -47,24 +43,24 @@ const scopeMatches = (scopes: string[], scope: string): boolean =>
 
 /** Whether a record at `level` for `scope` would be written now. */
 export const logEnabled = (level: LogLevel = 'debug', scope = ''): boolean => {
-  const current = state()
+  const current = logStateHelper.state()
   if (current.level === 'silent' || level === 'silent') {
     return false
   }
-  return levelAdmits(current.level, level) || (level === 'debug' && scopeMatches(current.debugScopes, scope))
+  return logLevelHelper.levelAdmits(current.level, level) || (level === 'debug' && scopeMatches(current.debugScopes, scope))
 }
 
 /** Add a destination. A plugin of the same name is replaced. Returns the function that removes it. */
 export const addLogPlugin = (plugin: LogPlugin): (() => void) => {
   removeLogPlugin(plugin.name)
-  const current = state()
+  const current = logStateHelper.state()
   current.plugins.push(plugin)
   guarded(plugin, () => plugin.install?.())
   return () => removeLogPlugin(plugin.name)
 }
 
 export const removeLogPlugin = (name: string): void => {
-  const current = state()
+  const current = logStateHelper.state()
   const index = current.plugins.findIndex(plugin => plugin.name === name)
   if (index >= 0) {
     const [plugin] = current.plugins.splice(index, 1)
@@ -72,7 +68,7 @@ export const removeLogPlugin = (name: string): void => {
   }
 }
 
-export const logPlugins = (): readonly LogPlugin[] => [...state().plugins]
+export const logPlugins = (): readonly LogPlugin[] => [...logStateHelper.state().plugins]
 
 /** A plugin may be broken; the work that logged must not be. Reported once per minute per plugin. */
 const guarded = (plugin: LogPlugin, run: () => void): void => {
@@ -80,7 +76,7 @@ const guarded = (plugin: LogPlugin, run: () => void): void => {
     run()
   } catch (error) {
     if (logThrottle(`plugin:${plugin.name}`, 60_000)) {
-      state().native.warn(`[log] plugin "${plugin.name}" failed: ${error instanceof Error ? error.message : String(error)}`)
+      logStateHelper.state().native.warn(`[log] plugin "${plugin.name}" failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 }
@@ -90,7 +86,7 @@ const guarded = (plugin: LogPlugin, run: () => void): void => {
  * line that fires per tick or per request from flooding.
  */
 export const logThrottle = (key: string, ms = 30_000): boolean => {
-  const current = state()
+  const current = logStateHelper.state()
   const now = Date.now()
   const last = current.throttles.get(key)
   if (last != null && now - last < ms) {
@@ -136,7 +132,7 @@ const withoutError = (data: unknown, error: Error | undefined): unknown => {
 const textOf = (message: string | Error): string => message instanceof Error ? message.message : String(message)
 
 const sinkMethod = (level: Severity): ConsoleMethod =>
-  level === 'debug' ? (isBrowser() ? 'log' : 'debug') : level
+  level === 'debug' ? (logStateHelper.isBrowser() ? 'log' : 'debug') : level
 
 const flat = (value: unknown): string => {
   if (value == null || typeof value !== 'object' || Array.isArray(value)) {
@@ -150,11 +146,11 @@ const flat = (value: unknown): string => {
 
 /** The built-in console sink. Writes only through the captured natives — it can never recurse. */
 const write = (record: LogRecord): void => {
-  const current = state()
+  const current = logStateHelper.state()
   const method = sinkMethod(record.level)
   const out = current.native[method]
 
-  if (isBrowser()) {
+  if (logStateHelper.isBrowser()) {
     // Browsers get the original objects: they inspect them, and an `Error` handed to
     // `console.error` is what error-reporting hooks of the page key on.
     const args: unknown[] = [`[${record.scope}] ${record.message}`]
@@ -170,7 +166,7 @@ const write = (record: LogRecord): void => {
       time: iso, level: record.level, scope: record.scope, msg: record.message,
       ...(record.event != null ? { event: record.event } : {}),
       ...(record.data !== undefined ? { data: record.data } : {}),
-      ...(record.error != null ? { err: errorData(record.error) } : {}),
+      ...(record.error != null ? { err: redactHelper.errorData(record.error) } : {}),
     }))
     return
   }
@@ -199,9 +195,9 @@ const dispatch = (
   const merged = base != null && Object.keys(base).length > 0
     ? (rawData == null || rawData instanceof Error ? base : { ...base, ...(typeof rawData === 'object' ? rawData as object : { value: rawData }) })
     : rawData
-  const data = merged == null || merged instanceof Error ? undefined : redact(withoutError(merged, error))
+  const data = merged == null || merged instanceof Error ? undefined : redactHelper.redact(withoutError(merged, error))
   const time = Date.now()
-  const plugins = state().plugins
+  const plugins = logStateHelper.state().plugins
 
   if (writes) {
     const record: LogRecord = { level, scope, message, time, data, event, error }
@@ -267,7 +263,7 @@ const argsToCall = (args: unknown[]): [string | Error, unknown] => {
  * calls `console.*` is therefore subject to the same level as everything else.
  */
 export const overrideConsole = (): void => {
-  const current = state()
+  const current = logStateHelper.state()
   if (current.overridden || typeof console === 'undefined') {
     return
   }
@@ -288,7 +284,7 @@ export const overrideConsole = (): void => {
 
 /** Put the captured console back. */
 export const restoreConsole = (): void => {
-  const current = state()
+  const current = logStateHelper.state()
   if (!current.overridden || typeof console === 'undefined') {
     return
   }
@@ -302,7 +298,7 @@ export const restoreConsole = (): void => {
 /** Back to the defaults, the real console and no plugins — for tests. */
 export const resetLog = (): void => {
   restoreConsole()
-  const current = state()
+  const current = logStateHelper.state()
   for (const plugin of [...current.plugins]) {
     removeLogPlugin(plugin.name)
   }

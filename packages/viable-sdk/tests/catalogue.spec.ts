@@ -2,26 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { AuthenPayloadError } from '@owlmeans/auth'
 import { ApiStatusError } from '@owlmeans/api'
 import { ResilientError } from '@owlmeans/error'
-import { CommitTimeout, IllegalTransition } from '@owlmeans/planning'
-import type { PlanningFacade, WorkcardDraft } from '@owlmeans/planning'
-import {
-  ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea,
-  ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition,
-} from '@owlmeans/viable-common'
-import type {
-  ConnectProjectBranding, ConnectProjectBrandingSave, ViableStoryCard,
-} from '@owlmeans/viable-common'
-import { catalogue, visibleTools } from '../src/tools/catalogue.js'
+import { CommitTimeout, IllegalTransition, type PlanningFacade, type WorkcardDraft } from '@owlmeans/planning'
+import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea, ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ViableStoryCard } from '@owlmeans/viable-common'
+import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
 import { registerCatalogue } from '../src/tools/mcp.js'
-import { renderPipelineStatus } from '../src/tools/status.js'
-import { GENERATED_SUMMARY } from '../src/tools/platform.js'
-import { LANDING_MARK, LANDING_NOTE } from '../src/tools/stories.js'
-import type { McpServerLike } from '../src/tools/mcp.js'
-import { REFUSALS, refusalMessage, refusalPhrase, UNPHRASED_REFUSAL } from '../src/tools/refusal.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
-import { FORMATTED_AREA, makePlanningSuite } from './context.js'
-import type { PlanningSuite } from './context.js'
+import { statusTextHelper } from '../src/tools/status.js'
+import { GENERATED_SUMMARY, LANDING_MARK, LANDING_NOTE, UNPHRASED_REFUSAL, ToolHostKind } from '../src/tools/consts.js'
+import type { McpServerLike, ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
+import { refusalHelper } from '../src/tools/refusal.js'
+import { FORMATTED_AREA, makePlanningSuite, type PlanningSuite } from './context.js'
 
 const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   kind: ToolHostKind.Stdio,
@@ -32,7 +21,7 @@ const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
   ...patch,
 })
 
-const names = (h: ToolHost): string[] => visibleTools(h).map(tool => tool.name)
+const names = (h: ToolHost): string[] => catalogueHelper.visibleTools(h).map(tool => tool.name)
 
 describe('viable-sdk — what a parent agent is offered', () => {
   test('the model-task loop appears wherever a session can hold one, in either llm mode', () => {
@@ -638,7 +627,7 @@ describe('the project settings are one record, read and written through the plat
   })
 
   test('a refused field that is not a setting still reads as a sentence', () => {
-    const phrase = refusalPhrase(new AuthenPayloadError('prompt'))
+    const phrase = refusalHelper.refusalPhrase(new AuthenPayloadError('prompt'))
 
     expect(phrase).toContain('(prompt)')
     expect(phrase).not.toContain('authen:payload:')
@@ -1263,45 +1252,45 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
     const gateway = ResilientError.ensure('502 Bad Gateway: upstream connect error', true)
 
     expect(gateway.message).toContain('    at ')
-    expect(refusalPhrase(gateway)).toBe('502 Bad Gateway: upstream connect error')
-    expect(refusalMessage(gateway)).not.toContain('    at ')
+    expect(refusalHelper.refusalPhrase(gateway)).toBe('502 Bad Gateway: upstream connect error')
+    expect(refusalHelper.refusalMessage(gateway)).not.toContain('    at ')
   })
 
   test('the detail a refusal carries is kept where it is the actionable part', () => {
-    expect(refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
-    expect(refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
       .toContain('unsolicited bulk messaging')
-    expect(refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
       .toContain('package.json missing')
   })
 
   test('an unsigned connector is told what to do, with the link and the code in the sentence', () => {
-    const phrase = refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
+    const phrase = refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
 
     expect(phrase).toContain('https://api.example.com/oauth/device')
     expect(phrase).toContain('ABCD-EFGH')
     expect(phrase).toContain('call this tool again')
     expect(phrase).not.toContain('oauth:')
     // Before a device sign-in is pending there is no code yet, and the sentence must still read.
-    expect(refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
       .not.toContain('enter the code')
   })
 
   test('a refused token is explained, and an environment token is never silently replaced', () => {
-    expect(refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
-    expect(refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
+    expect(refusalHelper.refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
   })
 
   test('a stored cause is phrased as readily as a thrown one', () => {
     // `slot.lastError` and pipeline errors are strings with no class left on them, and the platform
     // writes them from the same refusal — so one function has to serve both.
-    expect(refusalPhrase('viable-agent-common:conversion:relocate-declined'))
+    expect(refusalHelper.refusalPhrase('viable-agent-common:conversion:relocate-declined'))
       .toContain('__viable_converted/')
-    expect(refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
+    expect(refusalHelper.refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
   })
 
   test('a failed pipeline reports its cause in the same sentence', () => {
-    const rendered = renderPipelineStatus({
+    const rendered = statusTextHelper.renderPipelineStatus({
       runId: 'r1', pipeline: 'vib:project:convert:implementation', status: 'failed',
       completed: [], pending: [], error: 'viable-converter:taxonomy-missing',
     })
@@ -1338,34 +1327,34 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a failure that is not a refusal is passed through exactly as it is', () => {
-    expect(refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
+    expect(refusalHelper.refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
       .toBe('pipeline_status took longer than 45000ms')
-    expect(refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
+    expect(refusalHelper.refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
 
     // A status error can be the build warning a slot recorded, and build diagnostics are
     // full of lines that look like stack frames. A stack only ever arrives inside the
     // marshalling, so nothing outside it is cut.
     const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'
-    expect(refusalPhrase(warning)).toBe(warning)
+    expect(refusalHelper.refusalPhrase(warning)).toBe(warning)
   })
 
   test('a consent refusal is phrased from its marker, its production status, or inside a planning commit', () => {
     const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
     const stored = `viable-connect:consent-required:story:${Date.parse('2026-10-09T00:00:00Z')}:${encodeURIComponent(url)}`
 
-    const fromMarker = refusalPhrase(stored)
+    const fromMarker = refusalHelper.refusalPhrase(stored)
     expect(fromMarker).toContain(url)
     expect(fromMarker).toContain('2026-10-08')
     expect(fromMarker).toContain('Do not retry this call automatically')
     expect(fromMarker).not.toContain('consent-required')
 
     // A production body is only an incident id: the status is all that is left of the refusal.
-    const production = refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    const production = refusalHelper.refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
     expect(production).toContain('Billing in the OwlMeans web application')
     expect(production).not.toContain('api:client:status')
 
     // The web refusal, when a story start failed on it at commit time.
-    const committed = refusalPhrase(asThrown(
+    const committed = refusalHelper.refusalPhrase(asThrown(
       'planning:commit-failed:t1:payment:consumer-rights:performance-consent-required:1',
       'PlanningErrorCommitFailed',
     ))
@@ -1374,7 +1363,7 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   })
 
   test('a balance refusal that reached production as a bare 402 still reads as the balance', () => {
-    const phrase = refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    const phrase = refusalHelper.refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
 
     expect(phrase).toContain('balance')
     expect(phrase).toContain('top up')
@@ -1384,15 +1373,15 @@ describe('a refusal reaches the parent as a sentence, never as a marshalled clas
   test('no marker in the table shadows a more specific one below it', () => {
     // The first marker the message contains wins, so a family marker placed above one of its own
     // reasons would answer for all of them — `conversion:unsupported:` over `…:not-linked`, say.
-    REFUSALS.forEach((entry, index) => {
-      for (const later of REFUSALS.slice(index + 1)) {
+    refusalHelper.refusals.forEach((entry, index) => {
+      for (const later of refusalHelper.refusals.slice(index + 1)) {
         expect([later.marker, later.marker.includes(entry.marker)]).toEqual([later.marker, false])
       }
     })
   })
 
   test('every phrase reads as a sentence with nothing after the marker', () => {
-    for (const entry of REFUSALS) {
+    for (const entry of refusalHelper.refusals) {
       const phrase = entry.phrase('')
       expect([entry.marker, phrase.length > 40]).toEqual([entry.marker, true])
       expect([entry.marker, phrase.trim().endsWith('.')]).toEqual([entry.marker, true])

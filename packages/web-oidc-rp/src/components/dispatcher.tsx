@@ -10,7 +10,7 @@ import { useFlow } from '@owlmeans/web-flow'
 import { OidcAuthService } from '../types.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 import {
-  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction, LOGIN_METHOD_QUERY,
+  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, loginResumeHelper, LOGIN_METHOD_QUERY,
   enterOidcAuthorization,
 } from '@owlmeans/client-auth/login'
 import { logger } from '@owlmeans/log'
@@ -127,7 +127,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
           // the window that opened this one, is the plugin's call — the dispatcher reads no
           // environment of its own.
           const settled = await context.login().resume(authzToken)
-          switch (resumeAction(settled)) {
+          switch (loginResumeHelper.resumeAction(settled)) {
             case ResumeAction.Stop:
               return
             case ResumeAction.Render:

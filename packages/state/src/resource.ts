@@ -1,48 +1,16 @@
-import { appendContextual } from '@owlmeans/context'
-import type { BasicConfig as Config, BasicContext as Context } from '@owlmeans/context'
-import {
-  applyQuery, filterRecords, firstMatch, RecordExists, sortRecords, UnknownRecordError,
-  UnsupportedArgumentError
-} from '@owlmeans/resource'
-import type {
-  Criteria, FirstOptions, ListOptions, ResourceRecord, SubscribeOptions, Ttl, Unsubscribe,
-  WriteOptions
-} from '@owlmeans/resource'
+import { appendContextual, type BasicConfig as Config, type BasicContext as Context } from '@owlmeans/context'
+import { RecordExists, recordQueryHelper, UnknownRecordError, UnsupportedArgumentError, type Criteria, type FirstOptions, type ListOptions, type ResourceRecord, type SubscribeOptions, type Ttl, type Unsubscribe, type WriteOptions } from '@owlmeans/resource'
 import { StateConfigError } from './errors.js'
 import { createStateModel } from './utils/model.js'
 import type {
   StateConfig, StateEvent, StateModel, StateResource, StateResourceAppend
 } from './types.js'
-
-/**
- * The one slot of a `single` resource. It is a KEY and never a value: nothing writes it into a
- * record, so a single resource's record still carries whatever id it arrived with, or none.
- */
-const SOLE = ''
-
-/** The channel writes publish on, and the one a subscriber gets when it names none. */
-const CHANGES = 'changes'
-
-/** The alias a context's first state resource takes when nothing else is asked for. */
-const STATE = 'state'
+import { CHANGES, SOLE, STATE } from './consts.local.js'
+import type { QueryWatch, Subscription } from './types.local.js'
 
 /** Milliseconds until a subscription expires: a number is seconds from now, a Date the instant. */
 const expiresIn = (ttl: Ttl): number =>
   ttl instanceof Date ? ttl.getTime() - Date.now() : ttl * 1000
-
-interface QueryWatch<T extends ResourceRecord> {
-  where?: Criteria<T>
-  opts?: FirstOptions<T>
-  listener: (models: StateModel<T>[]) => void
-  last: StateModel<T>[]
-}
-
-interface Subscription<T extends ResourceRecord> {
-  handler: (value: StateEvent<T>) => void | Promise<void>
-  channel: string
-  once: boolean
-  timer?: ReturnType<typeof setTimeout>
-}
 
 export const createStateResource = <T extends ResourceRecord>(
   alias: string = STATE, cfg?: StateConfig<T>
@@ -124,7 +92,7 @@ export const createStateResource = <T extends ResourceRecord>(
   }
 
   const first = (idOrWhere: string | Criteria<T>, opts?: FirstOptions<T>): T | null =>
-    typeof idOrWhere === 'string' ? read(idOrWhere) : firstMatch(records(), idOrWhere, opts)
+    typeof idOrWhere === 'string' ? read(idOrWhere) : recordQueryHelper.firstMatch(records(), idOrWhere, opts)
 
   /** The store keeps no expiring records, so a ttl would be silently dropped. */
   const refuseTtl = (opts?: WriteOptions): void => {
@@ -185,7 +153,7 @@ export const createStateResource = <T extends ResourceRecord>(
   })
 
   const queryModels = (watch: QueryWatch<T>): StateModel<T>[] =>
-    sortRecords(filterRecords(records(), watch.where), watch.opts?.sort)
+    recordQueryHelper.sortRecords(recordQueryHelper.filterRecords(records(), watch.where), watch.opts?.sort)
       .map(record => modelFor(storedKey(record)))
 
   const same = (left: StateModel<T>[], right: StateModel<T>[]): boolean =>
@@ -280,10 +248,10 @@ export const createStateResource = <T extends ResourceRecord>(
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(records(), where, opts)
+      return recordQueryHelper.applyQuery(records(), where, opts)
     },
 
-    count: async (where?: Criteria<T>) => filterRecords(records(), where).length,
+    count: async (where?: Criteria<T>) => recordQueryHelper.filterRecords(records(), where).length,
 
     create: async (record: Partial<T>, opts?: WriteOptions) => {
       refuseTtl(opts)
@@ -337,7 +305,7 @@ export const createStateResource = <T extends ResourceRecord>(
       if (where == null || Object.keys(where).length < 1) {
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
-      const removed = filterRecords(records(), where)
+      const removed = recordQueryHelper.filterRecords(records(), where)
         .map((record): [string, T] => [storedKey(record), record])
       for (const [key] of removed) {
         store.delete(key)

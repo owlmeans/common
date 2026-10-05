@@ -1,7 +1,5 @@
-import { contract, openProtocol, protocol, typed } from '@owlmeans/entrypoint'
-import type { EntrypointOptions, EntrypointProtocol, OpenRequest, OpenValue } from '@owlmeans/entrypoint'
+import { contract, openProtocol, protocol, typed, type EntrypointProtocol, type OpenRequest, type OpenValue } from '@owlmeans/entrypoint'
 import { backend, frontend, route, RouteMethod } from '@owlmeans/route'
-import type { RouteParent } from '@owlmeans/route'
 import {
   BillingProfileViewSchema, CancellationBodySchema, CancellationReceiptSchema, ConsumerRightsPublicViewSchema,
   DeclarationReceiptSchema, PerformanceConsentBodySchema, PerformanceConsentResponseSchema,
@@ -9,83 +7,10 @@ import {
   SubscriptionStartResponseSchema, SubscriptionStartViewSchema, WithdrawalBodySchema,
   WithdrawalCandidateListSchema, WithdrawalReceiptSchema,
 } from '../model/consumer.js'
-import type {
-  BillingProfileView, CancellationBody, CancellationReceipt, ConsumerRightsPublicView, DeclarationReceipt,
-  PerformanceConsentBody, PerformanceConsentResponse, PerformanceConsentView, PurchaseList, SubscriptionStartBody,
-  SubscriptionStartQuery, SubscriptionStartResponse, SubscriptionStartView, WithdrawalBody,
-  WithdrawalCandidateList, WithdrawalReceipt,
-} from '../types.js'
+import type { SubscriptionStartQuery } from '../types.js'
+import { CONSUMER_RIGHTS_API_PATH, CONSUMER_RIGHTS_CANCELLATION_SCREEN_PATH, CONSUMER_RIGHTS_PUBLIC_PATH, CONSUMER_RIGHTS_WITHDRAWAL_SCREEN_PATH } from './consts.js'
+import type { ConsumerRightsAccountProtocols, ConsumerRightsProtocolOptions, ConsumerRightsProtocols, ConsumerRightsPublicProtocols, ConsumerRightsScreens } from './types.js'
 
-export const CONSUMER_RIGHTS_API_PATH = '/consumer-rights'
-export const CONSUMER_RIGHTS_PUBLIC_PATH = '/public/consumer-rights'
-export const CONSUMER_RIGHTS_WITHDRAWAL_SCREEN_PATH = '/legal/withdraw'
-export const CONSUMER_RIGHTS_CANCELLATION_SCREEN_PATH = '/legal/cancel'
-
-export interface ConsumerRightsPublicOptions {
-  /** Default `/public/consumer-rights`. */
-  path?: string
-  /** An UNGUARDED parent only — whatever it guards, this subtree inherits. */
-  parent?: RouteParent
-  /**
-   * Declare the two public frontend screens (sticky, like every legal page): the withdrawal
-   * function and the cancellation page. Both or neither.
-   */
-  screens?: { withdrawal?: string, cancellation?: string, parent?: RouteParent }
-}
-
-export interface ConsumerRightsProtocolOptions {
-  /** Alias prefix of every declaration, e.g. `my-app:account:consumer`. */
-  prefix: string
-  /** The application's guarded parent (its account base) — its guards and gate are inherited. */
-  parent?: RouteParent
-  /** Guards of a tree mounted without a parent. */
-  guards?: EntrypointOptions['guards']
-  gate?: EntrypointOptions['gate']
-  /** Default `/consumer-rights`. */
-  path?: string
-  /** The unguarded public subtree; absent or `false` declares none. */
-  public?: false | ConsumerRightsPublicOptions
-}
-
-/** The guarded account subtree: one entity's own purchases, consents and declarations. */
-export type ConsumerRightsAccountProtocols = {
-  base: EntrypointProtocol<OpenRequest, OpenValue>
-  profile: EntrypointProtocol<{}, BillingProfileView>
-  purchases: EntrypointProtocol<{}, PurchaseList>
-  consent: EntrypointProtocol<{}, PerformanceConsentView>
-  giveConsent: EntrypointProtocol<{ body: PerformanceConsentBody }, PerformanceConsentResponse>
-  start: EntrypointProtocol<{ query: SubscriptionStartQuery }, SubscriptionStartView>
-  requestStart: EntrypointProtocol<{ body: SubscriptionStartBody }, SubscriptionStartResponse>
-  withdrawals: EntrypointProtocol<{}, WithdrawalCandidateList>
-  withdraw: EntrypointProtocol<{ body: WithdrawalBody }, WithdrawalReceipt>
-  cancel: EntrypointProtocol<{ body: CancellationBody }, CancellationReceipt>
-}
-
-export type ConsumerRightsScreens = {
-  withdrawal: EntrypointProtocol<OpenRequest, OpenValue>
-  cancellation: EntrypointProtocol<OpenRequest, OpenValue>
-}
-
-/**
- * The unguarded public subtree: reachable WITHOUT a login (§ 312k BGB). Its receipts carry only
- * what was declared and when — never whether a contract matched.
- */
-export type ConsumerRightsPublicProtocols = {
-  base: EntrypointProtocol<OpenRequest, OpenValue>
-  policy: EntrypointProtocol<{}, ConsumerRightsPublicView>
-  withdraw: EntrypointProtocol<{ body: WithdrawalBody }, DeclarationReceipt>
-  cancel: EntrypointProtocol<{ body: CancellationBody }, DeclarationReceipt>
-}
-
-type PublicOf<P> = P extends { screens: object }
-  ? ConsumerRightsPublicProtocols & { screens: ConsumerRightsScreens }
-  : ConsumerRightsPublicProtocols
-
-/** The tree for given options — `public` (and its `screens`) present only when declared. */
-export type ConsumerRightsProtocols<O extends ConsumerRightsProtocolOptions = ConsumerRightsProtocolOptions> =
-  O['public'] extends ConsumerRightsPublicOptions
-    ? ConsumerRightsAccountProtocols & { public: PublicOf<O['public']> }
-    : ConsumerRightsAccountProtocols
 
 const get = (alias: string, path: string, parent: EntrypointProtocol<OpenRequest, OpenValue>) =>
   route(alias, path, backend({ parent, method: RouteMethod.GET }))

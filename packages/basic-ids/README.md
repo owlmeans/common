@@ -11,13 +11,13 @@ Utilities for generating cryptographically secure random IDs and UUIDs.
 ## Installation
 
 ```bash
-bun add @owlmeans/basic-ids@^0.1.18-rc.35
+bun add @owlmeans/basic-ids@^0.1.18-rc.36
 ```
 
 ## Usage
 
 ```typescript
-import { createIdOfLength, createRandomPrefix, uuid } from '@owlmeans/basic-ids'
+import { createIdOfLength, createRandomPrefix, idHelper } from '@owlmeans/basic-ids'
 
 // Generate a 12-character Base58 ID (default encoding)
 const runId = createIdOfLength(12)
@@ -26,7 +26,7 @@ const runId = createIdOfLength(12)
 const prefix = createRandomPrefix(6)
 
 // Standard UUID v4
-const id = uuid()
+const id = idHelper.uuid()
 ```
 
 With explicit encoding:
@@ -47,7 +47,7 @@ Returns a random ID of exactly `length` characters (default: 6) in `format` enco
 
 Returns a random string encoded from `length` random bytes (default: 6 bytes).
 
-### `uuid(): string`
+### `idHelper.uuid(): string`
 
 Returns a UUID v4 string.
 
@@ -65,7 +65,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { makeFlowModel } from '@owlmeans/flow'
 import type { ShallowFlow } from '@owlmeans/flow'
-import { resumeSuspendedFlow, suspendFlow } from '../src/landing.js'
+import { flowLandingOf } from '../src/landing.js'
 import { makeTestContext } from './context.js'
 
 const testFlow: ShallowFlow = {
@@ -29,27 +29,27 @@ describe('suspendFlow / resumeSuspendedFlow', () => {
     const model = await makeFlowModel(testFlow)
     model.updatePayload({ ref: 'abc-123' })
 
-    expect(await suspendFlow(context, model, { expiresAt: Date.now() + 60_000 })).toBe(true)
+    expect(await flowLandingOf(context).suspendFlow(model, { expiresAt: Date.now() + 60_000 })).toBe(true)
 
-    const landing = await resumeSuspendedFlow(context)
+    const landing = await flowLandingOf(context).resumeSuspendedFlow()
     expect(landing).toEqual({ entrypoint: 'target-entrypoint', query: { ref: 'abc-123' } })
   })
 
   test('resuming is single-use — a second call finds nothing', async () => {
     const context = makeTestContext()
     const model = await makeFlowModel(testFlow)
-    await suspendFlow(context, model, { expiresAt: Date.now() + 60_000 })
+    await flowLandingOf(context).suspendFlow(model, { expiresAt: Date.now() + 60_000 })
 
-    await resumeSuspendedFlow(context)
-    expect(await resumeSuspendedFlow(context)).toBeNull()
+    await flowLandingOf(context).resumeSuspendedFlow()
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
   })
 
   test('an expired landing resumes to nothing', async () => {
     const context = makeTestContext()
     const model = await makeFlowModel(testFlow)
-    await suspendFlow(context, model, { expiresAt: Date.now() - 1 })
+    await flowLandingOf(context).suspendFlow(model, { expiresAt: Date.now() - 1 })
 
-    expect(await resumeSuspendedFlow(context)).toBeNull()
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
   })
 
   test('a step with no forward transition suspends nothing', async () => {
@@ -59,15 +59,15 @@ describe('suspendFlow / resumeSuspendedFlow', () => {
     // has nothing to offer and suspending must decline rather than persist a landing to nowhere.
     deadModel.setState({ ...deadModel.state(), step: 'dead' })
 
-    expect(await suspendFlow(context, deadModel, { expiresAt: Date.now() + 60_000 })).toBe(false)
-    expect(await resumeSuspendedFlow(context)).toBeNull()
+    expect(await flowLandingOf(context).suspendFlow(deadModel, { expiresAt: Date.now() + 60_000 })).toBe(false)
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
   })
 
   test('with no FLOW_STATE resource registered, both are safe no-ops', async () => {
     const context = makeTestContext(false)
     const model = await makeFlowModel(testFlow)
 
-    expect(await suspendFlow(context, model, { expiresAt: Date.now() + 60_000 })).toBe(false)
-    expect(await resumeSuspendedFlow(context)).toBeNull()
+    expect(await flowLandingOf(context).suspendFlow(model, { expiresAt: Date.now() + 60_000 })).toBe(false)
+    expect(await flowLandingOf(context).resumeSuspendedFlow()).toBeNull()
   })
 })

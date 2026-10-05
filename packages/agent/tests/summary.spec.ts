@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages'
 import type { LlmModel } from '@owlmeans/llm'
 import { AgentRunStatus } from '@owlmeans/agent-common'
-import { composeCompaction, composeRollingSummary, renderTranscript } from '../src/index.js'
+import { composeRollingSummary, compactionHelper } from '../src/index.js'
 
 /** A model double: the helpers only ever call `invoke` (structured) or `ask` (text). */
 const answering = (answer: unknown): LlmModel => ({
@@ -24,7 +24,7 @@ const conversation = [
 
 describe('agent — conversation compaction', () => {
   test('returns both parts, each inside its own cap', async () => {
-    const result = await composeCompaction({
+    const result = await compactionHelper.composeCompaction({
       model: answering({ summary: 'S'.repeat(5_000), advice: 'A'.repeat(5_000) }),
       prompt: 'rename the header',
       messages: conversation,
@@ -41,7 +41,7 @@ describe('agent — conversation compaction', () => {
   test('falls back to a usable event when the model fails', async () => {
     // An exhausted budget is the common case, and asking again would fail the same way — so the
     // fallback has to carry the facts the caller already holds rather than an apology.
-    const result = await composeCompaction({
+    const result = await compactionHelper.composeCompaction({
       model: failing(),
       prompt: 'rename the header',
       messages: conversation,
@@ -55,7 +55,7 @@ describe('agent — conversation compaction', () => {
   })
 
   test('treats an empty summary as a non-answer, not a short one', async () => {
-    const result = await composeCompaction({
+    const result = await compactionHelper.composeCompaction({
       model: answering({ summary: '   ', advice: 'do something' }),
       prompt: 'rename the header',
       messages: conversation,
@@ -66,7 +66,7 @@ describe('agent — conversation compaction', () => {
   })
 
   test('works with no model at all', async () => {
-    const result = await composeCompaction({
+    const result = await compactionHelper.composeCompaction({
       prompt: 'rename the header', messages: conversation, status: AgentRunStatus.Ok,
     })
 
@@ -74,7 +74,7 @@ describe('agent — conversation compaction', () => {
   })
 
   test('drops an empty advice rather than storing a blank field', async () => {
-    const result = await composeCompaction({
+    const result = await compactionHelper.composeCompaction({
       model: answering({ summary: 'did the thing', advice: '' }),
       prompt: 'p', messages: conversation, status: AgentRunStatus.Ok,
     })
@@ -85,7 +85,7 @@ describe('agent — conversation compaction', () => {
 
 describe('agent — transcript rendering', () => {
   test('names the tools a message called when it carried no text', async () => {
-    expect(renderTranscript(conversation)).toContain('called write_file')
+    expect(compactionHelper.renderTranscript(conversation)).toContain('called write_file')
   })
 
   test('keeps the tail when the budget binds', () => {
@@ -95,7 +95,7 @@ describe('agent — transcript rendering', () => {
       new AIMessage({ content: 'the final answer' }),
     ]
 
-    const rendered = renderTranscript(long, 100)
+    const rendered = compactionHelper.renderTranscript(long, 100)
 
     expect(rendered).toContain('the final answer')
     expect(rendered).not.toContain('AAAA')

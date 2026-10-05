@@ -1,10 +1,4 @@
-import type { AnalyticsEvent, LogPlugin, LogRecord } from './types.js'
-
-export interface MemoryPlugin extends LogPlugin {
-  records: LogRecord[]
-  events: AnalyticsEvent[]
-  clear: () => void
-}
+import type { MemoryPlugin } from './types.js'
 
 /** A plugin that keeps everything it is given — the sink for a test to read. */
 export const memoryPlugin = (name = 'memory'): MemoryPlugin => {

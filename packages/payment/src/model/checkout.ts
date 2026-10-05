@@ -2,7 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import type { CreateCheckoutBody, CreateCheckoutResponse } from '../types.js'
 import { ResourceValueSchema, EntityValueSchema, IdValueSchema } from '@owlmeans/auth'
 import { schema } from '@owlmeans/entrypoint'
-import { CountrySchema } from '../countries.js'
+import { CountrySchema } from '../consts.js'
 
 export const CreateCheckoutBodySchema = schema<CreateCheckoutBody>({
   type: 'object',

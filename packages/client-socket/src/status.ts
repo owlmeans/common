@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type {
   Config, Context, SocketConnectionState, SocketStatusService, SocketStatusServiceAppend
 } from './types.js'
-
-export const SOCKET_STATUS = 'socket-status'
-
-const RANK: Record<SocketConnectionState, number> = { online: 0, reconnecting: 1, lost: 2 }
+import { RANK } from './consts.local.js'
+import { SOCKET_STATUS } from './consts.js'
 
 /**
  * Aggregates the coarse health of every `ws()`/`useWs()` connection an app has open into one

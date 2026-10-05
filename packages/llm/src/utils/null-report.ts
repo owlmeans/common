@@ -1,27 +1,10 @@
-import type { AIMessageChunk, MessageFieldWithRole } from '@langchain/core/messages'
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { createIdOfLength } from '@owlmeans/basic-ids'
-import type { LlmPurpose, NullCapture, NullKind } from '@owlmeans/llm-common'
+import type { NullCapture } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
-import type { LlmSpectator, ModelConfig } from '../types.js'
+import type { LlmSpectator } from '../types.js'
+import type { NullReportParams, RefinedKwargs } from './null-report/types.js'
 
 const log = logger('llm')
-
-export interface NullReportParams {
-  kind: NullKind
-  action: string
-  purpose?: LlmPurpose
-  attempt: number
-  startedAt: number
-  /** The instance that actually ran — its `lc_kwargs` carry the effective request shape. */
-  refined: BaseChatModel
-  /** The ORIGINAL model config (refined instances do not reliably keep metadata). */
-  config: Partial<ModelConfig>
-  msgs: MessageFieldWithRole[]
-  raw: AIMessageChunk | null
-  schema?: { toolName: string; innerSchema: unknown }
-  useCache: boolean
-}
 
 /**
  * Assemble a complete, replayable record of a model call that returned nothing usable:
@@ -29,16 +12,10 @@ export interface NullReportParams {
  * distinguish the common causes (budget spent on hidden reasoning vs. a refused tool
  * call vs. an empty content array).
  */
-export const buildNullReport = (p: NullReportParams): NullCapture => {
+const buildNullReport = (p: NullReportParams): NullCapture => {
   // Read the request shape from lc_kwargs — the refined instance is rebuilt from those
   // and does not always preserve `metadata`.
-  type Kwargs = {
-    model?: string
-    configuration?: { baseURL?: string }
-    modelKwargs?: { reasoning?: unknown }
-    topP?: number
-  }
-  const kwargs = p.refined.lc_kwargs as Kwargs
+  const kwargs = p.refined.lc_kwargs as RefinedKwargs
   const raw = p.raw
   const responseMeta = raw?.response_metadata as {
     finish_reason?: string

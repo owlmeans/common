@@ -7,10 +7,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { lastDayUtc, dayUtc, money } from '../format.js'
-import { useLegalText, usePaymentText } from './copy.js'
+import { useLegalText, usePaymentText } from './hooks.js'
 import { ErrorLine, LanguageToggle, LegalLinks, linksFor, useShownLanguage } from './legal.js'
 import type { PerformanceConsentDialogProps } from './types.js'
+import { formatHelper } from '../format.js'
 
 /** The latest deadline of the view — its own, else the latest of its purchases. */
 const deadlineOf = (view: PerformanceConsentView): Date | undefined => {
@@ -55,7 +55,7 @@ export const PerformanceConsentDialog = ({
   }
 
   const format = (minor: number, currency: string) => formatAmount != null
-    ? formatAmount(minor, currency, language.shown) : money(minor, currency, language.shown)
+    ? formatAmount(minor, currency, language.shown) : formatHelper.money(minor, currency, language.shown)
   // The same text `consentStatementOf(lng, 'performance', { trader, context })` renders on the server.
   const checkbox = legal('performance-consent.checkbox', { trader: view.trader }, view.context)
   const deadline = deadlineOf(view)
@@ -86,7 +86,7 @@ export const PerformanceConsentDialog = ({
         <DialogTitle lang={language.shown}>{legal('performance-consent.title', {}, view.context)}</DialogTitle>
         {deadline != null && <DialogDescription lang={language.shown}>
           {legal('performance-consent.intro', {
-            count: view.purchases.length, deadline: lastDayUtc(deadline, language.shown),
+            count: view.purchases.length, deadline: formatHelper.lastDayUtc(deadline, language.shown),
           }, view.context)}
         </DialogDescription>}
       </DialogHeader>
@@ -102,11 +102,11 @@ export const PerformanceConsentDialog = ({
             >
               {purchase.deadline != null
                 ? legal('performance-consent.purchase', {
-                  date: dayUtc(purchase.purchasedAt, language.shown),
+                  date: formatHelper.dayUtc(purchase.purchasedAt, language.shown),
                   amount: format(purchase.amountTotalMinor, purchase.currency),
-                  deadline: lastDayUtc(purchase.deadline, language.shown),
+                  deadline: formatHelper.lastDayUtc(purchase.deadline, language.shown),
                 })
-                : `${dayUtc(purchase.purchasedAt, language.shown)} (${format(purchase.amountTotalMinor, purchase.currency)})`}
+                : `${formatHelper.dayUtc(purchase.purchasedAt, language.shown)} (${format(purchase.amountTotalMinor, purchase.currency)})`}
             </li>)}
           </ul>
         </section>}

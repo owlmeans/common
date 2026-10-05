@@ -169,28 +169,6 @@ export const MODEL_TIER_ROLES: Record<string, ModelTier> = {
   'picker': ModelTier.Cheap,
 }
 
-export const tierOfRole = (role: string): ModelTier =>
-  MODEL_TIER_ROLES[role] ?? ModelTier.Standard
-
-/**
- * Pick the best tier a parent actually offers, never below what was asked for by more than the
- * offer allows.
- *
- * A parent that offers only one model answers every task with it; a parent that offers two gets
- * the nearer of the two. Silence is not an option — a task the connector cannot place is a run
- * that stops.
- */
-export const clampTier = (wanted: ModelTier, offered: ModelTier[]): ModelTier => {
-  if (offered.length < 1 || offered.includes(wanted)) return wanted
-  const ladder = [ModelTier.Strong, ModelTier.Standard, ModelTier.Cheap]
-  const from = ladder.indexOf(wanted)
-  // Prefer a stronger model over a weaker one: the task was sized for `wanted`.
-  for (let i = from; i >= 0; --i) if (offered.includes(ladder[i])) return ladder[i]
-  for (let i = from + 1; i < ladder.length; ++i) if (offered.includes(ladder[i])) return ladder[i]
-
-  return wanted
-}
-
 /** What the model task asks the parent's subagent to produce. */
 export enum ModelTaskMode {
   /** Prose or code. */
@@ -434,3 +412,6 @@ export const connect = Object.freeze({
     resume: 'viable:manager-api:connect:pipeline:resume',
   }),
 })
+
+/** Tier → the model the parent will run it on. Free-form; display only. */
+export const ModelTierValues = Object.values(ModelTier)

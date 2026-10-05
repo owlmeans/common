@@ -6,8 +6,9 @@ import type {
 } from '@owlmeans/payment'
 import { AmountCheckoutDialog, PriceEstimateSummary, usePriceEstimate } from '../../src/index.js'
 import {
-  CancellationForm, PerformanceConsentDialog, PerformanceConsentProvider, SubscriptionStartDialog, WithdrawalDialog,
-  WithdrawalForm, WithdrawalFunctionButton, isConsentDeclined, useCancellation, useConsentGate, useWithdrawal,
+  CancellationForm, PerformanceConsentDialog, PerformanceConsentProvider, SubscriptionStartDialog,
+  WithdrawalDialog, WithdrawalForm, WithdrawalFunctionButton, useCancellation, useConsentGate,
+  useWithdrawal, consentRefusalHelper,
 } from '../../src/consumer/index.js'
 import {
   BLOCKED_LIMIT, LINKS, PER_PURCHASE_LIMIT, POLICY, cancellationReceipt, consentView, lockedEstimate, publicReceipt,
@@ -145,7 +146,7 @@ const GateButtons = () => {
       })
       setResult(`ok:${made}`)
     } catch (e) {
-      setResult(isConsentDeclined(e) ? `declined:${made}` : `error:${made}`)
+      setResult(consentRefusalHelper.isConsentDeclined(e) ? `declined:${made}` : `error:${made}`)
     }
   }
   const ensure = async () => { setResult(`ensure:${String(await gate.ensure())}`) }

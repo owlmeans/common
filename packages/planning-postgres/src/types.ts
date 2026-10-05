@@ -3,12 +3,14 @@ import type {
   ProjectionStore, Relationship, RelationshipStore, SchemaStore, ScopedSchemaRecord, SpecificationStore,
   Transition, TransitionStore, Workcard,
 } from '@owlmeans/planning'
-import type { PostgresResource } from '@owlmeans/postgres-resource'
+import type { PostgresResource, TableSpec } from '@owlmeans/postgres-resource'
 import type {
   BindablePlanningStore, CommitHub, FoldResult, PlanningServiceOptions,
 } from '@owlmeans/server-planning'
 import type { DEFAULT_PLANNING_POSTGRES_LIMITS } from './consts.js'
+import type { QueryResultRow } from 'pg'
 
+// Kept as a type: a mapped type over the default limits' keys.
 export type PlanningPostgresLimits = { -readonly [K in keyof typeof DEFAULT_PLANNING_POSTGRES_LIMITS]: number }
 
 /** The resource aliases the store resolves its four tables by. */
@@ -45,7 +47,7 @@ export interface PlanningCardRecord extends Workcard {
 }
 
 /** A schema row: a record, or the private per-organization revision counter (`kind: 'head'`). */
-export type PlanningSchemaRow = Omit<ScopedSchemaRecord, 'kind'> & { kind: ScopedSchemaRecord['kind'] | 'head' }
+export interface PlanningSchemaRow extends Omit<ScopedSchemaRecord, 'kind'> { kind: ScopedSchemaRecord['kind'] | 'head' }
 
 export interface PlanningCardResource extends PostgresResource<PlanningCardRecord> { }
 export interface PlanningTransitionResource extends PostgresResource<Transition> { }
@@ -71,3 +73,27 @@ export interface PostgresPlanningStore extends BindablePlanningStore {
 }
 
 export interface PostgresPlanningServiceOptions extends Omit<PlanningServiceOptions, 'store'>, PlanningPostgresOptions { }
+
+/** Where a statement runs — the pool, or one open transaction. */
+export interface SqlRunner {
+  query: <R extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => Promise<R[]>
+}
+
+/** The compiled specs of the four tables, read once the resources have initialized. */
+export interface PlanningTables {
+  card: TableSpec
+  transition: TableSpec
+  link: TableSpec
+  schema: TableSpec
+}
+
+/** A runner and the tables it addresses — what every statement builder takes. */
+export interface SqlContext {
+  runner: SqlRunner
+  tables: PlanningTables
+}
+
+export interface InsertStatement {
+  text: string
+  params: unknown[]
+}

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { AuthroizationType } from '@owlmeans/auth'
 import { GUARD_AUTH_TOKEN } from '@owlmeans/auth-token'
 import type { GuardService } from '@owlmeans/entrypoint'
-import { hashAccessToken } from '../src/hash.js'
+import { tokenHashHelper } from '../src/hash.js'
 import {
   makeTestContext, request, response, seedProfile, seedToken, TEST_ENTITY, TEST_PREFIX, TEST_PROFILE
 } from './context.js'
@@ -12,7 +12,7 @@ const TOKEN = `${TEST_PREFIX}averylongrandomsecretvalue`
 const armed = async (opts = {}) => {
   const context = await makeTestContext(opts)
   await seedProfile(context)
-  await seedToken(context, hashAccessToken(TOKEN))
+  await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN))
 
   return { context, guard: context.service<GuardService>(GUARD_AUTH_TOKEN) }
 }
@@ -60,7 +60,7 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
   test('a token can never outrank its profile', async () => {
     const context = await makeTestContext()
     await seedProfile(context, { scopes: ['project:read'] })
-    await seedToken(context, hashAccessToken(TOKEN), { scopes: ['*', 'project:write'] })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { scopes: ['*', 'project:write'] })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
     const res = response()
 
@@ -71,7 +71,7 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
   test('refuses a revoked token', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { revokedAt: new Date() })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { revokedAt: new Date() })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
@@ -80,7 +80,7 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
   test('refuses an expired token', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { expiresAt: new Date(Date.now() - 1000) })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { expiresAt: new Date(Date.now() - 1000) })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
@@ -94,7 +94,7 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
 
   test('refuses when the profile behind it is gone — revoking a person revokes their tokens', async () => {
     const context = await makeTestContext()
-    await seedToken(context, hashAccessToken(TOKEN))
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN))
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
@@ -103,7 +103,7 @@ describe('@owlmeans/server-auth-token — what the guard resolves', () => {
   test('refuses when the profile has expired', async () => {
     const context = await makeTestContext()
     await seedProfile(context, { expiresAt: new Date(Date.now() - 1000) })
-    await seedToken(context, hashAccessToken(TOKEN))
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN))
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
@@ -126,7 +126,7 @@ describe('@owlmeans/server-auth-token — audience admission', () => {
   test('a token scoped to a resource is refused by a guard for a different one', async () => {
     const context = await makeTestContext({ resources: ['https://api.example.com'] })
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(false)
@@ -135,7 +135,7 @@ describe('@owlmeans/server-auth-token — audience admission', () => {
   test('a token scoped to a resource is admitted by a guard configured for it', async () => {
     const context = await makeTestContext({ resources: ['https://api.example.com/mcp', 'https://api.example.com'] })
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
@@ -144,7 +144,7 @@ describe('@owlmeans/server-auth-token — audience admission', () => {
   test('a guard that never opted in ignores audience entirely — full backward compatibility', async () => {
     const context = await makeTestContext()
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { audience: ['https://api.example.com/mcp'] })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
@@ -153,7 +153,7 @@ describe('@owlmeans/server-auth-token — audience admission', () => {
   test('a function `resources` option is resolved with the live context, not cached from registration', async () => {
     const context = await makeTestContext({ resources: () => ['https://api.example.com'] })
     await seedProfile(context)
-    await seedToken(context, hashAccessToken(TOKEN), { audience: ['https://api.example.com'] })
+    await seedToken(context, tokenHashHelper.hashAccessToken(TOKEN), { audience: ['https://api.example.com'] })
     const guard = context.service<GuardService>(GUARD_AUTH_TOKEN)
 
     expect(await guard.handle(request(`Bearer ${TOKEN}`), response())).toBe(true)
@@ -162,11 +162,11 @@ describe('@owlmeans/server-auth-token — audience admission', () => {
 
 describe('@owlmeans/server-auth-token — the hash at rest', () => {
   test('the stored value is not the token', () => {
-    const hash = hashAccessToken(TOKEN)
+    const hash = tokenHashHelper.hashAccessToken(TOKEN)
 
     expect(hash).not.toBe(TOKEN)
     expect(hash).toMatch(/^[0-9a-f]{64}$/)
-    expect(hashAccessToken(TOKEN)).toBe(hash)
-    expect(hashAccessToken(`${TOKEN}x`)).not.toBe(hash)
+    expect(tokenHashHelper.hashAccessToken(TOKEN)).toBe(hash)
+    expect(tokenHashHelper.hashAccessToken(`${TOKEN}x`)).not.toBe(hash)
   })
 })

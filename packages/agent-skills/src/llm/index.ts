@@ -8,6 +8,8 @@
  */
 
 export * from './types.js'
+export type * from './manifest/types.js'
+export * from './consts.js'
 export * from './manifest.js'
 export * from './resolve.js'
 export * from './plugin.js'

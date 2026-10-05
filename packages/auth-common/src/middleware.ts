@@ -1,9 +1,8 @@
-import type { Middleware } from '@owlmeans/context'
-import { MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
-import { provideRequest } from '@owlmeans/client-entrypoint'
-import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
+import { type Middleware, MiddlewareType, MiddlewareStage, AppType } from '@owlmeans/context'
 import { AUTH_HEADER } from '@owlmeans/auth'
 import type { AbstractRequest, GuardService } from '@owlmeans/entrypoint'
+import type { Perked } from './types.local.js'
+import { clientRequestHelper } from '@owlmeans/client-entrypoint'
 
 export const authMiddleware: Middleware = {
   type: MiddlewareType.Context,
@@ -28,7 +27,7 @@ export const authMiddleware: Middleware = {
               guard => context.service<GuardService>(guard).authenticated(req)
             ))).filter(token => token != null).reverse()
             if (token != null) {
-              const _req: Partial<AbstractRequest> = req ?? provideRequest(module.alias, module.path())
+              const _req: Partial<AbstractRequest> = req ?? clientRequestHelper.provideRequest(module.alias, module.path())
               const headers = (_req.headers ?? {}) as Record<string, string | undefined>
               if (headers[AUTH_HEADER] == null) {
                 headers[AUTH_HEADER] = token
@@ -46,6 +45,3 @@ export const authMiddleware: Middleware = {
   }
 }
 
-interface Perked extends ClientEntrypoint<unknown> {
-  _auth_common_middleware_applied?: boolean
-}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { protectedResourceMetadata } from '../src/metadata.js'
+import { makeOAuthMetadataHelper } from '../src/metadata.js'
 import { makeTestContext, TEST_MCP_RESOURCE } from './context.js'
 
 /**
@@ -32,7 +32,7 @@ describe('the configuration this package writes survives the server config reade
   test('the resource declared with a leading slash is still found by it', () => {
     const context = makeTestContext()
 
-    expect(protectedResourceMetadata(context, '/mcp')?.resource).toBe(TEST_MCP_RESOURCE)
-    expect(protectedResourceMetadata(context, 'mcp')?.resource).toBe(TEST_MCP_RESOURCE)
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('/mcp')?.resource).toBe(TEST_MCP_RESOURCE)
+    expect(makeOAuthMetadataHelper(context).protectedResourceMetadata('mcp')?.resource).toBe(TEST_MCP_RESOURCE)
   })
 })

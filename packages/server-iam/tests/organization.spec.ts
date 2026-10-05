@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AuthForbidden, AuthorizationError } from '@owlmeans/auth'
 import { ORGANIZATION_REFUSAL } from '@owlmeans/oidc'
-import { organizationOf, organizationsOf } from '@owlmeans/server-iam'
+import { makeOrganizationScope } from '@owlmeans/server-iam'
 import { ACME, BETA, requestOf, seedSession, start } from './context.js'
 
 describe('@owlmeans/server-iam — organizations of the session', () => {
@@ -9,7 +9,7 @@ describe('@owlmeans/server-iam — organizations of the session', () => {
     const { context } = await start()
     await seedSession(context, 'session-1')
 
-    expect(await organizationsOf(context, requestOf('session-1'))).toEqual([
+    expect(await makeOrganizationScope(context, requestOf('session-1')).organizationsOf()).toEqual([
       { id: ACME.entityKey, slug: ACME.entitySlug, iamKey: ACME.entityKey },
       { id: BETA.entityKey, slug: BETA.entitySlug, iamKey: BETA.entityKey },
     ])
@@ -19,7 +19,7 @@ describe('@owlmeans/server-iam — organizations of the session', () => {
     const { context } = await start()
     await seedSession(context, 'session-2')
 
-    expect(await organizationOf(context, requestOf('session-2'), 'beta'))
+    expect(await makeOrganizationScope(context, requestOf('session-2')).organizationOf('beta'))
       .toEqual({ id: 'beta-key', slug: 'beta', iamKey: 'beta-key' })
   })
 
@@ -27,7 +27,7 @@ describe('@owlmeans/server-iam — organizations of the session', () => {
     const { context } = await start()
     await seedSession(context, 'session-3')
 
-    const attempt = organizationOf(context, requestOf('session-3'), 'gamma')
+    const attempt = makeOrganizationScope(context, requestOf('session-3')).organizationOf('gamma')
     await expect(attempt).rejects.toBeInstanceOf(AuthForbidden)
     await expect(attempt).rejects.toThrow(ORGANIZATION_REFUSAL)
   })
@@ -37,15 +37,15 @@ describe('@owlmeans/server-iam — organizations of the session', () => {
     const { context } = await start()
     await seedSession(context, 'session-4', { acting: undefined, entity: undefined })
 
-    expect(await organizationsOf(context, requestOf('session-4'))).toEqual([])
-    await expect(organizationOf(context, requestOf('session-4'), 'acme')).rejects.toBeInstanceOf(AuthForbidden)
+    expect(await makeOrganizationScope(context, requestOf('session-4')).organizationsOf()).toEqual([])
+    await expect(makeOrganizationScope(context, requestOf('session-4')).organizationOf('acme')).rejects.toBeInstanceOf(AuthForbidden)
   })
 
   test('a request without authentication, or whose session is gone, is a 401', async () => {
     const { context } = await start()
 
-    await expect(organizationsOf(context, requestOf())).rejects.toBeInstanceOf(AuthorizationError)
-    const gone = organizationOf(context, requestOf('never-signed-in'), 'acme')
+    await expect(makeOrganizationScope(context, requestOf()).organizationsOf()).rejects.toBeInstanceOf(AuthorizationError)
+    const gone = makeOrganizationScope(context, requestOf('never-signed-in')).organizationOf('acme')
     await expect(gone).rejects.toBeInstanceOf(AuthorizationError)
     await expect(gone).rejects.not.toBeInstanceOf(AuthForbidden)
   })

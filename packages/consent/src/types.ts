@@ -5,6 +5,8 @@
  * manager simply never sees the update, and the only symptom is analytics that stay switched off
  * for everyone who agreed to them.
  */
+import { CONSENT_LINK_VERSION } from './consts.local.js'
+
 export type ConsentSignal =
   | 'ad_storage' | 'ad_user_data' | 'ad_personalization'
   | 'analytics_storage' | 'functionality_storage'
@@ -139,7 +141,7 @@ export interface ConsentState {
   reason: ConsentReason | null
 }
 
-export type ConsentListener = (state: ConsentState) => void
+export interface ConsentListener { (state: ConsentState): void }
 
 export interface ConsentStore {
   get: () => ConsentState
@@ -148,9 +150,70 @@ export interface ConsentStore {
   init: (opts?: ConsentOptions) => void
   save: (record: ConsentRecord) => void
   acceptAll: () => void
+  /** Open the preferences dialog from anywhere — a footer link, a policy page, a login gate. */
   open: (reason?: ConsentReason) => void
   close: () => void
   /** Imperative reader, for the callers that are not React. */
   granted: (key: string) => boolean
   options: () => ConsentOptions & { categories: ConsentCategory[], storageKey: string }
+}
+
+/** A language the dialog's built-in copy is carried in (`CONSENT_LOCALES`). */
+export type ConsentLocale = 'en' | 'pl' | 'ru' | 'be' | 'uk' | 'es' | 'de' | 'fr'
+
+/** The decoded, not-yet-validated payload a decorated link's parameter carries. */
+export interface ConsentLinkPayload {
+  v: typeof CONSENT_LINK_VERSION
+  /** One entry per OPTIONAL category this site knows, `1` granted / `0` denied. */
+  c: Record<string, 0 | 1>
+  /** Unix seconds the link was decorated at. */
+  t: number
+  /**
+   * The interface language of the page the link was on (a BCP 47 tag, lower-cased) — present only
+   * when the sender has `linker.language` set and its `<html lang>` names one. Optional on the
+   * wire, so a receiver that predates it reads the same `v: 2` payload and ignores the field.
+   */
+  l?: string
+}
+
+/**
+ * An extension seam for `@owlmeans/consent`: something that reacts to this document's consent
+ * decision, or supplies one from elsewhere, without the core store knowing anything about where
+ * that decision came from.
+ *
+ * `consentLinker` (`./linker.js`) is the one built-in plugin — cross-domain consent through
+ * decorated links — but nothing here is specific to it. A registry rather than a fixed option on
+ * `ConsentOptions` because the store has zero dependencies today and stays that way: a plugin is
+ * opt-in code an application imports for its own reason, never a bundled feature this package
+ * pulls in whether or not anything uses it.
+ */
+export interface ConsentPlugin {
+  /** Stable identity. Registering the same alias again REPLACES the earlier plugin. */
+  alias: string
+  /** Run order when more than one plugin implements the same hook. Higher first. Defaults to 0. */
+  priority?: number
+  /** Installed once, the first time `consentStore.init` runs with this plugin registered. */
+  start?: (opts: ConsentOptions) => void
+  /**
+   * Offer a decision from outside this document's own storage — e.g. one carried on the URL that
+   * led here. Returns a full record to adopt, or `null` to defer to the next plugin / the ordinary
+   * "ask" path. Never called once a stored record already exists.
+   */
+  adopt?: (opts: ConsentOptions) => ConsentRecord | null
+  /**
+   * Offer an interface language from outside this document's own storage — e.g. the one the page
+   * that led here was read in. Returns a language the application supports, or `null` to keep
+   * choosing its own. Only a CANDIDATE: it says what the link carried, and `writeConsentLanguage`
+   * stores it — unconditionally, since the interface language is strictly necessary storage.
+   */
+  adoptLanguage?: (opts: ConsentOptions) => string | null
+  /**
+   * Rewrite an outgoing URL to carry this document's current decision — and its language — or
+   * `null` to leave it untouched (a foreign host, a link that opts out, nothing to carry yet).
+   * `record` is `null` while the visitor has not decided: a plugin that also carries something
+   * else (the language) still has a reason to decorate then.
+   */
+  decorate?: (url: URL, record: ConsentRecord | null, opts: ConsentOptions) => URL | null
+  /** Extra domains this decision is understood to apply to, for disclosure — never deduplicated here. */
+  domains?: (opts: ConsentOptions) => string[]
 }

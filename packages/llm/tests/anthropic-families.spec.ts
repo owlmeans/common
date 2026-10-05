@@ -5,13 +5,9 @@ import { AIMessageChunk } from '@langchain/core/messages'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { JSONSchemaType } from 'ajv'
 import { ModelEffort, ModelProvider } from '@owlmeans/llm-common'
-import {
-  anthropicPlugin, anthropicSupportOf, effortSupportOf, makeLlmModel, registerLlmPlugin,
-  rejectsForcedTool, ThinkingOff, thinkingOffFor,
-} from '@owlmeans/llm'
-import type { LlmPlugin, LlmSpectator, ModelConfig } from '@owlmeans/llm'
-import { toolCallInstruction } from '../src/consts.js'
-import { isStrictSchema } from '../src/utils/schema.js'
+import { anthropicPlugin, makeLlmModel, ThinkingOff, type LlmPlugin, type LlmSpectator, type ModelConfig, anthropicSupportHelper, llmPluginRegistry } from '@owlmeans/llm'
+import { toolCallInstruction } from '../src/utils.js'
+import { schemaUtils } from '../src/utils/schema.js'
 
 /**
  * The Anthropic families differ in ways that are a 400, not a preference: the off switch for
@@ -59,7 +55,7 @@ describe('@owlmeans/llm — anthropic thinking off switch per family', () => {
     for (const [model, off] of cases) {
       const wire = wireOf(build({ model, disableThinking: true }), { model })
       expect([model, wire.thinking]).toEqual([model, off != null ? { type: off } : undefined])
-      expect([model, thinkingOffFor({ model, disableThinking: true })]).toEqual([model, off])
+      expect([model, anthropicSupportHelper.thinkingOffFor({ model, disableThinking: true })]).toEqual([model, off])
     }
   })
 
@@ -91,14 +87,14 @@ describe('@owlmeans/llm — anthropic effort beside the off switch', () => {
 
     const climbed = anthropicPlugin.refine({ base, attempt: 2, rungAttempt: 2, maxOutputCap: 64000 }) as ChatAnthropic
     expect(wireOf(climbed, {}).output_config).toEqual({ effort: 'high' })
-    expect(effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-sonnet-5-5', disableThinking: true })?.levels)
+    expect(llmPluginRegistry.effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-sonnet-5-5', disableThinking: true })?.levels)
       .toEqual([ModelEffort.Low, ModelEffort.Medium, ModelEffort.High])
   })
 
   test('with thinking on every level is open, and the default stays high', () => {
     const on = build({ model: 'claude-sonnet-5-5', effort: ModelEffort.XHigh })
     expect(wireOf(on, {}).output_config).toEqual({ effort: 'xhigh' })
-    expect(effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-sonnet-5-5' })?.default)
+    expect(llmPluginRegistry.effortSupportOf({ provider: ModelProvider.Anthropic, model: 'claude-sonnet-5-5' })?.default)
       .toBe(ModelEffort.High)
   })
 
@@ -140,7 +136,7 @@ describe('@owlmeans/llm — anthropic structured output per family', () => {
       expect([model, wire.tool_choice]).toEqual([model, { type: 'auto' }])
       expect([model, wire.tools?.[0]?.strict]).toEqual([model, true])
       expect([model, anthropicPlugin.pinsTool?.({ model })]).toEqual([model, false])
-      expect(rejectsForcedTool(model)).toBe(true)
+      expect(anthropicSupportHelper.rejectsForcedTool(model)).toBe(true)
     }
   })
 
@@ -162,8 +158,8 @@ describe('@owlmeans/llm — anthropic structured output per family', () => {
 
 describe('@owlmeans/llm — the strict schema subset', () => {
   test('a closed schema of basic types, formats, enums and small minItems is strict', () => {
-    expect(isStrictSchema(TALLY)).toBe(true)
-    expect(isStrictSchema({
+    expect(schemaUtils.isStrictSchema(TALLY)).toBe(true)
+    expect(schemaUtils.isStrictSchema({
       type: 'object',
       properties: {
         at: { type: 'string', format: 'date-time' },
@@ -194,7 +190,7 @@ describe('@owlmeans/llm — the strict schema subset', () => {
       closed({ type: 'object', properties: {}, additionalProperties: true }),
       'not a schema',
     ]) {
-      expect([bad, isStrictSchema(bad)]).toEqual([bad, false])
+      expect([bad, schemaUtils.isStrictSchema(bad)]).toEqual([bad, false])
     }
   })
 })
@@ -212,7 +208,7 @@ describe('@owlmeans/llm — anthropic cache minimum per family', () => {
       .toBe(true)
     expect(anthropicPlugin.patchCache?.(msgs(), { model: build({ model: 'claude-sonnet-5' }), useCache: true, cacheMax: 4 }))
       .toBe(false)
-    expect(anthropicSupportOf('claude-sonnet-5-5')?.cacheMinTokens).toBe(512)
+    expect(anthropicSupportHelper.anthropicSupportOf('claude-sonnet-5-5')?.cacheMinTokens).toBe(512)
   })
 
   test('a preset\'s own cacheMinTokens still wins', () => {
@@ -257,7 +253,7 @@ describe('@owlmeans/llm — structured output on a model that refuses a pinned t
       patchSystem: undefined,
       isFatal: undefined,
     }
-    registerLlmPlugin(plugin)
+    llmPluginRegistry.register(plugin)
 
     return { fake, calls }
   }

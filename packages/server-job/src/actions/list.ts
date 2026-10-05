@@ -1,8 +1,10 @@
+import type { EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
 import { handlers } from '@owlmeans/server-api'
+import type { BoundEntrypointHandler } from '@owlmeans/server-entrypoint'
 import type { JobView } from '@owlmeans/job'
 import type { ListResult } from '@owlmeans/resource'
 import type { Context, JobEntrypoints, JobHandlerOptions, JobListQuery } from '../types.js'
-import { jobsOf } from '../utils/index.js'
+import { makeJobPolicyHelper } from '../utils/index.js'
 
 /**
  * The caller's jobs, newest first.
@@ -15,16 +17,20 @@ import { jobsOf } from '../utils/index.js'
 export const listJobs = (
   protocol: JobEntrypoints['list'],
   opts: JobHandlerOptions
-): ReturnType<ReturnType<typeof handlers<Context>>['request']> => handlers<Context>().request(protocol, async (req, ctx) => {
-  const resource = jobsOf(ctx, opts)
-  const audience = await opts.policy.audience(req, ctx)
-  const query = (req.query ?? {}) as JobListQuery
-  const listed = await resource.list(opts.policy.where(audience, query), {
-    sort: [{ field: 'createdAt', order: 'desc' }],
-    ...(query.size != null ? { size: query.size, page: query.page ?? 0 } : {}),
+): BoundEntrypointHandler<EntrypointProtocolDeclaration> => {
+  const policy = makeJobPolicyHelper(opts)
+
+  return handlers<Context>().request(protocol, async (req, ctx) => {
+    const resource = policy.jobsOf(ctx)
+    const audience = await opts.policy.audience(req, ctx)
+    const query = (req.query ?? {}) as JobListQuery
+    const listed = await resource.list(opts.policy.where(audience, query), {
+      sort: [{ field: 'createdAt', order: 'desc' }],
+      ...(query.size != null ? { size: query.size, page: query.page ?? 0 } : {}),
+    })
+    return {
+      ...listed,
+      items: await Promise.all(listed.items.map(record => opts.policy.map(record, audience))),
+    } satisfies ListResult<JobView>
   })
-  return {
-    ...listed,
-    items: await Promise.all(listed.items.map(record => opts.policy.map(record, audience))),
-  } satisfies ListResult<JobView>
-})
+}

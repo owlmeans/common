@@ -4,7 +4,7 @@ import { SpectatorContentType } from '@owlmeans/llm-common'
 import type { SpectatorEntryMessage } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
 import type { LlmSpectator, ModelInputItem } from '../types.js'
-import { hasCacheActivity, readCacheUsage } from './cache.js'
+import { cacheHelper } from './cache.js'
 
 const log = logger('llm')
 
@@ -78,8 +78,8 @@ export const spectate = (spectator: LlmSpectator, callType: string) =>
 
     // Silent unless the provider reported cache activity, so it costs nothing when
     // caching is off — and is the one signal that tells a stable prefix from a broken one.
-    const cache = readCacheUsage(message)
-    if (hasCacheActivity(cache)) {
+    const cache = cacheHelper.readCacheUsage(message)
+    if (cacheHelper.hasCacheActivity(cache)) {
       log.debug('Prompt cache activity', { action, read: cache.read, written: cache.creation, uncached: cache.input })
     }
 

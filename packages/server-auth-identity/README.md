@@ -10,7 +10,7 @@ whose grants decide access (use `@owlmeans/server-oidc-rp`'s guard and gate, or
 ## Installation
 
 ```bash
-bun add @owlmeans/server-auth-identity@^0.1.18-rc.45
+bun add @owlmeans/server-auth-identity@^0.1.18-rc.46
 ```
 
 ## Concepts
@@ -24,12 +24,12 @@ bun add @owlmeans/server-auth-identity@^0.1.18-rc.45
 - **Credentials (`IdentityCredentials`)** — one row per sign-in method of an account (`accountId`),
   keyed by `"{type}:{service}:{providerSub}"`.
 - **Profile row (`IdentityProfile`)** — one person in one organization for one app (`service`):
-  `profileId` (computed by `profileIdOf(service, accountId)`), `owner`, `role`, `scopes`,
+  `profileId` (computed by `identityKeyHelper.profileIdOf(service, accountId)`), `owner`, `role`, `scopes`,
   `permissions`, `groups`. The row in the account's own organization is the app's PRIMARY row.
 - **Groups (`OrgGroup`)** — an app's groups, kept in the organization record, unique per
   (`service`, `key`).
-- **Primitives** — `ensureAccount` (find-or-register an account by method, then address) and
-  `ensureProfile` (find-or-create a row, primary row first).
+- **Primitives** — `identityOf(ctx).ensureAccount` (find-or-register an account by method, then
+  address) and `identityOf(ctx).ensureProfile` (find-or-create a row, primary row first).
 - **Linking service** — `IdentityLinkingService` signs a provider login into the deployment's own
   app and returns an `AuthPayload`.
 - **Entity resolver** — the `EntityResolverService` registered under `ENTITY_RESOLVER`. Registering
@@ -79,7 +79,7 @@ context.registerService(makeMyAppGate())
 import { createLazyService } from '@owlmeans/context'
 import type { GateService } from '@owlmeans/entrypoint'
 import { AuthForbidden } from '@owlmeans/auth'
-import { entityKeyOf } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
 import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
 
@@ -89,7 +89,7 @@ export const makeMyAppGate = (alias: string = MY_APP_GATE): GateService => {
       await service.ready()
       const ctx = service.assertCtx<Config, Context>()
 
-      const entityId = entityKeyOf(req)
+      const entityId = makeEntityScope(req).entityKeyOf()
       if (req.auth == null || entityId == null) {
         throw new AuthForbidden('auth')
       }
@@ -120,7 +120,7 @@ A protocol uses it with `{ guards: DEFAULT_GUARD, gate: { alias: MY_APP_GATE, pa
 
 ```ts
 import { handlers } from '@owlmeans/server-app'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
 import type { IdentityProfileResource } from '@owlmeans/server-auth-identity'
 
@@ -128,7 +128,7 @@ const api = handlers<Context>()
 
 export const members = api.request(memberProtocols.list, async (request, context) => {
   const { items } = await context.resource<IdentityProfileResource>(AUTH_IDENTITY_PROFILE)
-    .list({ entityId: requireEntityKey(request), service: MY_APP }, { size: 0, sort: [{ field: 'createdAt', order: 'desc' }] })
+    .list({ entityId: makeEntityScope(request).requireEntityKey(), service: MY_APP }, { size: 0, sort: [{ field: 'createdAt', order: 'desc' }] })
 
   return items.map(({ profileId, role, name }) => ({ profileId, role, name }))
 })
@@ -160,10 +160,11 @@ payload ??= await linking.linkProfile(details, { username: 'person@example.org' 
 ### Rows for a hosted app
 
 ```ts
-import { ensureAccount, ensureProfile } from '@owlmeans/server-auth-identity'
+import { identityOf } from '@owlmeans/server-auth-identity'
 
-const { account } = await ensureAccount(context, { email }, details) // writes no row
-const row = await ensureProfile(context, { account, service: clientId, entityId: account.entityId, owner: true })
+const identity = identityOf(context)
+const { account } = await identity.ensureAccount({ email }, details) // writes no row
+const row = await identity.ensureProfile({ account, service: clientId, entityId: account.entityId, owner: true })
 // a hosted app's rows carry `scopes: []`; a row in another organization brings the primary row with it
 ```
 
@@ -189,12 +190,12 @@ and never fails the sign-in, so anything a listener provisions needs its own bac
 ### Rename an organization and mint a durable name
 
 ```ts
-import { ENTITY_RESOLVER, requireEntityKey } from '@owlmeans/auth-common'
+import { ENTITY_RESOLVER, makeEntityScope } from '@owlmeans/auth-common'
 import type { EntityResolverService } from '@owlmeans/auth-common'
 
 export const rename = api.body(organizationProtocols.rename, async ({ slug }, context, request) => {
   const resolver = context.service<EntityResolverService>(ENTITY_RESOLVER)
-  const entity = await resolver.rename(requireEntityKey(request), slug) // old slug moves to formerSlugs
+  const entity = await resolver.rename(makeEntityScope(request).requireEntityKey(), slug) // old slug moves to formerSlugs
 
   return { slug: entity.slug }
 })
@@ -210,11 +211,11 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `appendAuthIdentityResources(context, dbAlias?, { service? })` | function | Register the four resources, the linking service for app `service`, the entity resolver and (unless one is registered) the identity-events service |
-| `profileIdOf(service, accountId)` | function | The computed profile id of an (account, app) |
-| `ensureAccount(ctx, { email, name? }, details?)` | function | The person's account — by method, then address, else registered with a personal organization |
-| `ensureProfile(ctx, { account, service, entityId, … })` | function | Find-or-create a row; the primary row first |
-| `credentialKeyOf(details)`, `credentialOf(ctx, details)`, `normalizeEmail(email)` | function | A method's credential key and stored row; the stored address form |
-| `listOrgGroups`, `putOrgGroup`, `removeOrgGroup` | function | An organization's groups of one app, by guarded field-level writes |
+| `identityKeyHelper.profileIdOf(service, accountId)` | method | The computed profile id of an (account, app) |
+| `identityOf(ctx).ensureAccount({ email, name? }, details?)` | method | The person's account — by method, then address, else registered with a personal organization |
+| `identityOf(ctx).ensureProfile({ account, service, entityId, … })` | method | Find-or-create a row; the primary row first |
+| `identityKeyHelper.credentialKeyOf(details)`, `identityOf(ctx).credentialOf(details)`, `identityKeyHelper.normalizeEmail(email)` | method | A method's credential key and stored row; the stored address form |
+| `orgGroupsOf(ctx).listOrgGroups`, `.putOrgGroup`, `.removeOrgGroup` | method | An organization's groups of one app, by guarded field-level writes |
 | `makeOrgEntityResource(dbAlias?)` | function | Mongo resource for `OrgEntity` |
 | `makeIdentityAccountResource(dbAlias?)` | function | Mongo resource for `IdentityAccount` |
 | `makeIdentityProfileResource(dbAlias?)` | function | Mongo resource for `IdentityProfile` |
@@ -263,7 +264,7 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 - Account `email` — trimmed, lower-case, unique.
 - Account / profile `entityId`, profile `userId` and `home`, credentials `accountId` — record ids,
   declared ObjectId references; a first registration creates the organization first.
-- Profile `profileId` — `profileIdOf(service, accountId)`: `"{service}:"` + 22 Base58 characters of
+- Profile `profileId` — `identityKeyHelper.profileIdOf(service, accountId)`: `"{service}:"` + 22 Base58 characters of
   `sha256("{accountId}:{service}")`. Computed, the same on every row of one (account, app).
 - Credentials `userId` — `"{type}:{service}:{providerSub}"`; unrelated to the profile's `userId`.
 - Credentials `credential` — `"service:{type}:{service}"`.
@@ -272,8 +273,8 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 
 - `Resource.take()` deletes the record it returns. Use `load(where)` or `list(where)` in gates and
   handlers, never `take()`.
-- Query profiles and organization records by `entityId` from `requireEntityKey(request)` /
-  `entityKeyOf(request)`, never by the slug.
+- Query profiles and organization records by `entityId` from
+  `makeEntityScope(request).requireEntityKey()` / `.entityKeyOf()`, never by the slug.
 - Without the resolver `request.entity` stays undefined and consumers fall back to the slug — call
   `appendAuthIdentityResources` (or register the resolver) in every service that serves organization
   data.
@@ -293,7 +294,7 @@ const namespace = await resolver.mintName(entityId, 'namespace', entity => `my-a
 ## Related packages
 
 - [`@owlmeans/server-auth`](../server-auth) — bearer verification; canonicalizes the slug through the resolver
-- [`@owlmeans/auth-common`](../auth-common) — `EntityResolverService`, `ENTITY_RESOLVER`, `requireEntityKey`, `attachEntity`
+- [`@owlmeans/auth-common`](../auth-common) — `EntityResolverService`, `ENTITY_RESOLVER`, `makeEntityScope` (`requireEntityKey`, `attachEntity`)
 - [`@owlmeans/auth`](../auth) — `AuthPayload`, `AuthRole`, `Profile`, errors
 - [`@owlmeans/server-oidc-rp`](../server-oidc-rp) — calls the linking service during an OAuth callback
 - [`@owlmeans/server-auth-otp`](../server-auth-otp) — email OTP plugin resolving users through the linking service
@@ -308,7 +309,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

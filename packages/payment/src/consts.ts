@@ -1,4 +1,5 @@
 import type { JSONSchemaType } from 'ajv'
+import type { PricingPolicy } from './types.js'
 
 export enum ProductType {
   Simple = 'simple',
@@ -348,3 +349,162 @@ export const CONSUMER_RIGHTS_COPY_VERSION = '2026-10-04.2'
 export const DEFAULT_ALIAS = 'payment'
 
 export const PAYMENT_SERVICE = DEFAULT_ALIAS
+
+/**
+ * ISO 3166-1 alpha-2 country code → lowercase ISO 4217 currency code — the currency circulating in
+ * that country, for the "≈ local total" line of a price estimate. Not a Stripe list: Stripe Tax can
+ * compute a rate for a country this map has no entry for (or none at all, `location-required`), and
+ * `currencyOfCountry` returning `null` just means the estimate carries no local-currency line, never
+ * a rejected request.
+ *
+ * A territory that circulates another country's currency (Ecuador, Kosovo, Puerto Rico, …) is
+ * mapped to that currency, not left out.
+ */
+export const COUNTRY_CURRENCIES: Readonly<Record<string, string>> = Object.freeze({
+  AD: 'eur', AE: 'aed', AF: 'afn', AG: 'xcd', AI: 'xcd', AL: 'all', AM: 'amd', AO: 'aoa',
+  AR: 'ars', AS: 'usd', AT: 'eur', AU: 'aud', AW: 'awg', AX: 'eur', AZ: 'azn',
+  BA: 'bam', BB: 'bbd', BD: 'bdt', BE: 'eur', BF: 'xof', BG: 'bgn', BH: 'bhd', BI: 'bif',
+  BJ: 'xof', BL: 'eur', BM: 'bmd', BN: 'bnd', BO: 'bob', BQ: 'usd', BR: 'brl', BS: 'bsd',
+  BT: 'btn', BW: 'bwp', BY: 'byn', BZ: 'bzd',
+  CA: 'cad', CD: 'cdf', CF: 'xaf', CG: 'xaf', CH: 'chf', CI: 'xof', CK: 'nzd', CL: 'clp',
+  CM: 'xaf', CN: 'cny', CO: 'cop', CR: 'crc', CU: 'cup', CV: 'cve', CW: 'ang', CY: 'eur',
+  CZ: 'czk',
+  DE: 'eur', DJ: 'djf', DK: 'dkk', DM: 'xcd', DO: 'dop', DZ: 'dzd',
+  EC: 'usd', EE: 'eur', EG: 'egp', EH: 'mad', ER: 'ern', ES: 'eur', ET: 'etb',
+  FI: 'eur', FJ: 'fjd', FK: 'fkp', FM: 'usd', FO: 'dkk', FR: 'eur',
+  GA: 'xaf', GB: 'gbp', GD: 'xcd', GE: 'gel', GF: 'eur', GG: 'gbp', GH: 'ghs', GI: 'gip',
+  GL: 'dkk', GM: 'gmd', GN: 'gnf', GP: 'eur', GQ: 'xaf', GR: 'eur', GT: 'gtq', GU: 'usd',
+  GW: 'xof', GY: 'gyd',
+  HK: 'hkd', HN: 'hnl', HR: 'eur', HT: 'htg', HU: 'huf',
+  ID: 'idr', IE: 'eur', IL: 'ils', IM: 'gbp', IN: 'inr', IQ: 'iqd', IR: 'irr', IS: 'isk',
+  IT: 'eur',
+  JE: 'gbp', JM: 'jmd', JO: 'jod', JP: 'jpy',
+  KE: 'kes', KG: 'kgs', KH: 'khr', KI: 'aud', KM: 'kmf', KN: 'xcd', KP: 'kpw', KR: 'krw',
+  KW: 'kwd', KY: 'kyd', KZ: 'kzt',
+  LA: 'lak', LB: 'lbp', LC: 'xcd', LI: 'chf', LK: 'lkr', LR: 'lrd', LS: 'lsl', LT: 'eur',
+  LU: 'eur', LV: 'eur', LY: 'lyd',
+  MA: 'mad', MC: 'eur', MD: 'mdl', ME: 'eur', MF: 'eur', MG: 'mga', MH: 'usd', MK: 'mkd',
+  ML: 'xof', MM: 'mmk', MN: 'mnt', MO: 'mop', MQ: 'eur', MR: 'mru', MS: 'xcd', MT: 'eur',
+  MU: 'mur', MV: 'mvr', MW: 'mwk', MX: 'mxn', MY: 'myr', MZ: 'mzn',
+  NA: 'nad', NC: 'xpf', NE: 'xof', NG: 'ngn', NI: 'nio', NL: 'eur', NO: 'nok', NP: 'npr',
+  NR: 'aud', NU: 'nzd', NZ: 'nzd',
+  OM: 'omr',
+  PA: 'pab', PE: 'pen', PF: 'xpf', PG: 'pgk', PH: 'php', PK: 'pkr', PL: 'pln', PR: 'usd',
+  PS: 'ils', PT: 'eur', PW: 'usd', PY: 'pyg',
+  QA: 'qar',
+  RE: 'eur', RO: 'ron', RS: 'rsd', RU: 'rub', RW: 'rwf',
+  SA: 'sar', SB: 'sbd', SC: 'scr', SD: 'sdg', SE: 'sek', SG: 'sgd', SH: 'shp', SI: 'eur',
+  SK: 'eur', SL: 'sle', SM: 'eur', SN: 'xof', SO: 'sos', SR: 'srd', SS: 'ssp', ST: 'stn',
+  SV: 'usd', SX: 'ang', SY: 'syp', SZ: 'szl',
+  TC: 'usd', TD: 'xaf', TG: 'xof', TH: 'thb', TJ: 'tjs', TK: 'nzd', TL: 'usd', TM: 'tmt',
+  TN: 'tnd', TO: 'top', TR: 'try', TT: 'ttd', TV: 'aud', TW: 'twd', TZ: 'tzs',
+  UA: 'uah', UG: 'ugx', US: 'usd', UY: 'uyu', UZ: 'uzs',
+  VA: 'eur', VC: 'xcd', VE: 'ves', VG: 'usd', VI: 'usd', VN: 'vnd', VU: 'vuv',
+  WF: 'xpf', WS: 'wst',
+  YE: 'yer', YT: 'eur',
+  ZA: 'zar', ZM: 'zmw', ZW: 'zwl',
+})
+
+/** Every country code `COUNTRY_CURRENCIES` names, sorted. */
+export const COUNTRY_CODES: readonly string[] = Object.freeze(Object.keys(COUNTRY_CURRENCIES).sort())
+
+/**
+ * A permissive ISO 3166-1 alpha-2 shape (two uppercase letters) — not restricted to
+ * `COUNTRY_CURRENCIES`, so a country this map cannot name a currency for is still a valid request;
+ * it only loses the local-currency line of its estimate.
+ */
+export const CountrySchema: JSONSchemaType<string> = {
+  type: 'string', pattern: '^[A-Z]{2}$',
+}
+
+/**
+ * The gate alias a paid capability is asserted under.
+ *
+ * Distinct from `paymentGate.base` (a ROUTE id) and from the gateway service alias — three
+ * different things that would otherwise all be called "payment gate".
+ */
+export const ENTITLEMENT_GATE = 'entitlement-gate'
+
+/**
+ * The gate alias a plan limit is asserted under (`limit:<key>[>=n]`).
+ *
+ * A separate alias from `ENTITLEMENT_GATE` because the framework collects an entrypoint's gates
+ * per gate SERVICE: a capability requirement and a limit requirement under one alias would hide
+ * each other.
+ */
+export const LIMIT_GATE = 'limit-gate'
+
+/**
+ * The capability scope that carries FEATURE flags.
+ *
+ * Kept apart from `renewable`, which carries numeric quotas that are consumed or counted. Merging
+ * them would make "has one production slot left" and "may remove the platform credit" the same
+ * number, and the first purchase that spent the quota would take the feature with it.
+ */
+export const CAPABILITY_FEATURE_SCOPE = 'feature'
+
+/**
+ * The scope RESERVED for limit parameters (`limit:<key>[>=n]`).
+ *
+ * Never a declarable capability scope: a plan's limits live in `ProductPlan.limits`, and a
+ * capability predicate refuses any parameter under this scope, so a limit requirement can never be
+ * satisfied by a capability grant.
+ */
+export const CAPABILITY_LIMIT_SCOPE = 'limit'
+
+/**
+ * Preserves today's fixed behavior for every consumer that declares no policy: automatic tax and
+ * tax-id collection stay on for every checkout (`taxOptions` before this policy existed), no
+ * `behavior` is forced onto a synced price, no Adaptive Pricing, and the estimate endpoints are off
+ * (a new capability, opt-in only).
+ */
+export const DEFAULT_PRICING_POLICY: PricingPolicy = Object.freeze({
+  tax: Object.freeze({ automatic: true, collectTaxId: true, estimate: false }),
+  currency: Object.freeze({ estimate: false }),
+}) as PricingPolicy
+
+/** The window key a lifetime limit's counter lives under. */
+export const LIFETIME_WINDOW = 'lifetime'
+
+/** The window key an occupancy limit's counter lives under. */
+export const OCCUPANCY_WINDOW = 'occupancy'
+
+/** The 27 EU member states (ISO 3166-1 alpha-2; Greece is `GR`, as Stripe reports it). */
+export const EU_COUNTRIES: readonly string[] = Object.freeze([
+  'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU',
+  'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK',
+])
+
+/**
+ * The member states plus the parts of them that carry their own ISO code — Åland (FI) and the
+ * French outermost regions (French Guiana, Guadeloupe, Martinique, Réunion, Mayotte, Saint-Martin).
+ * EU consumer law applies there even where EU VAT does not; the Canary Islands, Azores and Madeira
+ * share their state's code. Scope beyond the member states is a question for the lawyer.
+ */
+export const EU_CONSUMER_TERRITORIES: readonly string[] = Object.freeze([
+  ...EU_COUNTRIES, 'AX', 'GF', 'GP', 'MQ', 'RE', 'YT', 'MF',
+])
+
+/** The EEA members outside the EU. */
+export const EEA_EXTRA: readonly string[] = Object.freeze(['IS', 'LI', 'NO'])
+
+/** The territories whose consumers have the right of withdrawal by default: the EU's and the EEA's. */
+export const CONSUMER_RIGHTS_TERRITORIES: readonly string[] = Object.freeze([
+  ...EU_CONSUMER_TERRITORIES, ...EEA_EXTRA,
+])
+
+/**
+ * Country → the language of its legal copy, only where that is unambiguous (Belgium, Luxembourg,
+ * Switzerland, Canada … are absent and fall back to the policy's default). An application widens
+ * or overrides it with `ConsumerRightsPolicy.languages`.
+ */
+export const COUNTRY_LANGUAGES: Readonly<Record<string, string>> = Object.freeze({
+  DE: 'de', AT: 'de', LI: 'de',
+  FR: 'fr', GF: 'fr', GP: 'fr', MQ: 'fr', RE: 'fr', YT: 'fr', MF: 'fr', MC: 'fr',
+  PL: 'pl',
+  ES: 'es',
+  IE: 'en', MT: 'en', GB: 'en', US: 'en', AU: 'en', NZ: 'en',
+  UA: 'uk',
+  BY: 'be',
+  RU: 'ru',
+})

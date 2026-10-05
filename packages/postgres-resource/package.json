@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/postgres-resource",
-  "version": "0.1.18-rc.41",
+  "version": "0.1.18-rc.42",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -26,23 +26,23 @@
     "pg": "*"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
-    "@owlmeans/basic-ids": "^0.1.18-rc.35",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/log": "^0.1.18-rc.0",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@owlmeans/server-context": "^0.1.18-rc.41",
-    "@scure/base": "^2.3.0",
-    "drizzle-orm": "~0.45.2"
+    "@noble/hashes": "^2.4.0",
+    "@owlmeans/basic-ids": "^0.1.18-rc.36",
+    "@owlmeans/context": "^0.1.18-rc.33",
+    "@owlmeans/log": "^0.1.18-rc.1",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@owlmeans/server-context": "^0.1.18-rc.42",
+    "@scure/base": "^2.4.0",
+    "drizzle-orm": "~0.45.3"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-integration": "^0.1.18-rc.31",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.1.0",
-    "@types/pg": "^8.20.4",
+    "@owlmeans/test-integration": "^0.1.18-rc.32",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
     "nodemon": "^3.1.14",
-    "pg": "^8.22.0",
+    "pg": "^8.23.1",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

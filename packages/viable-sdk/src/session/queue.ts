@@ -1,7 +1,3 @@
-interface Waiting<T> {
-  resolve: (item: T | null) => void
-  timer: ReturnType<typeof setTimeout>
-}
 
 /**
  * Operations waiting for the parent agent — the model calls it performs, and the questions it
@@ -20,6 +16,8 @@ interface Waiting<T> {
  * The operation id is kept beside each item and never shown to the parent. It is what an answer is
  * routed back on, and a parent that could name one could answer an operation it was never given.
  */
+import type { Waiting } from './types.js'
+
 export class OpQueue<T extends { id: string }> {
   private readonly queue: T[] = []
   private readonly ops = new Map<string, string>()

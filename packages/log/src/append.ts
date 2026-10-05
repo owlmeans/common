@@ -1,14 +1,14 @@
 import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
 import type { BasicConfig, BasicContext } from '@owlmeans/context'
 import { configureLog, overrideConsole, restoreConsole } from './logger.js'
-import { state } from './state.js'
+import { logStateHelper } from './state.js'
 import type { LogConfig } from './types.js'
 
 const applied = new WeakSet<object>()
 
 const apply = (cfg: BasicConfig): void => {
   configureLog(cfg.log)
-  if (state().consoleMode === 'native') {
+  if (logStateHelper.state().consoleMode === 'native') {
     restoreConsole()
   } else {
     overrideConsole()

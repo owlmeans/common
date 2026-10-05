@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { BRANDING_ENV_KEYS, brandingEnv } from '../src/branding.js'
-import { metadataConfigs, metadataLists } from '../src/consts.js'
+import { brandingEnv } from '../src/branding.js'
+import { BRANDING_ENV_KEYS, metadataConfigs, metadataLists } from '../src/consts.js'
 
 /**
  * `BRANDING_CREDIT` is the one key whose ABSENCE means something different from an explicit

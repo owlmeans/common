@@ -1,44 +1,36 @@
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
+import type { ServerContext } from '@owlmeans/server-context'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_CACHE, AUTH_SRV_KEY, AUTHEN_TIMEFRAME, DEFAULT_ALIAS } from './consts.js'
 import type { AuthServiceAppend, AuthService, AuthSpent } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import type { Auth, AuthCredentials } from '@owlmeans/auth'
-import { AuthenFailed, AuthorizationError, AuthroizationType, AuthUnavailable } from '@owlmeans/auth'
+import { type Auth, type AuthCredentials, AuthenFailed, AuthorizationError, AuthroizationType, AuthUnavailable } from '@owlmeans/auth'
 import type { AbstractRequest, AbstractResponse } from '@owlmeans/entrypoint'
 import type { Resource } from '@owlmeans/resource'
 import { createStaticResource } from '@owlmeans/static-resource'
 import { trust, extractAuthToken } from '@owlmeans/auth-common/utils'
-import { ENTITY_RESOLVER } from '@owlmeans/auth-common'
-import type { EntityResolverService } from '@owlmeans/auth-common'
-import { AUTH_IDENTITY_PROFILE } from '@owlmeans/server-auth-identity'
-import type { IdentityProfile, IdentityProfileResource } from '@owlmeans/server-auth-identity'
-import {
-  appendMemoryAuthSessionManager, AUTH_SESSION_MANAGER, AUTH_SESSION_TTL
-} from '@owlmeans/server-auth-session'
-import type { AuthSessionManager } from '@owlmeans/server-auth-session'
-import { uuid } from '@owlmeans/basic-ids'
-import { TOKEN_UPDATE } from '@owlmeans/auth-common'
+import { ENTITY_RESOLVER, type EntityResolverService, TOKEN_UPDATE } from '@owlmeans/auth-common'
+import { AUTH_IDENTITY_PROFILE, type IdentityProfile, type IdentityProfileResource } from '@owlmeans/server-auth-identity'
+import { appendMemoryAuthSessionManager, AUTH_SESSION_MANAGER, AUTH_SESSION_TTL, type AuthSessionManager } from '@owlmeans/server-auth-session'
+import { idHelper } from '@owlmeans/basic-ids'
 import { logger } from '@owlmeans/log'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
 
 const log = logger('server-auth')
 
-/**
- * A refused token exchange — the manager's token presented to open a session. Logged with the
- * reason and the account id only; returns the error for the caller to throw.
- */
-const refuse = (reason: string, error: AuthenFailed, userId?: string): AuthenFailed => {
-  const accountId = userId == null ? undefined
-    : userId.includes('@') ? `*@${userId.slice(userId.lastIndexOf('@') + 1)}` : userId
-  log.warn('Session exchange refused', { reason, ...(accountId != null ? { accountId } : {}) }, { event: 'auth.refused' })
-  return error
-}
-
 export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
+  /**
+   * A refused token exchange — the manager's token presented to open a session. Logged with the
+   * reason and the account id only; returns the error for the caller to throw.
+   */
+  const refuse = (reason: string, error: AuthenFailed, userId?: string): AuthenFailed => {
+    const accountId = userId == null ? undefined
+      : userId.includes('@') ? `*@${userId.slice(userId.lastIndexOf('@') + 1)}` : userId
+    log.warn('Session exchange refused', { reason, ...(accountId != null ? { accountId } : {}) }, { event: 'auth.refused' })
+    return error
+  }
+
   const location = `server-auth:${alias}`
 
   const cache = (context: Context): Resource<AuthSpent> =>
@@ -199,7 +191,7 @@ export const makeAuthService = (alias: string = DEFAULT_ALIAS): AuthService => {
         isUser: true,
         createdAt: new Date(issuedAt),
         expiresAt,
-        sessionId: uuid(),
+        sessionId: idHelper.uuid(),
         authorizationVersion: 1
       }
       const manager = sessions(context)

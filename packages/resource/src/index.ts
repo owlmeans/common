@@ -1,8 +1,10 @@
 
 export * from './errors.js'
 export * from './consts.js'
+export * from './utils.js'
 export * from './service.js'
 export * from './helper.js'
 export * from './utils/query.js'
+export type * from './utils/query/types.js'
 export * from './migration.js'
 export type * from './types.js'

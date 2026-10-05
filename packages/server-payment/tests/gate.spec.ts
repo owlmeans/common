@@ -3,10 +3,11 @@ import type { AbstractRequest, AbstractResponse, GateService } from '@owlmeans/e
 import type { Auth, PermissionSet } from '@owlmeans/auth'
 import { AuthForbidden, AuthRole } from '@owlmeans/auth'
 import { CapabilityRequired, ENTITLEMENT_GATE, SubscriptionStatus } from '@owlmeans/payment'
-import { entitlementsOf, makeCapabilityGate } from '../src/gate.js'
-import { gateway } from '../src/utils.js'
+import { makeCapabilityGate } from '../src/gate.js'
 import { CAP_BASIC, CAP_PREVIEW, CAP_WHITELABEL, makeFakeContext, past, PRO } from './fake-stripe.js'
 import type { FakeContext } from './fake-stripe.js'
+import { paymentAccessOf } from '../src/access.js'
+import { catalogueOf } from '../src/catalogue.js'
 
 const request = (auth: Partial<Auth> | null = {}): AbstractRequest => ({
   alias: 'test', headers: {}, params: {}, query: {}, body: {}, path: '/',
@@ -22,7 +23,7 @@ const res = {} as AbstractResponse<unknown>
 
 const withPro = async (status: SubscriptionStatus = SubscriptionStatus.Active): Promise<FakeContext> => {
   const fake = await makeFakeContext()
-  await gateway(fake.ctx).grantInternalPlan(fake.ctx, 'entity-1', PRO, { force: true })
+  await paymentAccessOf(fake.ctx).gateway().grantInternalPlan(fake.ctx, 'entity-1', PRO, { force: true })
   fake.stores['payment-subscription'].rows[0].status = status
   return fake
 }
@@ -51,7 +52,7 @@ describe('@owlmeans/server-payment — the capability gate', () => {
 
     const lapsed = await makeFakeContext({ catalogue: { previewUntil: past(1) } })
     await expect(gateOf(lapsed).assert(request(), res, [CAP_PREVIEW])).rejects.toBeInstanceOf(CapabilityRequired)
-    expect((await entitlementsOf(lapsed.ctx, 'entity-1')).some(set => set.permissions.preview != null)).toBe(false)
+    expect((await catalogueOf(lapsed.ctx).entitlementsOf('entity-1')).some(set => set.permissions.preview != null)).toBe(false)
   })
 
   test('refuses a missing authentication or organization before reading storage, and an unreadable store', async () => {

@@ -1,6 +1,6 @@
 import type { QueueAppend, QueueResource } from '@owlmeans/queue'
 import {
-  appendQueueTransport, DEFAULT_ALIAS, queueOf, queueWorkerMiddleware, UnknownQueue
+  appendQueueTransport, DEFAULT_ALIAS, queueConfigOf, queueWorkerMiddleware, UnknownQueue
 } from '@owlmeans/queue'
 import { DEFAULT_DB_ALIAS } from '@owlmeans/redis-resource'
 import { makeRedisQueueResource, queueResourceAlias } from './resource.js'
@@ -57,7 +57,7 @@ export const appendRedisQueue = <C extends Config, T extends Context<C> = Contex
   ctx.jobs = <D, R>(queue?: string): QueueResource<D, R> => {
     const name = queue ?? soleQueue(ctx.cfg)
     // A queue nothing declared is a mistake at the call site, not an empty queue to produce into.
-    queueOf(ctx.cfg, name)
+    queueConfigOf(ctx.cfg).queueOf(name)
 
     if (!ctx.hasResource(queueResourceAlias(name))) {
       bind(name)

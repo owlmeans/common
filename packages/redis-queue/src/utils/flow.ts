@@ -1,7 +1,8 @@
 import type { Config, FlowSpec } from '@owlmeans/queue'
-import type { FlowChildJob, FlowJob, JobsOptions } from 'bullmq'
-import { bullOptionsOf } from './record.js'
+import type { FlowJob, JobsOptions } from 'bullmq'
+import { jobRecordHelper } from './record.js'
 import { declaredJob } from './declaration.js'
+import type { FlowChildJob } from './types.local.js'
 
 /**
  * One node of a graph as bullmq takes it. A node may name its own queue — a pipeline whose steps
@@ -16,7 +17,7 @@ export const flowJobOf = <C extends Config>(cfg: C, spec: FlowSpec, queue: strin
     name: declared.name,
     queueName: target,
     data: spec.data,
-    opts: bullOptionsOf(declared.opts),
+    opts: jobRecordHelper.bullOptionsOf(declared.opts),
     children: spec.children?.map(child => flowChildOf(cfg, child, target))
   }
 }

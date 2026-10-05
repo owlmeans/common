@@ -1,42 +1,13 @@
-import { createLazyService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { makeSchemaRegistry, PlanningError } from '@owlmeans/planning'
-import type {
-  PlanningSchemaRegistry, PlanningService, PlanningStore, SchemaStore, ScopedSchemaRegistry, Transition,
-  WithPlanningService,
-} from '@owlmeans/planning'
+import { createLazyService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { makeSchemaRegistry, PlanningError, type PlanningService, type PlanningStore, type Transition, type WithPlanningService } from '@owlmeans/planning'
 import { DEFAULT_ALIAS } from './consts.js'
 import { makeSchemaViews } from './definitions.js'
 import { makeStoreFacade } from './facade.js'
 import { makePluginRegistry } from './registry.js'
-import type { PluginRegistry } from './registry.js'
 import { makeCompositeStore } from './store/composite.js'
 import { makeMemoryPlanningStore } from './store/memory.js'
 import type { BindablePlanningStore } from './store/types.js'
-import type { PlanningHostService, PlanningServiceOptions } from './types.js'
-
-export type PlanningServiceApi = Pick<PlanningService, 'use' | 'plugins' | 'schemas' | 'store' | 'for' | 'committed'>
-
-/** What the facade and the executor reach the service through. */
-export interface PlanningRuntime {
-  service: () => PlanningService
-  registry: PluginRegistry
-  options: PlanningServiceOptions
-  context: () => BasicContext<BasicConfig> | undefined
-  /** The composite store reads and commits go through. */
-  reader: () => PlanningStore
-  /** Every distinct store: the default one first, then each plugin's. */
-  stores: () => PlanningStore[]
-  /** The default store's data-defined schema port, when it has one. */
-  schemaStore: () => SchemaStore | undefined
-  /**
-   * The registry a card of this organization (and project) resolves through. Without a schema
-   * port it is the service's code registry itself — the very same object.
-   */
-  schemasFor: (entityId: string, project?: string) => Promise<PlanningSchemaRegistry>
-  /** The resolved layer. @throws {PlanningUnsupported} without a schema port */
-  scopedSchemas: (entityId: string, project?: string) => Promise<ScopedSchemaRegistry>
-}
+import type { PlanningHostService, PlanningServiceOptions, PlanningRuntime, PlanningServiceApi } from './types.js'
 
 const contextOf = (service: PlanningService): BasicContext<BasicConfig> | undefined =>
   (service as Partial<PlanningHostService>).ctx as BasicContext<BasicConfig> | undefined

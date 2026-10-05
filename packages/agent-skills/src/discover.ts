@@ -1,37 +1,9 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-export interface ManifestEntry {
-  kind: 'skill' | 'instruction'
-  name: string
-  category: 'package-specific' | 'multi-package' | 'general'
-  file: string
-  canonicalPath: string
-}
-
-export interface Manifest {
-  schemaVersion: number
-  package: string
-  version: string
-  generatedAt: string
-  canonicalRepo: string
-  entries: ManifestEntry[]
-}
-
-export interface DiscoveredEntry {
-  kind: 'skill' | 'instruction'
-  name: string
-  category: 'package-specific' | 'multi-package' | 'general'
-  /** Absolute path to the embedded source file. */
-  sourcePath: string
-  canonicalPath: string
-  /** Package this came from. */
-  packageName: string
-  version: string
-  /** True for extras bundled in the installer itself. */
-  isExtra: boolean
-}
+import { OWLMEANS_SCOPE } from './consts.local.js'
+import type { ScopePackage } from './types.local.js'
+import type { DiscoveredEntry, DiscoverOptions, Manifest } from './types.js'
 
 /** Parse a manifest.json, return null if invalid/unparseable. */
 const parseManifest = (manifestPath: string): Manifest | null => {
@@ -44,8 +16,6 @@ const parseManifest = (manifestPath: string): Manifest | null => {
     return null
   }
 }
-
-const OWLMEANS_SCOPE = '@owlmeans'
 
 /**
  * Collect every existing `<...>/node_modules/@owlmeans` directory in the project
@@ -95,13 +65,6 @@ const collectScopeDirs = (targetDir: string): string[] => {
 
   walk(targetDir)
   return found
-}
-
-interface ScopePackage {
-  /** Realpath of the package dir, used to dedup the same physical package read via
-   *  multiple (symlinked) locations. */
-  realDir: string
-  entries: DiscoveredEntry[]
 }
 
 /** Read all @owlmeans packages under a single `.../node_modules/@owlmeans` dir. */
@@ -204,13 +167,6 @@ const scanSelfExtras = (packageName: string, version: string): DiscoveredEntry[]
     })
   }
   return entries
-}
-
-export interface DiscoverOptions {
-  /** Include installer's bundled extras. Default: true */
-  extras?: boolean
-  /** Restrict to entries from these package names. */
-  only?: string[]
 }
 
 /**

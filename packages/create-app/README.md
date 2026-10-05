@@ -9,7 +9,7 @@ bun create @owlmeans/app my-app
 # or
 yarn create @owlmeans/app my-app
 # or
-npx @owlmeans/create-app@^0.1.18-rc.56 my-app
+npx @owlmeans/create-app@^0.1.18-rc.57 my-app
 ```
 
 ## What it generates
@@ -96,8 +96,9 @@ scaffold({
 })
 ```
 
-`templateDir()`, `copyTemplate(src, dest, replacements, { bare })` and `isEmptyDir(dir)` are
-exported for callers that want the pieces; `run(args)` is the full CLI flow.
+`templateHelper.templateDir()`, `templateHelper.copyTemplate(src, dest, replacements, { bare })` and
+`templateHelper.isEmptyDir(dir)` are exported for callers that want the pieces (`namingHelper` and
+`argsHelper` likewise); `run(args)` is the full CLI flow.
 
 ## Running the generated app
 

@@ -1,7 +1,6 @@
 import type { AllowanceRequest, Auth, AuthCredentials, RelyToken } from '@owlmeans/auth'
 import { AUTH_SCOPE, AuthenticationStage, AuthenticationType, AuthPluginError, AuthRole, RELY_3RD } from '@owlmeans/auth'
 import type { AuthenticateMethod, Connection, EventMessage, Message } from '@owlmeans/socket'
-import { isEventMessage, isMessage } from '@owlmeans/socket'
 import type { AppContext, RelyAllowanceRequest, RelyLinker, RelyCarrier } from '../types.js'
 import { makeAuthModel } from '../model.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -10,6 +9,7 @@ import { RELY_TUNNEL } from '../consts.js'
 import type { RedisResource } from '@owlmeans/redis-resource'
 import { RELY_ACTION_TIMEOUT } from '@owlmeans/auth-common'
 import { logger } from '@owlmeans/log'
+import { socketMessageHelper } from '@owlmeans/socket'
 
 // 1. There is a difference between privileged (provider)
 //    and non-privileged (consumer) request 
@@ -32,9 +32,9 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   const linker: RelyLinker = async (rely, source, notify) => {
     const tunnel = context.resource<RedisResource<Message<any>>>(RELY_TUNNEL)
     const closeReceiver = await tunnel.subscribe(async message => {
-      if (isMessage(message, true)) {
+      if (socketMessageHelper.isMessage(message, true)) {
         await conn.send(message)
-      } else if (isEventMessage(message, true)) {
+      } else if (socketMessageHelper.isEventMessage(message, true)) {
         if ((message as EventMessage<unknown>).event === 'close') {
           await conn.close()
           closeSender()
@@ -48,13 +48,13 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
     conn._receiveError = async msg => { log.debug('Forward error', { nonce: source.nonce, id: msg.id }) }
     conn.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
     const closeSender = conn.listen(async message => {
-      if (isMessage(message, true)) {
+      if (socketMessageHelper.isMessage(message, true)) {
         const forward = { ...message }
         if (forward.rawData != null) {
           delete forward.rawData
         }
         await tunnel.publish(forward, rely.nonce)
-      } else if (isEventMessage(message, true)) {
+      } else if (socketMessageHelper.isEventMessage(message, true)) {
         if (message.event === 'close') {
           const forward = { ...message as Message<unknown> }
           if (forward.rawData != null) {

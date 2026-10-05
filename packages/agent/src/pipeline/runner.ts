@@ -1,27 +1,17 @@
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
-import type { BaseCheckpointSaver } from '@langchain/langgraph'
-import {
-  AgentRunStateError, DEFAULT_MAX_STATE_CHARS, INQUIRY_ANSWERS_KEY, PipelineNotIdempotentError,
-  PipelineNotResumableError, PipelineRunStatus, PipelineSpecError, PipelineStateTooLargeError,
-  PipelineVersionError,
-  orderPipelineSteps, pipelineDescendants, pipelineStep, validatePipelineSpec,
-} from '@owlmeans/agent-common'
-import type {
-  PipelineProgress, PipelineRun, PipelineRunInquiry, PipelineSpec, PipelineState, PipelineStepSpec,
-} from '@owlmeans/agent-common'
-import { DEFAULT_INQUIRY_ANSWER_CHARS, capAnswer, stateAnswerOf } from '@owlmeans/llm-common'
+import { AgentRunStateError, DEFAULT_MAX_STATE_CHARS, INQUIRY_ANSWERS_KEY, PipelineNotIdempotentError, PipelineNotResumableError, PipelineRunStatus, PipelineSpecError, PipelineStateTooLargeError, PipelineVersionError, type PipelineProgress, type PipelineRun, type PipelineRunInquiry, type PipelineSpec, type PipelineState, type PipelineStepSpec, makePipelineSpecModel } from '@owlmeans/agent-common'
+import { DEFAULT_INQUIRY_ANSWER_CHARS, type InquiryAnswer, inquiryHelper } from '@owlmeans/llm-common'
 import { logger } from '@owlmeans/log'
-import type { InquiryAnswer } from '@owlmeans/llm-common'
 import type {
   PipelineEnterMode, PipelineInvokeArgs, PipelineModel, PipelineOptions, PipelineParentRef,
   PipelinePlugin, PipelineResult, PipelineRunContext, PipelineStep, PipelineStepContribution,
-  PipelineStepMapping, StepResults,
-} from './types.js'
+  PipelineStepMapping,
+} from './runner/types.js'
+import type { StepResults } from './results/types.js'
+import { DEFAULT_PIPELINE_PLUGIN_ORDER, MAX_INQUIRY_ROUNDS } from './consts.local.js'
+import type { LooseGraph } from './runner/types.local.js'
 
 const log = logger('agent:pipeline')
-
-/** Ordering weight of a pipeline plugin that declares none. */
-const DEFAULT_PIPELINE_PLUGIN_ORDER = 50
 
 /**
  * Plugins seated by alias — a second registration replaces the first in its place — and ordered
@@ -61,40 +51,11 @@ const asError = (e: unknown): Error => e instanceof Error ? e : new Error(String
 
 const nowIso = (): string => new Date().toISOString()
 
-/**
- * How many questions ONE composing step may relay for its child before it gives up.
- *
- * A composed pipeline that keeps asking is a pipeline that will never finish, and the parent is the
- * only place with a count to bound it: each round is a fresh child invocation, so nothing else in
- * the stack can see that it is the same step asking again.
- */
-const MAX_INQUIRY_ROUNDS = 8
-
 /** The answers a state carries, as a map. Total: a state that has never been asked has none. */
 const answersIn = (state: unknown, key: string): Record<string, InquiryAnswer> => {
   const held = (state as Record<string, unknown> | null | undefined)?.[key]
 
   return typeof held === 'object' && held != null ? held as Record<string, InquiryAnswer> : {}
-}
-
-/**
- * The graph builder, seen loosely.
- *
- * `StateGraph`'s node names are a generic parameter that only a literal-typed builder chain can
- * satisfy, and a pipeline's nodes come from data. The precision belongs at THIS package's public
- * boundary — `PipelineSpec`, `PipelineStep`, `PipelineModel` are all exact — not in the three lines
- * that hand LangGraph a name it will look up in a map either way.
- */
-interface LooseGraph {
-  addNode: (
-    name: string,
-    fn: (state: unknown) => Promise<Record<string, unknown>>,
-    options?: Record<string, unknown>,
-  ) => LooseGraph
-  addEdge: (start: string | string[], end: string) => LooseGraph
-  compile: (options?: { checkpointer?: BaseCheckpointSaver }) => {
-    invoke: (input: unknown, config?: Record<string, unknown>) => Promise<unknown>
-  }
 }
 
 /**
@@ -118,7 +79,8 @@ interface LooseGraph {
 export const makePipeline = <S extends PipelineState, C>(
   spec: PipelineSpec, options: PipelineOptions<S, C>,
 ): PipelineModel<S, C> => {
-  validatePipelineSpec(spec)
+  const specModel = makePipelineSpecModel(spec)
+  specModel.validate()
 
   const handlers = new Map<string, PipelineStep<S, C>>()
   const faults: string[] = []
@@ -140,7 +102,7 @@ export const makePipeline = <S extends PipelineState, C>(
     throw new PipelineSpecError(`${spec.alias}: ${faults.join('; ')}`)
   }
 
-  const order = orderPipelineSteps(spec)
+  const order = specModel.orderSteps()
   const total = order.length
   const runs = options.runs
   const maxStateChars = options.maxStateChars ?? DEFAULT_MAX_STATE_CHARS
@@ -185,7 +147,7 @@ export const makePipeline = <S extends PipelineState, C>(
 
   /** The copy of an answer this pipeline's STATE is allowed to hold. */
   const forState = (answer: InquiryAnswer): InquiryAnswer =>
-    stateAnswerOf(capAnswer(answer, maxAnswerChars))
+    inquiryHelper.stateAnswerOf(inquiryHelper.capAnswer(answer, maxAnswerChars))
 
   /**
    * Fold every source of answers into the live state, later sources winning per id.
@@ -361,7 +323,7 @@ export const makePipeline = <S extends PipelineState, C>(
             : null
 
           if (answer != null) {
-            const capped = capAnswer({ ...answer, inquiryId: inquiry.id }, maxAnswerChars)
+            const capped = inquiryHelper.capAnswer({ ...answer, inquiryId: inquiry.id }, maxAnswerChars)
             // The state keeps the DECISION and a short excerpt of any prose; the step is handed the
             // whole answer. A state is scalars and keys, and two long answers would spend a
             // pipeline's whole state budget on text nothing replays from.
@@ -373,7 +335,7 @@ export const makePipeline = <S extends PipelineState, C>(
             // person has already answered to be asked again on the next entry.
             await ctx.mark({
               [answersKey]: {
-                ...answersIn(live, answersKey), [inquiry.id]: stateAnswerOf(capped),
+                ...answersIn(live, answersKey), [inquiry.id]: inquiryHelper.stateAnswerOf(capped),
               },
             } as Partial<S>)
 
@@ -805,9 +767,9 @@ export const makePipeline = <S extends PipelineState, C>(
 
       let completed = [...existing.completed]
       if (args.from != null) {
-        const rerun = pipelineDescendants(spec, args.from)
+        const rerun = specModel.descendants(args.from)
         const blocked = rerun.filter(step =>
-          completed.includes(step) && pipelineStep(spec, step)?.nonIdempotent === true)
+          completed.includes(step) && specModel.stepOf(step)?.nonIdempotent === true)
         if (blocked.length > 0 && args.force !== true) {
           throw new PipelineNotIdempotentError(`${runId}:${blocked.join(',')}`)
         }

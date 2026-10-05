@@ -1,3 +1,6 @@
 export * from './gates.js'
+export type * from './gates/types.js'
+export type * from './types.js'
 export * from './naming.js'
 export * from './cleanup.js'
+export type * from './cleanup/types.js'

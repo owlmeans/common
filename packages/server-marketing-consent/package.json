@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-marketing-consent",
-  "version": "0.1.18-rc.13",
+  "version": "0.1.18-rc.14",
   "license": "MIT",
   "description": "The server half of @owlmeans/marketing-consent — a database-agnostic MarketingConsentService (status/save/terms/purge over resources resolved by alias) plus the guarded status/save/terms entrypoint handlers.",
   "type": "module",
@@ -23,29 +23,29 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/auth-common": "^0.1.18-rc.45",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/log": "^0.1.18-rc.0",
-    "@owlmeans/marketing-consent": "^0.1.18-rc.8",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@owlmeans/server-api": "^0.1.18-rc.49",
-    "@owlmeans/server-auth-token": "^0.1.18-rc.30",
-    "@owlmeans/server-context": "^0.1.18-rc.41",
-    "@owlmeans/server-entrypoint": "^0.1.18-rc.38"
+    "@owlmeans/auth": "^0.1.18-rc.39",
+    "@owlmeans/auth-common": "^0.1.18-rc.46",
+    "@owlmeans/context": "^0.1.18-rc.33",
+    "@owlmeans/entrypoint": "^0.1.18-rc.40",
+    "@owlmeans/error": "^0.1.18-rc.37",
+    "@owlmeans/log": "^0.1.18-rc.1",
+    "@owlmeans/marketing-consent": "^0.1.18-rc.9",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@owlmeans/server-api": "^0.1.18-rc.50",
+    "@owlmeans/server-auth-token": "^0.1.18-rc.31",
+    "@owlmeans/server-context": "^0.1.18-rc.42",
+    "@owlmeans/server-entrypoint": "^0.1.18-rc.39"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/static-resource": "^0.1.18-rc.37",
-    "@owlmeans/test": "^0.1.18-rc.33",
-    "@owlmeans/test-auth": "^0.1.18-rc.44",
-    "@types/bun": "^1.4.0",
-    "ajv": "^8.17.1",
+    "@owlmeans/static-resource": "^0.1.18-rc.38",
+    "@owlmeans/test": "^0.1.18-rc.34",
+    "@owlmeans/test-auth": "^0.1.18-rc.45",
+    "@types/bun": "^1.4.2",
+    "ajv": "^8.20.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

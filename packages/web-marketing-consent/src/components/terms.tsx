@@ -1,18 +1,7 @@
 import type { FC, ReactNode } from 'react'
-import { termsLabelResolver, termsSentence } from '@owlmeans/client-auth/login'
-import type { TermsSentencePart } from '@owlmeans/client-auth/login'
-import type { MarketingConsentTermsModel } from '../hooks/use-marketing-consent.js'
-import type { Translate } from './inline.js'
+import { type TermsSentencePart, loginTermsHelper } from '@owlmeans/client-auth/login'
 import { ConsentRow, RequiredMark, RevisedLine } from './row.js'
-
-export interface ConsentTermsProps {
-  /** The sign-in screen's own translator (`auth` resource) — the Terms sentences are its. */
-  termsT: Translate
-  /** This package's own translator, for the "required" wording. */
-  t: Translate
-  model: MarketingConsentTermsModel
-  locale?: string
-}
+import type { ConsentPrivacyNoticeProps, ConsentTermsProps } from './types.js'
 
 const renderParts = (parts: TermsSentencePart[]): ReactNode =>
   parts.map((part, index) => part.href != null
@@ -33,7 +22,7 @@ const renderParts = (parts: TermsSentencePart[]): ReactNode =>
  * up — so it is never nested inside this checkbox's label.
  */
 export const ConsentTerms: FC<ConsentTermsProps> = ({ termsT, t, model, locale }) => {
-  const resolveLabel = termsLabelResolver(termsT, locale)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(termsT, locale)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -51,10 +40,7 @@ export const ConsentTerms: FC<ConsentTermsProps> = ({ termsT, t, model, locale }
           />
         }
         statement={<>
-          {renderParts(termsSentence(
-            termsT('login.terms.accept', 'I have read and agree to the {{documents}}.'),
-            model, locale, resolveLabel,
-          ))}
+          {renderParts(loginTermsHelper.termsSentence(termsT('login.terms.accept', 'I have read and agree to the {{documents}}.'), model, locale, resolveLabel))}
           <RequiredMark t={t} />
         </>}
         notes={model.revisedAt != null && (
@@ -68,20 +54,11 @@ export const ConsentTerms: FC<ConsentTermsProps> = ({ termsT, t, model, locale }
 
       {model.attempted && !model.ticked && (
         <p role="alert" className="text-sm text-destructive">
-          {renderParts(termsSentence(
-            termsT('login.terms.required', 'Please confirm the {{documents}} to continue.'),
-            model, locale, resolveLabel,
-          ))}
+          {renderParts(loginTermsHelper.termsSentence(termsT('login.terms.required', 'Please confirm the {{documents}} to continue.'), model, locale, resolveLabel))}
         </p>
       )}
     </div>
   )
-}
-
-export interface ConsentPrivacyNoticeProps {
-  t: Translate
-  model: Pick<MarketingConsentTermsModel, 'documents' | 'notices'>
-  locale?: string
 }
 
 /**
@@ -91,14 +68,11 @@ export interface ConsentPrivacyNoticeProps {
  * count, so this shows unless an application explicitly turned terms off entirely).
  */
 export const ConsentPrivacyNotice: FC<ConsentPrivacyNoticeProps> = ({ t, model, locale }) => {
-  const resolveLabel = termsLabelResolver(t, locale)
+  const resolveLabel = loginTermsHelper.termsLabelResolver(t, locale)
 
   return (
     <p data-marketing-consent-privacy className="text-xs text-muted-foreground">
-      {renderParts(termsSentence(
-        t('login.terms.notice', 'How we handle your personal data: {{notices}}.'),
-        model, locale, resolveLabel,
-      ))}
+      {renderParts(loginTermsHelper.termsSentence(t('login.terms.notice', 'How we handle your personal data: {{notices}}.'), model, locale, resolveLabel))}
     </p>
   )
 }

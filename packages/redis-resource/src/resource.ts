@@ -1,25 +1,17 @@
-import type {
-  Criteria, FirstOptions, ListOptions, ListResult, ResourceRecord, SubscribeOptions, Ttl,
-  Unsubscribe, WriteOptions
-} from '@owlmeans/resource'
-import {
-  applyQuery, filterRecords, firstMatch, matchCriteria, MisshapedRecord, RecordExists,
-  UnknownRecordError, UnsupportedArgumentError
-} from '@owlmeans/resource'
+import { type Criteria, type FirstOptions, type ListOptions, type ListResult, type ResourceRecord, type SubscribeOptions, type Ttl, type Unsubscribe, type WriteOptions, MisshapedRecord, RecordExists, UnknownRecordError, UnsupportedArgumentError, recordQueryHelper } from '@owlmeans/resource'
 import { logThrottle, logger } from '@owlmeans/log'
-import type { RedisClient, RedisDbService, RedisResource } from './types.js'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { Redis } from 'ioredis'
+import type { RedisDbService, RedisResource } from './types.js'
 import {
   CONSUMER_ID_LENGTH, DEFAULT_DB_ALIAS, DEFAULT_STREAM_BLOCK, READ_BATCH, RECLAIM_COUNT,
   RECLAIM_IDLE, SCAN_BATCH, STREAM_MAX_LENGTH
 } from './consts.js'
 import { appendContextual, assertContext } from '@owlmeans/context'
-import { createIdOfLength, uuid } from '@owlmeans/basic-ids'
+import { createIdOfLength, idHelper } from '@owlmeans/basic-ids'
+import type { Config, Context } from './types.local.js'
 
 const log = logger('redis-resource')
 
-type Config = ServerConfig
-type Context<C extends Config = Config> = ServerContext<C>
 
 /**
  * A `Resource` over plain redis strings: one JSON document per namespaced key.
@@ -141,7 +133,7 @@ export const makeRedisResource = <
       return value == null ? null : JSON.parse(value)
     }
 
-    return firstMatch(await readRecords(), idOrWhere as Criteria<any>, opts)
+    return recordQueryHelper.firstMatch(await readRecords(), idOrWhere as Criteria<any>, opts)
   }
 
   /**
@@ -152,7 +144,7 @@ export const makeRedisResource = <
     pattern: string, onMessage: (channel: string, message: string) => void,
     opts?: { once?: boolean, ttl?: Ttl }
   ): Promise<Unsubscribe> => {
-    const subscriber = (resource.db.client as RedisClient).duplicate()
+    const subscriber = (resource.db.client as unknown as { duplicate: () => Redis }).duplicate()
     let closed = false
     const unsubscribe: Unsubscribe = async () => {
       if (closed) {
@@ -215,11 +207,11 @@ export const makeRedisResource = <
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(await readRecords(), where, opts)
+      return recordQueryHelper.applyQuery(await readRecords(), where, opts)
     },
 
     count: async (where?: Criteria<any>): Promise<number> =>
-      filterRecords(await readRecords(), where).length,
+      recordQueryHelper.filterRecords(await readRecords(), where).length,
 
     /**
      * SET NX rather than a read followed by a write: two callers racing for the same id both saw
@@ -230,7 +222,7 @@ export const makeRedisResource = <
      * @throws {RecordExists}
      */
     create: async (record: Partial<R>, opts?: WriteOptions): Promise<R> => {
-      const id = record.id ?? uuid()
+      const id = record.id ?? idHelper.uuid()
       const key = resource.key(id)
       const stored = withId(record, id)
       if (await resource.db.client.set(key, JSON.stringify(stored), 'NX') == null) {
@@ -299,7 +291,7 @@ export const makeRedisResource = <
         throw new UnsupportedArgumentError('purge:empty-criteria')
       }
       const keys = (await readNamespace())
-        .filter(([, record]) => matchCriteria(record, where))
+        .filter(([, record]) => recordQueryHelper.matchCriteria(record, where))
         .map(([key]) => key)
 
       let deleted = 0

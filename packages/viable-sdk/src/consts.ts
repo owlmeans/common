@@ -11,18 +11,6 @@ export const ENV_PROJECT_DIR = 'VIABLE_PROJECT_DIR'
 export const ENV_MCP_URL = CONNECT_ENV_MCP_URL
 export const DEFAULT_MCP_URL = CONNECT_DEFAULT_MCP_URL
 
-/**
- * The `/mcp` URL a person, a doc or a verification tool should use: the value the merged
- * configuration names (environment over `~/.owlmeans`, already resolved by the caller), else the
- * production default. An empty value counts as unset, and a trailing slash is dropped — a
- * canonical resource URI (RFC 8707) has one spelling.
- */
-export const resolveMcpUrl = (values: Record<string, string | undefined>): string => {
-  const named = values[ENV_MCP_URL]
-
-  return (named != null && named !== '' ? named : DEFAULT_MCP_URL).replace(/\/+$/, '')
-}
-
 /** The service alias the SDK's own client context registers under. */
 export const SDK_SERVICE = 'viable-sdk'
 

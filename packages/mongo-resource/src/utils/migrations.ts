@@ -1,25 +1,11 @@
 import type { BasicContext } from '@owlmeans/context'
-import type { DbConfig, Migration, MigrationStage, MigrationStore, ResourceRecord } from '@owlmeans/resource'
+import type { DbConfig, Migration, MigrationStore, ResourceRecord } from '@owlmeans/resource'
 import type { Collection, Db } from 'mongodb'
 
-import {
-  DEF_MIGRATION_POLL, DEF_MIGRATION_WAIT, DEF_MIGRATIONS_COLLECTION, MONGO_DUPLICATE_KEY
-} from '../consts.js'
+import { DEF_MIGRATION_POLL, DEF_MIGRATION_WAIT, DEF_MIGRATIONS_COLLECTION, MONGO_DUPLICATE_KEY, DEFAULT_DB_ALIAS } from '../consts.js'
 import type { MongoDbService, MongoResource, MongoTx } from '../types.js'
-import { DEFAULT_DB_ALIAS } from '../consts.js'
 import { mongoCollectionName } from './name.js'
-
-interface LedgerRecord {
-  alias: string
-  name: string
-  stage: MigrationStage
-  checksum: string | null
-  baseline: boolean
-  startedAt: Date
-  /** `null` while a replica is running it — the claim, not the completion. */
-  completedAt: Date | null
-  durationMs: number | null
-}
+import type { LedgerRecord } from './types.local.js'
 
 const isDuplicateKey = (error: unknown): boolean =>
   (error as { code?: number } | null)?.code === MONGO_DUPLICATE_KEY

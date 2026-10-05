@@ -1,21 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { DiscoveredEntry } from './discover.js'
-
-export type InstallAction =
-  | 'install'       // target missing → write
-  | 'skip-uptodate' // bytes identical → no-op
-  | 'update'        // managed (banner present) and differs → overwrite
-  | 'conflict'      // local edit (no banner) and differs → skip or prompt
-
-export interface InstallItem {
-  entry: DiscoveredEntry
-  targetPath: string
-  action: InstallAction
-}
-
-/** The banner text injected by sync-agent-meta into every generated file. */
-export const AUTO_GENERATED_BANNER = '<!-- AUTO-GENERATED — do not edit. Regenerate via sync-agent-meta. -->'
+import type { DiscoveredEntry, InstallItem, PlanOptions } from './types.js'
+import { AUTO_GENERATED_BANNER } from './consts.js'
 
 /**
  * Skills install into `.agents/skills/<name>/SKILL.md` — the canonical store of the
@@ -25,11 +11,6 @@ export const AUTO_GENERATED_BANNER = '<!-- AUTO-GENERATED — do not edit. Regen
  */
 const targetPath = (targetDir: string, entry: DiscoveredEntry): string =>
   join(targetDir, '.agents', 'skills', entry.name, 'SKILL.md')
-
-export interface PlanOptions {
-  /** Treat conflicts as 'overwrite' (--force). */
-  force?: boolean
-}
 
 export const planInstall = (
   entries: DiscoveredEntry[],

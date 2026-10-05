@@ -6,7 +6,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { useLegalText, usePaymentText } from './copy.js'
+import { useLegalText, usePaymentText } from './hooks.js'
 import { ErrorLine, LanguageToggle, LegalLinks, linksFor, useShownLanguage } from './legal.js'
 import type { SubscriptionStartDialogProps } from './types.js'
 

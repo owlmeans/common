@@ -1,15 +1,11 @@
 import { createLazyService } from '@owlmeans/context'
 import type { GateService } from '@owlmeans/entrypoint'
-import { LIMIT_GATE, LimitExhausted, LimitUnknown, parseLimitParam } from '@owlmeans/payment'
-import type { LimitParam, LimitView } from '@owlmeans/payment'
+import { LIMIT_GATE, LimitExhausted, LimitUnknown, type LimitParam, type LimitView, planLimitHelper } from '@owlmeans/payment'
 import type { Context as ApiContext } from '@owlmeans/server-api'
-import { gateEntityOf } from './gate.js'
-import type { EntityResolverOption } from './gate.js'
-import { entitlements } from './utils.js'
-import type { Config, Context } from './types.js'
+import { makeGateRequestScope } from './gate/request.js'
+import type { Config, Context, LimitGateOptions } from './types.js'
 import { log } from './log.js'
-
-export interface LimitGateOptions extends EntityResolverOption {}
+import { paymentAccessOf } from './access.js'
 
 /**
  * The limit gate (`LIMIT_GATE`): passes when ANY `limit:<key>[>=n]` parameter has at least `n` left
@@ -23,10 +19,10 @@ export const makeLimitGate = (alias: string = LIMIT_GATE, opts?: LimitGateOption
     assert: async (req, _, params) => {
       await service.ready()
       const ctx = service.assertCtx<Config, Context>() as unknown as ApiContext
-      const { entityId } = gateEntityOf(req, opts)
+      const { entityId } = makeGateRequestScope(req).gateEntityOf(opts)
       const list = (Array.isArray(params) ? params : [params]).filter(param => typeof param === 'string')
 
-      const parsed = list.map(parseLimitParam).filter((param): param is LimitParam => param != null)
+      const parsed = list.map(planLimitHelper.parseLimitParam).filter((param): param is LimitParam => param != null)
       if (parsed.length === 0) {
         throw new LimitExhausted({ key: list[0] ?? 'unknown', used: 0, limit: 0 })
       }
@@ -35,7 +31,7 @@ export const makeLimitGate = (alias: string = LIMIT_GATE, opts?: LimitGateOption
       for (const param of parsed) {
         let state: LimitView
         try {
-          state = await entitlements(ctx).limitState(entityId, param.key)
+          state = await paymentAccessOf(ctx).entitlements().limitState(entityId, param.key)
         } catch (error) {
           if (!(error instanceof LimitUnknown)) {
             log.error('Limit gate cannot read a limit', { key: param.key, entityId, error })

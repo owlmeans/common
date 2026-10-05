@@ -1,7 +1,8 @@
 import type { LogPlugin, LogRecord } from '@owlmeans/log'
 import { PREVIEW_ANALYTICS_TYPE, PREVIEW_REPORTER_FLAG, SLOT_EVENTS_ENV, TARGET_EVENT_VERSION } from './consts.js'
-import { targetEventLine } from './event.js'
+import { targetEventHelper } from './event.js'
 import type { PreviewChannel, TargetEvent } from './types.js'
+import type { Stdout } from './types.local.js'
 
 /** The reporter's channel of the current document, or `undefined` outside a framed preview. */
 export const previewChannel = (): PreviewChannel | undefined => {
@@ -28,8 +29,6 @@ export const viablePreviewPlugin = (): LogPlugin => ({
     previewChannel()?.post(PREVIEW_ANALYTICS_TYPE, event)
   },
 })
-
-interface Stdout { write: (chunk: string) => unknown }
 
 const stdout = (): Stdout | undefined =>
   (globalThis as { process?: { stdout?: Stdout } }).process?.stdout
@@ -59,7 +58,7 @@ export const viableSlotPlugin = (): LogPlugin => {
   const emit = (event: TargetEvent): void => {
     const out = stdout()
     if (out != null && slotEventsEnabled()) {
-      out.write(`${targetEventLine(event)}\n`)
+      out.write(`${targetEventHelper.targetEventLine(event)}\n`)
     }
   }
   return {

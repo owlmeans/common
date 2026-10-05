@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
-import { defaultConsentTranslate } from '@owlmeans/web-consent'
 import { useI18nLib } from '@owlmeans/client-i18n'
+import { consentI18nHelper } from '@owlmeans/consent'
 
 /**
  * Resolve consent copy through the application first, and the packaged bundle second.
@@ -23,7 +23,7 @@ export const useConsentTranslate = (
     if (override != null) {
       return override(key, defaultValue)
     }
-    const packaged = defaultConsentTranslate(locale)(key, defaultValue)
+    const packaged = consentI18nHelper.defaultConsentTranslate(locale)(key, defaultValue)
     // `t` answers with whatever it is given when the key is unknown, so the packaged string is
     // what it is given — an application's override wins, and everything else stays translated.
     return t(key, { defaultValue: packaged })

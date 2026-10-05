@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { ConnectHarness, ModelTaskMode, ModelTaskResultKind, ModelTaskRole } from '@owlmeans/viable-common'
 import type { ModelTask } from '@owlmeans/viable-common'
-import { parseTaskResult, renderTaskEnvelope } from '../src/task/envelope.js'
+import { makeTaskEnvelopeModel } from '../src/task/envelope.js'
 
 const task = (patch: Partial<ModelTask> = {}): ModelTask => ({
   id: 'T1',
@@ -18,7 +18,7 @@ const task = (patch: Partial<ModelTask> = {}): ModelTask => ({
 
 describe('viable-sdk — what the parent agent is told', () => {
   test('names the task, the follow-up call and the isolation, before the material', () => {
-    const text = renderTaskEnvelope(task(), { harness: ConnectHarness.ClaudeCode })
+    const text = makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.ClaudeCode })
 
     expect(text).toContain('T1')
     expect(text).toContain('submit_task_result')
@@ -29,44 +29,36 @@ describe('viable-sdk — what the parent agent is told', () => {
   })
 
   test('asks each harness for isolation in its own vocabulary', () => {
-    expect(renderTaskEnvelope(task(), { harness: ConnectHarness.ClaudeCode })).toContain('viable-worker')
-    const codex = renderTaskEnvelope(task(), { harness: ConnectHarness.Codex })
+    expect(makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.ClaudeCode })).toContain('viable-worker')
+    const codex = makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.Codex })
     expect(codex).toContain('INLINE')
     expect(codex).toContain('SYSTEM\nPROMPT first')
     expect(codex).toContain('Do not pass this\nouter HOW TO RUN')
     expect(codex).toContain('never a JSON tool-call array')
-    expect(renderTaskEnvelope(task(), { harness: ConnectHarness.OpenCode })).toContain('@viable-worker')
+    expect(makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.OpenCode })).toContain('@viable-worker')
     // A harness nobody wrote a block for still gets the request, stated rather than mechanised.
-    expect(renderTaskEnvelope(task(), { harness: ConnectHarness.Other })).toContain('fresh, isolated context')
+    expect(makeTaskEnvelopeModel(task()).renderTaskEnvelope({ harness: ConnectHarness.Other })).toContain('fresh, isolated context')
   })
 
   test('a retry says so, and why the previous answer was refused', () => {
-    const text = renderTaskEnvelope(
-      task({ attempt: 1, feedback: 'not valid JSON' }), { harness: ConnectHarness.Codex }
-    )
+    const text = makeTaskEnvelopeModel(task({ attempt: 1, feedback: 'not valid JSON' })).renderTaskEnvelope({ harness: ConnectHarness.Codex })
 
     expect(text).toContain('attempt 2')
     expect(text).toContain('not valid JSON')
   })
 
   test('carries the schema for a structured answer and the tools for an open one', () => {
-    const json = renderTaskEnvelope(
-      task({ mode: ModelTaskMode.Json, outputSchema: { type: 'object' } }),
-      { harness: ConnectHarness.Other }
-    )
+    const json = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Json, outputSchema: { type: 'object' } })).renderTaskEnvelope({ harness: ConnectHarness.Other })
     expect(json).toContain('OUTPUT SCHEMA')
     expect(json).toContain('ONE JSON object')
 
-    const tools = renderTaskEnvelope(
-      task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] }),
-      { harness: ConnectHarness.Other }
-    )
+    const tools = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] })).renderTaskEnvelope({ harness: ConnectHarness.Other })
     expect(tools).toContain('TOOLS THE SUBAGENT MAY CALL')
     expect(tools).toContain('read')
   })
 
   test('names the model the parent said it would use, when it said', () => {
-    const text = renderTaskEnvelope(task(), {
+    const text = makeTaskEnvelopeModel(task()).renderTaskEnvelope({
       harness: ConnectHarness.ClaudeCode, tiers: { strong: 'opus' },
     })
 
@@ -76,7 +68,7 @@ describe('viable-sdk — what the parent agent is told', () => {
 
 describe('viable-sdk — checking the answer before the platform sees it', () => {
   test('text passes through verbatim', () => {
-    const { result } = parseTaskResult(task(), '  hello  ')
+    const { result } = makeTaskEnvelopeModel(task()).parseTaskResult('  hello  ')
 
     expect(result?.kind).toBe(ModelTaskResultKind.Text)
     expect(result?.text).toBe('  hello  ')
@@ -85,48 +77,40 @@ describe('viable-sdk — checking the answer before the platform sees it', () =>
   test('a fenced JSON answer is unwrapped rather than refused', () => {
     // Models fence JSON however firmly they are told not to; refusing that would cost a whole
     // retry for a formatting habit.
-    const { result } = parseTaskResult(
-      task({ mode: ModelTaskMode.Json }), '```json\n{"a":1}\n```'
-    )
+    const { result } = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Json })).parseTaskResult('```json\n{"a":1}\n```')
 
     expect(result?.json).toEqual({ a: 1 })
   })
 
   test('prose where JSON was asked for is refused with an instruction, not an error', () => {
-    const { result, problem } = parseTaskResult(task({ mode: ModelTaskMode.Json }), 'Sure! Here you go.')
+    const { result, problem } = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Json })).parseTaskResult('Sure! Here you go.')
 
     expect(result).toBeUndefined()
     expect(problem).toContain('valid JSON')
   })
 
   test('an array where one object was asked for is refused', () => {
-    const { problem } = parseTaskResult(task({ mode: ModelTaskMode.Json }), '[{"a":1}]')
+    const { problem } = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Json })).parseTaskResult('[{"a":1}]')
 
     expect(problem).toContain('single JSON object')
   })
 
   test('a tool the task never offered is refused, and the refusal names what is available', () => {
-    const { problem } = parseTaskResult(
-      task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] }),
-      '[{"name":"rm","args":{}}]'
-    )
+    const { problem } = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] })).parseTaskResult('[{"name":"rm","args":{}}]')
 
     expect(problem).toContain('rm')
     expect(problem).toContain('read')
   })
 
   test('a valid tool call list is accepted, and missing args default to empty', () => {
-    const { result } = parseTaskResult(
-      task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] }),
-      '[{"name":"read"}]'
-    )
+    const { result } = makeTaskEnvelopeModel(task({ mode: ModelTaskMode.Tools, tools: [{ name: 'read', parameters: {} }] })).parseTaskResult('[{"name":"read"}]')
 
     expect(result?.toolCalls).toEqual([{ name: 'read', args: {} }])
   })
 
   test('an empty answer is refused with the one instruction that fixes it', () => {
-    expect(parseTaskResult(task(), '   ').problem).toContain('empty')
-    expect(parseTaskResult(task(), null).problem).toContain('empty')
+    expect(makeTaskEnvelopeModel(task()).parseTaskResult('   ').problem).toContain('empty')
+    expect(makeTaskEnvelopeModel(task()).parseTaskResult(null).problem).toContain('empty')
   })
 })
 
@@ -138,14 +122,14 @@ describe('a tools task ends with a call or with the last word', () => {
   } as never
 
   test('a JSON array of calls is the documented shape', () => {
-    const { result, problem } = parseTaskResult(toolTask, '[{"name":"write_file","args":{}}]')
+    const { result, problem } = makeTaskEnvelopeModel(toolTask).parseTaskResult('[{"name":"write_file","args":{}}]')
 
     expect(problem).toBeUndefined()
     expect(result?.toolCalls).toEqual([{ name: 'write_file', args: {} }])
   })
 
   test('a single call sent bare is accepted', () => {
-    const { result } = parseTaskResult(toolTask, '{"name":"write_file"}')
+    const { result } = makeTaskEnvelopeModel(toolTask).parseTaskResult('{"name":"write_file"}')
 
     expect(result?.toolCalls).toEqual([{ name: 'write_file', args: {} }])
   })
@@ -153,7 +137,7 @@ describe('a tools task ends with a call or with the last word', () => {
   test('prose is the model finishing, and is accepted as text', () => {
     // Refusing it stalls the agent loop it was ending — the run then dies of exhausted retries
     // with nothing wrong anywhere.
-    const { result, problem } = parseTaskResult(toolTask, 'Nothing left to change.')
+    const { result, problem } = makeTaskEnvelopeModel(toolTask).parseTaskResult('Nothing left to change.')
 
     expect(problem).toBeUndefined()
     expect(result?.kind).toBe('text')
@@ -161,7 +145,7 @@ describe('a tools task ends with a call or with the last word', () => {
   })
 
   test('a tool the task never offered is still refused', () => {
-    const { problem } = parseTaskResult(toolTask, '[{"name":"rm_rf","args":{}}]')
+    const { problem } = makeTaskEnvelopeModel(toolTask).parseTaskResult('[{"name":"rm_rf","args":{}}]')
 
     expect(problem).toContain('write_file')
   })
@@ -179,7 +163,7 @@ describe('a JSON answer is checked against the schema before the platform sees i
   } as never
 
   test('an answer that satisfies the schema is accepted', () => {
-    const { result, problem } = parseTaskResult(jsonTask, '{"entities":["Task"]}')
+    const { result, problem } = makeTaskEnvelopeModel(jsonTask).parseTaskResult('{"entities":["Task"]}')
 
     expect(problem).toBeUndefined()
     expect(result?.json).toEqual({ entities: ['Task'] })
@@ -188,14 +172,14 @@ describe('a JSON answer is checked against the schema before the platform sees i
   test('a missing required field is refused HERE, naming the field', () => {
     // The subagent's context is still open at this point, so the parent can ask again cheaply. A
     // mismatch the platform catches instead costs a whole round trip, a new task and another wait.
-    const { problem } = parseTaskResult(jsonTask, '{"other":1}')
+    const { problem } = makeTaskEnvelopeModel(jsonTask).parseTaskResult('{"other":1}')
 
     expect(problem).toContain('OUTPUT SCHEMA')
     expect(problem).toContain('entities')
   })
 
   test('a wrong type is refused with the path that is wrong', () => {
-    const { problem } = parseTaskResult(jsonTask, '{"entities":"Task"}')
+    const { problem } = makeTaskEnvelopeModel(jsonTask).parseTaskResult('{"entities":"Task"}')
 
     expect(problem).toContain('/entities')
   })
@@ -204,7 +188,7 @@ describe('a JSON answer is checked against the schema before the platform sees i
     // An answer must not be rejected because of an inability of ours to check it — the platform
     // validates again either way.
     const broken = { ...(jsonTask as never as Record<string, unknown>), outputSchema: { type: 'nonsense' } }
-    const { result, problem } = parseTaskResult(broken as never, '{"anything":true}')
+    const { result, problem } = makeTaskEnvelopeModel(broken as never).parseTaskResult('{"anything":true}')
 
     expect(problem).toBeUndefined()
     expect(result?.json).toEqual({ anything: true })
@@ -222,7 +206,7 @@ describe('the block telling a parent HOW to run a task', () => {
     // a block naming the file as a fact sent a literal agent to a subagent type it did not have —
     // on the first task, before it had done anything.
     for (const harness of ['claude-code', 'codex', 'copilot', 'opencode', 'other'] as const) {
-      const text = renderTaskEnvelope(task, { harness })
+      const text = makeTaskEnvelopeModel(task).renderTaskEnvelope({ harness })
       if (!text.includes('viable-worker')) continue
       expect(text).toContain('install_harness')
     }
@@ -230,7 +214,7 @@ describe('the block telling a parent HOW to run a task', () => {
 
   test('every harness offers a way through when the worker is absent', () => {
     for (const harness of ['claude-code', 'codex', 'copilot', 'opencode', 'other'] as const) {
-      const text = renderTaskEnvelope(task, { harness }).toLowerCase()
+      const text = makeTaskEnvelopeModel(task).renderTaskEnvelope({ harness }).toLowerCase()
 
       expect(text.includes('inline') || text.includes('isolated context')).toBe(true)
     }

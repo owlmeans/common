@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import * as schemas from '../src/schemas.js'
 import { TransitionAction, WorkcardKind } from '../src/consts.js'
-import { makeAjv, validateCard } from '../src/helpers/validate.js'
-import { applyTransition } from '../src/helpers/apply.js'
-import { computeChanges } from '../src/helpers/changes.js'
+import { makeAjv, validateHelper } from '../src/helpers/validate.js'
 import { FieldsInvalid } from '../src/errors.js'
 import { AT, STORY_TYPE, makeRegistry, transitionOf } from './fixtures.js'
+import { applyHelper } from '../src/helpers/apply.js'
+import { changesHelper } from '../src/helpers/changes.js'
 
 type Node = Record<string, unknown>
 
@@ -53,15 +53,15 @@ describe('schemas', () => {
     exported.forEach(([, schema]) => ajv.compile(schema as object))
 
     const registry = makeRegistry()
-    const { changes } = computeChanges(undefined, {
+    const { changes } = changesHelper.computeChanges(undefined, {
       action: TransitionAction.Create,
       card: { kind: WorkcardKind.Card, type: STORY_TYPE.type, title: 'Story', fields: { area: 'user', primary: true } },
     }, STORY_TYPE, registry, AT)
-    const card = applyTransition(undefined, transitionOf({ card: 'c1', seq: 1, action: TransitionAction.Create, changes }))!
+    const card = applyHelper.applyTransition(undefined, transitionOf({ card: 'c1', seq: 1, action: TransitionAction.Create, changes }))!
 
-    expect(() => validateCard(card, registry)).not.toThrow()
-    expect(() => validateCard({ ...card, fields: { area: 'moon', primary: true } }, registry)).toThrow(FieldsInvalid)
-    expect(() => validateCard({ ...card, fields: { 'a.b': 1 } }, registry)).toThrow('keys:a.b')
+    expect(() => validateHelper.validateCard(card, registry)).not.toThrow()
+    expect(() => validateHelper.validateCard({ ...card, fields: { area: 'moon', primary: true } }, registry)).toThrow(FieldsInvalid)
+    expect(() => validateHelper.validateCard({ ...card, fields: { 'a.b': 1 } }, registry)).toThrow('keys:a.b')
   })
 
   test('an execute request accepts a card id or a create draft, and refuses an unknown action', () => {

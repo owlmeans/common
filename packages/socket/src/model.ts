@@ -5,9 +5,9 @@ import type {
   AuthMessage, CallHendler, CallMessage, CallResolver, Connection, ConnectionListener,
   EventMessage, Message, RequestHandler
 } from './types.js'
-import { uuid } from '@owlmeans/basic-ids'
 import { AuthenticationStage, AuthError } from '@owlmeans/auth'
 import { logger } from '@owlmeans/log'
+import { idHelper } from '@owlmeans/basic-ids'
 
 const log = logger('socket')
 
@@ -55,7 +55,7 @@ export const createBasicConnection = (): Connection => {
 
     call: async (method, ...payload) => {
       const msg: CallMessage<any> = {
-        method, payload, type: MessageType.Call, id: uuid()
+        method, payload, type: MessageType.Call, id: idHelper.uuid()
       }
       conn.prepare?.(msg)
       return new Promise(async (resolve, reject) => {
@@ -89,7 +89,7 @@ export const createBasicConnection = (): Connection => {
 
     request: async (payload, observer) => {
       const msg: Message<any> = {
-        type: MessageType.Request, payload, id: uuid()
+        type: MessageType.Request, payload, id: idHelper.uuid()
       }
       if (observer != null) {
         observers[msg.id!] = observer

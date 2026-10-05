@@ -1,8 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify'
-import { logger } from '@owlmeans/log'
-import type { LogLevel, Logger } from '@owlmeans/log'
-
-type Severity = 'debug' | 'info' | 'warn' | 'error'
+import { logger, type LogLevel, type Logger } from '@owlmeans/log'
+import type { Severity } from './types.local.js'
 
 /**
  * What Fastify says about itself, mapped to what an operator needs at each level.

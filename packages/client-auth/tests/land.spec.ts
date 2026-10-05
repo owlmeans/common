@@ -2,18 +2,16 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { makeTestContext } from './context.js'
 import { makeFixtureKeyPair } from '@owlmeans/test-auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
-import { AuthroizationType, AuthRole, DISPATCHER } from '@owlmeans/auth'
-import type { Auth } from '@owlmeans/auth'
-import { HOME } from '@owlmeans/context'
-import type { BasicContext, BasicConfig } from '@owlmeans/context'
+import { AuthroizationType, AuthRole, DISPATCHER, type Auth } from '@owlmeans/auth'
+import { HOME, type BasicContext, type BasicConfig } from '@owlmeans/context'
 import { createStaticResource } from '@owlmeans/static-resource'
 import type { Resource } from '@owlmeans/resource'
-import { FLOW_STATE, RESUME_FLOW } from '@owlmeans/client-flow'
-import type { SuspendedLandingRecord } from '@owlmeans/client-flow'
+import { FLOW_STATE, RESUME_FLOW, type SuspendedLandingRecord } from '@owlmeans/client-flow'
 import { DEFAULT_ALIAS as AUTH_ALIAS } from '../src/consts.js'
 import type { AuthService } from '@owlmeans/auth-common'
 import { appendLogin } from '../src/login/service.js'
-import { continueLogin, landAfterLogin, LOGIN_LANDED_STORAGE } from '../src/login/land.js'
+import { makeLoginLandingHelper } from '../src/login/land.js'
+import { LOGIN_LANDED_STORAGE } from '../src/login/consts.js'
 import type { LoginLandingHook, LoginService, LoginStep } from '../src/login/types.js'
 
 /**
@@ -86,7 +84,7 @@ describe('continueLogin — no steps registered', () => {
   test('falls through to a suspended flow, then HOME', async () => {
     const [context] = await bootstrap({ authenticated: true })
 
-    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: HOME })
   })
 })
 
@@ -107,7 +105,7 @@ describe('continueLogin — steps', () => {
       query: () => ({ from: 'test' }),
     }))
 
-    expect(await continueLogin(context)).toEqual({
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({
       alias: 'step-screen', query: { from: 'test' }, step: 'consent',
     })
     // The suspended landing is still there — a later step, or the eventual fallback, still needs it.
@@ -123,7 +121,7 @@ describe('continueLogin — steps', () => {
       pending: async () => { throw new Error('boom') },
     }))
 
-    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: HOME })
   })
 
   test('a step whose `pending` never resolves is treated as not pending after the timeout', async () => {
@@ -135,7 +133,7 @@ describe('continueLogin — steps', () => {
       pending: () => new Promise<boolean>(() => { /* never settles */ }),
     }))
 
-    expect(await continueLogin(context, { stepTimeout: 20 })).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin({ stepTimeout: 20 })).toEqual({ alias: HOME })
   })
 
   test('a step whose entrypoint is unresolvable is skipped, never throws', async () => {
@@ -146,7 +144,7 @@ describe('continueLogin — steps', () => {
       alias: 'unbound', entrypoint: 'nowhere', pending: async () => { called = true; return true },
     }))
 
-    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: HOME })
     expect(called).toBe(false)
   })
 
@@ -157,15 +155,15 @@ describe('continueLogin — steps', () => {
     login.registerStep(step({ alias: 'a', entrypoint: 'a-screen', priority: 20, pending: async () => true }))
     login.registerStep(step({ alias: 'b', entrypoint: 'b-screen', priority: 10, pending: async () => true }))
 
-    expect(await continueLogin(context)).toEqual({ alias: 'a-screen', query: undefined, step: 'a' })
-    expect(await continueLogin(context, { after: 'a' }))
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: 'a-screen', query: undefined, step: 'a' })
+    expect(await makeLoginLandingHelper(context).continueLogin({ after: 'a' }))
       .toEqual({ alias: 'b-screen', query: undefined, step: 'b' })
   })
 
   test('an unauthenticated caller with an explicit alias still gets that alias', async () => {
     const [context] = await bootstrap()
 
-    expect(await continueLogin(context, {
+    expect(await makeLoginLandingHelper(context).continueLogin({
       fallback: { alias: 'explicit-alias' }, resume: false,
     })).toEqual({ alias: 'explicit-alias' })
   })
@@ -181,7 +179,7 @@ describe('continueLogin — a `required` step', () => {
       pending: async () => { throw new Error('boom') },
     }))
 
-    expect(await continueLogin(context)).toEqual({
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({
       alias: 'required-screen', query: undefined, step: 'required-broken',
     })
   })
@@ -195,7 +193,7 @@ describe('continueLogin — a `required` step', () => {
       pending: () => new Promise<boolean>(() => { /* never settles */ }),
     }))
 
-    expect(await continueLogin(context, { stepTimeout: 20 })).toEqual({
+    expect(await makeLoginLandingHelper(context).continueLogin({ stepTimeout: 20 })).toEqual({
       alias: 'required-hanging-screen', query: undefined, step: 'required-hanging',
     })
   })
@@ -209,7 +207,7 @@ describe('continueLogin — a `required` step', () => {
       pending: async () => { called = true; return true },
     }))
 
-    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: HOME })
     expect(called).toBe(false)
   })
 
@@ -220,7 +218,7 @@ describe('continueLogin — a `required` step', () => {
     login.registerStep(step({
       alias: 'required-ok', entrypoint: 'required-screen', required: true, pending: async () => false,
     }))
-    expect(await continueLogin(context)).toEqual({ alias: HOME })
+    expect(await makeLoginLandingHelper(context).continueLogin()).toEqual({ alias: HOME })
   })
 })
 
@@ -236,7 +234,7 @@ describe('landAfterLogin — the surrogate short circuit', () => {
     }))
     login.onLanded({ alias: 'never', landed: async () => { hookCalled = true } })
 
-    expect(await landAfterLogin(context)).toEqual({ alias: DISPATCHER })
+    expect(await makeLoginLandingHelper(context).landAfterLogin()).toEqual({ alias: DISPATCHER })
     expect(stepCalled).toBe(false)
     expect(hookCalled).toBe(false)
   })
@@ -257,11 +255,11 @@ describe('landAfterLogin — landing hooks', () => {
       alias: 'high', priority: 10, landed: async () => { order.push('high'); throw new Error('boom') },
     }))
 
-    await landAfterLogin(context)
+    await makeLoginLandingHelper(context).landAfterLogin()
     expect(order).toEqual(['high', 'low'])
 
     // Same token again — neither hook runs a second time.
-    await landAfterLogin(context)
+    await makeLoginLandingHelper(context).landAfterLogin()
     expect(order).toEqual(['high', 'low'])
   })
 
@@ -272,13 +270,13 @@ describe('landAfterLogin — landing hooks', () => {
     let count = 0
     login.onLanded(hook({ alias: 'counter', landed: async () => { count += 1 } }))
 
-    await landAfterLogin(context)
+    await makeLoginLandingHelper(context).landAfterLogin()
     expect(count).toBe(1)
 
     const authService = context.service<AuthService>(AUTH_ALIAS)
     await authService.update(await makeBearer({ userId: 'a-different-user' }))
 
-    await landAfterLogin(context)
+    await makeLoginLandingHelper(context).landAfterLogin()
     expect(count).toBe(2)
   })
 
@@ -287,7 +285,7 @@ describe('landAfterLogin — landing hooks', () => {
     const [context] = await bootstrap({ authenticated: true })
     const authService = context.service<AuthService>(AUTH_ALIAS)
 
-    await landAfterLogin(context)
+    await makeLoginLandingHelper(context).landAfterLogin()
 
     expect(window.localStorage.getItem(LOGIN_LANDED_STORAGE)).toBe(authService.token as string)
   })

@@ -4,7 +4,7 @@ import { addMessages, entrypoint, task } from '@langchain/langgraph'
 import { createIdOfLength } from '@owlmeans/basic-ids'
 import { makeFlowModel } from '@owlmeans/flow'
 import type { FlowModel } from '@owlmeans/flow'
-import { pluginFor } from '@owlmeans/llm'
+import { llmPluginRegistry } from '@owlmeans/llm'
 import type { HelperExecution, ModelInputItem } from '@owlmeans/llm'
 import { logger } from '@owlmeans/log'
 import {
@@ -12,10 +12,10 @@ import {
 } from '@owlmeans/agent-common'
 import { DEFAULT_ACTION, DEFAULT_ENTRYPOINT, DEFAULT_MAX_TURNS, DEFAULT_PLUGIN_ORDER } from './consts.js'
 import { AgentLoopExhaustedError, AgentMissconfiguredError } from './errors.js'
-import { safeInvokeTool } from './helpers/tools.js'
 import type {
   AgentModel, AgentOptions, AgentPlugin, AgentResult, AgentRun, AgentRunOutcome, AgentToolSet,
 } from './types.js'
+import { toolHelper } from './helpers/tools.js'
 
 const log = logger('agent')
 
@@ -49,7 +49,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
 
   const conversation = options.conversation ?? conversationFor(exec.purpose)
   const prompts = options.prompts ?? exec.prompts
-  const provider = options.provider ?? pluginFor(agentModel)
+  const provider = options.provider ?? llmPluginRegistry.pluginFor(agentModel)
   const purpose = exec.purpose
 
   const registry: AgentPlugin[] = []
@@ -167,7 +167,7 @@ export const makeAgentModel = (options: AgentOptions): AgentModel => {
       // `safeInvokeTool` is what keeps a bad argument from costing the work the others finished.
       const call = task(
         'call-tool',
-        async (toolCall: ToolCall) => safeInvokeTool(toolSet, toolCall, options.fatal),
+        async (toolCall: ToolCall) => toolHelper.safeInvokeTool(toolSet, toolCall, options.fatal),
       )
 
       const agent = entrypoint(entrypointName, async (messages: BaseMessageLike[]) => {

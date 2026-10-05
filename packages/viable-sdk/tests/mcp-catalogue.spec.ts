@@ -4,9 +4,8 @@ import {
   ConnectConsentRequired, ConnectHarness, ConnectLlm, ConnectOutOfCredits, ConnectTarget, ViableStoryTransition,
 } from '@owlmeans/viable-common'
 import { registerCatalogue } from '../src/tools/mcp.js'
-import type { McpServerLike } from '../src/tools/mcp.js'
-import { ToolHostKind } from '../src/tools/types.js'
-import type { ToolDeps, ToolHost } from '../src/tools/types.js'
+import type { McpServerLike, ToolDeps, ToolHost } from '../src/tools/types.js'
+import { ToolHostKind } from '../src/tools/consts.js'
 import { makePlanningSuite } from './context.js'
 
 const host: ToolHost = {

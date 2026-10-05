@@ -12,7 +12,7 @@ Client-side records go in [`@owlmeans/state`](../state).
 ## Installation
 
 ```bash
-bun add @owlmeans/mongo-resource@^0.1.18-rc.41
+bun add @owlmeans/mongo-resource@^0.1.18-rc.42
 ```
 
 `mongodb` and `ajv` are peer dependencies. The connection service comes from
@@ -135,10 +135,10 @@ idempotent: without transactions an interrupted body can run again.
 ### Raw driver access with converted references
 
 ```ts
-import { marshalReference } from '@owlmeans/mongo-resource'
+import { mongoRefHelper } from '@owlmeans/mongo-resource'
 
 await projects.collection.updateOne(
-  { _id: marshalReference('id', projectId) as never, jobSequence },
+  { _id: mongoRefHelper.marshalReference('id', projectId) as never, jobSequence },
   { $inc: { jobSequence: 1 }, $set: { updatedAt: new Date() } }
 )
 ```
@@ -242,15 +242,15 @@ database, so each database tracks its own.
 | `MongoDbService` | type | Connection service contract implemented by `@owlmeans/mongo` |
 | `MongoTx` | type | Façade handed to migration bodies: `db`, `collection`, `use(alias)`, `ref(alias)` |
 | `MongoReference`, `MongoRefOptions` | type | A declared reference and the `reference()` options (`resource`, `noIndex`) |
-| `criteriaToFilter(criteria, refs)` | function | `Criteria<T>` to a Mongo filter, with references converted |
-| `sortToMongo(sort)` | function | `Sort<T>[]` to a Mongo sort document (`id` becomes `_id`) |
-| `marshalReference(field, value)` | function | String id(s) to `ObjectId` for a write; throws `MisshapedRecord` on non-ids |
-| `demarshalReference(value)`, `demarshalRefs(record, refs)` | function | `ObjectId` back to strings for one value or a whole document |
-| `marshalCriteria(filter, refs)`, `identityCriteria(field, id, refs)` | function | Convert a Mongo filter's id-addressed values; build a single-record lookup |
-| `isObjectIdHex(value)` | function | Strict 24-hex test used by the conversion layer |
-| `convertReferenceField`, `makeRefMigration`, `reconcileReferences`, `refMigrationName` | function | The system reference migration and its boot-time probe |
+| `mongoCriteriaHelper` (`MongoCriteriaHelper`) | helper | `criteriaToFilter(criteria, refs)` — `Criteria<T>` to a Mongo filter, with references converted; `sortToMongo(sort)` — `Sort<T>[]` to a Mongo sort document (`id` becomes `_id`) |
+| `mongoRefHelper` (`MongoRefHelper`) | helper | The reference conversion layer, members below |
+| `mongoRefHelper.marshalReference(field, value)` | member | String id(s) to `ObjectId` for a write; throws `MisshapedRecord` on non-ids |
+| `mongoRefHelper.demarshalReference(value)`, `.demarshalRefs(record, refs)` | member | `ObjectId` back to strings for one value or a whole document |
+| `mongoRefHelper.marshalCriteria(filter, refs)`, `.identityCriteria(field, id, refs)` | member | Convert a Mongo filter's id-addressed values; build a single-record lookup |
+| `mongoRefHelper.isObjectIdHex(value)` | member | Strict 24-hex test used by the conversion layer |
+| `mongoRefHelper.convertReferenceField`, `.reconcileReferences`, `.refMigrationName`; `makeRefMigration` | member / function | The system reference migration and its boot-time probe |
 | `makeMongoTx`, `makeMongoMigrationStore` | function | The migration façade and the ledger implementation |
-| `getDeclaration(alias)`, `resetDeclarations(alias?)`, `MongoDeclaration` | function / type | Module-scope per-alias declarations; `resetDeclarations` is the testing seam |
+| `mongoDeclarationHelper` (`MongoDeclarationHelper`), `MongoDeclaration` | helper / type | Module-scope per-alias declarations: `getDeclaration(alias)`, and `resetDeclarations(alias?)` — the testing seam |
 | `getSchemaSecureFeilds(schema)` | function | The `secure: true` properties `lock`/`unlock` use when no fields are named |
 | `DEFAULT_DB_ALIAS` | const | `'mongo'` |
 | `DEFAULT_PAGE_SIZE` | const | `100` |
@@ -275,7 +275,7 @@ database, so each database tracks its own.
 - **Expecting `update` to merge.** It replaces the whole document. Pass every field that must survive.
 - **Reading "everything" with `list(where)`.** It stops at 100. Ask with `{ size: 0 }`, or page.
 - **Raw `resource.collection` calls with string ids.** They match nothing against `ObjectId`
-  fields. Use `marshalReference`.
+  fields. Use `mongoRefHelper.marshalReference`.
 - **Passing `{ ttl }`.** It is refused. Expiring records belong in Redis.
 
 ## Related packages
@@ -294,7 +294,7 @@ This package ships embedded agent skills under `agent-meta/`. After installing y
 your project's skill store (`.agents/skills/`):
 
 ```sh
-npx @owlmeans/agent-skills@^0.1.18-rc.47
+npx @owlmeans/agent-skills@^0.1.18-rc.48
 ```
 
 The embedded files are version-matched to this package release. Do not edit them

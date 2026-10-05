@@ -1,7 +1,7 @@
 /**
- * Regenerate `src/wordlists/list-a.ts` and `src/wordlists/list-b.ts`.
+ * Regenerate `src/wordlists/consts.ts` (`WORDLIST_A` and `WORDLIST_B`).
  *
- * Run: `bun run scripts/curate-wordlists.ts` (needs network access; writes the two source files).
+ * Run: `bun run scripts/curate-wordlists.ts` (needs network access; writes the constants file).
  *
  * The lists are an editorial asset, not a random sample: every word ends up in hostnames, OIDC
  * client ids and support conversations, so the pipeline below screens three ways — a profanity
@@ -131,12 +131,17 @@ const curate = async () => {
     }
   }
 
-  emit('list-a', 'WORDLIST_A', 'Descriptive half of a word slug — adjectives and adverbs.', listA)
-  emit('list-b', 'WORDLIST_B', 'Subject half of a word slug — verbs and nouns.', listB)
+  writeFileSync(
+    resolve(import.meta.dir, '..', 'src', 'wordlists', 'consts.ts'),
+    [
+      emit('WORDLIST_A', 'Descriptive half of a word slug — adjectives and adverbs.', listA),
+      emit('WORDLIST_B', 'Subject half of a word slug — verbs and nouns.', listB),
+    ].join('\n')
+  )
   console.log(`Wrote ${listA.length} + ${listB.length} words.`)
 }
 
-const emit = (file: string, name: string, summary: string, words: string[]) => {
+const emit = (name: string, summary: string, words: string[]): string => {
   const rows: string[] = []
   for (let index = 0; index < words.length; index += 8) {
     rows.push('  ' + words.slice(index, index + 8).map(word => `'${word}'`).join(', ') + ',')
@@ -156,7 +161,7 @@ export const ${name}: string[] = [
 ${rows.join('\n')}
 ]
 `
-  writeFileSync(resolve(import.meta.dir, '..', 'src', 'wordlists', `${file}.ts`), body)
+  return body
 }
 
 await curate()

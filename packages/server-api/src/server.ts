@@ -1,14 +1,13 @@
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import type { ServerContext } from '@owlmeans/server-context'
 import type { ApiServer, ApiServerAppend } from './types.js'
 import { assertContext, createService } from '@owlmeans/context'
-import { canServeModule, executeResponse, provideRequest } from './utils/index.js'
+import { canServeModule, payloadHelper, createServerHandler, fixFormatDates } from './utils/index.js'
 import { DEFAULT_ALIAS, CLOSED_HOST, PORT, OPENED_HOST } from './consts.js'
 import type { ServerEntrypoint } from '@owlmeans/server-entrypoint'
 import { RouteMethod } from '@owlmeans/route'
-import { createServerHandler, fixFormatDates } from './utils/index.js'
 import { provideResponse } from '@owlmeans/entrypoint'
 import { TOKEN_UPDATE } from '@owlmeans/auth-common'
-import { INCIDENT_ID_HEADER } from './utils/error.js'
+import { INCIDENT_ID_HEADER } from './utils/consts.js'
 import { DENIAL_KIND_HEADER } from '@owlmeans/api'
 import { logger } from '@owlmeans/log'
 import { fastifyLogger } from './utils/log.js'
@@ -24,6 +23,8 @@ import Multipart from '@fastify/multipart'
 import formatsPlugin from 'ajv-formats'
 import Ajv from 'ajv'
 import ajvErrors from "ajv-errors"
+import { bodyLimit } from './consts.local.js'
+import type { Config, Context } from './types.local.js'
 
 
 const ajv = new Ajv({
@@ -36,10 +37,6 @@ const ajv = new Ajv({
 formatsPlugin(ajv)
 ajvErrors(ajv, { singleError: true })
 
-type Config = ServerConfig
-type Context = ServerContext<Config>
-
-const bodyLimit = 1024 * 1024 * 20
 
 const http = logger('http')
 
@@ -147,13 +144,13 @@ export const createApiServer = (alias: string): ApiServer => {
         // An intermediate route can be created without a handler by the binding layer.
         if (module.route.match(request, module.mount()) && module.handle != null) {
           const response = provideResponse(reply)
-          const currentRequest = provideRequest(module.alias, request, true)
+          const currentRequest = payloadHelper.provideRequest(module.alias, request, true)
           currentRequest.original._ctx = context
           const result: Context = await module.handle(currentRequest, response)
           if (result != null) {
             context = result
           }
-          responded = executeResponse(response, reply, true) || responded
+          responded = payloadHelper.executeResponse(response, reply, true) || responded
         }
         return context
       }, Promise.resolve(context))

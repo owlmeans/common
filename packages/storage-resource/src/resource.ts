@@ -10,7 +10,7 @@ import { logger } from '@owlmeans/log'
 
 const log = logger('storage-resource')
 
-export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?: string) => {
+export const createStorageResource = (alias: string = DEFAULT_ALIAS, configKey?: string): StorageResource => {
   configKey ??= alias
 
   const resource = appendContextual<StorageResource>(alias, {

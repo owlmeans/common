@@ -1,4 +1,6 @@
 export * from './consts.js'
 export * from './schemas.js'
 export type * from './types.js'
+export type * from './share/types.js'
+export * from './share.js'
 export * from './helpers.js'

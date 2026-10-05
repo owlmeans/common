@@ -139,3 +139,6 @@ export interface PromptService extends InitializedService {
 export interface WithPromptService {
   prompts: () => PromptService
 }
+
+/** The part of {@link PromptService} this package implements — see {@link promptServiceApi}. */
+export interface PromptServiceApi extends Pick<PromptService, 'use' | 'register' | 'has' | 'resolve' | 'skills' | 'compose'> {}

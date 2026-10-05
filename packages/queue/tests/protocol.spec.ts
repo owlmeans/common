@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { contract, protocol, schema } from '@owlmeans/entrypoint'
 import { route } from '@owlmeans/route'
 import type { JSONSchemaType } from 'ajv'
-import { enqueueProtocol, job, waitForProtocol, type JobRecord } from '../src/index.js'
+import { job, queueProtocolOf, type JobRecord } from '../src/index.js'
 
 interface Input { value: number }
 interface Output { doubled: number }
@@ -35,23 +35,23 @@ const context = (reply: unknown = { value: { doubled: 6 } }) => {
 describe('protocol-aware queue calls', () => {
   test('derives the broker address and keeps per-call options', async () => {
     const ctx = context()
-    const queued = await enqueueProtocol(ctx as never, declaration, { body: { value: 3 } }, {
+    const queued = await queueProtocolOf(ctx as never).enqueue(declaration, { body: { value: 3 } }, {
       delay: 250, attempts: 3, id: 'projection-1',
     })
     expect(queued.queue).toBe('test')
     expect(ctx.created[0]?.name).toBe(declaration.alias)
     expect(ctx.created[0]?.opts).toEqual({ delay: 250, attempts: 3, id: 'projection-1' })
-    expect(await waitForProtocol(ctx as never, declaration, queued as never)).toEqual({ doubled: 6 })
+    expect(await queueProtocolOf(ctx as never).waitFor(declaration, queued as never)).toEqual({ doubled: 6 })
   })
 
   test('rejects raw aliases and non-queue declarations at runtime', async () => {
-    await expect(enqueueProtocol(context() as never, declaration.alias as never, {} as never)).rejects.toThrow()
+    await expect(queueProtocolOf(context() as never).enqueue(declaration.alias as never, {} as never)).rejects.toThrow()
     const http = protocol(route('test:http', '/http'), contract())
-    await expect(enqueueProtocol(context() as never, http, {})).rejects.toThrow()
+    await expect(queueProtocolOf(context() as never).enqueue(http, {})).rejects.toThrow()
   })
 
   test('rejects a job from another queue or protocol', async () => {
-    await expect(waitForProtocol(context() as never, declaration, {
+    await expect(queueProtocolOf(context() as never).waitFor(declaration, {
       id: 'x', queue: 'other', name: declaration.alias, data: {},
     } as never)).rejects.toThrow()
   })

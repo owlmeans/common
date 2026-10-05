@@ -8,7 +8,7 @@ import type { PlanningFacade, PlanningPlugin, PlanningSchemaRegistry } from '@ow
 import { makeRemoteCommitSource } from './commits.js'
 import { makeRemoteDefinitions } from './definitions.js'
 import { makeRemoteFacade } from './facade.js'
-import { planningStoresOf } from './stores.js'
+import { planningContextOf } from './helper.js'
 import type {
   Config, Context, PlanningClientOptions, PlanningClientService, WithPlanningClient,
 } from './types.js'
@@ -27,7 +27,7 @@ export const makePlanningClientService = <C extends Config, T extends Context<C>
 ): PlanningClientService => {
   const registry = makeSchemaRegistry()
   const plugins: PlanningPlugin[] = []
-  const stores = () => planningStoresOf(context)
+  const stores = () => planningContextOf(context).stores()
 
   const commits = makeRemoteCommitSource(context, options.protocols, {
     socket: options.socket, poll: options.poll, timeout: options.timeout, stores,

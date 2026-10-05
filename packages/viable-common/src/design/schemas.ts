@@ -1,9 +1,8 @@
 import type { JSONSchemaType } from 'ajv'
 
 import { ProjectArea } from '../areas/consts.js'
-import { StoryActor, StoryAgentKind } from './runtime.js'
-import type { StoryDesignAgent, StoryDesignJob } from './runtime.js'
-import type { StoryDesign } from './types.js'
+import { StoryActor, StoryAgentKind } from './consts.js'
+import type { StoryDesign, RuntimeDecision } from './types.js'
 
 /**
  * The design shape, validated where the shape is DEFINED.
@@ -375,10 +374,3 @@ export const RuntimeDecisionSchema = {
   // is that they are usually empty.
 } as unknown as JSONSchemaType<RuntimeDecision>
 
-/** What the gate answers with — the model's half of {@link StoryDesignRuntime}. */
-export interface RuntimeDecision {
-  kv: boolean
-  feedback: string
-  jobs: StoryDesignJob[]
-  agents: StoryDesignAgent[]
-}

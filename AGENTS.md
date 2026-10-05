@@ -60,6 +60,15 @@ never write memory outside this repository.
 Work that started from an agreed plan is complete only after the `self-education` skill is applied;
 the completion report states its outcome or why none was needed.
 
+## Code structure (mandatory)
+
+The functions of one domain are ONE object built by a factory: its `interface` is declared first
+(never `ReturnType<typeof …>`; interfaces over types wherever possible), the implementation and its
+private parts live in the factory, and a shared context or collaborator is bound into the factory.
+Types, consts and code live in separate files; an object with parts gets a same-named folder
+(`x.ts` + `x/types.ts`). Load `/owlmeans-code-structure` before writing, moving or reviewing any
+`.ts`/`.tsx`, and hold every diff to it.
+
 ## What This Is
 
 Security-first TypeScript monorepo framework for fullstack microservice/microclient apps, with
@@ -108,6 +117,7 @@ topic or `/<name>`. Every package has its own skill `/<package-name>` (`owlmeans
 `owlmeans-config` avoid built-in command names).
 
 - `/reuse-code` — MANDATORY before planning or writing any feature: find an existing package or code first
+- `/owlmeans-code-structure` — before writing, moving or reviewing any `.ts`/`.tsx`: file kinds, helpers, models
 - `/logging` — before adding any log line, catch block or `console` call: `@owlmeans/log` policy (`/log`, `/web-log`, `/viable-log`)
 - `/localization` — before adding any UI string or translation file (`/i18n`, `/client-i18n` per package)
 - `/dependency-tree` — layer placement, new dependency edges, build cycles

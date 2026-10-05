@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { addLogPlugin, memoryPlugin } from '@owlmeans/log'
-import { getDeclaration, resetDeclarations, schemaToTableSpec } from '@owlmeans/postgres-resource'
+import { pgDeclarationHelper, pgSchemaHelper } from '@owlmeans/postgres-resource'
 
 import {
   makePlanningCardPostgres, makePlanningLinkPostgres, makePlanningSchemaPostgres, makePlanningTransitionPostgres,
@@ -15,7 +15,7 @@ import {
  */
 describe('@owlmeans/planning-postgres — table shapes', () => {
   test('the card table: text timestamps, integer counters, text body, a private headAt', () => {
-    const spec = schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true)
+    const spec = pgSchemaHelper.schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true)
     const typeOf = (property: string) => [spec.byProperty[property].sqlType, spec.byProperty[property].jsonType]
 
     for (const timestamp of ['createdAt', 'updatedAt', 'closedAt', 'headAt']) {
@@ -33,9 +33,9 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
   })
 
   test('the log, the links and the schema records keep text timestamps too', () => {
-    const log = schemaToTableSpec(RES_PLANNING_TRANSITION, PlanningTransitionTableSchema, 'app', 'planning_transition', true)
-    const links = schemaToTableSpec(RES_PLANNING_LINK, PlanningLinkTableSchema, 'app', 'planning_link', true)
-    const schemas = schemaToTableSpec(RES_PLANNING_SCHEMA, PlanningSchemaTableSchema, 'app', 'planning_schema', true)
+    const log = pgSchemaHelper.schemaToTableSpec(RES_PLANNING_TRANSITION, PlanningTransitionTableSchema, 'app', 'planning_transition', true)
+    const links = pgSchemaHelper.schemaToTableSpec(RES_PLANNING_LINK, PlanningLinkTableSchema, 'app', 'planning_link', true)
+    const schemas = pgSchemaHelper.schemaToTableSpec(RES_PLANNING_SCHEMA, PlanningSchemaTableSchema, 'app', 'planning_schema', true)
 
     expect([log.byProperty.at.sqlType, log.byProperty.seq.sqlType, log.byProperty.commit.jsonb]).toEqual(['text', 'integer', true])
     expect(links.byProperty.createdAt.sqlType).toBe('text')
@@ -46,7 +46,7 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
 
   test('each maker declares its indexes once, however often it runs', () => {
     for (const alias of [RES_PLANNING_CARD, RES_PLANNING_TRANSITION, RES_PLANNING_LINK, RES_PLANNING_SCHEMA]) {
-      resetDeclarations(alias)
+      pgDeclarationHelper.resetDeclarations(alias)
     }
     const memory = memoryPlugin('planning-postgres-schema')
     const remove = addLogPlugin(memory)
@@ -57,7 +57,7 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
         makePlanningLinkPostgres()
         makePlanningSchemaPostgres()
       }
-      const names = (alias: string) => getDeclaration(alias).indexes.map(index => index.name).sort()
+      const names = (alias: string) => pgDeclarationHelper.getDeclaration(alias).indexes.map(index => index.name).sort()
 
       expect(names(RES_PLANNING_CARD)).toEqual([
         'planning_card_code', 'planning_card_entity_intrinsic', 'planning_card_entity_kind_type', 'planning_card_labels',
@@ -71,7 +71,7 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
       ])
       expect(names(RES_PLANNING_SCHEMA)).toEqual(['planning_schema_rev', 'planning_schema_scope'])
 
-      schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true, getDeclaration(RES_PLANNING_CARD).indexes)
+      pgSchemaHelper.schemaToTableSpec(RES_PLANNING_CARD, PlanningCardTableSchema, 'app', 'planning_card', true, pgDeclarationHelper.getDeclaration(RES_PLANNING_CARD).indexes)
       expect(memory.records.filter(record => record.level === 'warn')).toEqual([])
     } finally {
       remove()
@@ -79,7 +79,7 @@ describe('@owlmeans/planning-postgres — table shapes', () => {
   })
 
   test('the unique and partial indexes the store relies on', () => {
-    const find = (alias: string, name: string) => getDeclaration(alias).indexes.find(index => index.name === name)
+    const find = (alias: string, name: string) => pgDeclarationHelper.getDeclaration(alias).indexes.find(index => index.name === name)
 
     expect(find(RES_PLANNING_TRANSITION, 'planning_transition_card_seq')).toMatchObject({ columns: ['card', 'seq'], unique: true })
     expect(find(RES_PLANNING_TRANSITION, 'planning_transition_entity_key')).toMatchObject({ unique: true, where: '"key" IS NOT NULL' })

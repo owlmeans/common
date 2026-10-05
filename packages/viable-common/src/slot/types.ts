@@ -1,4 +1,5 @@
-import type { SlotCommandType, SlotDatabaseCommand, SlotFileCommand, SlotGitCommand, SlotShellCommand, SubProject } from './consts.js'
+import { type SlotCommandType, type SlotDatabaseCommand, type SlotFileCommand, type SlotGitCommand, type SlotShellCommand, type SubProject, WorkloadKind } from './consts.js'
+import { TargetLayout } from '../integrity/index.js'
 
 export type SlotCommand = SlotFileCommand | SlotShellCommand | SlotGitCommand | SlotDatabaseCommand
 
@@ -21,6 +22,7 @@ export interface SlotDatabaseQueryArgs {
   timeoutMs?: number
 }
 
+// Kept as a type: a union of the success and the failure shape.
 export type SlotDatabaseQueryResult = {
   ok: true
   columns: Array<{ name: string; dataType: string }>
@@ -190,4 +192,59 @@ export interface SlotShellArgs {
   /** Free-form arguments for {@link SlotShellCommand.Bun}; absent means a plain install. */
   args?: string
   skipBuild?: boolean
+}
+
+/** The minimum a caller must know about a slot to address it. */
+export interface AddressableSlot {
+  kind?: WorkloadKind
+  host?: string
+}
+
+/**
+ * Where each role lives, for one layout. Directory names are target-root-relative.
+ *
+ * The pure half of layout resolution. Whoever holds the tree — the publisher over a pod volume,
+ * the connector over a directory on a developer's machine — adds the two filesystem probes that
+ * pick the layout and turn these names into absolute paths. The TABLES are shared so the two
+ * cannot disagree about what a role means.
+ */
+export interface TargetPaths {
+  layout: TargetLayout
+  /** The directory holding the workspace packages — `packages` or `sources`. */
+  dir: string
+  /** The package whose `dist/index.js` runs as the target's HTTP server. */
+  api: string
+  /** The package whose `dist/` is served to a browser. */
+  web: string
+  /** The shared library the other two compile against. */
+  common: string
+  /**
+   * The package whose `dist/index.js` runs as the target's queue worker, when the target has one.
+   *
+   * Absent for v1, which had no such package and never will — a target's tree is the one it was
+   * initialized with. Present for v2 as a NAME, not as a promise: every caller checks the disk
+   * before acting on it.
+   */
+  worker?: string
+  /**
+   * Every package a full build runs, in dependency order.
+   *
+   * Longer than the three roles for v2, whose `backend` is a library that both `api` and `worker`
+   * import. A caller skips whatever is not on disk — a target need not have a worker.
+   */
+  build: string[]
+  /**
+   * The packages built with `tsc -b` and consumed through their `build/` output, in dependency
+   * order — never bundled, so their output has to be on disk at RUN time, not only at build time.
+   *
+   * The bundled packages keep every dependency external, so `bun dist/index.js` resolves
+   * `project-backend` from `node_modules` at startup, follows its `main` to `build/index.js` — and
+   * if nothing built it, Bun answers `Cannot find package 'project-backend'` and the target exits 1
+   * with a message that names a dependency rather than a missing build.
+   *
+   * v1 got away without this list: it had ONE library and the template shipped its `build/`
+   * prebuilt. v2 deleted those artifacts and added a second library, so every path that builds a
+   * target has to build these first or it can never start.
+   */
+  libraries: string[]
 }

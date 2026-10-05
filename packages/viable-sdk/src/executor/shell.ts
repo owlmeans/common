@@ -2,21 +2,21 @@ import fs from 'fs-extra'
 import { randomUUID } from 'node:crypto'
 import p from 'node:path'
 
-import {
-  formatIntegrityReport, SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT,
-  TARGET_BOOTCHECK_SCHEMA
-} from '@owlmeans/viable-common'
-import type { SlotShellResult } from '@owlmeans/viable-common'
+import { SubProject, TARGET_BOOTCHECK_MARKER, TARGET_BOOTCHECK_PORT, TARGET_BOOTCHECK_SCHEMA, type SlotShellResult, targetIntegrityHelper } from '@owlmeans/viable-common'
 
-import { probePort, readEnvFile, ROOT_ENV_FILE, serviceEndpoint } from '../project/env.js'
-import { restartApi } from '../run/state.js'
+import { makeProjectEnvHelper } from '../project/env.js'
+import { probeHelper } from '../project/probe.js'
+import { ROOT_ENV_FILE } from '../project/consts.js'
+import { makeRunStateHelper } from '../run/state.js'
 import { createBootCheckJob, runBootCheck } from './boot-check.js'
-import type { BootCheckJob, BootCheckReport, BootCheckStatus } from './boot-check.js'
-import { backendEnv, frontendEnv } from './env.js'
-import type { LocalFileHelper } from './files.js'
-import { verifyTarget } from './integrity.js'
-import { apiPath, hasWorker, libraryPaths, webPath, workerPath } from './layout.js'
-import { runCommand, runScript } from './spawn.js'
+import type { BootCheckJob, BootCheckReport, BootCheckStatus } from './types.js'
+import type { LocalFileHelper } from './files/types.js'
+import type { LocalShellHelper } from './shell/types.js'
+import { makeTargetEnvHelper } from './env.js'
+import { integrityHelper } from './integrity.js'
+import { makeLayoutHelper } from './layout.js'
+import { spawnHelper } from './spawn.js'
+import { NOT_INSTALLED_REASON } from './consts.js'
 
 /**
  * The shell half of the local executor — every `SlotShellCommand`, against a directory.
@@ -25,16 +25,6 @@ import { runCommand, runScript } from './spawn.js'
  * success**. It is not a transcript — a command that fails returns the diagnostics a fixer or a
  * person can act on, and a command that succeeds returns nothing at all.
  */
-
-/**
- * The one reason a script refuses that is NOT a verdict about the code.
- *
- * A build with nothing to build on is an ordinary no-op that the next trigger repeats correctly —
- * it happens between attaching to a fresh clone and the first install. It must not be reported as
- * a failed build, or the connector announces broken code during a window in which nothing was
- * even attempted.
- */
-export const NOT_INSTALLED_REASON = "cannot run: the target's dependencies are not installed yet"
 
 /** Whether a refusal describes the code, or merely a window in which nothing ran. */
 export const isBuildVerdict = (reason: string | null): boolean =>
@@ -59,8 +49,11 @@ const jobFor = (dir: string): BootCheckJob => {
   return job
 }
 
-export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?: SubProject) => {
+export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?: SubProject): LocalShellHelper => {
   const root = p.resolve(fileHelper.getRootPath())
+  const layout = makeLayoutHelper(root)
+  const targetEnv = makeTargetEnvHelper(root)
+  const projectEnv = makeProjectEnvHelper(root)
 
   /**
    * Refuse to run anything in a tree that is no longer the generated application.
@@ -74,12 +67,12 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
    * answers with. A caller needs no new branch to notice.
    */
   const refusal = async (prefix = 'Refused'): Promise<string | null> => {
-    const report = await verifyTarget(root)
+    const report = await integrityHelper.verifyTarget(root)
 
     return report.ok
       ? null
       : `${prefix}: the project in this directory is not a Viable application\n`
-        + formatIntegrityReport(report)
+        + targetIntegrityHelper.formatIntegrityReport(report)
   }
 
   /**
@@ -105,7 +98,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
     const refused = await refusal(`${script} refused`)
     if (refused != null) return refused
 
-    return await runScript(script, cwd, env)
+    return await spawnHelper.runScript(script, cwd, env)
   }
 
   /**
@@ -118,7 +111,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
    * read once the output is current.
    */
   const buildLibraries = async (): Promise<string | null> => {
-    for (const cwd of libraryPaths(root)) {
+    for (const cwd of layout.libraryPaths()) {
       const error = await runTargetScript('build', cwd)
       if (error != null) {
         // The publisher's own `buildLibraries` leaves this marker on a library build failure;
@@ -133,15 +126,15 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
   }
 
   const buildWorker = async (): Promise<string | null> => {
-    const dir = workerPath(root)
-    if (dir == null || !hasWorker(root)) {
+    const dir = layout.workerPath()
+    if (dir == null || !layout.hasWorker()) {
       return null
     }
 
     return await runTargetScript('build', dir)
   }
 
-  const helper = {
+  const helper: LocalShellHelper = {
     bun: async (args?: string, options?: { subproject?: SubProject }): Promise<string | null> => {
       const refused = await refusal()
       if (refused != null) return refused
@@ -153,19 +146,9 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       // winning over the immutable package body named by the lockfile.
       const cmd = `bun ${args ?? 'install --force --backend=copyfile'}`
 
-      return await runCommand(cmd, { cwd: fileHelper.getRootPath(options?.subproject ?? subproject) })
+      return await spawnHelper.runCommand(cmd, { cwd: fileHelper.getRootPath(options?.subproject ?? subproject) })
     },
 
-    /**
-     * Throw the lockfile away and install again.
-     *
-     * The truncate is the point. `bun install` on its own reproduces whatever the lockfile says,
-     * and a target's lockfile was written the day the project was created — so a framework
-     * package republished afterwards is invisible to it no matter how often the target is
-     * rebuilt. Emptied rather than deleted, matching initialization: bun reads an empty file as
-     * "no lockfile", so a failed install leaves a state the next attempt resolves cleanly instead
-     * of one where a stale lock has come back.
-     */
     reinstall: async (): Promise<string | null> => {
       const refused = await refusal()
       if (refused != null) return refused
@@ -176,7 +159,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
         // No lockfile to clear is not a failure — a tree may predate one, or have had it removed.
       }
 
-      return await runCommand('bun install --force --backend=copyfile', { cwd: root })
+      return await spawnHelper.runCommand('bun install --force --backend=copyfile', { cwd: root })
     },
 
     buildCommon: async (): Promise<string | null> => {
@@ -207,24 +190,14 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       // The diagnostics are on stdout; `tsc`'s stderr is about the compiler, not about the code.
       // A crash or a killed process can leave `stdout` empty on failure — falsy, but not `null` —
       // and a fixer reading that as a diagnostic with nothing to repair loops on it forever.
-      const result = await runCommand('bunx tsc --noEmit', { cwd, stdoutOnly: true })
+      const result = await spawnHelper.runCommand('bunx tsc --noEmit', { cwd, stdoutOnly: true })
 
       return result === '' ? `validate: tsc produced no output for ${cwd}` : result
     },
 
-    /** The buildability check for the UI: the browser bundle really built, or the reason it did not. */
     validateWithRenderer: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', webPath(root), await frontendEnv(root)),
+      await buildLibraries() ?? await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
 
-    /**
-     * Rebuild the whole target, in dependency order.
-     *
-     * The libraries first, because everything else resolves them from `node_modules` at RUN time
-     * and follows each to its `build/index.js` — a bundle built before them starts with
-     * `Cannot find package '<slug>-backend'`, a message about a dependency for a build that never
-     * happened. The remaining three are independent, so all of them run and their problems are
-     * reported together rather than one round trip at a time.
-     */
     build: async (): Promise<string | null> => {
       const libraries = await buildLibraries()
       if (libraries != null) {
@@ -232,74 +205,47 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
       }
 
       const errors = [
-        await runTargetScript('build', apiPath(root)),
+        await runTargetScript('build', layout.apiPath()),
         await buildWorker(),
-        await runTargetScript('build', webPath(root), await frontendEnv(root)),
+        await runTargetScript('build', layout.webPath(), await targetEnv.frontendEnv()),
       ].filter((error): error is string => error != null)
 
       return errors.length > 0 ? errors.join('\n') : null
     },
 
-    /** Build the api only — the type check the frontend renderer build cannot give it. */
     validateBackend: async (): Promise<string | null> =>
-      await buildLibraries() ?? await runTargetScript('build', apiPath(root)),
+      await buildLibraries() ?? await runTargetScript('build', layout.apiPath()),
 
-    /**
-     * Reconcile the target's database with its code.
-     *
-     * The target owns its own structure: every `@owlmeans/postgres` resource creates and updates
-     * its table while the context initializes. So a sync is not a command run against the source
-     * tree — it is *check that the database is there, then restart the backend* — and there is
-     * nothing to generate and no migration file to apply.
-     *
-     * A local target's database is the developer's. The platform provisions none, so an absent
-     * URL is reported by NAME rather than repaired: it is a line the person has to write, and
-     * "database unavailable" would send them looking at a server instead.
-     */
     dbSync: async (): Promise<string | null> => {
-      const values = await readEnvFile(root, ROOT_ENV_FILE)
+      const values = await projectEnv.readEnvFile(ROOT_ENV_FILE)
       const url = values.DATABASE_URL ?? ''
       if (url === '') {
         return `DATABASE_URL is not set in ${ROOT_ENV_FILE}. A local target uses a database on `
           + `this machine and the platform provisions none — set it and run this again.`
       }
 
-      const endpoint = serviceEndpoint(url)
+      const endpoint = probeHelper.serviceEndpoint(url)
       if (endpoint == null) {
         return `DATABASE_URL in ${ROOT_ENV_FILE} is not a URL naming a host and a port.`
       }
-      if (!await probePort(endpoint.host, endpoint.port)) {
+      if (!await probeHelper.probePort(endpoint.host, endpoint.port)) {
         return `Nothing is listening at ${endpoint.host}:${endpoint.port} — `
           + `the database DATABASE_URL names is not reachable from this machine.`
       }
 
-      return await restartApi(root)
+      return await makeRunStateHelper(root).restartApi()
     },
 
-    /**
-     * Answering, not enforcing.
-     *
-     * The connector refuses on its own before every spawn regardless; this exists so a caller can
-     * ask BEFORE letting a merge reach a build, and report the violations to the person whose
-     * repository they belong to.
-     */
     integrity: async (): Promise<SlotShellResult> => {
-      const report = await verifyTarget(root)
+      const report = await integrityHelper.verifyTarget(root)
 
       return {
-        result: report.ok ? null : formatIntegrityReport(report),
+        result: report.ok ? null : targetIntegrityHelper.formatIntegrityReport(report),
         ok: report.ok,
         violations: report.violations.map(violation => `${violation.path}: ${violation.detail}`),
       }
     },
 
-    /**
-     * Start a real boot in isolation and return at once.
-     *
-     * A second start joins the running check rather than spawning another instance onto the port.
-     * The verdict is read with {@link bootCheckStatus}; `wait` is the legacy blocking path for a
-     * caller that predates the job.
-     */
     bootCheck: async (
       options: { skipBuild?: boolean, wait?: boolean } = {}
     ): Promise<BootCheckReport | null> => {
@@ -313,7 +259,7 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
           return { ok: false, phase: 'build', error: refused }
         }
 
-        const values = await readEnvFile(root, ROOT_ENV_FILE)
+        const values = await projectEnv.readEnvFile(ROOT_ENV_FILE)
         if ((values.DATABASE_URL ?? '') === '') {
           // Without a database the check cannot connect, and reporting that as a boot failure
           // would blame the generated code for a target that was never configured.
@@ -326,16 +272,16 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
         return await runBootCheck({
           port: TARGET_BOOTCHECK_PORT,
           marker: TARGET_BOOTCHECK_MARKER,
-          cwd: apiPath(root),
+          cwd: layout.apiPath(),
           env: {
-            ...await backendEnv(root),
+            ...await targetEnv.backendEnv(),
             BACKEND_PORT: `${TARGET_BOOTCHECK_PORT}`,
             DATABASE_SCHEMA: TARGET_BOOTCHECK_SCHEMA,
           },
           bootId: randomUUID(),
           ...(options.skipBuild === true
             ? {}
-            : { build: async () => await buildLibraries() ?? await runTargetScript('build', apiPath(root)) }),
+            : { build: async () => await buildLibraries() ?? await runTargetScript('build', layout.apiPath()) }),
         })
       })
 
@@ -350,4 +296,3 @@ export const createLocalShellHelper = (fileHelper: LocalFileHelper, subproject?:
   return helper
 }
 
-export type LocalShellHelper = ReturnType<typeof createLocalShellHelper>

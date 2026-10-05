@@ -1,4 +1,4 @@
-import { mongoGate, randomNamespace, registerCleanup } from '@owlmeans/test-integration'
+import { randomNamespace, cleanupHelper, gateHelper } from '@owlmeans/test-integration'
 import type { IntegrationGate, MongoEnv } from '@owlmeans/test-integration'
 
 export interface MongoTestEnv {
@@ -22,12 +22,12 @@ let cached: MongoTestEnv | null = null
  */
 export const getTestEnv = (): MongoTestEnv => {
   if (cached != null) return cached
-  const gate = mongoGate()
+  const gate = gateHelper.mongoGate()
   const prefix = process.env.MONGO_TEST_DB_PREFIX ?? 'omt'
   const dbName = randomNamespace(prefix)
   cached = { gate, dbName }
   if (!gate.skip) {
-    registerCleanup(async () => {
+    cleanupHelper.registerCleanup(async () => {
       const { MongoClient } = await import('mongodb')
       const client = new MongoClient(gate.env.MONGO_URL as string)
       try {

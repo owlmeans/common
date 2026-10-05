@@ -1,37 +1,29 @@
 import { z } from 'zod'
 import { CommitTimeout, TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import {
-  ConnectConfirmationRequired, ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus,
-  ConvertibilityVerdict, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD,
-  STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition
-} from '@owlmeans/viable-common'
-import type {
-  ConnectPipelineState, ConnectProjectBranding, ConnectProjectBrandingSave, ConnectProjectStatus,
-  ConnectStoryStatus, ConversionStatusView, ConvertCheck, InquiryPayload, ViableStoryCard
-} from '@owlmeans/viable-common'
+import { ConnectConfirmationRequired, ConnectHarness, ConnectTarget, ConversionDecision, ConversionStatus, ConvertibilityVerdict, MODEL_TIER_ROLES, OriginKind, STORY_BAND_MAX_USD, STORY_BAND_MIN_USD, VIABLE_STORY_TYPE, ViableStoryTransition, type ConnectPipelineState, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ConnectProjectStatus, type ConnectStoryStatus, type ConversionStatusView, type ConvertCheck, type InquiryPayload, type ViableStoryCard } from '@owlmeans/viable-common'
 import {
   COMMIT_WAIT_MS, NEXT_QUESTION_WAIT_MS, NEXT_TASK_WAIT_MS, STORY_PAGE_SIZE
 } from '../consts.js'
-import { describeHarness, installHarness } from '../harness/index.js'
-import { envStatus } from '../project/env.js'
-import { missingServices, readSetupReport, renderSetupGuide, setUserEnv } from '../project/setup.js'
-import { localStatus, runLocal, stopLocal } from '../run/index.js'
-import { parseTaskResult, renderTaskEnvelope } from '../task/envelope.js'
-import { parseAnswer, renderQuestionEnvelope } from '../task/inquiry.js'
-import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, renderPlatform } from './platform.js'
-import {
-  confirmationRequiredPhrase, personRefusalPhrase, refusalMessage, refusalPhrase, unconfirmedConversionPhrase,
-} from './refusal.js'
-import { renderKitApply, renderKits } from './kits.js'
-import { renderProjectSettings, settingsPatch, settingsReach } from './settings.js'
-import {
-  conversionNext, renderPipelineStatus, renderProjectStatus, renderStoryStatus,
-} from './status.js'
-import { isLandingStory, renderStories, resolveStory, STORY_ORDER, storyQuery } from './stories.js'
+import { harnessHelper } from '../harness/helper.js'
+import { makeProjectEnvHelper } from '../project/env.js'
+import { makeSetupReportModel } from '../project/report.js'
+import { setupHelper } from '../project/setup.js'
+import { makeLocalRunHelper } from '../run/local.js'
+import { makeTaskEnvelopeModel } from '../task/envelope.js'
+import { makeQuestionEnvelopeModel } from '../task/inquiry.js'
+import { renderPlatform } from './platform.js'
+import { GENERATED_SUMMARY, PLATFORM_CATALOGUE, STORY_ORDER, ToolHostKind } from './consts.js'
+import { refusalHelper } from './refusal.js'
+import { kitsUtils } from './kits.js'
+import { settingsHelper } from './settings.js'
+import { statusTextHelper } from './status.js'
+import { storyHelper } from './stories.js'
 import type { ToolDeps, ToolDefinition, ToolHost, ToolResult } from './types.js'
-import {
-  anyHost, cloudTarget, localTarget, performsModelTasks, sessionCapable, ToolHostKind, withExecutor
-} from './types.js'
+import type { CatalogueHelper } from './catalogue/types.js'
+import { toolHostHelper } from './host.js'
+import { BARE_428, CONVERSION_COST, DRAFT_CAP } from './consts.local.js'
+
+export { ToolHostKind }
 
 const ok = <Structured extends object>(text: string, structured?: Structured) => ({ text, structured })
 const fail = (text: string) => ({ text, isError: true })
@@ -44,7 +36,7 @@ const fail = (text: string) => ({ text, isError: true })
  * refusal reaches this process as a marshalled `type|||marker|||stack` whose class is declared in
  * a package the SDK does not depend on. Left to escape, the parent agent is handed that string and
  * a stack trace from a machine it cannot reach; what it does with one is retry a call that can
- * never succeed. {@link refusalPhrase} turns the marker into the sentence, and the result carries
+ * never succeed. {@link RefusalHelper.refusalPhrase} turns the marker into the sentence, and the result carries
  * `isError` so the model still reads it as a refusal rather than as an answer.
  *
  * The MCP boundary phrases whatever escapes any other tool the same way; this wrapper is what puts
@@ -66,20 +58,17 @@ const answering = async (
   try {
     return await run()
   } catch (e) {
-    deps.log(`${name} refused: ${refusalMessage(e)}`)
-    const person = personRefusalPhrase(e)
+    deps.log(`${name} refused: ${refusalHelper.refusalMessage(e)}`)
+    const person = refusalHelper.personRefusalPhrase(e)
     if (person != null) {
       deps.notify?.('warning', person)
 
       return fail(person)
     }
 
-    return fail(refusalPhrase(e))
+    return fail(refusalHelper.refusalPhrase(e))
   }
 }
-
-/** What a production body leaves of a confirmation or consent refusal (`@owlmeans/api` `ApiStatusError`). */
-const BARE_428 = 'api:client:status:428'
 
 /**
  * The exact call that gives a conversion's confirmation: the same tool, the PROJECT named — a host
@@ -105,10 +94,10 @@ const confirming = async (
   } catch (e) {
     const retry = confirmedCall(tool, args)
     const text = e instanceof ConnectConfirmationRequired
-      ? confirmationRequiredPhrase(e, retry)
-      : !confirmed && refusalMessage(e).includes(BARE_428) ? unconfirmedConversionPhrase(retry) : null
+      ? refusalHelper.confirmationRequiredPhrase(e, retry)
+      : !confirmed && refusalHelper.refusalMessage(e).includes(BARE_428) ? refusalHelper.unconfirmedConversionPhrase(retry) : null
     if (text == null) throw e
-    deps.log(`${tool} refused: ${refusalMessage(e)}`)
+    deps.log(`${tool} refused: ${refusalHelper.refusalMessage(e)}`)
     deps.notify?.('warning', text)
 
     return fail(text)
@@ -124,14 +113,6 @@ const CONFIRM_INPUT = z.boolean().default(false).describe(
   + ' that would use the project conversion the plan includes, or spend the organization\'s credit'
   + ' limits or topped-up credits, starts nothing and answers with its cost instead.'
 )
-
-/** What a conversion costs, in the words both conversion verbs' descriptions use. */
-const CONVERSION_COST = 'A plan that includes a project conversion covers its AI work up to the'
-  + ' conversion limit (1,000,000 credits); beyond it the organization\'s credit limits are spent first,'
-  + ' then topped-up credits, and every stage has an estimate. A step that would use the plan\'s'
-  + ' conversion or spend credits first answers with what it costs and starts nothing: tell the user,'
-  + ' and repeat the call with confirm: true only after they agree. A conversion your own agent performs'
-  + ' (its model calls delegated to you) spends no credits and is never asked.'
 
 /** The project a tool acts on: the one named, or the one the connector is attached to. */
 /** The roles the platform maps onto each power class, so a caller sees what it is sizing. */
@@ -149,14 +130,6 @@ const roleSummary = (): string => 'The platform asks for three power classes:\n'
     .map(([tier, roles]) => `  ${tier} → ${roles.length} roles`)
     .join('\n')
 
-/**
- * How much of a drafted field one status answer carries.
- *
- * Generous, because reading the specification IS the confirm step — but bounded, since a tool
- * answer shares one output budget with everything else the host is holding.
- */
-const DRAFT_CAP = 8_000
-
 const projectOf = (args: Record<string, unknown>, deps: { attached: () => string | null }): string => {
   const named = typeof args.projectId === 'string' ? args.projectId : null
   const project = named ?? deps.attached()
@@ -168,24 +141,24 @@ const projectOf = (args: Record<string, unknown>, deps: { attached: () => string
 }
 
 const projectResult = (status: ConnectProjectStatus) => ok(
-  renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
+  statusTextHelper.renderProjectStatus(status), { project: status as unknown as Record<string, unknown> }
 )
 /** A story's domain status, with what its card says that the status route does not carry. */
 const storyResult = (status: ConnectStoryStatus, card: ViableStoryCard) => {
-  const landing = isLandingStory(card)
+  const landing = storyHelper.isLandingStory(card)
 
   return ok(
-    renderStoryStatus(status, { landing }),
+    statusTextHelper.renderStoryStatus(status, { landing }),
     { story: status as unknown as Record<string, unknown>, ...(landing ? { landing } : {}) }
   )
 }
 /** The project settings, led by what a save just did where one did. */
 const settingsResult = (projectId: string, settings: ConnectProjectBranding, lead?: string) => ok(
-  (lead != null ? `${lead}\n\n` : '') + renderProjectSettings(projectId, settings),
+  (lead != null ? `${lead}\n\n` : '') + settingsHelper.renderProjectSettings(projectId, settings),
   { projectId, settings: settings as unknown as Record<string, unknown> }
 )
 const pipelineResult = (status: ConnectPipelineState) => ok(
-  renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
+  statusTextHelper.renderPipelineStatus(status), { pipeline: status as unknown as Record<string, unknown> }
 )
 const conversionResult = (status: ConversionStatusView) => ok(
   renderConversion(status), { conversion: status as unknown as Record<string, unknown> }
@@ -201,7 +174,7 @@ const conversionResult = (status: ConversionStatusView) => ok(
  * opens none and the platform performs the run itself.
  */
 const ensureSession = async (deps: ToolDeps, projectId: string): Promise<void> => {
-  if (!sessionCapable(deps.host)) return
+  if (!toolHostHelper.sessionCapable(deps.host)) return
 
   // The session is filed against the project it will answer for, so a tool naming a project other
   // than the attached one moves the connector BEFORE opening. Opening first would file the session
@@ -275,7 +248,7 @@ const parkedQuestion = async (deps: ToolDeps, projectId: string): Promise<Inquir
 }
 
 const questionResult = (inquiry: InquiryPayload, deps: ToolDeps, note?: string) => ok(
-  (note != null ? `${note}\n\n` : '') + renderQuestionEnvelope(inquiry, { harness: deps.host.harness }),
+  (note != null ? `${note}\n\n` : '') + makeQuestionEnvelopeModel(inquiry).renderQuestionEnvelope({ harness: deps.host.harness }),
   { questionId: inquiry.id }
 )
 
@@ -368,7 +341,7 @@ const renderCheck = (check: ConvertCheck, conversion: ConversionStatusView | nul
       // step whatever a record says about the attempt that found that out.
       ? 'nothing — this origin cannot be converted'
       : conversion != null
-        ? conversionNext(conversion)
+        ? statusTextHelper.conversionNext(conversion)
         : 'convert_project to start, then read conversion_status'
   }`)
 
@@ -405,10 +378,10 @@ const renderConversion = (view: ConversionStatusView): string => {
   // `describeFailure`, which for a refusal is the marker verbatim. Phrase the stored value the
   // same way as a thrown refusal so every conversion status has one user-facing reading.
   if (view.lastError != null && view.lastError !== '') {
-    lines.push(`error: ${refusalPhrase(view.lastError)}`)
+    lines.push(`error: ${refusalHelper.refusalPhrase(view.lastError)}`)
   }
 
-  lines.push(`next: ${conversionNext(view)}`)
+  lines.push(`next: ${statusTextHelper.conversionNext(view)}`)
 
   return lines.join('\n')
 }
@@ -432,7 +405,7 @@ export const catalogue: ToolDefinition[] = [
       + ' generates carries, and which of it this session can start. Read it before deciding how to'
       + ' approach a request. Needs no project and makes no network call.',
     input: {},
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (_args, deps) => ok(renderPlatform(PLATFORM_CATALOGUE, deps.host)),
   },
 
@@ -450,7 +423,7 @@ export const catalogue: ToolDefinition[] = [
       subagents: z.boolean().optional().describe('Can you run a task in an isolated subagent?'),
       effortControl: z.boolean().optional().describe('Can you ask for low reasoning effort?'),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const tiers: Record<string, string> = {}
       for (const tier of ['strong', 'standard', 'cheap']) {
@@ -487,10 +460,10 @@ export const catalogue: ToolDefinition[] = [
         // Said differently in the two cases, because the answer to "which calls are mine" differs:
         // a delegated session performs all of them, an ordinary one performs a conversion's. Both
         // collect them the same way, so both are told to call next_task.
-        + (performsModelTasks(deps.host)
+        + (toolHostHelper.performsModelTasks(deps.host)
           ? '\n\nThis session runs the platform\'s model calls on YOUR side. Whenever a domain status'
             + ' reports waiting for a model task, call next_task.'
-          : sessionCapable(deps.host)
+          : toolHostHelper.sessionCapable(deps.host)
             ? '\n\nThe platform performs its own model calls for stories and free flight. A'
               + ' CONVERSION\'s calls are yours by default. Whenever a domain status reports'
               + ' waiting for a model task, call next_task.'
@@ -508,10 +481,10 @@ export const catalogue: ToolDefinition[] = [
       'Preview the files install_harness would write for a coding agent, so you can read them'
       + ' before anything is changed on disk.',
     input: { harness: z.string().optional().describe('claude-code | codex | copilot | opencode') },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const harness = (args.harness as ConnectHarness) ?? deps.host.harness
-      const files = describeHarness(harness)
+      const files = harnessHelper.describeHarness(harness)
 
       return ok(
         `${harness} — ${files.length} files:\n`
@@ -532,12 +505,12 @@ export const catalogue: ToolDefinition[] = [
       harness: z.string().optional(),
       mcpConfig: z.boolean().optional().describe('Also write the MCP server entry'),
     },
-    availability: withExecutor,
+    availability: toolHostHelper.withExecutor,
     run: async (args, deps) => {
       const dir = (args.dir as string) ?? deps.dir
       if (dir == null) return fail('No directory to write to.')
       const harness = (args.harness as ConnectHarness) ?? deps.host.harness
-      const result = await installHarness(dir, harness, {
+      const result = await harnessHelper.installHarness(dir, harness, {
         mcpConfig: args.mcpConfig === true,
       })
 
@@ -555,7 +528,7 @@ export const catalogue: ToolDefinition[] = [
     title: 'What this connector is doing',
     description: 'The mode, the attached project, and what the connector has handled so far.',
     input: {},
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (_args, deps) => {
       const session = deps.currentSession()
       const lines = [
@@ -564,7 +537,7 @@ export const catalogue: ToolDefinition[] = [
         ...(deps.dir != null ? [`directory: ${deps.dir}`] : []),
       ]
       if (session == null) {
-        lines.push(sessionCapable(deps.host)
+        lines.push(toolHostHelper.sessionCapable(deps.host)
           ? 'session: not opened yet — it opens with the first operation'
           : 'session: none — this host holds none, and the platform performs the work itself')
       } else {
@@ -590,7 +563,7 @@ export const catalogue: ToolDefinition[] = [
       'Describe the application in a sentence or two. The platform writes a specification, names it'
       + ' and drafts a vision. Returns the project status; read the draft and call confirm_project.',
     input: { prompt: z.string().min(1) },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const status = await deps.api.project.create(
         args.prompt as string,
@@ -617,7 +590,7 @@ export const catalogue: ToolDefinition[] = [
       vision: z.string().optional(),
       designSystem: z.string().optional(),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       // Attached BEFORE the call that starts the build, not after it. The platform begins
@@ -641,7 +614,7 @@ export const catalogue: ToolDefinition[] = [
     title: 'Where the project stands',
     description: 'The project, its slot, whether the agent is busy, and the last run.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const status = await deps.api.project.status(projectOf(args, deps))
       const lines = [
@@ -684,7 +657,7 @@ export const catalogue: ToolDefinition[] = [
       // does not read as a marker — the build diagnostics somebody asked for, stack-shaped lines
       // included — comes back exactly as it stands.
       for (const warning of [status.slot?.lastError, status.slot?.buildWarning, status.slot?.backendWarning]) {
-        if (warning != null && warning !== '') lines.push(`warning: ${refusalPhrase(warning)}`)
+        if (warning != null && warning !== '') lines.push(`warning: ${refusalHelper.refusalPhrase(warning)}`)
       }
 
       return ok(lines.join('\n'), status as unknown as Record<string, unknown>)
@@ -698,7 +671,7 @@ export const catalogue: ToolDefinition[] = [
       'Every project this access token can reach, newest first, with the id, slug and status'
       + ' each of the other project tools takes.',
     input: {},
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (_args, deps) => {
       const projects = await deps.api.project.list()
 
@@ -721,7 +694,7 @@ export const catalogue: ToolDefinition[] = [
       projectId: z.string().optional(),
       slug: z.string().optional(),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const status = await deps.api.project.attach({
         ...(typeof args.projectId === 'string' ? { projectId: args.projectId } : {}),
@@ -741,7 +714,7 @@ export const catalogue: ToolDefinition[] = [
       'Wipe the generated sources and lay the template down again. The user stories are KEPT and'
       + ' reset to planned; your own configuration and git history survive.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
@@ -760,12 +733,12 @@ export const catalogue: ToolDefinition[] = [
       + ' cards live in, every card type with its main flow, and each flow\'s statuses. Call it before'
       + ' apply_planning_kit.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       const { kits } = await deps.api.project.kitDescribe(project)
 
-      return ok(renderKits(project, kits), { projectId: project, kits: kits as unknown as Record<string, unknown>[] })
+      return ok(kitsUtils.renderKits(project, kits), { projectId: project, kits: kits as unknown as Record<string, unknown>[] })
     },
   },
 
@@ -784,7 +757,7 @@ export const catalogue: ToolDefinition[] = [
       types: z.array(z.string().min(1)).optional()
         .describe('The card-type keys of the kit to keep; every type when omitted'),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'apply_planning_kit', async () => {
       const project = projectOf(args, deps)
       const kit = typeof args.kit === 'string' ? args.kit : ''
@@ -799,7 +772,7 @@ export const catalogue: ToolDefinition[] = [
       await ensureSession(deps, project)
       const result = await deps.api.project.kitApply(project, { kit, ...(types != null ? { types } : {}) })
 
-      return ok(renderKitApply(project, kit, result), {
+      return ok(kitsUtils.renderKitApply(project, kit, result), {
         projectId: project, kit, result: result as unknown as Record<string, unknown>,
       })
     }),
@@ -814,7 +787,7 @@ export const catalogue: ToolDefinition[] = [
       + ' as /terms or /privacy is normal — it is the page the platform generated inside the'
       + ' application, and the generated pages name the organization and copyright set here.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
 
@@ -841,10 +814,10 @@ export const catalogue: ToolDefinition[] = [
       googleTag: z.string().optional()
         .describe('GTM-XXXXXXX, G-XXXXXXXXXX, GT-…, AW-… or DC-…; an empty string removes it'),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'update_project_settings', async () => {
       const project = projectOf(args, deps)
-      const patch: ConnectProjectBrandingSave = settingsPatch(args)
+      const patch: ConnectProjectBrandingSave = settingsHelper.settingsPatch(args)
       const changed = Object.keys(patch)
       if (changed.length < 1) {
         return fail(
@@ -858,7 +831,7 @@ export const catalogue: ToolDefinition[] = [
       await ensureSession(deps, project)
       const saved = await deps.api.saveProjectBranding(project, patch)
 
-      return settingsResult(project, saved, `Saved ${changed.join(', ')}. ${settingsReach(deps.host.target)}`)
+      return settingsResult(project, saved, `Saved ${changed.join(', ')}. ${settingsHelper.settingsReach(deps.host.target)}`)
     }),
   },
 
@@ -875,11 +848,11 @@ export const catalogue: ToolDefinition[] = [
       status: z.string().optional(),
       area: z.string().optional(),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const page = typeof args.page === 'number' ? args.page : 0
       const list = await deps.api.planning.cards.list({
-        ...storyQuery(projectOf(args, deps), {
+        ...storyHelper.storyQuery(projectOf(args, deps), {
           ...(typeof args.status === 'string' ? { status: args.status } : {}),
           ...(typeof args.area === 'string' ? { area: args.area } : {}),
         }),
@@ -888,7 +861,7 @@ export const catalogue: ToolDefinition[] = [
         sort: STORY_ORDER,
       })
 
-      return ok(renderStories(list.items, list.page ?? page, list.total), list)
+      return ok(storyHelper.renderStories(list.items, list.page ?? page, list.total), list)
     },
   },
 
@@ -899,16 +872,16 @@ export const catalogue: ToolDefinition[] = [
       'The user stories of a project whose code, title or text match a search term. Use it instead'
       + ' of paging through list_stories when you know what you are looking for.',
     input: { q: z.string().min(1), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const list = await deps.api.planning.cards.list({
-        ...storyQuery(projectOf(args, deps), { q: args.q as string }),
+        ...storyHelper.storyQuery(projectOf(args, deps), { q: args.q as string }),
         page: 0,
         size: STORY_PAGE_SIZE,
         sort: STORY_ORDER,
       })
 
-      return ok(renderStories(list.items, list.page ?? 0, list.total), list)
+      return ok(storyHelper.renderStories(list.items, list.page ?? 0, list.total), list)
     },
   },
 
@@ -919,7 +892,7 @@ export const catalogue: ToolDefinition[] = [
       'Add a story in your own words. The platform rewrites it in the form its pipeline needs and'
       + ' decides which area of the application it belongs to.',
     input: { story: z.string().min(1), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       // Formatting reads the target's file-backed entities before it persists the story. A local
@@ -954,11 +927,11 @@ export const catalogue: ToolDefinition[] = [
     title: 'Reword a user story',
     description: 'Change what a story says. Its status is not changed — develop_story does that.',
     input: { storyId: z.string(), story: z.string().min(1), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const card = await resolveStory(deps, project, args.storyId as string)
+      const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
       // Only the narrative: the status moves through the story flow and nowhere else, and the area
       // follows the narrative on the platform's side. Guarded by the head the story was read at, so
       // a change somebody else made in between is refused rather than overwritten.
@@ -979,13 +952,13 @@ export const catalogue: ToolDefinition[] = [
     title: 'Remove a user story',
     description: 'Delete a story that has not been implemented. Its placeholder screens are retired.',
     input: { storyId: z.string(), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       // Removing a story also retires its file-backed scaffold, so it has the same local-session
       // requirement as formatting and development.
       await ensureSession(deps, project)
-      const card = await resolveStory(deps, project, args.storyId as string)
+      const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
       await deps.api.planning.execute({
         card: card.id!,
         action: TransitionAction.Delete,
@@ -1004,11 +977,11 @@ export const catalogue: ToolDefinition[] = [
       'Ask the platform to design and build one story: its screens, its data, its endpoints, its'
       + ' navigation. This is the main event and takes many minutes. Returns the story status.',
     input: { storyId: z.string(), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
-      const card = await resolveStory(deps, project, args.storyId as string)
+      const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
       // Development is not a call of its own: it is the story's `start`, and the platform begins the
       // run once that move has COMMITTED — which is also where it is refused (the wrong status,
       // another story in progress, the balance).
@@ -1038,10 +1011,10 @@ export const catalogue: ToolDefinition[] = [
       'One story, its development run, any warning explaining a failure, and whether it is the'
       + ' project\'s landing gate story — the one a guest starts on the guest home.',
     input: { storyId: z.string(), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
-      const card = await resolveStory(deps, project, args.storyId as string)
+      const card = await storyHelper.resolveStory(deps, project, args.storyId as string)
 
       return storyResult(await deps.api.story.status(project, card.id!), card)
     },
@@ -1054,7 +1027,7 @@ export const catalogue: ToolDefinition[] = [
       'Describe a change in words and let the platform\'s own coding agent make it. For anything'
       + ' that is not a user story: a rename, a fix, a styling change. Returns project status.',
     input: { prompt: z.string().min(1), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
@@ -1067,7 +1040,7 @@ export const catalogue: ToolDefinition[] = [
     title: 'Where a run stopped',
     description: 'The steps a run completed and the one it stopped at.',
     input: { runId: z.string(), projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const state = await deps.api.pipeline.state(projectOf(args, deps), args.runId as string)
 
@@ -1086,7 +1059,7 @@ export const catalogue: ToolDefinition[] = [
       projectId: z.string().optional(),
       from: z.string().optional().describe('Re-enter this step, and everything after it'),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
@@ -1114,7 +1087,7 @@ export const catalogue: ToolDefinition[] = [
     // the account setting says, so a session billed to the platform must still be able to collect
     // one. What they do need is a host that STAYS — a task is handed out once and answered
       // minutes later.
-    availability: sessionCapable,
+    availability: toolHostHelper.sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
 
@@ -1128,7 +1101,7 @@ export const catalogue: ToolDefinition[] = [
           return fail(`No task ${args.taskId} is outstanding. Call next_task with no id.`)
         }
 
-        return ok(renderTaskEnvelope(known, { harness: deps.host.harness }), { taskId: known.id })
+        return ok(makeTaskEnvelopeModel(known).renderTaskEnvelope({ harness: deps.host.harness }), { taskId: known.id })
       }
 
       const wait = Math.min(((args.maxWaitSec as number) ?? 30) * 1000, NEXT_TASK_WAIT_MS)
@@ -1151,7 +1124,7 @@ export const catalogue: ToolDefinition[] = [
         )
       }
 
-      return ok(renderTaskEnvelope(task, { harness: deps.host.harness }), { taskId: task.id })
+      return ok(makeTaskEnvelopeModel(task).renderTaskEnvelope({ harness: deps.host.harness }), { taskId: task.id })
     },
   },
 
@@ -1165,7 +1138,7 @@ export const catalogue: ToolDefinition[] = [
       taskId: z.string(),
       result: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]),
     },
-    availability: sessionCapable,
+    availability: toolHostHelper.sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
       const pending = session as unknown as { taskById?: (id: string) => unknown }
@@ -1174,7 +1147,7 @@ export const catalogue: ToolDefinition[] = [
         return fail(`No task ${String(args.taskId)} is waiting. Call next_task for the current one.`)
       }
 
-      const { result, problem } = parseTaskResult(task, args.result)
+      const { result, problem } = makeTaskEnvelopeModel(task).parseTaskResult(args.result)
       if (problem != null) {
         // Refused HERE, with the subagent's context still open — a malformed answer that reached
         // the platform would cost a whole new task, a new subagent and another wait.
@@ -1206,7 +1179,7 @@ export const catalogue: ToolDefinition[] = [
     // Not `performsModelTasks`: a question has nothing to do with who performs the model calls,
     // and a session billed to the platform must still be askable. What it does need is a host
     // that STAYS — a question is delivered to a connector and answered minutes later.
-    availability: sessionCapable,
+    availability: toolHostHelper.sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
       const project = projectOrNull(args, deps)
@@ -1267,7 +1240,7 @@ export const catalogue: ToolDefinition[] = [
       declined: z.boolean().optional().describe('Nobody could decide this.'),
       projectId: z.string().optional(),
     },
-    availability: sessionCapable,
+    availability: toolHostHelper.sessionCapable,
     run: async (args, deps) => {
       const session = await deps.session()
       const questionId = args.questionId as string
@@ -1283,7 +1256,7 @@ export const catalogue: ToolDefinition[] = [
         )
       }
 
-      const { answer, problem } = parseAnswer(inquiry, args)
+      const { answer, problem } = makeQuestionEnvelopeModel(inquiry).parseAnswer(args)
       if (problem != null) {
         // Refused HERE, with the person still in front of the parent — a mismatch the platform
         // catches costs a round trip on a question a human has already answered.
@@ -1312,7 +1285,7 @@ export const catalogue: ToolDefinition[] = [
       + ' charged. It reads what the intake found, so convert_project starts one first; on a'
       + ' conversion already under way it also says where that one stands.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'check_convertible', async () => {
       const project = projectOf(args, deps)
       // The platform reads the tree through THIS connector when it lives on this machine, so the
@@ -1346,7 +1319,7 @@ export const catalogue: ToolDefinition[] = [
       branch: z.string().optional(),
       confirm: CONFIRM_INPUT,
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'convert_project', async () => {
       const confirm = args.confirm === true
       // The start is what spends the plan's conversion, so it is the call a confirmation stops —
@@ -1413,7 +1386,7 @@ export const catalogue: ToolDefinition[] = [
       note: z.string().optional().describe('What the user said about the decision. Recorded.'),
       confirm: CONFIRM_INPUT,
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'proceed_conversion', async () => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
@@ -1437,7 +1410,7 @@ export const catalogue: ToolDefinition[] = [
       'The stage a conversion has reached, what it found, what it has cost so far, whether the'
       + ' original sources are still there, and what to call next.',
     input: { projectId: z.string().optional() },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'conversion_status', async () => {
       const view = await deps.api.convert.status(projectOf(args, deps))
 
@@ -1456,7 +1429,7 @@ export const catalogue: ToolDefinition[] = [
       projectId: z.string().optional(),
       confirm: z.boolean().describe('Must be true. The user has to have agreed to this.'),
     },
-    availability: anyHost,
+    availability: toolHostHelper.anyHost,
     run: async (args, deps) => await answering(deps, 'purge_origin', async () => {
       if (args.confirm !== true) {
         return fail(
@@ -1477,7 +1450,7 @@ export const catalogue: ToolDefinition[] = [
     title: 'The generated project\'s files',
     description: 'What the platform generated, for a project whose sources live in its own slot.',
     input: { projectId: z.string().optional() },
-    availability: cloudTarget,
+    availability: toolHostHelper.cloudTarget,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       const files = await deps.api.files.list(project)
@@ -1497,10 +1470,10 @@ export const catalogue: ToolDefinition[] = [
     description:
       'What the generated project still needs before it can start here, and whether it is running.',
     input: {},
-    availability: localTarget,
+    availability: toolHostHelper.localTarget,
     run: async (_args, deps) => {
       if (deps.dir == null) return fail('No project directory.')
-      const [env, running] = await Promise.all([envStatus(deps.dir), localStatus(deps.dir)])
+      const [env, running] = await Promise.all([makeProjectEnvHelper(deps.dir).envStatus(), makeLocalRunHelper(deps.dir).localStatus()])
       const lines = [
         `directory: ${deps.dir}`,
         env.missing.length < 1
@@ -1523,10 +1496,10 @@ export const catalogue: ToolDefinition[] = [
       'Build the generated project and start it: the API on 3000, the app on 5173. The build takes'
       + ' a while — this returns once it has started, and local_status says when it is up.',
     input: { build: z.boolean().optional().describe('Build first. Defaults to true.') },
-    availability: localTarget,
+    availability: toolHostHelper.localTarget,
     run: async (args, deps) => {
       if (deps.dir == null) return fail('No project directory.')
-      const env = await envStatus(deps.dir)
+      const env = await makeProjectEnvHelper(deps.dir).envStatus()
       if (env.missing.length > 0) {
         // Refused rather than started: an app launched without a database URL fails at boot with a
         // message about a connection, which sends the reader looking for a database that was never
@@ -1536,7 +1509,7 @@ export const catalogue: ToolDefinition[] = [
           + ' which reports what is missing and what to ask the user for.'
         )
       }
-      const started = await runLocal(deps.dir, { build: args.build !== false })
+      const started = await makeLocalRunHelper(deps.dir).runLocal({ build: args.build !== false })
 
       return ok(
         `Started. The app is at http://localhost:${started.web}, its API at`
@@ -1553,10 +1526,10 @@ export const catalogue: ToolDefinition[] = [
       'Stop the application run_local started here: its API, its worker and the server holding'
       + ' port 5173. Leaves the project files alone.',
     input: {},
-    availability: localTarget,
+    availability: toolHostHelper.localTarget,
     run: async (_args, deps) => {
       if (deps.dir == null) return fail('No project directory.')
-      await stopLocal(deps.dir)
+      await makeLocalRunHelper(deps.dir).stopLocal()
 
       return ok('Stopped.')
     },
@@ -1569,12 +1542,12 @@ export const catalogue: ToolDefinition[] = [
       'What to install and what to put in the project\'s .env so the generated application can'
       + ' start here — a database, optionally a queue store, and the ports it will use.',
     input: {},
-    availability: localTarget,
+    availability: toolHostHelper.localTarget,
     run: async (_args, deps) => {
       if (deps.dir == null) return fail('No project directory.')
-      const report = await readSetupReport(deps.dir)
+      const report = await setupHelper.readSetupReport(deps.dir)
 
-      return ok(renderSetupGuide(report), report as unknown as Record<string, unknown>)
+      return ok(makeSetupReportModel(report).renderSetupGuide(), report as unknown as Record<string, unknown>)
     },
   },
 
@@ -1592,7 +1565,7 @@ export const catalogue: ToolDefinition[] = [
         .describe('redis://host:port — only for a project with a background worker'),
       schema: z.string().optional().describe('Postgres schema. Defaults to "app".'),
     },
-    availability: localTarget,
+    availability: toolHostHelper.localTarget,
     run: async (args, deps) => {
       if (deps.dir == null) return fail('No project directory.')
       const databaseUrl = typeof args.databaseUrl === 'string' ? args.databaseUrl.trim() : ''
@@ -1601,7 +1574,7 @@ export const catalogue: ToolDefinition[] = [
         return fail('Give at least one of databaseUrl or valkeyUrl — the value the user supplied.')
       }
 
-      const { written, file } = await setUserEnv(deps.dir, {
+      const { written, file } = await setupHelper.setUserEnv(deps.dir, {
         ...(databaseUrl !== '' ? { DATABASE_URL: databaseUrl } : {}),
         ...(databaseUrl !== ''
           ? { DATABASE_SCHEMA: typeof args.schema === 'string' && args.schema.trim() !== ''
@@ -1614,7 +1587,7 @@ export const catalogue: ToolDefinition[] = [
       // Probed straight away, because a value that does not answer is the whole failure this tool
       // exists to prevent: accepted silently, it surfaces minutes later as a boot error about a
       // connection, and the reader goes looking for a database rather than for a typo.
-      const report = await readSetupReport(deps.dir)
+      const report = await setupHelper.readSetupReport(deps.dir)
       const lines = [`Wrote ${written.join(', ')} into ${file}, outside the managed block.`]
       if (databaseUrl !== '') {
         lines.push(report.database.reachable
@@ -1629,20 +1602,27 @@ export const catalogue: ToolDefinition[] = [
       if (!report.envIgnored) {
         lines.push('That file is not git-ignored. Tell the user, so a credential does not reach a commit.')
       }
-      lines.push(missingServices(report).length < 1
+      const missing = makeSetupReportModel(report).missingServices()
+      lines.push(missing.length < 1
         ? 'Nothing else is missing — run_local can build and start the application.'
-        : 'Still missing: ' + missingServices(report).join(', ') + '. Call local_setup_guide again.')
+        : 'Still missing: ' + missing.join(', ') + '. Call local_setup_guide again.')
 
       return ok(lines.join('\n'), report as unknown as Record<string, unknown>)
     },
   },
 ]
 
-/** The tools a given host actually offers. */
-export const visibleTools = (host: ToolHost): ToolDefinition[] =>
-  catalogue.filter(tool => tool.availability(host))
+export const createCatalogueHelper = (): CatalogueHelper => {
+  const visibleTools = (host: ToolHost): ToolDefinition[] =>
+    catalogue.filter(tool => tool.availability(host))
 
-export const toolByName = (name: string): ToolDefinition | undefined =>
-  catalogue.find(tool => tool.name === name)
+  const toolByName = (name: string): ToolDefinition | undefined =>
+    catalogue.find(tool => tool.name === name)
 
-export { ToolHostKind }
+  return { visibleTools, toolByName }
+}
+
+export const catalogueHelper = createCatalogueHelper()
+
+/** @deprecated compat:factory-refactor — use `catalogueHelper.visibleTools(…)` */
+export const visibleTools = (host: ToolHost): ToolDefinition[] => catalogueHelper.visibleTools(host)

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/queue",
-  "version": "0.1.18-rc.39",
+  "version": "0.1.18-rc.40",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
@@ -31,12 +31,12 @@
     "access": "public"
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/auth-common": "^0.1.18-rc.45",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@owlmeans/route": "^0.1.18-rc.33"
+    "@owlmeans/auth": "^0.1.18-rc.39",
+    "@owlmeans/auth-common": "^0.1.18-rc.46",
+    "@owlmeans/context": "^0.1.18-rc.33",
+    "@owlmeans/entrypoint": "^0.1.18-rc.40",
+    "@owlmeans/error": "^0.1.18-rc.37",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@owlmeans/route": "^0.1.18-rc.34"
   }
 }

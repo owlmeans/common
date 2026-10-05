@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser } from '@owlmeans/test-ui'
 import { open, statusView, TIMEOUT } from './helpers.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 /** Drives the REAL `MarketingConsentClientService` registered in the harness (`window.__mc`, see
  * `tests/harness/mount.tsx`) rather than a hand-built fake context — the service depends on

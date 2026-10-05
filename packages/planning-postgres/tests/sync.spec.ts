@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { TransitionAction, WorkcardKind } from '@owlmeans/planning'
-import { introspectTable, planSync } from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
-import { createBranch, LIBRARY } from '@owlmeans/server-planning/conformance'
+import { conformanceFixturesOf, LIBRARY } from '@owlmeans/server-planning/conformance'
 
 import {
   PlanningPostgresError, RES_PLANNING_CARD, RES_PLANNING_LINK, RES_PLANNING_SCHEMA, RES_PLANNING_TRANSITION,
 } from '../src/index.js'
 import { gate, makeSuite } from './context.js'
+import { makePgIntrospectHelper, pgDiffHelper } from '@owlmeans/postgres-resource'
 
 const ALIASES = [RES_PLANNING_CARD, RES_PLANNING_TRANSITION, RES_PLANNING_LINK, RES_PLANNING_SCHEMA]
 
@@ -33,8 +33,8 @@ describe('@owlmeans/planning-postgres — tables and wiring', () => {
     try {
       for (const alias of ALIASES) {
         const table = again.context.resource<PostgresResource<never>>(alias).table
-        const live = await introspectTable(client, table.schema, table.table, table.qualified)
-        expect([alias, planSync(table, live).statements.map(statement => statement.sql)]).toEqual([alias, []])
+        const live = await makePgIntrospectHelper(client).introspectTable(table.schema, table.table, table.qualified)
+        expect([alias, pgDiffHelper.planSync(table, live).statements.map(statement => statement.sql)]).toEqual([alias, []])
       }
     } finally {
       client.release()
@@ -55,7 +55,7 @@ describe('@owlmeans/planning-postgres — tables and wiring', () => {
     const appended = await suite.boot({ wiring: 'append' })
 
     expect(ALIASES.every(alias => appended.context.hasResource(alias))).toBe(true)
-    const branch = await createBranch(appended.facade('library-2'), 'Appended branch')
+    const branch = await conformanceFixturesOf(appended.facade('library-2')).createBranch('Appended branch')
     expect((await appended.facade('library-2').cards.get(branch.id!)).title).toBe('Appended branch')
   })
 })

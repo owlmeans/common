@@ -1,4 +1,13 @@
-import type { ConsentCategory } from './types.js'
+import type { ConsentCategory, ConsentLocale } from './types.js'
+
+import en from './i18n/en.json' with { type: 'json' }
+import pl from './i18n/pl.json' with { type: 'json' }
+import ru from './i18n/ru.json' with { type: 'json' }
+import be from './i18n/be.json' with { type: 'json' }
+import uk from './i18n/uk.json' with { type: 'json' }
+import es from './i18n/es.json' with { type: 'json' }
+import de from './i18n/de.json' with { type: 'json' }
+import fr from './i18n/fr.json' with { type: 'json' }
 
 /**
  * Where a visitor's choice is stored.
@@ -46,9 +55,19 @@ export const CONSENT_MARKETING = 'marketing'
  */
 export const CONSENT_LANGUAGE_KEY = 'owlmeans-lng'
 
-export const CONSENT_LOCALES = ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de', 'fr'] as const
+export const CONSENT_LOCALES = ['en', 'pl', 'ru', 'be', 'uk', 'es', 'de', 'fr'] as const satisfies readonly ConsentLocale[]
 
-export type ConsentLocale = (typeof CONSENT_LOCALES)[number]
+/**
+ * The dialog's copy, in the box.
+ *
+ * Carried here rather than registered into an i18n framework because one of the three consumers is
+ * an Astro site with React islands and no OwlMeans i18n at all — and a consent dialog that renders
+ * raw keys is worse than no dialog. An application that HAS translations passes `translate` and
+ * overrides every one of these.
+ */
+export const DEFAULT_CONSENT_MESSAGES: Record<ConsentLocale, Record<string, string>> = {
+  en, pl, ru, be, uk, es, de, fr,
+}
 
 /**
  * The categories every OwlMeans surface starts with.
@@ -94,3 +113,12 @@ export const CONSENT_SIGNAL_DEFAULTS: Record<string, 'granted' | 'denied'> = {
   personalization_storage: 'denied',
   security_storage: 'granted',
 }
+
+/** The URL parameter a decorated link carries the decision in, absent an override. */
+export const CONSENT_LINK_PARAM = 'owlcc'
+
+/** How old a decorated link's timestamp may be and still be trusted, in seconds, absent an override. */
+export const CONSENT_LINK_MAX_AGE = 300
+
+/** Clock skew allowed the OTHER way — a timestamp up to this far in the future is still trusted. */
+export const CONSENT_LINK_SKEW = 60

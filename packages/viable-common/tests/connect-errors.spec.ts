@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { ResilientError } from '@owlmeans/error'
 import { ConnectConfirmationRequired, ConnectConsentRequired, ConnectOutOfCredits } from '../src/connect/errors.js'
-import type { ConnectConfirmation } from '../src/connect/errors.js'
+import type { ConnectConfirmation } from '../src/connect/errors/types.js'
 
 describe('@owlmeans/viable-common — ConnectOutOfCredits', () => {
   test('carries its fields fresh, and survives a marshal/unmarshal round trip', () => {

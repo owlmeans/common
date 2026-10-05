@@ -4,11 +4,11 @@ import fse from 'fs-extra'
 import os from 'node:os'
 import path from 'node:path'
 
-import { SlotGitCommand } from '@owlmeans/viable-common'
-import type { SlotGitCommitInfo, SlotGitStatus } from '@owlmeans/viable-common'
+import { SlotGitCommand, type SlotGitCommitInfo, type SlotGitStatus } from '@owlmeans/viable-common'
 
 import { GitDirtyTree } from '../src/executor/errors.js'
-import { dispatchGitCommand, IGNORE_BASELINE } from '../src/executor/git.js'
+import { makeLocalGitHelper } from '../src/executor/git.js'
+import { IGNORE_BASELINE } from '../src/executor/consts.js'
 
 /**
  * The git half of the local executor, against a real repository.
@@ -88,7 +88,7 @@ describe.skipIf(!HAS_GIT)('viable-sdk — local git', () => {
 
   const run = async (
     dir: string, command: SlotGitCommand, args?: Record<string, unknown>
-  ): Promise<Record<string, unknown>> => await dispatchGitCommand(dir, command, args)
+  ): Promise<Record<string, unknown>> => await makeLocalGitHelper(dir).dispatchGitCommand(command, args)
 
   const status = async (dir: string): Promise<SlotGitStatus> =>
     await run(dir, SlotGitCommand.Status) as unknown as SlotGitStatus

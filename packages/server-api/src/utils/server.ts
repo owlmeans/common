@@ -1,24 +1,18 @@
-import { AppType } from '@owlmeans/context'
+import { AppType, assertContext } from '@owlmeans/context'
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import { assertContext } from '@owlmeans/context'
 import type { FixerService, ServerEntrypoint } from '@owlmeans/server-entrypoint'
-import type { CommonEntrypoint } from '@owlmeans/entrypoint'
-import type { GateService } from '@owlmeans/entrypoint'
-import { provideResponse } from '@owlmeans/entrypoint'
-import type { ServerContext } from '@owlmeans/server-context'
+import { type CommonEntrypoint, type GateService, provideResponse } from '@owlmeans/entrypoint'
 import { ResilientError } from '@owlmeans/error'
 import { OK } from '@owlmeans/api'
 import { logger } from '@owlmeans/log'
-import { errorExposure, handleError } from './error.js'
-import { executeResponse, provideRequest } from './payload.js'
+import { httpErrorHelper } from './error.js'
+import { payloadHelper } from './payload.js'
 import { authorize } from './guards.js'
 import { RouteProtocols } from '@owlmeans/route'
-import type { Config as ApiConfig } from '../types.js'
+import type { ServerConfig2, ServerContext2 } from './types.local.js'
 
-type Config = ApiConfig
-type Context = ServerContext<Config>
 
-export const canServeModule = (context: Context, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
+export const canServeModule = (context: ServerContext2, module: CommonEntrypoint): module is ServerEntrypoint<unknown> => {
   if (module.route.route.type !== AppType.Backend) {
     return false
   }
@@ -37,20 +31,20 @@ export const canServeModule = (context: Context, module: CommonEntrypoint): modu
 export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, location: string) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     // We passed context using fastify request object
-    let context = assertContext<Config, Context>((req as any)._ctx, location)
+    let context = assertContext<ServerConfig2, ServerContext2>((req as any)._ctx, location)
     try {
       const authorized = await authorize(context, module, req, reply)
       context = authorized[0]
       module = authorized[1]
 
       const response = provideResponse(reply)
-      const request = provideRequest(module.alias, req, true)
+      const request = payloadHelper.provideRequest(module.alias, req, true)
 
       const gates = module.getGates()
       for (const [srv, params] of gates) {
         const gate: GateService = context.service(srv)
         await gate.assert(request, response, params)
-        executeResponse(response, reply, true)
+        payloadHelper.executeResponse(response, reply, true)
       }
 
       await module.handle(request, response)
@@ -61,7 +55,7 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
       // synchronously right after `reply.send()`. Track the emitted state
       // explicitly instead, and only fall back to a default response when
       // neither `executeResponse` nor the handler itself (hijack) replied.
-      const responded = executeResponse(response, reply, true)
+      const responded = payloadHelper.executeResponse(response, reply, true)
       if (!responded && !reply.sent) {
         logger('http').warn(`SENDS DEFAULT RESPONSE: ${module.alias}`)
         reply.code(OK).send(response.value)
@@ -72,6 +66,6 @@ export const createServerHandler = (module: ServerEntrypoint<FastifyRequest>, lo
         fixer.handle(reply, ResilientError.ensure(error as Error))
         return
       }
-      handleError(error as Error, reply, errorExposure(context.cfg))
+      httpErrorHelper.handleError(error as Error, reply, httpErrorHelper.errorExposure(context.cfg))
     }
   }

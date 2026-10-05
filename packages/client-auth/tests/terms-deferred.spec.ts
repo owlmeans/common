@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { BasicContext, BasicConfig } from '@owlmeans/context'
 import { makeTestContext } from './context.js'
 import { appendLogin } from '../src/login/service.js'
-import { termsDeferred } from '../src/login/terms.js'
+import { loginTermsHelper } from '../src/login/terms.js'
 import type { LoginStep } from '../src/login/types.js'
 
 /** Grant a fake alias existence without building a real entrypoint/route graph. */
@@ -19,7 +19,7 @@ describe('termsDeferred', () => {
   test('false with no login service registered at all', () => {
     const context = makeTestContext()
 
-    expect(termsDeferred(context)).toBe(false)
+    expect(loginTermsHelper.termsDeferred(context)).toBe(false)
   })
 
   test('false with a login service but no confirming step', () => {
@@ -28,7 +28,7 @@ describe('termsDeferred', () => {
     allowEntrypoints(context, 'consent-screen')
     contextual.login().registerStep(step({ alias: 'other', entrypoint: 'consent-screen' }))
 
-    expect(termsDeferred(context)).toBe(false)
+    expect(loginTermsHelper.termsDeferred(context)).toBe(false)
   })
 
   test('false when the confirming step is registered but its screen is not bound', () => {
@@ -40,7 +40,7 @@ describe('termsDeferred', () => {
       alias: 'consent', entrypoint: 'consent-screen', confirmsTerms: true,
     }))
 
-    expect(termsDeferred(context)).toBe(false)
+    expect(loginTermsHelper.termsDeferred(context)).toBe(false)
   })
 
   test('true once a confirming step is both registered AND bound', () => {
@@ -51,7 +51,7 @@ describe('termsDeferred', () => {
       alias: 'consent', entrypoint: 'consent-screen', confirmsTerms: true,
     }))
 
-    expect(termsDeferred(context)).toBe(true)
+    expect(loginTermsHelper.termsDeferred(context)).toBe(true)
   })
 
   test('a non-confirming step bound elsewhere does not defer', () => {
@@ -60,6 +60,6 @@ describe('termsDeferred', () => {
     allowEntrypoints(context, 'other-screen')
     contextual.login().registerStep(step({ alias: 'other', entrypoint: 'other-screen' }))
 
-    expect(termsDeferred(context)).toBe(false)
+    expect(loginTermsHelper.termsDeferred(context)).toBe(false)
   })
 })

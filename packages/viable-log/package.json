@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/viable-log",
-  "version": "0.1.18-rc.0",
+  "version": "0.1.18-rc.1",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,11 +22,11 @@
     }
   },
   "dependencies": {
-    "@owlmeans/log": "^0.1.18-rc.0"
+    "@owlmeans/log": "^0.1.18-rc.1"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

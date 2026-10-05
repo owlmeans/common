@@ -3,10 +3,10 @@ import { AuthenFailed, AuthenPayloadError } from '@owlmeans/auth'
 import type { Config, Context, OidcClientService, OidcTokenSet } from '../types.js'
 import type { OidcProviderConfig } from '@owlmeans/oidc'
 import Url from 'url'
-import { cache, exchangeId, verifierId } from './cache.js'
+import { oidcCacheOf } from './cache.js'
 import { DEFAULT_ALIAS } from '../consts.js'
 import { base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
+import { randomBytes } from '@noble/hashes/utils.js'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 
 /**
@@ -26,7 +26,8 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
       throw new AuthenPayloadError('code_challenge')
     }
 
-    const verification = await cache<C, T>(context).take(verifierId(challenge))
+    const oidcCache = oidcCacheOf(context)
+    const verification = await oidcCache.resource().take(oidcCache.verifierId(challenge))
     if (verification.verifier == null) {
       throw new AuthenFailed()
     }
@@ -57,8 +58,8 @@ export const makeOidcAuthentication = <C extends Config, T extends Context<C>>(c
     // const tokenSet = await client.callback(redirectUrl, params, { code_verifier: verification.verifier })
 
     const exchangeToken = base64.encode(randomBytes(32))
-    await cache<C, T>(context).create(
-      { id: exchangeId(exchangeToken), payload: tokenSet },
+    await oidcCache.resource().create(
+      { id: oidcCache.exchangeId(exchangeToken), payload: tokenSet },
       { ttl: AUTHEN_TIMEFRAME / 1000 }
     )
 

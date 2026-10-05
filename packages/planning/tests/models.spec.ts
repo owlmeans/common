@@ -1,16 +1,17 @@
 import { describe, expect, test } from 'bun:test'
-import { applyQuery } from '@owlmeans/resource'
 import { CommitState, TransitionAction, WorkcardKind } from '../src/consts.js'
 import { WorkcardNotFound } from '../src/errors.js'
-import { applyTransition } from '../src/helpers/apply.js'
-import { computeChanges, isEmptyChange } from '../src/helpers/changes.js'
-import { criteriaOf, summaryOf } from '../src/helpers/query.js'
-import { currentSpecification, slotOf } from '../src/helpers/specification.js'
 import { makeProjectModel, makeWorkcardModel, modelOf } from '../src/models/index.js'
+import type { ProjectModel } from '../src/models/types.js'
 import type {
   PlanningFacade, Project, Specification, TransitionExecution, Workcard, WorkcardDraft,
 } from '../src/types.js'
 import { AT, ENTITY, PROJECT_TYPE, STORY_TYPE, makeRegistry } from './fixtures.js'
+import { applyHelper } from '../src/helpers/apply.js'
+import { changesHelper } from '../src/helpers/changes.js'
+import { queryHelper } from '../src/helpers/query.js'
+import { specificationHelper } from '../src/helpers/specification.js'
+import { recordQueryHelper } from '@owlmeans/resource'
 
 /**
  * The smallest facade the models can run against: maps, folded synchronously with the package's
@@ -28,14 +29,14 @@ const makeFacade = () => {
     cards: {
       get: async id => cards.get(id) ?? Promise.reject(new WorkcardNotFound(id)),
       load: async id => cards.get(id) ?? null,
-      list: async query => applyQuery([...cards.values()], criteriaOf(query, facade.scope)),
-      count: async query => applyQuery([...cards.values()], criteriaOf(query, facade.scope)).total,
+      list: async query => recordQueryHelper.applyQuery([...cards.values()], queryHelper.criteriaOf(query, facade.scope)),
+      count: async query => recordQueryHelper.applyQuery([...cards.values()], queryHelper.criteriaOf(query, facade.scope)).total,
       summary: async (parents, query) =>
-        summaryOf(applyQuery([...cards.values()], criteriaOf(query, facade.scope)).items, parents),
+        queryHelper.summaryOf(recordQueryHelper.applyQuery([...cards.values()], queryHelper.criteriaOf(query, facade.scope)).items, parents),
     },
     specifications: {
-      current: async (parent, category) => currentSpecification([...cards.values()].filter(card => card.parent === parent), category),
-      list: async parent => applyQuery([...cards.values()], { parent, kind: WorkcardKind.Specification }) as never,
+      current: async (parent, category) => specificationHelper.currentSpecification([...cards.values()].filter(card => card.parent === parent), category),
+      list: async parent => recordQueryHelper.applyQuery([...cards.values()], { parent, kind: WorkcardKind.Specification }) as never,
       get: async id => cards.get(id) as Specification,
       revisions: async () => [],
     },
@@ -53,18 +54,18 @@ const makeFacade = () => {
       const type = schemas.type(card?.type ?? draft!.type)
       const parent = cards.get(card?.parent ?? draft?.parent ?? '')
       const category = (card as Specification | undefined)?.category ?? draft?.category
-      const slot = parent != null && category != null ? slotOf(schemas.type(parent.type), category) : undefined
-      const set = computeChanges(card, exec, type, schemas, AT, { slot })
+      const slot = parent != null && category != null ? specificationHelper.slotOf(schemas.type(parent.type), category) : undefined
+      const set = changesHelper.computeChanges(card, exec, type, schemas, AT, { slot })
       const id = card?.id ?? `card-${++next}`
       const transition = {
         id: `t-${++next}`, entityId: ENTITY, card: id, kind: card?.kind ?? draft!.kind, type: type.type,
         seq: (card?.head ?? card?.seq ?? 0) + 1, action: exec.action, changes: set.changes, unset: set.unset,
         actor: {}, at: AT, commit: { state: CommitState.Committed },
       }
-      if (exec.action === TransitionAction.Update && isEmptyChange(set)) {
+      if (exec.action === TransitionAction.Update && changesHelper.isEmptyChange(set)) {
         return { transition, card, committed: async () => card ?? null }
       }
-      const folded = applyTransition(card, transition)
+      const folded = applyHelper.applyTransition(card, transition)
       folded == null ? cards.delete(id) : cards.set(id, folded)
       return { transition, card: folded, committed: async () => folded }
     },
@@ -125,7 +126,7 @@ describe('write', () => {
     const project = await seed({ kind: WorkcardKind.Project, type: PROJECT_TYPE.type, title: 'Shop' })
     await seed({ kind: WorkcardKind.Card, type: STORY_TYPE.type, parent: project.id, title: 'Story', fields: { area: 'user', primary: false } })
 
-    const model = await facade.model(project) as unknown as ReturnType<typeof makeProjectModel>
+    const model = await facade.model(project) as unknown as ProjectModel
 
     expect(await model.summary()).toEqual({ total: 1, planned: 1, 'in-progress': 0, closed: 0 })
     expect((await model.cards()).total).toBe(1)

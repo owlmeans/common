@@ -3,17 +3,14 @@ import { CONFIG_RECORD, appendContextual, assertContext } from '@owlmeans/contex
 import type { CommonConfig, ConfigResource, ConfigResourceAppend } from './types.js'
 import { DEFAULT_ALIAS } from './consts.js'
 import type { Criteria, FirstOptions, ListOptions } from '@owlmeans/resource'
-import {
-  applyQuery, filterRecords, firstMatch, UnknownRecordError, UnsupportedArgumentError,
-  UnsupportedMethodError
-} from '@owlmeans/resource'
+import { UnknownRecordError, UnsupportedArgumentError, UnsupportedMethodError, recordQueryHelper } from '@owlmeans/resource'
 
 /**
  * The records an application was configured with, read as a resource. The store is the array under
  * `cfg[key]`, so every read is a query over what is already in memory — and every write is refused,
  * because configuration is what the process was started with, not something it edits at runtime.
  */
-export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string = CONFIG_RECORD) => {
+export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string = CONFIG_RECORD): ConfigResource => {
   const location = `config-resource:${alias}`
 
   const _assertContext = (ctx: Context<CommonConfig> | undefined) => assertContext<CommonConfig, Context<CommonConfig>>(ctx, location)
@@ -36,7 +33,7 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
     idOrWhere: string | Criteria<ConfigRecord>, opts?: FirstOptions<ConfigRecord>
   ): ConfigRecord | null => typeof idOrWhere === 'string'
     ? records().find(record => record.id === idOrWhere) ?? null
-    : firstMatch(records(), idOrWhere, opts)
+    : recordQueryHelper.firstMatch(records(), idOrWhere, opts)
 
   const resource: ConfigResource = appendContextual<ConfigResource>(alias, {
     get: async (
@@ -60,10 +57,10 @@ export const createConfigResource = (alias: string = DEFAULT_ALIAS, key: string 
         throw new UnsupportedArgumentError('page-without-size')
       }
 
-      return applyQuery(records(), where, opts)
+      return recordQueryHelper.applyQuery(records(), where, opts)
     },
 
-    count: async (where?: Criteria<ConfigRecord>) => filterRecords(records(), where).length,
+    count: async (where?: Criteria<ConfigRecord>) => recordQueryHelper.filterRecords(records(), where).length,
 
     save: () => { throw new UnsupportedMethodError('config:save') },
 

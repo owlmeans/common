@@ -1,9 +1,7 @@
 import { makeContext as makeBasicContext, useContext as useBasicContext } from '@owlmeans/web-panel'
 import { appendStateResource } from '@owlmeans/state'
 import type { Config, Context } from './types.js'
-
-/** The alias the session items are stored under. Screens address the store by it, never by path. */
-export const SESSION_STATE = 'session-items'
+import { SESSION_STATE } from './consts.js'
 
 export const useContext = (): Context => useBasicContext<Config, Context>()
 

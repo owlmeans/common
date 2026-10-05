@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { addLogPlugin, logger, nativeConsole, resetLog } from '@owlmeans/log'
+import { addLogPlugin, logger, resetLog, logStateHelper } from '@owlmeans/log'
 import {
   PREVIEW_ANALYTICS_TYPE, PREVIEW_REPORTER_FLAG, SLOT_EVENTS_ENV, TARGET_EVENT_MARKER, TARGET_EVENT_MAX,
-  parseTargetEventLine, targetEventLine, viablePreviewPlugin, viableSlotPlugin,
+  targetEventHelper, viablePreviewPlugin, viableSlotPlugin,
 } from '@owlmeans/viable-log'
 import type { TargetEvent } from '@owlmeans/viable-log'
 
@@ -13,37 +13,37 @@ const sample = (patch: Partial<TargetEvent> = {}): TargetEvent => ({
 describe('target event line', () => {
   test('round-trips through targetEventLine and parseTargetEventLine', () => {
     const event = sample({ data: { id: 1 }, error: { name: 'Error', message: 'x', stack: 's', incidentId: 'i' }, event: 'e' })
-    expect(parseTargetEventLine(targetEventLine(event))).toEqual(event)
+    expect(targetEventHelper.parseTargetEventLine(targetEventHelper.targetEventLine(event))).toEqual(event)
   })
 
   test('finds the marker anywhere in a line (prefixed stdout)', () => {
-    expect(parseTargetEventLine(`12:00 ${targetEventLine(sample())}`)?.message).toBe('boom')
+    expect(targetEventHelper.parseTargetEventLine(`12:00 ${targetEventHelper.targetEventLine(sample())}`)?.message).toBe('boom')
   })
 
   test('rejects a line without a marker, broken JSON, a wrong version or kind, a bad level', () => {
-    expect(parseTargetEventLine('plain')).toBeUndefined()
-    expect(parseTargetEventLine(`${TARGET_EVENT_MARKER}{nope`)).toBeUndefined()
-    expect(parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), v: 2 })}`)).toBeUndefined()
-    expect(parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), kind: 'x' })}`)).toBeUndefined()
-    expect(parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), level: 'fatal' })}`)).toBeUndefined()
-    expect(parseTargetEventLine(`${TARGET_EVENT_MARKER}null`)).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine('plain')).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine(`${TARGET_EVENT_MARKER}{nope`)).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), v: 2 })}`)).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), kind: 'x' })}`)).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine(`${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), level: 'fatal' })}`)).toBeUndefined()
+    expect(targetEventHelper.parseTargetEventLine(`${TARGET_EVENT_MARKER}null`)).toBeUndefined()
   })
 
   test('clips untrusted text fields and ignores unknown fields', () => {
     const line = `${TARGET_EVENT_MARKER}${JSON.stringify({ ...sample(), message: 'm'.repeat(5000), extra: 'x', scope: 7 })}`
-    const parsed = parseTargetEventLine(line)!
+    const parsed = targetEventHelper.parseTargetEventLine(line)!
     expect(parsed.message.length).toBe(2000)
     expect(parsed.scope).toBe('target')
     expect('extra' in parsed).toBe(false)
   })
 
   test('an over-long event loses its stack first, then its data, and stays under the cap', () => {
-    const stackless = targetEventLine(sample({ error: { name: 'E', message: 'm', stack: 's'.repeat(TARGET_EVENT_MAX * 2) } }))
+    const stackless = targetEventHelper.targetEventLine(sample({ error: { name: 'E', message: 'm', stack: 's'.repeat(TARGET_EVENT_MAX * 2) } }))
     expect(stackless.length).toBeLessThanOrEqual(TARGET_EVENT_MAX)
-    expect(parseTargetEventLine(stackless)?.error?.message).toBe('m')
-    const dataless = targetEventLine(sample({ data: 'd'.repeat(TARGET_EVENT_MAX * 2) }))
+    expect(targetEventHelper.parseTargetEventLine(stackless)?.error?.message).toBe('m')
+    const dataless = targetEventHelper.targetEventLine(sample({ data: 'd'.repeat(TARGET_EVENT_MAX * 2) }))
     expect(dataless.length).toBeLessThanOrEqual(TARGET_EVENT_MAX)
-    expect(parseTargetEventLine(dataless)?.message).toBe('boom')
+    expect(targetEventHelper.parseTargetEventLine(dataless)?.message).toBe('boom')
   })
 })
 
@@ -74,18 +74,18 @@ describe('viableSlotPlugin', () => {
   const written: string[] = []
   const proc = globalThis.process
   const realWrite = proc.stdout.write.bind(proc.stdout)
-  let saved: ReturnType<typeof nativeConsole>
+  let saved: ReturnType<typeof logStateHelper.nativeConsole>
 
   beforeEach(() => {
     resetLog()
     written.length = 0
-    saved = { ...nativeConsole() }
-    for (const key of Object.keys(nativeConsole()) as (keyof ReturnType<typeof nativeConsole>)[]) nativeConsole()[key] = () => undefined
+    saved = { ...logStateHelper.nativeConsole() }
+    for (const key of Object.keys(logStateHelper.nativeConsole()) as (keyof ReturnType<typeof logStateHelper.nativeConsole>)[]) logStateHelper.nativeConsole()[key] = () => undefined
     ;(proc.stdout as { write: unknown }).write = (chunk: string) => { written.push(String(chunk)); return true }
   })
   afterEach(() => {
     ;(proc.stdout as { write: unknown }).write = realWrite
-    Object.assign(nativeConsole(), saved)
+    Object.assign(logStateHelper.nativeConsole(), saved)
     delete proc.env[SLOT_EVENTS_ENV]
     resetLog()
   })
@@ -104,7 +104,7 @@ describe('viableSlotPlugin', () => {
     logger('api').info('Signed up', { plan: 'free' }, { analytics: 'signup' })
     logger('api').info('plain info')
     logger('api').warn('plain warn')
-    const events = written.map(line => parseTargetEventLine(line)!)
+    const events = written.map(line => targetEventHelper.parseTargetEventLine(line)!)
     expect(events.map(e => [e.kind, e.event ?? e.message])).toEqual([['error', 'Request failed'], ['analytics', 'signup']])
     expect(events[0].error).toMatchObject({ name: 'Error', message: 'db down', incidentId: 'inc-1' })
     expect(events[1].data).toEqual({ plan: 'free' })

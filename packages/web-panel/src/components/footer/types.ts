@@ -24,3 +24,7 @@ export interface FooterProps extends PropsWithChildren<StyledProps> {
   /** See {@link NavTranslate} — omitted, literal labels and humanized aliases are used. */
   translate?: NavTranslate
 }
+
+export interface ShellCreditProps {
+  className?: string
+}

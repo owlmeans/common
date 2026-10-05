@@ -2,10 +2,9 @@ import { DispatcherHOC } from '@owlmeans/client-auth'
 import { useEffect, useState } from 'react'
 import { useI18nLib } from '@owlmeans/client-i18n'
 import { AUTH_QUERY } from '@owlmeans/auth'
-import {
-  FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, resumeAction,
-} from '@owlmeans/client-auth/login'
-import { LoginSurrogateView, SurrogateStage } from '../../login/view.js'
+import { FallbackLoginScreen, LoginIntent, LoginOutcome, ResumeAction, loginResumeHelper } from '@owlmeans/client-auth/login'
+import { LoginSurrogateView } from '../../login/view.js'
+import { SurrogateStage } from '../../login/consts.js'
 import { useContext } from '../../context.js'
 
 export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
@@ -51,7 +50,7 @@ export const Dispatcher = DispatcherHOC(({ provideToken, navigate }) => {
       // A session already exists in THIS document. Whether it is useful here, or belongs to the
       // window that opened this one, is the plugin's call — the dispatcher reads no environment.
       const settled = await context.login().resume(authzToken)
-      switch (resumeAction(settled)) {
+      switch (loginResumeHelper.resumeAction(settled)) {
         case ResumeAction.Stop:
           return
         case ResumeAction.Render:

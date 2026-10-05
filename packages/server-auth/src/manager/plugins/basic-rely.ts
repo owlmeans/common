@@ -14,7 +14,7 @@ import { logger } from '@owlmeans/log'
 const log = logger('server-auth:rely')
 
 const _subscriptions: Record<string, Unsubscribe> = {}
-export const basicRely = (context: AppContext, type?: string): AuthPlugin => {
+export const makeBasicRelyPlugin = (context: AppContext, type?: string): AuthPlugin => {
   const plugin: AuthPlugin = {
     type: type ?? AuthenticationType.RelyHandshake,
 

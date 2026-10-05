@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/planning",
-  "version": "0.1.18-rc.17",
+  "version": "0.1.18-rc.18",
   "license": "MIT",
   "description": "Runtime-free project-planning contracts — the workcard super type, projects, specifications, typed relationships, status flows with three intrinsic states, the transition event and its pure fold, the schema registry, the models and the protocol tree.",
   "type": "module",
@@ -23,14 +23,14 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.38",
-    "@owlmeans/basic-ids": "^0.1.18-rc.35",
-    "@owlmeans/context": "^0.1.18-rc.32",
-    "@owlmeans/entrypoint": "^0.1.18-rc.39",
-    "@owlmeans/error": "^0.1.18-rc.36",
-    "@owlmeans/i18n": "^0.1.18-rc.37",
-    "@owlmeans/resource": "^0.1.18-rc.38",
-    "@owlmeans/route": "^0.1.18-rc.33"
+    "@owlmeans/auth": "^0.1.18-rc.39",
+    "@owlmeans/basic-ids": "^0.1.18-rc.36",
+    "@owlmeans/context": "^0.1.18-rc.33",
+    "@owlmeans/entrypoint": "^0.1.18-rc.40",
+    "@owlmeans/error": "^0.1.18-rc.37",
+    "@owlmeans/i18n": "^0.1.18-rc.38",
+    "@owlmeans/resource": "^0.1.18-rc.39",
+    "@owlmeans/route": "^0.1.18-rc.34"
   },
   "peerDependencies": {
     "ajv": "*",
@@ -38,8 +38,8 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.4.0",
-    "ajv": "^8.17.1",
+    "@types/bun": "^1.4.2",
+    "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"

@@ -16,3 +16,5 @@ export const DEFAULT_RECONNECT_POLICY: ReconnectPolicy = {
   heartbeat: 30_000,
   pongTimeout: 10_000,
 }
+
+export const SOCKET_STATUS = 'socket-status'

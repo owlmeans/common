@@ -1,12 +1,13 @@
 import { DEF_OIDC_ACCOUNT_LINKING, DEF_OIDC_PROVIDER_API, DEFAULT_ALIAS } from './consts.js'
 import { assertContext, createService } from '@owlmeans/context'
 import type { AccountLinkingService, Config, Context, OidcClientService, ProviderApiService, OidcClientAdapter, OidcTokenSet, OidcTokenSetParameters, OidcIntrospectionResponse } from './types.js'
-import type { AuthorizationCodeGrantChecks } from 'openid-client'
+import { type AuthorizationCodeGrantChecks, Configuration } from 'openid-client'
 import { AuthManagerError } from '@owlmeans/auth'
 import { makeSecurityHelper } from '@owlmeans/config'
 import * as client from 'openid-client'
 import type { OidcProviderConfig } from '@owlmeans/oidc'
-import { Configuration } from 'openid-client'
+import { _configFlag, matchCriteria } from './consts.local.js'
+import type { TemporaryConfig } from './types.local.js'
 // import { URL as SrvURL } from 'node:url'
 
 export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClientService => {
@@ -273,11 +274,3 @@ export const makeOidcClientService = (alias: string = DEFAULT_ALIAS): OidcClient
   return service
 }
 
-const matchCriteria = [
-  'clientId', 'service', 'targetService', 'basePath', 'entityId'
-]
-
-const _configFlag = Symbol('temporary-oidc-proivder-config')
-interface TemporaryConfig extends OidcProviderConfig {
-  [_configFlag]: number
-}

@@ -2,11 +2,12 @@ import { describe, expect, test } from 'bun:test'
 import Ajv from 'ajv'
 import {
   BillingProfileViewSchema, CancellationBodySchema, CancellationReceiptSchema, ConsumerRegion,
-  ConsumerRightsError, ConsumerRightsPolicySchema, CreateCheckoutBodySchema, makeConsumerRightsPolicy,
-  PerformanceConsentBodySchema, PerformanceConsentViewSchema, PlanPriceListSchema,
-  PlanStatus, PlanDuration, PriceEstimateSchema, ProductPlanSchema, PurchaseKind, reviveConsentView, reviveReceipt,
-  reviveWithdrawalList, SubscriptionStartViewSchema, TaxBehavior, TaxEstimateStatus, WithdrawalBodySchema,
-  WithdrawalCandidateListSchema, WithdrawalStatus, WithdrawalReceiptSchema, CancellationKind, CancellationStatus,
+  ConsumerRightsError, ConsumerRightsPolicySchema, CreateCheckoutBodySchema,
+  makeConsumerRightsPolicy, PerformanceConsentBodySchema, PerformanceConsentViewSchema,
+  PlanPriceListSchema, PlanStatus, PlanDuration, PriceEstimateSchema, ProductPlanSchema,
+  PurchaseKind, SubscriptionStartViewSchema, TaxBehavior, TaxEstimateStatus, WithdrawalBodySchema,
+  WithdrawalCandidateListSchema, WithdrawalStatus, WithdrawalReceiptSchema, CancellationKind,
+  CancellationStatus, consumerReviveHelper,
 } from '../src/index.js'
 import type {
   PerformanceConsentView, PurchaseView, SubscriptionStartView, WithdrawalCandidateList,
@@ -32,11 +33,11 @@ describe('consumer-rights wire shapes', () => {
     const sent = wire(view) as PerformanceConsentView
     expect(ajv.validate(PerformanceConsentViewSchema, sent)).toBe(true)
     expect(typeof sent.at).toBe('string')
-    const revived = reviveConsentView(sent)
+    const revived = consumerReviveHelper.reviveConsentView(sent)
     expect(revived.at).toEqual(view.at)
     expect(revived.purchases[0].purchasedAt).toEqual(purchase.purchasedAt)
     expect(revived.purchases[0].deadline).toEqual(purchase.deadline)
-    expect(reviveConsentView(revived)).toEqual(revived)
+    expect(consumerReviveHelper.reviveConsentView(revived)).toEqual(revived)
   })
 
   test('a consent view carries the copy variant it is rendered with', () => {
@@ -47,7 +48,7 @@ describe('consumer-rights wire shapes', () => {
     }
     const sent = wire(view) as PerformanceConsentView
     expect(ajv.validate(PerformanceConsentViewSchema, sent)).toBe(true)
-    expect(reviveConsentView(sent).context).toBe('included')
+    expect(consumerReviveHelper.reviveConsentView(sent).context).toBe('included')
     expect(ajv.validate(PerformanceConsentViewSchema, { ...sent, context: 'Included' })).toBe(false)
     expect(ajv.validate(PerformanceConsentViewSchema, { ...sent, context: '' })).toBe(false)
   })
@@ -89,12 +90,12 @@ describe('consumer-rights wire shapes', () => {
       status: WithdrawalStatus.Refunded, refundMinor: 3075, currency: 'eur',
     }
     expect(ajv.validate(WithdrawalReceiptSchema, wire(receipt))).toBe(true)
-    expect(reviveReceipt(wire(receipt) as typeof receipt).receivedAt).toEqual(receipt.receivedAt)
+    expect(consumerReviveHelper.reviveReceipt(wire(receipt) as typeof receipt).receivedAt).toEqual(receipt.receivedAt)
     const cancellation = { ...receipt, status: CancellationStatus.Scheduled, effectiveAt: new Date('2026-10-31T00:00:00.000Z') }
     delete (cancellation as Partial<typeof cancellation>).refundMinor
     delete (cancellation as Partial<typeof cancellation>).currency
     expect(ajv.validate(CancellationReceiptSchema, wire(cancellation))).toBe(true)
-    expect(reviveReceipt(wire(cancellation) as typeof cancellation).effectiveAt).toEqual(cancellation.effectiveAt)
+    expect(consumerReviveHelper.reviveReceipt(wire(cancellation) as typeof cancellation).effectiveAt).toEqual(cancellation.effectiveAt)
 
     const list: WithdrawalCandidateList = {
       candidates: [{
@@ -105,7 +106,7 @@ describe('consumer-rights wire shapes', () => {
       language: 'de', links,
     }
     expect(ajv.validate(WithdrawalCandidateListSchema, wire(list))).toBe(true)
-    expect(reviveWithdrawalList(wire(list) as WithdrawalCandidateList).candidates[0].deadline).toEqual(purchase.deadline!)
+    expect(consumerReviveHelper.reviveWithdrawalList(wire(list) as WithdrawalCandidateList).candidates[0].deadline).toEqual(purchase.deadline!)
   })
 
   test('profile, start view and plan prices', () => {

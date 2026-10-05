@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser } from '@owlmeans/test-ui'
 import { OAUTH_CONSENT_PATH, oauth } from '@owlmeans/oauth'
 import { OAUTH_SUSPEND_TTL_MS } from '../src/consts.js'
 import en from '../src/i18n/en.json' with { type: 'json' }
-import { bearer, codeView, deviceView, open, refusal, TIMEOUT } from './helpers.js'
+import { bearer, codeView, deviceView, open, refusal, TIMEOUT, untilPath } from './helpers.js'
 import { HARNESS_URL } from './context.js'
+import { browserHelper } from '@owlmeans/test-ui'
 
-afterAll(async () => { await closeBrowser() })
+afterAll(async () => { await browserHelper.closeBrowser() })
 
 const CONSENT = `${OAUTH_CONSENT_PATH}?ref=ABCD-EFGH`
 
@@ -15,7 +15,7 @@ describe('consent screen — signed out', () => {
     const before = Date.now()
     const { page, calls, close } = await open(CONSENT)
     try {
-      await page.waitForURL(url => url.pathname === '/dispatcher', { timeout: 45_000 })
+      await untilPath(page, '/dispatcher', 45_000)
 
       // Nobody is signed in, so there is nothing to load and nothing to approve.
       expect(calls).toEqual([])
@@ -44,7 +44,7 @@ describe('consent screen — the round trip through sign-in', () => {
       authenticate: true, stubs: { load: { json: deviceView() }, approve: { json: {} } },
     })
     try {
-      await page.waitForURL(url => url.pathname === '/dispatcher', { timeout: 45_000 })
+      await untilPath(page, '/dispatcher', 45_000)
       expect(await page.evaluate(async () => await (window as any).__oauth.suspended())).not.toBeNull()
 
       // Any sign-in method ends the same way: the dispatcher is handed a token.
@@ -79,7 +79,7 @@ describe('consent screen — signed in', () => {
       expect(calls).toEqual(['GET ABCD-EFGH'])
 
       await page.getByTestId('oauth-consent-approve').click()
-      await page.waitForURL(url => url.pathname === '/oauth/done', { timeout: 30_000 })
+      await untilPath(page, '/oauth/done', 30_000)
 
       expect(calls).toEqual(['GET ABCD-EFGH', 'POST ABCD-EFGH/approve'])
       expect(new URL(page.url()).searchParams.get('kind')).toBe('device')
@@ -127,7 +127,7 @@ describe('consent screen — signed in', () => {
     try {
       await page.getByTestId('oauth-consent-approve').waitFor({ state: 'visible', timeout: 45_000 })
       await page.getByTestId('oauth-consent-approve').click()
-      await page.waitForURL(url => url.pathname === '/client-callback', { timeout: 30_000 })
+      await untilPath(page, '/client-callback', 30_000)
 
       expect(page.url()).toBe(target)
       expect(calls).toEqual(['GET req-1', 'POST req-1/approve'])
@@ -144,7 +144,7 @@ describe('consent screen — signed in', () => {
     try {
       await code.page.getByTestId('oauth-consent-deny').waitFor({ state: 'visible', timeout: 45_000 })
       await code.page.getByTestId('oauth-consent-deny').click()
-      await code.page.waitForURL(url => url.pathname === '/client-callback', { timeout: 30_000 })
+      await untilPath(code.page, '/client-callback', 30_000)
 
       expect(code.page.url()).toBe(back)
       expect(code.calls).toEqual(['GET req-1', 'POST req-1/deny'])
@@ -158,7 +158,7 @@ describe('consent screen — signed in', () => {
     try {
       await device.page.getByTestId('oauth-consent-deny').waitFor({ state: 'visible', timeout: 45_000 })
       await device.page.getByTestId('oauth-consent-deny').click()
-      await device.page.waitForURL(url => url.pathname === '/oauth/done', { timeout: 30_000 })
+      await untilPath(device.page, '/oauth/done', 30_000)
 
       expect(device.calls).toEqual(['GET ABCD-EFGH', 'POST ABCD-EFGH/deny'])
       expect(await device.page.getByTestId('oauth-done-card').count()).toBe(1)
@@ -176,7 +176,7 @@ describe('consent screen — signed in', () => {
       expect(await page.evaluate(async () => await (window as any).__oauth.token())).not.toBeNull()
 
       await page.getByTestId('oauth-consent-switch').click()
-      await page.waitForURL(url => url.pathname === '/dispatcher', { timeout: 45_000 })
+      await untilPath(page, '/dispatcher', 45_000)
 
       expect(await page.evaluate(async () => await (window as any).__oauth.token())).toBeNull()
       const record = await page.evaluate(async () => await (window as any).__oauth.suspended()) as

@@ -30,6 +30,15 @@ skill.
 - Report finished git work as a Markdown table (**Action**, **Target**, **Result**), and never
   commit a conflicted working copy — stop, list the conflicted paths, hand control back.
 
+## Code structure (mandatory)
+
+The functions of one domain are ONE object built by a factory: its `interface` is declared first
+(never `ReturnType<typeof …>`; interfaces over types wherever possible), the implementation and its
+private parts live in the factory, and a shared context or collaborator is bound into the factory.
+Types, consts and code live in separate files; an object with parts gets a same-named folder
+(`x.ts` + `x/types.ts`). Load `/owlmeans-code-structure` before writing, moving or reviewing any
+`.ts`/`.tsx`, and hold every diff to it.
+
 ## Reporting (mandatory)
 
 Always report concisely and briefly, in table format, about WHAT was done rather than why —
@@ -105,7 +114,7 @@ from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you 
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
 symlinks in `.claude/skills/` (see "Claude Code" below).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.47` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.48` to refresh
   the deployed skills.
 - `/logging` — before adding any log line, catch block or `console` call (mechanics: `/log`).
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.

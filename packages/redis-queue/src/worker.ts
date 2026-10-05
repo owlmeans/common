@@ -4,19 +4,17 @@ import { DEFAULT_DB_ALIAS } from '@owlmeans/redis-resource'
 import type { RedisDbService } from '@owlmeans/redis-resource'
 import type { JobContext, JobProcessor, QueueHooks } from '@owlmeans/queue'
 import {
-  DEFAULT_ALIAS, DEFAULT_ATTEMPTS, entrypointProcessor, isListening, JobEventType, JobState,
-  queueOf, QueueNotListening, servedJobs, UnknownJobName
+  DEFAULT_ALIAS, DEFAULT_ATTEMPTS, entrypointJobsOf, JobEventType, JobState, queueConfigOf,
+  QueueNotListening, UnknownJobName
 } from '@owlmeans/queue'
 import { logThrottle, logger } from '@owlmeans/log'
-import type { Job, WorkerOptions } from 'bullmq'
+import type { ConnectionOptions, Job, WorkerOptions } from 'bullmq'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
 import type { Config, Context, RedisQueueWorkerService } from './types.js'
 import {
   DEFAULT_LOCK_DURATION, DEFAULT_MAX_STALLED_COUNT, DEFAULT_STALLED_INTERVAL, STALLED_FAILURE
 } from './consts.js'
-import {
-  byJobId, jobRecordOf, progressOf, queueConnection, scheduleIdOf, syncSchedules
-} from './utils/index.js'
+import { jobRecordHelper, queueConnectionHelper, queueScheduleHelper } from './utils/index.js'
 
 const log = logger('redis-queue:worker')
 
@@ -69,7 +67,7 @@ export const makeRedisQueueWorker = (
     data: job.data,
     signal,
     // bullmq stamps every run a scheduler produces with the scheduler's id.
-    scheduled: scheduleIdOf(job.repeatJobKey),
+    scheduled: queueScheduleHelper.scheduleIdOf(job.repeatJobKey),
 
     touch: async () => {
       await job.updateProgress(job.progress)
@@ -79,12 +77,12 @@ export const makeRedisQueueWorker = (
     },
 
     progress: async value => {
-      await job.updateProgress(progressOf(value))
+      await job.updateProgress(jobRecordHelper.progressOf(value))
     },
 
-    children: async <T>() => byJobId(await job.getChildrenValues<T>()),
+    children: async <T>() => jobRecordHelper.byJobId(await job.getChildrenValues<T>()),
 
-    failedChildren: async () => byJobId(await job.getIgnoredChildrenFailures()),
+    failedChildren: async () => jobRecordHelper.byJobId(await job.getIgnoredChildrenFailures()),
   })
 
   const dispatch = async (
@@ -93,7 +91,7 @@ export const makeRedisQueueWorker = (
   ): Promise<unknown> => {
     const registered = processors.get(queue)?.get(job.name)
     const processor: JobProcessor<any, unknown> | undefined = registered
-      ?? (entrypoints.has(job.name) ? entrypointProcessor(context()) : undefined)
+      ?? (entrypoints.has(job.name) ? entrypointJobsOf(context()).processor() : undefined)
 
     if (processor == null) {
       // Marshalled inside an UnrecoverableError so that both readers get what they need: bullmq
@@ -159,7 +157,7 @@ export const makeRedisQueueWorker = (
         log.warn('Job dead', {
           queue, name: job.name, id: job.id, attempts: job.attemptsMade, reason: error.message,
         }, { event: 'job.dead' })
-        report(hooks.onJobDead?.(jobRecordOf(queue, job, JobState.Failed), error.message))
+        report(hooks.onJobDead?.(jobRecordHelper.jobRecordOf(queue, job, JobState.Failed), error.message))
       }
     })
 
@@ -178,7 +176,7 @@ export const makeRedisQueueWorker = (
   const optionsOf = (
     queue: string, connection: WorkerOptions['connection'], prefix: string, lockDuration: number
   ): WorkerOptions => {
-    const declared = queueOf(context().cfg, queue).worker ?? {}
+    const declared = queueConfigOf(context().cfg).queueOf(queue).worker ?? {}
     const options: WorkerOptions = {
       connection,
       prefix,
@@ -208,7 +206,7 @@ export const makeRedisQueueWorker = (
      * consumes is configuration, so this is a deployment question rather than a code one.
      */
     process: (queue, name, processor) => {
-      if (!isListening(context().cfg, queue)) {
+      if (!queueConfigOf(context().cfg).isListening(queue)) {
         throw new QueueNotListening(`${queue}:${name}`)
       }
       const registered = processors.get(queue) ?? new Map<string, JobProcessor<any, unknown>>()
@@ -227,13 +225,13 @@ export const makeRedisQueueWorker = (
         return
       }
 
-      const { client, blocking, prefix } = await queueConnection(
+      const { client, blocking, prefix } = await queueConnectionHelper.queueConnection(
         ctx.service<RedisDbService>(serviceAlias), dbAlias
       )
 
       // Which entrypoints this process both SERVES and LISTENS to. Read once, here, because an
       // entrypoint bound after the worker starts was not part of what this process promised.
-      const served = servedJobs(ctx)
+      const served = entrypointJobsOf(ctx).served()
       const bound: string[] = []
 
       for (const name of listen) {
@@ -241,7 +239,7 @@ export const makeRedisQueueWorker = (
           continue
         }
         const entrypoints = new Set((served.get(name) ?? []).map(entrypoint => entrypoint.alias))
-        const lockDuration = queueOf(ctx.cfg, name).worker?.lockDuration ?? DEFAULT_LOCK_DURATION
+        const lockDuration = queueConfigOf(ctx.cfg).queueOf(name).worker?.lockDuration ?? DEFAULT_LOCK_DURATION
         const controller = new AbortController()
 
         const worker = new Worker<unknown, unknown>(
@@ -249,7 +247,7 @@ export const makeRedisQueueWorker = (
           async (job, token) => await dispatch(
             name, job, token, controller.signal, lockDuration, entrypoints
           ),
-          optionsOf(name, { ...blocking }, prefix, lockDuration)
+          optionsOf(name, { ...blocking } as unknown as ConnectionOptions, prefix, lockDuration)
         )
         observe(name, worker)
 
@@ -270,7 +268,7 @@ export const makeRedisQueueWorker = (
       await Promise.all(bound.map(async name => {
         const bullQueue = queues.get(name)
         if (bullQueue != null) {
-          await syncSchedules(bullQueue, ctx.cfg, name).catch(
+          await queueScheduleHelper.syncSchedules(bullQueue, ctx.cfg, name).catch(
             error => log.error('Queue schedules not reconciled', { worker: alias, queue: name, error })
           )
         }

@@ -1,18 +1,9 @@
-import {
-  applyUnset, assertMutable, BODY_MAX, CODE_MAX, DESCRIPTION_MAX, IllegalTransition,
-  LabelNotAllowed, MAX_LABELS, MAX_PARENTS, mergeFields, normalizeParents, ParentNotFound, PlanningError,
-  RelationshipRefused, ruleOf, SpecificationRevisionConflict, SpecificationSlotUnknown, slotOf, TITLE_MAX,
-  TransitionAction, validateFields, validateSpecificationBody, WorkcardKind,
-} from '@owlmeans/planning'
-import type {
-  PlanningFacade, RelationshipDraft, Specification, TransitionExecution, WorkcardDraft,
-} from '@owlmeans/planning'
-import type { PlanningRuntime } from '../service.js'
-import { assertCreatorFixed } from './creator.js'
-import { assertChildAllowed, childViewOf } from './resolve.js'
-import type { Resolved } from './resolve.js'
-
-const ACTIONS = new Set<string>(Object.values(TransitionAction))
+import { BODY_MAX, cardHelper, changesHelper, CODE_MAX, DESCRIPTION_MAX, IllegalTransition, LabelNotAllowed, MAX_LABELS, MAX_PARENTS, ParentNotFound, PlanningError, RelationshipRefused, specificationHelper, SpecificationRevisionConflict, SpecificationSlotUnknown, statusHelper, TITLE_MAX, TransitionAction, validateHelper, WorkcardKind, type PlanningFacade, type RelationshipDraft, type Specification, type TransitionExecution, type WorkcardDraft } from '@owlmeans/planning'
+import type { PlanningRuntime } from '../types.js'
+import { creatorHelper } from './creator.js'
+import type { Resolved } from './types.js'
+import { ACTIONS } from './consts.local.js'
+import { resolveUtilsOf } from './resolve.js'
 
 const malformed = (what: string): PlanningError => new PlanningError(`malformed:${what}`)
 
@@ -73,7 +64,7 @@ const assertFlow = (exec: TransitionExecution, resolved: Resolved): void => {
   }
   const card = resolved.card!
   const from = card.flows[resolved.flowId] ?? card.status
-  if (ruleOf(resolved.flow, exec.transition!, from) == null) {
+  if (statusHelper.ruleOf(resolved.flow, exec.transition!, from) == null) {
     throw new IllegalTransition(`${resolved.flowId}:${exec.transition}:${from}`)
   }
 }
@@ -82,15 +73,15 @@ const assertFields = (exec: TransitionExecution, resolved: Resolved): void => {
   const schemas = resolved.schemas
   if (resolved.create) {
     const draft = exec.card as WorkcardDraft
-    validateFields(schemas, resolved.type.type, mergeFields(draft.fields, exec.changes?.fields))
+    validateHelper.validateFields(schemas, resolved.type.type, changesHelper.mergeFields(draft.fields, exec.changes?.fields))
     return
   }
   const clears = (exec.unset ?? []).filter(path => path.startsWith('fields.'))
   if (exec.changes?.fields == null && clears.length === 0) {
     return
   }
-  const merged = applyUnset({ fields: mergeFields(resolved.card!.fields, exec.changes?.fields) }, clears)
-  validateFields(schemas, resolved.type.type, merged.fields)
+  const merged = changesHelper.applyUnset({ fields: changesHelper.mergeFields(resolved.card!.fields, exec.changes?.fields) }, clears)
+  validateHelper.validateFields(schemas, resolved.type.type, merged.fields)
 }
 
 const assertLabels = (exec: TransitionExecution, resolved: Resolved): void => {
@@ -118,7 +109,8 @@ const assertParentMove = async (
     return
   }
   const changes = exec.changes ?? {}
-  const moved = [...new Set(normalizeParents(changes.parent, changes.parents))]
+  const resolve = resolveUtilsOf(runtime)
+  const moved = [...new Set(cardHelper.normalizeParents(changes.parent, changes.parents))]
     .filter(id => id !== resolved.card!.parent && !resolved.card!.parents.includes(id))
   for (const id of moved) {
     if (id === resolved.card!.id) {
@@ -128,8 +120,8 @@ const assertParentMove = async (
     if (found == null) {
       throw new ParentNotFound(id)
     }
-    assertChildAllowed(
-      runtime, found, resolved.card!.kind, resolved.card!.type, await childViewOf(runtime, facade.scope.entityId, found)
+    resolve.assertChildAllowed(
+      found, resolved.card!.kind, resolved.card!.type, await resolve.childViewOf(facade.scope.entityId, found)
     )
   }
 }
@@ -149,7 +141,7 @@ const assertSpecification = async (
     if (draft.category == null || draft.category === '') {
       throw malformed('specification-without-category')
     }
-    const slot = slotOf(schemas.type(parent.type), draft.category)
+    const slot = specificationHelper.slotOf(schemas.type(parent.type), draft.category)
     if (slot == null) {
       throw new SpecificationSlotUnknown(`${parent.type}:${draft.category}`)
     }
@@ -157,7 +149,7 @@ const assertSpecification = async (
       throw malformed(`format:${draft.category}:${draft.format}`)
     }
     assertText('body', draft.body, BODY_MAX, false)
-    validateSpecificationBody(slot, draft.body)
+    validateHelper.validateSpecificationBody(slot, draft.body)
     if (slot.multiple !== true && await facade.specifications.current(parent.id!, draft.category) != null) {
       throw new SpecificationRevisionConflict(`${parent.id}:${draft.category}`)
     }
@@ -178,7 +170,7 @@ const assertSpecification = async (
   }
   if (changes.body != null) {
     assertText('body', changes.body, BODY_MAX, false)
-    validateSpecificationBody(slot, changes.body)
+    validateHelper.validateSpecificationBody(slot, changes.body)
   }
 }
 
@@ -235,7 +227,7 @@ const assertRelationships = async (
 }
 
 /**
- * Step 6: shape, flow rule, immutables (`createdBy` among them, {@link assertCreatorFixed}),
+ * Step 6: shape, flow rule, immutables (`createdBy` among them, `creatorHelper.assertCreatorFixed`),
  * `fields`, labels, parent moves, the specification slot and relationships — in that order.
  * Nothing is written by a refusal here.
  *
@@ -248,8 +240,8 @@ export const validateExecution = async (
 ): Promise<void> => {
   assertShape(exec, resolved)
   assertFlow(exec, resolved)
-  assertMutable(exec, resolved.type)
-  assertCreatorFixed(exec)
+  changesHelper.assertMutable(exec, resolved.type)
+  creatorHelper.assertCreatorFixed(exec)
   assertFields(exec, resolved)
   assertLabels(exec, resolved)
   await assertParentMove(exec, resolved, runtime, facade)

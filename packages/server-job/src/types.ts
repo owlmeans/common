@@ -13,6 +13,7 @@ export interface Config extends ServerConfig {
 export interface Context<C extends Config = Config> extends ServerContext<C>,
   ApiServerAppend, QueueAppend { }
 
+// Kept as a type: a `Record` (mapped type) that an application's audience satisfies without declaring an index signature.
 export type JobAudience = Record<string, unknown>
 
 /** Required application policy at the raw-broker to public-domain boundary. */

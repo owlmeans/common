@@ -2,14 +2,17 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { claimOrJoinLock, readLock, releaseLock } from '../src/lock.js'
+import { makeSignInLockHelper } from '../src/lock.js'
+import type { SignInLockHelper } from '../src/lock/types.js'
 
 let dir: string
 let path: string
+let lock: SignInLockHelper
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'cli-auth-lock-'))
   path = join(dir, '.owlmeans.lock')
+  lock = makeSignInLockHelper(path)
 })
 afterEach(async () => { await rm(dir, { recursive: true, force: true }) })
 
@@ -20,33 +23,33 @@ const info = (overrides: Record<string, unknown> = {}) => ({
 
 describe('claimOrJoinLock', () => {
   test('claims an absent lock', async () => {
-    const claim = await claimOrJoinLock(path, 'https://api.example.com', info())
+    const claim = await lock.claimOrJoinLock('https://api.example.com', info())
     expect(claim.owner).toBe(true)
     expect(claim.info.apiUrl).toBe('https://api.example.com')
     expect(claim.info.pid).toBe(process.pid)
 
-    expect(await readLock(path)).toEqual(claim.info)
+    expect(await lock.readLock()).toEqual(claim.info)
   })
 
   test('joins a live lock for the same API URL instead of overwriting it', async () => {
-    const first = await claimOrJoinLock(path, 'https://api.example.com', info({ userCode: 'FIRST-CODE' }))
+    const first = await lock.claimOrJoinLock('https://api.example.com', info({ userCode: 'FIRST-CODE' }))
     expect(first.owner).toBe(true)
 
-    const second = await claimOrJoinLock(path, 'https://api.example.com', info({ userCode: 'SECOND-CODE' }))
+    const second = await lock.claimOrJoinLock('https://api.example.com', info({ userCode: 'SECOND-CODE' }))
     expect(second.owner).toBe(false)
     expect(second.info.userCode).toBe('FIRST-CODE')
   })
 
   test('reclaims a lock for a different API URL', async () => {
-    await claimOrJoinLock(path, 'https://one.example.com', info())
-    const claim = await claimOrJoinLock(path, 'https://two.example.com', info())
+    await lock.claimOrJoinLock('https://one.example.com', info())
+    const claim = await lock.claimOrJoinLock('https://two.example.com', info())
     expect(claim.owner).toBe(true)
     expect(claim.info.apiUrl).toBe('https://two.example.com')
   })
 
   test('reclaims an expired lock', async () => {
-    await claimOrJoinLock(path, 'https://api.example.com', info({ expiresAt: Date.now() - 1 }))
-    const claim = await claimOrJoinLock(path, 'https://api.example.com', info())
+    await lock.claimOrJoinLock('https://api.example.com', info({ expiresAt: Date.now() - 1 }))
+    const claim = await lock.claimOrJoinLock('https://api.example.com', info())
     expect(claim.owner).toBe(true)
   })
 
@@ -55,31 +58,31 @@ describe('claimOrJoinLock', () => {
     await writeFile(path, JSON.stringify({
       ...info(), apiUrl: 'https://api.example.com', pid: 999_999, nonce: 'stale',
     }))
-    const claim = await claimOrJoinLock(path, 'https://api.example.com', info())
+    const claim = await lock.claimOrJoinLock('https://api.example.com', info())
     expect(claim.owner).toBe(true)
   })
 })
 
 describe('releaseLock', () => {
   test('removes only the lock this process itself wrote', async () => {
-    const claim = await claimOrJoinLock(path, 'https://api.example.com', info())
-    await releaseLock(path, claim.info.nonce)
-    expect(await readLock(path)).toBeNull()
+    const claim = await lock.claimOrJoinLock('https://api.example.com', info())
+    await lock.releaseLock(claim.info.nonce)
+    expect(await lock.readLock()).toBeNull()
   })
 
   test('never removes a lock somebody else has since claimed', async () => {
-    const first = await claimOrJoinLock(path, 'https://one.example.com', info())
-    await claimOrJoinLock(path, 'https://two.example.com', info()) // reclaims the path, new nonce
+    const first = await lock.claimOrJoinLock('https://one.example.com', info())
+    await lock.claimOrJoinLock('https://two.example.com', info()) // reclaims the path, new nonce
 
-    await releaseLock(path, first.info.nonce)
-    expect((await readLock(path))?.apiUrl).toBe('https://two.example.com')
+    await lock.releaseLock(first.info.nonce)
+    expect((await lock.readLock())?.apiUrl).toBe('https://two.example.com')
   })
 })
 
 describe('readLock', () => {
   test('answers null for a missing or malformed file', async () => {
-    expect(await readLock(path)).toBeNull()
+    expect(await lock.readLock()).toBeNull()
     await writeFile(path, 'not json')
-    expect(await readLock(path)).toBeNull()
+    expect(await lock.readLock()).toBeNull()
   })
 })

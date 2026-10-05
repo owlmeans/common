@@ -1,20 +1,20 @@
 
 import type { AuthPlugin } from '@owlmeans/server-auth/manager/plugins'
 import type { Config, Context, OidcClientService } from '../../types.js'
-import { assertType } from '@owlmeans/server-auth/manager/plugins'
 import { DEFAULT_ALIAS } from '../../consts.js'
 import { OIDC_CLIENT_AUTH } from '@owlmeans/oidc'
 import type { OidcUserDetails, ProviderProfileDetails } from '@owlmeans/oidc'
 import { base64urlnopad as base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { sha256 } from '@noble/hashes/sha256'
-import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole, entitySlugOf } from '@owlmeans/auth'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { ALL_SCOPES, AuthenFailed, AuthenPayloadError, AuthManagerError, AuthRole, authHelper } from '@owlmeans/auth'
 import { AUTHEN_TIMEFRAME } from '@owlmeans/server-auth'
 import { decodeJwt } from 'jose'
 import { KEY_OWL } from '@owlmeans/did'
-import { cache, verifierId } from '../../utils/cache.js'
+import { oidcCacheOf } from '../../utils/cache.js'
 import { makeOidcAuthentication } from '../../utils/auth.js'
 import { requestedScope } from '../../utils/scope.js'
+import { authPluginHelper } from '@owlmeans/server-auth/manager/plugins'
 // import { URL } from 'url'
 
 /**
@@ -70,7 +70,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
     type: OIDC_CLIENT_AUTH,
 
     init: async request => {
-      assertType(request.type, plugin)
+      authPluginHelper.assertType(request.type, plugin)
 
       if (context.cfg.oidc.restrictedProviders === false) {
         throw new AuthManagerError('oidc.internal')
@@ -78,7 +78,7 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       
       // @TODO Actually think about how to make oidc service configurable
       const oidc = context.service<OidcClientService>(DEFAULT_ALIAS)
-      let entityId = entitySlugOf(request) ?? oidc.getDefault()
+      let entityId = authHelper.entitySlugOf(request) ?? oidc.getDefault()
 
       if (entityId == null) {
         throw new AuthenPayloadError('client')
@@ -93,10 +93,11 @@ export const oidcClientPlugin = <C extends Config, T extends Context<C>>(context
       }
 
       const verifier = base64.encode(randomBytes(32))
-      const challenge = base64.encode(sha256(verifier))
+      const challenge = base64.encode(sha256(new TextEncoder().encode(verifier)))
 
-      await cache<C, T>(context).create({
-        id: verifierId(challenge), 
+      const oidcCache = oidcCacheOf(context)
+      await oidcCache.resource().create({
+        id: oidcCache.verifierId(challenge), 
         verifier, 
         client: entityId
       }, { ttl: AUTHEN_TIMEFRAME / 1000 })

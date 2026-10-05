@@ -1,32 +1,24 @@
 import { randomBytes } from 'node:crypto'
 import { AuthForbidden } from '@owlmeans/auth'
-import type { AbstractRequest, EntrypointProtocolDeclaration } from '@owlmeans/entrypoint'
-import { ConsumerRightsError, DeclarationChannel } from '@owlmeans/payment'
-import type {
-  CheckoutReadProtocols, ConsumerRightsAccountProtocols, ConsumerRightsPublicProtocols, ConsumerRightsPublicView,
-  DeclarationReceipt,
+import type { AbstractRequest } from '@owlmeans/entrypoint'
+import {
+  ConsumerRightsError, DeclarationChannel, type CheckoutReadProtocols, type ConsumerRightsPublicView,
+  type DeclarationReceipt,
 } from '@owlmeans/payment'
-import { handlers } from '@owlmeans/server-api'
-import type { Context as ApiContext } from '@owlmeans/server-api'
+import { handlers, type Context as ApiContext } from '@owlmeans/server-api'
 import { bind } from '@owlmeans/server-entrypoint'
-import type { ServerProtocolEntrypoint } from '@owlmeans/server-entrypoint'
 import { CONSUMER_RIGHTS_SERVICE, GATEWAY_SERVICE } from '../consts.js'
-import { payment } from '../utils.js'
-import { requestOriginOf } from './origin.js'
-import { unlockedProfileView } from './records.js'
 import type {
   CheckoutReadHandlerOptions, ConsumerRightsHandlerOptions, ConsumerRightsService, ConsumerSubject, Context,
   GatewayService, RequestOrigin,
 } from '../types.js'
-
-type Bound = ServerProtocolEntrypoint<EntrypointProtocolDeclaration>
-
-/** The protocol tree `makeConsumerRightsProtocols` builds, with or without its public subtree. */
-export type ConsumerRightsTree = ConsumerRightsAccountProtocols & { public?: ConsumerRightsPublicProtocols }
+import { DEFAULT_PUBLIC_MIN_MS } from './consts.local.js'
+import type { Bound, ConsumerRightsTree } from './types.js'
+import { paymentAccessOf } from '../access.js'
+import { originHelper } from './origin.js'
+import { consumerRecordsOf } from './records.js'
 
 const defaultEntity = (req: AbstractRequest, _ctx?: ApiContext): string | null => req.entity?.id ?? null
-
-const DEFAULT_PUBLIC_MIN_MS = 1000
 
 const sleep = async (ms: number): Promise<void> => await new Promise(resolve => setTimeout(resolve, ms))
 
@@ -90,7 +82,7 @@ export const consumerRightsEntrypoints = (
     channel: DeclarationChannel.InApp,
   })
   const metaOf = (req: AbstractRequest, ctx: Context): RequestOrigin =>
-    opts.metaOf != null ? opts.metaOf(req, apiCtx(ctx)) : requestOriginOf(req)
+    opts.metaOf != null ? opts.metaOf(req, apiCtx(ctx)) : originHelper.requestOriginOf(req)
   const guard = async (req: AbstractRequest, action: string, ctx: Context): Promise<void> => {
     await opts.guardMoney?.(req, action, apiCtx(ctx))
   }
@@ -100,7 +92,8 @@ export const consumerRightsEntrypoints = (
     bind(protocols.base),
     bind(protocols.profile, api.request(protocols.profile, async (req, ctx) =>
       await serviceOf(ctx).profile(entityOf(req, ctx))
-        ?? unlockedProfileView(await payment(ctx as unknown as ApiContext).consumerRightsPolicy()))),
+        ?? consumerRecordsOf(apiCtx(ctx))
+          .unlockedProfileView(await paymentAccessOf(apiCtx(ctx)).payment().consumerRightsPolicy()))),
     bind(protocols.purchases, api.request(protocols.purchases, async (req, ctx) =>
       ({ purchases: await serviceOf(ctx).purchases(entityOf(req, ctx)) }))),
     bind(protocols.consent, api.request(protocols.consent, async (req, ctx) =>
@@ -140,7 +133,7 @@ export const consumerRightsEntrypoints = (
     ...bound,
     bind(pub.base),
     bind(pub.policy, api.request(pub.policy, async (_req, ctx) => {
-      const policy = await payment(ctx as unknown as ApiContext).consumerRightsPolicy()
+      const policy = await paymentAccessOf(ctx as unknown as ApiContext).payment().consumerRightsPolicy()
       if (policy == null) {
         throw new ConsumerRightsError('policy:none')
       }

@@ -81,7 +81,7 @@ export interface LogPlugin {
   uninstall?: () => void
 }
 
-export type LogMethod = (message: string | Error, data?: unknown, options?: LogOptions) => void
+export interface LogMethod { (message: string | Error, data?: unknown, options?: LogOptions): void }
 
 export interface Logger {
   readonly scope: string
@@ -96,3 +96,26 @@ export interface Logger {
 }
 
 export type { BasicConfig }
+
+export interface MemoryPlugin extends LogPlugin {
+  records: LogRecord[]
+  events: AnalyticsEvent[]
+  clear: () => void
+}
+
+export type ConsoleMethod = 'debug' | 'log' | 'info' | 'warn' | 'error' | 'trace'
+
+export type NativeConsole = Record<ConsoleMethod, (...args: unknown[]) => void>
+
+export interface LogState {
+  level: LogLevel
+  /** `'*'` or the scopes forced to `debug`. */
+  debugScopes: string[]
+  format: LogFormat
+  consoleMode: LogConsoleMode
+  plugins: LogPlugin[]
+  /** The console as it was before anything of ours touched it. */
+  native: NativeConsole
+  overridden: boolean
+  throttles: Map<string, number>
+}

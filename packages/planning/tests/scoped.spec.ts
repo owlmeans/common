@@ -3,13 +3,11 @@ import {
   IntrinsicStatus, PlanningSchemaKind, SchemaOrigin, WorkcardKind,
 } from '../src/consts.js'
 import { PlanningUnsupported, SchemaInvalid, SchemaSealed } from '../src/errors.js'
-import {
-  assertFlowSchema, assertOverridable, assertTypeSchema, flowInUse, resolveScopedBundle, scopedRegistryOf,
-} from '../src/helpers/scoped.js'
 import { makeSchemaRegistry } from '../src/registry.js'
 import type {
   ProjectTypeSchema, ScopedSchemaRecord, StatusFlowSchema, WorkcardTypeSchema,
 } from '../src/types.js'
+import { scopedSchemaHelper } from '../src/helpers/scoped.js'
 
 /** A community garden: plots are tended through a season flow; a shared tool shed is sealed. */
 const SEASON: StatusFlowSchema = {
@@ -66,9 +64,9 @@ describe('scoped schemas — layering', () => {
       record({ kind: PlanningSchemaKind.Type, key: BED.type, project: 'site-1', version: 3, definition: { ...BED, label: 'Raised bed' } }),
     ]
 
-    const shared = scopedRegistryOf(resolveScopedBundle(code.bundle(), records, { entityId: 'org-1', revision: 2 }))
-    const site = scopedRegistryOf(resolveScopedBundle(code.bundle(), records, { entityId: 'org-1', project: 'site-1' }))
-    const other = scopedRegistryOf(resolveScopedBundle(code.bundle(), records, { entityId: 'org-2' }))
+    const shared = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), records, { entityId: 'org-1', revision: 2 }))
+    const site = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), records, { entityId: 'org-1', project: 'site-1' }))
+    const other = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), records, { entityId: 'org-2' }))
 
     expect(shared.type(BED.type).label).toBeUndefined()
     expect(shared.originOf(PlanningSchemaKind.Type, BED.type)).toBe(SchemaOrigin.Entity)
@@ -85,15 +83,15 @@ describe('scoped schemas — layering', () => {
       record({ kind: PlanningSchemaKind.Type, key: PLOT.type, definition: { ...PLOT, label: 'Allotment' } }),
       record({ kind: PlanningSchemaKind.Type, key: GARDEN.type, definition: { ...BED, type: GARDEN.type } }),
     ]
-    const view = scopedRegistryOf(resolveScopedBundle(code.bundle(), records, { entityId: 'org-1' }))
+    const view = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), records, { entityId: 'org-1' }))
 
     expect(view.type(SHED.type).label).toBeUndefined()
     expect(view.type(PLOT.type).label).toBe('Allotment')
     expect(view.type(GARDEN.type).kind).toBe(WorkcardKind.Project)
-    expect(() => assertOverridable(code, PlanningSchemaKind.Type, SHED.type)).toThrow(SchemaSealed)
-    expect(() => assertOverridable(code, PlanningSchemaKind.Type, GARDEN.type)).toThrow(SchemaSealed)
-    expect(() => assertOverridable(code, PlanningSchemaKind.Flow, ROTA.id)).toThrow(SchemaSealed)
-    expect(() => assertOverridable(code, PlanningSchemaKind.Flow, SEASON.id)).not.toThrow()
+    expect(() => scopedSchemaHelper.assertOverridable(code, PlanningSchemaKind.Type, SHED.type)).toThrow(SchemaSealed)
+    expect(() => scopedSchemaHelper.assertOverridable(code, PlanningSchemaKind.Type, GARDEN.type)).toThrow(SchemaSealed)
+    expect(() => scopedSchemaHelper.assertOverridable(code, PlanningSchemaKind.Flow, ROTA.id)).toThrow(SchemaSealed)
+    expect(() => scopedSchemaHelper.assertOverridable(code, PlanningSchemaKind.Flow, SEASON.id)).not.toThrow()
   })
 
   test('a retired record gives way to a live one below it, and resolves retired when none is left', () => {
@@ -101,7 +99,7 @@ describe('scoped schemas — layering', () => {
       record({ kind: PlanningSchemaKind.Type, key: PLOT.type, retired: true, definition: { ...PLOT, label: 'Old' } }),
       record({ kind: PlanningSchemaKind.Type, key: BED.type, retired: true, definition: BED }),
     ]
-    const view = scopedRegistryOf(resolveScopedBundle(code.bundle(), records, { entityId: 'org-1' }))
+    const view = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), records, { entityId: 'org-1' }))
 
     expect(view.type(PLOT.type).label).toBeUndefined()
     expect(view.isRetired(PlanningSchemaKind.Type, PLOT.type)).toBe(false)
@@ -111,7 +109,7 @@ describe('scoped schemas — layering', () => {
   })
 
   test('the view is read-only', () => {
-    const view = scopedRegistryOf(resolveScopedBundle(code.bundle(), [], { entityId: 'org-1' }))
+    const view = scopedSchemaHelper.scopedRegistryOf(scopedSchemaHelper.resolveScopedBundle(code.bundle(), [], { entityId: 'org-1' }))
 
     expect(() => view.registerType(BED)).toThrow(PlanningUnsupported)
     expect(() => view.load(code.bundle())).toThrow(PlanningUnsupported)
@@ -122,35 +120,35 @@ describe('scoped schemas — layering', () => {
     const flow: StatusFlowSchema = { ...ROTA, id: 'garden:watering' }
     const using: WorkcardTypeSchema = { ...BED, type: 'garden:hose', flows: [flow.id] }
     const retiredFlow = record({ kind: PlanningSchemaKind.Flow, key: flow.id, retired: true, definition: flow })
-    const live = resolveScopedBundle(code.bundle(), [
+    const live = scopedSchemaHelper.resolveScopedBundle(code.bundle(), [
       retiredFlow, record({ kind: PlanningSchemaKind.Type, key: using.type, definition: using }),
     ], { entityId: 'org-1' })
-    const idle = resolveScopedBundle(code.bundle(), [
+    const idle = scopedSchemaHelper.resolveScopedBundle(code.bundle(), [
       retiredFlow, record({ kind: PlanningSchemaKind.Type, key: using.type, retired: true, definition: using }),
     ], { entityId: 'org-1' })
 
-    expect(flowInUse(live, flow.id)).toBe(using.type)
-    expect(flowInUse(idle, flow.id)).toBeUndefined()
+    expect(scopedSchemaHelper.flowInUse(live, flow.id)).toBe(using.type)
+    expect(scopedSchemaHelper.flowInUse(idle, flow.id)).toBeUndefined()
   })
 })
 
 describe('scoped schemas — closed-form checks', () => {
   test('a flow needs unique statuses, declared targets and a from that is * or declared', () => {
-    expect(() => assertFlowSchema(SEASON)).not.toThrow()
-    expect(() => assertFlowSchema({ ...SEASON, statuses: [...SEASON.statuses, SEASON.statuses[0]] }))
+    expect(() => scopedSchemaHelper.assertFlowSchema(SEASON)).not.toThrow()
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, statuses: [...SEASON.statuses, SEASON.statuses[0]] }))
       .toThrow('status-repeated:fallow')
-    expect(() => assertFlowSchema({ ...SEASON, transitions: [{ name: 'compost', from: '*', to: 'compost' }] }))
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, transitions: [{ name: 'compost', from: '*', to: 'compost' }] }))
       .toThrow('compost:to:compost')
-    expect(() => assertFlowSchema({ ...SEASON, transitions: [{ name: 'sow', from: ['frozen'], to: 'growing' }] }))
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, transitions: [{ name: 'sow', from: ['frozen'], to: 'growing' }] }))
       .toThrow('sow:from:frozen')
-    expect(() => assertFlowSchema({ ...SEASON, statuses: [] })).toThrow(SchemaInvalid)
+    expect(() => scopedSchemaHelper.assertFlowSchema({ ...SEASON, statuses: [] })).toThrow(SchemaInvalid)
   })
 
   test('a type must be a card with a compiling fields schema and unique flows that resolve', () => {
-    expect(() => assertTypeSchema(BED, code)).not.toThrow()
-    expect(() => assertTypeSchema({ ...BED, kind: WorkcardKind.Specification }, code)).toThrow('kind:specification')
-    expect(() => assertTypeSchema({ ...BED, fields: { type: 'nonsense' } }, code)).toThrow('fields:')
-    expect(() => assertTypeSchema({ ...BED, flows: [SEASON.id, SEASON.id] }, code)).toThrow('flow-repeated')
-    expect(() => assertTypeSchema({ ...BED, flows: ['garden:frost'] }, code)).toThrow('flow:garden:frost')
+    expect(() => scopedSchemaHelper.assertTypeSchema(BED, code)).not.toThrow()
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, kind: WorkcardKind.Specification }, code)).toThrow('kind:specification')
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, fields: { type: 'nonsense' } }, code)).toThrow('fields:')
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, flows: [SEASON.id, SEASON.id] }, code)).toThrow('flow-repeated')
+    expect(() => scopedSchemaHelper.assertTypeSchema({ ...BED, flows: ['garden:frost'] }, code)).toThrow('flow:garden:frost')
   })
 })
