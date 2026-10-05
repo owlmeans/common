@@ -60,13 +60,13 @@ export const invoiceProtocols = {
 
 ```ts
 import { handlers } from '@owlmeans/server-app'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 
 const api = handlers<Context>()
 
 export const list = api.request(invoiceProtocols.list, async (request, context) => {
   // request.auth is the verified Auth: userId, profileId, role, scopes, entitySlug
-  const { items } = await context.invoice().list({ entityId: requireEntityKey(request) })
+  const { items } = await context.invoice().list({ entityId: makeEntityScope(request).requireEntityKey() })
   return items
 })
 ```

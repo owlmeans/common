@@ -55,12 +55,12 @@ no links loses the sentence that points at one. Custom entries with no i18n keys
 `description` as per-language records (`en` is the fallback) and the screen renders them the same
 way.
 
-## Resolving an application's catalogue — `resolveMarketingConsents(cfg?)`
+## Resolving an application's catalogue — `marketingConsentHelper.resolveMarketingConsents(cfg?)`
 
 ```ts
-import { resolveMarketingConsents } from '@owlmeans/marketing-consent'
+import { marketingConsentHelper } from '@owlmeans/marketing-consent'
 
-const defs = resolveMarketingConsents({
+const defs = marketingConsentHelper.resolveMarketingConsents({
   standard: {
     'marketing.sms': false,                            // drop a standard key entirely
     'marketing.email': { labelKey: 'app.email.label' }, // reword one; key/group never change
@@ -77,7 +77,7 @@ into that definition's `links` (concatenated, de-duplicated by `href`), then dro
 `enabled === false` and sort by `order ?? 1000` (ties keep first-seen order — standard before
 custom, declaration order within each).
 
-## Status and the decision table — `consentStatus(defs, decisions, opts?)`
+## Status and the decision table — `marketingConsentHelper.consentStatus(defs, decisions, opts?)`
 
 For each resolved definition, find the LATEST decision by `key` (max `decidedAt` — `decisions` may
 hold history) and classify:
@@ -132,7 +132,7 @@ one of `'sign-in' | 'settings'`, never `'api'` or `'cookie'`); `terms`'s is `Ter
 
 `MarketingConsentError` (family `marketing-consent:*`, base `ResilientError`) and
 `UnknownMarketingConsentError` — raise the latter when a `SaveMarketingConsentRequest` decision
-names a key that `resolveMarketingConsents` did not produce for this application; do not silently
+names a key that `marketingConsentHelper.resolveMarketingConsents` did not produce for this application; do not silently
 drop it, because a dropped decision is a decision the person believes they made and did not.
 
 ## Legal matrix
@@ -140,7 +140,7 @@ drop it, because a dropped decision is a decision the person believes they made 
 Rows named `Key` and jurisdiction citations for what each consent gates. **This is not legal
 advice** — article numbers are believed correct as of September 2026 and must be reverified before
 being relied on. `honorGpc` in the standard set is what wires the Global Privacy Control column
-below into `consentStatus`'s decision table.
+below into `marketingConsentHelper.consentStatus`'s decision table.
 
 | Key | EU / PL / DE / FR | US |
 |---|---|---|
@@ -166,7 +166,7 @@ log rather than overwriting `MarketingConsentDecision` rows in place).
 | `STANDARD_REVISION` · `STANDARD_MARKETING_CONSENTS` | The wording revision and the standard catalogue |
 | `MARKETING_CONSENT_SERVICE` · `MARKETING_CONSENT_I18N` · `MARKETING_CONSENT_API_PATH` · `MARKETING_CONSENT_SCREEN_PATH` | Service/i18n/wire identifiers |
 | `MARKETING_CONSENT_BASE` · `MARKETING_CONSENT_STATUS` · `MARKETING_CONSENT_SAVE` · `MARKETING_CONSENT_TERMS` · `MARKETING_CONSENT_SCREEN` | Protocol-tree aliases |
-| `resolveMarketingConsents(cfg?)` · `consentStatus(defs, decisions, opts?)` | Pure resolution |
+| `marketingConsentHelper.resolveMarketingConsents(cfg?)` · `marketingConsentHelper.consentStatus(defs, decisions, opts?)` | Pure resolution |
 | `makeMarketingConsentProtocols(opts?)` | The protocol tree |
 | `SaveMarketingConsentSchema` · `TermsAcceptanceSchema` | AJV request schemas |
 | `MarketingConsentError` · `UnknownMarketingConsentError` | Errors |

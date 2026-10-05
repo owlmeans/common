@@ -152,22 +152,22 @@ export const projectProtocols = {
 ```ts
 // my-app-api/src/app/project.ts
 import { handlers } from '@owlmeans/server-app'
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { projectProtocols } from 'my-app-common'
 import type { Context } from '../context.js'
 
 const api = handlers<Context>()
 
 export const list = api.request(projectProtocols.list, async (request, context) => {
-  const { items } = await context.project().list({ entityId: requireEntityKey(request) })
+  const { items } = await context.project().list({ entityId: makeEntityScope(request).requireEntityKey() })
   return items
 })
 
 export const create = api.body(projectProtocols.create, async (body, context, request) =>
-  context.project().create({ ...body, entityId: requireEntityKey(request) }))
+  context.project().create({ ...body, entityId: makeEntityScope(request).requireEntityKey() }))
 
 export const get = api.params(projectProtocols.get, async ({ id }, context, request) =>
-  context.project().load({ id, entityId: requireEntityKey(request) }))
+  context.project().load({ id, entityId: makeEntityScope(request).requireEntityKey() }))
 ```
 
 ### 4. Entrypoint list and `main`
@@ -253,7 +253,7 @@ await boot()
 |---|---|---|
 | `config` | function | `@owlmeans/server-context` — `config(service, cfg?)` |
 | `sservice` | function | `@owlmeans/server-config` — declare a backend service route |
-| `service`, `configHelper`, `toConfigRecord` (deprecated, use `configHelper.toConfigRecord`), `PLUGINS` | function / helper / const | `@owlmeans/config` |
+| `service`, `configHelper`, `PLUGINS` | function / helper / const | `@owlmeans/config` |
 | `PluginConfig` | type | `@owlmeans/config` |
 | `addWebService` | function | `@owlmeans/client-config` |
 | `contract`, `protocol`, `typed`, `EntrypointOutcome` | function / enum | `@owlmeans/entrypoint` |
@@ -284,7 +284,7 @@ await boot()
   `AUTH_CACHE` before `appendAuthService`.
 - Validation belongs in `contract()` with `typed()` or `schema()`, not in a wrapper around a handler.
   Prefer `handlers<Context>()` over the unbound `handleBody` / `handleParams` / `handleRequest`.
-- Key organization-scoped records on `requireEntityKey(request)` / `requireEntity(request)`; never
+- Key organization-scoped records on `makeEntityScope(request).requireEntityKey()` / `.requireEntity()`; never
   read an organization id from the token — `entitySlug` is the only organization value on the wire.
 - Reference other services' entrypoints with `context.entrypoint(protocol)` and the protocol object,
   without a caller-side response generic.

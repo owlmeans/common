@@ -17,9 +17,9 @@ user-invocable: false
 | `KeyPair` | Key pair shape: `{ privateKey, publicKey, address, type }`, keys base64 |
 | `KeyPairModel` | `sign` / `verify` / `encrypt` / `decrypt` / `dcrpt` / `export*` |
 | `KeyType` | `ED25519` (`'ed25519'`, signing) and `XCHACHA` (`'xchacha'`, encryption) |
-| `fromPubKey(key, type?)`, `matchAddress(address, pubKey)` | Verify-only model from a public key; address check |
-| `packAuthCredentials(auth, extra, signer)` | Sign a credential payload into `AuthCredentials.credential` |
-| `unpackAuthCredentials(auth, verifier?)` | Split that back into `{ unsigned, signature, extras, isValid }` |
+| `keyHelper.fromPubKey(key, type?)`, `keyHelper.matchAddress(address, pubKey)` | Verify-only model from a public key; address check |
+| `authCredentialsHelper.packAuthCredentials(auth, extra, signer)` | Sign a credential payload into `AuthCredentials.credential` |
+| `authCredentialsHelper.unpackAuthCredentials(auth, verifier?)` | Split that back into `{ unsigned, signature, extras, isValid }` |
 | `plugins` | The key-type registry, keyed by type string |
 
 ## Subpath Exports
@@ -28,7 +28,7 @@ user-invocable: false
   again, and the **`KeyPlugin` type**. `KeyPlugin` is *not* on the root surface: the root re-exports
   only the registry value, so a package implementing a new key type imports the type from
   `@owlmeans/basic-keys/plugins`.
-- `./utils` — `assertType`, `prepareKey`, `prepareData`, `toAddress`
+- `./utils` — `keyUtils`: `assertType`, `prepareKey`, `prepareData`, `toAddress`
 
 ## Usage
 
@@ -67,9 +67,9 @@ Plain `Error` with a `basic.keys:<code>` message — this package does **not** u
 Not every failure comes back as one of these, so do not match on a code where the underlying
 library throws first:
 
-- Signing with a **verify-only** model does not raise `basic.keys:missing-pk`. `fromPubKey` stores
-  `privateKey: ''`, which passes the null guard, and `@noble/curves` rejects it as
-  `private key of length 32 expected, got 0`.
+- Signing with a **verify-only** model does not raise `basic.keys:missing-pk`.
+  `keyHelper.fromPubKey` stores `privateKey: ''`, which passes the null guard, and `@noble/curves`
+  rejects it as `private key of length 32 expected, got 0`.
 - A string input that is neither a key type nor valid base64 fails in the decoder
   (`Found a character that cannot be part of a valid base64 string`), never with a `basic.keys:`
   code.
@@ -95,11 +95,11 @@ Callers that tolerate undecryptable values must catch — e.g. `@owlmeans/mongo`
 
 ## Signed credentials
 
-`packAuthCredentials` canonicalizes the unsigned credentials plus your extras, signs them, and
-returns `AuthCredentials` whose `credential` holds the signature (alone, or folded into the extras).
-`unpackAuthCredentials` reverses it and — given a verifier — reports `isValid`. Either side accepts
-a `KeyPairModel` or a bare sign/verify function, so a caller that holds only a remote signer works
-the same way.
+`authCredentialsHelper.packAuthCredentials` canonicalizes the unsigned credentials plus your
+extras, signs them, and returns `AuthCredentials` whose `credential` holds the signature (alone, or
+folded into the extras). `authCredentialsHelper.unpackAuthCredentials` reverses it and — given a
+verifier — reports `isValid`. Either side accepts a `KeyPairModel` or a bare sign/verify function,
+so a caller that holds only a remote signer works the same way.
 
 ## Depends On
 

@@ -16,8 +16,8 @@ every app is wired without app code — which also OVERRIDES the global `console
   ONE captured native console. A per-module state made the second copy capture the first's override
   and call itself.
 - **The sink writes through console methods captured at module load** — a test that replaces
-  `console.warn` sees nothing. Read the log with `memoryPlugin()`; `nativeConsole()` is the mutable
-  captured set for a test of the sink itself.
+  `console.warn` sees nothing. Read the log with `memoryPlugin()`; `logStateHelper.nativeConsole()`
+  is the mutable captured set for a test of the sink itself.
 - **Config arrives in three steps**, so `appendLog` applies `cfg.log` three times: at once, as a
   Config middleware (registered after the file reader — same-stage middlewares start in registration
   order and the reader is synchronous), and as a Context middleware (runs only after EVERY config

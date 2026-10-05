@@ -102,9 +102,9 @@ Extends `PostgresDbService` from `@owlmeans/postgres-resource`:
 
 ### Helpers
 
-- `pgConfigHelper` (`PgConfigHelper`) — `parseUrl(url)` / `prepareConfig(config, overrides?)` /
-  `poolDatabase(pool)`
-- `makePgConnectionHelper(pool)` (`PgConnectionHelper`) — `probe(meta, location)` / `ensureSchema(schema)`
+- `pgConfigHelper` (`PgConfigHelper`) — `.parseUrl(url)` / `.prepareConfig(config, overrides?)` /
+  `.poolDatabase(pool)`
+- `makePgConnectionHelper(pool)` (`PgConnectionHelper`) — `.probe(meta, location)` / `.ensureSchema(schema)`
 - `bootstrapDb(...)` — the bootstrap implementation, usable without a context
 - `drainMiddleware(alias?)`
 

@@ -10,8 +10,8 @@ These are **not** end-to-end UI tests — they exercise individual components in
 - `browserHelper.closeBrowser()` — tear it down. Call from `afterAll`.
 - `browserHelper.withPage(fn)` — convenience: lease a fresh context+page for the duration of `fn`, then dispose the context.
 - `mountComponent({ url, component?, props? })` — opens a fresh context, navigates to a harness URL with the component / props encoded, returns `{ page, close }` so the spec can assert against `page.locator(...)` and dispose the context when done.
-- `makePageHelper(page)` — drives one page of an OwlMeans app: `acceptConsent(opts?)`, `answerMarketingConsent(opts?)`, `loginViaDispatcher(baseUrl, token, opts?)`, `loginViaSupervisorForm(opts)`, `saveScreenshot(dir, name)`.
-- `supervisorAuthHelper` — bearers without a browser: `pregenerateAuthToken(opts)` (signed offline) and `authenticateViaSupervisorApi(opts)` (the live supervisor flow over the API).
+- `makePageHelper(page)` — drives one page of an OwlMeans app: `.acceptConsent(opts?)`, `.answerMarketingConsent(opts?)`, `.loginViaDispatcher(baseUrl, token, opts?)`, `.loginViaSupervisorForm(opts)`, `.saveScreenshot(dir, name)`.
+- `supervisorAuthHelper` — bearers without a browser: `.pregenerateAuthToken(opts)` (signed offline) and `.authenticateViaSupervisorApi(opts)` (the live supervisor flow over the API).
 - `Browser`, `BrowserContext`, `Page`, `Locator` — re-exports of the Playwright types so consumers don't need a direct `playwright` import.
 
 ## Spec shape

@@ -114,19 +114,20 @@ When a producer needs a job id, a delay or retries, pass the same protocol objec
 helpers. Never pass its alias.
 
 ```ts
-import { enqueueProtocol, waitForProtocol } from '@owlmeans/queue'
+import { queueProtocolOf } from '@owlmeans/queue'
 
-const queued = await enqueueProtocol(context, appProtocols.invoice.capture, {
+const queue = queueProtocolOf(context)
+const queued = await queue.enqueue(appProtocols.invoice.capture, {
   body: { invoiceId },
 }, {
   id: `capture:${invoiceId}:${attemptSequence}`,   // derived from what the job is about
   delay: 250, attempts: 3, backoff: { type: 'exponential', delay: 250 },
 })
 
-const receipt = await waitForProtocol(context, appProtocols.invoice.capture, queued, { timeout: 120_000 })
+const receipt = await queue.waitFor(appProtocols.invoice.capture, queued, { timeout: 120_000 })
 ```
 
-`queueJobOf(req)` gives a protocol handler `{ id, name, queue, attempt, touch }` when it must compare
+`queueBridgeHelper.queueJobOf(req)` gives a protocol handler `{ id, name, queue, attempt, touch }` when it must compare
 the broker job with a claim it persisted.
 
 ### Processors, hooks and job graphs
@@ -220,7 +221,7 @@ await jobs.take(jobId)                    // cancel and return
 
 ## Guards and errors
 
-`handleJob` rebuilds the request from the envelope and runs the entrypoint's guards the way the
+`entrypointJobsOf(ctx).handle` rebuilds the request from the envelope and runs the entrypoint's guards the way the
 HTTP boundary does, attaching the entity. A guarded queued entrypoint therefore needs the
 producer's credentials in the envelope `headers`. `cfg.queue.envelopeTtl` (seconds) bounds how long
 after `enqueuedAt` an envelope is still accepted; past it, the job answers `EnvelopeExpired`.
@@ -235,17 +236,17 @@ not the job, so read the job back to learn what became of it.
 |---|---|---|
 | `declareQueue(cfg, name, jobs, opts?)` | function | Declare a queue and the job names it accepts; re-declaring replaces |
 | `listenQueues(cfg, ...names)` | function | Name the queues this process consumes |
-| `queueOf(cfg, name)`, `queueOfJob(cfg, job)`, `isListening(cfg, name)` | function | Read declarations back; `queueOf` throws `UnknownQueue` |
+| `queueConfigOf(cfg)` — `.queueOf(name)`, `.queueOfJob(job)`, `.isListening(name)` | helper | Read declarations back; `queueOf` throws `UnknownQueue` |
 | `declareSchedule(cfg, schedule)` | function | Declare a recurring job after checking it; re-declaring an id replaces |
-| `schedulesOf(cfg, queue?)` | function | The declared schedules, of one queue when named |
-| `assertSchedule(cfg, schedule)`, `assertSchedules(cfg)` | function | Check one schedule, or every declared one plus duplicate ids |
-| `enqueueProtocol(ctx, protocol, request, options?)` | function | Enqueue a QUEUE protocol with `JobOptions`, typed by the protocol |
-| `waitForProtocol(ctx, protocol, job, { timeout }?)` | function | Wait for that job and unwrap the typed reply |
-| `queueJobOf(request)` | function | `QueueJobMeta` of the broker job behind a handler's request, or `null` |
+| `queueConfigOf(cfg).schedulesOf(queue?)` | helper | The declared schedules, of one queue when named |
+| `queueConfigOf(cfg)` — `.assertSchedule(schedule)`, `.assertSchedules()` | helper | Check one schedule, or every declared one plus duplicate ids |
+| `queueProtocolOf(ctx).enqueue(protocol, request, options?)` | helper | Enqueue a QUEUE protocol with `JobOptions`, typed by the protocol |
+| `queueProtocolOf(ctx).waitFor(protocol, job, { timeout }?)` | helper | Wait for that job and unwrap the typed reply |
+| `queueBridgeHelper.queueJobOf(request)` | helper | `QueueJobMeta` of the broker job behind a handler's request, or `null` |
 | `appendQueueTransport(ctx, alias?)`, `makeQueueTransport(alias?)` | function | Register the QUEUE transport so `call()` routes through the broker |
 | `queueWorkerMiddleware(alias?)` | function | Start the worker at the Ready stage, only in a process that listens |
-| `handleJob(ctx, job)`, `entrypointProcessor(ctx)`, `servedJobs(ctx)` | function | The bridge a driver dispatches entrypoint jobs through |
-| `requestOf(envelope)`, `assertFresh(envelope, ttl?)` | function | Rebuild a request from an envelope; enforce `envelopeTtl` |
+| `entrypointJobsOf(ctx)` — `.handle(job)`, `.processor()`, `.served()` | helper | The bridge a driver dispatches entrypoint jobs through |
+| `queueBridgeHelper` — `.requestOf(envelope, path)`, `.assertFresh(envelope, ttl?)` | helper | Rebuild a request from an envelope; enforce `envelopeTtl` |
 | `QueueConfig`, `QueueDeclaration`, `QueueWorkerOptions`, `JobOptions`, `ScheduleDeclaration` | type | Configuration shapes |
 | `QueueResource<D, R>` | type | A queue as a resource, plus `queue`, `wait`, `flow`, `counts`, `close` |
 | `JobRecord<D, R>`, `JobEvent<R>`, `FlowSpec<D>` | type | A job as a record, a lifecycle event, a graph node |
@@ -263,7 +264,7 @@ not the job, so read the job back to learn what became of it.
 ## Common pitfalls
 
 - **Queueing work the request could finish.** It adds a second process to deploy and a place to fail.
-- **Passing alias strings to `enqueueProtocol`/`waitForProtocol`.** They take the protocol object and
+- **Passing alias strings to `queueProtocolOf(ctx).enqueue`/`.waitFor`.** They take the protocol object and
   reject strings and non-QUEUE declarations.
 - **Enqueueing a job name the queue did not declare.** It throws `UnknownJobName` rather than
   parking a job nothing can process.

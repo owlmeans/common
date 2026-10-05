@@ -15,14 +15,14 @@ An OwlMeans **organization entity** is the customer/tenant. The bare word "entit
 - **`entitySlug`** — the organization's renameable, human-readable name, and the ONLY organization
   value that appears on the wire: tokens (`Authorization.entitySlug`), URLs, query params, forms.
   Newly generated addresses — hostnames, namespaces, OIDC client ids — are composed from it.
-  Read it with `entitySlugOf(payload)`, which also accepts a pre-split token's `entityId`.
+  Read it with `authHelper.entitySlugOf(payload)`, which also accepts a pre-split token's `entityId`.
 - **`entityId`** — the organization's stable record id, never on the wire. Database references,
   permission grants and third-party records key on it; that is what makes a rename one write.
-  Server handlers get it from `requireEntityKey(req)` / `requireEntity(req)`, never from the token.
+  Server handlers get it from `makeEntityScope(req).requireEntityKey()` / `.requireEntity()`, never from the token.
 - Bare **"entity"** remains correct for an abstract data-model entity (`UserStory.entity`, ER
   models). Do not rename those.
 
-Any code path that ESTABLISHES authentication must call `attachEntity(context, request)`
+Any code path that ESTABLISHES authentication must call `makeEntityScope(request).attachEntity(context)`
 (`@owlmeans/auth-common`) — the HTTP boundary already does; sockets authenticate on their own and
 must do it explicitly, or `request.entity` stays empty and handlers compare a slug against ids.
 

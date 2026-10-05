@@ -46,7 +46,8 @@ registry that holds them is [[context]].
   call and never memoised, so a guard added to an ancestor later still counts.
 - Three verbs address an entrypoint: `call(req?)` resolves to the VALUE and throws the reply's
   error, `invoke(req?)` resolves to `{ value, outcome }`, and `url(req?, { absolute? })` builds the
-  URL string. Underneath they are `apiInvoke(ref, opts?)` and `entrypointUrl(ref, req, opts?)`.
+  URL string. Underneath they are `apiCallOf(ref).apiInvoke(opts?)` and
+  `apiCallOf(ref).entrypointUrl(req, opts?)`.
 - The registry is flat and keyed by alias, so registering an alias twice replaces the earlier
   entrypoint — spread lists resolve to the last declaration ([[context]]).
 

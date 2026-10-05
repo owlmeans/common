@@ -57,12 +57,12 @@ Pass `aliases` when the routes are mounted under an application's own names, and
 
 Strings are registered at the library tier as `lib : auth-token.panel.*` in all seven supported
 languages. An application overrides any of them by registering the same resource at the app tier —
-the namespace has to be said out loud, because `addI18nApp` defaults it to the resource name:
+the namespace has to be said out loud, because `i18nHelper.addI18nApp` defaults it to the resource name:
 
 ```ts
-import { addI18nApp, LIB_NAMESPACE } from '@owlmeans/i18n'
+import { i18nHelper, LIB_NAMESPACE } from '@owlmeans/i18n'
 
-addI18nApp('en', 'auth-token', { panel: { title: 'API keys' } }, { ns: LIB_NAMESPACE })
+i18nHelper.addI18nApp('en', 'auth-token', { panel: { title: 'API keys' } }, { ns: LIB_NAMESPACE })
 ```
 
 <!-- owlmeans:agent-guidance:start -->

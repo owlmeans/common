@@ -38,12 +38,12 @@ poll with `interval` and `slow_down`, and it works over SSH and in containers.
 | `oauth` | Frozen alias table: `base`, `load`, `approve`, `deny`, `consentScreen`, `deviceScreen`, `doneScreen` |
 | `makeOAuthProtocols(opts?)` | The consent surface. `opts`: `parent?`, `path?` (default `/oauth-consent`), `guard?`. Returns `OAuthEntrypoints` |
 | `oauthFlow` · `oauthFlowProvider` · `OAuthFlowStep` · `OAUTH_PAYLOAD_KIND` · `OAUTH_PAYLOAD_REF` | The `_oauth` flow (`OAUTH_FLOW`), its step names, payload keys, and a one-flow `FlowProvider` |
-| `discoverProtectedResource(origin, path?)` · `discoverAuthorizationServer(issuer)` | RFC 9728 / RFC 8414 fetches; the second refuses an `issuer` mismatch and a server without `S256` |
-| `requestDeviceAuthorization(server, body)` · `pollDeviceToken(server, opts)` · `exchangeAuthorizationCode(server, req)` · `revokeToken(server, req)` | Fetch-only clients, any runtime |
-| `createPkcePair()` · `challengeFor(v)` · `verifyPkce(v, c)` | PKCE, `S256` only |
-| `createOpaqueSecret` · `hashOAuthSecret` · `createDeviceCode` · `hashDeviceCode` | Secrets and their stored (SHA-256) form |
-| `createUserCode()` · `normalizeUserCode(input)` | `XXXX-XXXX` over `OAUTH_USER_CODE_ALPHABET` (`BCDFGHJKLMNPQRSTVWXZ`) |
-| `hostOf` · `isLoopbackHost` · `matchesRedirectUri(registered, candidate)` | Redirect-URI rules (below) |
+| `oauthClientHelper` → `.discoverProtectedResource(origin, path?)` · `.discoverAuthorizationServer(issuer)` | RFC 9728 / RFC 8414 fetches; the second refuses an `issuer` mismatch and a server without `S256` |
+| `oauthClientHelper` → `.requestDeviceAuthorization(server, body)` · `.pollDeviceToken(server, opts)` · `.exchangeAuthorizationCode(server, req)` · `.revokeToken(server, req)` | Fetch-only clients, any runtime |
+| `pkceHelper` → `.createPkcePair()` · `.challengeFor(v)` · `.verifyPkce(v, c)` | PKCE, `S256` only |
+| `oauthFormatHelper` → `.createOpaqueSecret` · `.hashOAuthSecret` · `.createDeviceCode` · `.hashDeviceCode` | Secrets and their stored (SHA-256) form |
+| `oauthFormatHelper` → `.createUserCode()` · `.normalizeUserCode(input)` | `XXXX-XXXX` over `OAUTH_USER_CODE_ALPHABET` (`BCDFGHJKLMNPQRSTVWXZ`) |
+| `oauthFormatHelper` → `.hostOf` · `.isLoopbackHost` · `.matchesRedirectUri(registered, candidate)` | Redirect-URI rules (below) |
 | `OAuthError` family · `SignInRequired` · `signInRequired({url, code?, expiresAt?})` · `TokenRejected` | Errors |
 | Constants | `OAUTH_*_PATH` (wire paths), `OAUTH_AS_METADATA_PATH`, `OAUTH_PRM_PATH_PREFIX`, the `*_TTL_SEC`, `OAUTH_DCR_*`, `CIMD_*`, `PKCE_METHOD_S256`, grant-type strings |
 | Types | `OAuthClientRecord`, `ConsentView`, `ConsentDecisionResult`, `OAuthResourceConfig`, `AuthorizationServerMetadata`, `DeviceSignInOutcome`, request/response shapes |
@@ -70,17 +70,17 @@ routes with no `service` override: ordinary in-app screens, not a full-reload ho
   in the metadata — the mix-up defence.
 - **PKCE is `S256` only**; codes are single-use and live `OAUTH_CODE_TTL_SEC` (60 s); a request
   lives `OAUTH_REQUEST_TTL_SEC` (600 s).
-- **`device_code` is stored only as `hashDeviceCode(...)`** and never shown to a person; the
-  person sees the `user_code` (`XXXX-XXXX`, no vowels, no `0/O/1/I`).
-- **Redirect URIs** (`matchesRedirectUri`): loopback (`localhost`, `127.0.0.1`, `::1`) matches on
-  scheme, host, path and query but **any port** (RFC 8252 §7.3); every other pair must be
-  byte-identical.
+- **`device_code` is stored only as `oauthFormatHelper.hashDeviceCode(...)`** and never shown to a
+  person; the person sees the `user_code` (`XXXX-XXXX`, no vowels, no `0/O/1/I`).
+- **Redirect URIs** (`oauthFormatHelper.matchesRedirectUri`): loopback (`localhost`, `127.0.0.1`,
+  `::1`) matches on scheme, host, path and query but **any port** (RFC 8252 §7.3); every other pair
+  must be byte-identical.
 - **Audience is opt-in at the guard**, never inferred: a token with an `audience` is admitted only
   by a token guard configured with `resources` that intersect it (`/server-auth-token`).
 
 ## The polling contract
 
-`pollDeviceToken(server, { clientId, deviceCode, interval, expiresAt, signal?, onInterval?, slowDownStepSec? })`
+`oauthClientHelper.pollDeviceToken(server, { clientId, deviceCode, interval, expiresAt, signal?, onInterval?, slowDownStepSec? })`
 returns a `DeviceSignInOutcome` — `authorized` (with `token`), `denied`, `expired` or `aborted`.
 Those are **answers, not exceptions**; only a wire fault throws `OAuthError`. `authorization_pending`
 continues, `slow_down` adds `OAUTH_DEVICE_SLOW_DOWN_STEP_SEC` (override `slowDownStepSec` in tests).
@@ -102,8 +102,8 @@ with no escaping, so keys stay short (`kind`, `ref`) and values carry no commas.
 
 It is **never** the live model on `/dispatcher` and never rides `?flow=`: the single live flow slot
 belongs to OIDC sign-in. Before leaving for the dispatcher the consent screen suspends it
-(`suspendFlow` in `@owlmeans/client-flow`) and the sign-in that follows resumes it
-(`resumeSuspendedFlow`, via the landing rule in `/login-plugins`). Its steps address concrete
+(`flowLandingOf(ctx).suspendFlow` in `@owlmeans/client-flow`) and the sign-in that follows resumes
+it (`.resumeSuspendedFlow`, via the landing rule in `/login-plugins`). Its steps address concrete
 entrypoint aliases, so no `configureFlows` merge is needed, and destinations are aliases from
 registered definitions — never stored URLs, so it cannot become an open redirect.
 

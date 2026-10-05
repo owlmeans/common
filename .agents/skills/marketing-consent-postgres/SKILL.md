@@ -39,7 +39,7 @@ added. This package does nothing to make that safe by itself — it relies on
 `@owlmeans/postgres-resource`'s **default** schema-to-table rule: any `array` of objects (or any
 nested `object` property) compiles to a single opaque `jsonb` column, never a child table and never
 one column per field. No `pg:` override is applied here, and none is needed — `tests/schema.spec.ts`
-asserts this directly against `schemaToTableSpec`, which is the one test that would catch a
+asserts this directly against `pgSchemaHelper.schemaToTableSpec`, which is the one test that would catch a
 regression here (in this package, in `postgres-resource`'s compiler, or in a future schema edit
 that accidentally reshapes `decisions` into something path-addressable).
 
@@ -71,7 +71,7 @@ by the first `status`/`save`/`terms` call — `server-marketing-consent`'s own s
 `bun test ./tests` — `tests/schema.spec.ts` needs no live database (the jsonb-shape assertion
 above); `tests/resource.spec.ts` is env-gated on `POSTGRES_URL` exactly like
 `@owlmeans/postgres-resource`'s own integration suites (`@owlmeans/test-integration`'s
-`postgresGate()`), and skips cleanly with no server reachable.
+`gateHelper.postgresGate()`), and skips cleanly with no server reachable.
 
 ## Related
 

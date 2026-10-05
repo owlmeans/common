@@ -81,7 +81,7 @@ await projects.update({ ...record, title: 'Renamed' })                // replace
 
 `size` defaults to `DEFAULT_PAGE_SIZE` (100); `list(where, { size: 0 })` lifts the limit. `total`
 always describes the whole match, independently of the page. `entityId` is the organization's
-stable record id from `requireEntityKey(req)`, never a value read off the token.
+stable record id from `makeEntityScope(req).requireEntityKey()`, never a value read off the token.
 
 ### Schema to table
 

@@ -1,7 +1,7 @@
 # server-payment — consumer-rights reference
 
 The contracts behind `SKILL.md` § Consumer rights. Types live in `src/types.ts`, schemas in
-`src/model.ts`, the service in `src/consumer/service.ts`.
+`src/schemas.ts`, the service in `src/consumer/service.ts`.
 
 ## Declaring
 
@@ -23,7 +23,7 @@ declareConsumerRights(cfg, {
   consent and start statements; `legalName, address, email` (whatever is declared) fill it in the
   mails, the withdrawal information and the model form.
 - Refusals: `ConsumerRightsError('policy:trader')` (a mechanism on, no `name`/`legalName`),
-  `'policy:mail-bcc'`, and every `assertConsumerRightsPolicy` refusal.
+  `'policy:mail-bcc'`, and every `consumerRightsPolicyHelper.assertConsumerRightsPolicy` refusal.
 
 ## Records
 
@@ -31,7 +31,7 @@ declareConsumerRights(cfg, {
 |---|---|
 | `BillingProfileRecord` | `entityId, country, region, currency, language, source ('checkout'\|'customer'\|'manual'), paygate, customerId?, sessionId?, ipCountry?, email?, name?, business?, lockedAt, createdAt, updatedAt?` |
 | `PurchaseRecord` | `purchaseId, contractRef, entityId, kind, paygate, sessionId?, subscriptionId?, paymentIntentId?, invoiceId?, invoiceNumber?, invoiceLineId?, productSku, planSku?, profileId?, country?, region?, ipCountry?, inScope, language, email?, name?, business?, currency, amountSubtotalMinor, amountTaxMinor, amountTotalMinor, presentmentCurrency?, presentmentAmountMinor?, netAmountMinor?, amountCurrency?, units?, taxBehavior?, termsAccepted?, textVersion?, copyVersion?, startRequestId?, servicesStartedAt?, confirmationMailAt?, purchasedAt, deadline?, consentId?, consentedAt?, withdrawalId?, withdrawnAt?, refundedMinor?, refundedAt?, cancellationId?, cancelEffectiveAt?, createdAt, updatedAt?` |
-| `ConsumerConsentRecord` | `kind ('performance'\|'subscription-start'), entityId, profileId?, name?, email?, purchaseIds[], planSku?, planName?, textVersion, copyVersion, language, uiLanguage?, trader, context? (the copy variant: the policy's `consentContext` / `startContextOf(plan)`), text {request, acknowledgement, checkbox}, links, deadline?, decidedAt, expiresAt?` + `RequestOrigin` |
+| `ConsumerConsentRecord` | `kind ('performance'\|'subscription-start'), entityId, profileId?, name?, email?, purchaseIds[], planSku?, planName?, textVersion, copyVersion, language, uiLanguage?, trader, context? (the copy variant: the policy's `consentContext` / `consumerCopyHelper.startContextOf(plan)`), text {request, acknowledgement, checkbox}, links, deadline?, decidedAt, expiresAt?` + `RequestOrigin` |
 | `ConsumerDeclarationRecord` | `kind ('withdrawal'\|'cancellation'), channel ('in-app'\|'public'), entityId?, purchaseId?, subscriptionId?, contractRef?, name, email, cancellationKind?, reason?, effective?, requestedDate?, language, textVersion?, copyVersion, receivedAt, matched, profileId?, duplicateOf?, status, refundMinor?, currency?, effectiveAt?` + `RequestOrigin` |
 | `ConsumerEventRecord` | `recordId, recordKind ('purchase'\|'consent'\|'declaration'\|'profile'\|'checkout'), entityId?, action, step?, ok, skipped?, externalId?, amountMinor?, currency?, detail? (JSON), error?, at` |
 | `RequestOrigin` | `ip?, forwardedFor?, userAgent?, ipCountry?, acceptLanguage?, via?` |
@@ -47,8 +47,8 @@ Event actions: `mail` (step = mail kind), `computed` (the meter reading and the 
 `PurchaseRecord.termsAccepted` is Stripe's `consent.terms_of_service` of the completed session and
 nothing else; `confirmationMailAt` is the one claim of the purchase confirmation.
 
-Accessors (`src/utils.ts`): `billingProfiles`, `purchases`, `consumerConsents`,
-`consumerDeclarations`, `consumerEvents`, `consumerRights`, `consumerRightsOf`, `conditionalSet`.
+Accessors (`paymentAccessOf(ctx)`, `src/access.ts`): `billingProfiles`, `purchases`, `consumerConsents`,
+`consumerDeclarations`, `consumerEvents`, `consumerRights`, `consumerRightsOf`; `paymentUtils.conditionalSet` (`src/utils.ts`).
 
 ## The service (`ConsumerRightsService`, `CONSUMER_RIGHTS_SERVICE = 'payment-consumer-rights'`)
 
@@ -61,10 +61,10 @@ Accessors (`src/utils.ts`): `billingProfiles`, `purchases`, `consumerConsents`,
 | `unlock(entityId, { by?, reason? })` | deletes the profile while it still holds the country read (else `ConsumerRightsError('unlock:changed:<id>')`), event `unlock`; answers the old view or `null`; no lazy lock from the paygate customer follows |
 | `purchases(entityId, { open?, at? })` | `PurchaseView[]`, newest first; `withdrawable` asks the meter for top-ups |
 | `consentView(entityId, at?)` | `PerformanceConsentView`: the open unconsented top-up windows, the billing language, the trader name, links, `context` = the policy's `consentContext` (absent without one) |
-| `recordConsent(subject, body, origin?)` | 428 on a stale version or a view that saw none of the open windows; covers the listed open windows; `text` = `consentStatementOf(body.language, Performance, { trader, context: policy.consentContext })`, `context` stored |
+| `recordConsent(subject, body, origin?)` | 428 on a stale version or a view that saw none of the open windows; covers the listed open windows; `text` = `consumerCopyHelper.consentStatementOf(body.language, Performance, { trader, context: policy.consentContext })`, `context` stored |
 | `assertConsent(entityId, at?)` | one indexed query; `PerformanceConsentRequired {pending, deadline}` |
-| `startView(entityId, planSku, { language? })` | `SubscriptionStartView`; `required` unless locked outside the territories; `context` = `startContextOf(plan)` |
-| `recordStartRequest(subject, body, origin?, { plan? })` | 428 `SubscriptionStartRequired` on a stale version; `UnknownPlan`; `text` = `consentStatementOf(body.language, SubscriptionStart, { trader, plan, context: startContextOf(plan) })`, `context` stored; mails the start confirmation |
+| `startView(entityId, planSku, { language? })` | `SubscriptionStartView`; `required` unless locked outside the territories; `context` = `consumerCopyHelper.startContextOf(plan)` |
+| `recordStartRequest(subject, body, origin?, { plan? })` | 428 `SubscriptionStartRequired` on a stale version; `UnknownPlan`; `text` = `consumerCopyHelper.consentStatementOf(body.language, SubscriptionStart, { trader, plan, context: consumerCopyHelper.startContextOf(plan) })`, `context` stored; mails the start confirmation |
 | `assertStartRequest(entityId, planSku, id?)` | the fresh request bound to entity, plan and text version, or `null` when none is needed; else 428 |
 | `withdrawalCandidates(entityId, subject?)` | open windows with an estimate (a top-up fully used after consent is left out); `automatic` = refunds on, meter present, managed |
 | `withdraw(subject \| null, body, origin?)` | see below |
@@ -111,8 +111,8 @@ interface UsageMeter {
    - no payment intent: `review`.
 8. `onWithdrawal` for `refunded` and `review`; a `failed` one is told after reconcile succeeds.
 
-The refund is `oneTimeWithdrawalRefund` (gross on the total, net on the subtotal with the earlier
-refunds' net share) or `subscriptionWithdrawalRefund` (components of the net, time from the start
+The refund is `withdrawalRefundHelper.oneTimeWithdrawalRefund` (gross on the total, net on the subtotal with the earlier
+refunds' net share) or `.subscriptionWithdrawalRefund` (components of the net, time from the start
 request, units by the meter; gross `ceil(paid × net' / net)`), always capped at what is still
 unrefunded and rounded in the consumer's favour.
 
@@ -155,7 +155,7 @@ Every hook gets the request's context last (`ctx`): reach services through it, k
 | `subjectOf(req, ctx)` | — | profile id, name and e-mail prefill |
 | `guardMoney(req, action, ctx)` | — | `consent`, `start`, `withdraw`, `cancel` — refuse API keys |
 | `throttle(req, { action, email, ip }, ctx)` | **required with `public`** | per-IP / per-e-mail / global counters; throw 429 |
-| `metaOf(req, ctx)` | `requestOriginOf` | the evidence recorded |
+| `metaOf(req, ctx)` | `originHelper.requestOriginOf` | the evidence recorded |
 | `publicMinMs` | 1000 | the least time a public declaration answers in |
 | `planNameOf(planSku, language, req, ctx)` | — | the plan's short name in a start statement |
 | `serviceAlias` | `CONSUMER_RIGHTS_SERVICE` | — |

@@ -128,7 +128,7 @@ worker.process<Record<string, never>, SweepReport>(APP_MAINTENANCE, 'app:mainten
 ## Testing
 
 - **The declaration** is category A in the application's own shared package: build the config,
-  `assertSchedules(cfg)`, and pin ids and job names against the queue declaration.
+  `queueConfigOf(cfg).assertSchedules()`, and pin ids and job names against the queue declaration.
 - **The processor** is tested as a function over a fake `JobContext` or a real context — it is
   ordinary code with a `touch`.
 - **Against a broker** (Redis-gated): the worker's Ready-stage start is not awaited by

@@ -1,6 +1,6 @@
 ---
 name: auth
-description: How to use @owlmeans/auth — the core authentication and authorization vocabulary shared by server and client, covering the Auth / AuthPayload / AuthCredentials types, the AuthRole and AuthenticationType enums, the error hierarchy (AuthUnknown, AuthenFailed, AuthForbidden …), the request JSON schemas, the entrypoint aliases, and entitySlugOf for reading the organization entity off a token. Auto-invoked when importing auth types, errors, schemas or constants, or when working with request authentication.
+description: How to use @owlmeans/auth — the core authentication and authorization vocabulary shared by server and client, covering the Auth / AuthPayload / AuthCredentials types, the AuthRole and AuthenticationType enums, the error hierarchy (AuthUnknown, AuthenFailed, AuthForbidden …), the request JSON schemas, the entrypoint aliases, and authHelper.entitySlugOf for reading the organization entity off a token. Auto-invoked when importing auth types, errors, schemas or constants, or when working with request authentication.
 user-invocable: false
 ---
 
@@ -78,9 +78,9 @@ it.
 | `AuthSchema`, `AuthTokenSchema`, `OptionalAuthTokenSchema` | Resolved auth and bearer-token bodies |
 | `ProfileSchema`, `RelyChallengeSchema`, `PermissionSetSchema`, `AttributeSetSchema`, `CapabiltiesSchema` | Record and permission schemas |
 | `ScopeValueSchema`, `PermissionValueSchema`, `ResourceValueSchema`, `AttributeValueSchema`, `EntitySlugValueSchema`, `GroupValueSchema`, `TypeNameSchema`, `EnumValueSchema`, `IdValueSchema`, `DateSchema`, `AuthRoleSchema` | Reusable scalar schemas |
-| `entitySlugOf(payload)` | The organization entity carried by an auth payload — its `entitySlug`, falling back to an `entityId` the payload may carry instead — see below |
-| `verifyAuth`, `verifyAuthCredentials` | Validate against `AuthSchema` / `AuthCredentialsSchema` |
-| `isAuth`, `isAuthCredentials`, `isAuthToken` | Type guards |
+| `authHelper.entitySlugOf(payload)` | The organization entity carried by an auth payload — its `entitySlug`, falling back to an `entityId` the payload may carry instead — see below |
+| `authHelper.verifyAuth`, `authHelper.verifyAuthCredentials` | Validate against `AuthSchema` / `AuthCredentialsSchema` |
+| `authHelper.isAuth`, `authHelper.isAuthCredentials`, `authHelper.isAuthToken` | Type guards |
 | `buildSupervisorPayload`, `SupervisorCredentialPayload` | The payload the PK supervisor login signs — see the `supervisor-auth` skill |
 
 `AuthTokenSchema` caps `token` at 1024 characters. A route that accepts a token wrapping a full
@@ -94,23 +94,23 @@ query params and request bodies. No `entityId` is declared on any type here — 
 an implementation stores its rows against belongs to whichever package owns the organization
 registry, and is resolved from the slug at the server boundary.
 
-Read the value through `entitySlugOf()` rather than off the field. A token is signed once and then
-read for as long as it lives, across deployments, and the helper absorbs that spread: when
+Read the value through `authHelper.entitySlugOf()` rather than off the field. A token is signed once
+and then read for as long as it lives, across deployments, and the helper absorbs that spread: when
 `entitySlug` is absent it returns an `entityId` the payload carries instead, so a payload that names
 the organization under either field resolves through one code path. That fallback is why the helper
 is the only supported way to get the value out of a payload:
 
 ```typescript
-import { entitySlugOf } from '@owlmeans/auth'
+import { authHelper } from '@owlmeans/auth'
 
-const slug = entitySlugOf(req.auth)   // string | undefined
+const slug = authHelper.entitySlugOf(req.auth)   // string | undefined
 ```
 
 Because of that fallback the result is not guaranteed to be a slug: a payload carrying only
 `entityId` yields that id. Treat it as an opaque organization key, never as a name to compose from
-and never as a database key written directly — `@owlmeans/auth-common` exports `entityKeyOf` /
-`requireEntityKey` for storage keys, and they prefer the resolved id; a user-facing name wants the
-resolved entity's current slug.
+and never as a database key written directly — `@owlmeans/auth-common`'s
+`makeEntityScope(req).entityKeyOf()` / `.requireEntityKey()` give storage keys, and they prefer the
+resolved id; a user-facing name wants the resolved entity's current slug.
 
 ## AuthRole is a string enum
 
@@ -128,11 +128,11 @@ const creds: AuthCredentials = { role: AuthRole.User, /* … */ } as AuthCredent
 Throw from a handler when the request is missing the identity it needs:
 
 ```typescript
-import { AuthUnknown, entitySlugOf } from '@owlmeans/auth'
+import { AuthUnknown, authHelper } from '@owlmeans/auth'
 import { handlers } from '@owlmeans/server-app'
 
 export const list = handlers<Context>().request(projectProtocols.list, async (req, context) => {
-  const slug = entitySlugOf(req.auth)
+  const slug = authHelper.entitySlugOf(req.auth)
   if (slug == null) throw new AuthUnknown('entity')
 
   return await listProjects(context, slug)
@@ -158,6 +158,6 @@ Rules of thumb:
 - `@owlmeans/error` — every error class extends `ResilientError`, which is what makes the messages
   translatable and re-throwable across the wire
 - `ajv-formats` — date/time formats for the `verify*` helpers
-- `ajv` — a **peer** dependency (`"*"`), not a direct one: `verifyAuth` / `verifyAuthCredentials`
-  construct `new Ajv({ strict: false })`. Install it alongside this package, or those two helpers
-  fail to resolve.
+- `ajv` — a **peer** dependency (`"*"`), not a direct one: `authHelper.verifyAuth` /
+  `authHelper.verifyAuthCredentials` construct `new Ajv({ strict: false })`. Install it alongside
+  this package, or those two helpers fail to resolve.

@@ -129,14 +129,14 @@ The package's functionality comes as objects: pure helpers with a ready instance
 `catalogueOf(ctx)`, `usageOf(ctx)`, `subscriptionCommitOf(ctx)`, `productSyncOf(ctx)`,
 `stripeBootstrapOf(ctx)`, `reconcileOf(ctx)`, `checkoutPluginsOf(ctx)`, `stripeCheckoutOf(ctx)`,
 `stripeSubscriptionsOf(ctx)`, `portalOf(ctx)`, `webhookOf(ctx)`, `estimateOf(ctx)`, `consumerMailOf(ctx)`.
-The former free functions (`gateway(ctx)`, `reconcileAll(ctx, …)`, `webhookUrlOf(ctx)`, …) remain as
+The former free functions (`gateway`, `reconcileAll`, `webhookUrlOf`, …) remain as
 deprecated delegates.
 
 Routes declare what they need; the gates refuse before the handler:
 
 ```typescript
 protocol(route(...), contract(...), { gate: { alias: ENTITLEMENT_GATE, params: ['feature:whitelabel'] } })
-protocol(route(...), contract(...), { gate: { alias: LIMIT_GATE, params: [formatLimitParam('seats')] } })
+protocol(route(...), contract(...), { gate: { alias: LIMIT_GATE, params: [planLimitHelper.formatLimitParam('seats')] } })
 ```
 
 `CapabilityRequired` and `LimitExhausted` extend `AuthForbidden`, so an HTTP boundary answers 403.

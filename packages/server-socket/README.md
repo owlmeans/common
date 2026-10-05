@@ -71,13 +71,13 @@ export const appEntrypoints = [
 The parent declares `guards`, so authentication and the entity are resolved before the upgrade.
 
 ```ts
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import { MessageType } from '@owlmeans/socket'
 import type { EventMessage } from '@owlmeans/socket'
 
 export const events = connection<typeof projectProtocols.events, Context>(projectProtocols.events,
   async (conn, context, request) => {
-    const entityId = requireEntityKey(request)
+    const entityId = makeEntityScope(request).requireEntityKey()
 
     // app-local pub/sub resource, one channel per organization
     const unsubscribe = await context.projectEvents().subscribe(async event => {
@@ -99,12 +99,12 @@ export const events = connection<typeof projectProtocols.events, Context>(projec
 ### Authenticate in-band
 
 When the client cannot send a bearer on the upgrade request, it sends the token as the first auth
-frame. The handler runs the guard itself and must call `attachEntity`.
+frame. The handler runs the guard itself and must call `makeEntityScope(request).attachEntity(context)`.
 
 ```ts
 import { AUTH_HEADER, AuthenFailed, AuthenticationStage, AuthUnknown } from '@owlmeans/auth'
 import type { Auth, AuthToken } from '@owlmeans/auth'
-import { attachEntity, DEFAULT_GUARD, requireEntityKey } from '@owlmeans/auth-common'
+import { DEFAULT_GUARD, makeEntityScope } from '@owlmeans/auth-common'
 import { provideResponse } from '@owlmeans/entrypoint'
 import type { AbstractResponse, GuardService } from '@owlmeans/entrypoint'
 import type { AuthenticateMethod } from '@owlmeans/socket'
@@ -127,10 +127,11 @@ export const watch = connection<typeof projectProtocols.watch, Context>(projectP
 
       request.auth = response.value
       // This path establishes authentication, so it resolves the organization entity itself.
-      await attachEntity(context, request)
+      const scope = makeEntityScope(request)
+      await scope.attachEntity(context)
       clearTimeout(timeout)
 
-      await startWatching(conn, context, requireEntityKey(request))
+      await startWatching(conn, context, scope.requireEntityKey())
 
       return [AuthenticationStage.Authenticated, true]
     }) as AuthenticateMethod
@@ -142,7 +143,7 @@ export const watch = connection<typeof projectProtocols.watch, Context>(projectP
 ```ts
 export const terminal = connection<typeof projectProtocols.terminal, Context>(projectProtocols.terminal,
   async (conn, context, request) => {
-    const entityId = requireEntityKey(request)
+    const entityId = makeEntityScope(request).requireEntityKey()
 
     conn.perform('project:rename', async (id: string, name: string) => {
       const project = await context.project().load({ id, entityId })
@@ -184,7 +185,7 @@ context.registerMiddleware(createSocketMiddleware())
 - Bind with the same protocol object on both sides: `bind(p, connection(p, callback))`.
 - Guards and gates are inherited from the protocol tree and enforced before the handler runs; do not
   re-implement them inside the callback.
-- A socket that authenticates on its own must call `attachEntity(context, request)`, or
+- A socket that authenticates on its own must call `makeEntityScope(request).attachEntity(context)`, or
   `request.entity` stays empty and entity-keyed lookups silently find nothing.
 - The token query parameter is used only to stamp `sender` / `recipient` on frames. It is not
   verified — never treat it as authentication.
@@ -199,7 +200,7 @@ context.registerMiddleware(createSocketMiddleware())
 - [`@owlmeans/server-api`](../server-api) — the API server this service attaches to
 - [`@owlmeans/server-entrypoint`](../server-entrypoint) — `bind()`
 - [`@owlmeans/server-app`](../server-app) — calls `appendSocketService` in `makeContext`
-- [`@owlmeans/auth-common`](../auth-common) — `attachEntity`, `requireEntityKey`, `DEFAULT_GUARD`
+- [`@owlmeans/auth-common`](../auth-common) — `makeEntityScope` (`attachEntity`, `requireEntityKey`), `DEFAULT_GUARD`
 
 <!-- owlmeans:agent-guidance:start -->
 ## Agent guidance

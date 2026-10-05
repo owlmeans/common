@@ -75,17 +75,17 @@ export const projectResource = (ctx: BasicContext<BasicConfig>) =>
 ### CRUD in a handler
 
 A read is addressed by an id **or** by criteria; a write takes the record, with its id inside it.
-The organization is keyed by `entityId`, which a server handler takes from `requireEntityKey(req)`
+The organization is keyed by `entityId`, which a server handler takes from `makeEntityScope(req).requireEntityKey()`
 (`@owlmeans/auth-common`), never from the token or the body.
 
 ```ts
-import { requireEntityKey } from '@owlmeans/auth-common'
+import { makeEntityScope } from '@owlmeans/auth-common'
 import type { AbstractRequest } from '@owlmeans/entrypoint'
 import { MisshapedRecord, UnknownRecordError } from '@owlmeans/resource'
 import type { Resource } from '@owlmeans/resource'
 
 export const handleCreateProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { alias } = req.body as { alias?: string }
   if (alias == null || alias.trim() === '') {
     throw new MisshapedRecord('alias-required')
@@ -96,7 +96,7 @@ export const handleCreateProject = async (req: AbstractRequest, ctx: Context) =>
 }
 
 export const handleGetProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { alias } = req.params as { alias: string }
 
   // One record by several fields is one call — get() throws UnknownRecordError on a miss
@@ -104,7 +104,7 @@ export const handleGetProject = async (req: AbstractRequest, ctx: Context) => {
 }
 
 export const handleRenameProject = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { id } = req.params as { id: string }
   const project = await projectResource(ctx).load(id)
   if (project == null || project.entityId !== entityId) {
@@ -131,7 +131,7 @@ export const handleDestroyProject = async (req: AbstractRequest, ctx: Context) =
 import type { Criteria, ListQuery, ListResult } from '@owlmeans/resource'
 
 export const handleListProjects = async (req: AbstractRequest, ctx: Context) => {
-  const entityId = requireEntityKey(req)
+  const entityId = makeEntityScope(req).requireEntityKey()
   const { where, sort, page, size } = req.query as ListQuery<ProjectRecord>
 
   const criteria: Criteria<ProjectRecord> = {
@@ -382,7 +382,7 @@ durable ledger, and make `run` atomic with the ledger write where the database a
   detects an edit.
 - Install `@noble/hashes` and `@scure/base` alongside this package when you load
   `createMigrationRegistry` or `runMigrations`; install peer `ajv` when you use `createListSchema`.
-- Scope organization data by `entityId` from `requireEntityKey(req)`, never by an id taken from the
+- Scope organization data by `entityId` from `makeEntityScope(req).requireEntityKey()`, never by an id taken from the
   wire.
 
 ## Related packages

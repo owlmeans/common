@@ -1,6 +1,6 @@
 ---
 name: server-oauth
-description: How to use @owlmeans/server-oauth — the OAuth 2.1 authorization server for an OwlMeans backend: appendOAuthServer, the raw Fastify routes (RFC 8414/9728 metadata, authorize, device_authorization, token, register, revoke), static/CIMD/DCR clients and the SSRF guard, the pending-record store, the session-guarded consent handlers, protectedResourceChallenge for resource servers, and the lazy URL options. Auto-invoked when adding sign-in-by-browser to an API, mounting the consent handlers, giving an MCP/URL host a 401 challenge, or diagnosing a boot crash on `open '/mcp'`.
+description: How to use @owlmeans/server-oauth — the OAuth 2.1 authorization server for an OwlMeans backend: appendOAuthServer, the raw Fastify routes (RFC 8414/9728 metadata, authorize, device_authorization, token, register, revoke), static/CIMD/DCR clients and the SSRF guard, the pending-record store, the session-guarded consent handlers, oauthMetadataOf(ctx).protectedResourceChallenge for resource servers, and the lazy URL options. Auto-invoked when adding sign-in-by-browser to an API, mounting the consent handlers, giving an MCP/URL host a 401 challenge, or diagnosing a boot crash on `open '/mcp'`.
 user-invocable: false
 ---
 
@@ -9,7 +9,7 @@ user-invocable: false
 **Layer:** Server
 **Install:** `"@owlmeans/server-oauth": "^0.1.18-rc.19"` in `dependencies`
 **Contracts:** `@owlmeans/oauth` — constants, protocols, client helpers, errors
-**Issues through:** `@owlmeans/server-auth-token` (`issueAccessToken`, `refuseTokenAuth`)
+**Issues through:** `@owlmeans/server-auth-token` (`accessTokenIssuerOf(ctx).issueAccessToken`, `refuseTokenAuth`)
 
 ## Key Exports
 
@@ -18,11 +18,11 @@ user-invocable: false
 | `appendOAuthServer(ctx, opts)` | Write `cfg.oauth`, register the pending store and DCR store if absent, mount the routes |
 | `appendOAuthRoutes(ctx)` | The `Loading`-stage middleware that mounts the raw routes (called by the above) |
 | `loadConsent` · `approveConsent` · `denyConsent` | Handler makers for `makeOAuthProtocols().load/approve/deny` — `bind` them onto the app's protocols |
-| `protectedResourceChallenge(ctx, resourcePath, { error? })` | The `WWW-Authenticate` value for a resource server: `Bearer [error="…", ]resource_metadata="…"` |
-| `authorizationServerMetadata` · `protectedResourceMetadata` · `requireIssuer` · `isKnownResource` · `resolveOAuthUrl` | Metadata and the lazy resolver |
-| `resolveClient` · `staticClientOf` · `fetchClientIdMetadataDocument` · `dcrClientOf` · `registerDcrClient` · `makeOAuthDcrClientResource(dbAlias?)` | Client sources |
-| `assertPublicHostname` · `isPrivateAddress` | The SSRF pre-flight |
-| `handleAuthorize` · `handleDeviceAuthorization` · `handleToken` · `handleRegister` · `handleRevoke` · `mint` | The endpoint logic, exported for tests |
+| `oauthMetadataOf(ctx).protectedResourceChallenge(resourcePath, { error? })` | The `WWW-Authenticate` value for a resource server: `Bearer [error="…", ]resource_metadata="…"` |
+| `oauthMetadataOf(ctx)` — `.authorizationServerMetadata` · `.protectedResourceMetadata` · `.requireIssuer` · `.isKnownResource` · `.resolveOAuthUrl` | Metadata and the lazy resolver |
+| `oauthClientsOf(ctx)` — `.resolveClient` · `.staticClientOf` · `.dcrClientOf` · `.registerDcrClient`; `cimdHelper.fetchClientIdMetadataDocument` · `makeOAuthDcrClientResource(dbAlias?)` | Client sources |
+| `ssrfHelper` — `.assertPublicHostname` · `.isPrivateAddress` | The SSRF pre-flight |
+| `handleAuthorize` · `handleDeviceAuthorization` · `handleToken` · `handleRegister` · `handleRevoke` · `oauthMintOf(ctx).mint` | The endpoint logic, exported for tests |
 | `OAUTH_PENDING_RESOURCE` (`oauth:pending`) · `OAUTH_DCR_RESOURCE` (`oauth:dcr-client`) | Resource aliases |
 | `OAuthServerOptions` · `OAuthStaticClient` · `OAuthUrlOption` · `OAuthServerConfig` · `OAuthServerContext` | Types |
 
@@ -52,7 +52,7 @@ audiences are enforced (below).
 
 Two config-timing rules, both learned from a crash:
 
-1. **`OAuthUrlOption = string | ((ctx) => string)`, resolved per call (`resolveOAuthUrl`).**
+1. **`OAuthUrlOption = string | ((ctx) => string)`, resolved per call (`oauthMetadataOf(ctx).resolveOAuthUrl`).**
    `appendOAuthServer` runs from `makeContext`, before the config middleware has swapped file
    pointers (`services[X].host` is a mounted-secret file path until the Configuration stage).
    Baking a hostname in at registration reads a path or nothing. A function calling
@@ -93,7 +93,7 @@ All short-lived records live in **one resource** (`OAUTH_PENDING_RESOURCE`) as i
 `OAUTH_CODE_TTL_SEC`). An app that wants Redis registers `makeRedisResource(OAUTH_PENDING_RESOURCE)`
 **before** `appendOAuthServer`; otherwise a `static-resource` fallback is registered (same rule as
 `AUTH_CACHE`). Every write passes an absolute TTL again — a redis `update` drops it. **Secrets are
-stored only hashed:** `hashOAuthSecret` for a device code and an authorization code, the same reason
+stored only hashed:** `oauthFormatHelper.hashOAuthSecret` for a device code and an authorization code, the same reason
 an access token is.
 
 DCR clients live in `makeOAuthDcrClientResource(dbAlias)`, a mongo-resource with a unique
@@ -104,7 +104,7 @@ registration, keeps a client alive (`OAUTH_DCR_CLIENT_TTL_MS`).
 
 1. **Static** (`cfg.oauth.clients`) — never fetched, never expiring; the deployment's own CLI/MCP.
 2. **CIMD** — an `https` `client_id` with a real path (no fragment, credentials or dot segments) is
-   fetched: `assertPublicHostname` pre-flight (refuses loopback, RFC 1918, link-local, ULA, incl.
+   fetched: `ssrfHelper.assertPublicHostname` pre-flight (refuses loopback, RFC 1918, link-local, ULA, incl.
    IPv4-mapped IPv6), `redirect: 'manual'`, `CIMD_FETCH_TIMEOUT_MS`, `CIMD_MAX_BYTES` enforced while
    reading, and the document's `client_id` must equal the URL. Cached for its `max-age` clamped to
    `CIMD_MIN_CACHE_SEC`–`CIMD_MAX_CACHE_SEC`; failures are never cached, and a refusal returns
@@ -117,7 +117,7 @@ The consent screen says how a client is known (`static`, `cimd` with the `client
 
 ## The token's name, and the wire's nulls
 
-An issued token is named `tokenNameOf({ clientName, label })` — `"Viable MCP · my-laptop"`, the label
+An issued token is named `oauthMintOf(ctx).tokenNameOf({ clientName, label })` — `"Viable MCP · my-laptop"`, the label
 being the device name (device grant) or the redirect host (code grant), at most `AUTH_TOKEN_NAME_MAX`
 characters. That name is the only thing that tells one connector's token from another when the person
 revokes one in Settings, so it names the client and the place, never the protocol. A registration
@@ -127,19 +127,19 @@ the body (the MCP SDK does) rejects `null` for an optional string.
 ## Consent handlers
 
 `load` returns a `ConsentView`. `approve` calls `refuseTokenAuth(req, …)` first, snapshots the
-subject from `req.auth` + `requireEntityKey(req)` (never from a token payload), then:
-device grant — **mints immediately** (`mint` → `issueAccessToken`) and stores the token on the
+subject from `req.auth` + `makeEntityScope(req).requireEntityKey()` (never from a token payload), then:
+device grant — **mints immediately** (`oauthMintOf(ctx).mint` → `accessTokenIssuerOf(ctx).issueAccessToken`) and stores the token on the
 request for exactly one delivery to the poller; code grant — mints nothing, stores a hashed
 single-use code carrying the subject, deletes the request and answers `{ redirect }` with `code`,
 `state` and `iss`. `deny` mirrors it with `error=access_denied` (a device request is left `denied`
 so the next poll answers `access_denied`). A `:ref` is a request id **or** a normalised user code
-(`resolveRequestRef`). The token record's name and `audience` are set in `mint`
+(`oauthPendingOf(ctx).resolveRequestRef`). The token record's name and `audience` are set in `oauthMintOf(ctx).mint`
 (`audience = [resource]` when the request named one; none otherwise), `expiresIn` is
-`cfg.oauth.tokenTtlSec`, and scopes only ever narrow the subject's own (`issueAccessToken`).
+`cfg.oauth.tokenTtlSec`, and scopes only ever narrow the subject's own (`accessTokenIssuerOf(ctx).issueAccessToken`).
 
 ## Resource servers
 
-`protectedResourceChallenge(ctx, '/mcp', { error: 'invalid_token' })` builds the 401
+`oauthMetadataOf(ctx).protectedResourceChallenge('/mcp', { error: 'invalid_token' })` builds the 401
 `WWW-Authenticate` header — space after `Bearer`, comma only between parameters (a leading
 `Bearer, …` is malformed and some clients silently fail on it). Every resource server (the URL MCP
 host, the REST API) calls it rather than composing the header. Audience is enforced by the guard:

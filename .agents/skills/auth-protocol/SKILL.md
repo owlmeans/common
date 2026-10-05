@@ -16,7 +16,7 @@ The system supports multiple authentication paths that share the same `Auth` and
 Use case: service-to-service, wallet provider, backend clients, high-security browser-issued tokens.
 
 1. **Allowance**: client posts `AllowanceRequest` (a partial `AuthPayload`) to `/authentication/init`. Server returns `AllowanceResponse { challenge }`.
-2. **Credential generation**: client builds `AuthCredentials` (challenge + ephemeral payload), signs the canonicalized payload with its Ed25519 keypair via `packAuthCredentials()` (`@owlmeans/basic-keys`), posts to `/authentication/authenticate`.
+2. **Credential generation**: client builds `AuthCredentials` (challenge + ephemeral payload), signs the canonicalized payload with its Ed25519 keypair via `authCredentialsHelper.packAuthCredentials()` (`@owlmeans/basic-keys`), posts to `/authentication/authenticate`.
 3. **Credential envelope**: the auth manager opens the signed challenge with the `AUTH_SRV_KEY` record it loads from the `TRUSTED` config resource via `trust()` (`@owlmeans/auth-common/utils`), burns the decoded challenge into `AUTH_CACHE` (create-once, so one challenge is spent once), then hands the credential to the plugin for its type. The basic-ed25519 plugin loads the caller's own `TRUSTED` record by `userId` and verifies the signature over the challenge, then rewrites the credential's `type` to `AuthenticationType.OneTimeToken` with a fresh one-time token as its challenge. The manager canonicalizes `entitySlug` through `ENTITY_RESOLVER` where one is registered, stamps its own trusted id onto `credential.credential`, and answers with an `EnvelopeModel<AuthCredentials>` of the credential's own type, signed with `AUTH_SRV_KEY`.
 4. **Token exchange**: the client posts that envelope as an `AuthToken` to the consuming service's `DISPATCHER_AUTHEN` entrypoint (`/authenticate`). `makeAuthService.authenticate()` (`@owlmeans/server-auth`) verifies it against `AUTH_SRV_KEY`, burns the one-time token into its own `AUTH_CACHE`, checks that `credential.credential` names the auth manager, builds the `Auth` from the credential's `userId` / `scopes` / `role` / `profileId` / `entitySlug`, and returns it as an envelope of type `ed25519-basic-token` signed with that service's own key.
 5. **Bearer**: client sends `Authorization: ED25519-BASIC-TOKEN <encoded>`.
@@ -40,7 +40,7 @@ Use case: a deployment that signs its own people in through Google, OIDC or an e
 1. Browser imports `@owlmeans/web-oidc-rp/auth/plugins`, which registers OIDC and Google plugins in `@owlmeans/client-auth`.
 2. The plugin persists auth control state, redirects to the provider, restores state on return, and submits code/query params as `AuthCredentials`.
 3. Server exchanges the provider code through `@owlmeans/server-oidc-rp`. The Google plugin refuses a userinfo whose `email_verified` is not `true` (`AuthenFailed('email-verified')`): the address is what links the sign-in to an account.
-4. The linking service (`AUTH_IDENTITY_LINKING`) maps `ProviderProfileDetails` onto the identity model ("The identity model"): `getLinkedProfile` follows the method's credential to its account and answers the row of THIS deployment's app in the account's main organization; otherwise `linkProfile(details, { username: verifiedEmail })` runs `ensureAccount` — a further method of a known address becomes another credential on the same account, a new address registers an account with a personal organization — and `ensureProfile` for the deployment's own app there (`owner: true`, `scopes: ['*']`).
+4. The linking service (`AUTH_IDENTITY_LINKING`) maps `ProviderProfileDetails` onto the identity model ("The identity model"): `getLinkedProfile` follows the method's credential to its account and answers the row of THIS deployment's app in the account's main organization; otherwise `linkProfile(details, { username: verifiedEmail })` runs `identityOf(ctx).ensureAccount` — a further method of a known address becomes another credential on the same account, a new address registers an account with a personal organization — and `.ensureProfile` for the deployment's own app there (`owner: true`, `scopes: ['*']`).
 5. Server returns a normal OwlMeans bearer token carrying the organization's `entitySlug` and the row's `profileId`. Downstream product gates authorize against that row — requiring its `service` to be the deployment's own app, because the same organization holds hosted apps' rows — not against `OIDC_GATE`.
 
 ### Email one-time code
@@ -61,7 +61,7 @@ Use case: an application a deployment hosts (a generated target) signs its end u
 4. `findAccount` asks `subjects.resolve(clientId, accountId)` for the claims. `null` (no row of the app, a disabled or expired primary row) refuses the account, and the provider's `account_refused` login check sends the browser back to the login screen instead of failing the consent.
 5. The claims: `sub` = the pairwise subject, `email`, `permissions`, and `organizations` under its scope. The account's record id never leaves the provider.
 
-**Pairwise subjects.** Every client sees its own subject for one account: `profileIdOf(clientId, accountId)` (`subjects.identify`) — the very `profileId` of the account's rows of that app — the same in the id_token, userinfo and introspection, and different for every other client, so two apps cannot correlate their users. The provider configuration that produces it (pairwise-only, the sector URI, `claims()` answering the account id) is governed by `server-oidc-provider` → "Pairwise subjects".
+**Pairwise subjects.** Every client sees its own subject for one account: `identityKeyHelper.profileIdOf(clientId, accountId)` (`subjects.identify`) — the very `profileId` of the account's rows of that app — the same in the id_token, userinfo and introspection, and different for every other client, so two apps cannot correlate their users. The provider configuration that produces it (pairwise-only, the sector URI, `claims()` answering the account id) is governed by `server-oidc-provider` → "Pairwise subjects".
 
 ### PK supervisor (development only)
 
@@ -82,13 +82,14 @@ the protocol relies on these rules:
 - **Account** — the person, ONE per e-mail; `entityId` = its personal organization. Every sign-in
   method (e-mail code, Google, PK supervisor) is a **credential** on the account, never on a row.
 - **Profile row** — one per (account, app, organization); `service` = the app (the deployment's own
-  key, or a hosted app's client id); `profileId = profileIdOf(service, accountId)` is computed, the
-  same on every row of one (account, app), and is the pairwise subject that app's client sees. The
-  PRIMARY row (in the personal organization) carries `home` and `disabled`.
+  key, or a hosted app's client id); `profileId = identityKeyHelper.profileIdOf(service, accountId)`
+  is computed, the same on every row of one (account, app), and is the pairwise subject that app's
+  client sees. The PRIMARY row (in the personal organization) carries `home` and `disabled`.
 - **Organization** (`OrgEntity`) — `slug` (the wire `entitySlug`, renameable), `iamKey` (frozen,
   claimed as `entityKey`, server-side only) and the organization's **groups** inside the document.
 - Registration anywhere creates the account, its personal organization and an owner row of the app
-  signing in. The address IS the identity: every caller of `ensureAccount` must have verified it.
+  signing in. The address IS the identity: every caller of `identityOf(ctx).ensureAccount` must have
+  verified it.
 
 ## Organizations and the session
 
@@ -101,12 +102,13 @@ the client asks for `ORGANIZATIONS_SCOPE` and each subject acts in organizations
   governed by `server-oidc-rp` → "Organizations" (claims, session record, browser-token contents,
   the switch handlers).
 - **The request entity** on such a relying party is `{ id: entityKey, slug, iamKey: entityKey }`,
-  attached by the OIDC guard; `requireEntityKey(req)` answers the `entityKey` — the tenant key a
-  hosted app stores its records by (`auth-common` → "The organization entity").
-- **Browser**: `listOrganizations` / `switchOrganization` (`client-iam`). **Server**:
-  `organizationsOf` / `organizationOf` and the runtime IAM client `iamRuntime` (`server-iam`) over the
-  provider's runtime IAM API (`makeIamRuntimeProtocols`, `iam` skill), advertised as the discovery
-  field `owlmeans_iam_api`.
+  attached by the OIDC guard; `makeEntityScope(req).requireEntityKey()` answers the `entityKey` —
+  the tenant key a hosted app stores its records by (`auth-common` → "The organization entity").
+- **Browser**: `organizationSwitchOf(ctx).listOrganizations` / `.switchOrganization` (`client-iam`).
+  **Server**: `makeOrganizationScope(context, request).organizationsOf` / `.organizationOf` and the
+  runtime IAM client `makeIamRuntimeClient(context, request)` (`server-iam`) over the provider's
+  runtime IAM API (`makeIamRuntimeProtocols`, `iam` skill), advertised as the discovery field
+  `owlmeans_iam_api`.
 
 ## Permission kinds
 
@@ -122,7 +124,7 @@ The payload chain is `Authorization` (`entitySlug?`, `scopes`, `permissions?`, �
 (+ `groups?`) → `AuthPayload` (+ `type`, `role`, `userId`, `profileId?`, …) → `AuthCredentials`
 (+ `challenge`, `credential`) for authentication and `Auth` (+ `token`, `isUser`, `createdAt`) for a
 resolved identity. **`entitySlug` is the only organization-entity value on the wire**; read it with
-`entitySlugOf(payload)`, never off the field. Where each name is governed:
+`authHelper.entitySlugOf(payload)`, never off the field. Where each name is governed:
 
 - types, `AuthRole` (a **string** enum), `AuthenticationType`, query/header constants, the error
   hierarchy (`AuthError` root; `AuthUnknown` 400, `AuthorizationError` → `AuthForbidden`,
@@ -186,9 +188,9 @@ identities — the auth service, peer services, wallet providers, supervisors (`
 ## Key model
 
 `KeyPairModel` (`@owlmeans/basic-keys`, `basic-keys` skill) signs, verifies and exports
-`ed25519:<base64>` keys; `makeKeyPairModel(input?)` builds one, `fromPubKey(credential)` a
-verify-only one, and `packAuthCredentials(auth, extra, signer)` signs an `AuthCredentials` for the
-Ed25519 path.
+`ed25519:<base64>` keys; `makeKeyPairModel(input?)` builds one, `keyHelper.fromPubKey(credential)` a
+verify-only one, and `authCredentialsHelper.packAuthCredentials(auth, extra, signer)` signs an
+`AuthCredentials` for the Ed25519 path.
 
 ## Setup wiring
 
@@ -221,17 +223,18 @@ Two places resolve the organization entity, and both are required:
    `credential.entitySlug` is resolved and rewritten to the current one, so a token is canonical for
    as long as it lives. An unresolvable value throws `AuthenFailed('entity')`.
 2. **At every server boundary that establishes authentication** — the HTTP boundary, and any socket
-   that authenticates after its connection is open — via `attachEntity(context, request)`
-   (`@owlmeans/auth-common`), which sets `request.entity` and canonicalizes a retired slug.
+   that authenticates after its connection is open — via
+   `makeEntityScope(request).attachEntity(context)` (`@owlmeans/auth-common`), which sets
+   `request.entity` and canonicalizes a retired slug.
 
-Handlers then key their records on `entityKeyOf(req)` / `requireEntityKey(req)`, which prefer the
-resolved id and fall back to the slug where no resolver is registered. A boundary that skips step 2
-leaves `request.entity` empty and its handlers silently compare a slug against stored ids — which
-surfaces as "this record does not exist", not as a missing resolution.
+Handlers then key their records on `makeEntityScope(req).entityKeyOf()` / `.requireEntityKey()`,
+which prefer the resolved id and fall back to the slug where no resolver is registered. A boundary
+that skips step 2 leaves `request.entity` empty and its handlers silently compare a slug against
+stored ids — which surfaces as "this record does not exist", not as a missing resolution.
 
 A relying party of a tenanted client has no registry to resolve from: there the OIDC guard attaches
-the session's acting organization itself, and `attachEntity` keeps it only while its slug is exactly
-the token's (`auth-common` → "The organization entity").
+the session's acting organization itself, and `makeEntityScope(…).attachEntity` keeps it only while
+its slug is exactly the token's (`auth-common` → "The organization entity").
 
 ## Mocking points (for category-B tests)
 

@@ -78,7 +78,7 @@ await projects.update({ ...created, title: 'Renamed' })                   // rep
 await projects.purge({ entityId, status: 'archived' })                    // refuses empty criteria
 ```
 
-`entityId` here is the organization's stable record id, taken from `requireEntityKey(req)` in the
+`entityId` here is the organization's stable record id, taken from `makeEntityScope(req).requireEntityKey()` in the
 handler, never from the token. Only `entitySlug` travels on the wire.
 
 ### References, compound indexes and a domain method
@@ -242,7 +242,7 @@ database, so each database tracks its own.
 | `MongoDbService` | type | Connection service contract implemented by `@owlmeans/mongo` |
 | `MongoTx` | type | Façade handed to migration bodies: `db`, `collection`, `use(alias)`, `ref(alias)` |
 | `MongoReference`, `MongoRefOptions` | type | A declared reference and the `reference()` options (`resource`, `noIndex`) |
-| `mongoCriteriaHelper` (`MongoCriteriaHelper`) | helper | `criteriaToFilter(criteria, refs)` — `Criteria<T>` to a Mongo filter, with references converted; `sortToMongo(sort)` — `Sort<T>[]` to a Mongo sort document (`id` becomes `_id`) |
+| `mongoCriteriaHelper` (`MongoCriteriaHelper`) | helper | `.criteriaToFilter(criteria, refs)` — `Criteria<T>` to a Mongo filter, with references converted; `.sortToMongo(sort)` — `Sort<T>[]` to a Mongo sort document (`id` becomes `_id`) |
 | `mongoRefHelper` (`MongoRefHelper`) | helper | The reference conversion layer, members below |
 | `mongoRefHelper.marshalReference(field, value)` | member | String id(s) to `ObjectId` for a write; throws `MisshapedRecord` on non-ids |
 | `mongoRefHelper.demarshalReference(value)`, `.demarshalRefs(record, refs)` | member | `ObjectId` back to strings for one value or a whole document |
@@ -250,7 +250,7 @@ database, so each database tracks its own.
 | `mongoRefHelper.isObjectIdHex(value)` | member | Strict 24-hex test used by the conversion layer |
 | `mongoRefHelper.convertReferenceField`, `.reconcileReferences`, `.refMigrationName`; `makeRefMigration` | member / function | The system reference migration and its boot-time probe |
 | `makeMongoTx`, `makeMongoMigrationStore` | function | The migration façade and the ledger implementation |
-| `mongoDeclarationHelper` (`MongoDeclarationHelper`), `MongoDeclaration` | helper / type | Module-scope per-alias declarations: `getDeclaration(alias)`, and `resetDeclarations(alias?)` — the testing seam |
+| `mongoDeclarationHelper` (`MongoDeclarationHelper`), `MongoDeclaration` | helper / type | Module-scope per-alias declarations: `.getDeclaration(alias)`, and `.resetDeclarations(alias?)` — the testing seam |
 | `getSchemaSecureFeilds(schema)` | function | The `secure: true` properties `lock`/`unlock` use when no fields are named |
 | `DEFAULT_DB_ALIAS` | const | `'mongo'` |
 | `DEFAULT_PAGE_SIZE` | const | `100` |

@@ -35,7 +35,7 @@ the model**, so the chained form is the idiomatic one.
 ```typescript
 import { makeEnvelopeModel, EnvelopeKind } from '@owlmeans/basic-envelope'
 import { RELY_3RD, type RelyToken } from '@owlmeans/auth'
-import { fromPubKey, makeKeyPairModel } from '@owlmeans/basic-keys'
+import { keyHelper, makeKeyPairModel } from '@owlmeans/basic-keys'
 
 const key = makeKeyPairModel(privateKey)
 
@@ -67,7 +67,7 @@ Pass the serialized string as the first argument together with the kind it was p
 const received = makeEnvelopeModel<RelyToken>(token, EnvelopeKind.Token)
 
 if (received.type() !== RELY_3RD) { /* wrong kind of message */ }
-if (!await received.verify(fromPubKey(publicKey))) { /* forged or expired */ }
+if (!await received.verify(keyHelper.fromPubKey(publicKey))) { /* forged or expired */ }
 
 const rely = received.message()               // decoded payload
 const raw = received.message(true)            // the encoded string, untouched

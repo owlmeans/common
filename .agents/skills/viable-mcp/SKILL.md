@@ -19,7 +19,7 @@ a network call. Operator-facing setup is the viable repo's `mcp.md`.
 | Export | Description |
 |--------|-------------|
 | `makeViableMcpServer(cfg)` → `{ server, close }` | The configured `McpServer` with the catalogue registered |
-| `readConfig(argv, env)` (async) · `parseArgs(argv)` · `HELP` | What this server was started with: flags over the merged environment + `~/.owlmeans` |
+| `configHelper` — `.readConfig(argv, env)` (async) · `.parseArgs(argv)`; `HELP` | What this server was started with: flags over the merged environment + `~/.owlmeans` |
 | `makeCredentials(cfg, log)` · `CLIENT_ID` (`viable-mcp`) | The one credential holder `bin.ts` and `server.ts` both build |
 | `DEFAULT_API_URL` · `DEFAULT_TARGET` (`local`) · `DEFAULT_LLM` (`cloud`) | The defaults a user who set nothing gets |
 | `McpConfig.mcpUrl` | The URL-configured host's address, `resolveMcpUrl(merged)` — printed by `url`; this server never calls it |
@@ -54,14 +54,14 @@ whole of a user's first impression.
 capabilities and does **nothing** (no error, no throw) when a server never advertised `logging`, so
 a refusal notice built there would simply vanish with nothing anywhere saying so. This is what
 backs `ToolDeps.notify`: a refusal only a person resolves — the balance, the spend consent, a
-conversion's confirmation (`viable-sdk`'s `personRefusalPhrase`) — is pushed to
+conversion's confirmation (`viable-sdk`'s `refusalHelper.personRefusalPhrase`) — is pushed to
 `server.sendLoggingMessage({ level: 'warning', logger: 'viable', data: text })`, i.e. an MCP
 `notifications/message`, independent of the tool result text. The platform's own stateless `/mcp`
 host has no channel to push through and passes no `notify` at all — treat it as always best-effort.
 
 ## Sign-in: a browser, not a pasted token
 
-No token is required to start. `readConfig` merges `loadOwlmeansEnv(process.env)` — the dotenv-style
+No token is required to start. `configHelper.readConfig` merges `envFileHelper.loadOwlmeansEnv(process.env)` — the dotenv-style
 credentials file (`~/.owlmeans`, moved by `OWLMEANS_CREDENTIALS`) under the process environment — so
 **the environment always wins over the file**, and an EMPTY environment value is ignored (a harness
 that expands an unset `${VIABLE_API_TOKEN:-}` to `''` must not shadow the file). A missing token is

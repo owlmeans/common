@@ -79,14 +79,14 @@ An application that signs its people in through an OwlMeans IAM provider already
 organizations, memberships, invitations and grants — the provider keeps them. Before writing a
 members table, an invitation flow, a role column or an organization picker:
 
-- **Server** (`@owlmeans/server-iam`): `iamRuntime(context, request)` lists the person's
+- **Server** (`@owlmeans/server-iam`): `makeIamRuntimeClient(context, request)` lists the person's
   organizations, creates one, lists / adds (find-or-create by e-mail) / updates / removes members,
   and lists, assigns and revokes grants — as the signed-in person, with owner and member rights
-  decided by the provider. `organizationOf` / `organizationsOf` read the session's organizations;
-  gates and `hasPermission` enforce access; `requireEntityKey(req)` is the tenant key to store
-  records by.
-- **Browser** (`@owlmeans/client-iam`): `listOrganizations` / `switchOrganization` — the acting
-  organization is session state, never a per-request parameter.
+  decided by the provider. `makeOrganizationScope(context, request).organizationOf` /
+  `.organizationsOf` read the session's organizations; gates and `hasPermission` enforce access;
+  `makeEntityScope(req).requireEntityKey()` is the tenant key to store records by.
+- **Browser** (`@owlmeans/client-iam`): `organizationSwitchOf(ctx).listOrganizations` /
+  `.switchOrganization` — the acting organization is session state, never a per-request parameter.
 - If the project's own scaffold already ships an organization switcher or a people / access screen,
   extend it rather than adding a second one.
 

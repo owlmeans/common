@@ -1,6 +1,6 @@
 ---
 name: server-iam
-description: "How to use @owlmeans/server-iam — one-call OIDC RP wiring (appendIam), the IAM gate that asserts unbound, organization-bound and resource-scoped permissions (claims-first, UMA2 fallback), the session's organizations (organizationOf/organizationsOf), the request-bound runtime IAM client (iamRuntime), plus the gate-param grammar it re-exports. Use when gating server endpoints, declaring gate params, acting in a tenanted client's organizations, managing members or grants from a target's server, or diagnosing a permission refusal. Applies to files matching **/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts."
+description: "How to use @owlmeans/server-iam — one-call OIDC RP wiring (appendIam), the IAM gate that asserts unbound, organization-bound and resource-scoped permissions (claims-first, UMA2 fallback), the session's organizations (makeOrganizationScope: organizationOf/organizationsOf), the request-bound runtime IAM client (makeIamRuntimeClient), plus the gate-param grammar it re-exports. Use when gating server endpoints, declaring gate params, acting in a tenanted client's organizations, managing members or grants from a target's server, or diagnosing a permission refusal. Applies to files matching **/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts."
 metadata:
   applyTo: "**/owlmeans.ts, **/gate*.ts, **/auth-guard*.ts"
 ---
@@ -21,13 +21,13 @@ as the signed-in subject.
 | `appendIam(context)` | fn | Registers `makeOidcClientService()`, `makeOidcWrappingService()`, `makeIamGate()` (under `OIDC_GATE`), and the OIDC guard |
 | `makeIamGate(alias?, opts?)` | fn | The IAM `GateService` — claims-first assertion with UMA2 fallback |
 | `IamGateOptions` | type | `{ strictResourceScope?: boolean }` — refuse a scoped param on the fallback path instead of widening it |
-| `parseGateParam` / `parseGateSelector` / `formatGateParam` / `resolveGateResource` / `validateGateParams` | fn | Re-exports from `@owlmeans/iam`, which owns the grammar |
+| `gateParamHelper` (`.parseGateParam` / `.parseGateSelector` / `.formatGateParam`) / `gateValidationHelper.validateGateParams` / `resolveGateResource` | helper / fn | Re-exports from `@owlmeans/iam`, which owns the grammar |
 | `RESOURCE_PARAM_SEPARATOR` / `RESOURCE_SOURCE_SEPARATOR` / `RESOURCE_PATH_SEPARATOR` | const | `'@'`, `':'` and `'.'`, re-exported |
 | `GateParamSource` / `GateParamErrorCode` / `GateResolutionFailure` | enum | Re-exported; the sources a selector may name, and why one failed |
 | `hasPermission` | fn | Re-export from `@owlmeans/iam` |
-| `organizationOf(context, request, entitySlug)` | fn | One organization of the request's subject as a `ResolvedEntity` (`{ id: entityKey, slug, iamKey: entityKey }`); one the subject is not in is `AuthForbidden(ORGANIZATION_REFUSAL)` |
-| `organizationsOf(context, request)` | fn | Every organization of the request's subject, as `ResolvedEntity[]` |
-| `iamRuntime(context, request)` | fn | The request-bound `IamRuntimeClient` of the provider's runtime IAM API — see "The runtime IAM client" |
+| `makeOrganizationScope(context, request).organizationOf(entitySlug)` | scope | One organization of the request's subject as a `ResolvedEntity` (`{ id: entityKey, slug, iamKey: entityKey }`); one the subject is not in is `AuthForbidden(ORGANIZATION_REFUSAL)` |
+| `makeOrganizationScope(context, request).organizationsOf()` | scope | Every organization of the request's subject, as `ResolvedEntity[]` |
+| `makeIamRuntimeClient(context, request)` | fn | The request-bound `IamRuntimeClient` of the provider's runtime IAM API — see "The runtime IAM client" |
 | `IamRuntimeClient` | type | `organizations.{list,create,update}`, `members.{list,add,update,remove}`, `permissions.list`, `grants.{list,assign,revoke}` |
 | `ORGANIZATION_REFUSAL` / `ORGANIZATION_OWNER_REFUSAL` | const | Re-exported from `@owlmeans/oidc`: the `AuthForbidden` reasons of a non-member and of a non-owner |
 | `SERVER_IAM_SERVICE` | const | `'server-iam-service'` — exported and referenced nowhere; the gate registers under `OIDC_GATE`, not under this |
@@ -73,10 +73,10 @@ Sources: `params`, `query`, `body`, `headers`, `auth`.
 **The `@` belongs to the gate and nowhere else.** It is never part of a permission's stored NAME. A
 definition or grant written as `enquiry--view@enquiryId` is a key nothing looks up, so the permission
 reads as granted in every screen and every request is still refused, with nothing logged.
-`ensurePermission` refuses such a name; `validateGateParams` catches the mirror-image mistake at
+`ensurePermission` refuses such a name; `gateValidationHelper.validateGateParams` catches the mirror-image mistake at
 generation time.
 
-### `validateGateParams(params, audit?)`
+### `gateValidationHelper.validateGateParams(params, audit?)`
 
 Reports what is provable from an entrypoint's own declaration: a selector naming a route param the
 path does not carry, or a `body`/`query`/`headers` key the `Filter` does not declare **while that
@@ -102,7 +102,7 @@ await ctx.service<GateService>(OIDC_GATE).assert(req, res, ['article--modify'])
 1. `req.auth == null` → `AuthForbidden('auth')`.
 2. **Claims mode** — when `req.auth.permissions` is a valid `PermissionSet[]` (minted into the id_token
    by the integrated IAM provider and mapped into `Auth` by `@owlmeans/server-oidc-rp`), params are
-   asserted locally via `hasPermission`, with `entitySlug: req.entity?.slug ?? entitySlugOf(auth)` —
+   asserted locally via `hasPermission`, with `entitySlug: req.entity?.slug ?? authHelper.entitySlugOf(auth)` —
    the organization the request acts in.
 3. **Fallback** — otherwise `@…` suffixes are stripped and the check delegates to the UMA2 gate model
    from `@owlmeans/server-oidc-rp` (`createGateModel().loadPermissions`) — exactly the check
@@ -143,7 +143,7 @@ store must not grant against slugs, because a rename would then orphan every gra
 
 A relying party of a tenanted client has no organization registry of its own: the provider's
 `organizations` claim, kept in the session record (`@owlmeans/server-oidc-rp`), is the only source,
-re-read on every validation. `organizationsOf` answers all of it and `organizationOf` one entry by
+re-read on every validation. `makeOrganizationScope(context, request).organizationsOf()` answers all of it and `.organizationOf(slug)` one entry by
 slug, as `ResolvedEntity` values keyed by the frozen `entityKey` — use them for a handler that acts in
 an organization its URL names rather than the session's acting one (which the guard already attaches
 as `req.entity`). A session of a client without the scope acts in none and has none to offer; an
@@ -151,7 +151,7 @@ unauthenticated request or a session that is gone is `AuthorizationError` (401).
 
 ## The runtime IAM client
 
-`iamRuntime(context, request)` calls the provider's runtime IAM API (`makeIamRuntimeProtocols` in
+`makeIamRuntimeClient(context, request)` calls the provider's runtime IAM API (`makeIamRuntimeProtocols` in
 `@owlmeans/iam`) as that request's subject:
 
 - **Base** — the provider's discovery field `IAM_API_METADATA` (`owlmeans_iam_api`), read through
@@ -181,7 +181,7 @@ the token; nothing sent here can widen them.
 - The OIDC provider entry must request the `permissions` scope (`extraScopes`) for claims mode to
   engage; without it the gate transparently uses the fallback. A tenanted client also requests
   `organizations`.
-- Reach the runtime IAM API only through `iamRuntime`; never forward the browser's wrapped token or
+- Reach the runtime IAM API only through `makeIamRuntimeClient`; never forward the browser's wrapped token or
   build a bearer from anything but the session record.
 
 ## Related instructions

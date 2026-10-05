@@ -1,6 +1,6 @@
 ---
 name: viable-log
-description: How to use @owlmeans/viable-log — a generated (target) application's link to the OwlMeans Viable platform, as two @owlmeans/log plugins. viablePreviewPlugin sends the target web's analytics events to the manager frame through the preview reporter's channel; viableSlotPlugin writes the target backend's error records and analytics events as marked JSON stdout lines for the publisher to relay. Also the shared contract the platform reads them with (TARGET_EVENT_MARKER, parseTargetEventLine, PREVIEW_REPORTER_FLAG). Auto-invoked when wiring the platform link into a generated app's web or backend, importing viablePreviewPlugin, viableSlotPlugin or parseTargetEventLine, or changing how the preview reporter or the publisher takes events from a target.
+description: How to use @owlmeans/viable-log — a generated (target) application's link to the OwlMeans Viable platform, as two @owlmeans/log plugins. viablePreviewPlugin sends the target web's analytics events to the manager frame through the preview reporter's channel; viableSlotPlugin writes the target backend's error records and analytics events as marked JSON stdout lines for the publisher to relay. Also the shared contract the platform reads them with (TARGET_EVENT_MARKER, targetEventHelper.parseTargetEventLine, PREVIEW_REPORTER_FLAG). Auto-invoked when wiring the platform link into a generated app's web or backend, importing viablePreviewPlugin, viableSlotPlugin or targetEventHelper, or changing how the preview reporter or the publisher takes events from a target.
 user-invocable: false
 ---
 
@@ -31,10 +31,10 @@ Errors in the **browser** need no plugin: a record carrying an `Error` reaches t
 
 ## The contract
 
-`parseTargetEventLine(line)` is how the platform's publisher reads a stdout line — **the input is
+`targetEventHelper.parseTargetEventLine(line)` is how the platform's publisher reads a stdout line — **the input is
 untrusted, written by generated code**: the marker, JSON, version
 (`TARGET_EVENT_VERSION`), kind and level are checked, every text field is clipped, unknown fields are
-dropped. `targetEventLine(event)` writes one, cutting a stack and then data to stay under
+dropped. `targetEventHelper.targetEventLine(event)` writes one, cutting a stack and then data to stay under
 `TARGET_EVENT_MAX`. Change a field's shape only with a new `TARGET_EVENT_VERSION`. An application writes events only
 through `@owlmeans/log` (`log.error(…)`, or a call with an `analytics` option) — never by building a
 marked line or posting a preview message itself.

@@ -85,7 +85,7 @@ bun run test
 | **Gate** | An authorization service named in a protocol's `gate` (with `gateParams`). After authentication the server calls `gate.assert(request, response, params)` for the entrypoint's own gate and every ancestor's. | [`entrypoint`](packages/entrypoint), [`server-api`](packages/server-api) |
 | **Transport** | A service registered under `transport:<protocol>` that carries `call()` for every route on that protocol. Without one the call goes over HTTP. Queue and socket transports plug in here. | [`entrypoint`](packages/entrypoint), [`queue`](packages/queue) |
 | **Plugin** | An implementation chosen at runtime from a registry: router plugins, authentication and login plugins, LLM provider plugins and agent plugins. Config plugin records (`plugin(cfg, record)`) carry their settings. | [`router`](packages/router), [`client-auth`](packages/client-auth), [`llm`](packages/llm) |
-| **Organization entity** | The customer or tenant. `entitySlug` is the renameable name and the only organization value on the wire. `entityId` is the stable record id used by storage and grants, obtained on the server with `requireEntityKey(req)`. | [`auth`](packages/auth), [`auth-common`](packages/auth-common) |
+| **Organization entity** | The customer or tenant. `entitySlug` is the renameable name and the only organization value on the wire. `entityId` is the stable record id used by storage and grants, obtained on the server with `makeEntityScope(req).requireEntityKey()`. | [`auth`](packages/auth), [`auth-common`](packages/auth-common) |
 | **State store** | The browser's in-memory resource with live subscriptions, registered with `appendStateResource`. React reads it through `useStoreList` and `useStoreModel`. | [`state`](packages/state), [`client`](packages/client) |
 | **Flow** | A serializable step/transition state machine whose whole state is one string, so a multi-step process survives redirects and reloads. | [`flow`](packages/flow), [`client-flow`](packages/client-flow) |
 | **Resilient error** | A registered error class that marshals across a service boundary and is restored as the same class on the other side, with i18n-aware messages. | [`error`](packages/error) |
@@ -182,11 +182,11 @@ concepts, worked examples, the full export list and common pitfalls.
 | Package | What it gives an app | Key exports |
 |---|---|---|
 | [`context`](packages/context) | The per-process container for services, resources and entrypoints | `createService`, `assertContext`, `AppType`, `ContextStage`, `BASE`/`HOME`/`GUEST` |
-| [`config`](packages/config) | The typed application config and the service map | `service`, `plugin`, `makeSecurityHelper`, `appendConfigResource`, `toConfigRecord` |
+| [`config`](packages/config) | The typed application config and the service map | `service`, `plugin`, `makeSecurityHelper`, `appendConfigResource`, `configHelper` |
 | [`entrypoint`](packages/entrypoint) | Immutable, typed protocol declarations shared by server and client | `protocol`, `openProtocol`, `contract`, `typed`, `EntrypointOutcome` |
 | [`route`](packages/route) | Route declarations: path segment, method, parent, service | `route`, `backend`, `frontend`, `RouteMethod`, `RouteProtocols` |
 | [`resource`](packages/resource) | One CRUD, criteria and paging contract for every store | `Resource`, `Criteria`, `ListResult`, `UnknownRecordError`, `createListSchema` |
-| [`auth`](packages/auth) | The authentication vocabulary: identity types, roles, errors | `Auth`, `AuthPayload`, `AuthRole`, `AuthForbidden`, `entitySlugOf` |
+| [`auth`](packages/auth) | The authentication vocabulary: identity types, roles, errors | `Auth`, `AuthPayload`, `AuthRole`, `AuthForbidden`, `authHelper` |
 | [`error`](packages/error) | Errors that survive a service boundary with their class intact | `ResilientError`, `ResilientError.ensure`, `ResilientError.marshal` |
 
 **Server** — the backend workspace.
@@ -208,7 +208,7 @@ concepts, worked examples, the full export list and common pitfalls.
 | [`mongo-resource`](packages/mongo-resource) | MongoDB resources with schema validation, encryption and migrations | `makeMongoResource`, `MongoResource` |
 | [`postgres-resource`](packages/postgres-resource) | PostgreSQL resources with the same contract and migrations | `makePostgresResource`, `PostgresResource` |
 | [`redis-resource`](packages/redis-resource) | Redis resources: TTL records, pub/sub, streams, counters | `makeRedisResource`, `RedisResource` |
-| [`queue`](packages/queue) | Job queues as resources and the QUEUE route transport | `declareQueue`, `listenQueues`, `enqueueProtocol` |
+| [`queue`](packages/queue) | Job queues as resources and the QUEUE route transport | `declareQueue`, `listenQueues`, `queueProtocolOf` |
 
 **Browser** — the web workspace.
 

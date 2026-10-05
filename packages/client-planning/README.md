@@ -77,7 +77,7 @@ Give a browser its commit socket through the host's own opener:
 ```typescript
 appendPlanningClient(context, {
   protocols: planningProtocols,
-  socket: async (protocol, request) => await ws(context.entrypoint(protocol), request),
+  socket: async (protocol, request) => await socketClientHelper.ws(context.entrypoint(protocol), request),
 })
 ```
 
@@ -86,12 +86,12 @@ appendPlanningClient(context, {
 - `appendPlanningClient(context, options)`, `makePlanningClientService(context, options)`
 - `makeRemoteFacade(context, protocols, scope, opts)`, `makeRemoteCommitSource(context, protocols, opts?)`
 - `appendPlanningStores(context, aliases?)`
-- `syncHelper` — `syncCards(store, items, where?, opts?)`, `syncLinks(store, items, where?, opts?)`
-- `planningMirrorOf(stores)` (`makePlanningMirror`) — `applyCommitEvent(event, facade?)`,
-  `applyReceipt(view)`, `applyCards(cards)`
+- `syncHelper` — `.syncCards(store, items, where?, opts?)`, `.syncLinks(store, items, where?, opts?)`
+- `planningMirrorOf(stores)` (`makePlanningMirror`) — `.applyCommitEvent(event, facade?)`,
+  `.applyReceipt(view)`, `.applyCards(cards)`
 - `makePlanningFeed(context, opts?)`
-- `planningContextOf(context)` (`makePlanningContextHelper`) — `facade(scope?)`, `model(card, scope?)`,
-  `stores()`
+- `planningContextOf(context)` (`makePlanningContextHelper`) — `.facade(scope?)`, `.model(card, scope?)`,
+  `.stores()`
 - The former plain functions (`syncCards`, `applyCards`, `planningOf`, …) remain as deprecated
   delegates.
 - `CARDS`, `LINKS`, `COMMITS`, `DEFAULT_STORE_ALIASES`, `LONG_POLL_GRACE`, `EARLY_POLL_LADDER`, `EARLY_POLL_MS`

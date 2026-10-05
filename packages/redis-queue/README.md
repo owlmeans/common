@@ -88,7 +88,7 @@ guards and filter, and the answer comes back to the caller.
 
 ```typescript
 import { contract, protocol, typed } from '@owlmeans/entrypoint'
-import { enqueueProtocol, job, waitForProtocol } from '@owlmeans/queue'
+import { job, queueProtocolOf } from '@owlmeans/queue'
 import { route } from '@owlmeans/route'
 
 const generateProtocol = protocol(
@@ -96,8 +96,9 @@ const generateProtocol = protocol(
   contract.request({ body: typed<GenerateApp>() }, typed<GeneratedApp>()),
 )
 
-const queued = await enqueueProtocol(context, generateProtocol, { body: { specId } })
-const result = await waitForProtocol(context, generateProtocol, queued)
+const queue = queueProtocolOf(context)
+const queued = await queue.enqueue(generateProtocol, { body: { specId } })
+const result = await queue.waitFor(generateProtocol, queued)
 ```
 
 `reply: false` on the route resolves as soon as the job is accepted, with the job's identity as the
@@ -215,7 +216,7 @@ a BullMQ **job scheduler** with the id `owlmeans:<schedule id>` (`SCHEDULE_PREFI
 it produces is an ordinary job of the declared name, handed to the registered processor with
 `job.scheduled` set to the schedule id.
 
-`start()` reconciles them through `syncSchedules(bull, cfg, queue)` for every queue it binds, once
+`start()` reconciles them through `queueScheduleHelper.syncSchedules(bull, cfg, queue)` for every queue it binds, once
 all of its workers are already consuming:
 
 - a declared schedule the broker does not hold exactly as declared is upserted
@@ -223,7 +224,7 @@ all of its workers are already consuming:
   pending run nor re-runs an `immediately` pattern;
 - a scheduler under `owlmeans:` that no declaration names is removed, and so is one whose
   `endDate` has passed; schedulers outside the prefix are never touched;
-- a declaration `assertSchedule` refuses (an undeclared job name, say) is logged and skipped.
+- a declaration `queueConfigOf(cfg).assertSchedule` refuses (an undeclared job name, say) is logged and skipped.
 
 Every step is caught and logged on its own. Scheduling never stops a worker from consuming, and a
 producer — a process that listens to nothing — creates no scheduler at all. BullMQ produces a
@@ -242,7 +243,7 @@ listenQueues(cfg, 'maintenance')
 
 ## Testing
 
-`tests/` drives a real broker behind `redisGate` from `@owlmeans/test-integration` — set `REDIS_URL`
+`tests/` drives a real broker behind `gateHelper.redisGate()` from `@owlmeans/test-integration` — set `REDIS_URL`
 (and optionally `REDIS_TEST_KEY_PREFIX`) and the specs run; without it they skip. Every suite owns a
 random key namespace and obliterates its queues on teardown.
 
@@ -262,13 +263,13 @@ service alias) and `hooks`.
 
 `QueueWorkerService` plus `hooks(hooks)`.
 
-### `syncSchedules<C>(bull: Queue, cfg: C, queue: string): Promise<ScheduleSync>`
+### `queueScheduleHelper.syncSchedules(bull: Queue, cfg: Config, queue: string): Promise<ScheduleSync>`
 
 Reconcile one BullMQ queue's schedulers with the declared schedules; never throws.
 `ScheduleSync` lists schedule ids as `upserted`, `unchanged`, `removed` and `failed`.
-`scheduleKey(id)` / `scheduleIdOf(key)` convert between a schedule id and a scheduler id (the latter
-answers `undefined` for a scheduler this driver does not own); `repeatOptionsOf(schedule)` and
-`templateOf(schedule, cfg?)` build the two halves `upsertJobScheduler` takes (`ScheduleTemplate`).
+`queueScheduleHelper.scheduleKey(id)` / `.scheduleIdOf(key)` convert between a schedule id and a scheduler id (the latter
+answers `undefined` for a scheduler this driver does not own); `.repeatOptionsOf(schedule)` and
+`.templateOf(schedule, cfg?)` build the two halves `upsertJobScheduler` takes (`ScheduleTemplate`).
 
 ### Constants
 

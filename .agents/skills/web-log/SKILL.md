@@ -24,7 +24,7 @@ logger('projects').info('Created', { kind: 'web' }, { analytics: 'project.create
 
 ## Consent
 
-`consentedAnalyticsPlugin(send, options)` sends only while `isConsented(options.category ?? 'analytics')`
+`consentedAnalyticsPlugin(send, options)` sends only while `consentStore.granted(options.category ?? 'analytics')`
 (`@owlmeans/consent`). **An event without consent is dropped, never queued**: a tag manager replays
 everything already waiting in its queue when it loads, so a held event would be sent after a later
 grant — in a window the visitor never agreed to be measured in. The load of the tag itself is gated
