@@ -140,16 +140,21 @@ scripts, error classes and schema files.
 Applications the viable agent generates follow the same rules, in these fixed shapes:
 
 - **Domain model per entity.** `backend/src/models/<entity>/types.ts` declares
-  `interface <Entity>Model` first; `models/<entity>/<entity>.ts` exports only
-  `make<Entity>Model = (ctx: Context): <Entity>Model => { const op = async (actor: Actor, …) => …; return { op, … } }`.
+  `interface <Base>Model` first; `models/<entity>/<base>.ts` exports only
+  `make<Base>Model = (ctx: Context): <Base>Model => { const op = async (actor: Actor, …) => …; return { op, … } }`.
   It is built where it is used — `await makeTaskModel(ctx).complete(actorOf(request), id)` — and is
   never registered as a context service. Its member names are the endpoint keys of the entity.
 - **Handlers and job processors**: one plain exported function per file
-  (`api/src/app/<entity>/<action>.ts`, `worker/src/jobs/<job>.ts`); a handler's body is one call into
-  the model.
-- **Seed helpers are objects**: `actorOf(request): Actor` with `actor.inOrganization(…)`,
-  `actor.assertOrganization(…)`, `actor.grantedIds(…)`, `actor.organizationScope(…)`; the
-  record-owner, visit, planning-access, landing hand-off and llm helpers likewise.
+  (`api/src/app/<entity>/<action>.ts` beside a GENERATED `index.ts` barrel, `worker/src/jobs/<job>.ts`);
+  a handler's body is one call into the model.
+- **Seed helpers are objects** whose members keep the old function names:
+  `actorOf(request): Actor` with `actor.inOrganization(…)`, `actor.assertOrganization(…)`,
+  `actor.grantedIds(…)`, `actor.organizationScope(…)`; `recordOwnerOf(request)`, `visitOf(request)`,
+  `planningAccessOf(request, ctx)`, `landingHandoff`, `visitKey`. Their types live in the module's
+  same-named folder (`lib/actor/types.ts`); the old free functions stay as
+  `@deprecated generated-app:factory-objects` wrappers so a project generated before still compiles.
+- A model module generated before this shape keeps its plain functions: its callers import them by
+  name, so it is extended in that shape and never converted in place.
 - **Resources** keep their maker and their `xResource(ctx)` accessor; the resource's interface lives
   in `resources/<entity>/types.ts`.
 - Shared types in `common` are interfaces.

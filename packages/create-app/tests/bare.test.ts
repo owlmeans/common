@@ -47,6 +47,7 @@ describe('create-app — bare scaffolding', () => {
       'sources/common/src/schemas.ts',
       'sources/api/src/consts.ts',
       'sources/api/src/app',
+      'sources/api/src/models',
       'sources/web/src/screens/about.tsx',
       'sources/web/src/screens/session.tsx',
     ]) {
