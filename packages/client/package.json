@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/client",
-  "version": "0.1.18-rc.51",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,9 +30,9 @@
   },
   "dependencies": {
     "@owlmeans/auth": "^0.1.18-rc.40",
-    "@owlmeans/client-context": "^0.1.18-rc.48",
-    "@owlmeans/client-entrypoint": "^0.1.18-rc.47",
-    "@owlmeans/client-resource": "^0.1.18-rc.47",
+    "@owlmeans/client-context": "^0.1.18-rc.49",
+    "@owlmeans/client-entrypoint": "^0.1.18-rc.48",
+    "@owlmeans/client-resource": "^0.1.18-rc.48",
     "@owlmeans/config": "^0.1.18-rc.44",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/error": "^0.1.18-rc.38",
@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-ui": "^0.1.18-rc.49",
+    "@owlmeans/test-ui": "^0.1.18-rc.50",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "nodemon": "^3.1.14",

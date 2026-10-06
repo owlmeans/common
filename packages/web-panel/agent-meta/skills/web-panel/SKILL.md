@@ -8,7 +8,7 @@ user-invocable: false
 # @owlmeans/web-panel
 
 **Layer:** Web (React)
-**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.71"` in `dependencies`
+**Install:** `"@owlmeans/web-panel": "^0.1.18-rc.72"` in `dependencies`
 
 ## Key Exports
 
@@ -21,6 +21,7 @@ user-invocable: false
 | `ThemeToggle` / `useColorScheme` | The light/dark switcher (`ThemeToggleProps`, `ThemeToggleLabels`) and the hook behind it (`ColorSchemeModel`) — see *Light and dark* below |
 | `SocketReloadDialog` | The global "connection lost — try again / reload" prompt (opt in via `cfg.socket.reloadDialog`) `PanelApp` mounts automatically — see below. The hooks it reads, `useSocketStatus` and `useSocketRetry`, are imported from `@owlmeans/client-socket`, not from this package |
 | `Link` | An `<a>` addressing an entrypoint alias (or a literal `src`), with the label taken from i18n |
+| `LoginProviderNote` | The provider disclosure (`LoginProviderNoteProps`) — see *The provider disclosure* below |
 | `LoginScreen` / `LocalizedLoginScreen` / `appendLoginScreen` | The identity-provider choice screen — see `login-methods`. `LoginScreen` is pure w.r.t. `locale` too, exactly like `translate`: it is a prop, defaulting to nothing, never an implicit `useLanguage()` read, because a component that reaches for i18n context directly crashes an app mounted without one. `LocalizedLoginScreen` supplies `useLanguage()`'s value when the caller does not pass its own |
 | `render(context, opts?)` | Mounts the tree inside `PanelApp`, with the browser language detector installed on the i18n instance. `opts` is `RenderOptions` plus `rootClassName` |
 | `PanelApp` | That wrapper on its own — the themed root `div` plus the i18n provider — for a host that mounts the tree itself |
@@ -448,6 +449,34 @@ prop, never read from context directly — for `Intl.ListFormat` and a custom do
 `"false"` — a deferred screen (which never sets `blocked`) then renders identically to an unblocked
 ordinary one, with no special case. Pinned by `tests/login.spec.ts` → the "with billing, product and
 custom documents configured" and "the Terms confirmation deferred to a step" blocks.
+
+### The provider disclosure — `LoginProviderNote`
+
+`LoginScreen` renders `useLoginMethods().provider` (`@owlmeans/client-panel/auth`, resolution rules
+there) through `components/login/provider.tsx`:
+`<div role="note" data-login-provider data-placement="top|inline">` — a `ShieldCheck` icon, the
+sentence, and, when `info` resolved, `<a data-login-provider-info target="_blank"
+rel="noopener noreferrer">More information</a>`. Never a `header`/`nav`: it is a disclosure, not a
+landmark.
+
+- **No provider → the DOM is exactly the pre-provider screen** (no note, no stage, title
+  `login.title`).
+- **`top`** (the platform's own hosts) — the strip is the FIRST child of `[data-login-screen]`,
+  full width, at the screen's top edge; the card sits in `<div data-login-stage>`, which takes the
+  remaining height and centres it. The screen's column layout, its zero padding, the stage's flex
+  centring/padding and the strip's width are INLINE styles (same reason as the screen height —
+  `login-methods` → Layout); classes there are cosmetic only.
+- **`inline`** (an owner's own domain) — the note is one line inside `CardContent`, directly under
+  the methods and above the terms; the screen keeps its ordinary shape.
+- The card title becomes `login.provider.title` ("Sign in to {{product}}") whenever a provider
+  resolves; `props.title` still wins.
+- Copy: `login.provider.{title,top,inline,more}` in all eight languages
+  (`components/login/i18n/*.json`), registered by `components/login/i18n.ts` into the SAME `auth`
+  library resource as `client-auth`'s login copy (deep-merged; this package owns only the
+  `login.provider` subtree). Names are filled after translation by `loginProviderHelper.fill`.
+- Still exactly one `[data-login-terms]` in either placement. Pinned by `tests/login.spec.ts` →
+  "the provider disclosure" (`?provider=top|inline` in the harness) and
+  `tests/login-provider.spec.ts` (resolver, `fill`, eight-language key/placeholder parity).
 
 ## Subpath: `./consent`
 

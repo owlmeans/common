@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/server-api",
-  "version": "0.1.18-rc.51",
+  "version": "0.1.18-rc.52",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -33,9 +33,9 @@
     "@fastify/helmet": "^13.1.1",
     "@fastify/middie": "^9.3.4",
     "@fastify/multipart": "^10.1.2",
-    "@owlmeans/api": "^0.1.18-rc.47",
+    "@owlmeans/api": "^0.1.18-rc.48",
     "@owlmeans/auth": "^0.1.18-rc.40",
-    "@owlmeans/auth-common": "^0.1.18-rc.47",
+    "@owlmeans/auth-common": "^0.1.18-rc.48",
     "@owlmeans/context": "^0.1.18-rc.34",
     "@owlmeans/entrypoint": "^0.1.18-rc.41",
     "@owlmeans/error": "^0.1.18-rc.38",

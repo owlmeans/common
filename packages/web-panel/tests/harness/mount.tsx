@@ -127,6 +127,9 @@ const defer = new URLSearchParams(window.location.search).get('defer')
 // `@owlmeans/web-consent`'s `CookieConsent` with nothing lost in between (the props already just
 // spread through; this is what pins that they keep doing so).
 const withDomains = new URLSearchParams(window.location.search).get('domains') === '1'
+// `?provider=top|inline` configures who signs the person in — the disclosure a platform-hosted
+// app shows. A product name is set only then, so every other screen keeps the brand it always had.
+const providerPlacement = new URLSearchParams(window.location.search).get('provider')
 
 /**
  * The footer's "Cookie settings" control — the menu widget, rendered from an always-mounted
@@ -289,8 +292,17 @@ base.security = {
         } : {}),
       },
       credit: { poweredBy: true, product: 'Harness', organization: 'Acme' },
+      ...(providerPlacement === 'top' || providerPlacement === 'inline' ? {
+        provider: {
+          name: 'Harness IAM', operator: 'Harness Hosting', info: 'https://example.test/about',
+          placement: providerPlacement,
+        },
+      } : {}),
     },
   },
+}
+if (providerPlacement != null) {
+  base.brand = { ...base.brand, name: 'Harness App' }
 }
 // Every other screen in this harness stays unaffected: nothing ever reports into the status
 // service unless `#report-lost` is clicked, so the flag being on by default costs nothing. A

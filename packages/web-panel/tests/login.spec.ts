@@ -307,4 +307,119 @@ describe('@owlmeans/web-panel — the sign-in screen', () => {
       }
     }, TIMEOUT)
   })
+
+  describe('the provider disclosure', () => {
+    test('no provider configured: no note, no stage, the ordinary title', async () => {
+      const { page, close } = await open()
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(0)
+        expect(await page.locator('[data-login-stage]').count()).toBe(0)
+        expect(await page.locator('[data-login-screen] [data-slot="card-title"]').textContent())
+          .toBe('Sign in')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: the strip is the FIRST child of the screen and sits at its top edge, full width', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(1)
+        expect(await page.locator('[data-login-screen] > :first-child').getAttribute('data-login-provider'))
+          .not.toBeNull()
+        expect(await page.locator('[data-login-provider]').getAttribute('data-placement')).toBe('top')
+        expect(await page.locator('[data-login-provider]').getAttribute('role')).toBe('note')
+
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const strip = await page.locator('[data-login-provider]').boundingBox()
+        expect(Math.abs((strip?.y ?? -1) - (screen?.y ?? 0))).toBeLessThanOrEqual(1)
+        expect(Math.abs((strip?.width ?? 0) - (screen?.width ?? 0))).toBeLessThanOrEqual(1)
+
+        // A disclosure, not page chrome: no landmark inside the screen.
+        expect(await page.locator('[data-login-screen] header, [data-login-screen] nav').count()).toBe(0)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: names both parties, links to more information and titles the card with the product', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        const note = await page.locator('[data-login-provider]').textContent()
+        expect(note).toContain('This app is hosted by Harness Hosting on behalf of Harness App.')
+        expect(note).toContain('You sign in with Harness IAM.')
+
+        const info = page.locator('[data-login-provider] a[data-login-provider-info]')
+        expect(await info.count()).toBe(1)
+        expect(await info.getAttribute('href')).toBe('https://example.test/about')
+        expect(await info.getAttribute('target')).toBe('_blank')
+        expect(await info.getAttribute('rel')).toBe('noopener noreferrer')
+        expect(await info.textContent()).toBe('More information')
+
+        expect(await page.locator('[data-login-screen] [data-slot="card-title"]').textContent())
+          .toBe('Sign in to Harness App')
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('top: the card is centred within [data-login-stage], with exactly one terms checkbox', async () => {
+      const { page, close } = await open('?provider=top')
+      try {
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const strip = await page.locator('[data-login-provider]').boundingBox()
+        const stage = await page.locator('[data-login-screen] > [data-login-stage]').boundingBox()
+        const card = await page.locator('[data-login-stage] > *').first().boundingBox()
+
+        // The stage takes the rest of the screen, below the strip.
+        expect(Math.abs((stage?.y ?? 0) - ((strip?.y ?? 0) + (strip?.height ?? 0)))).toBeLessThanOrEqual(1)
+        expect(Math.abs(((stage?.y ?? 0) + (stage?.height ?? 0)) - ((screen?.y ?? 0) + (screen?.height ?? 0))))
+          .toBeLessThanOrEqual(1)
+
+        const cardCentreY = (card?.y ?? 0) + (card?.height ?? 0) / 2
+        const stageCentreY = (stage?.y ?? 0) + (stage?.height ?? 0) / 2
+        const cardCentreX = (card?.x ?? 0) + (card?.width ?? 0) / 2
+        const stageCentreX = (stage?.x ?? 0) + (stage?.width ?? 0) / 2
+        expect(Math.abs(cardCentreY - stageCentreY)).toBeLessThanOrEqual(2)
+        expect(Math.abs(cardCentreX - stageCentreX)).toBeLessThanOrEqual(2)
+
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+        // Inside the card there is no second note.
+        expect(await page.locator('[data-login-stage] [data-login-provider]').count()).toBe(0)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+
+    test('inline: one note inside the card, under the methods; the screen keeps its ordinary shape', async () => {
+      const { page, close } = await open('?provider=inline')
+      try {
+        expect(await page.locator('[data-login-provider]').count()).toBe(1)
+        expect(await page.locator('[data-login-provider]').getAttribute('data-placement')).toBe('inline')
+        expect(await page.locator('[data-login-stage]').count()).toBe(0)
+        // Inside the card, not a child of the screen.
+        expect(await page.locator('[data-login-screen] > [data-login-provider]').count()).toBe(0)
+        expect(await page.locator('[data-login-screen] > * [data-login-provider]').count()).toBe(1)
+
+        const note = await page.locator('[data-login-provider]').boundingBox()
+        const lastMethod = await page.locator('[data-login-method]').last().boundingBox()
+        expect(note?.y ?? 0).toBeGreaterThanOrEqual((lastMethod?.y ?? 0) + (lastMethod?.height ?? 0))
+
+        expect(await page.locator('[data-login-provider]').textContent())
+          .toContain('Sign-in is provided by Harness IAM on behalf of Harness App.')
+        expect(await page.locator('[data-login-provider] a[data-login-provider-info]').getAttribute('href'))
+          .toBe('https://example.test/about')
+        expect(await page.locator('[data-login-terms]').count()).toBe(1)
+
+        // Still centred exactly as without a provider.
+        const screen = await page.locator('[data-login-screen]').boundingBox()
+        const card = await page.locator('[data-login-screen] > *').first().boundingBox()
+        const cardCentre = (card?.y ?? 0) + (card?.height ?? 0) / 2
+        const screenCentre = (screen?.y ?? 0) + (screen?.height ?? 0) / 2
+        expect(Math.abs(cardCentre - screenCentre)).toBeLessThanOrEqual(2)
+      } finally {
+        await close()
+      }
+    }, TIMEOUT)
+  })
 })
