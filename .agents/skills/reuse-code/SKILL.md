@@ -1,6 +1,6 @@
 ---
 name: reuse-code
-description: Discovery-first, reuse-first workflow for OwlMeans projects. Use BEFORE planning or building any feature, before proposing a third-party library or a custom solution, and after writing code. Find an existing @owlmeans/* package or existing code first; extend before writing new; simplify what you write.
+description: Discovery-first, reuse-first workflow for OwlMeans projects. Use BEFORE planning or building any feature, before proposing a third-party library or a custom solution, and after writing code. Find an existing @owlmeans/* package or existing code first (membership, invitations, organizations and access come from the IAM); extend before writing new; simplify what you write.
 user-invocable: true
 metadata:
   scope: general
@@ -17,9 +17,17 @@ order — during planning **and** during implementation.
 Before suggesting any external library or writing custom code, look for an `@owlmeans/*` package that
 already solves the problem.
 
-- **Consult the deployed skills.** Each installed `@owlmeans/*` package ships a skill at
-  `.agents/skills/<pkg>/SKILL.md` describing what it
-  does. Read those first — they are your local catalogue of installed capabilities.
+- **Consult the deployed skills.** `.agents/skills/` is the local catalogue of installed
+  capabilities: one directory per skill, each holding a `SKILL.md` that describes what a package
+  does and how it is consumed. A directory is named after the **skill**, not the package —
+  `@owlmeans/test-ui` deploys `testing-ui`, `@owlmeans/server-auth` deploys `server-auth` **and**
+  `supervisor-auth`, `@owlmeans/test` deploys `testing-unit` and `testing-overview` — so list the
+  directory instead of guessing a path from a package name.
+- **Read `.agents/linked-skills/` too when it is there.** `.agents/scripts/link-skills.sh` links
+  the skills that ship inside the installed `@owlmeans/*` packages into it (and mirrors them into
+  `.claude/skills/` for Claude Code), with a skill / origin / description table in its
+  `INDEX.md`. It is generated and git-ignored, and a skill of the same name in `.agents/skills/`
+  always wins.
 - **Scan installed packages.** Look in `node_modules/@owlmeans/*` **and**, in a workspace monorepo,
   the nested `sources/*/node_modules/@owlmeans/*` (bun nests workspace deps).
 - **Discover packages that aren't installed yet** by researching the **owlmeans/common** repository —
@@ -38,20 +46,56 @@ How you research the repo depends on whether `@owlmeans/*` is linked locally:
   **https://github.com/owlmeans/common** — `tree.md` and package READMEs — to find the right package.
 
 This is the same dev-linked detection `@owlmeans/agent-skills` uses (see its `detectLinked`). After
-adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills` to deploy its skill. Prefer an
-`@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
+adding an `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.51` to deploy its
+skill. Prefer an `@owlmeans/*` package over a third-party library or bespoke code whenever one fits.
+
+### Never add an OwlMeans dependency without an explicit range
+
+Write the range yourself, as a caret at the version the rest of this project already uses for its
+other `@owlmeans/*` packages (or the one the package's own skill names on its **Install:** line):
+
+```json
+"dependencies": {
+  "@owlmeans/queue": "^<version>"
+}
+```
+
+A `bun add` that names no version — and a hand-written `"latest"`, `"next"`, `"*"` or empty range
+— resolves through a dist-tag instead. OwlMeans publishes prereleases under `next`, so the tag
+named `latest` points at an OLDER version than the one every other package here is pinned to. The
+install succeeds, nothing warns, and the code you wrote against the current API is compiled
+against the previous one. Put the version in the same breath as the package name, or copy the
+`**Install:**` line from that package's own skill, which always carries a current range.
 
 ## 2. Reuse or extend before writing custom
 
 If an installed package nearly fits, **configure or extend it** rather than writing something new — use
-its resources, services, modules, and helpers. A small extension of a framework package beats a new
+its resources, services, entrypoints, and helpers. A small extension of a framework package beats a new
 parallel implementation.
+
+### People, organizations and access come from the IAM
+
+An application that signs its people in through an OwlMeans IAM provider already has accounts,
+organizations, memberships, invitations and grants — the provider keeps them. Before writing a
+members table, an invitation flow, a role column or an organization picker:
+
+- **Server** (`@owlmeans/server-iam`): `makeIamRuntimeClient(context, request)` lists the person's
+  organizations, creates one, lists / adds (find-or-create by e-mail) / updates / removes members,
+  and lists, assigns and revokes grants — as the signed-in person, with owner and member rights
+  decided by the provider. `makeOrganizationScope(context, request).organizationOf` /
+  `.organizationsOf` read the session's organizations; gates and `hasPermission` enforce access;
+  `makeEntityScope(req).requireEntityKey()` is the tenant key to store records by.
+- **Browser** (`@owlmeans/client-iam`): `organizationSwitchOf(ctx).listOrganizations` /
+  `.switchOrganization` — the acting organization is session state, never a per-request parameter.
+- If the project's own scaffold already ships an organization switcher or a people / access screen,
+  extend it rather than adding a second one.
 
 ## 3. No package? Reuse code and extract an abstraction
 
 When no package solves it, search the codebase for code that already solves a **similar** problem.
 Prefer factoring out a shared helper, base, or generic function — extract an abstraction — over
-duplicating logic or writing from scratch. Only write genuinely new code when nothing reusable exists.
+duplicating logic or writing from scratch. A shared helper is ONE factory-built object whose interface is declared
+first; it lives in its own `<name>.ts`, with a same-named folder for its types and parts (`/owlmeans-code-structure`). Only write genuinely new code when nothing reusable exists.
 
 ## 4. Simplify after writing
 
@@ -59,5 +103,7 @@ Once code is written, review it: can it be **shorter, clearer, or expressed with
 Lean on framework utilities, remove dead branches, collapse needless indirection. Less code that reuses
 the framework is better than more bespoke code.
 
-See `[[dependency-tree]]` for the package map, `[[scaffolding]]` for how a project is assembled, and
-`[[bun]]` for adding dependencies.
+See `[[scaffolding]]` for how a project is assembled, and `[[agent-skills]]` for keeping the
+deployed skill catalogue current. The package map itself is `tree.md` at the root of the
+[owlmeans/common](https://github.com/owlmeans/common) repository — layer by layer, every package
+and what it depends on.

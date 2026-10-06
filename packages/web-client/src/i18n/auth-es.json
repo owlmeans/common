@@ -2,5 +2,37 @@
   "dispatcher": {
     "loading": "Cargando...",
     "error": "Error de autenticación: {{error}}"
+  },
+  "surrogate": {
+    "login": {
+      "working": "Iniciando sesión…",
+      "gesture": {
+        "title": "Continúa para iniciar sesión.",
+        "action": "Iniciar sesión"
+      },
+      "handing": "Listo. Volviendo a la aplicación…",
+      "orphaned": "Sesión iniciada. Puedes cerrar esta ventana y continuar en la aplicación.",
+      "failed": "No se completó. Cierra esta ventana e inténtalo de nuevo.",
+      "standalone": {
+        "title": "Esta página se usa para iniciar sesión desde otra ventana.",
+        "action": "Abrir la aplicación"
+      },
+      "close": "Cerrar"
+    },
+    "logout": {
+      "working": "Cerrando sesión…",
+      "gesture": {
+        "title": "Continúa para cerrar sesión.",
+        "action": "Cerrar sesión"
+      },
+      "handing": "Sesión cerrada. Volviendo a la aplicación…",
+      "orphaned": "Sesión cerrada. Puedes cerrar esta ventana.",
+      "failed": "El cierre de sesión no se completó aquí. Puedes cerrar esta ventana.",
+      "standalone": {
+        "title": "Esta página se usa para cerrar sesión desde otra ventana.",
+        "action": "Abrir la aplicación"
+      },
+      "close": "Cerrar"
+    }
   }
 }

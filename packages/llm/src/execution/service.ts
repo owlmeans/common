@@ -1,17 +1,19 @@
-import { createService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { ExecutionLevel } from '@owlmeans/llm-common'
-import type { ExecutionState, ModelPolicy, TaskExecutionState } from '@owlmeans/llm-common'
+import { createService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { ExecutionEffort, inquiryHelper, ExecutionLevel, InquiryPolicy, UTILITY_ROLE, type CumulativeResults, type ExecutionState, type ModelPolicy, type TaskExecutionState } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
 import { COLLABORATOR_KEYS, EXECUTION_SERVICE } from '../consts.js'
+import { InquiryDeclined } from '../inquiry/errors.js'
+import { inquiryTransportRegistry } from '../inquiry/transport.js'
 import type { TemperatureFactory } from '../types.js'
 import type {
   Execution, ExecutionPlugin, ExecutionService, ExecutionServiceOptions, ExecutionShape,
   HelperExecution, TaskExecution, WithExecutionService,
 } from './types.js'
-import {
-  composeExecState, composeTaskState, effortPatch, freeze, mergeOverride, mergePolicy,
-  mergePrompt, resolveRole,
-} from './utils.js'
+import { executionPolicyHelper } from './policy.js'
+import { executionStateHelper } from './state.js'
+import { effortUtils } from '../utils/effort.js'
+
+const log = logger('llm:execution')
 
 /**
  * Build the execution service implementation WITHOUT registering it as a context
@@ -39,27 +41,30 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
   const recompose = <E extends Execution>(exec: E): E => {
     if (exec.level === ExecutionLevel.Task) {
       const task = exec as unknown as TaskExecution
-      ;(task as { state: TaskExecutionState }).state = composeTaskState(task, collaboratorKeys)
+      ;(task as { state: TaskExecutionState }).state = executionStateHelper.composeTaskState(task, collaboratorKeys)
     }
     return exec
   }
 
   const api: ExecutionService<S> = {
 
-    root: input => freeze({
+    root: input => executionStateHelper.freeze({
       ...input,
       level: ExecutionLevel.Project,
       purpose: { ...input.purpose },
       policy: { ...input.policy },
       ...(input.prompt != null ? { prompt: { ...input.prompt } } : {}),
+      // Copied like every other piece of state, and NOT listed in `COLLABORATOR_KEYS`: a resumed
+      // run has to ask through the channel and policy it was started with.
+      ...(input.inquiry != null ? { inquiry: { ...input.inquiry } } : {}),
     }) as S['project'],
 
     forTask: (parent, input) => {
       const { effort, phase, data, prompt, ...extras } = input
       const policy = effort != null
-        ? mergePolicy(parent.policy, { effort })
+        ? executionPolicyHelper.mergePolicy(parent.policy, { effort })
         : { ...parent.policy }
-      const merged = mergePrompt(parent.prompt, prompt)
+      const merged = executionPolicyHelper.mergePrompt(parent.prompt, prompt)
 
       // Spreading the parent carries every collaborator and domain field forward; the
       // task's own state is composed afterwards, from the seeded resumable fields.
@@ -67,7 +72,7 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
         ...parent, ...extras, level: ExecutionLevel.Task, purpose: { ...parent.purpose }, policy,
         ...(merged != null ? { prompt: merged } : {}),
       } as unknown as TaskExecution
-      ;(taskExec as { state: TaskExecutionState }).state = composeTaskState({
+      ;(taskExec as { state: TaskExecutionState }).state = executionStateHelper.composeTaskState({
         ...taskExec,
         state: {
           level: ExecutionLevel.Task,
@@ -78,14 +83,14 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
         } as TaskExecutionState,
       }, collaboratorKeys)
 
-      return freeze(taskExec) as S['task']
+      return executionStateHelper.freeze(taskExec) as S['task']
     },
 
     forHelper: (parent, input) => {
       const { role, effort, dedication, prompt, output, ...extras } = input
-      const localPolicy = effort != null ? mergePolicy(parent.policy, { effort }) : parent.policy
+      const localPolicy = effort != null ? executionPolicyHelper.mergePolicy(parent.policy, { effort }) : parent.policy
       const scoped = { ...parent, policy: localPolicy } as S['exec']
-      const merged = mergePrompt(parent.prompt, prompt)
+      const merged = executionPolicyHelper.mergePrompt(parent.prompt, prompt)
       // Destructured out of `extras` deliberately: `output` selects a model budget, it is
       // not a field the helper carries around.
       const sizing = output != null ? { maxTokens: output } : undefined
@@ -99,28 +104,39 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
           : { ...parent.purpose },
         policy: localPolicy,
         ...(merged != null ? { prompt: merged } : {}),
-        role: resolveRole(localPolicy, role),
+        role: executionPolicyHelper.resolveRole(localPolicy, role),
         model: self().model(scoped, role, sizing),
         temperatureFactory: self().temperatureFactory(scoped, role, sizing),
       } as unknown as HelperExecution
       // A helper is not resumable — drop a parent task's composed state.
       delete (helperExec as { state?: unknown }).state
 
-      return freeze(helperExec) as S['helper']
+      return executionStateHelper.freeze(helperExec) as S['helper']
     },
 
-    derive: (exec, patch) => freeze(recompose({ ...exec, ...patch })),
+    derive: (exec, patch) => executionStateHelper.freeze(recompose({ ...exec, ...patch })),
 
     withPurpose: (exec, patch) =>
-      freeze(recompose({ ...exec, purpose: { ...exec.purpose, ...patch } })),
+      executionStateHelper.freeze(recompose({ ...exec, purpose: { ...exec.purpose, ...patch } })),
 
     escalate: (exec, patch: Partial<ModelPolicy>) =>
-      freeze(recompose({ ...exec, policy: mergePolicy(exec.policy, patch) })),
+      executionStateHelper.freeze(recompose({ ...exec, policy: executionPolicyHelper.mergePolicy(exec.policy, patch) })),
+
+    withResults: (exec, results) => {
+      // Replaced, never merged: a view is cut for ONE step, and another step's view names the
+      // wrong predecessors. Without one the key is dropped rather than set to `undefined`, so the
+      // execution — and every snapshot of it — is exactly what it would be had it never carried one.
+      const { results: _replaced, ...rest } = exec as typeof exec & { results?: CumulativeResults }
+
+      return executionStateHelper.freeze(recompose(
+        results != null ? { ...rest, results: executionStateHelper.freezeResults(results) } : rest,
+      )) as typeof exec
+    },
 
     model: (exec, role, override) => {
-      const effectiveRole = resolveRole(exec.policy, role ?? (exec as HelperExecution).role)
+      const effectiveRole = executionPolicyHelper.resolveRole(exec.policy, role ?? (exec as HelperExecution).role)
       const policyOverride = exec.policy.modelOverrides?.[effectiveRole]
-      const merged = mergeOverride(effortPatch(exec.policy.effort), policyOverride, override)
+      const merged = executionPolicyHelper.mergeOverride(executionPolicyHelper.effortPatch(exec.policy.effort), policyOverride, override)
       // Strip undefined values so the factory does not see spurious keys.
       const clean = Object.fromEntries(
         Object.entries(merged).filter(([, value]) => value !== undefined)
@@ -129,28 +145,46 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
       return exec.models().getModel(effectiveRole, clean)
     },
 
-    temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
-      temperature =>
-        self().model(exec, role, {
-          // A budget the helper was built with survives a temperature refinement — the
-          // work is the same size whether or not it is being retried creatively.
-          ...(typeof baseOverride === 'object' ? baseOverride : {}),
-          ...(temperature != null ? { temperature } : {}),
-          ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
-        }),
+    utility: (exec, override) => {
+      // Delegated to `model` rather than re-resolved here: the utility tier has to obey
+      // the same roleOverride/modelOverride precedence as any other role, and a second
+      // copy of that ladder drifts from the first the moment one of them changes.
+      const scoped = {
+        ...exec, policy: executionPolicyHelper.mergePolicy(exec.policy, { effort: ExecutionEffort.Economy }),
+      } as S['exec']
 
-    use: plugin => {
-      plugins.push(plugin)
+      return self().model(scoped, exec.policy.utilityRole ?? UTILITY_ROLE, override)
     },
 
-    checkpoint: async (exec, key) => {
-      // Guarded on the HOOK, not on the plugin count: a plugin registered for `advise`
-      // alone must not make checkpointing start composing snapshots nobody consumes.
-      if (!plugins.some(plugin => plugin.onCheckpoint != null)) {
-        return
+    temperatureFactory: (exec, role, baseOverride): TemperatureFactory =>
+      temperature => {
+        // A budget the helper was built with survives a temperature refinement — the
+        // work is the same size whether or not it is being retried creatively.
+        const sizing = typeof baseOverride === 'object' ? baseOverride : {}
+        // Most models that take effort have taken sampling away, so "hotter" alone would
+        // change nothing on the wire. The same request climbs effort alongside it.
+        const steps = effortUtils.temperatureSteps(temperature)
+        const effort = steps > 0 ? executionPolicyHelper.raisedEffort(self().model(exec, role, sizing), steps) : undefined
+
+        return self().model(exec, role, {
+          ...sizing,
+          ...(temperature != null ? { temperature } : {}),
+          ...(temperature != null && temperature > 0.2 ? { topP: 0.8 } : {}),
+          ...(effort != null ? { effort } : {}),
+        })
+      },
+
+    use: plugin => {
+      // Seated by alias when it has one: mixins compose, and a layer wired twice would otherwise
+      // answer twice — silently, since the first usable answer wins.
+      const at = plugin.alias != null
+        ? plugins.findIndex(entry => entry.alias === plugin.alias)
+        : -1
+      if (at < 0) {
+        plugins.push(plugin)
+      } else {
+        plugins[at] = plugin
       }
-      const state = self().snapshot(exec)
-      await Promise.all(plugins.map(plugin => plugin.onCheckpoint?.(state, exec, key)))
     },
 
     advise: async (exec, request) => {
@@ -163,21 +197,30 @@ export const executionServiceApi = <S extends ExecutionShape = ExecutionShape>(
           }
         } catch (e) {
           // Advice is an optimization. A broken advisor must never take the work with it.
-          console.warn(`Execution advisor failed for "${request.kind}":`, e)
+          log.warn('Execution advisor failed', { kind: request.kind, error: e })
         }
       }
 
       return null
     },
 
-    snapshot: exec => {
-      if (exec.level === ExecutionLevel.Task) {
-        return freeze({ ...(exec as unknown as TaskExecution).state })
-      }
-      return freeze(composeExecState(exec, collaboratorKeys))
+    ask: async (exec, inquiry, signal) => {
+      const policy = exec.inquiry?.policy ?? InquiryPolicy.Default
+      // No channel was ever configured, so there is nobody to wait for: assume and carry on.
+      if (policy === InquiryPolicy.Default) return inquiryHelper.defaultAnswerFor(inquiry)
+      if (policy === InquiryPolicy.Refuse) throw new InquiryDeclined(inquiry.id)
+
+      return inquiryHelper.capAnswer(await inquiryTransportRegistry.transportFor(exec.inquiry?.transport).ask(inquiry, signal))
     },
 
-    restore: (state: ExecutionState, collaborators = {} as S['collaborators']) => freeze({
+    snapshot: exec => {
+      if (exec.level === ExecutionLevel.Task) {
+        return executionStateHelper.freeze({ ...(exec as unknown as TaskExecution).state })
+      }
+      return executionStateHelper.freeze(executionStateHelper.composeExecState(exec, collaboratorKeys))
+    },
+
+    restore: (state: ExecutionState, collaborators = {} as S['collaborators']) => executionStateHelper.freeze({
       ...state,
       ...collaborators,
       ...(state.level === ExecutionLevel.Task ? { state } : {}),

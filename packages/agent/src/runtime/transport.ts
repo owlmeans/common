@@ -1,22 +1,8 @@
 import type { AgentRunMessage } from '@owlmeans/agent-common'
+import { logger } from '@owlmeans/log'
+import type { AgentTransport } from './types.js'
 
-/**
- * How a run's advance reaches whoever will carry it out.
- *
- * The seam exists so that recoverability and scaling can be added without touching the loop: an
- * application that wants runs to survive a pod restart, or to spread across replicas, binds a
- * queue here. Nothing in this package requires one, and the default carries messages by calling
- * the handler directly.
- *
- * A message carries the serialized flow but only a REFERENCE to the execution state, because a
- * project-level execution's state holds the whole project specification and a queue whose messages
- * carry that falls over on the first large project.
- */
-export interface AgentTransport {
-  dispatch: (message: AgentRunMessage) => Promise<void>
-  /** Subscribe; resolves to an unsubscribe function. */
-  consume: (handler: (message: AgentRunMessage) => Promise<void>) => Promise<() => Promise<void>>
-}
+const log = logger('agent:transport')
 
 /**
  * The default: deliver to whoever is subscribed, in this process, right now.
@@ -36,7 +22,7 @@ export const inProcessTransport = (): AgentTransport => {
         } catch (e) {
           // One subscriber's failure must not swallow the others', and a transport is not the
           // place a run's error is decided.
-          console.error('AgentTransport handler failed:', e)
+          log.error('AgentTransport handler failed', e)
         }
       }))
     },

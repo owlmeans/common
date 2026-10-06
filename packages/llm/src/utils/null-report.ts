@@ -1,28 +1,10 @@
-import util from 'util'
-import type { AIMessageChunk, MessageFieldWithRole } from '@langchain/core/messages'
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { createIdOfLength } from '@owlmeans/basic-ids'
-import type { LlmPurpose, NullCapture, NullKind } from '@owlmeans/llm-common'
-import type { LlmSpectator, ModelConfig } from '../types.js'
+import type { NullCapture } from '@owlmeans/llm-common'
+import { logger } from '@owlmeans/log'
+import type { LlmSpectator } from '../types.js'
+import type { NullReportParams, RefinedKwargs } from './null-report/types.js'
 
-export interface NullReportParams {
-  kind: NullKind
-  action: string
-  purpose?: LlmPurpose
-  attempt: number
-  startedAt: number
-  /** The instance that actually ran — its `lc_kwargs` carry the effective request shape. */
-  refined: BaseChatModel
-  /** The ORIGINAL model config (refined instances do not reliably keep metadata). */
-  config: Partial<ModelConfig>
-  msgs: MessageFieldWithRole[]
-  raw: AIMessageChunk | null
-  schema?: { toolName: string; innerSchema: unknown }
-  useCache: boolean
-}
-
-/** How many characters of each prompt message the console preview keeps. */
-const PREVIEW_CHARS = 300
+const log = logger('llm')
 
 /**
  * Assemble a complete, replayable record of a model call that returned nothing usable:
@@ -30,21 +12,16 @@ const PREVIEW_CHARS = 300
  * distinguish the common causes (budget spent on hidden reasoning vs. a refused tool
  * call vs. an empty content array).
  */
-export const buildNullReport = (p: NullReportParams): NullCapture => {
+const buildNullReport = (p: NullReportParams): NullCapture => {
   // Read the request shape from lc_kwargs — the refined instance is rebuilt from those
   // and does not always preserve `metadata`.
-  type Kwargs = {
-    model?: string
-    configuration?: { baseURL?: string }
-    modelKwargs?: { reasoning?: unknown }
-    topP?: number
-  }
-  const kwargs = p.refined.lc_kwargs as Kwargs
+  const kwargs = p.refined.lc_kwargs as RefinedKwargs
   const raw = p.raw
   const responseMeta = raw?.response_metadata as {
     finish_reason?: string
     usage?: { prompt_tokens?: number; completion_tokens?: number; reasoning_tokens?: number }
   } | undefined
+  const stopReason = (raw?.additional_kwargs as { stop_reason?: string } | undefined)?.stop_reason
   const usageMeta = raw?.usage_metadata as { input_tokens?: number; output_tokens?: number } | undefined
   const toolCalls = (raw as unknown as { tool_calls?: unknown[] } | null)?.tool_calls
 
@@ -81,7 +58,14 @@ export const buildNullReport = (p: NullReportParams): NullCapture => {
       tool_calls: toolCalls,
     } : null,
     diagnostics: {
-      finishReason: responseMeta?.finish_reason,
+      // Two providers, two places. OpenAI-compatible APIs put it on `response_metadata`;
+      // Anthropic never does — it arrives on the `message_delta` event and langchain spreads it
+      // into `additional_kwargs.stop_reason`. Reading only the first printed `undefined` for
+      // every Anthropic null, hiding the `max_tokens` that explains most of them.
+      finishReason: responseMeta?.finish_reason ?? stopReason,
+      /** No text block at all — the shape of a completion that was all reasoning. */
+      thinkingOnly: Array.isArray(raw?.content) && raw.content.length > 0
+        && !raw.content.some(part => (part as { type?: string }).type === 'text'),
       inputTokens: usageMeta?.input_tokens ?? responseMeta?.usage?.prompt_tokens,
       outputTokens: usageMeta?.output_tokens ?? responseMeta?.usage?.completion_tokens,
       reasoningTokens: responseMeta?.usage?.reasoning_tokens,
@@ -93,7 +77,7 @@ export const buildNullReport = (p: NullReportParams): NullCapture => {
 }
 
 /**
- * Print the diagnostics of a null result, and hand the full capture to the spectator
+ * Log the diagnostics of a null result, and hand the full capture to the spectator
  * sink when the caller opted into capturing. A failing sink must never mask the model
  * error the caller is about to throw.
  */
@@ -103,24 +87,48 @@ export const reportNull = async (
   p: NullReportParams,
 ): Promise<void> => {
   const capture = buildNullReport(p)
-  const requestPreview = p.msgs.map(msg => {
-    const text = typeof msg.content === 'string' ? msg.content.substring(0, PREVIEW_CHARS) : '[complex content]'
-    return `[${(msg as { role?: string }).role ?? 'unknown'}] ${text}`
-  }).join('\n---\n')
+  log.warn('Model returned a null result', {
+    kind: capture.meta.kind, action: capture.meta.action, attempt: capture.meta.attempt,
+    model: capture.model.id, finishReason: capture.diagnostics.finishReason,
+  })
 
-  console.error('[MODEL-NULL]', util.inspect(
-    {
-      meta: capture.meta, model: capture.model, diagnostics: capture.diagnostics,
-      response: capture.response, requestPreview,
-    },
-    { depth: null, maxStringLength: 2000, breakLength: 120 }
-  ))
+  if (log.enabled('debug')) {
+    // Sizes, never prompt or completion text: the full record goes to the capture sink alone.
+    const content = capture.response?.content
+    log.debug('Model null result details', {
+      meta: capture.meta,
+      // Renamed off `*Tokens`: the log redacts every key that looks like a credential.
+      model: {
+        id: capture.model.id, provider: capture.model.provider, outputLimit: capture.model.maxTokens,
+        reasoning: capture.model.reasoning, temperature: capture.model.temperature,
+      },
+      diagnostics: {
+        finishReason: capture.diagnostics.finishReason,
+        thinkingOnly: capture.diagnostics.thinkingOnly,
+        contentEmpty: capture.diagnostics.contentEmpty,
+        hadToolCall: capture.diagnostics.hadToolCall,
+        usage: {
+          input: capture.diagnostics.inputTokens,
+          output: capture.diagnostics.outputTokens,
+          reasoning: capture.diagnostics.reasoningTokens,
+        },
+      },
+      request: p.msgs.map(msg => ({
+        role: (msg as { role?: string }).role ?? 'unknown',
+        chars: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content ?? '').length,
+      })),
+      response: capture.response != null ? {
+        contentChars: typeof content === 'string' ? content.length : JSON.stringify(content ?? '').length,
+        toolCalls: Array.isArray(capture.response.tool_calls) ? capture.response.tool_calls.length : 0,
+      } : null,
+    })
+  }
 
   if (captureNull) {
     try {
       await spectator.captureNull?.(capture)
     } catch (e) {
-      console.warn('[MODEL-NULL] capture write failed', e)
+      log.warn('Model null capture write failed', e)
     }
   }
 }

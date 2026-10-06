@@ -1,29 +1,34 @@
 import { ChatOpenAI } from '@langchain/openai'
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { ModelProvider, StructuredMode } from '@owlmeans/llm-common'
-import type { LlmPlugin, LlmRefineParams } from './types.js'
+import { ModelEffort, ModelProvider, StructuredMode } from '@owlmeans/llm-common'
+import type { EffortSupport, LlmPlugin, LlmRefineParams, OpenAiFamily } from './types.js'
 import type { ModelConfig } from '../types.js'
-import { escalateMaxTokens, isBadRequest, makeConfiguration } from './utils.js'
-
-/**
- * Model families served through OpenAI's Responses API rather than chat completions. That
- * endpoint REJECTS `temperature`/`top_p` — a 400 naming the parameter, not a silently
- * ignored field. Matched with `startsWith`, so a dated snapshot (`gpt-5.6-terra-2026-08`)
- * is covered by its base id.
- *
- * This is the OpenAI counterpart of the anthropic plugin's `NO_SAMPLING_PREFIXES`, and it
- * gates BOTH hooks for the same reason: see `refine`.
- */
-export const RESPONSES_API_PREFIXES = ['gpt-5', 'codex-']
+import { configUtils } from '../utils/config.js'
+import { pluginUtils } from './utils.js'
+import { OPENAI_EFFORT_SUPPORT, OPENAI_FAMILY, OPENAI_HIDDEN_PROPERTY_NAMES, REASONING_MIN_MAX_TOKENS, RESPONSES_API_PREFIXES } from './consts.js'
+import type { OpenAiKwargs } from './types.local.js'
+import { effortUtils } from '../utils/effort.js'
+import { schemaUtils } from '../utils/schema.js'
 
 /** Whether this model id goes through the Responses API and therefore rejects sampling. */
 export const usesResponsesApi = (model: string | undefined): boolean =>
   model != null && RESPONSES_API_PREFIXES.some(prefix => model.startsWith(prefix))
 
-export const OPENAI_FAMILY = 'openai'
+const openAiEffort = (model: string | undefined): EffortSupport | undefined => {
+  const entry = model != null ? OPENAI_EFFORT_SUPPORT.find(e => model.startsWith(e.prefix)) : undefined
+  return entry != null ? { levels: entry.levels, default: entry.default } : undefined
+}
+
+const withEffort = (
+  modelKwargs: OpenAiKwargs['modelKwargs'], effort: ModelEffort | undefined,
+): OpenAiKwargs['modelKwargs'] =>
+  effort != null ? { ...modelKwargs, reasoning: { ...modelKwargs?.reasoning, effort } } : modelKwargs
+
+const reasoningFloor = (maxTokens: number, effort: ModelEffort | undefined, cap: number): number =>
+  effortUtils.effortAtLeast(effort, ModelEffort.High) ? Math.max(maxTokens, Math.min(REASONING_MIN_MAX_TOKENS, cap)) : maxTokens
 
 /** Every plugin that constructs a `ChatOpenAI` shares these instance-level behaviours. */
-export const openAiFamily = {
+export const openAiFamily: OpenAiFamily = {
   family: OPENAI_FAMILY,
 
   owns: (model: BaseChatModel): boolean => model instanceof ChatOpenAI,
@@ -55,17 +60,26 @@ export const openAiFamily = {
    * typed error that keeps the 400 only under `cause` — so both an `instanceof` and a
    * surface `status` read silently miss it.
    */
-  isFatal: (e: unknown): Error | null => isBadRequest(e) ? e as Error : null,
+  isFatal: (e: unknown): Error | null => pluginUtils.isBadRequest(e) ? e as Error : null,
 
-  refine: ({ base, attempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
+  refine: ({ base, attempt, rungAttempt, temperature, maxOutputCap }: LlmRefineParams): BaseChatModel => {
     const model = base as ChatOpenAI
     const currentTemperature = temperature ?? model.temperature ?? 0
-    const maxTokens = escalateMaxTokens(model.maxTokens, attempt, maxOutputCap)
-    const baseKwargs = model.lc_kwargs as ConstructorParameters<typeof ChatOpenAI>[0] & {
-      modelKwargs?: { reasoning?: { max_tokens?: number } } & Record<string, unknown>
-    }
+    const baseKwargs = model.lc_kwargs as OpenAiKwargs
     const responsesApi = usesResponsesApi(model.model ?? baseKwargs.model)
       || baseKwargs.useResponsesApi === true
+    // Effort only where `build` chose the Responses API itself — the `compatible` plugin
+    // shares this hook and speaks an aggregator's `reasoning` dialect instead.
+    const effort = baseKwargs.useResponsesApi === true
+      ? effortUtils.effortFor(
+        openAiEffort(model.model ?? baseKwargs.model),
+        baseKwargs.modelKwargs?.reasoning?.effort as ModelEffort | undefined,
+        rungAttempt ?? attempt,
+      )
+      : undefined
+    const maxTokens = reasoningFloor(
+      pluginUtils.escalateMaxTokens(model.maxTokens, attempt, maxOutputCap), effort, maxOutputCap,
+    )
     // The dominant cause of an empty response is a reasoning model spending the whole
     // budget on hidden thinking (finish_reason=length, empty content). The retry already
     // raises maxTokens; ALSO shrink the absolute reasoning cap so the extra budget becomes
@@ -84,13 +98,16 @@ export const openAiFamily = {
     // temperature here puts it on the wire for every single request, not just a retry.
     // Suppressing it in one hook and restoring it in the other ships the parameter anyway.
     if (responsesApi) {
+      const kwargs = withEffort(modelKwargs, effort)
       const cfg = {
         ...baseKwargs,
         maxTokens,
-        ...(modelKwargs != null ? { modelKwargs } : {}),
+        ...(kwargs != null ? { modelKwargs: kwargs } : {}),
       }
       delete cfg.temperature
       delete cfg.topP
+      // The constructor field is the one langchain drops on `gpt-6-*` — never set it.
+      delete cfg.reasoning
 
       return new ChatOpenAI(cfg)
     }
@@ -117,9 +134,14 @@ export const openAiPlugin: LlmPlugin = {
   structuredMode: (config: ModelConfig): StructuredMode =>
     config.structuredOutput === false ? StructuredMode.Tool : StructuredMode.Native,
 
+  effort: config => openAiEffort(config.model),
+
+  schemaDefects: (config, schema) =>
+    config.structuredOutput === false ? [] : schemaUtils.hiddenPropertyNames(schema, OPENAI_HIDDEN_PROPERTY_NAMES),
+
   build: ({ alias, config, secret, callbacks }) => {
     const model = config.model ??= 'gpt-5.4-mini'
-    const configuration = makeConfiguration({ baseURL: undefined, headers: config.headers })
+    const configuration = pluginUtils.makeConfiguration({ baseURL: undefined, headers: config.headers })
 
     // OpenAI's prompt cache is automatic and prefix-based — there is nothing to mark. The
     // one lever a client has is routing: requests are dispatched by a hash of the prompt's
@@ -135,15 +157,16 @@ export const openAiPlugin: LlmPlugin = {
 
     // The Responses API models reject `temperature`/`topP`.
     if (usesResponsesApi(model)) {
+      const effort = effortUtils.effortFor(openAiEffort(model), config.effort, 0)
       return new ChatOpenAI({
         model,
         apiKey: secret,
-        maxTokens: config.maxTokens ?? 4096,
+        maxTokens: reasoningFloor(config.maxTokens ?? 4096, effort, configUtils.resolveOutputCap(config)),
         maxRetries: 5,
         useResponsesApi: true,
         metadata: { config },
         callbacks,
-        modelKwargs,
+        modelKwargs: withEffort(modelKwargs, effort),
         ...configuration,
       })
     }

@@ -2,10 +2,13 @@
 
 ## Project purpose
 
+__APP_DESCRIPTION__
+
 <!-- OWLMEANS:PROJECT-PURPOSE -->
 > **Agents — this project has not been described yet.** Before doing anything else on the first
 > session, ask the user what this project is for: its purpose, domain, goals, and key constraints.
 > Then replace this whole block with a short description of the project, and remove this notice.
+<!-- /OWLMEANS:PROJECT-PURPOSE -->
 
 ## Git Workflow (mandatory)
 
@@ -26,6 +29,15 @@ skill.
   AI/agent. If no identity is configured, stop and ask.
 - Report finished git work as a Markdown table (**Action**, **Target**, **Result**), and never
   commit a conflicted working copy — stop, list the conflicted paths, hand control back.
+
+## Code structure (mandatory)
+
+The functions of one domain are ONE object built by a factory: its `interface` is declared first
+(never `ReturnType<typeof …>`; interfaces over types wherever possible), the implementation and its
+private parts live in the factory, and a shared context or collaborator is bound into the factory.
+Types, consts and code live in separate files; an object with parts gets a same-named folder
+(`x.ts` + `x/types.ts`). Load `/owlmeans-code-structure` before writing, moving or reviewing any
+`.ts`/`.tsx`, and hold every diff to it.
 
 ## Reporting (mandatory)
 
@@ -76,19 +88,66 @@ package (in the installed packages and at https://github.com/owlmeans/common) or
 already solves the problem **before** proposing a third-party library or a custom solution, and
 simplify whatever you do write. This is required for every planning and development task.
 
+## Runtime config advertisement
+
+The config endpoint is default-deny. A backend config field reaches the browser only when the
+package that owns its browser consumer imports `apiConfigPlugin({ allow, deny? })` from
+`@owlmeans/api-config` at module scope. Name public nested fields precisely; use `every()` and a
+nested `deny` selector when a public collection carries a credential. Databases, queues, SMTP,
+tokens, secrets and internal addresses never belong in an `allow` selector.
+
+## Logging (mandatory)
+
+Before adding any log line, catch block or `console` call, follow the `logging` skill (mechanics: `log`).
+
+- No `console.*`: `const log = logger('<scope>')` from `@owlmeans/log`, a deliberate level, the
+  `Error` itself to `log.error`; never secrets, tokens or personal content.
+- The level is set per environment, never in code: the api reads `LOG_LEVEL` / `LOG_DEBUG`
+  (default `info`), the web build reads `VITE_LOG_LEVEL` / `VITE_LOG_DEBUG` (`debug` under `vite`,
+  `info` in a build). Local values go in the git-ignored `sources/api/.env` / `sources/web/.env`.
+- Never set `cfg.debug = { all: true }` — it does not control logging and must not reach production.
+
 ## Skills
 
 Reusable guidance lives in `.agents/skills/<name>/SKILL.md`, deployed by `@owlmeans/agent-skills`
 from the installed `@owlmeans/*` packages. Agents load a skill by topic, or you run `/<name>`
 explicitly. Copilot and Codex read `.agents/skills/` directly; Claude Code reads the generated
-symlinks in `.claude/skills/` (see `CLAUDE.md`).
+symlinks in `.claude/skills/` (see "Claude Code" below).
 
-- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills` to refresh
+- After adding or updating any `@owlmeans/*` dependency, run `npx @owlmeans/agent-skills@^0.1.18-rc.51` to refresh
   the deployed skills.
+- `/logging` — before adding any log line, catch block or `console` call (mechanics: `/log`).
 - Deployed files carry an `AUTO-GENERATED` banner and are refreshed in place — never hand-edit them.
 - To capture your own guidance, see the `skill-authoring` skill; to turn repeatedly-used memory into
   a skill, `memory-promotion`. Keep it inside this repository, in `.agents/skills/` — never in a
   per-agent or home directory.
+
+<!-- OWLMEANS:LINKED-SKILLS -->
+### Skills linked from installed packages
+
+`sh .agents/scripts/link-skills.sh` also links in the skills that ship inside the installed
+`@owlmeans/*` packages (`node_modules/@owlmeans/<pkg>/agent-meta/skills/<name>`), so they load
+by name (`/<name>`) like a local skill. They land in `.agents/linked-skills/<name>` for Copilot
+and Codex and in `.claude/skills/<name>` for Claude Code, with a `skill / origin repo /
+description` table in `.agents/linked-skills/INDEX.md`. A local skill of the same name always
+wins. The directory is generated and git-ignored — never edit or commit it.
+
+The root `prepare` script runs it on every `bun install`, and a session-start hook runs it
+again, so a fresh checkout carries the links for every agent — Copilot and Codex included,
+not just Claude Code.
+
+<!-- /OWLMEANS:LINKED-SKILLS -->
+
+## Claude Code
+
+Claude Code reads this file directly — there is no `CLAUDE.md`. Skills live only in
+`.agents/skills/<name>/SKILL.md`, the single canonical location shared with Copilot and Codex.
+`.claude/skills/` holds only generated per-skill symlinks (gitignored except `.gitkeep`); the
+committed `SessionStart` hook runs `sh .agents/scripts/link-skills.sh` to (re)create them each session.
+
+- Never author files under `.claude/skills/` — write skills in `.agents/skills/`.
+- After creating, renaming, or deleting a skill, re-run
+  `sh .agents/scripts/link-skills.sh` so the session picks it up.
 
 ## Develop
 

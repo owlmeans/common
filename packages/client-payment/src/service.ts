@@ -1,12 +1,11 @@
-import type { Context } from '@owlmeans/payment/utils'
+import type { Config, Context } from '@owlmeans/payment/utils'
 import type { ClientAuthResource } from '@owlmeans/client-auth'
 import { AUTH_RESOURCE } from '@owlmeans/client-auth'
-import { makePaymentService as makeService, PaymentIdentificationError } from '@owlmeans/payment'
-import type { appendPaymentService as appendService } from '@owlmeans/payment'
+import { makePaymentService as makeService, PaymentIdentificationError, type PaymentService } from '@owlmeans/payment'
 import { assertContext } from '@owlmeans/context'
 import { SHALLOW_AUTH } from './consts.js'
 
-export const makePaymentService: typeof makeService = alias => {
+export const makePaymentService = (alias?: string): PaymentService => {
   const service = makeService(alias)
 
   const shallowAuthentication = service.shallowAuthentication
@@ -32,5 +31,5 @@ export const makePaymentService: typeof makeService = alias => {
   return service
 }
 
-export const appendPaymentService: typeof appendService = (context, alias) =>
+export const appendPaymentService = <C extends Config, T extends Context<C>>(context: T, alias?: string): T =>
   context.registerService(makePaymentService(alias))

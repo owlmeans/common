@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "package": "@owlmeans/client-iam",
+  "version": "0.1.18-rc.64",
+  "generatedAt": "2026-10-06T11:45:57.675Z",
+  "canonicalRepo": "https://github.com/owlmeans/common",
+  "entries": [
+    {
+      "kind": "skill",
+      "name": "client-iam",
+      "category": "package-specific",
+      "file": "skills/client-iam/SKILL.md",
+      "canonicalPath": ".agents/skills/client-iam/SKILL.md"
+    }
+  ]
+}

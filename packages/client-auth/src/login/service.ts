@@ -1,10 +1,19 @@
-import { createLazyService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { DEFAULT_ALIAS } from './consts.js'
-import { defaultLoginEnv } from './env.js'
-import { adoptToken } from './adopt.js'
-import { LoginOutcome } from './types.js'
-import type { LoginContext, LoginPlugin, LoginService, LoginServiceAppend } from './types.js'
+import { createLazyService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import type { CommonConfig } from '@owlmeans/config'
+import type { ClientContext } from '@owlmeans/client'
+import { flowLandingOf } from '@owlmeans/client-flow'
+import { logger } from '@owlmeans/log'
+import { DEFAULT_ALIAS, LOGIN_TARGET_TTL, LoginOutcome } from './consts.js'
+import { UNSIGNED_OUTCOMES } from './consts.local.js'
+import { loginEnvHelper } from './env.js'
+import { loginTokenOf } from './adopt.js'
+import { loginMethodsHelper } from './methods.js'
+import type {
+  LoginContext, LoginLandingHook, LoginMethodSource, LoginNotifier, LoginPlugin, LoginPrecondition,
+  LoginRequest, LoginScreenComponent, LoginService, LoginServiceAppend, LoginStep
+} from './types.js'
+
+const log = logger('client-auth:login')
 
 /**
  * Login service = plugin host. It holds a registry of login plugins and, on every facade call,
@@ -19,14 +28,60 @@ import type { LoginContext, LoginPlugin, LoginService, LoginServiceAppend } from
  * stage. `context.service()` throws for an uninitialized non-lazy service, which would make
  * `ensureLoginService` fail exactly where apps are told to call it.
  *
- * `begin` is deliberately NOT `async`. An async facade method defers the plugin's body past a
- * microtask boundary, and a `window.open` that lands after the user gesture has finished being
- * handled is eaten by the popup blocker. The same rule binds every plugin's own `begin`.
+ * `begin` and `logout` are deliberately NOT `async`. An async facade method defers the plugin's
+ * body past a microtask boundary, and a `window.open` that lands after the user gesture has
+ * finished being handled is eaten by the popup blocker. The same rule binds every plugin's own
+ * `begin` and `logout`, and it is why a precondition must be synchronous too.
  */
 export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService => {
   const plugins: LoginPlugin[] = []
+  const preconditions: LoginPrecondition[] = []
+  const methodSources: LoginMethodSource[] = []
+  const steps: LoginStep[] = []
+  const hooks: LoginLandingHook[] = []
+  let screen: LoginScreenComponent | null = null
+  let notifier: LoginNotifier | null = null
 
   const ctx = (): LoginContext => service.ctx as LoginContext
+
+  /**
+   * Park `request.target` for the post-sign-in landing, and hand back the request whose continuation
+   * waits for that write.
+   *
+   * The write is STARTED here and never awaited on the way in: `begin` must reach the plugin's
+   * `window.open` inside the gesture. Only the continuation waits — the redirect plugin's in-app hop
+   * to the dispatcher and the surrogate's hop after the popup has handed its token back — so the
+   * dispatcher that resumes the landing always finds the record, whatever the storage behind it.
+   * A write that fails costs the landing, never the sign-in.
+   */
+  const parkTarget = (
+    ctx: LoginContext, request: LoginRequest
+  ): [LoginRequest, Promise<boolean> | null] => {
+    if (request.target == null || request.target === '') {
+      return [request, null]
+    }
+    const parked = flowLandingOf(ctx as unknown as ClientContext).suspendLanding(
+      { entrypoint: request.target, query: {} },
+      { expiresAt: Date.now() + LOGIN_TARGET_TTL }
+    ).catch((error: unknown) => {
+      log.warn('Could not park the sign-in target; the landing falls back', {
+        target: request.target, error,
+      })
+
+      return false
+    })
+    const navigate = request.navigate
+
+    return [
+      navigate == null ? request : {
+        ...request, navigate: async () => {
+          await parked
+          await navigate()
+        },
+      },
+      parked,
+    ]
+  }
 
   const service: LoginService = createLazyService<LoginService>(alias, {
     registerPlugin: (plugin: LoginPlugin) => {
@@ -38,8 +93,59 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
       plugins.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
     },
 
+    registerPrecondition: (precondition: LoginPrecondition) => {
+      const existing = preconditions.findIndex(candidate => candidate.alias === precondition.alias)
+      if (existing >= 0) {
+        preconditions.splice(existing, 1)
+      }
+      preconditions.push(precondition)
+      preconditions.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    },
+
+    registerMethodSource: (source: LoginMethodSource) => {
+      const existing = methodSources.findIndex(candidate => candidate.alias === source.alias)
+      if (existing >= 0) {
+        methodSources.splice(existing, 1)
+      }
+      methodSources.push(source)
+    },
+
+    methods: methodCtx => loginMethodsHelper.resolveLoginMethods(
+      methodCtx,
+      (methodCtx.context.cfg as CommonConfig).security?.auth?.login,
+      methodSources
+    ),
+
+    registerScreen: value => { screen = value },
+
+    screen: () => screen,
+
+    registerNotifier: value => { notifier = value },
+
+    registerStep: (step: LoginStep) => {
+      const existing = steps.findIndex(candidate => candidate.alias === step.alias)
+      if (existing >= 0) {
+        steps.splice(existing, 1)
+      }
+      steps.push(step)
+      steps.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    },
+
+    steps: () => [...steps],
+
+    onLanded: (hook: LoginLandingHook) => {
+      const existing = hooks.findIndex(candidate => candidate.alias === hook.alias)
+      if (existing >= 0) {
+        hooks.splice(existing, 1)
+      }
+      hooks.push(hook)
+      hooks.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+    },
+
+    landingHooks: () => [...hooks],
+
     plugin: env => {
-      const environment = env ?? defaultLoginEnv()
+      const environment = env ?? loginEnvHelper.defaultLoginEnv()
       const plugin = plugins.find(
         candidate => candidate.match?.(environment, service.ctx as LoginContext | undefined) ?? true
       )
@@ -49,32 +155,89 @@ export const makeLoginService = (alias: string = DEFAULT_ALIAS): LoginService =>
       return plugin
     },
 
-    env: () => defaultLoginEnv(),
+    env: () => loginEnvHelper.defaultLoginEnv(),
 
     enter: () => {
-      const env = defaultLoginEnv()
+      const env = loginEnvHelper.defaultLoginEnv()
       service.plugin(env).enter?.(ctx(), env)
     },
 
     begin: request => {
-      const env = defaultLoginEnv()
+      const env = loginEnvHelper.defaultLoginEnv()
+      // Synchronously, before anything can open a window: a precondition that refuses leaves the
+      // user exactly where `Gesture` describes — unable to proceed until they act again.
+      for (const precondition of preconditions) {
+        if (!precondition.check(ctx(), request, env)) {
+          return Promise.resolve(LoginOutcome.Gesture)
+        }
+      }
 
-      return service.plugin(env).begin(ctx(), request, env)
+      // Parked only past the preconditions: a refused attempt leaves no landing behind for the
+      // next, unrelated sign-in to resume.
+      const [parkedRequest, parked] = parkTarget(ctx(), request)
+
+      // Notified here, in the facade, rather than by each caller: `useLogin` fires the flow and
+      // forgets the result, and this is the one place every caller — the header hook and the
+      // sign-in screen's method buttons alike — passes through on the way to a settled outcome.
+      return service.plugin(env).begin(ctx(), parkedRequest, env).then(outcome => {
+        if (parked != null && UNSIGNED_OUTCOMES.has(outcome)) {
+          void parked.then(async () => {
+            await flowLandingOf(ctx() as unknown as ClientContext).discardSuspendedLanding()
+          })
+        }
+        notifier?.(outcome, env)
+
+        return outcome
+      })
     },
 
     authorize: async url => {
-      const env = defaultLoginEnv()
+      const env = loginEnvHelper.defaultLoginEnv()
 
       return await service.plugin(env).authorize(ctx(), url, env)
     },
 
     complete: async token => {
-      const env = defaultLoginEnv()
+      const env = loginEnvHelper.defaultLoginEnv()
 
       return await service.plugin(env).complete(ctx(), token, env)
     },
 
-    adopt: async token => { await adoptToken(ctx(), token) },
+    resume: async token => {
+      const env = loginEnvHelper.defaultLoginEnv()
+      // Absent means "keep it and carry on" — which is what an ordinary tab has always done, and
+      // is why the redirect plugin implements nothing here.
+      return await service.plugin(env).resume?.(ctx(), token, env) ?? LoginOutcome.Passed
+    },
+
+    logout: request => {
+      const env = loginEnvHelper.defaultLoginEnv()
+      const plugin = service.plugin(env)
+      if (plugin.logout == null) {
+        // A plugin with no logout mechanic still has to end the session it started.
+        return loginTokenOf(ctx()).revokeToken().then(async () => {
+          await request.navigate?.()
+
+          return LoginOutcome.Passed
+        })
+      }
+
+      return plugin.logout(ctx(), request, env).then(outcome => {
+        notifier?.(outcome, env)
+
+        return outcome
+      })
+    },
+
+    logoutComplete: async () => {
+      const env = loginEnvHelper.defaultLoginEnv()
+
+      return await service.plugin(env).logoutComplete?.(ctx(), env) ?? LoginOutcome.Passed
+    },
+
+    adopt: async token => { await loginTokenOf(ctx()).adoptToken(token) },
+
+    revoke: async () => { await loginTokenOf(ctx()).revokeToken() },
   })
 
   return service

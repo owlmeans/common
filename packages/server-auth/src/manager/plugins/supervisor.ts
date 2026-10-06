@@ -1,13 +1,11 @@
-import { AuthenticationType, AuthenFailed, AuthRole, ALL_SCOPES, buildSupervisorPayload } from '@owlmeans/auth'
-import type { SupervisorCredentialPayload } from '@owlmeans/auth'
+import { AuthenticationType, AuthenFailed, AuthRole, ALL_SCOPES, buildSupervisorPayload, type SupervisorCredentialPayload } from '@owlmeans/auth'
 import type { AuthPlugin } from './types.js'
 import { base64 } from '@scure/base'
-import { randomBytes } from '@noble/hashes/utils'
-import { fromPubKey } from '@owlmeans/basic-keys'
+import { randomBytes } from '@noble/hashes/utils.js'
+import { keyHelper } from '@owlmeans/basic-keys'
 import { TRUSTED } from '@owlmeans/config'
 import type { TrustedRecord } from '@owlmeans/auth-common'
-import type { AppConfig, AppContext } from '../types.js'
-import type { SupervisorPluginOptions } from '../supervisor.js'
+import type { AppConfig, AppContext, SupervisorPluginOptions } from '../types.js'
 
 /**
  * PK-based supervisor authentication plugin. A privileged operator (or an e2e
@@ -48,12 +46,12 @@ export const makeSupervisorPlugin = (
       let matched: string | null = null
       for (const alias of opts.supervisors) {
         try {
-          const record = await context.getConfigResource(TRUSTED)
-            .load<TrustedRecord>(alias, 'name')
+          const record = await context.getConfigResource<TrustedRecord>(TRUSTED)
+            .load({ name: alias })
           if (record?.credential == null) {
             continue
           }
-          if (await fromPubKey(record.credential).verify(payload, parsed.signature)) {
+          if (await keyHelper.fromPubKey(record.credential).verify(payload, parsed.signature)) {
             matched = alias
             break
           }

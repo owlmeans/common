@@ -1,30 +1,35 @@
-type CleanupFn = () => void | Promise<void>
+import { logger } from '@owlmeans/log'
+import type { CleanupFn, CleanupHelper } from './cleanup/types.js'
 
+const log = logger('test-integration')
+
+// Process-wide on purpose: every spec file of a run registers into, and drains, the same queue.
 const queue: CleanupFn[] = []
 
-/**
- * Register a cleanup function that `runCleanups()` will execute (LIFO).
- * Use from `tests/context.ts` `setup()` to schedule teardown of resources
- * that were provisioned for the suite (DB drop, key namespace flush,
- * uploaded objects).
- */
-export const registerCleanup = (fn: CleanupFn): void => {
-  queue.push(fn)
-}
+export const createCleanupHelper = (): CleanupHelper => {
+  const registerCleanup = (fn: CleanupFn): void => {
+    queue.push(fn)
+  }
 
-/**
- * Run all pending cleanup functions in reverse registration order.
- * Errors are swallowed and reported to stderr so a failing cleanup
- * cannot mask a test failure.
- */
-export const runCleanups = async (): Promise<void> => {
-  while (queue.length > 0) {
-    const fn = queue.pop()
-    if (fn == null) continue
-    try {
-      await fn()
-    } catch (err) {
-      console.error('@owlmeans/test-integration cleanup failed:', err)
+  const runCleanups = async (): Promise<void> => {
+    while (queue.length > 0) {
+      const fn = queue.pop()
+      if (fn == null) continue
+      try {
+        await fn()
+      } catch (err) {
+        log.warn('Cleanup failed', err)
+      }
     }
   }
+
+  return { registerCleanup, runCleanups }
 }
+
+export const cleanupHelper = createCleanupHelper()
+
+/** @deprecated compat:factory-refactor — use `cleanupHelper.registerCleanup(…)` */
+export const registerCleanup = (fn: CleanupFn): void => cleanupHelper.registerCleanup(fn)
+
+/** @deprecated compat:factory-refactor — use `cleanupHelper.runCleanups()` */
+export const runCleanups = async (): Promise<void> => await cleanupHelper.runCleanups()

@@ -7,11 +7,11 @@ import { RouterStateContext, OutletContext } from './context.js'
  *
  * A matched route that carries no `Component` is a **pass-through**: it renders
  * the next-deeper match, exactly like react-router's implicit `<Outlet/>` for
- * element-less routes. OwlMeans module trees depend on this — grouping modules
- * (e.g. `client-authentication` → `client-authentication:authentication`) have
- * no handler, so `@owlmeans/client` emits `RouteObject`s without a `Component`
+ * element-less routes. OwlMeans entrypoint trees depend on this — grouping
+ * entrypoints (e.g. `client-authentication` → `client-authentication:authentication`)
+ * have no handler, so `@owlmeans/client` emits `RouteObject`s without a `Component`
  * for them. Rendering only the exact node at `depth` would leave the whole
- * subtree blank whenever a group sits above the screen module.
+ * subtree blank whenever a group sits above the screen entrypoint.
  */
 export const RouteChain: FC<{ depth: number }> = ({ depth }) => {
   const state = useContext(RouterStateContext)

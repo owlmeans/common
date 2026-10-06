@@ -1,3 +1,6 @@
+export type * from './tools/types.js'
+export type * from './compaction/types.js'
+export type * from './rolling/types.js'
 export * from './tools.js'
 export * from './compaction.js'
 export * from './rolling.js'

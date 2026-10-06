@@ -1,14 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { InstallItem } from './plan.js'
-
-export interface ApplyResult {
-  installed: number
-  updated: number
-  skipped: number
-  conflicts: number
-  linked: number
-}
+import type { InstallItem, ApplyResult } from './types.js'
 
 /**
  * Claude Code discovers skills only under `.claude/skills/`, so every installed skill

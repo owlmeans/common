@@ -1,12 +1,13 @@
 import { ACT_HOST, ACT_SERVICE, DEFAULT_ALIAS, DEFAULT_NAMESPACE } from './consts.js'
-import type { KlusterConfig, KlusterService } from './types.js'
+import type { KlusterService } from './types.js'
 import { assertContext, createLazyService } from '@owlmeans/context'
 import { KubeConfig, CoreV1Api, ApiException, NetworkingV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node'
-import { ServerContext } from '@owlmeans/server-context'
 import { readConfigValue } from '@owlmeans/server-config'
+import { logger } from '@owlmeans/log'
+import type { Config, Context } from './types.local.js'
 
-type Config = KlusterConfig
-type Context = ServerContext<Config>
+const log = logger('kluster')
+
 
 export const isNotFoundError = (e: unknown): boolean => {
   if (e == null || typeof e !== 'object') return false
@@ -41,7 +42,7 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
         return result.items.map(item => item.status?.podIP).filter(name => name != null)
       } catch (e) {
         if (e instanceof ApiException) {
-          console.error(e.name, e.cause, e.message, e.body)
+          log.warn('Kubernetes pod lookup failed', { selector, namespace, code: e.code, error: e })
         } else {
           throw e
         }
@@ -59,7 +60,7 @@ export const makeKlusterService = (alias: string = DEFAULT_ALIAS): KlusterServic
         return result.items?.[0]?.spec?.clusterIP ?? null
       } catch (e) {
         if (e instanceof ApiException) {
-          console.error(e.name, e.cause, e.message, e.body)
+          log.warn('Kubernetes service lookup failed', { selector, namespace, code: e.code, error: e })
         } else {
           throw e
         }

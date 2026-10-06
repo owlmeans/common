@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { closeBrowser, mountComponent } from '@owlmeans/test-ui'
+import { mountComponent, browserHelper } from '@owlmeans/test-ui'
 import { HARNESS_URL } from './context.js'
 
 // Browser work does not fit the 5s default: a cold harness compiles the app on first request.
 const TIMEOUT = 30_000
 
 afterAll(async () => {
-  await closeBrowser()
+  await browserHelper.closeBrowser()
 })
 
 const open = async (path: string) => mountComponent({ url: `${HARNESS_URL.replace(/\/$/, '')}${path}` })
@@ -84,7 +84,7 @@ describe('@owlmeans/web-panel — two-layer navigation', () => {
     const { page, close } = await open('/dash')
     try {
       await page.waitForSelector('#dash')
-      const links = page.locator('footer a')
+      const links = page.locator('footer a:not([data-login-powered])')
       expect(await links.count()).toBe(2)
       expect(await links.nth(0).getAttribute('href')).toBe('/dash')
       expect(await links.nth(1).getAttribute('href')).toBe('https://owlmeans.com')
@@ -178,6 +178,89 @@ describe('@owlmeans/web-panel — the header is its own surface', () => {
       await close()
     }
   }, TIMEOUT)
+
+  test('a broken headerClassName still leaves the backdrop layer opaque', async () => {
+    // `?header=broken` hands the header a Tailwind v3 arbitrary-value class v4 never emits, plus
+    // a bare `bg-transparent` — exactly what a layout-restyle pass produced once. tailwind-merge
+    // drops the header's own `bg-background` for both, so `header` itself legitimately reports a
+    // transparent computed background — that is `headerClassName` doing exactly what it says.
+    // What must NOT be transparent is the backdrop layer painted behind it: that is the element
+    // actually responsible for keeping content from showing through the bar.
+    const { page, close } = await open('/dash?header=broken')
+    try {
+      await page.waitForSelector('#dash')
+      const background = await page.locator('[data-nav-backdrop]').first()
+        .evaluate(el => window.getComputedStyle(el).backgroundColor)
+
+      expect(background).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the backdrop layer never changes which div the shared-rhythm query finds first', async () => {
+    // `data-nav-backdrop` sits last in `header`'s DOM but paints behind everything via negative
+    // z-index — this pins that a position-based query for the header's own content div
+    // (`header > div`, `.first()`) still finds the rhythm div, not the backdrop.
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const first = await page.locator('header > div').first().getAttribute('data-nav-backdrop')
+      expect(first).toBeNull()
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+})
+
+describe('@owlmeans/web-panel — the shell footer credit', () => {
+  test('the platform credit and the owner notice render, owner notice first', async () => {
+    // The harness configures `credit: { poweredBy: true, product: 'Harness', organization: 'Acme' }`
+    // with no explicit `line`, so `resolveCredit` composes one from product/organization — the
+    // same resolver the sign-in screen uses. Order here is the opposite of the sign-in screen's:
+    // the owner's own notice leads, the platform credit follows.
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const credit = page.locator('footer [data-shell-credit]')
+      await credit.waitFor()
+      const text = await credit.textContent()
+      expect(text).toContain('Acme')
+      expect(text).toContain('Powered by OwlMeans')
+      expect(text?.indexOf('Acme')).toBeLessThan(text!.indexOf('Powered by OwlMeans'))
+      const powered = page.locator('footer [data-shell-credit] a[data-login-powered]')
+      expect(await powered.getAttribute('href')).toBe('https://owlmeans.com')
+      expect(await powered.getAttribute('target')).toBe('_blank')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the footer links and the credit are centred, not left-aligned', async () => {
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const justify = await page.locator('footer > div').first()
+        .evaluate(el => window.getComputedStyle(el).alignItems)
+      expect(justify).toBe('center')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a layout with no footer prop still shows the credit', async () => {
+    // `NavLayout` used to skip `Footer` entirely when no `footer` prop was passed, which made the
+    // credit disappear from any area layout that never wired footer links. `?footer=none` omits
+    // the prop from the harness's own `NavLayout` call.
+    const { page, close } = await open('/dash?footer=none')
+    try {
+      await page.waitForSelector('#dash')
+      expect(await page.locator('footer a:not([data-login-powered])').count()).toBe(0)
+      expect(await page.locator('footer [data-shell-credit]').count()).toBe(1)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
 })
 
 describe('@owlmeans/web-panel — layout rhythm and link styling', () => {
@@ -245,6 +328,193 @@ describe('@owlmeans/web-panel — layout rhythm and link styling', () => {
       expect(style.bg).toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
       expect(style.radius).toBe('0px')
       expect(style.deco).toBe('underline')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+})
+
+describe('@owlmeans/web-panel — a node footer', () => {
+  test('a node footer spans the container, which stays centred, and the credit follows it', async () => {
+    // `?footer=node` hands `NavLayout` an application's own footer layout. It used to land inside
+    // the centred link row, shrink-wrapped to its content in the middle of the page; it is a
+    // full-width block of the container now, while the container itself keeps `items-center`
+    // for the link row and the credit.
+    const { page, close } = await open('/prefs?footer=node')
+    try {
+      await page.waitForSelector('#prefs')
+      await page.locator('footer [data-shell-credit]').waitFor()
+      const container = page.locator('footer > div').first()
+      const layout = await container.evaluate(el => {
+        const style = window.getComputedStyle(el)
+        const box = el.getBoundingClientRect()
+        const block = el.querySelector(':scope > [data-footer-content]')
+        const inner = block?.getBoundingClientRect()
+
+        return {
+          align: style.alignItems,
+          inner: {
+            x: Math.round(box.x + parseFloat(style.paddingLeft)),
+            w: Math.round(box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)),
+          },
+          block: inner == null ? null : { x: Math.round(inner.x), w: Math.round(inner.width) },
+          hasHarnessBlock: block?.querySelector('#footer-block') != null,
+          last: el.lastElementChild?.hasAttribute('data-shell-credit') ?? false,
+          creditAfterBlock: block != null && el.querySelector(':scope > [data-shell-credit]') != null
+            && (block.compareDocumentPosition(el.querySelector(':scope > [data-shell-credit]')!)
+              & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+        }
+      })
+
+      expect(layout.align).toBe('center')
+      expect(layout.block).toEqual(layout.inner)
+      expect(layout.hasHarnessBlock).toBe(true)
+      expect({ last: layout.last, creditAfterBlock: layout.creditAfterBlock })
+        .toEqual({ last: true, creditAfterBlock: true })
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('a node footer keeps the shared rhythm', async () => {
+    const { page, close } = await open('/prefs?footer=node')
+    try {
+      await page.waitForSelector('#prefs')
+      const box = async (sel: string) => {
+        const b = await page.locator(sel).first().boundingBox()
+        if (b == null) throw new Error(`no box for ${sel}`)
+        return { x: Math.round(b.x), w: Math.round(b.width) }
+      }
+
+      expect(await box('footer > div')).toEqual(await box('header > div'))
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+})
+
+/** The narrow viewport the menu sheet is for — below Tailwind's `md` (768px). */
+const PHONE = { width: 375, height: 800 }
+
+describe('@owlmeans/web-panel — the narrow-viewport menu', () => {
+  test('with mobileMenu, a phone gets a menu button instead of the section menu', async () => {
+    const { page, close } = await open('/dash?mobileMenu=1')
+    try {
+      await page.setViewportSize(PHONE)
+      await page.waitForSelector('#dash')
+      const trigger = page.getByRole('button', { name: 'Menu' })
+      expect(await trigger.isVisible()).toBe(true)
+      const box = await trigger.boundingBox()
+      expect((box?.width ?? 0) >= 44 && (box?.height ?? 0) >= 44).toBe(true)
+      // The section menu hides, the action slot stays, and the screen strip is not mounted at all:
+      // the sheet lists the same screens.
+      expect(await page.locator('header nav[aria-label="Sections"]').first().isVisible()).toBe(false)
+      expect(await page.locator('#action-slot').isVisible()).toBe(true)
+      expect(await page.locator('header nav[aria-label="Screens"]').count()).toBe(0)
+      expect(await page.locator('[data-nav-sheet]').count()).toBe(0)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('the sheet lists sections and their screens as links, and a press navigates and closes it', async () => {
+    const { page, close } = await open('/dash?mobileMenu=1')
+    try {
+      await page.setViewportSize(PHONE)
+      await page.waitForSelector('#dash')
+      await page.getByRole('button', { name: 'Menu' }).click()
+      const sheet = page.getByRole('dialog', { name: 'Menu' })
+      await sheet.waitFor()
+
+      // A multi-screen section lists its screens under its name; a single-screen section is one
+      // link carrying the section's label — no destination twice. Labels resolve as the menus'.
+      const links = sheet.getByRole('link')
+      expect(await links.allTextContents()).toEqual(['Dashboard', 'Reports', 'Settings', 'Extra'])
+      expect(await links.evaluateAll(els => els.map(el => el.getAttribute('href'))))
+        .toEqual(['/dash', '/reports', '/prefs', '/'])
+      expect(await sheet.getByRole('link', { name: 'Dashboard' }).getAttribute('aria-current')).toBe('page')
+      expect(await sheet.getByText('Work').count()).toBe(1)
+
+      await sheet.getByRole('link', { name: 'Settings' }).click()
+      await page.waitForSelector('#prefs')
+      expect(new URL(page.url()).pathname).toBe('/prefs')
+      await page.locator('[data-nav-sheet]').waitFor({ state: 'detached' })
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('with mobileMenu, a wide viewport is the ordinary shell', async () => {
+    const { page, close } = await open('/dash?mobileMenu=1')
+    try {
+      await page.waitForSelector('#dash')
+      expect(await page.locator('[data-nav-menu-trigger]').isVisible()).toBe(false)
+      expect(await page.locator('header nav[aria-label="Sections"]').first().isVisible()).toBe(true)
+      expect(await page.locator('aside nav button').count()).toBe(2)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('without mobileMenu, a phone keeps the section menu and the screen strip', async () => {
+    const { page, close } = await open('/dash')
+    try {
+      await page.setViewportSize(PHONE)
+      await page.waitForSelector('#dash')
+      expect(await page.locator('[data-nav-menu-trigger]').count()).toBe(0)
+      expect(await page.locator('header nav[aria-label="Sections"]').first().isVisible()).toBe(true)
+      const strip = page.locator('header nav[aria-label="Screens"]')
+      expect(await strip.isVisible()).toBe(true)
+      expect(await strip.locator('button').count()).toBe(2)
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+})
+
+describe('@owlmeans/web-panel — the skip link', () => {
+  test('Tab from the page start reaches the skip link first, and it moves focus to main#main', async () => {
+    const { page, close } = await open('/dash')
+    try {
+      await page.waitForSelector('#dash')
+      const link = page.locator('[data-skip-link]')
+      // First in the shell's root, before the header — never inside it, so `header > div` is
+      // still the shared-rhythm row.
+      expect(await link.evaluate(el => el.nextElementSibling?.tagName)).toBe('HEADER')
+      expect(await page.locator('header [data-skip-link]').count()).toBe(0)
+      expect(await link.isVisible()).toBe(true) // `sr-only` is still rendered, just clipped
+      const clipped = await link.boundingBox()
+      expect((clipped?.width ?? 0) <= 1).toBe(true)
+
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.hasAttribute('data-skip-link'))).toBe(true)
+      expect(await link.textContent()).toBe('Skip to content')
+      const shown = await link.evaluate(el => {
+        const style = window.getComputedStyle(el)
+        return { position: style.position, width: el.getBoundingClientRect().width }
+      })
+      expect(shown.position).toBe('fixed')
+      expect(shown.width > 1).toBe(true)
+
+      await page.keyboard.press('Enter')
+      expect(await page.evaluate(() => {
+        const active = document.activeElement
+        return active?.tagName === 'MAIN' ? active.id : null
+      })).toBe('main')
+      // In-app: the location is left alone, so the router sees no navigation.
+      expect(new URL(page.url()).hash).toBe('')
+    } finally {
+      await close()
+    }
+  }, TIMEOUT)
+
+  test('skipLinkLabel={false} renders no link and claims no #main', async () => {
+    const { page, close } = await open('/dash?skip=off')
+    try {
+      await page.waitForSelector('#dash')
+      expect(await page.locator('[data-skip-link]').count()).toBe(0)
+      expect(await page.locator('#main').count()).toBe(0)
+      expect(await page.locator('main').count()).toBe(1)
     } finally {
       await close()
     }

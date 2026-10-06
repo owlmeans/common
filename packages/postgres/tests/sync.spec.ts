@@ -1,5 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { makePostgresResource, PgAutoSync, PostgresCastRequired } from '@owlmeans/postgres-resource'
+import {
+  makePgIntrospectHelper, makePostgresResource, PgAutoSync, pgDiffHelper, PostgresCastRequired,
+} from '@owlmeans/postgres-resource'
 import type { PostgresResource } from '@owlmeans/postgres-resource'
 import type { ResourceRecord } from '@owlmeans/resource'
 
@@ -152,5 +154,93 @@ describe('@owlmeans/postgres — structure reconciliation', () => {
         flag: { type: 'object', format: 'date-time', nullable: true }
       }
     })).rejects.toThrow(PostgresCastRequired)
+  })
+})
+
+interface Plot extends ResourceRecord {
+  id?: string
+  garden: string
+  bed?: string
+  crop?: string
+  season: string
+  soil?: Record<string, unknown>
+}
+
+/**
+ * A community garden's plots: a plain compound index, an expression index and two partial ones —
+ * the shapes `pg_indexes.indexdef` renders differently from the statement that created them
+ * (identifiers unquoted, literals cast, a partial predicate parenthesized), plus an enum CHECK.
+ */
+const plots = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    garden: { type: 'string' },
+    bed: { type: 'string', nullable: true },
+    crop: { type: 'string', nullable: true },
+    season: { type: 'string', enum: ['spring', 'summer', 'autumn'] },
+    soil: { type: 'object', nullable: true }
+  },
+  required: ['id', 'garden', 'season'],
+  pg: {
+    indexes: [
+      { name: 'sync_plots_garden_season', columns: ['garden', 'season'] },
+      { name: 'sync_plots_scope', unique: true, expression: `"garden", COALESCE("bed", ''), "season"` },
+      { name: 'sync_plots_crop', columns: ['garden', 'crop'], where: '"crop" IS NOT NULL' },
+      { name: 'sync_plots_wet', columns: ['garden'], where: `("soil"->>'state') = 'wet'` }
+    ]
+  }
+}
+
+const plotSuite = makeSuite('sync_idx')
+
+describe('@owlmeans/postgres — reconciling a table already at its shape', () => {
+  if (gate.skip) {
+    test.skip(gate.reason ?? 'postgres gate closed', () => {})
+
+    return
+  }
+
+  afterAll(async () => {
+    await plotSuite.teardown()
+  })
+
+  const bootPlots = async (): Promise<{ pg: PostgresService, resource: PostgresResource<Plot> }> => {
+    const resource = makePostgresResource<Plot, PostgresResource<Plot>>('sync-plots')
+    resource.schema = plots as never
+    const booted = await plotSuite.boot({ resources: [resource] })
+
+    return { pg: booted.pg, resource: booted.context.resource<PostgresResource<Plot>>('sync-plots') }
+  }
+
+  const objectOids = async (pg: PostgresService): Promise<Record<string, number>> => Object.fromEntries(
+    (await pg.query<{ name: string, oid: number }>(
+      `SELECT c.relname AS name, c.oid::int AS oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = $1 AND c.relkind = 'i' AND c.relname LIKE 'sync_plots_%'
+       UNION ALL
+       SELECT k.conname AS name, k.oid::int AS oid FROM pg_constraint k JOIN pg_namespace n ON n.oid = k.connamespace
+        WHERE n.nspname = $1 AND k.contype = 'c' AND k.conname LIKE 'sync_plots_%'`, [plotSuite.schema]
+    )).map(row => [row.name, row.oid])
+  )
+
+  it('plans nothing on a second boot — no index or check is dropped and recreated', async () => {
+    const first = await bootPlots()
+    const before = await objectOids(first.pg)
+    expect(Object.keys(before).sort()).toEqual([
+      'sync_plots_crop', 'sync_plots_garden_season', 'sync_plots_pkey', 'sync_plots_scope', 'sync_plots_season_enum',
+      'sync_plots_wet'
+    ])
+
+    const second = await bootPlots()
+    const { pool } = await second.resource.db()
+    const client = await pool.connect()
+    try {
+      const table = second.resource.table
+      const live = await makePgIntrospectHelper(client).introspectTable(table.schema, table.table, table.qualified)
+      expect(pgDiffHelper.planSync(table, live).statements.map(statement => statement.sql)).toEqual([])
+    } finally {
+      client.release()
+    }
+    expect(await objectOids(second.pg)).toEqual(before)
   })
 })

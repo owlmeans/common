@@ -1,5 +1,6 @@
-
 export * from './cache.js'
 export type * from './types.js'
+export type * from './cache/types.js'
+export type * from './wrapped/types.js'
 export * from './auth.js'
 export * from './wrapped.js'

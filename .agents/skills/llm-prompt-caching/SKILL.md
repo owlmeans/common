@@ -1,6 +1,6 @@
 ---
 name: llm-prompt-caching
-description: How the OwlMeans LLM layer composes a system prompt from a role and skills, and the prompt-cache rules that layout exists to satisfy — block order, breakpoint budget, determinism invariants, and the provider facts behind them. Auto-invoked when touching prompt composition, skills, LlmPromptPlugin, patchSystem/patchCache, or anything that changes what a request sends before its first per-call byte.
+description: How the OwlMeans LLM layer composes a system prompt from a role, skills and a pipeline step's cumulative-results view, and the prompt-cache rules that layout exists to satisfy — block order, breakpoint budget, determinism invariants, and the provider facts behind them. Auto-invoked when touching prompt composition, skills, LlmPromptPlugin, the Results block, patchSystem/patchCache, or anything that changes what a request sends before its first per-call byte.
 user-invocable: false
 ---
 
@@ -15,15 +15,16 @@ invariants are not style — they are the cache.
 
 ## The block layout
 
-`PromptService.compose()` renders four ordered blocks (`PromptBlock`, `PROMPT_BLOCK_ORDER`)
+`PromptService.compose()` renders five ordered blocks (`PromptBlock`, `PROMPT_BLOCK_ORDER`)
 into a single system message:
 
 | # | Block | Contributed by | Changes | Breakpoint |
 |---|-------|----------------|---------|-----------|
 | 0 | `Role` | `rolePlugin` ← `PromptPolicy.role` | per role | — |
 | 1 | `Skills` | `skillsPlugin` ← registry + `inline` | per helper | ✅ closes role+skills |
-| 2 | `Packages` | app plugins (e.g. `owlmeansPackagesPlugin`) | per request | ✅ its own |
-| 3 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
+| 2 | `Packages` | application plugins (`owlmeansPackagesPlugin`) | per request | ✅ its own |
+| 3 | `Results` | `resultsPlugin` ← `PromptComposeParams.results` (`exec.results`) | per pipeline step | only as the closing block |
+| 4 | `Context` | `contextPlugin` ← `context`, `callSkills` | per call | **never** (unless sole block) |
 
 A caller's own leading `SystemMessage` is detached by `makeLlmModel` and re-emitted as
 `Context`, so a helper that has not adopted `prompt: { role, skills }` keeps working —
@@ -32,7 +33,7 @@ its text simply travels a different route.
 ## Rules
 
 - **Order is the cache key.** `PROMPT_BLOCK_ORDER` is declared explicitly, skills sort by
-  `(order, alias)` with a code-unit comparison (`compareAlias`, never `localeCompare` —
+  `(order, alias)` with a code-unit comparison (`promptRenderHelper.compareAlias`, never `localeCompare` —
   ICU data differs between hosts), and detected packages sort alphabetically.
 - **Skill bodies are pure constants.** No timestamps, no absolute paths, no interpolated
   request data. One varying byte invalidates the prefix for every call that shares it.
@@ -43,16 +44,24 @@ its text simply travels a different route.
   into one chunk for the same reason — nothing downstream needs them separable.
 - **Volatile content goes last.** Per-call skills belong in `LlmCallOptions.skills`
   (→ `Context`), not in the execution's `skills` (→ the cached `Skills` block).
+- **`Results` sits below every boundary cached across steps.** A cumulative-results view is
+  stable for every call of ONE pipeline step and different on the next, so it may never sit
+  between role+skills and packages, nor take one of their markers. It is never an interior
+  boundary; `patchSystem`'s closing rule may mark it only when it is the last block (no
+  `Context` after it), which is the breakpoint `Packages` would otherwise have closed with —
+  still within `MAX_SYSTEM_BREAKPOINTS`. With no view the plugin contributes nothing and the
+  composed bytes are exactly what they were before the block existed (golden-tested in
+  `@owlmeans/llm`'s `tests/results.spec.ts`).
 - **Budget: 4 breakpoints per request, total** — across tools, system AND messages.
   Anthropic rejects the fifth outright (`400 A maximum of 4 blocks with cache_control may
   be provided. Found 5.`), and a 400 is fatal, so the whole call fails. The system prompt
   may spend at most `MAX_SYSTEM_BREAKPOINTS` (2) — its only STABLE boundaries are the end
   of role+skills and the end of packages — which always leaves two for the messages.
 - **The last message is never cached.** `patchCache` stops one short of the end: the final
-  message is the per-call payload, and `ensureJsonMention` / `applyNoThink` append to it.
+  message is the per-call payload, and `promptUtils.ensureJsonMention` / `.applyNoThink` append to it.
 - **Markers are placed in-place, on the caller's objects.** A caller that carries its
   message array across calls (a coder's growing conversation, a fix loop) hands them back
-  still marked, and they accumulate. `prepare()` therefore calls `stripCacheMarkers()`
+  still marked, and they accumulate. `prepare()` therefore calls `promptUtils.stripCacheMarkers()`
   first, so the per-request count depends on THIS call alone. Anything that places a
   marker outside that pipeline must do the same.
 - **A short prefix is not marked.** Below `MIN_CACHEABLE_TOKENS` (override per alias with
@@ -65,7 +74,7 @@ its text simply travels a different route.
 > logs for `Prompt cache [` lines and a non-zero `read`.
 
 
-`usage_metadata.input_token_details` is the only honest answer. `readCacheUsage(message)`
+`usage_metadata.input_token_details` is the only honest answer. `cacheHelper.readCacheUsage(message)`
 (`@owlmeans/llm/helpers`) normalizes it; `spectate` logs a line whenever a provider reports
 any cache activity. **If `read` stays 0 across repeated calls that share a prefix, something
 is invalidating it** — diff `PromptResult.blocks` between two calls to find what.
@@ -75,7 +84,7 @@ is invalidating it** — diff `PromptResult.blocks` between two calls to find wh
 ```typescript
 ctx.prompts().use({
   alias: 'my-plugin',
-  order: 50,                         // built-ins hold 0 (role), 10 (skills), 90 (context)
+  order: 50,                         // built-ins hold 0 (role), 10 (skills), 80 (results), 90 (context)
   compose: ctx => ctx.add(PromptBlock.Skills, text),   // static, runs first
   inspect: ctx => { /* reads ctx.messages */ },        // after every compose pass
 })
@@ -85,6 +94,41 @@ A plugin MUST be deterministic. Anything it contributes to a cached block and ca
 reproduce byte-for-byte breaks the prefix for everyone sharing it. Register by alias —
 re-registering the same alias replaces rather than appends, so double-wiring cannot
 double-emit.
+
+### `ctx.claim(key)` — one emitter per thing, per composition
+
+Two plugins can each be ABLE to render the same skill (a static catalogue and a detector
+that notices the request mentions it). `ctx.claim(key)` returns `true` to the first caller
+and `false` to every later one within the same `compose`, so exactly one of them emits.
+
+The claim set is per composition, never per service — a claim that outlived the call would
+silently delete the content from every later prompt sharing the service. It is also free:
+a composition where no plugin claims renders byte-identical output, so adding the seam
+invalidated no prefix.
+
+Claim on a STABLE key (`skill:<alias>`, `pkg:@owlmeans/llm`). A key derived from the
+request makes the winner vary per call, and with it the cached block.
+
+### `ctx.utility()` — a cheap model, for the volatile blocks only
+
+`PromptComposeParams.utility` is a resolver for the cheap tier
+(`ExecutionService.utility` → `ModelPolicy.utilityRole ?? UTILITY_ROLE` at
+`ExecutionEffort.Economy`) that a plugin may spend ONE call on while composing — picking
+which of a hundred candidate skills a request is about. It may yield `undefined`: most
+deployments configure no cheap tier, and a plugin that cannot get one degrades rather
+than fails.
+
+**What it returns must never land in `Role` or `Skills`.** A model's answer is not
+reproducible byte-for-byte, so a selection made this way belongs in `Packages` or
+`Context`, which carry their own breakpoint or none. Wiring: `makeLlmModel`'s `utility`
+option (beside `files`) and `AgentOptions.utility`; unwired, the field is simply absent.
+
+### `ctx.results` — the view of earlier pipeline steps
+
+`PromptComposeParams.results` is the execution's `results` — passed by `makeLlmModel` from its
+options and by `makeAgentModel` from `exec.results`. `resultsPlugin` renders it with
+`renderCumulativeResults` into `Results`; a plugin of your own reads it the same way and must
+not move it into a cached block.
 
 ## Package skills in a prompt (`@owlmeans/agent-skills/llm`)
 
@@ -97,9 +141,15 @@ sandbox or remote workspace) → an installed copy under `node_modules` → the 
 repository over HTTPS. Every failure is a miss, never a throw. Results, including misses,
 are cached per plugin instance.
 
+A cache keyed on the file provider keys on `LlmFileProvider.key` — the provider's stable
+identity (a project root, a sandbox id). Providers are late-bound and often rebuilt per
+request, so object identity says nothing, and one bucket shared across projects serves the
+first project's files to the second. A provider that declares no `key` is uncacheable, not
+one more anonymous member of the shared bucket.
+
 ```typescript
 ctx.prompts().use(owlmeansPackagesPlugin({
-  files: () => ctx.files(),      // tried first
+  files: () => fileProvider,     // the host's own LlmFileProvider, tried first
   exclude: ['@owlmeans/llm'],    // already covered by the static Skills block
   fetch: false,                  // air-gapped: skip the repository fallback
 }))
@@ -131,4 +181,4 @@ role); the `compatible` plugin deliberately does not, because aggregators runnin
 
 - [[llm]] — the runtime and the provider-plugin seam
 - [[llm-common]] — `SkillDefinition`, `PromptPolicy`, `PromptBlock`, `LlmFileProvider`
-- [[agent-skills]] — `@owlmeans/agent-skills/llm`, the package-skills plugin
+- [[agent-skills]] — `@owlmeans/agent-skills/llm` package-skill resolver and parser

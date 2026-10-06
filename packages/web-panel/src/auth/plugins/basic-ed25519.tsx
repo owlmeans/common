@@ -9,7 +9,7 @@ import { AuthenticationStage, DISPATCHER } from '@owlmeans/auth'
 import { Form } from '../../components/form/index.js'
 import { TextInput } from '../../components/form/text/index.js'
 import { useCallback } from 'react'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '../../@/components/ui/progress.js'
 import { BlockScaling } from '@owlmeans/client-panel'
 import { useContext } from '@owlmeans/web-client'
 
@@ -46,8 +46,8 @@ const createSubmit = (context: AppContext, control: AuthenticationControl) => as
     return
   }
 
-  const [url] = await context.module<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
-    .call({ query: token })
+  const url = await context.entrypoint<ClientEntrypoint<string, AuthRequest>>(DISPATCHER)
+    .url({ query: token })
 
   control.setStage?.(control.stage = AuthenticationStage.Authenticated)
   // Give some time - that is really not cenessary - actually we need 

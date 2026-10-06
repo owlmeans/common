@@ -1,0 +1,10 @@
+{
+  "login": {
+    "provider": {
+      "title": "Bei {{product}} anmelden",
+      "top": "Diese App wird von {{operator}} im Auftrag von {{product}} gehostet. Sie melden sich mit {{provider}} an.",
+      "inline": "Die Anmeldung stellt {{provider}} im Auftrag von {{product}} bereit.",
+      "more": "Weitere Informationen"
+    }
+  }
+}

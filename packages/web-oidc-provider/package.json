@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/web-oidc-provider",
-  "version": "0.1.18-rc.13",
+  "version": "0.1.18-rc.60",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -21,19 +21,19 @@
     }
   },
   "dependencies": {
-    "@owlmeans/auth": "^0.1.18-rc.6",
-    "@owlmeans/client-flow": "^0.1.18-rc.10",
-    "@owlmeans/oidc": "^0.1.18-rc.8",
-    "@owlmeans/resource": "^0.1.18-rc.7",
-    "@owlmeans/web-client": "^0.1.18-rc.13",
-    "universal-cookie": "^7.2.1"
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/client-flow": "^0.1.18-rc.55",
+    "@owlmeans/oidc": "^0.1.18-rc.56",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/web-client": "^0.1.18-rc.62",
+    "universal-cookie": "^8.1.2"
   },
   "peerDependencies": {
     "react": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.3.0",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

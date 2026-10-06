@@ -1,24 +1,14 @@
-import { createService } from '@owlmeans/context'
-import type { BasicConfig, BasicContext } from '@owlmeans/context'
-import { PROMPT_BLOCK_ORDER, PromptBlock } from '@owlmeans/llm-common'
-import type { SkillDefinition } from '@owlmeans/llm-common'
+import { createService, type BasicConfig, type BasicContext } from '@owlmeans/context'
+import { PROMPT_BLOCK_ORDER, PromptBlock, type SkillDefinition } from '@owlmeans/llm-common'
 import {
   DEFAULT_CACHE_TTL, MAX_CACHE_BREAKPOINTS, MAX_SYSTEM_BREAKPOINTS, PROMPT_SERVICE,
 } from '../consts.js'
 import type { LlmSystemBlock } from '../plugins/types.js'
 import { BUILT_IN_PROMPT_PLUGINS } from './plugins.js'
-import { CHUNK_SEPARATOR, compareAlias, joinChunks } from './render.js'
-import type {
-  LlmPromptPlugin, PromptContext, PromptResult, PromptService, PromptServiceOptions,
-  WithPromptService,
-} from './types.js'
-
-/** Sort weight of a plugin that declares none — between the built-in skills and context. */
-const DEFAULT_PLUGIN_ORDER = 50
-
-/** The part of {@link PromptService} this package implements — see {@link promptServiceApi}. */
-export type PromptServiceApi =
-  Pick<PromptService, 'use' | 'register' | 'has' | 'resolve' | 'skills' | 'compose'>
+import { promptRenderHelper } from './render.js'
+import { CHUNK_SEPARATOR } from './consts.js'
+import type { LlmPromptPlugin, PromptContext, PromptResult, PromptService, PromptServiceOptions, WithPromptService, PromptServiceApi } from './types.js'
+import { DEFAULT_PLUGIN_ORDER } from './consts.local.js'
 
 /**
  * Build the skill registry and composition chain WITHOUT registering a context service,
@@ -71,7 +61,7 @@ export const promptServiceApi = (
 
     has: alias => registry.has(alias),
 
-    skills: () => [...registry.values()].sort((a, b) => compareAlias(a.alias, b.alias)),
+    skills: () => [...registry.values()].sort((a, b) => promptRenderHelper.compareAlias(a.alias, b.alias)),
 
     /**
      * Depth-first over `requires` so a dependency is emitted before the skill that pulled
@@ -105,6 +95,10 @@ export const promptServiceApi = (
 
     compose: async (input, messages, params): Promise<PromptResult> => {
       const sections = new Map<PromptBlock, string[]>()
+      // Scoped to this composition, never to the service: a claim is about who renders a
+      // thing in ONE prompt, and carrying it across calls would silently drop the content
+      // from every later prompt that shares the service.
+      const claimed = new Set<string>()
       const ctx: PromptContext = {
         ...params,
         input,
@@ -122,6 +116,14 @@ export const promptServiceApi = (
           }
         },
         resolve: aliases => self().resolve(aliases),
+        claim: key => {
+          if (claimed.has(key)) {
+            return false
+          }
+          claimed.add(key)
+
+          return true
+        },
       }
 
       // Two passes, not one: every static contribution must be in place before a plugin
@@ -136,7 +138,7 @@ export const promptServiceApi = (
 
       const blocks: LlmSystemBlock[] = []
       for (const block of PROMPT_BLOCK_ORDER) {
-        const text = joinChunks(sections.get(block) ?? [])
+        const text = promptRenderHelper.joinChunks(sections.get(block) ?? [])
         if (text !== '') {
           blocks.push({ block, text })
         }

@@ -1,16 +1,16 @@
 
-import { assertType } from '@owlmeans/basic-keys/utils'
+import { keyUtils } from '@owlmeans/basic-keys/utils'
 import { KEY_OWL } from '../consts.js'
 import { base64 } from '@scure/base'
 import { plugins } from '../plugins/index.js'
 import { DIDKeyError } from '../errors.js'
 import type { DIDKeyPair } from '../types.js'
 
-export const produceKey = (seed: string | Uint8Array, type: string = KEY_OWL) => {
+export const produceKey = (seed: string | Uint8Array, type: string = KEY_OWL): DIDKeyPair => {
   if (typeof seed === 'string') {
     seed = base64.decode(seed)
   }
-  assertType(type)
+  keyUtils.assertType(type)
 
   if (plugins[type].fromSeed == null) {
     throw new DIDKeyError(`non-derivable:${type}`)

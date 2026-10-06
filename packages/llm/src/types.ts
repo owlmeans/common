@@ -4,8 +4,8 @@ import type { BaseCallbackHandler, CallbackHandlerMethods } from '@langchain/cor
 import type { JSONSchemaType } from 'ajv'
 import type { InitializedService } from '@owlmeans/context'
 import type {
-  FileProviderRef, LlmPurpose, ModelProvider, NullCapture, SpectatorArgument,
-  SpectatorEntryLogged,
+  CumulativeResults, FileProviderRef, LlmPurpose, ModelEffort, ModelProvider, NullCapture,
+  SpectatorArgument, SpectatorEntryLogged,
 } from '@owlmeans/llm-common'
 import type { PromptInput, PromptService } from './prompt/types.js'
 
@@ -20,22 +20,6 @@ export interface RefferedResult<T> {
   spectatorEntry?: SpectatorEntryLogged
   value?: T
   callback?: (arg: T) => Promise<void>
-}
-
-export interface RetryOptions {
-  retries: number
-  outputErrors?: boolean
-  /**
-   * Abort the retry loop for this call. Return the error to throw, or `null` to keep
-   * retrying. Consulted in addition to the globally registered resolvers
-   * (`registerFatalError`) and the provider plugins' `isFatal`.
-   */
-  fatal?: (e: unknown) => Error | null
-}
-
-/** Decides whether an error must abort a retry loop instead of being retried. */
-export interface FatalErrorResolver {
-  (e: unknown): Error | null
 }
 
 export interface LlmLogging {
@@ -63,6 +47,18 @@ export interface LlmModelOptions extends LlmLogging {
   prompts?: () => PromptService
   /** File access offered to prompt plugins that resolve knowledge from disk. */
   files?: FileProviderRef
+  /**
+   * Cheap model offered to prompt plugins for a single side call while composing —
+   * normally `() => executions().utility(exec)`. Omitted, plugins that would use one
+   * fall back to whatever they can decide without a model.
+   */
+  utility?: () => BaseChatModel | undefined
+  /**
+   * What the earlier steps of the pipeline this model works in produced — the execution's own
+   * `results`, which arrives here whenever the helper execution itself is passed as the options.
+   * Composed into `PromptBlock.Results`; ignored, like `prompt`, without a `prompts` resolver.
+   */
+  results?: CumulativeResults
 }
 
 export type ModelMessage = BaseMessage | MessageFieldWithRole
@@ -157,6 +153,19 @@ export interface LlmSpectator {
   log: (arg: SpectatorArgument) => Promise<SpectatorEntryLogged>
   /** Optional sink for full diagnostics of a call that returned nothing usable. */
   captureNull?: (capture: NullCapture) => Promise<void>
+  /**
+   * Optional observer for a call that failed permanently after its retry policy finished.
+   *
+   * Observers are diagnostics only: the model preserves the original failure even when one
+   * cannot receive it. This is deliberately terminal rather than per-attempt so consumers do
+   * not turn one exhausted budget into a notification storm.
+   */
+  error?: (event: LlmSpectatorError) => Promise<void>
+}
+
+export interface LlmSpectatorError {
+  action: string
+  error: unknown
 }
 
 /** Resolves a model of the same role at a different temperature. */
@@ -172,6 +181,14 @@ export interface TemperatureFactory {
 export interface ModelConfig {
   provider?: ModelProvider | string
   secret?: string
+  /**
+   * Which delegate transport answers this model's calls.
+   *
+   * Only meaningful for {@link ModelProvider.Delegated}: the key the application seated a
+   * transport under, so one deployment can hold many at once — one per connected agent — and a
+   * config names the one that belongs to its run.
+   */
+  delegate?: string
   alias: string
   /** Inherit every field of another alias in the same config list. */
   preset?: string
@@ -249,6 +266,14 @@ export interface ModelConfig {
     enabled?: boolean
   }
   /**
+   * The provider's native effort level — OpenAI `reasoning.effort`, Anthropic
+   * `output_config.effort`. The plugin clamps it to the levels the model accepts and drops it
+   * for a model that accepts none. Unset, the provider's own default applies. The retry
+   * escalator raises it one level per attempt within a rung, from this value (or the model's
+   * default) up to the model's ceiling.
+   */
+  effort?: ModelEffort
+  /**
    * Force how `invoke`/`request` obtain structured output, overriding the provider
    * plugin's default: `true` → the provider's NATIVE JSON-schema mode, `false` → the
    * forced-`tool_choice` tool-calling hack. Plugins that support only one mode
@@ -261,11 +286,14 @@ export interface ModelConfig {
    */
   streamTimeout?: number
   /**
-   * Stronger model the retry escalator switches to once the primary has failed
-   * {@link FALLBACK_AFTER_ATTEMPTS} times. Specified inline as a partial config merged
-   * over the base config, so it inherits `secret`, `headers`, etc. The escalation only
-   * happens when the fallback belongs to the SAME plugin family as the primary —
-   * rotating providers mid-call would flip the structured-output format.
+   * Stronger model the retry escalator switches to once the current rung has failed
+   * {@link FALLBACK_AFTER_ATTEMPTS} times. A partial config merged over the rung above it; it
+   * may carry its own `fallback`, which makes a chain of rungs.
+   *
+   * Same provider: it inherits every field it does not name (`secret`, `headers`, …).
+   * Different `provider`: it inherits only the provider-neutral budget fields
+   * (`maxTokens`, `maxTokensCap`, `streamTimeout`, `cacheKey`) and must bring its own
+   * `secret`, `model` and capability — see `resolveFallbacks`.
    */
   fallback?: Partial<ModelConfig>
   /**
@@ -319,3 +347,6 @@ export interface LlmService extends InitializedService {
 export interface WithLlmService {
   llm: () => LlmService
 }
+
+/** The part of {@link LlmService} this package implements — see {@link llmServiceApi}. */
+export interface LlmServiceApi extends Pick<LlmService, 'models' | 'callbacks' | 'addCallbacks' | 'getModel' | 'configs'> {}

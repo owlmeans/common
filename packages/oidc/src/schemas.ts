@@ -1,0 +1,77 @@
+import type { JSONSchemaType } from 'ajv'
+import type {
+  OIDCAuthInitParams, OIDCClientAuthPayload, OidcOrganizationSwitch, OIDCTokenUpdate, ProviderProfileDetails,
+} from './types.js'
+import {
+  AuthTokenSchema, EntitySlugValueSchema, EntityValueSchema, IdValueSchema, ScopeValueSchema, TypeNameSchema,
+} from '@owlmeans/auth'
+
+export const OIDCAuthInitParamsSchema: JSONSchemaType<OIDCAuthInitParams> = {
+  type: 'object',
+  properties: {
+    entity: { ...EntityValueSchema, nullable: true },
+    profile: { ...IdValueSchema, nullable: true },
+    entitySlug: { ...EntitySlugValueSchema, nullable: true },
+  },
+  required: [],
+  additionalProperties: false,
+}
+
+export const OIDCClientAuthPayloadSchema: JSONSchemaType<OIDCClientAuthPayload> = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', minLength: 16, maxLength: 512 },
+    authUrl: { type: 'string', minLength: 0, maxLength: 1024, format: 'uri' },
+  },
+  additionalProperties: {type: 'string', minLength: 0, maxLength: 512},
+  required: ['code', 'authUrl'],
+}
+
+export const OidcOrganizationSwitchSchema: JSONSchemaType<OidcOrganizationSwitch> = {
+  type: 'object',
+  properties: {
+    entitySlug: { ...EntitySlugValueSchema },
+  },
+  required: ['entitySlug'],
+  additionalProperties: false,
+}
+
+export const OIDCTokenUpdateSchema: JSONSchemaType<OIDCTokenUpdate> = {
+  type: 'object',
+  properties: {
+    ...AuthTokenSchema.properties,
+    tokenSet: {
+      type: 'object',
+      properties: {
+        access_token: { type: 'string', nullable: true },
+        token_type: { type: 'string', nullable: true },
+        id_token: { type: 'string', nullable: true },
+        refresh_token: { type: 'string', nullable: true },
+        scope: { type: 'string', nullable: true },
+        expires_at: { type: 'number', nullable: true },
+        session_state: { type: 'string', nullable: true }
+      },
+      required: [],
+      additionalProperties: true,
+    }
+  },
+  required: ['token', 'tokenSet'],
+  additionalProperties: false
+}
+
+export const ProviderProfileDetailsSchema: JSONSchemaType<ProviderProfileDetails> = {
+  type: 'object',
+  properties: {
+    type: { ...TypeNameSchema },
+    service: { ...ScopeValueSchema },
+    clientId: { ...ScopeValueSchema },
+    userId: { ...IdValueSchema },
+    profileId: {...IdValueSchema, nullable: true },
+    username: { type: 'string', minLength: 1, maxLength: 255, nullable: true },
+    entityId: { ...EntityValueSchema, nullable: true },
+    did: { ...IdValueSchema, nullable: true },
+    isOwlMeansId: { type: 'boolean', nullable: true }
+  },
+  required: ['type', 'service', 'clientId', 'userId'],
+  additionalProperties: false
+}

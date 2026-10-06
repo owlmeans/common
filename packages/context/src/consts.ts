@@ -1,12 +1,4 @@
 
-export enum Layer {
-  System = 'system',
-  Global = 'global',
-  Service = 'service',
-  Entity = 'entity',
-  User = 'user'
-}
-
 export enum AppType {
   Backend = 'backend',
   Frontend = 'frontend',
@@ -26,8 +18,7 @@ export enum ContextStage {
 export enum MiddlewareStage {
   Configuration = 'configuration',
   Loading = 'loading',
-  Ready = 'ready',
-  Switching = 'switching'
+  Ready = 'ready'
 }
 
 export const CONFIG_RECORD = 'records'

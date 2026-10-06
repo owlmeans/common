@@ -13,6 +13,14 @@ export const ACCEPTED = 202
 
 export const FINISHED = 204
 
+/**
+ * The response header an `@owlmeans/server-api` boundary puts its incident id in — the key to the
+ * server log entry that owns a failure's full detail.
+ */
+export const INCIDENT_ID_HEADER = 'X-Incident-ID'
+export const DENIAL_KIND_HEADER = 'X-OwlMeans-Denial'
+export const ACCESS_DENIED_KIND = 'access-denied'
+
 export const DEFAULT_ALIAS = 'web-client'
 
 export const protocols = ['http', 'https', 'wss', 'ws']

@@ -18,7 +18,8 @@ service({
   base: 'api',
 }, cfg)
 
-cfg.debug = { all: true }
+// No log level here: this file runs in Bun AND in the browser, so each runtime's own config.ts
+// sets `cfg.log` from its environment (api: LOG_LEVEL / LOG_DEBUG, web: VITE_LOG_LEVEL / VITE_LOG_DEBUG).
 cfg.alias = APP
 // Local dev serves the API over plain HTTP. Without this the web client builds https:// URLs
 // and every call fails. In production put the API behind TLS and remove this line.

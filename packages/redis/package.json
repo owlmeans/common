@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/redis",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.43",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,20 +23,21 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@owlmeans/test-integration": "^0.1.18-rc.6",
-    "@types/bun": "^1.3.14",
-    "@types/node": "^26.1.0",
+    "@owlmeans/test-integration": "^0.1.18-rc.33",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
-    "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/redis-resource": "^0.1.18-rc.7",
-    "@owlmeans/resource": "^0.1.18-rc.7",
-    "@owlmeans/server-context": "^0.1.18-rc.7",
-    "@scure/base": "^2.3.0",
-    "ioredis": "^5.4.1"
+    "@noble/hashes": "^2.4.0",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/redis-resource": "^0.1.18-rc.45",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/server-context": "^0.1.18-rc.43",
+    "@scure/base": "^2.4.0",
+    "ioredis": "^6.0.0"
   },
   "publishConfig": {
     "access": "public"

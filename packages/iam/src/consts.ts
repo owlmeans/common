@@ -1,9 +1,12 @@
+import { EmailSchema, ProfileIdSchema, TitleSchema } from './consts.local.js'
+import type { IamRuntimeAck, IamRuntimeGrantQuery, IamRuntimeMemberInvite, IamRuntimeMemberParams, IamRuntimeOrganizationCreate, IamRuntimeOrganizationParams, IamRuntimeOrganizationUpdate } from './runtime/types.js'
+import type { JSONSchemaType } from 'ajv'
+import { EntitySlugValueSchema } from '@owlmeans/auth'
+
 export const DEFAULT_ALIAS = 'iam-service'
 
 export const IAM_MODE_KEYCLOAK = 'keycloak'
 export const IAM_MODE_INTEGRATED = 'integrated'
-
-export type IamMode = typeof IAM_MODE_KEYCLOAK | typeof IAM_MODE_INTEGRATED
 
 /**
  * Gate-param syntax: `<permission>[@<selector>]`.
@@ -105,7 +108,125 @@ export enum IamRemovalPolicy {
  */
 export const IAM_AREAS = ['user', 'operator', 'admin'] as const
 
-export type IamArea = typeof IAM_AREAS[number]
-
 /** Separates the resource from the action in a permission name. TWO hyphens, never one. */
 export const PERMISSION_ACTION_SEPARATOR = '--'
+
+/**
+ * Who holds a permission without an explicit grant — a property of the DEFINITION, evaluated when
+ * claims are built and never written onto a profile.
+ *
+ * `User` is every signed-in subject of the client (an unbound, unmanaged `user`-area definition
+ * only); `Member` and `Owner` are every member / owner of the organization the subject acts in, so
+ * they require an `entityScoped` definition. A class default is a BLANKET set: `Owner` on a
+ * resource-scoped definition is its all-records form.
+ */
+export enum IamDefaultClass {
+  None = 'none',
+  User = 'user',
+  Member = 'member',
+  Owner = 'owner'
+}
+
+/** Why a subject holds a grant, as a listing reports it. */
+export enum IamGrantOrigin {
+  /** Written on the subject's own row. */
+  Direct = 'direct',
+  /** The definition's `defaultClass` covers the subject. */
+  Default = 'default',
+  /** Held by a group the subject is a member of — `IamGrant.through` names it. */
+  Group = 'group'
+}
+
+/**
+ * The managed group `syncStaff` keeps in a client's owning organization: the owner's own staff,
+ * admitted to the client with the bundles the sync hands it. Read-only to an operator.
+ */
+export const IAM_MEMBERS_GROUP = 'members'
+
+/**
+ * The `profileId` of a credential that proves an e-mail address and identifies nobody yet: what the
+ * end-user sign-in hands the provider's finalizer, which then resolves the account itself. It carries
+ * no `entitySlug` — a proof bound to an organization is something else.
+ */
+export const IAM_EMAIL_PROOF = 'proof:email'
+
+/**
+ * The guard of the runtime IAM API (`makeIamRuntimeProtocols`). The serving process registers it: it
+ * admits a bearer access token the provider itself issued, and takes the client and the account from
+ * that token, never from the request.
+ */
+export const IAM_RUNTIME_GUARD = 'iam-runtime-guard'
+
+/** Where the runtime IAM API mounts under its service unless the declaration names another path. */
+export const IAM_RUNTIME_PATH = '/runtime'
+
+/**
+ * The runtime API's leaf paths under its base. One table so the declarations and a fetch-only client
+ * (a target's server, which binds no entrypoint of the provider's tree) cannot disagree on a segment.
+ */
+export const IAM_RUNTIME_ROUTES = {
+  organizations: '/organizations',
+  organization: '/organizations/:entitySlug',
+  members: '/organizations/:entitySlug/members',
+  member: '/organizations/:entitySlug/members/:profileId',
+  memberRemove: '/organizations/:entitySlug/members/:profileId/remove',
+  permissions: '/organizations/:entitySlug/permissions',
+  grants: '/organizations/:entitySlug/grants',
+  grantsRevoke: '/organizations/:entitySlug/grants/revoke',
+} as const
+
+export const IamRuntimeOrganizationCreateSchema: JSONSchemaType<IamRuntimeOrganizationCreate> = {
+  type: 'object',
+  properties: { title: { ...TitleSchema, nullable: true } },
+  required: [],
+  additionalProperties: false,
+}
+
+export const IamRuntimeOrganizationUpdateSchema: JSONSchemaType<IamRuntimeOrganizationUpdate> = {
+  type: 'object',
+  properties: { title: { ...TitleSchema } },
+  required: ['title'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeOrganizationParamsSchema: JSONSchemaType<IamRuntimeOrganizationParams> = {
+  type: 'object',
+  properties: { entitySlug: { ...EntitySlugValueSchema } },
+  required: ['entitySlug'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeMemberInviteSchema: JSONSchemaType<IamRuntimeMemberInvite> = {
+  type: 'object',
+  properties: {
+    email: { ...EmailSchema },
+    name: { ...TitleSchema, nullable: true },
+    owner: { type: 'boolean', nullable: true },
+  },
+  required: ['email'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeMemberParamsSchema: JSONSchemaType<IamRuntimeMemberParams> = {
+  type: 'object',
+  properties: {
+    entitySlug: { ...EntitySlugValueSchema },
+    profileId: { ...ProfileIdSchema },
+  },
+  required: ['entitySlug', 'profileId'],
+  additionalProperties: false,
+}
+
+export const IamRuntimeGrantQuerySchema: JSONSchemaType<IamRuntimeGrantQuery> = {
+  type: 'object',
+  properties: { profileId: { ...ProfileIdSchema, nullable: true } },
+  required: [],
+  additionalProperties: false,
+}
+
+export const IamRuntimeAckSchema: JSONSchemaType<IamRuntimeAck> = {
+  type: 'object',
+  properties: { ok: { type: 'boolean' } },
+  required: ['ok'],
+  additionalProperties: false,
+}

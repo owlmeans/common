@@ -1,11 +1,12 @@
 {
   "name": "@owlmeans/create-app",
-  "version": "0.1.18-rc.12",
+  "version": "0.1.18-rc.60",
   "license": "MIT",
-  "description": "Scaffold a minimal fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource. Deploys agent skills via @owlmeans/agent-skills by default.",
+  "description": "Scaffold a fullstack OwlMeans Common app — common + api + web workspaces, shadcn UI navigation/layout, no auth, and a session-scoped in-memory resource, or --bare for the demo-free shell. Also usable programmatically via scaffold(). Deploys agent skills via @owlmeans/agent-skills by default.",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
+    "test": "bun test ./tests",
     "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
     "watch": "tsc -b -w --preserveWatchOutput --pretty"
   },
@@ -29,11 +30,11 @@
     "template"
   ],
   "dependencies": {
-    "@owlmeans/agent-skills": "^0.1.18-rc.9"
+    "@owlmeans/agent-skills": "^0.1.18-rc.51"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

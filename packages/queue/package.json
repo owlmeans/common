@@ -1,12 +1,13 @@
 {
   "name": "@owlmeans/queue",
-  "version": "0.1.18-rc.6",
+  "version": "0.1.18-rc.42",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 234 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -22,11 +23,20 @@
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/auth-common": "^0.1.18-rc.48",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/entrypoint": "^0.1.18-rc.41",
+    "@owlmeans/error": "^0.1.18-rc.38",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/route": "^0.1.18-rc.35"
   }
 }

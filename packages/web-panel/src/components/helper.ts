@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BlockScaling } from '@owlmeans/client-panel'
+import { BREAKPOINTS } from './consts.local.js'
 
 /**
  * Map MUI's previous `scalingToStyles(horizontal, vertical, theme): SxProps`
@@ -43,19 +44,6 @@ export const scalingToStyles = (
 
   return parts.join(' ')
 }
-
-/**
- * Tailwind default breakpoints — kept stable across consumers. If a consumer
- * has customised Tailwind breakpoints in their app config, override this
- * via a wrapping hook in the app.
- */
-const BREAKPOINTS: Array<{ name: string, min: number, max: number }> = [
-  { name: 'xs', min: 0,    max: 639  },
-  { name: 'sm', min: 640,  max: 767  },
-  { name: 'md', min: 768,  max: 1023 },
-  { name: 'lg', min: 1024, max: 1279 },
-  { name: 'xl', min: 1280, max: Number.POSITIVE_INFINITY },
-]
 
 const matchBreakpoint = (width: number): string => {
   for (const bp of BREAKPOINTS) {

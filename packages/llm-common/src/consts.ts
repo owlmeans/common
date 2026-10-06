@@ -11,6 +11,20 @@ export enum ModelProvider {
   Anthropic = 'anthropic',
   /** Any OpenAI-compatible endpoint — OpenRouter, HuggingFace router, Together, vLLM, … */
   Compatible = 'compatible',
+  /**
+   * No endpoint at all: the call is handed to whoever holds the execution.
+   *
+   * A delegated model does not talk to a provider. It packages the call — the system prompt, the
+   * conversation, the tools or the schema — and hands it to a transport the application seated,
+   * which carries it to something outside this process entirely: a coding agent driving the
+   * application through a connector, a human, a test. The answer comes back the same way and is
+   * turned into a completion the rest of the stack cannot tell apart from a provider's.
+   *
+   * It exists so that "who performs this call" can be a property of the SESSION rather than of the
+   * code: the same pipeline, the same prompts and the same retry rules, billed to somebody else's
+   * model.
+   */
+  Delegated = 'delegated',
 }
 
 /**
@@ -34,6 +48,28 @@ export enum ExecutionEffort {
   High = 'high',
   Max = 'max',
 }
+
+/**
+ * The PROVIDER's own effort knob — OpenAI `reasoning.effort`, Anthropic
+ * `output_config.effort`. Not {@link ExecutionEffort}: that is this package's tier, which
+ * sizes token budgets; this is a value sent on the wire. Which levels a model accepts is a
+ * provider-plugin fact in `@owlmeans/llm`.
+ */
+export enum ModelEffort {
+  None = 'none',
+  Minimal = 'minimal',
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
+  XHigh = 'xhigh',
+  Max = 'max',
+}
+
+/** {@link ModelEffort} from least to most work — the order an escalation climbs. */
+export const MODEL_EFFORT_ORDER: readonly ModelEffort[] = [
+  ModelEffort.None, ModelEffort.Minimal, ModelEffort.Low, ModelEffort.Medium,
+  ModelEffort.High, ModelEffort.XHigh, ModelEffort.Max,
+]
 
 /**
  * How a model is asked to produce a schema-conforming object.
@@ -73,12 +109,18 @@ export const SPECTATOR_GENERAL = 'general'
  * - `Packages` — capabilities resolved from whatever the request happens to mention.
  *                Varies per request, so it gets its OWN breakpoint and can never
  *                invalidate the two blocks above it.
+ * - `Results`  — what the earlier steps of the pipeline this call runs in produced
+ *                (`ExecutionState.results`). Stable within one step, different on the
+ *                next, so it sits BELOW every boundary that is cached across steps and
+ *                is emitted only when a view is present — a call without one composes
+ *                exactly the bytes it composed before this block existed.
  * - `Context`  — volatile, caller-supplied system text. Never cached.
  */
 export enum PromptBlock {
   Role = 'role',
   Skills = 'skills',
   Packages = 'packages',
+  Results = 'results',
   Context = 'context',
 }
 
@@ -91,8 +133,17 @@ export const PROMPT_BLOCK_ORDER: readonly PromptBlock[] = [
   PromptBlock.Role,
   PromptBlock.Skills,
   PromptBlock.Packages,
+  PromptBlock.Results,
   PromptBlock.Context,
 ] as const
 
 /** Sort weight of a skill that declares none — see `SkillDefinition.order`. */
 export const DEFAULT_SKILL_ORDER = 100
+
+/**
+ * Conventional {@link ModelRole} for the cheap side calls the layer makes on its own
+ * behalf — a relevance pick, a classification, a one-line judgement — rather than for the
+ * work a caller asked for. A deployment that names its cheap tier differently points
+ * `ModelPolicy.utilityRole` at its own alias; nothing else has to change.
+ */
+export const UTILITY_ROLE = 'utility'

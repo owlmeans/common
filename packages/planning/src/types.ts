@@ -1,0 +1,917 @@
+import type { BasicConfig, BasicContext } from '@owlmeans/context'
+import type { Criteria, ListOptions, ListResult, ResourceRecord } from '@owlmeans/resource'
+import type { AnySchema, ValidateFunction } from 'ajv'
+import type {
+  CodeScope, CodeStyle, CommitState, IntrinsicPolicy, IntrinsicStatus, PlanningSchemaKind, SchemaOrigin,
+  SchemaWriteMode, SpecificationFormat, TransitionAction, WorkcardKind,
+} from './consts.js'
+import type { WorkcardModel } from './models/types.js'
+
+// ─── Records ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The super type. Base fields live at the top level; everything a provider's type declares lives in
+ * `fields` and is validated by that type's `fields` JSON schema. Generic code — lists, boards,
+ * gates, the executor — reads only the top level. Timestamps are ISO-8601 UTC strings.
+ */
+export interface Workcard extends ResourceRecord {
+  id?: string
+  kind: WorkcardKind
+  /** A registered type key (`viable:user-story`). */
+  type: string
+  /** Organization entity (tenant) — the stable id, never a slug. */
+  entityId: string
+  code?: string
+  title: string
+  description?: string
+  /** Primary parent id. Absent on a root project. */
+  parent?: string
+  /** EVERY parent — many-to-many membership with no junction row. Always contains `parent`. */
+  parents: string[]
+  /** Status key of the PRIMARY flow. Mirror of `flows[primaryFlow]`. */
+  status: string
+  /** Mirror of the type's intrinsic resolution over `flows`. */
+  intrinsic: IntrinsicStatus
+  /** Status per flow the type declares, INCLUDING the primary one. Authoritative. */
+  flows: Record<string, string>
+  labels: string[]
+  /** A double — a card may sit between two others (`3.5`). */
+  order?: number
+  /** Type-declared fields. Keys may not contain `.` or `$`. */
+  fields: Record<string, unknown>
+  /** Sequence of the last transition FOLDED into this record. */
+  seq: number
+  /** Highest sequence ALLOCATED. `head > seq` means a transition is in flight. */
+  head?: number
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
+  closedAt?: string
+}
+
+export interface Project extends Workcard {
+  kind: WorkcardKind.Project
+}
+
+export interface Card extends Workcard {
+  kind: WorkcardKind.Card
+}
+
+/**
+ * A document attached to a parent card through a slot the PARENT's type declares. One record per
+ * `(parent, category)` unless the slot is `multiple`; a `revisioned` slot increments `revision` in
+ * place and earlier bodies are read back from the transition log.
+ */
+export interface Specification extends Workcard {
+  kind: WorkcardKind.Specification
+  category: string
+  format: SpecificationFormat
+  body?: string
+  ref?: string
+  revision?: number
+  version?: number
+  bodyChars?: number
+}
+
+export type AnyWorkcard = Card | Project | Specification
+
+/** A typed many-to-many edge. Membership is `parent`/`parents`, never a relationship. */
+export interface Relationship extends ResourceRecord {
+  id?: string
+  entityId: string
+  type: string
+  from: string
+  to: string
+  project?: string
+  fields?: Record<string, unknown>
+  createdAt: string
+  /** The transition that created it. */
+  transition?: string
+}
+
+export interface RelationshipDraft {
+  type: string
+  /** Defaults to the card the transition is about. */
+  from?: string
+  to: string
+  fields?: Record<string, unknown>
+}
+
+/** Who wrote a transition. Filled by the server from the authenticated request — never the wire. */
+export interface TransitionActor {
+  profileId?: string
+  userId?: string
+  service?: string
+  agent?: string
+  runId?: string
+  /** Where the write came from (`web`, `connect`, `agent` …) — a provider's own vocabulary. */
+  channel?: string
+}
+
+export interface TransitionCommit {
+  state: CommitState
+  at?: string
+  error?: string
+}
+
+/**
+ * The values a transition writes.
+ *
+ * Every key carries a NEW VALUE, never a delta. `fields` and `flows` merge shallowly into the
+ * card's; every other key replaces. Clearing is `Transition.unset`.
+ */
+export interface WorkcardChanges extends Partial<Omit<Workcard, 'id' | 'kind' | 'type' | 'entityId' | 'seq' | 'head' | 'createdAt'>>, Partial<Pick<Specification, 'category' | 'format' | 'body' | 'ref' | 'revision' | 'version' | 'bodyChars'>> {}
+
+/** The event. Append-only, never edited; folding every transition of a card in `seq` order IS the card. */
+export interface Transition extends ResourceRecord {
+  id?: string
+  entityId: string
+  card: string
+  kind: WorkcardKind
+  type: string
+  /** The project the card belongs to — a project's OWN id on its own rows. */
+  project?: string
+  /** 1 is the create. */
+  seq: number
+  action: TransitionAction
+  flow?: string
+  transition?: string
+  from?: string
+  to?: string
+  changes: WorkcardChanges
+  /** Top-level field names, or `fields.<key>` / `flows.<id>`, to clear. */
+  unset?: string[]
+  link?: RelationshipDraft
+  /** Relationships created together with the card (create only). */
+  links?: RelationshipDraft[]
+  actor: TransitionActor
+  cause?: string
+  /** Idempotency key, unique per entity. */
+  key?: string
+  at: string
+  commit: TransitionCommit
+}
+
+// ─── Type and flow schemas (data, not code) ──────────────────────────────────────────────────────
+
+export interface StatusDefinition {
+  key: string
+  intrinsic: IntrinsicStatus
+  initial?: boolean
+  terminal?: boolean
+  label?: string
+  tone?: string
+}
+
+/**
+ * One named move. A name may repeat with different `from` sets (`start` from `planned` and from
+ * `failed`); `'*'` matches every status and is consulted last.
+ */
+export interface StatusTransitionRule {
+  name: string
+  from: string[] | '*'
+  to: string
+  label?: string
+  /** Offered to a person as an action. */
+  explicit?: boolean
+}
+
+/** Shareable across types; a type may run several. */
+export interface StatusFlowSchema {
+  id: string
+  version: number
+  statuses: StatusDefinition[]
+  transitions: StatusTransitionRule[]
+  label?: string
+  /**
+   * A code-registered flow is sealed against a data-defined override unless it says so. Meaningless
+   * on a data-defined flow: a project may override any organization-wide record.
+   */
+  overridable?: boolean
+}
+
+export interface SpecificationSlot {
+  category: string
+  format: SpecificationFormat
+  required?: boolean
+  /** Several documents of this category under one parent. */
+  multiple?: boolean
+  /** An update increments `revision` in place. */
+  revisioned?: boolean
+  /** The minimum history depth `revisions()` must answer. */
+  keepRevisions?: number
+  /** A JSON slot's body schema. */
+  schema?: AnySchema
+  version?: number
+  label?: string
+  /** The specification type records of this slot use; the sole registered one when omitted. */
+  type?: string
+}
+
+export interface CodePolicy {
+  prefix?: string
+  style: CodeStyle
+  length?: number
+  uppercase?: boolean
+  uniqueWithin: CodeScope
+  mutable?: boolean
+}
+
+export interface RelationshipType {
+  name: string
+  /** Card types allowed at the `from` end. Any when omitted. */
+  from?: string[]
+  /** Card types allowed at the `to` end. Any when omitted. */
+  to?: string[]
+  inverse?: string
+  /** At most one relationship of this type leaves a card. */
+  single?: boolean
+  label?: string
+}
+
+export interface WorkcardTypeSchema {
+  type: string
+  kind: WorkcardKind.Card | WorkcardKind.Specification
+  version: number
+  /** JSON schema of `fields`. */
+  fields: AnySchema
+  /** Flow ids; `[0]` is the primary flow. */
+  flows: string[]
+  intrinsic?: IntrinsicPolicy
+  /** Slots the type's cards carry as children. */
+  specifications: SpecificationSlot[]
+  relationships?: RelationshipType[]
+  /** Allowed labels. Any when omitted. */
+  labels?: string[]
+  code?: CodePolicy
+  label?: string
+  /**
+   * A code-registered card type is sealed against a data-defined override unless it says so.
+   * Meaningless on a data-defined type: a project may override any organization-wide record.
+   */
+  overridable?: boolean
+}
+
+export interface ProjectTypeSchema extends Omit<WorkcardTypeSchema, 'kind'> {
+  kind: WorkcardKind.Project
+  cardTypes: string[]
+  projectTypes?: string[]
+  /**
+   * The project admits cards of data-defined types (organization-wide or its own) beside the
+   * `cardTypes` it lists.
+   */
+  scopedCardTypes?: boolean
+}
+
+export type AnyTypeSchema = WorkcardTypeSchema | ProjectTypeSchema
+
+export interface PlanningSchemaBundle {
+  version: number
+  types: AnyTypeSchema[]
+  flows: StatusFlowSchema[]
+}
+
+export interface PlanningSchemaRegistry {
+  registerType: (schema: AnyTypeSchema) => void
+  registerFlow: (flow: StatusFlowSchema) => void
+  types: () => AnyTypeSchema[]
+  /** @throws {UnknownWorkcardType} */
+  type: (type: string) => AnyTypeSchema
+  has: (type: string) => boolean
+  flows: () => StatusFlowSchema[]
+  /** @throws {UnknownStatusFlow} */
+  flow: (id: string) => StatusFlowSchema
+  /** @throws {UnknownWorkcardType | UnknownStatusFlow} */
+  primaryFlow: (type: string) => StatusFlowSchema
+  /** The compiled, cached validator of a type's `fields`. */
+  validator: (type: string) => ValidateFunction
+  bundle: () => PlanningSchemaBundle
+  /** Replace everything with a bundle — a client's boot. */
+  load: (bundle: PlanningSchemaBundle) => void
+}
+
+// ─── Data-defined (scoped) schemas ───────────────────────────────────────────────────────────────
+
+/** The layer a record belongs to: an organization, and optionally one of its project cards. */
+export interface SchemaScope {
+  entityId: string
+  /** A project card id; the organization-wide layer when omitted. */
+  project?: string
+}
+
+/**
+ * A card type or a status flow defined as data — organization-wide, or scoped to one project.
+ *
+ * `version` is the record's compare-and-set token and is also written into the declaration's own
+ * `version`: a write lands only at its layer's next version (1 for a new key).
+ */
+export interface ScopedSchemaRecord extends ResourceRecord {
+  id?: string
+  entityId: string
+  /** A project card id; absent on an organization-wide record. */
+  project?: string
+  kind: PlanningSchemaKind
+  /** The type key or the flow id. */
+  key: string
+  version: number
+  /** A `WorkcardTypeSchema` of kind `card`, or a `StatusFlowSchema`. */
+  definition: WorkcardTypeSchema | StatusFlowSchema
+  /**
+   * Retired: offered for nothing new, still resolved for what already uses it. A retired record
+   * gives way to a live declaration of the same key in a lower layer.
+   */
+  retired?: boolean
+  /** The organization's schema revision this write landed at — assigned by the store. */
+  rev?: number
+  createdAt: string
+  updatedAt?: string
+  by?: TransitionActor
+}
+
+export interface ScopedSchemaWhere {
+  entityId: string
+  /** A project id — that project's layer; `null` — the organization-wide layer; omitted — every layer. */
+  project?: string | null
+  kind?: PlanningSchemaKind
+  key?: string | string[]
+  retired?: boolean
+}
+
+/**
+ * The optional port a store implements to hold data-defined types and flows. A store without it
+ * resolves every type and flow from the code registry alone.
+ */
+export interface SchemaStore {
+  list: (where: ScopedSchemaWhere) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Write one record — compare-and-set on `version`: the stored record of the same layer and key
+   * must be at `record.version - 1` (absent for version 1). Bumps the organization's revision.
+   *
+   * @throws {SchemaConflict}
+   */
+  put: (record: ScopedSchemaRecord) => Promise<ScopedSchemaRecord>
+  /** Remove a project's whole layer (its project was purged). Bumps the revision. */
+  purge: (where: { entityId: string, project: string }) => Promise<number>
+  /** The organization's monotonic schema revision — 0 before its first write. */
+  revision: (entityId: string) => Promise<number>
+  /** Hear of every write of an organization's records, from this process and — where the store can — others. */
+  watch?: (listener: (entityId: string) => void) => Unsubscribe
+}
+
+export interface SchemaKey {
+  kind: PlanningSchemaKind
+  key: string
+}
+
+/** What a scoped bundle adds, per kind: where each key resolved from, and which keys are retired. */
+export interface ScopedSchemaOrigins {
+  types: Record<string, SchemaOrigin>
+  flows: Record<string, SchemaOrigin>
+}
+
+export interface ScopedSchemaRetired {
+  types: string[]
+  flows: string[]
+}
+
+/**
+ * A bundle resolved for one layer: the code registry, overlaid by the organization's records, then
+ * by the project's. Retired declarations stay in `types`/`flows` (existing cards still resolve them)
+ * and are listed in `retired`. Readers of the plain bundle ignore the extra keys.
+ */
+export interface ScopedSchemaBundle extends PlanningSchemaBundle {
+  scope?: SchemaScope
+  /** The organization's schema revision the bundle was resolved at. */
+  revision?: number
+  origins?: ScopedSchemaOrigins
+  retired?: ScopedSchemaRetired
+}
+
+/** A read-only registry over one resolved layer. Its `register*` and `load` refuse. */
+export interface ScopedSchemaRegistry extends PlanningSchemaRegistry {
+  scope: SchemaScope
+  revision: number
+  /** `undefined` for a key the layer does not resolve. */
+  originOf: (kind: PlanningSchemaKind, key: string) => SchemaOrigin | undefined
+  isRetired: (kind: PlanningSchemaKind, key: string) => boolean
+  bundle: () => ScopedSchemaBundle
+}
+
+/** Declarations written together — flows first, so a type may name a flow defined beside it. */
+export interface SchemaDeclarations {
+  types?: WorkcardTypeSchema[]
+  flows?: StatusFlowSchema[]
+}
+
+export interface SchemaWriteOptions {
+  /** A project card id — that project's layer; the organization-wide layer when omitted. */
+  project?: string
+}
+
+/**
+ * Data-defined types and flows — present on a facade whose store implements
+ * {@link PlanningStore.schemas}. Only card types and flows are data-defined; projects and
+ * specifications always resolve in code.
+ */
+export interface PlanningDefinitions {
+  /** The layer resolved: the organization-wide one, or a project's (which includes it). */
+  bundle: (project?: string) => Promise<ScopedSchemaBundle>
+  registry: (project?: string) => Promise<ScopedSchemaRegistry>
+  /** The records of one layer (`project: null` the organization's; omitted — every layer). */
+  records: (opts?: { project?: string | null, kind?: PlanningSchemaKind, retired?: boolean }) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Compare-and-set: `type.version` must be the layer's next version (1 for a new key).
+   *
+   * @throws {SchemaConflict | SchemaSealed | SchemaInvalid | WorkcardNotFound}
+   */
+  putType: (type: WorkcardTypeSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
+  /** Compare-and-set, as {@link putType}. */
+  putFlow: (flow: StatusFlowSchema, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
+  /** Every declaration at its layer's next version — flows first, then types. */
+  define: (declarations: SchemaDeclarations, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord[]>
+  /** Only the keys the layer lacks, at version 1 — idempotent. */
+  seed: (declarations: SchemaDeclarations, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord[]>
+  /**
+   * Retire a key at a layer. Existing cards keep resolving it; nothing new is created with it.
+   *
+   * @throws {SchemaInUse} a flow still resolved by a live type of an affected layer
+   * @throws {UnknownWorkcardType | UnknownStatusFlow} the layer holds no record of the key
+   */
+  retire: (kind: PlanningSchemaKind, key: string, opts?: SchemaWriteOptions) => Promise<ScopedSchemaRecord>
+}
+
+// ─── Execution and receipts ──────────────────────────────────────────────────────────────────────
+
+export interface WorkcardDraft {
+  kind: WorkcardKind
+  type: string
+  parent?: string
+  parents?: string[]
+  title: string
+  description?: string
+  code?: string
+  labels?: string[]
+  order?: number
+  fields?: Record<string, unknown>
+  /** Initial status of the primary flow; the flow's initial status when omitted. */
+  status?: string
+  createdBy?: string
+  category?: string
+  format?: SpecificationFormat
+  body?: string
+  ref?: string
+  version?: number
+}
+
+export interface TransitionExecution {
+  /** A card id, or the draft of the card a `create` makes. */
+  card: string | WorkcardDraft
+  action: TransitionAction
+  transition?: string
+  flow?: string
+  changes?: WorkcardChanges
+  unset?: string[]
+  link?: RelationshipDraft
+  links?: RelationshipDraft[]
+  /** Ignored on the wire — the server fills it from the request. */
+  actor?: TransitionActor
+  cause?: string
+  key?: string
+  /**
+   * Optimistic concurrency against the card's HEAD. A model fills it from its record unless given
+   * `null`, which opts out.
+   */
+  expectSeq?: number | null
+}
+
+export interface ExecuteOptions {
+  wait?: boolean
+  timeout?: number
+}
+
+export interface ExecuteRequest extends TransitionExecution, ExecuteOptions { }
+
+export interface TransitionReceipt {
+  transition: Transition
+  /** Present when the commit already landed; `null` for a committed delete. */
+  card?: Workcard | null
+  /** @throws {CommitFailed | CommitTimeout} */
+  committed: (opts?: { timeout?: number }) => Promise<Workcard | null>
+}
+
+export interface TransitionReceiptView {
+  transition: Transition
+  card?: Workcard | null
+}
+
+// ─── Commits ─────────────────────────────────────────────────────────────────────────────────────
+
+/** On a cross-process bus it carries ids only; `record` is filled where a subscriber needs it. */
+export interface CommitEvent {
+  transition: string
+  card: string
+  entityId: string
+  project?: string
+  kind: WorkcardKind
+  type: string
+  seq: number
+  action: TransitionAction
+  state: CommitState
+  at: string
+  error?: string
+  record?: Workcard | null
+}
+
+export interface CommitStatus {
+  transition: string
+  state: CommitState
+  at?: string
+  error?: string
+  card?: Workcard | null
+}
+
+export interface CommitFilter {
+  entityId?: string
+  project?: string
+  card?: string
+  kind?: WorkcardKind
+}
+
+export interface Unsubscribe { (): void }
+
+export interface CommitSource {
+  status: (transition: string) => Promise<CommitStatus>
+  subscribe: (listener: (event: CommitEvent) => void | Promise<void>, filter?: CommitFilter) => Unsubscribe | Promise<Unsubscribe>
+  /** @throws {CommitFailed | CommitTimeout} */
+  wait: (transition: string, opts?: { timeout?: number }) => Promise<Workcard | null>
+}
+
+// ─── Ports ───────────────────────────────────────────────────────────────────────────────────────
+
+export interface TransitionWhere {
+  entityId: string
+  card?: string | string[]
+  /** One project, or any of several. */
+  project?: string | string[]
+  sinceSeq?: number
+  state?: CommitState
+  action?: TransitionAction | TransitionAction[]
+}
+
+export interface TransitionStore {
+  append: (transition: Transition) => Promise<Transition>
+  get: (id: string) => Promise<Transition | null>
+  byKey: (entityId: string, key: string) => Promise<Transition | null>
+  list: (where: TransitionWhere, opts?: ListOptions<Transition>) => Promise<ListResult<Transition>>
+  /** Allocates the next seq with a CAS against the head. @throws {WorkcardConflict} */
+  nextSeq: (card: string, expect?: number | null) => Promise<number>
+  head: (card: string) => Promise<number>
+  commit: (id: string, commit: TransitionCommit) => Promise<void>
+  purge: (where: TransitionWhere) => Promise<number>
+}
+
+export interface IntrinsicCounts extends Record<IntrinsicStatus, number> {
+  total: number
+}
+
+/** Counts of DIRECT children per parent. A parent with no children has no key. */
+export interface SummaryView {
+  [parent: string]: IntrinsicCounts
+}
+
+export interface ProjectionStore {
+  get: (id: string, entityId: string) => Promise<Workcard | null>
+  list: (where: Criteria<Workcard>, opts?: ListOptions<Workcard>) => Promise<ListResult<Workcard>>
+  count: (where: Criteria<Workcard>) => Promise<number>
+  summary: (parents: string[], where?: Criteria<Workcard>) => Promise<SummaryView>
+  put: (card: Workcard) => Promise<void>
+  drop: (id: string, entityId: string) => Promise<void>
+  /** Fold what is pending for the card — now or through a durable server projection. */
+  project: (card: string, hint?: { transition?: string }) => Promise<void>
+  /** Remove a project and everything under it. */
+  purge: (project: string, entityId: string) => Promise<number>
+}
+
+export interface SpecificationRevision {
+  revision: number
+  body?: string
+  ref?: string
+  bodyChars?: number
+  version?: number
+  at: string
+  by?: TransitionActor
+  transition: string
+}
+
+export interface SpecificationRevisionList {
+  items: SpecificationRevision[]
+}
+
+export interface SpecificationStore {
+  current: (parent: string, category: string, entityId: string) => Promise<Specification | null>
+  list: (parent: string, entityId: string, query?: SpecificationQuery) => Promise<ListResult<Specification>>
+  revisions: (id: string, entityId: string, limit?: number) => Promise<SpecificationRevision[]>
+}
+
+export interface RelationshipWhere {
+  entityId: string
+  id?: string
+  from?: string | string[]
+  to?: string | string[]
+  type?: string | string[]
+  /** The project an edge is filed under. A store that ignores it is narrowed by the facade. */
+  project?: string | string[]
+}
+
+export interface RelationshipStore {
+  list: (where: RelationshipWhere, opts?: ListOptions<Relationship>) => Promise<ListResult<Relationship>>
+  put: (link: Relationship) => Promise<Relationship>
+  drop: (where: RelationshipWhere) => Promise<number>
+}
+
+export interface PlanningStoreCapabilities {
+  transitions: boolean
+  sync: boolean
+  purge: boolean
+  revisions: boolean
+}
+
+/** Only `cards` is required — which is what keeps a foreign provider possible. */
+export interface PlanningStore {
+  alias?: string
+  capabilities?: PlanningStoreCapabilities
+  /** The id a new card gets. */
+  newId?: () => string
+  transitions?: TransitionStore
+  cards: ProjectionStore
+  specs?: SpecificationStore
+  links?: RelationshipStore
+  commits?: CommitSource
+  /** Data-defined types and flows. Without it every type and flow resolves in code. */
+  schemas?: SchemaStore
+}
+
+// ─── Queries ─────────────────────────────────────────────────────────────────────────────────────
+
+export interface WorkcardQuery extends ListOptions<Workcard> {
+  kind?: WorkcardKind | WorkcardKind[]
+  type?: string | string[]
+  /** Direct children only. */
+  parent?: string
+  /** Membership anywhere — matched against `parents`. */
+  within?: string
+  status?: string | string[]
+  intrinsic?: IntrinsicStatus | IntrinsicStatus[]
+  flow?: { id: string, status: string | string[] }
+  /** Any of. */
+  labels?: string[]
+  code?: string | string[]
+  ids?: string[]
+  /** Equality per key, read as `fields.<key>`. */
+  fields?: Record<string, unknown>
+  /** Title or description contains, or code starts with. */
+  q?: string
+  category?: string | string[]
+  updatedSince?: string
+}
+
+export interface SpecificationQuery extends ListOptions<Specification> {
+  category?: string | string[]
+  /** Every document of the slot, not only the current one. */
+  all?: boolean
+}
+
+export interface RelationshipQuery extends ListOptions<Relationship> {
+  from?: string | string[]
+  to?: string | string[]
+  type?: string | string[]
+}
+
+export interface TransitionQuery extends ListOptions<Transition> {
+  card?: string
+  project?: string
+  sinceSeq?: number
+  action?: TransitionAction | TransitionAction[]
+  state?: CommitState
+}
+
+export interface SummaryQuery {
+  parents: string[]
+  kind?: WorkcardKind
+  type?: string | string[]
+}
+
+/**
+ * The query objects as they travel in a URL.
+ *
+ * A query string carries neither arrays nor nested objects through the OwlMeans transport (axios
+ * writes `key[]=`, fastify reads that key literally), so every value is a scalar: a list is
+ * comma-joined (JSON when an element holds a comma), an object is JSON, a sort is
+ * `field,-field`. `encode*Query` writes this shape, `decode*Query` reads it back and also accepts
+ * the rich form.
+ */
+export interface ListWire {
+  page?: number
+  size?: number
+  sort?: string
+}
+
+export interface WorkcardQueryWire extends ListWire {
+  kind?: string
+  type?: string
+  parent?: string
+  within?: string
+  status?: string
+  intrinsic?: string
+  flow?: string
+  labels?: string
+  code?: string
+  ids?: string
+  fields?: string
+  q?: string
+  category?: string
+  updatedSince?: string
+}
+
+export interface SpecificationQueryWire extends ListWire {
+  category?: string
+  all?: boolean
+}
+
+export interface RelationshipQueryWire extends ListWire {
+  from?: string
+  to?: string
+  type?: string
+}
+
+export interface TransitionQueryWire extends ListWire {
+  card?: string
+  project?: string
+  sinceSeq?: number
+  action?: string
+  state?: string
+}
+
+export interface SummaryQueryWire {
+  parents: string
+  kind?: string
+  type?: string
+}
+
+export interface WorkcardParams {
+  id: string
+}
+
+export interface TransitionParams {
+  transition: string
+}
+
+export interface CommitQuery {
+  /** Seconds to hold the poll; clamped by the server. */
+  wait?: number
+}
+
+export interface CommitFeedQuery {
+  project?: string
+  card?: string
+}
+
+export interface RevisionsQuery {
+  limit?: number
+}
+
+export interface SchemaListQuery {
+  /** A project card id — that project's layer; the organization-wide one when omitted. */
+  project?: string
+}
+
+/** The one write of data-defined types and flows over the wire. */
+export interface SchemaDefineRequest {
+  /** A project card id — that project's layer; the organization-wide one when omitted. */
+  project?: string
+  /** `define` when omitted. */
+  mode?: SchemaWriteMode
+  types?: WorkcardTypeSchema[]
+  flows?: StatusFlowSchema[]
+  /** Keys retired at the layer after the declarations are written. */
+  retire?: SchemaKey[]
+}
+
+/** What a `schema.define` answers: the records it wrote, and the layer as it resolves afterwards. */
+export interface SchemaDefineReply {
+  records: ScopedSchemaRecord[]
+  bundle: ScopedSchemaBundle
+}
+
+// ─── Facade, scope, service, plugin seam ─────────────────────────────────────────────────────────
+
+export interface PlanningScope {
+  entityId: string
+  profileId?: string
+  userId?: string
+  service?: string
+  channel?: string
+  actor?: TransitionActor
+  /**
+   * The only project cards this scope may see and write — the projects themselves and every card
+   * whose `parents` name one (a card's document through its card). Every project when omitted.
+   * Advisory on a client, where the server decides.
+   */
+  projects?: string[]
+}
+
+export interface PlanningFacade {
+  scope: PlanningScope
+  schemas: PlanningSchemaRegistry
+  cards: {
+    /** @throws {WorkcardNotFound} */
+    get: (id: string) => Promise<Workcard>
+    load: (id: string) => Promise<Workcard | null>
+    list: (query?: WorkcardQuery) => Promise<ListResult<Workcard>>
+    count: (query?: WorkcardQuery) => Promise<number>
+    summary: (parents: string[], query?: Omit<SummaryQuery, 'parents'>) => Promise<SummaryView>
+  }
+  specifications: {
+    current: (parent: string, category: string) => Promise<Specification | null>
+    list: (parent: string, query?: SpecificationQuery) => Promise<ListResult<Specification>>
+    /** @throws {WorkcardNotFound} */
+    get: (id: string) => Promise<Specification>
+    revisions: (id: string, limit?: number) => Promise<SpecificationRevision[]>
+  }
+  relationships: {
+    list: (query?: RelationshipQuery) => Promise<ListResult<Relationship>>
+  }
+  transitions: {
+    get: (id: string) => Promise<Transition>
+    list: (query: TransitionQuery) => Promise<ListResult<Transition>>
+  }
+  commits: CommitSource
+  execute: (exec: TransitionExecution, opts?: ExecuteOptions) => Promise<TransitionReceipt>
+  model: <T extends Workcard = Workcard>(card: T | string) => Promise<WorkcardModel<T>>
+  /** Data-defined types and flows — present only where the store holds them. */
+  definitions?: PlanningDefinitions
+}
+
+export interface WithPlanningService {
+  planning: () => PlanningService
+}
+
+export interface PlanningExecContext {
+  context: BasicContext<BasicConfig>
+  scope: PlanningScope
+  schemas: PlanningSchemaRegistry
+  store: PlanningStore
+  /** So a middleware can read (count what is in progress, and so on). */
+  facade: PlanningFacade
+  card?: Workcard
+  parent?: Workcard
+  type?: AnyTypeSchema
+  flow?: StatusFlowSchema
+  plugin: PlanningPlugin
+}
+
+export interface PlanningHookContext {
+  context: BasicContext<BasicConfig>
+  schemas: PlanningSchemaRegistry
+  store: PlanningStore
+  plugin: PlanningPlugin
+  /** A facade scoped to the event's entity, acting as the service itself. */
+  facade: PlanningFacade
+  transition?: Transition
+}
+
+export interface PlanningMiddleware {
+  (exec: TransitionExecution, ctx: PlanningExecContext): Promise<TransitionExecution | void>
+}
+
+export interface PlanningCommitHook {
+  (event: CommitEvent, ctx: PlanningHookContext): Promise<void>
+}
+
+export interface PlanningMappers {
+  toRecord?: (external: unknown, type: string) => Workcard
+  fromRecord?: (card: Workcard) => unknown
+}
+
+export interface PlanningPlugin {
+  name: string
+  /** Ascending; `DEFAULT_PLUGIN_ORDER` (50) when omitted. */
+  order?: number
+  schemas?: { types?: AnyTypeSchema[], flows?: StatusFlowSchema[] }
+  owns?: (type: string) => boolean
+  store?: PlanningStore | ((ctx: BasicContext<BasicConfig>) => PlanningStore)
+  mintCode?: (draft: WorkcardDraft, taken: (code: string) => Promise<boolean>, ctx: PlanningExecContext) => Promise<string | undefined>
+  before?: PlanningMiddleware
+  after?: PlanningCommitHook
+  mappers?: PlanningMappers
+}
+
+export interface PlanningService {
+  use: (plugin: PlanningPlugin) => void
+  plugins: () => PlanningPlugin[]
+  schemas: PlanningSchemaRegistry
+  store: (type?: string) => PlanningStore
+  for: (scope: PlanningScope) => PlanningFacade
+  /** Runs the ordered `after` chain — called by the process that FOLDED the transition. */
+  committed: (event: CommitEvent) => Promise<void>
+}

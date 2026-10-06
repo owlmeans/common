@@ -1,17 +1,27 @@
 ---
 node: versioning
 scope: "**/package.json"
-updated: 2026-08
+updated: 2026-10
 ---
 
 # Versioning
 
 ## Facts
 
-- All packages are synchronized at one version (currently `0.1.16`); internal cross-package
-  deps use the caret range carrying any prerelease suffix (`^0.1.16`, `^0.1.16-rc.0`).
+- Versions are per package and deliberately uneven (`versions`, `publishing` skills); internal
+  cross-package deps use the caret range carrying the prerelease suffix (`^0.1.18-rc.N`).
   `@owlmeans/dep-config` is always `workspace:*` (config-only, no runtime code).
-- Bump ALL packages at once — commands in the `versions` skill.
+- Stale `build/` leftovers on npm: published tarballs carried compiled files of sources deleted
+  earlier (`flow/build/advertise.js`, `postgres/build/health.js`, `agent-skills/build/llm/*`,
+  `web-panel/build/hooks`) because `build/` was not cleaned — a "registry-only" file in a pack diff
+  is dead weight, not newer content.
+- Fingerprint of skill-only drift: a plan run after `sync-agent-meta` reports ~18 packages
+  "content changed" (agent-skills, auth, auth-common …) plus ~82 dependents — expected; the bump
+  already decided the closure, and `--all` ships only it (`publishing` skill).
+- Fingerprint of the clean-build race: `TS2307 Cannot find module '@owlmeans/server-planning/store'`
+  from `planning-postgres` in a filtered build of the bumped set; a second build passes.
+- A caret on a `0.0.x` version is exact (`^0.0.23` does not admit `0.0.24`): bumping `viable-common`
+  means moving every consumer pin (viable, viable-agent, internal) in the same sweep.
 - Version fields and caret ranges must be rewritten in one pass before `bun install`. An install
   run while they disagree (or against a range left at an older version) finds no workspace match,
   fetches the old published tarballs into `packages/*/node_modules/@owlmeans/*`, and those shadow
@@ -26,11 +36,19 @@ updated: 2026-08
   group bumps ignore that pairing. Full diagnosis recipe in the `bun` skill.
 - `bun.lock` is gitignored — dependency-bump merges never conflict on it, and every `bun install`
   silently re-resolves floating ranges.
-- Root `overrides` pins `bson` to `7.2.0`. `bson >= 7.3.0` calls
+- **A lockfile's `workspaces` entries keep the ranges they were first written with.** Bun 1.4 never
+  rewrites a workspace entry's declared range when only the manifest's range moves — `bun install`,
+  `--lockfile-only` and `--frozen-lockfile` all answer "no changes" — so after a release sweep the
+  lock still says `^0.0.19` beside a manifest at `^0.0.22` (hundreds of such lines per repo).
+  Resolution is unaffected (workspace links); the text is simply stale. Aligning it is a text edit
+  of those range strings, validated by `bun install --frozen-lockfile --dry-run`.
+- `bson` carries **no override** — it resolves freely (7.3.x) inside `mongodb`'s `^7.2.0` range,
+  in common, internal, viable and viable-agent alike. It could not before: `bson >= 7.3.0` calls
   `v8.startupSnapshot.isBuildingSnapshot()` in a static initializer, unimplemented in every Bun
-  through 1.3.14, so `import 'mongodb'` throws before any OwlMeans code runs — a **runtime** break
-  under Bun, not just a test one. `mongodb@7.5.0` allows `^7.2.0`, so the pin is in-range. Downstream
-  `viable` is still on `mongodb@6.21.0`/`bson@6.10.4` and unaffected.
+  through 1.3.14, so `import 'mongodb'` threw before any OwlMeans code ran — a **runtime** break,
+  not just a test one. Bun **1.4.0** implements it, which is what made the pin removable. The
+  dependency is now on the Bun floor: drop a runtime below 1.4.0 and the crash returns, with builds
+  and unit suites still green.
 - Dependabot branches are cut from stale bases, so their conflicts are always "stale neighbour"
   lines (old `@owlmeans/*` ranges, old sibling deps) rather than real disagreements. Resolve by
   taking `main` for every line and applying only the one dependency the branch exists to bump.
@@ -41,3 +59,8 @@ updated: 2026-08
 - Native packages moved to the separate `native` monorepo; consumed from there via library links.
 - Downstream repos (`viable`, `viable-agent`, `internal`) symlink `@owlmeans/*` from
   `common/packages/*` (bun hoisted linker) — rebuilding common propagates without publishing.
+
+## Status
+
+- 2026-10: the npm-embedded skills of the packages whose canonical skills changed after the last
+  full release lag the canonical text; each ships its copy with its next code change.

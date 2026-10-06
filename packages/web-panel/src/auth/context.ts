@@ -18,8 +18,6 @@ export const makeContext = <C extends Config, T extends Context<C>>(cfg: C): T =
   appendFlowService<C, T>(context);
   (context as unknown as AppContext<AppConfig>).flow = () => context.service('flow')
 
-  context.makeContext = makeContext as typeof context.makeContext
-
   return context
 }
 

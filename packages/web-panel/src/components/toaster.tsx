@@ -1,10 +1,7 @@
-import type { CSSProperties, FC } from 'react'
-import { useEffect, useState } from 'react'
-import { Toaster as Sonner } from 'sonner'
-import type { ToasterProps } from 'sonner'
-import { cn } from '@/lib/utils'
-
-const DARK_CLASS = 'dark'
+import { type CSSProperties, type FC, useEffect, useState } from 'react'
+import { Toaster as Sonner, type ToasterProps } from 'sonner'
+import { cn } from '../@/lib/utils.js'
+import { DARK_CLASS } from './consts.local.js'
 
 /**
  * Follow whatever puts `.dark` on the document element.

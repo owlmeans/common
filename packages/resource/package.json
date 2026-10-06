@@ -1,12 +1,13 @@
 {
   "name": "@owlmeans/resource",
-  "version": "0.1.18-rc.7",
+  "version": "0.1.18-rc.40",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "sleep 252 && nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
-    "watch": "tsc -b -w --preserveWatchOutput --pretty"
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
   },
   "main": "build/index.js",
   "module": "build/index.js",
@@ -21,16 +22,15 @@
     }
   },
   "dependencies": {
-    "@noble/hashes": "^1.5.0",
-    "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/error": "^0.1.18-rc.6",
-    "@scure/base": "^2.3.0"
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/error": "^0.1.18-rc.38"
   },
   "peerDependencies": {
     "ajv": "*"
   },
   "devDependencies": {
     "@owlmeans/dep-config": "workspace:*",
+    "@types/bun": "^1.4.2",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2"
   },

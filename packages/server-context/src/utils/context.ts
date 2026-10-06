@@ -1,7 +1,7 @@
 
-import { MiddlewareStage, MiddlewareType } from '@owlmeans/context'
-import type { Middleware } from '@owlmeans/context'
+import { MiddlewareStage, MiddlewareType, type Middleware } from '@owlmeans/context'
 import { readConfigValue } from '@owlmeans/server-config'
+import type { Tree } from './types.local.js'
 
 export const fileConfigReader: Middleware = {
   type: MiddlewareType.Config,
@@ -27,6 +27,3 @@ const visitConfigLeafs = (tree: Tree) =>
     }
   }) : tree
 
-type TreeKey = string | number | symbol
-type TreeValue = unknown | Array<unknown> | string
-interface Tree extends Record<TreeKey, TreeValue | Tree> { }

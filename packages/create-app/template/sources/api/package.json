@@ -11,13 +11,14 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@owlmeans/server-app": "^0.1.18-rc.0",
-    "@owlmeans/static-resource": "^0.1.18-rc.0",
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "@owlmeans/server-app": "^0.1.18-rc.53",
+    "@owlmeans/static-resource": "^0.1.18-rc.39",
     "__APP_SLUG__-common": "workspace:^"
   },
   "devDependencies": {
-    "@owlmeans/dep-config": "^0.1.18-rc.0",
-    "@types/node": "^24.10.1",
+    "@owlmeans/dep-config": "^0.1.18-rc.6",
+    "@types/node": "^26.6.4",
     "typescript": "^7.0.2"
   }
 }

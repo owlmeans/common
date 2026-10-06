@@ -1,0 +1,1471 @@
+import { describe, expect, test } from 'bun:test'
+import { AuthenPayloadError } from '@owlmeans/auth'
+import { ApiStatusError } from '@owlmeans/api'
+import { ResilientError } from '@owlmeans/error'
+import { CommitTimeout, IllegalTransition, type PlanningFacade, type WorkcardDraft } from '@owlmeans/planning'
+import { ConnectHarness, ConnectLlm, ConnectTarget, OriginKind, ProjectArea, ProjectStoryNotFound, VIABLE_STORY_TYPE, ViableStoryStatus, ViableStoryTransition, type ConnectProjectBranding, type ConnectProjectBrandingSave, type ViableStoryCard } from '@owlmeans/viable-common'
+import { catalogue, catalogueHelper } from '../src/tools/catalogue.js'
+import { registerCatalogue } from '../src/tools/mcp.js'
+import { statusTextHelper } from '../src/tools/status.js'
+import { GENERATED_SUMMARY, LANDING_MARK, LANDING_NOTE, UNPHRASED_REFUSAL, ToolHostKind } from '../src/tools/consts.js'
+import type { McpServerLike, ToolDeps as ToolHostDeps, ToolHost } from '../src/tools/types.js'
+import { refusalHelper } from '../src/tools/refusal.js'
+import { FORMATTED_AREA, makePlanningSuite, type PlanningSuite } from './context.js'
+
+const host = (patch: Partial<ToolHost> = {}): ToolHost => ({
+  kind: ToolHostKind.Stdio,
+  target: ConnectTarget.Local,
+  llm: ConnectLlm.Cloud,
+  harness: ConnectHarness.ClaudeCode,
+  hasExecutor: true,
+  ...patch,
+})
+
+const names = (h: ToolHost): string[] => catalogueHelper.visibleTools(h).map(tool => tool.name)
+
+describe('viable-sdk — what a parent agent is offered', () => {
+  test('the model-task loop appears wherever a session can hold one, in either llm mode', () => {
+    // Not gated on the llm mode: a conversion's model calls are the parent's by default whatever
+    // the account setting says, so a `cloud` session hidden from these tools would leave a run
+    // blocked on a task it has no way to collect.
+    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const offered = names(host({ llm }))
+      expect(offered).toContain('next_task')
+      expect(offered).toContain('submit_task_result')
+    }
+
+    // And nowhere a host forgets between calls: a task is handed out once and answered minutes
+    // later, which a URL-configured host cannot do in either mode.
+    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const http = names(host({ kind: ToolHostKind.Http, hasExecutor: false, llm }))
+      expect(http).not.toContain('next_task')
+      expect(http).not.toContain('submit_task_result')
+    }
+  })
+
+  test('the local tools appear only where there is a machine to act on', () => {
+    for (const tool of ['run_local', 'stop_local', 'local_status', 'local_setup_guide']) {
+      expect(names(host({ target: ConnectTarget.Local }))).toContain(tool)
+      expect(names(host({ target: ConnectTarget.Cloud }))).not.toContain(tool)
+    }
+  })
+
+  test('the file tools appear only where the platform holds the files', () => {
+    expect(names(host({ target: ConnectTarget.Cloud }))).toContain('list_files')
+    expect(names(host({ target: ConnectTarget.Local }))).not.toContain('list_files')
+  })
+
+  test('the cloud file tool returns the platform source listing', async () => {
+    const tool = catalogue.find(entry => entry.name === 'list_files')!
+    const requested: string[] = []
+    const result = await tool.run({ projectId: 'p1' }, {
+      host: host({ target: ConnectTarget.Cloud }),
+      api: {
+        files: {
+          list: async (projectId: string) => {
+            requested.push(projectId)
+
+            return ['sources/api/src/index.ts', 'sources/web/src/render.tsx']
+          },
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => null,
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(requested).toEqual(['p1'])
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('2 generated file(s)')
+    expect(result.structured).toEqual({
+      projectId: 'p1', total: 2,
+      files: ['sources/api/src/index.ts', 'sources/web/src/render.tsx'],
+    })
+  })
+
+  test('the URL-configured host offers nothing that needs a disk', () => {
+    const http = names(host({
+      kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false,
+    }))
+
+    expect(http).not.toContain('install_harness')
+    expect(http).not.toContain('run_local')
+    // But it is still a complete way to build an application.
+    expect(http).toContain('create_project')
+    expect(http).toContain('develop_story')
+    expect(http).toContain('story_status')
+  })
+
+  test('the core flow is offered in every mode', () => {
+    const modes: ToolHost[] = [
+      host({ target: ConnectTarget.Local, llm: ConnectLlm.Cloud }),
+      host({ target: ConnectTarget.Local, llm: ConnectLlm.Local }),
+      host({ target: ConnectTarget.Cloud, llm: ConnectLlm.Cloud }),
+      host({ target: ConnectTarget.Cloud, llm: ConnectLlm.Local }),
+    ]
+    for (const mode of modes) {
+      const offered = names(mode)
+      for (const tool of [
+        'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
+        'list_stories', 'develop_story', 'story_status', 'resume_pipeline', 'modify_project',
+      ]) {
+        expect(offered).toContain(tool)
+      }
+    }
+  })
+
+  test('every tool has a description a model can act on, and no two share a name', () => {
+    const seen = new Set<string>()
+    for (const tool of catalogue) {
+      expect(seen.has(tool.name)).toBe(false)
+      seen.add(tool.name)
+      // The description is the only thing a parent agent reads before choosing a tool.
+      expect(tool.description.length).toBeGreaterThan(40)
+      expect(tool.title.length).toBeGreaterThan(0)
+    }
+  })
+
+  test('the story tools mirror what the platform\'s own agent can do', () => {
+    const offered = names(host())
+    for (const tool of [
+      'list_stories', 'search_stories', 'create_story', 'update_story', 'delete_story',
+    ]) {
+      expect(offered).toContain(tool)
+    }
+  })
+
+  test('the question loop appears wherever a session can hold one, whoever performs the models', () => {
+    // Not gated on the llm mode: who performs the model calls has nothing to do with who answers a
+    // question, and a platform-billed session must still be askable.
+    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const offered = names(host({ llm }))
+      expect(offered).toContain('next_question')
+      expect(offered).toContain('answer_question')
+    }
+
+    // And nowhere a host forgets between calls: a question is delivered to a connector and
+    // answered minutes later, which a URL-configured host cannot do in either mode.
+    for (const llm of [ConnectLlm.Cloud, ConnectLlm.Local]) {
+      const http = names(host({ kind: ToolHostKind.Http, hasExecutor: false, llm }))
+      expect(http).not.toContain('next_question')
+      expect(http).not.toContain('answer_question')
+    }
+  })
+
+  test('describe_capabilities also says what every generated application carries', async () => {
+    // Read once, before anything is created — by a parent that may never call describe_platform.
+    const tool = catalogue.find(entry => entry.name === 'describe_capabilities')!
+    const deps = {
+      host: host(), log: () => undefined,
+    } as unknown as ToolHostDeps
+
+    for (const args of [{}, { strong: 'big-model' }]) {
+      const result = await tool.run(args, deps)
+      expect(result.text.endsWith(GENERATED_SUMMARY)).toBe(true)
+    }
+    expect(GENERATED_SUMMARY).toContain('/terms and /privacy')
+    expect(GENERATED_SUMMARY).toContain('landing gate')
+  })
+
+  test('the conversion tools are offered on both hosts', () => {
+    // A cloud conversion needs no session: the platform clones the repository into its own slot
+    // and performs the work. It is the PLATFORM that refuses a local project with no connector.
+    for (const kind of [ToolHostKind.Stdio, ToolHostKind.Http]) {
+      const offered = names(host({ kind, hasExecutor: kind === ToolHostKind.Stdio }))
+      for (const tool of [
+        'describe_platform', 'check_convertible', 'convert_project', 'proceed_conversion',
+        'conversion_status', 'purge_origin',
+      ]) {
+        expect(offered).toContain(tool)
+      }
+    }
+  })
+})
+
+describe('the story tools speak planning', () => {
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  /**
+   * A connector whose `planning` is a real planning service, and whose project calls are recorded.
+   *
+   * `order` is the whole sequence of what the tool did — the session it opened, every transition it
+   * executed, every status and lock read — because the order IS the contract: a session filed after the
+   * first write is a session the platform delivers nothing to.
+   */
+  const connectorFor = (suite: PlanningSuite, attachedAt: string | null, opts: {
+    locked?: (check: number) => boolean
+    execute?: PlanningFacade['execute']
+  } = {}) => {
+    const order: string[] = []
+    let attached = attachedAt
+    let checks = 0
+    const planning: PlanningFacade = {
+      ...suite.planning,
+      execute: async (exec, executeOpts) => {
+        order.push(`execute:${exec.action}${exec.transition != null ? `:${exec.transition}` : ''}`)
+
+        return await (opts.execute ?? suite.planning.execute)(exec, executeOpts)
+      },
+    }
+    const deps = {
+      host: host(),
+      api: {
+        planning,
+        project: {
+          status: async (projectId: string) => {
+            order.push(`status:${projectId}`)
+            checks++
+
+            return { agent: { locked: opts.locked?.(checks) ?? false } }
+          },
+        },
+        story: {
+          status: async (projectId: string, storyId: string) => {
+            order.push(`story-status:${projectId}:${storyId}`)
+            const card = await suite.planning.cards.get(storyId) as ViableStoryCard
+
+            return {
+              projectId,
+              story: {
+                id: card.id!, code: card.code!, title: card.title,
+                status: card.status, intrinsic: card.intrinsic,
+                ...(card.fields.warning != null ? { warning: card.fields.warning } : {}),
+              },
+              updatedAt: '2026-09-18T00:00:00.000Z',
+            }
+          },
+        },
+      },
+      session: async () => {
+        // What the platform files the session against is whatever is attached at this moment.
+        order.push(`session:${attached ?? 'none'}`)
+
+        return {} as never
+      },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      log: () => undefined,
+    }
+
+    return {
+      deps: deps as unknown as ToolHostDeps, order, attached: () => attached, checks: () => checks,
+    }
+  }
+
+  test('develop_story attaches the named project, starts the story, then reads its domain status', async () => {
+    // Opening before attaching would file the session against the previously attached project, and
+    // the platform would deliver this story's operations to nobody.
+    const suite = await makePlanningSuite()
+    const previous = await suite.project('Previous', 'previous')
+    const named = await suite.project('Named', 'named')
+    const story = await suite.story(named.id!, 'As a clerk, I record a sale.')
+    const { deps, order, attached } = connectorFor(suite, previous.id!)
+
+    const result = await toolNamed('develop_story').run({ projectId: named.id, storyId: story.code }, deps)
+
+    expect(attached()).toBe(named.id!)
+    expect(order).toEqual([
+      `session:${named.id}`, 'execute:transit:start', `story-status:${named.id}:${story.id}`,
+    ])
+    expect(result.text).toContain(`${story.code} · ${story.title}`)
+    // The move committed before status was read: that commit is what starts the run.
+    expect((await suite.planning.cards.get(story.id!)).status).toBe(ViableStoryStatus.InProgress)
+  })
+
+  test('develop_story answers from story status when the commit is late, and refuses what the flow refuses', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+
+    // Late: the transition is durable, so domain status is the answer rather than a broken tool.
+    const late = connectorFor(suite, project.id!, {
+      execute: async () => { throw new CommitTimeout('transition-1') },
+    })
+    const answered = await toolNamed('develop_story').run({ storyId: story.code }, late.deps)
+    expect(answered.isError).not.toBe(true)
+    expect(late.order.at(-1)).toBe(`story-status:${project.id}:${story.id}`)
+
+    // Refused: a story already in progress cannot be started again, and no status read hides it.
+    const running = await suite.story(project.id!, 'As a clerk, I void a sale.', {
+      moves: [ViableStoryTransition.Start],
+    })
+    const refused = connectorFor(suite, project.id!)
+    await expect(toolNamed('develop_story').run({ storyId: running.code }, refused.deps))
+      .rejects.toBeInstanceOf(IllegalTransition)
+    expect(refused.order.some(entry => entry.startsWith('story-status:'))).toBe(false)
+  })
+
+  test('create_story sends the narrative as written, with no area — the platform decides it', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const { deps, order } = connectorFor(suite, project.id!)
+
+    const result = await toolNamed('create_story').run({ story: 'let clerks refund a sale' }, deps)
+
+    expect(order).toEqual([`session:${project.id}`, 'execute:create'])
+    const sent = suite.received.at(-1)!.card as WorkcardDraft
+    expect(sent).toMatchObject({ type: VIABLE_STORY_TYPE, parent: project.id, title: 'let clerks refund a sale' })
+    expect(sent.fields).toEqual({ primary: false })
+
+    const card = result.structured as ViableStoryCard
+    expect(card.code).toMatch(/^US-/)
+    expect(card.fields.area).toBe(FORMATTED_AREA)
+    expect(result.text).toContain(card.code!)
+  })
+
+  test('update_story carries only the narrative, guarded by the head it read', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const { deps, order } = connectorFor(suite, project.id!)
+
+    await toolNamed('update_story').run({ storyId: story.id, story: 'As a clerk, I record a cash sale.' }, deps)
+
+    expect(order).toEqual([`session:${project.id}`, 'execute:update'])
+    const sent = suite.received.at(-1)!
+    expect(sent.changes).toEqual({ title: 'As a clerk, I record a cash sale.' })
+    expect(sent.expectSeq).toBe(story.head ?? story.seq)
+    const updated = await suite.planning.cards.get(story.id!)
+    expect(updated.title).toBe('As a clerk, I record a cash sale.')
+    expect(updated.status).toBe(ViableStoryStatus.Planned)
+  })
+
+  test('delete_story deletes the card, then waits through the cleanup still holding the lock', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.')
+    const connector = connectorFor(suite, project.id!, { locked: check => check < 3 })
+
+    const result = await toolNamed('delete_story').run({ storyId: story.code }, connector.deps)
+
+    expect(result.isError).not.toBe(true)
+    expect(connector.order.slice(0, 2)).toEqual([`session:${project.id}`, 'execute:delete'])
+    expect(connector.checks()).toBeGreaterThanOrEqual(4)
+    expect(await suite.planning.cards.load(story.id!)).toBeNull()
+  })
+
+  test('list_stories reads the flow order, filters by the area field, and counts the page', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    await suite.story(project.id!, 'Third step', { order: 3 })
+    await suite.story(project.id!, 'First step', { order: 1, fields: { primary: true } })
+    await suite.story(project.id!, 'Admin reviews it', {
+      order: 1.5, fields: { area: ProjectArea.Admin }, moves: [ViableStoryTransition.Start],
+    })
+    const { deps } = connectorFor(suite, project.id!)
+
+    const all = await toolNamed('list_stories').run({}, deps)
+    const lines = all.text.split('\n')
+    expect(lines[0]).toBe('3 of 3 (page 0) — 2 planned, 1 in progress:')
+    expect(lines.filter(line => line.startsWith('      '))).toEqual([
+      '      First step', '      Admin reviews it', '      Third step',
+    ])
+    expect(lines[1]).toMatch(/^ {2}US-\w+ · planned · primary · user$/)
+    expect(lines[3]).toMatch(/^ {2}US-\w+ · in-progress · admin$/)
+
+    const admin = await toolNamed('list_stories').run({ area: ProjectArea.Admin }, deps)
+    expect(admin.text).toContain('1 of 1')
+    expect(admin.text).toContain('Admin reviews it')
+
+    const found = await toolNamed('search_stories').run({ q: 'Third' }, deps)
+    expect(found.text).toContain('1 of 1')
+    expect(found.text).toContain('Third step')
+  })
+
+  test('story_status resolves a code or an id, and never a story of another project', async () => {
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const other = await suite.project('Other', 'other')
+    const story = await suite.story(project.id!, 'As a clerk, I record a sale.', {
+      fields: { warning: 'the boot gate refused it' }, moves: [ViableStoryTransition.Start, ViableStoryTransition.Fail],
+    })
+    const foreign = await suite.story(other.id!, 'As a clerk, I close a till.')
+    const { deps } = connectorFor(suite, project.id!)
+
+    for (const storyId of [story.code, story.id, story.code!.toLowerCase()]) {
+      const result = await toolNamed('story_status').run({ storyId }, deps)
+      expect(result.text).toContain(`${story.code} · ${story.title}`)
+      expect(result.text).toContain('story: failed')
+      expect(result.text).toContain('warning: the boot gate refused it')
+    }
+
+    await expect(toolNamed('story_status').run({ storyId: foreign.id }, deps))
+      .rejects.toBeInstanceOf(ProjectStoryNotFound)
+  })
+
+  test('the landing gate story is marked from its card, in the list and in its status', async () => {
+    // `fields.landing` is on the card the tools already hold, so the mark needs no second call and
+    // no change to the status route — and a parent learns that developing THIS story also changes
+    // the guest home, which the narrative alone never says.
+    const suite = await makePlanningSuite()
+    const project = await suite.project()
+    const gate = await suite.story(project.id!, 'As a cook, I pick what is in my pantry.', {
+      order: 1, fields: { landing: true },
+    })
+    const plain = await suite.story(project.id!, 'As a cook, I save a recipe.', { order: 2 })
+    const { deps } = connectorFor(suite, project.id!)
+
+    const listed = (await toolNamed('list_stories').run({}, deps)).text.split('\n')
+    // A flag beside `primary`, and the area stays last: the line a parent already reads.
+    expect(listed[1]).toMatch(new RegExp(`^ {2}US-\\w+ · planned · ${LANDING_MARK} · user$`))
+    expect(listed[3]).toMatch(/^ {2}US-\w+ · planned · user$/)
+
+    const status = await toolNamed('story_status').run({ storyId: gate.code }, deps)
+    expect(status.text.split('\n')).toContain(LANDING_NOTE)
+    expect(status.structured).toMatchObject({ landing: true })
+
+    const other = await toolNamed('story_status').run({ storyId: plain.code }, deps)
+    expect(other.text).not.toContain(LANDING_MARK)
+    expect(other.structured).not.toHaveProperty('landing')
+  })
+})
+
+describe('a project reads as its card and its brief', () => {
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  test('project_status names the project flow status and carries the design system', async () => {
+    const result = await toolNamed('project_status').run({ projectId: 'p1' }, {
+      host: host(),
+      api: {
+        project: {
+          status: async () => ({
+            project: {
+              id: 'p1', name: 'Ledger', alias: 'ledger', status: 'confirmed', intrinsic: 'in-progress',
+              designSystem: 'Muted greens, one accent.',
+            },
+            agent: { locked: false },
+          }),
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(result.text).toContain('project: confirmed (in-progress)')
+    expect(result.text).toContain('--- design system ---\nMuted greens, one accent.')
+  })
+
+  test('confirm_project forwards a design-system edit with the others', async () => {
+    const confirmed: unknown[] = []
+    await toolNamed('confirm_project').run({ projectId: 'p1', name: 'Ledger', designSystem: 'Dark.' }, {
+      host: host({ kind: ToolHostKind.Http, hasExecutor: false }),
+      api: {
+        project: {
+          confirm: async (projectId: string, edits: unknown) => {
+            confirmed.push([projectId, edits])
+
+            return {
+              project: {
+                id: projectId, name: 'Ledger', alias: 'ledger',
+                status: 'confirmed', intrinsic: 'in-progress',
+              },
+              agent: { locked: true }, local: false, updatedAt: '2026-09-18T00:00:00.000Z',
+            }
+          },
+        },
+      },
+      session: async () => ({}) as never,
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: () => undefined,
+    } as unknown as ToolHostDeps)
+
+    expect(confirmed).toEqual([['p1', { name: 'Ledger', designSystem: 'Dark.' }]])
+  })
+})
+
+describe('the project settings are one record, read and written through the platform', () => {
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  const STORED: ConnectProjectBranding = {
+    copyright: '© 2026 Acme Ltd', organizationName: 'Acme Ltd',
+    termsUrl: '/terms', privacyUrl: 'https://acme.example/privacy', googleTag: '',
+  }
+
+  /**
+   * A connector whose settings calls are recorded in ORDER with the session it opens — the save
+   * ends in a configuration push, which for a local project is an operation this connector answers.
+   */
+  const settingsConnector = (opts: {
+    host?: ToolHost, save?: (patch: ConnectProjectBrandingSave) => Promise<ConnectProjectBranding>
+  } = {}) => {
+    const order: string[] = []
+    const sent: unknown[] = []
+    const logged: string[] = []
+    const deps = {
+      host: opts.host ?? host(),
+      api: {
+        projectBranding: async (projectId: string) => {
+          order.push(`read:${projectId}`)
+
+          return STORED
+        },
+        saveProjectBranding: async (projectId: string, patch: ConnectProjectBrandingSave) => {
+          order.push(`save:${projectId}`)
+          sent.push(patch)
+
+          return await (opts.save ?? (async () => ({ ...STORED, ...patch })))(patch)
+        },
+      },
+      session: async () => {
+        order.push('session')
+
+        return {} as never
+      },
+      currentSession: () => null,
+      attached: () => 'p1',
+      attach: () => undefined,
+      log: (line: string) => { logged.push(line) },
+    } as unknown as ToolHostDeps
+
+    return { deps, order, sent, logged }
+  }
+
+  test('both tools are offered on both hosts', () => {
+    for (const kind of [ToolHostKind.Stdio, ToolHostKind.Http]) {
+      const offered = names(host({ kind, hasExecutor: kind === ToolHostKind.Stdio }))
+      expect(offered).toContain('project_settings')
+      expect(offered).toContain('update_project_settings')
+    }
+  })
+
+  test('project_settings reads the record, and a relative legal link reads as the generated page', async () => {
+    const { deps, order } = settingsConnector()
+
+    const result = await toolNamed('project_settings').run({}, deps)
+
+    expect(order).toEqual(['read:p1'])
+    const lines = result.text.split('\n')
+    expect(lines).toContain('copyright: © 2026 Acme Ltd')
+    expect(lines).toContain('organization: Acme Ltd')
+    // A bare `/terms` reads like an unfinished address; a parent that "fixed" it would point the
+    // legal links away from the pages the platform generated.
+    expect(lines).toContain('terms: /terms — the generated Terms page')
+    expect(lines).toContain('privacy: https://acme.example/privacy')
+    expect(lines).toContain('google tag: none')
+    expect(lines.at(-1)).toBe('next: update_project_settings to change any of them')
+    expect(result.structured).toEqual({ projectId: 'p1', settings: STORED })
+  })
+
+  test('update_project_settings sends only what it was given, after attaching its connector', async () => {
+    const { deps, order, sent } = settingsConnector()
+
+    const result = await toolNamed('update_project_settings').run({
+      googleTag: '  GTM-ABC1234 ', privacyUrl: '/privacy', unrelated: 'x',
+    }, deps)
+
+    // The session first: the save's configuration push is an operation a LOCAL project's connector
+    // answers, and one dispatched before the connector is attached is answered by nobody.
+    expect(order).toEqual(['session', 'save:p1'])
+    // Trimmed, and nothing the call did not name — an omitted field keeps its stored value.
+    expect(sent).toEqual([{ googleTag: 'GTM-ABC1234', privacyUrl: '/privacy' }])
+    expect(result.isError).not.toBe(true)
+    // Named in the order the control panel shows them, whatever order the call used.
+    expect(result.text).toContain('Saved privacyUrl, googleTag.')
+    expect(result.text).toContain('run_local builds the application with it')
+    expect(result.text).toContain('google tag: GTM-ABC1234 · behind the cookie consent (Consent Mode v2)')
+    expect(result.text).toContain('privacy: /privacy — the generated Privacy page')
+  })
+
+  test('an empty Google tag is a removal, and is sent as one', async () => {
+    const { deps, sent } = settingsConnector({
+      host: host({ kind: ToolHostKind.Http, target: ConnectTarget.Cloud, hasExecutor: false }),
+    })
+
+    const result = await toolNamed('update_project_settings').run({ googleTag: '' }, deps)
+
+    expect(sent).toEqual([{ googleTag: '' }])
+    // A cloud project's preview is rebuilt; production waits for the Publish.
+    expect(result.text).toContain('production takes it at the next Publish')
+  })
+
+  test('with nothing to change it says so, and neither attaches nor saves', async () => {
+    const { deps, order } = settingsConnector()
+
+    const result = await toolNamed('update_project_settings').run({ projectId: 'p1' }, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('project_settings shows the current values')
+    expect(order).toEqual([])
+  })
+
+  test('a value the platform refuses comes back as that setting\'s rule, and is logged', async () => {
+    // The refusal the web save raises, as the HTTP client rebuilds it on this side.
+    const refused = ResilientError.ensure(ResilientError.marshal(new AuthenPayloadError('termsUrl')))
+    const { deps, logged } = settingsConnector({ save: async () => { throw refused } })
+
+    const result = await toolNamed('update_project_settings').run({ termsUrl: '//evil.example' }, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('refused the terms setting')
+    expect(result.text).toContain('https://')
+    expect(result.text).toContain('Nothing was changed')
+    expect(result.text).not.toContain('authen:payload:')
+    expect(logged[0]).toContain('authen:payload:termsUrl')
+  })
+
+  test('a refused field that is not a setting still reads as a sentence', () => {
+    const phrase = refusalHelper.refusalPhrase(new AuthenPayloadError('prompt'))
+
+    expect(phrase).toContain('(prompt)')
+    expect(phrase).not.toContain('authen:payload:')
+  })
+})
+
+describe('a conversion tool opens its session before the platform reads anything', () => {
+  const conversion = {
+    projectId: 'p1', stage: 'intake', status: 'running', estimates: [],
+    originState: 'present', assumptions: 0, updatedAt: '2026-09-18T00:00:00.000Z',
+  }
+
+  const depsFor = (opts: {
+    dir?: string
+    attached?: string | null
+    /** Fields laid over the census the check answers with. */
+    check?: Record<string, unknown>
+    /** The conversion this project already has; `null` for one that has none. */
+    conversion?: Record<string, unknown> | null
+  } = {}): {
+    deps: ToolHostDeps
+    order: string[]
+    created: Record<string, unknown>[]
+  } => {
+    const order: string[] = []
+    const created: Record<string, unknown>[] = []
+    let attached = opts.attached === undefined ? 'p1' : opts.attached
+    const record = <T>(label: string, value: T) => async (...args: unknown[]) => {
+      order.push(`${label}:${String(args[0])}`)
+
+      return value
+    }
+    const deps = {
+      host: host(),
+      dir: 'dir' in opts ? opts.dir : '/tmp/some-project',
+      api: {
+        convert: {
+          check: record('check', {
+            projectId: 'p1', verdict: 'ready', reasons: [], shape: 'foreign', monorepo: false,
+            unlinked: [], files: 10, bytes: 1024, bulk: 0, ...(opts.check ?? {}),
+          }),
+          start: record('start', conversion),
+          create: async (body: unknown) => {
+            // Recorded by name rather than by argument: the body is an object, and what the
+            // creation branches have to be pinned on is its CONTENT, not its stringification.
+            order.push('create')
+            created.push(body as Record<string, unknown>)
+
+            return conversion
+          },
+          proceed: record('proceed', conversion),
+          purge: record('purge', conversion),
+          // A project with no conversion answers an ERROR rather than an empty view — which is
+          // what every best-effort read of it has to survive.
+          status: opts.conversion === null
+            ? async (projectId: string) => {
+              order.push(`status:${String(projectId)}`)
+
+              throw new Error('this project has no conversion')
+            }
+            : record('status', {
+              projectId: 'p1', stage: 'intake', status: 'awaiting', estimates: [],
+              originState: 'present', assumptions: 0, updatedAt: '2026-01-01T00:00:00.000Z',
+              ...(opts.conversion ?? {}),
+            }),
+        },
+      },
+      session: async () => {
+        // Filed against whatever is attached at this moment — which is the whole point of the
+        // ordering these tests pin.
+        order.push(`session:${attached ?? 'none'}`)
+
+        return {} as never
+      },
+      currentSession: () => null,
+      attached: () => attached,
+      // Recorded only where it MOVES the connector: `ensureSession` re-attaches the project it is
+      // already on, and a log of no-ops would say nothing about the ordering.
+      attach: (projectId: string) => {
+        if (projectId !== attached) order.push(`attach:${projectId}`)
+        attached = projectId
+      },
+      log: () => undefined,
+    }
+
+    return { deps: deps as unknown as ToolHostDeps, order, created }
+  }
+
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  test('the tree is read through the connector, so the session exists first', async () => {
+    // A local target's files are on this machine: a check dispatched before a session is filed is
+    // answered by nobody, and the platform reports the connector as gone. The conversion is read
+    // AFTER the check: the check is what the tool is for, and the conversion only decides what to
+    // do next with what it said.
+    const { deps, order } = depsFor()
+
+    await toolNamed('check_convertible').run({}, deps)
+
+    expect(order).toEqual(['session:p1', 'check:p1', 'status:p1'])
+  })
+
+  test('a check on a project already converting points at the conversion, not at starting one', async () => {
+    // The one thing a parent does with a check is read its `next:` line. A project whose
+    // conversion is waiting for a decision cannot be started again — the platform refuses a second
+    // Start — so "convert_project to start" sends it to the only tool that cannot help while the
+    // conversion sits at the decision nobody makes.
+    const { deps } = depsFor({ conversion: { stage: 'analysis', status: 'awaiting' } })
+
+    const result = await toolNamed('check_convertible').run({}, deps)
+
+    expect(result.text).toContain('stage analysis · awaiting')
+    expect(result.text).toContain('proceed_conversion')
+    expect(result.text).not.toContain('convert_project to start')
+  })
+
+  test('a parked conversion sends it to the question instead', async () => {
+    const { deps } = depsFor({ conversion: { stage: 'analysis', status: 'waiting' } })
+
+    const result = await toolNamed('check_convertible').run({}, deps)
+
+    expect(result.text).toContain('next: next_question')
+  })
+
+  test('with no conversion — or one that never started — starting it IS the next step', async () => {
+    for (const conversion of [null, { status: 'pending' }, { status: 'cancelled' }] as const) {
+      const { deps } = depsFor({ conversion })
+
+      const result = await toolNamed('check_convertible').run({}, deps)
+
+      expect(result.text).toContain('next: convert_project to start')
+      expect(result.text).not.toContain('already under way')
+    }
+  })
+
+  test('a conversion that has ENDED is not reported as running', async () => {
+    // The lead line is derived from the status, not from the record existing: only `Pending` and
+    // `Cancelled` are read as none, so a finished conversion used to be announced as "already
+    // under way … · done" one line above "next: nothing — this conversion is finished".
+    for (const [status, lead] of [
+      ['done', 'conversion: finished — stage extraction · done'],
+      ['failed', 'conversion: stopped at stage extraction · failed'],
+    ] as const) {
+      const { deps } = depsFor({ conversion: { stage: 'extraction', status } })
+
+      const result = await toolNamed('check_convertible').run({}, deps)
+
+      expect(result.text).toContain(lead)
+      expect(result.text).not.toContain('already under way')
+      // The tail stays wherever the lead goes: one call carries the whole picture.
+      expect(result.text).toContain('(conversion_status carries the whole picture)')
+    }
+  })
+
+  test('a refused origin has no next step, whatever a run says about it', async () => {
+    // The verdict is a fact about the tree; a record only says what the attempt that found it out
+    // did next.
+    const { deps } = depsFor({
+      check: { verdict: 'refused', reasons: ['no-sources'] },
+      conversion: { status: 'failed' },
+    })
+
+    const result = await toolNamed('check_convertible').run({}, deps)
+
+    expect(result.text).toContain('next: nothing — this origin cannot be converted')
+  })
+
+  test('every state-changing conversion call is preceded by it', async () => {
+    for (const [name, args, called] of [
+      ['convert_project', {}, 'start'],
+      ['proceed_conversion', { decision: 'analyze' }, 'proceed'],
+      ['purge_origin', { confirm: true }, 'purge'],
+    ] as const) {
+      const { deps, order } = depsFor()
+      await toolNamed(name).run(args as Record<string, unknown>, deps)
+
+      expect(order).toEqual(['session:p1', `${called}:p1`])
+    }
+  })
+
+  test('a read needs no session, and does not open one', async () => {
+    const { deps, order } = depsFor()
+
+    await toolNamed('conversion_status').run({}, deps)
+
+    expect(order).toEqual(['status:p1'])
+  })
+
+  test('a purge without confirmation deletes nothing and says why', async () => {
+    // Irreversible, and the user has to have agreed to it.
+    const { deps, order } = depsFor()
+
+    const result = await toolNamed('purge_origin').run({}, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('confirm: true')
+    expect(order).toEqual([])
+  })
+
+  test('the directory becomes a LOCAL origin, attached before the session opens', async () => {
+    // The order is the contract: the project is created, the connector moves onto it, and only
+    // then is a session opened — one filed against the previous project would leave the platform
+    // delivering this conversion's file reads to nobody.
+    const { deps, order, created } = depsFor({ attached: null })
+
+    await toolNamed('convert_project').run({ name: 'Ledger' }, deps)
+
+    expect(created).toEqual([{
+      name: 'Ledger', target: ConnectTarget.Local, origin: { kind: OriginKind.Local },
+    }])
+    expect(order).toEqual(['create', 'attach:p1', 'session:p1', 'start:p1'])
+  })
+
+  test('with no directory a repository is cloned by the platform instead', async () => {
+    const { deps, order, created } = depsFor({ attached: null, dir: undefined })
+
+    await toolNamed('convert_project')
+      .run({ repoUrl: 'https://github.com/acme/app', branch: 'next' }, deps)
+
+    expect(created).toEqual([{
+      target: ConnectTarget.Cloud,
+      origin: { kind: OriginKind.Github, repoUrl: 'https://github.com/acme/app', branch: 'next' },
+    }])
+    expect(order).toEqual(['create', 'attach:p1', 'session:p1', 'start:p1'])
+  })
+
+  test('a named repository outranks the directory, rather than being dropped in silence', async () => {
+    // A stdio connector ALWAYS has a directory, so reading that first would convert the caller's
+    // own working copy and say nothing about the repoUrl it discarded.
+    const { deps, created } = depsFor({ attached: null })
+
+    await toolNamed('convert_project').run({ repoUrl: 'https://github.com/acme/app' }, deps)
+
+    expect(created).toEqual([{
+      target: ConnectTarget.Cloud,
+      origin: { kind: OriginKind.Github, repoUrl: 'https://github.com/acme/app' },
+    }])
+  })
+
+  test('with neither an origin nor a project it asks for one instead of guessing', async () => {
+    const { deps, order, created } = depsFor({ attached: null, dir: undefined })
+
+    const result = await toolNamed('convert_project').run({}, deps)
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('repoUrl')
+    expect(created).toEqual([])
+    expect(order).toEqual([])
+  })
+})
+
+describe('a question is carried to a person and its answer routed back', () => {
+  const question = {
+    id: 'q1', projectId: 'p1', kind: 'choice', question: 'One product or two?',
+    options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }],
+    expiresAt: '2026-01-01T00:00:00.000Z',
+  }
+
+  const depsWith = (opts: {
+    next?: unknown
+    held?: Record<string, unknown>
+    parked?: unknown
+    /** A question composed directly into project status. */
+    onProject?: unknown
+    sent: string[]
+  }) => ({
+    host: host(),
+    api: {
+      convert: {
+        status: async () => {
+          if (opts.parked == null) throw new Error('this project has no conversion')
+
+          return { pendingInquiry: opts.parked }
+        },
+      },
+      project: {
+        status: async () => ({ pendingInquiry: opts.onProject ?? null }),
+      },
+      inquiry: {
+        answer: async (projectId: string, inquiryId: string, answer: unknown) => {
+          opts.sent.push(`api:${projectId}:${inquiryId}:${JSON.stringify(answer)}`)
+        },
+      },
+    },
+    session: async () => ({
+      nextQuestion: async () => opts.next ?? null,
+      questionById: (id: string) => (opts.held ?? {})[id] ?? null,
+      outstandingQuestions: () => Object.values(opts.held ?? {}),
+      answerQuestion: async (answer: unknown) => {
+        opts.sent.push(`session:${JSON.stringify(answer)}`)
+      },
+      pendingQuestions: () => 0,
+    }),
+    currentSession: () => null,
+    attached: () => 'p1',
+    attach: () => undefined,
+    log: () => undefined,
+  }) as unknown as ToolHostDeps
+
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  test('a queued question comes back as the envelope', async () => {
+    const sent: string[] = []
+    const result = await toolNamed('next_question')
+      .run({ maxWaitSec: 0 }, depsWith({ next: question, sent }))
+
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('One product or two?')
+    expect(result.structured?.questionId).toBe('q1')
+  })
+
+  test('a run that parked while nobody was attached is still offered', async () => {
+    // Its operation expired with the session that held it, so the connector's own queue knows
+    // nothing about it — and without this the only way back to it is the web application.
+    const sent: string[] = []
+    const result = await toolNamed('next_question')
+      .run({ maxWaitSec: 0 }, depsWith({ parked: question, sent }))
+
+    expect(result.text).toContain('parked on a question')
+    expect(result.text).toContain('One product or two?')
+    expect(result.structured?.questionId).toBe('q1')
+  })
+
+  test('nothing anywhere says so, and points back to domain status', async () => {
+    const sent: string[] = []
+    const result = await toolNamed('next_question').run({ maxWaitSec: 0 }, depsWith({ sent }))
+
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('matching domain status')
+  })
+
+  test('an answer to a question this session holds goes back on its operation', async () => {
+    const sent: string[] = []
+    await toolNamed('answer_question')
+      .run({ questionId: 'q1', answer: 'one' }, depsWith({ held: { q1: question }, sent }))
+
+    expect(sent).toEqual(['session:{"inquiryId":"q1","value":"one"}'])
+  })
+
+  test('an answer to a parked question goes back by its own id', async () => {
+    const sent: string[] = []
+    await toolNamed('answer_question')
+      .run({ questionId: 'q1', declined: true }, depsWith({ parked: question, sent }))
+
+    expect(sent).toEqual(['api:p1:q1:{"inquiryId":"q1","declined":true}'])
+  })
+
+  test('an answer the question cannot accept is refused here, and nothing is sent', async () => {
+    // Refused with the person still in front of the parent; sent on, it would cost a round trip
+    // on a question a human has already answered.
+    const sent: string[] = []
+    const result = await toolNamed('answer_question')
+      .run({ questionId: 'q1', answer: 'three' }, depsWith({ held: { q1: question }, sent }))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('one, two')
+    expect(sent).toEqual([])
+  })
+
+  test('a question composed into project status can still be answered', async () => {
+    const sent: string[] = []
+    await toolNamed('answer_question')
+      .run({ questionId: 'q1', answer: 'two' }, depsWith({ onProject: question, sent }))
+
+    expect(sent).toEqual(['api:p1:q1:{"inquiryId":"q1","value":"two"}'])
+  })
+
+  test('a question nobody is waiting on is refused rather than invented', async () => {
+    const sent: string[] = []
+    const result = await toolNamed('answer_question')
+      .run({ questionId: 'nope', answer: 'one' }, depsWith({ held: { q1: question }, sent }))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('next_question')
+    expect(sent).toEqual([])
+  })
+})
+
+describe('a task handed out can be read again', () => {
+  const task = {
+    id: 't1', projectId: 'p1', role: 'coder', tier: 'strong', effort: 'low', attempt: 1,
+    mode: 'text', messages: [{ role: 'user', content: 'do the thing' }],
+  }
+
+  const depsWith = (opts: {
+    next?: unknown, outstanding?: unknown[], byId?: Record<string, unknown>
+  }) => ({
+    host: host({ llm: ConnectLlm.Local }),
+    api: {},
+    session: async () => ({
+      nextTask: async () => opts.next ?? null,
+      outstandingTasks: () => opts.outstanding ?? [],
+      taskById: (id: string) => (opts.byId ?? {})[id] ?? null,
+      pendingTasks: () => 0,
+    }),
+    currentSession: () => null,
+    attached: () => 'p1',
+    attach: () => undefined,
+    log: () => undefined,
+  }) as unknown as ToolHostDeps
+
+  const nextTask = () => {
+    const tool = catalogue.find(entry => entry.name === 'next_task')
+    if (tool == null) throw new Error('no next_task')
+
+    return tool
+  }
+
+  test('an id re-reads the task instead of taking a new one', async () => {
+    // A parent that lost the envelope — a compacted conversation, a subagent that died before
+    // answering — otherwise has no way back to it, and the run waits for the full 45 minutes.
+    const result = await nextTask().run({ taskId: 't1' }, depsWith({ byId: { t1: task } }))
+
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('do the thing')
+    expect(result.structured?.taskId).toBe('t1')
+  })
+
+  test('an id nobody was given is refused, and says what to call instead', async () => {
+    const result = await nextTask().run({ taskId: 'nope' }, depsWith({}))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('next_task')
+  })
+
+  test('nothing new, but something unanswered, names it rather than re-handing it', async () => {
+    // Re-handing would have a parent whose subagent is still working run the same task twice.
+    const result = await nextTask().run({ maxWaitSec: 0 }, depsWith({ outstanding: [task] }))
+
+    expect(result.isError).not.toBe(true)
+    expect(result.text).toContain('t1')
+    expect(result.text).toContain('submit_task_result')
+    expect(result.text).not.toContain('do the thing')
+  })
+
+  test('nothing at all says so, and points at domain status', async () => {
+    const result = await nextTask().run({ maxWaitSec: 0 }, depsWith({}))
+
+    expect(result.text).toContain('project, story, conversion, or pipeline status')
+  })
+})
+
+
+describe('a refusal reaches the parent as a sentence, never as a marshalled class', () => {
+  /**
+   * What a refusal actually looks like by the time a tool sees it.
+   *
+   * The platform's refusal classes live in packages this one does not depend on, so
+   * `ResilientError.ensure` — which is what the API client rebuilds an error with — finds no
+   * converter for the type name, keeps the WHOLE marshalled string, and hands back an error whose
+   * message is the local stack trace with that string on its first line.
+   */
+  const asThrown = (marker: string, type = 'ConversionErrorViableAgentCommonError'): Error =>
+    ResilientError.ensure(new Error([
+      type, marker, 'Error: refused\n    at handler (agent.ts:1:1)',
+    ].join(ResilientError.separator)))
+
+  const toolNamed = (name: string) => {
+    const tool = catalogue.find(entry => entry.name === name)
+    if (tool == null) throw new Error(`no tool ${name}`)
+
+    return tool
+  }
+
+  const refusing = (e: unknown, logged: string[] = []): ToolHostDeps => ({
+    host: host(),
+    api: {
+      convert: {
+        purge: async () => { throw e },
+        status: async () => { throw e },
+        check: async () => { throw e },
+        proceed: async () => { throw e },
+      },
+      project: { confirm: async () => { throw e } },
+    },
+    session: async () => ({}) as never,
+    currentSession: () => null,
+    attached: () => 'p1',
+    attach: () => undefined,
+    log: (line: string) => { logged.push(line) },
+  }) as unknown as ToolHostDeps
+
+  /** A connector whose calls ANSWER — the stored-cause channels are rendered, not thrown. */
+  const answered = (api: Record<string, unknown>): ToolHostDeps => ({
+    host: host(),
+    api,
+    session: async () => ({}) as never,
+    currentSession: () => null,
+    attached: () => 'p1',
+    attach: () => undefined,
+    log: () => undefined,
+  }) as unknown as ToolHostDeps
+
+  test('a purge refused in place says what it means, not what class it was', async () => {
+    const result = await toolNamed('purge_origin')
+      .run({ confirm: true }, refusing(asThrown('viable-agent-common:conversion:purge-in-place')))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('Nothing to purge')
+    expect(result.text).toContain('in-place repair')
+    // Neither half of the marshalling survives: the type name a model cannot read, and a stack
+    // trace from a machine it has no access to.
+    expect(result.text).not.toContain('ViableAgentCommonError')
+    expect(result.text).not.toContain(ResilientError.separator)
+    expect(result.text).not.toContain('    at ')
+  })
+
+  test('every conversion verb answers its refusal the same way', async () => {
+    for (const [name, args, marker, said] of [
+      ['conversion_status', {}, 'viable-agent-common:conversion:unsupported:no-origin',
+        'generated by the platform'],
+      ['check_convertible', {}, 'viable-agent-common:conversion:stage:intake->check',
+        'not available from where the conversion stands'],
+      ['proceed_conversion', { decision: 'analyze' },
+        'viable-agent-common:out-of-tokens:conversion-budget', 'will not cover'],
+    ] as const) {
+      const result = await toolNamed(name)
+        .run(args as Record<string, unknown>, refusing(asThrown(marker)))
+
+      expect(result.isError).toBe(true)
+      expect(result.text).toContain(said)
+      expect(result.text).not.toContain(ResilientError.separator)
+    }
+  })
+
+  test('a marker nothing has a sentence for keeps the marker and still names a next step', async () => {
+    // The honest answer for a refusal this table has never heard of: it names what happened, and
+    // it is the one thing that keeps working as the platform grows refusals faster than phrasings.
+    // On its own it is still wire text with no tool to call, so the next step is said beside it.
+    const result = await toolNamed('conversion_status')
+      .run({}, refusing(asThrown('viable-agent-common:conversion:something-nobody-phrased-yet')))
+
+    expect(result.text).toContain('viable-agent-common:conversion:something-nobody-phrased-yet')
+    expect(result.text).toContain(UNPHRASED_REFUSAL)
+    expect(result.text).toContain('conversion_status')
+    expect(result.text).not.toContain('    at ')
+  })
+
+  test('a conversion verb answered inside the tool is still written to the connector log', async () => {
+    // `answering` is what takes the five convert verbs OUT of `registerCatalogue`'s catch, which
+    // is the only other place a failure is recorded — so without a line of its own a refused
+    // conversion is the one thing an operator can find nothing about, while every other tool is
+    // still there.
+    const logged: string[] = []
+    const result = await toolNamed('purge_origin').run(
+      { confirm: true },
+      refusing(asThrown('viable-agent-common:conversion:purge-in-place'), logged)
+    )
+
+    expect(result.isError).toBe(true)
+    expect(logged[0]).toContain('purge_origin')
+    expect(logged[0]).toContain('viable-agent-common:conversion:purge-in-place')
+    expect(logged[0]).not.toContain('    at ')
+  })
+
+  test('a refusal STORED on a record is phrased in every channel that renders one', async () => {
+    // The platform writes a failed stage's cause with `describeFailure`, which for a refusal is
+    // the marker verbatim. Rendered raw, `conversion_status` answered a declined relocation with
+    // `viable-agent-common:conversion:relocate-declined` while another status view of the same run
+    // read out the sentence — one refusal, two contradictory readings.
+    const marker = 'viable-agent-common:conversion:relocate-declined'
+
+    const conversion = await toolNamed('conversion_status').run({}, answered({
+      convert: {
+        status: async () => ({
+          projectId: 'p1', stage: 'analysis', status: 'failed', estimates: [],
+          originState: 'present', assumptions: 0, lastError: marker, updatedAt: '',
+        }),
+      },
+    }))
+    expect(conversion.text).toContain('__viable_converted/')
+    expect(conversion.text).not.toContain('viable-agent-common:')
+
+    // `slot.lastError` is the channel a content refusal, a reserved name and a legacy-layout
+    // verdict are stored on; `buildWarning` beside it is diagnostics somebody asked for and is
+    // rendered exactly as it stands, stack-shaped lines included.
+    const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'
+    const project = await toolNamed('project_status').run({}, answered({
+      project: {
+        status: async () => ({
+          project: { id: 'p1', name: 'X', alias: 'x', status: 'confirmed', intrinsic: 'in-progress' },
+          slot: {
+            kind: 'local', status: 'error',
+            lastError: 'viable-agent-common:content-refused:abuse-tooling',
+            buildWarning: warning,
+          },
+          agent: { locked: false },
+        }),
+      },
+    }))
+    expect(project.text).toContain('unsolicited bulk messaging')
+    expect(project.text).not.toContain('content-refused:')
+    expect(project.text).toContain(warning)
+
+    const pipeline = await toolNamed('pipeline_status').run({ runId: 'r1' }, answered({
+      pipeline: {
+        state: async () => ({
+          runId: 'r1', pipeline: 'vib:project:convert:analysis', status: 'failed',
+          step: 'relocate', completed: ['read'], pending: ['relocate'], error: marker,
+        }),
+      },
+    }))
+    expect(pipeline.text).toContain('__viable_converted/')
+    expect(pipeline.text).not.toContain('viable-agent-common:')
+  })
+
+  test('a plain-text failure body never reaches the parent as a stack trace', () => {
+    // `processResponse` in `@owlmeans/api` ensures ANY string response body, and an edge 502/503
+    // answers in plain text. Nothing recognises the class, so `ResilientError.ensure` falls
+    // through to the base converter — which puts the MESSAGE in `type` and the local STACK in
+    // `message`, with no marshalling separator anywhere to give the shape away.
+    const gateway = ResilientError.ensure('502 Bad Gateway: upstream connect error', true)
+
+    expect(gateway.message).toContain('    at ')
+    expect(refusalHelper.refusalPhrase(gateway)).toBe('502 Bad Gateway: upstream connect error')
+    expect(refusalHelper.refusalMessage(gateway)).not.toContain('    at ')
+  })
+
+  test('the detail a refusal carries is kept where it is the actionable part', () => {
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:reserved-name:Shopify'))).toContain('"Shopify"')
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:content-refused:abuse-tooling')))
+      .toContain('unsolicited bulk messaging')
+    expect(refusalHelper.refusalPhrase(asThrown('viable-agent-common:target-integrity:package.json missing')))
+      .toContain('package.json missing')
+  })
+
+  test('an unsigned connector is told what to do, with the link and the code in the sentence', () => {
+    const phrase = refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device ABCD-EFGH'))
+
+    expect(phrase).toContain('https://api.example.com/oauth/device')
+    expect(phrase).toContain('ABCD-EFGH')
+    expect(phrase).toContain('call this tool again')
+    expect(phrase).not.toContain('oauth:')
+    // Before a device sign-in is pending there is no code yet, and the sentence must still read.
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:sign-in-required:https://api.example.com/oauth/device')))
+      .not.toContain('enter the code')
+  })
+
+  test('a refused token is explained, and an environment token is never silently replaced', () => {
+    expect(refusalHelper.refusalPhrase(asThrown('oauth:token-rejected:VIABLE_API_TOKEN'))).toContain('VIABLE_API_TOKEN')
+    expect(refusalHelper.refusalPhrase(asThrown('api:auth:guard:auth-token'))).toContain('call this tool again')
+  })
+
+  test('a stored cause is phrased as readily as a thrown one', () => {
+    // `slot.lastError` and pipeline errors are strings with no class left on them, and the platform
+    // writes them from the same refusal — so one function has to serve both.
+    expect(refusalHelper.refusalPhrase('viable-agent-common:conversion:relocate-declined'))
+      .toContain('__viable_converted/')
+    expect(refusalHelper.refusalPhrase('viable-converter:origin-purged')).toContain('cannot be undone')
+  })
+
+  test('a failed pipeline reports its cause in the same sentence', () => {
+    const rendered = statusTextHelper.renderPipelineStatus({
+      runId: 'r1', pipeline: 'vib:project:convert:implementation', status: 'failed',
+      completed: [], pending: [], error: 'viable-converter:taxonomy-missing',
+    })
+
+    expect(rendered).toContain('ANALYSIS stage records')
+    expect(rendered).not.toContain('viable-converter:')
+  })
+
+  test('anything else a tool throws reaches the parent phrased, through the MCP boundary', async () => {
+    // The wrapper inside the conversion verbs is not the only path: every other tool throws, and
+    // what a host hands the model is whatever `registerCatalogue` catches.
+    const handlers: Record<string, (args: Record<string, unknown>) => Promise<{
+      content: Array<{ type: 'text', text: string }>, isError?: boolean
+    }>> = {}
+    const server: McpServerLike = {
+      registerTool: (name, _config, cb) => { handlers[name] = cb },
+    }
+    const logged: string[] = []
+    const deps = {
+      ...refusing(asThrown('viable-agent-common:reserved-name:Shopify', 'ReservedNameErrorViableAgentCommonError')),
+      log: (line: string) => { logged.push(line) },
+    } as unknown as ToolHostDeps
+
+    registerCatalogue(server, deps)
+    const result = await handlers.confirm_project!({ name: 'Shopify Dashboard' })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]!.text).toContain('"Shopify"')
+    expect(result.content[0]!.text).not.toContain(ResilientError.separator)
+    // The LOG keeps the marker: it is what a person greps for, and the stack is from a machine
+    // they cannot reach.
+    expect(logged[0]).toContain('viable-agent-common:reserved-name:Shopify')
+    expect(logged[0]).not.toContain('    at ')
+  })
+
+  test('a failure that is not a refusal is passed through exactly as it is', () => {
+    expect(refusalHelper.refusalPhrase(new Error('pipeline_status took longer than 45000ms')))
+      .toBe('pipeline_status took longer than 45000ms')
+    expect(refusalHelper.refusalMessage(new Error('nothing marshalled here'))).toBe('nothing marshalled here')
+
+    // A status error can be the build warning a slot recorded, and build diagnostics are
+    // full of lines that look like stack frames. A stack only ever arrives inside the
+    // marshalling, so nothing outside it is cut.
+    const warning = 'the build failed\n    at bundle (rollup.js:1:1)\n  src/x.ts: no such export'
+    expect(refusalHelper.refusalPhrase(warning)).toBe(warning)
+  })
+
+  test('a consent refusal is phrased from its marker, its production status, or inside a planning commit', () => {
+    const url = 'https://vib-stage.owlmeans.org/account/billing?consent=1'
+    const stored = `viable-connect:consent-required:story:${Date.parse('2026-10-09T00:00:00Z')}:${encodeURIComponent(url)}`
+
+    const fromMarker = refusalHelper.refusalPhrase(stored)
+    expect(fromMarker).toContain(url)
+    expect(fromMarker).toContain('2026-10-08')
+    expect(fromMarker).toContain('Do not retry this call automatically')
+    expect(fromMarker).not.toContain('consent-required')
+
+    // A production body is only an incident id: the status is all that is left of the refusal.
+    const production = refusalHelper.refusalPhrase(new ApiStatusError(428, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+    expect(production).toContain('Billing in the OwlMeans web application')
+    expect(production).not.toContain('api:client:status')
+
+    // The web refusal, when a story start failed on it at commit time.
+    const committed = refusalHelper.refusalPhrase(asThrown(
+      'planning:commit-failed:t1:payment:consumer-rights:performance-consent-required:1',
+      'PlanningErrorCommitFailed',
+    ))
+    expect(committed).toContain('expressly asked')
+    expect(committed).not.toContain('commit-failed')
+  })
+
+  test('a balance refusal that reached production as a bare 402 still reads as the balance', () => {
+    const phrase = refusalHelper.refusalPhrase(new ApiStatusError(402, '0b6f8a3e-8f0e-4b9f-9c55-2f1f0f6f2a11'))
+
+    expect(phrase).toContain('balance')
+    expect(phrase).toContain('top up')
+    expect(phrase).not.toContain('api:client:status')
+  })
+
+  test('no marker in the table shadows a more specific one below it', () => {
+    // The first marker the message contains wins, so a family marker placed above one of its own
+    // reasons would answer for all of them — `conversion:unsupported:` over `…:not-linked`, say.
+    refusalHelper.refusals.forEach((entry, index) => {
+      for (const later of refusalHelper.refusals.slice(index + 1)) {
+        expect([later.marker, later.marker.includes(entry.marker)]).toEqual([later.marker, false])
+      }
+    })
+  })
+
+  test('every phrase reads as a sentence with nothing after the marker', () => {
+    for (const entry of refusalHelper.refusals) {
+      const phrase = entry.phrase('')
+      expect([entry.marker, phrase.length > 40]).toEqual([entry.marker, true])
+      expect([entry.marker, phrase.trim().endsWith('.')]).toEqual([entry.marker, true])
+      // A phrase that repeated its own marker would put the wire text back in front of the reader.
+      expect([entry.marker, phrase.includes(entry.marker)]).toEqual([entry.marker, false])
+    }
+  })
+})
+
+describe('viable-sdk — planning kits', () => {
+  const kit = {
+    id: 'project', kind: 'project', title: 'Project tracking', purpose: 'Tasks and bugs moving to done',
+    container: { key: 'workspace', label: 'Project' },
+    types: [{ key: 'task', label: 'Task', flow: 'task' }, { key: 'bug', label: 'Bug', flow: 'bug' }],
+    flows: [
+      { key: 'task', label: 'Task flow', statuses: [{ key: 'open', label: 'Open', intrinsic: 'planned' }, { key: 'done', label: 'Done', intrinsic: 'closed' }] },
+      { key: 'bug', label: 'Bug flow', statuses: [{ key: 'reported', label: 'Reported', intrinsic: 'planned' }] },
+    ],
+  }
+  const kitDeps = (order: string[], h: ToolHost = host({ target: ConnectTarget.Cloud })) => {
+    let attached: string | null = 'p0'
+    return {
+      host: h,
+      api: {
+        project: {
+          kitDescribe: async (projectId: string) => { order.push(`describe:${projectId}`); return { kits: [kit] } },
+          kitApply: async (projectId: string, body: { kit: string, types?: string[] }) => {
+            order.push(`apply:${projectId}:${body.kit}:${body.types?.join('+') ?? '*'}`)
+            return { applied: body.types ?? ['task', 'bug'], skipped: body.types != null ? ['bug'] : [], warnings: ['renamed nothing'] }
+          },
+        },
+      },
+      session: async () => { order.push(`session:${attached}`); return {} as never },
+      currentSession: () => null,
+      attached: () => attached,
+      attach: (projectId: string) => { attached = projectId },
+      log: () => undefined,
+    } as unknown as ToolHostDeps
+  }
+
+  test('both tools are offered on every host, and named by the platform catalogue', () => {
+    for (const h of [host(), host({ target: ConnectTarget.Cloud }), host({ kind: ToolHostKind.Http, hasExecutor: false })]) {
+      expect(names(h)).toContain('describe_planning_kits')
+      expect(names(h)).toContain('apply_planning_kit')
+    }
+  })
+
+  test('describe_planning_kits lists each kit, its types and flows, without opening a session', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'describe_planning_kits')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(order).toEqual(['describe:p1'])
+    expect(result.text).toContain('project · Project tracking (project)')
+    expect(result.text).toContain('container: Project (workspace)')
+    expect(result.text).toContain('type bug · Bug — flow Bug flow')
+    expect(result.text).toContain('Open [planned] → Done [closed]')
+    expect(result.text).toContain('apply_planning_kit')
+    expect((result.structured as { kits: unknown[] }).kits).toEqual([kit])
+  })
+
+  test('apply_planning_kit attaches the named project first, then applies the kit with the kept types', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1', kit: 'project', types: ['task'] }, kitDeps(order))
+
+    expect(order).toEqual(['session:p1', 'apply:p1:project:task'])
+    expect(result.isError).toBeUndefined()
+    expect(result.text).toContain('written: task')
+    expect(result.text).toContain('left out: bug')
+    expect(result.text).toContain('warning: renamed nothing')
+
+    const every: string[] = []
+    await tool.run({ kit: 'project' }, kitDeps(every))
+    expect(every).toEqual(['session:p0', 'apply:p0:project:*'])
+  })
+
+  test('apply_planning_kit without a kit is refused before the platform is asked', async () => {
+    const order: string[] = []
+    const tool = catalogue.find(entry => entry.name === 'apply_planning_kit')!
+    const result = await tool.run({ projectId: 'p1' }, kitDeps(order))
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('describe_planning_kits')
+    expect(order).toEqual([])
+  })
+})

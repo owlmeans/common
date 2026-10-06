@@ -1,7 +1,6 @@
 import type { AllowanceRequest, Auth, AuthCredentials, RelyToken } from '@owlmeans/auth'
 import { AUTH_SCOPE, AuthenticationStage, AuthenticationType, AuthPluginError, AuthRole, RELY_3RD } from '@owlmeans/auth'
 import type { AuthenticateMethod, Connection, EventMessage, Message } from '@owlmeans/socket'
-import { isEventMessage, isMessage } from '@owlmeans/socket'
 import type { AppContext, RelyAllowanceRequest, RelyLinker, RelyCarrier } from '../types.js'
 import { makeAuthModel } from '../model.js'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
@@ -9,6 +8,8 @@ import { trusted } from '../utils/trusted.js'
 import { RELY_TUNNEL } from '../consts.js'
 import type { RedisResource } from '@owlmeans/redis-resource'
 import { RELY_ACTION_TIMEOUT } from '@owlmeans/auth-common'
+import { logger } from '@owlmeans/log'
+import { socketMessageHelper } from '@owlmeans/socket'
 
 // 1. There is a difference between privileged (provider)
 //    and non-privileged (consumer) request 
@@ -20,6 +21,8 @@ import { RELY_ACTION_TIMEOUT } from '@owlmeans/auth-common'
 //    process can be started from scratch following same stages
 //    and using the same plugins but via socket
 
+const log = logger('server-auth:rely')
+
 export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Auth | null): AuthenticateMethod => {
   const auhtenticate = conn.authenticate
 
@@ -29,29 +32,29 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
   const linker: RelyLinker = async (rely, source, notify) => {
     const tunnel = context.resource<RedisResource<Message<any>>>(RELY_TUNNEL)
     const closeReceiver = await tunnel.subscribe(async message => {
-      if (isMessage(message, true)) {
+      if (socketMessageHelper.isMessage(message, true)) {
         await conn.send(message)
-      } else if (isEventMessage(message, true)) {
+      } else if (socketMessageHelper.isEventMessage(message, true)) {
         if ((message as EventMessage<unknown>).event === 'close') {
           await conn.close()
           closeSender()
           await closeReceiver()
         }
       }
-    }, source.nonce)
+    }, { channel: source.nonce })
     // We allow to just forward call messages back and forth
-    conn._receiveCall = async msg => { console.info(source.nonce, 'Forward call', msg.method, msg.id) }
-    conn._receiveResult = async msg => { console.info(source.nonce, 'Forward result', msg.id) }
-    conn._receiveError = async msg => { console.info(source.nonce, 'Forward error', msg.id) }
+    conn._receiveCall = async msg => { log.debug('Forward call', { nonce: source.nonce, method: msg.method, id: msg.id }) }
+    conn._receiveResult = async msg => { log.debug('Forward result', { nonce: source.nonce, id: msg.id }) }
+    conn._receiveError = async msg => { log.debug('Forward error', { nonce: source.nonce, id: msg.id }) }
     conn.defaultCallTimeout = RELY_ACTION_TIMEOUT * 1000
     const closeSender = conn.listen(async message => {
-      if (isMessage(message, true)) {
+      if (socketMessageHelper.isMessage(message, true)) {
         const forward = { ...message }
         if (forward.rawData != null) {
           delete forward.rawData
         }
         await tunnel.publish(forward, rely.nonce)
-      } else if (isEventMessage(message, true)) {
+      } else if (socketMessageHelper.isEventMessage(message, true)) {
         if (message.event === 'close') {
           const forward = { ...message as Message<unknown> }
           if (forward.rawData != null) {
@@ -94,7 +97,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
         try {
           return [stage, await model.init(_payload as AllowanceRequest) as any]
         } catch (e) {
-          console.error(e)
+          log.warn('Rely init failed; connection closed', e)
           await conn.close()
         }
         break
@@ -118,7 +121,7 @@ export const createRelyFlow = (context: AppContext, conn: Connection, auth?: Aut
 
           return [AuthenticationStage.Authenticated, internalAuth as any]
         } catch (e) {
-          console.error(e)
+          log.warn('Rely authentication failed; connection closed', e)
           await conn.close()
         }
         break

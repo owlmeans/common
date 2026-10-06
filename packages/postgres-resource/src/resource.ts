@@ -1,62 +1,43 @@
 import { appendContextual, assertContext } from '@owlmeans/context'
-import type { BasicContext, Contextual } from '@owlmeans/context'
-import {
-  MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError,
-  UnsupportedArgumentError, prepareListOptions
-} from '@owlmeans/resource'
-import type {
-  ListPager, MigrationStage, ResourceMaker, ResourceRecord
-} from '@owlmeans/resource'
-import type { ServerConfig, ServerContext } from '@owlmeans/server-context'
+import { MisshapedRecord, RecordExists, RecordUpdateFailed, UnknownRecordError, UnsupportedArgumentError, type Criteria, type FirstOptions, type ListOptions, type ListResult, type MigrationStage, type ResourceRecord, type WriteOptions } from '@owlmeans/resource'
 import type { AnySchema, JSONSchemaType } from 'ajv'
-import { eq, sql } from 'drizzle-orm'
-import type { SQL } from 'drizzle-orm'
-import type { PgTable } from 'drizzle-orm/pg-core'
+import { eq, sql, type SQL } from 'drizzle-orm'
 import type { PoolClient, QueryResultRow } from 'pg'
 
 import { DEFAULT_DB_ALIAS, DEFAULT_PAGE_SIZE, ID_FIELD } from './consts.js'
-import { getDeclaration } from './declarations.js'
-import { pgErrorToResourceError } from './errors.js'
+import { pgDeclarationHelper } from './declarations.js'
 import { getSchemaSecureFeilds } from './helper.js'
+import { pgErrorHelper } from './pg-error.js'
 import type {
   ColumnSpec, PgIndexSpec, PgRuntimeTable, PostgresDb, PostgresDbService, PostgresResource,
   PostgresTx, TableSpec
 } from './types.js'
-import { criteriaToSql, sortToSql } from './utils/criteria.js'
-import { initializeTable } from './utils/life-cycle.js'
-import { recordToFullValues, recordToValues, resultToRecord, rowToRecord } from './utils/marshal.js'
+import { pgCriteriaHelper } from './utils/criteria.js'
+import { makePgLifeCycleHelper } from './utils/life-cycle.js'
+import { pgMarshalHelper } from './utils/marshal.js'
 import { makeTx } from './utils/migrations.js'
-import { refOf, resolvePlaceholders } from './utils/sql.js'
+import { pgPlaceholdersOf } from './utils/sql.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-type Context<C extends Config = Config> = ServerContext<C>
 
-type Getter = string | { field?: string, ttl?: number | Date | string }
-
-const fieldOf = (opts?: Getter): string | undefined =>
-  typeof opts === 'string' ? opts : opts?.field
-
-const ttlOf = (opts?: Getter): unknown =>
-  typeof opts === 'object' ? opts.ttl : undefined
-
-/**
- * Hand a runtime built table to Drizzle's query builder.
- *
- * {@link PgRuntimeTable} is deliberately untyped — the table is compiled from a JSON schema
- * at runtime, so there is no static shape to infer. Naming the erased `PgTable` here is what
- * keeps the builder's *result* types usable; casting the argument to `never` instead would
- * silently collapse every returned row to `never`.
- */
-const pgTable = (table: PgRuntimeTable): PgTable => table as unknown as PgTable
+/** Postgres has no row expiry — silently ignoring a TTL would lose data. */
+const refuseTtl = (opts?: WriteOptions): void => {
+  if (opts?.ttl != null) {
+    throw new UnsupportedArgumentError('ttl')
+  }
+}
 
 export const makePostgresResource = <
   R extends ResourceRecord, T extends PostgresResource<R> = PostgresResource<R>
 >(
   alias: string, dbAlias: string = DEFAULT_DB_ALIAS, serviceAlias: string = DEFAULT_DB_ALIAS,
-  makeCustomResource?: ResourceMaker<R, T>, tableName?: string
+  tableName?: string
 ): T => {
   const location = `postgres-resource:${alias}`
-  const declaration = getDeclaration(alias)
+  const declaration = pgDeclarationHelper.getDeclaration(alias)
+  const { pgErrorToResourceError } = pgErrorHelper
+  const { criteriaToSql, sortToSql } = pgCriteriaHelper
+  const { recordToFullValues, recordToValues, resultToRecord, rowToRecord } = pgMarshalHelper
 
   /** Set by `init()`; every data method goes through `ensure()`, which guarantees them. */
   let spec: TableSpec | undefined
@@ -103,11 +84,24 @@ export const makePostgresResource = <
     return column
   }
 
-  const identify = (table: TableSpec, property: string, value: unknown): SQL => {
-    const column = columnOf(table, property)
+  /** `WHERE <column> = <value>` for one property, by its schema name. */
+  const identify = (
+    table: TableSpec, from: PgRuntimeTable, property: string, value: unknown
+  ): SQL => eq(from[columnOf(table, property).property], value)
 
-    return eq(entity![column.property], value)
-  }
+  /**
+   * The condition a read or a write is keyed on. A string is the record's id; a criteria
+   * object is translated in full, so one call can ask by several fields at once.
+   */
+  const where = (
+    table: TableSpec, from: PgRuntimeTable, query: string | Criteria<R>
+  ): SQL | undefined => typeof query === 'string'
+    ? identify(table, from, ID_FIELD, query)
+    : criteriaToSql(query, table, from)
+
+  /** What an unknown record is called in the error — the id, or the query that missed. */
+  const describe = (query: string | Criteria<R>): string =>
+    typeof query === 'string' ? query : JSON.stringify(query)
 
   const raw = async <Row extends QueryResultRow = QueryResultRow>(
     text: string, params?: unknown[]
@@ -116,7 +110,7 @@ export const makePostgresResource = <
     const context = assertContext<Config, Context>(resource.ctx as Context, location)
     try {
       const result = await db.pool.query<Row>(
-        resolvePlaceholders(text, context, table), params as never[]
+        pgPlaceholdersOf(context).resolvePlaceholders(text, table), params as never[]
       )
 
       return { rows: result.rows, count: result.rowCount ?? 0 }
@@ -125,66 +119,67 @@ export const makePostgresResource = <
     }
   }
 
-  const resource: T = appendContextual<T>(alias, {
-    get: async (id, field, opts) => {
-      const record = await resource.load(id, field, opts)
+  /**
+   * The single-record read both `get` and `load` answer with. Standalone so neither closes over
+   * `resource` — a member that referenced it could not be inferred against the generic.
+   */
+  const loadOne = async (query: string | Criteria<R>, opts?: FirstOptions<R>): Promise<R | null> => {
+    const { db, spec: table, entity: from } = await ensure()
+
+    const rows = await db.drizzle.select().from(from).where(where(table, from, query))
+      .orderBy(...sortToSql(opts?.sort, table, from)).limit(1)
+
+    return rows.length < 1 ? null : resultToRecord<R>(rows[0] as Record<string, unknown>, table)
+  }
+
+  const members: Partial<PostgresResource<R>> = {
+    get: (async (query: string | Criteria<R>, opts?: FirstOptions<R>): Promise<R> => {
+      const record = await loadOne(query, opts)
       if (record == null) {
-        throw new UnknownRecordError(id)
+        throw new UnknownRecordError(describe(query))
       }
 
       return record
-    },
+    }) as T['get'],
 
-    load: async (id, field, opts) => {
-      if (typeof field === 'object') {
-        opts = field
-        field = field.field
-      }
-      if (ttlOf(opts) != null) {
-        /** Postgres has no row expiry — silently ignoring a TTL would lose data. */
-        throw new UnsupportedArgumentError('ttl')
-      }
+    load: loadOne as T['load'],
+
+    list: async (criteria?: Criteria<R>, opts?: ListOptions<R>): Promise<ListResult<R>> => {
       const { db, spec: table, entity: from } = await ensure()
+      const condition = criteriaToSql(criteria, table, from)
+      const order = sortToSql(opts?.sort, table, from)
 
-      const rows = await db.drizzle.select().from(pgTable(from))
-        .where(identify(table, field ?? ID_FIELD, id)).limit(1)
-
-      return rows.length < 1 ? null : resultToRecord(rows[0] as Record<string, unknown>, table)
-    },
-
-    list: async (criteria, opts) => {
-      const { db, spec: table, entity: from } = await ensure()
-      const options = prepareListOptions(DEFAULT_PAGE_SIZE, criteria, opts)
-      const pager: ListPager = options.pager ?? {}
-      const size = pager.size ?? DEFAULT_PAGE_SIZE
-      const where = criteriaToSql(options.criteria, table, from)
-
+      /** Counted separately, so `total` describes the whole match rather than the page. */
       const totals = await db.drizzle
-        .select({ total: sql<number>`count(*)::int` }).from(pgTable(from)).where(where)
+        .select({ total: sql<number>`count(*)::int` }).from(from).where(condition)
       const total = Number((totals[0] as { total: number } | undefined)?.total ?? 0)
-      pager.total = total
 
-      const skip = (pager.page ?? 0) * size
-      if (total === 0 || skip >= total) {
-        return { items: [], pager }
+      const marshal = (rows: unknown[]): R[] =>
+        rows.map(row => resultToRecord<R>(row as Record<string, unknown>, table))
+
+      /** `size: 0` lifts the limit — the explicit, greppable way to read a whole table. */
+      const size = opts?.size ?? DEFAULT_PAGE_SIZE
+      if (size === 0) {
+        const all = total === 0
+          ? []
+          : await db.drizzle.select().from(from).where(condition).orderBy(...order)
+
+        return { items: marshal(all), total }
       }
 
-      const rows = await db.drizzle.select().from(pgTable(from)).where(where)
-        .orderBy(...sortToSql(pager.sort, table, from)).limit(size).offset(skip)
+      const page = opts?.page ?? 0
+      const skip = page * size
+      const rows = total === 0 || skip >= total
+        ? []
+        : await db.drizzle.select().from(from).where(condition).orderBy(...order)
+          .limit(size).offset(skip)
 
-      return { pager, items: rows.map(row => resultToRecord(row as Record<string, unknown>, table)) }
+      return { items: marshal(rows), total, page, size }
     },
 
-    save: async (record, opts) => {
-      const field = fieldOf(opts)
-      const present = field != null
-        ? record[field as keyof typeof record] != null
-        : record.id != null
-
-      return present
-        ? resource.update(record, opts)
-        : resource.create(record, typeof opts !== 'string' ? opts : undefined)
-    },
+    save: async (record, opts) => record.id != null
+      ? resource.update(record, opts)
+      : resource.create(record, opts),
 
     create: async (record, opts) => {
       if (ID_FIELD in record && record.id == null) {
@@ -193,9 +188,7 @@ export const makePostgresResource = <
       if (record.id != null) {
         throw new RecordExists('id-present')
       }
-      if (opts?.ttl != null) {
-        throw new UnsupportedArgumentError('ttl')
-      }
+      refuseTtl(opts)
 
       return resource.insert(record)
     },
@@ -206,12 +199,12 @@ export const makePostgresResource = <
         { ...resource.getDefaults(), ...record } as Record<string, unknown>, table
       )
       try {
-        const rows = await db.drizzle.insert(pgTable(into)).values(values as never).returning()
+        const rows = await db.drizzle.insert(into).values(values as never).returning()
         if (rows.length < 1) {
           throw new RecordUpdateFailed('creation')
         }
 
-        return resultToRecord(rows[0] as Record<string, unknown>, table)
+        return resultToRecord<R>(rows[0] as Record<string, unknown>, table)
       } catch (error) {
         throw pgErrorToResourceError(error)
       }
@@ -240,47 +233,47 @@ export const makePostgresResource = <
       }
 
       try {
-        const rows = await db.drizzle.insert(pgTable(into)).values(values as never)
-          .onConflictDoUpdate({ target: target as never, set: set as never }).returning()
+        const rows = await db.drizzle.insert(into).values(values as never)
+          .onConflictDoUpdate({ target, set: set as never }).returning()
         if (rows.length < 1) {
           throw new RecordUpdateFailed('upsert')
         }
 
-        return resultToRecord(rows[0] as Record<string, unknown>, table)
+        return resultToRecord<R>(rows[0] as Record<string, unknown>, table)
       } catch (error) {
         throw pgErrorToResourceError(error)
       }
     },
 
     update: async (record, opts) => {
+      refuseTtl(opts)
       const { db, spec: table, entity: target } = await ensure()
-      const field = fieldOf(opts) ?? ID_FIELD
-      const key = record[field as keyof typeof record]
+      const key = record.id
       if (key == null) {
-        throw new MisshapedRecord(field === ID_FIELD ? ID_FIELD : 'no-field-value')
+        throw new MisshapedRecord(ID_FIELD)
       }
 
       /** Replace, not merge — the semantics mongo's `replaceOne` gives. `patch()` merges. */
       const values = recordToFullValues(record as Record<string, unknown>, table)
       try {
-        const rows = await db.drizzle.update(pgTable(target)).set(values as never)
-          .where(identify(table, field, key)).returning()
+        const rows = await db.drizzle.update(target).set(values as never)
+          .where(identify(table, target, ID_FIELD, key)).returning()
         if (rows.length < 1) {
-          throw new UnknownRecordError(`${field}:${key}`)
+          throw new UnknownRecordError(`${key}`)
         }
 
-        return resultToRecord(rows[0] as Record<string, unknown>, table)
+        return resultToRecord<R>(rows[0] as Record<string, unknown>, table)
       } catch (error) {
         throw pgErrorToResourceError(error)
       }
     },
 
     patch: async (record, opts) => {
+      refuseTtl(opts)
       const { db, spec: table, entity: target } = await ensure()
-      const field = (typeof opts === 'string' ? opts : opts?.field) ?? ID_FIELD
-      const key = record[field as keyof typeof record]
+      const key = record.id
       if (key == null) {
-        throw new MisshapedRecord(field === ID_FIELD ? ID_FIELD : 'no-field-value')
+        throw new MisshapedRecord(ID_FIELD)
       }
 
       const values = recordToValues(record as Record<string, unknown>, table)
@@ -288,41 +281,36 @@ export const makePostgresResource = <
         delete values[table.byColumn[column]?.property ?? column]
       }
       if (Object.keys(values).length < 1) {
-        return resource.get(`${key}`, field)
+        return resource.get(`${key}`)
       }
 
       try {
-        const rows = await db.drizzle.update(pgTable(target)).set(values as never)
-          .where(identify(table, field, key)).returning()
+        const rows = await db.drizzle.update(target).set(values as never)
+          .where(identify(table, target, ID_FIELD, key)).returning()
         if (rows.length < 1) {
-          throw new UnknownRecordError(`${field}:${key}`)
+          throw new UnknownRecordError(`${key}`)
         }
 
-        return resultToRecord(rows[0] as Record<string, unknown>, table)
+        return resultToRecord<R>(rows[0] as Record<string, unknown>, table)
       } catch (error) {
         throw pgErrorToResourceError(error)
       }
     },
 
-    delete: async (id, opts) => {
+    delete: async id => {
       const { db, spec: table, entity: from } = await ensure()
-      const field = fieldOf(opts) ?? ID_FIELD
-      const key = typeof id === 'object' ? id[field as keyof typeof id] : id
-      if (key == null) {
-        throw new MisshapedRecord(field === ID_FIELD ? ID_FIELD : 'no-field-value')
-      }
 
       /** One statement — mongo's read-then-delete can lose the record between the two. */
-      const rows = await db.drizzle.delete(pgTable(from))
-        .where(identify(table, field, key)).returning()
+      const rows = await db.drizzle.delete(from)
+        .where(identify(table, from, ID_FIELD, id)).returning()
 
-      return rows.length < 1 ? null : resultToRecord(rows[0] as Record<string, unknown>, table)
+      return rows.length < 1 ? null : resultToRecord<R>(rows[0] as Record<string, unknown>, table)
     },
 
-    pick: async (id, opts) => {
-      const record = await resource.delete(id, opts)
+    take: async id => {
+      const record = await resource.delete(id)
       if (record == null) {
-        throw new UnknownRecordError(typeof id === 'string' ? id : (id.id ?? 'unknown'))
+        throw new UnknownRecordError(id)
       }
 
       return record
@@ -330,23 +318,43 @@ export const makePostgresResource = <
 
     purge: async criteria => {
       const { db, spec: table, entity: from } = await ensure()
-      const where = criteriaToSql(criteria, table, from)
-      if (where == null) {
+      const condition = criteriaToSql(criteria, table, from)
+      if (condition == null) {
         /** An empty criteria object here would silently truncate the table. */
         throw new UnsupportedArgumentError('purge:no-criteria')
       }
-      const rows = await db.drizzle.delete(pgTable(from)).where(where).returning()
+      const rows = await db.drizzle.delete(from).where(condition).returning()
 
       return rows.length
     },
 
     count: async criteria => {
       const { db, spec: table, entity: from } = await ensure()
-      const options = prepareListOptions(DEFAULT_PAGE_SIZE, criteria)
       const rows = await db.drizzle.select({ total: sql<number>`count(*)::int` })
-        .from(pgTable(from)).where(criteriaToSql(options.criteria, table, from))
+        .from(from).where(criteriaToSql(criteria, table, from))
 
       return Number((rows[0] as { total: number } | undefined)?.total ?? 0)
+    },
+
+    countBy: async (criteria, fields) => {
+      const { db, spec: table, entity: from } = await ensure()
+      if (fields.length < 1 || fields.some(field => field === 'count')) {
+        /** `count` names the answer's own tally; grouping by nothing is `count()`. */
+        throw new UnsupportedArgumentError(`count-by:${fields.join(',')}`)
+      }
+      const columns = fields.map(field => columnOf(table, field))
+      const selection: Record<string, SQL | PgRuntimeTable[string]> = Object.fromEntries(
+        columns.map(column => [column.property, from[column.property]])
+      )
+      const rows = await db.drizzle
+        .select({ ...selection, count: sql<number>`count(*)::int` } as never)
+        .from(from).where(criteriaToSql(criteria, table, from))
+        .groupBy(...columns.map(column => from[column.property]))
+
+      return (rows as Array<Record<string, unknown>>).map(row => {
+        const { count, ...group } = row
+        return { ...resultToRecord<Record<string, unknown>>(group, table), count: Number(count ?? 0) }
+      })
     },
 
     getDefaults: () => {
@@ -366,9 +374,9 @@ export const makePostgresResource = <
         }, {}) as Partial<R>
     },
 
-    query: async (text, params) => (await raw(text, params)).rows,
+    query: (async (text: string, params?: unknown[]) => (await raw(text, params)).rows) as T['query'],
 
-    queryOne: async (text, params) => (await raw(text, params)).rows[0] ?? null,
+    queryOne: (async (text: string, params?: unknown[]) => (await raw(text, params)).rows[0] ?? null) as T['queryOne'],
 
     execute: async (text, params) => (await raw(text, params)).count,
 
@@ -376,14 +384,14 @@ export const makePostgresResource = <
       const { spec: table } = await ensure()
       const result = await raw(text, params)
 
-      return result.rows.map(row => rowToRecord(row, table))
+      return result.rows.map(row => rowToRecord<R>(row, table))
     },
 
     selectOne: async (text, params) => {
       const { spec: table } = await ensure()
       const result = await raw(text, params)
 
-      return result.rows.length < 1 ? null : rowToRecord(result.rows[0], table)
+      return result.rows.length < 1 ? null : rowToRecord<R>(result.rows[0], table)
     },
 
     ref: resourceAlias => {
@@ -392,19 +400,20 @@ export const makePostgresResource = <
         throw new SyntaxError(`Postgres resource not initialized: ${alias}`)
       }
 
-      return refOf(context, spec, resourceAlias)
+      return pgPlaceholdersOf(context).refOf(spec, resourceAlias)
     },
 
     transaction: async fn => {
       const { db, spec: table } = await ensure()
       const context = assertContext<Config, Context>(resource.ctx as Context, location)
+      const placeholders = pgPlaceholdersOf(context)
       const client: PoolClient = await db.pool.connect()
       try {
         await client.query('BEGIN')
         const result = await fn(makeTx(
           client,
-          text => resolvePlaceholders(text, context, table),
-          resourceAlias => refOf(context, table, resourceAlias)
+          text => placeholders.resolvePlaceholders(text, table),
+          resourceAlias => placeholders.refOf(table, resourceAlias)
         ))
         await client.query('COMMIT')
 
@@ -444,13 +453,14 @@ export const makePostgresResource = <
       return postgres.client(dbAlias)
     },
 
-    index: <Type extends PostgresResource<R>>(name: string, index: PgIndexSpec) => {
+    /** Chainable — the declaration store is keyed by alias, so this object is the whole state. */
+    index: (name: string, index: PgIndexSpec) => {
       declaration.indexes.push({ ...index, name })
 
-      return resource as unknown as Type
+      return resource
     },
 
-    /** `this`-returning in the interface — the implementation returns that very object. */
+    /** Self-returning in the interface — the implementation returns that very object. */
     migration: ((name: string, apply: (tx: PostgresTx) => Promise<void>, stage?: MigrationStage) => {
       declaration.migrations.register(name, apply, stage)
 
@@ -458,12 +468,14 @@ export const makePostgresResource = <
     }) as T['migration'],
 
     migrations: () => declaration.migrations
-  } as Partial<T>)
+  }
+
+  const resource: T = appendContextual<T>(alias, members as Partial<T>)
 
   /**
-   * The AJV schema is stored per alias rather than on the object, so it survives
-   * `reinitializeContext` — which rebuilds the resource and would otherwise drop a schema
-   * the app assigned after construction, silently taking the table's structure with it.
+   * The AJV schema is stored per alias rather than on the object, so a second maker run for
+   * the same alias (a custom maker, a repeated maker, a spec) picks up the schema the app
+   * assigned after construction instead of silently taking the table's structure with it.
    */
   Object.defineProperty(resource, 'schema', {
     enumerable: true,
@@ -483,8 +495,7 @@ export const makePostgresResource = <
 
   /**
    * Explicit table name override, decoupled from the registration alias — an alias may
-   * carry characters no identifier allows. Threaded back through the recursive maker call
-   * below so it survives a context switch.
+   * carry characters no identifier allows.
    */
   if (tableName != null) {
     resource.name = tableName
@@ -497,23 +508,12 @@ export const makePostgresResource = <
     const db = await postgres.db(dbAlias)
     const config = postgres.config(dbAlias)
 
-    const initialized = await initializeTable(
-      db, config, resource as unknown as PostgresResource<ResourceRecord>, context,
+    const initialized = await makePgLifeCycleHelper(db).initializeTable(
+      config, resource as unknown as PostgresResource<ResourceRecord>, context,
       task => postgres.defer(dbAlias, task)
     )
     spec = initialized.spec
     entity = initialized.entity
-  }
-
-  resource.reinitializeContext = <Type extends Contextual>(context: BasicContext<Config>) => {
-    const replacement = (makeCustomResource?.(dbAlias, serviceAlias)
-      ?? makePostgresResource<R, T>(
-        alias, dbAlias, serviceAlias, makeCustomResource, tableName
-      )) as unknown as Type
-
-    replacement.ctx = context
-
-    return replacement
   }
 
   return resource

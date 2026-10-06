@@ -1,14 +1,15 @@
 import { DIDInitializationError, DIDKeyError, DIDWalletError } from './errors.js'
-import type { DIDKeyModel, DIDStore, DIDWallet, KeyMeta, KeyPairRecord, MakeDIDWalletOptions } from './types.js'
-import { generateMnemonic, toEntropy, toMnemonic, toSeed } from './utils/mnemonic.js'
+import type { Criteria } from '@owlmeans/resource'
+import type { DIDKeyModel, DIDStore, DIDWallet, KeyMeta, KeyMetaRecord, KeyPairRecord, MakeDIDWalletOptions } from './types.js'
 import { KEY_OWL, MASTER } from './consts.js'
 import { plugins } from './plugins/index.js'
 import { ed25519owlPluginBuilder } from './plugins/ed25519owl.js'
 import { produceKey } from './utils/key.js'
 import { makeDidKeyModel } from './model.js'
-import { mataToPath, matchMeta } from './utils.js'
+import { keyPathUtils } from './utils.js'
+import { mnemonicHelper } from './utils/mnemonic.js'
 
-export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) => {
+export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions): Promise<DIDWallet> => {
   if (await store.master.load(MASTER) == null) {
     if (!opts?.force && !opts?.allowEmpty) {
       throw new DIDInitializationError('master')
@@ -26,11 +27,11 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
     store, 
 
     generate: async opts => {
-      const mnemonic = generateMnemonic(opts)
+      const mnemonic = mnemonicHelper.generateMnemonic(opts)
 
       const seed = {
-        entropy: toEntropy(mnemonic),
-        seed: toSeed(mnemonic)
+        entropy: mnemonicHelper.toEntropy(mnemonic),
+        seed: mnemonicHelper.toSeed(mnemonic)
       }
 
       const master = produceKey(seed.seed, type)
@@ -46,7 +47,7 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
         return false
       }
 
-      return toMnemonic(master.seed)
+      return mnemonicHelper.toMnemonic(master.seed)
     },
 
     master: async () => makeDidKeyModel(await store.master.get(MASTER)),
@@ -94,11 +95,12 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
     },
 
     find: async meta => {
-      const result = await store.meta.list(
-        Object.fromEntries(Object.entries(meta).filter(([_, v]) => typeof v !== 'boolean'))
+      const where: Criteria<KeyMetaRecord> = Object.fromEntries(
+        Object.entries(meta).filter(([_, v]) => typeof v !== 'boolean')
       )
+      const result = await store.meta.list(where)
 
-      const keys = await Promise.all(result.items.filter(item => matchMeta(item, meta))
+      const keys = await Promise.all(result.items.filter(item => keyPathUtils.matchMeta(item, meta))
         .map(async meta => store.keys.get(meta.id)))
 
       return keys.map(key => makeDidKeyModel(key))
@@ -107,7 +109,7 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
     provide: async meta => {
       const found = await wallet.find(meta)
       if (found.length === 0) {
-        const path = mataToPath(meta)
+        const path = keyPathUtils.mataToPath(meta)
         const master = await wallet.master()
         const key = master.derive(path)
         if (meta.name == null) {
@@ -142,7 +144,7 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
       if (key == null) {
         throw new DIDWalletError('no:key')
       }
-      await store.keys.delete(key)
+      await store.keys.delete(did)
       const model = makeDidKeyModel(key)
       await store.meta.delete(model.exportAddress())
 
@@ -153,9 +155,9 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
       const result: KeyPairRecord[] = []
       let more = false
       do {
-        const found = await store.keys.list({ pager: { page: Math.floor(result.length / 100), size: 100 } })
+        const found = await store.keys.list(undefined, { page: Math.floor(result.length / 100), size: 100 })
         result.push(...found.items)
-        more = found.pager?.total != null && found.pager.total > result.length
+        more = found.items.length > 0 && found.total > result.length
       } while (more)
 
       return result.map(key => makeDidKeyModel(key))
@@ -165,10 +167,9 @@ export const makeWallet = async (store: DIDStore, opts?: MakeDIDWalletOptions) =
       const result: KeyMeta[] = []
       let more = false
       do {
-        // const found = await store.keys.list({ pager: { page: Math.floor(result.length / 100), size: 100 } })
-        const found = await store.meta.list({ pager: { page: Math.floor(result.length / 100), size: 100 } })
+        const found = await store.meta.list(undefined, { page: Math.floor(result.length / 100), size: 100 })
         result.push(...found.items)
-        more = found.pager?.total != null && found.pager.total > result.length
+        more = found.items.length > 0 && found.total > result.length
       } while (more)
 
       return result

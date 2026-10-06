@@ -4,11 +4,45 @@ import { DEFAULT_PATH, INTERACTION, INTERACTION_UID } from '@owlmeans/oidc'
 import type { ServerResponse } from 'node:http'
 import type { Config, Context, OidcAccountService, OidcAdapterService, OidcProviderService } from './types.js'
 import Provider from 'oidc-provider'
+import type { KoaContextWithOIDC } from 'oidc-provider'
+import { logger } from '@owlmeans/log'
 import type { BasicRoute } from '@owlmeans/route'
 import type { CommonEntrypoint } from '@owlmeans/entrypoint'
 import { PARAM, SEP } from '@owlmeans/route'
 import { makeSecurityHelper } from '@owlmeans/config'
-import { combineConfig } from './utils/config.js'
+import { oidcConfigOf } from './utils/config.js'
+import { makeInteractionPolicy } from './utils/policy.js'
+
+const log = logger('server-oidc-provider')
+
+/** An OIDC error the provider answers with a 4xx — the client's mistake, not the provider's. */
+const isClientError = (error: unknown): boolean => {
+  const status = (error as { status?: unknown } | null)?.status
+  return typeof status === 'number' && status >= 400 && status < 500
+}
+
+/**
+ * One provider error. The state dump carries ids only — never a token, code or secret the
+ * request holds.
+ */
+const reportProviderError = (issuer: string, kind: string, ctx: KoaContextWithOIDC | undefined, error: Error): void => {
+  const state = ctx?.oidc as unknown as {
+    client?: { clientId?: string }, grant?: { jti?: string, accountId?: string, clientId?: string }
+  } | undefined
+  const data = { kind, issuer, clientId: state?.client?.clientId, code: (error as { error?: unknown }).error, error }
+  if (isClientError(error)) {
+    log.warn('OIDC provider refused a request', data)
+  } else {
+    log.error('OIDC provider error', data)
+  }
+  if (state != null && log.enabled('debug')) {
+    log.debug('OIDC provider error state', {
+      kind, fields: Object.getOwnPropertyNames(state),
+      grant: state.grant != null
+        ? { grantId: state.grant.jti, accountId: state.grant.accountId, clientId: state.grant.clientId } : undefined,
+    })
+  }
+}
 
 let _initializedOidc: Provider | undefined = undefined
 export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcProviderService => {
@@ -23,7 +57,7 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
       const unsecure = context.cfg.security?.unsecure === false ? false : !url.startsWith('https')
 
       const oidc = new Provider(url, {
-        ...await combineConfig(context, unsecure),
+        ...await oidcConfigOf(context).combineConfig(unsecure),
 
         adapter: cfg.adapterService != null
           ? name => context.service<OidcAdapterService>(cfg.adapterService!).instance(name)
@@ -41,19 +75,20 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
         },
 
         interactions: {
+          policy: makeInteractionPolicy(),
           url: async (_, interaction) => {
             // The interaction screen is a FRONTEND route, and this is a server context — the
-            // entrypoint registered here has no `call()` (that helper is attached by
-            // `@owlmeans/client-entrypoint` only). So the URL is assembled the way `urlCall` does
-            // it in the browser: resolve the route, substitute the path params, then qualify it
-            // with the frontend service's host.
+            // entrypoint registered here has no `url()` (that helper is attached by
+            // `@owlmeans/client-entrypoint` only). So the URL is assembled the way `entrypointUrl`
+            // does it in the browser: take the entrypoint's path, substitute the path params, then
+            // qualify it with the address the entrypoint answers on — the FRONTEND service's, not
+            // this one's.
             const entry = context.entrypoint<CommonEntrypoint>(INTERACTION)
-            const route = await entry.route.resolve<Config, Context>(context)
-            const path = entry.getPath().split(SEP)
+            const path = entry.path().split(SEP)
               .map(part => part === `${PARAM}${INTERACTION_UID}` ? interaction.uid : part)
               .join(SEP)
 
-            return helper.makeUrl(route, path)
+            return helper.makeUrl(entry.address(), path)
           }
         }
       })
@@ -92,27 +127,11 @@ export const createOidcProviderService = (alias: string = DEFAULT_ALIAS): OidcPr
 
       api.server.use(base, oidc.callback())
 
-      if (context.cfg.debug?.all || context.cfg.debug?.oidc) {
-
-        oidc.on('grant.error', (_, error) => {
-          console.warn('GRANT ERROR .......: ')
-          console.info(oidc.issuer)
-          console.error('!!!! GRANT ERROR: ', error)
-        })
-
-        oidc.on('server_error', (ctx, error) => {
-          console.warn('SERVER ERROR .......: ', Object.getOwnPropertyNames(ctx.oidc))
-          console.info((ctx.oidc as any).grant)
-          console.error('!!!! SERVER ERROR: ', error)
-        })
-
-        oidc.on('userinfo.error', (ctx, error) => {
-          console.warn('USER INFO ERROR .......: ', Object.getOwnPropertyNames(ctx.oidc))
-          console.info((ctx.oidc as any).grant)
-          console.error('!!!! USER INFO ERROR: ', error)
-        })
-
-      }
+      // Always attached: a provider error reaches the log — at `warn` when the client caused it
+      // (an OIDC 4xx such as `invalid_grant`), at `error` otherwise; the request state at `debug`.
+      oidc.on('grant.error', (ctx, error) => { reportProviderError(oidc.issuer, 'grant', ctx, error) })
+      oidc.on('server_error', (ctx, error) => { reportProviderError(oidc.issuer, 'server', ctx, error) })
+      oidc.on('userinfo.error', (ctx, error) => { reportProviderError(oidc.issuer, 'userinfo', ctx, error) })
 
       _initializedOidc = service.oidc = oidc
     },

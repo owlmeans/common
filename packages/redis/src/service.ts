@@ -1,13 +1,10 @@
 import type { RedisDbService, RedisClient, RedisDb } from '@owlmeans/redis-resource'
 import { DEFAULT_ALIAS } from './consts.js'
 import { createDbService } from '@owlmeans/resource'
-import { assertContext, Layer } from '@owlmeans/context'
-import type { BasicContext } from '@owlmeans/context'
-import type { ServerContext, ServerConfig } from '@owlmeans/server-context'
-import { createClient } from './utils/index.js'
+import { assertContext } from '@owlmeans/context'
+import { createClient, redisOptionsUtils } from './utils/index.js'
+import type { Config, Context } from './types.local.js'
 
-type Config = ServerConfig
-interface Context<C extends Config = Config> extends ServerContext<C> { }
 
 export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService => {
   const location = `redis:${alias}`
@@ -23,7 +20,19 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
        * @TODO we need to think how we can reuse the initail
        * one instead of duplication for some cases
        */
-      return { client: client.duplicate(), prefix: name }
+      return { client: (client as { duplicate: () => RedisClient }).duplicate(), prefix: name }
+    },
+
+    options: configAlias => {
+      configAlias = service.ensureConfigAlias(configAlias)
+      const config = service.config(configAlias)
+      const prefix = service.name(configAlias)
+
+      const hosts = Array.isArray(config.host) ? config.host : [config.host]
+
+      return hosts.length > 1
+        ? { cluster: redisOptionsUtils.cluster(config), prefix }
+        : { single: redisOptionsUtils.single(config, hosts[0]), prefix }
     },
 
     initialize: async configAlias => {
@@ -32,16 +41,6 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
 
       if (service.clients[configAlias] != null) {
         return
-      }
-
-      if (service.layers == null) {
-        service.layers = [Layer.Global]
-      }
-      if (config.serviceSensitive && service.layers.includes(Layer.Service)) {
-        service.layers.push(Layer.Service)
-      }
-      if (config.entitySensitive && service.layers.includes(Layer.Entity)) {
-        service.layers.push(Layer.Entity)
       }
 
       let client = await createClient(config)
@@ -57,16 +56,6 @@ export const makeRedisService = (alias: string = DEFAULT_ALIAS): RedisDbService 
       })
 
       service.clients[configAlias] = client
-    },
-
-    reinitializeContext: <T>(context: BasicContext<ServerConfig>) => {
-      const _service = makeRedisService(alias)
-
-      _service.ctx = context
-
-      _service.layers = service.layers
-
-      return _service as T
     }
   }, service => async () => {
     const context = assertContext<Config, Context>(service.ctx as Context, location)

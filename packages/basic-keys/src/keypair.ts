@@ -2,7 +2,7 @@ import type { KeyPair } from './types.js'
 import { base64 } from '@scure/base'
 import { KeyType } from './consts.js'
 import { plugins } from './plugins/index.js'
-import { assertType } from './utils.js'
+import { keyUtils } from './utils.js'
 
 export const inputToKeyPair = (input?: KeyPair | string): KeyPair => {
   let type: string = KeyType.ED25519
@@ -27,7 +27,7 @@ export const inputToKeyPair = (input?: KeyPair | string): KeyPair => {
     }
   }
   if (keyPair == null) {
-    assertType(type)
+    keyUtils.assertType(type)
     if (primaryKey == null) {
       primaryKey = plugins[type].random()
     }

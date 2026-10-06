@@ -1,5 +1,4 @@
-import { ExecutionEffort } from '@owlmeans/llm-common'
-import type { CacheTtl, ModelConfigPatch } from '@owlmeans/llm-common'
+import { ExecutionEffort, type CacheTtl, type ModelConfigPatch } from '@owlmeans/llm-common'
 
 /** Context-service alias for the {@link LlmService} (model factory / registry). */
 export const LLM_SERVICE = 'owlmeans-llm-service'
@@ -31,12 +30,19 @@ export const DEFAULT_MODEL_RETRIES = 8
 export const MODEL_STREAM_TIMEOUT_MS = 3 * 60 * 1000
 
 /**
- * Number of failed attempts after which the retry escalator switches from a role's
- * cheap primary model to its configured `fallback` (stronger) model. With
- * {@link DEFAULT_MODEL_RETRIES} = 8 the primary runs attempts 0..2 and the fallback
- * runs attempts 3..7.
+ * Attempts each rung of a role's fallback chain gets before the retry escalator moves to the
+ * next one; the last rung keeps whatever attempts remain. With {@link DEFAULT_MODEL_RETRIES} =
+ * 8 and two fallbacks, the primary runs attempts 0..2, the first fallback 3..5 and the second
+ * 6..7.
  */
 export const FALLBACK_AFTER_ATTEMPTS = 3
+
+/**
+ * Temperature a `TemperatureFactory` caller asks for, per `ModelConfig.effort` level it is
+ * turned into. 0.3 is the step of the consumers' own "try something different" ladders, so
+ * each rung of those climbs one effort level on a model that accepts effort.
+ */
+export const TEMPERATURE_PER_EFFORT_STEP = 0.3
 
 /**
  * Output-token ceiling used by the retry escalator when a model config declares no
@@ -129,6 +135,10 @@ export const EFFORT_TABLE: Record<ExecutionEffort, ModelConfigPatch> = {
  *
  * `state` is in the list because a `TaskExecution` carries its own composed state —
  * without excluding it every `derive`/`escalate`/`withPurpose` would nest another copy.
+ *
+ * `inquiry` is deliberately ABSENT: how a run may put a question to a person is state, and a run
+ * resumed from a snapshot must ask through the same channel under the same policy. Listing it
+ * here would leave a resumed run silently unable to ask anything.
  */
 export const COLLABORATOR_KEYS: string[] = [
   'state', 'models', 'model', 'temperatureFactory', 'outputErrors', 'files', 'prompts',

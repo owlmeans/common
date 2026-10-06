@@ -1,0 +1,51 @@
+{
+  "panel": {
+    "title": "Access tokens",
+    "description": "Long-lived tokens that let a script or an integration call the API on your behalf.",
+    "create": "Create token",
+    "empty": "No access tokens yet.",
+    "col": {
+      "display": "Token",
+      "name": "Name",
+      "created": "Created",
+      "last-used": "Last used",
+      "expires": "Expires",
+      "status": "Status"
+    },
+    "never": "Never",
+    "never-used": "Never used",
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "revoke": "Revoke",
+    "revoke-confirm": {
+      "title": "Revoke this token?",
+      "description": "Anything still using it stops working immediately. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Revoke"
+    },
+    "dialog": {
+      "title": "Create an access token",
+      "description": "Name it after where you will use it, so you can tell your tokens apart later.",
+      "name-label": "Name",
+      "name-placeholder": "CI deployment",
+      "expiry-label": "Expires",
+      "expiry": {
+        "30": "In 30 days",
+        "90": "In 90 days",
+        "365": "In a year",
+        "never": "Never"
+      },
+      "create": "Create",
+      "cancel": "Cancel",
+      "issued-title": "Your new access token",
+      "issued-note": "Copy it now — this is the only time it is shown.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done"
+    },
+    "error": "Something went wrong"
+  }
+}

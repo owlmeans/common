@@ -1,25 +1,60 @@
-import { AuthenFailed, AuthorizationError, AuthRole } from '@owlmeans/auth'
+import { AuthenFailed, AuthError, AuthorizationError, AuthRole, AuthUnavailable } from '@owlmeans/auth'
 import type { Auth, AuthCredentials } from '@owlmeans/auth'
 import { EnvelopeKind, makeEnvelopeModel } from '@owlmeans/basic-envelope'
 import { createService } from '@owlmeans/context'
-import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService } from '@owlmeans/oidc'
-import { OIDC_WRAPPED_TOKEN, WRAPPED_OIDC } from '@owlmeans/oidc'
-import { cache, managedId } from './utils/cache.js'
+import type { CommonTokenSetParams, OIDCTokenUpdate, WrappedOIDCService, WrappedOIDCUpdate } from '@owlmeans/oidc'
+import { ORGANIZATIONS_CLAIM, WRAPPED_OIDC } from '@owlmeans/oidc'
+import { oidcCacheOf } from './utils/cache.js'
+import type { OIDCAuthCache } from './utils/types.js'
 import type { Config, Context, OidcClientService, OidcTokenSetParameters } from './types.js'
-import { authService, DEFAULT_ALIAS, OIDC_AUTH_LIFTETIME, OIDC_WRAP_FRESHNESS } from './consts.js'
+import { authService, DEFAULT_ALIAS, OIDC_WRAP_FRESHNESS } from './consts.js'
 import days from 'dayjs'
 import { decodeJwt } from 'jose'
 import { PERMISSIONS_CLAIM } from '@owlmeans/oidc'
 import { extractPermissionSets } from './utils/permissions.js'
+import { oidcOrganizationHelper } from './utils/organization.js'
+import { oidcWrappedOf } from './utils/wrapped.js'
 import type { ClientEntrypoint } from '@owlmeans/client-entrypoint'
 import { TRUSTED } from '@owlmeans/config'
 import { AUTH_SRV_KEY } from '@owlmeans/server-auth'
 import { trust } from '@owlmeans/auth-common/utils'
+import { AUTH_SESSION_MANAGER } from '@owlmeans/server-auth-session'
+import type { AuthSessionDecision, AuthSessionManager } from '@owlmeans/server-auth-session'
+import { logger } from '@owlmeans/log'
+
+const log = logger('server-oidc-rp')
+
+/** Provider errors which affirm that this access token is no longer usable. */
+const isInvalidProviderToken = (error: unknown): boolean => {
+  if (error == null || typeof error !== 'object') return false
+  const candidate = error as {
+    error?: unknown
+    status?: unknown
+    cause?: unknown
+  }
+  if (candidate.error === 'invalid_token' || candidate.error === 'invalid_grant') return true
+  if (candidate.status !== 401 || !Array.isArray(candidate.cause)) return false
+  return candidate.cause.some(challenge => (
+    challenge != null
+    && typeof challenge === 'object'
+    && (challenge as { parameters?: { error?: unknown } }).parameters?.error === 'invalid_token'
+  ))
+}
+
+const sessionFailure = (decision: AuthSessionDecision): never => {
+  if (decision.state === 'pending') throw new AuthUnavailable('session-registry')
+  throw new AuthorizationError('session')
+}
+
+/** The guard attaches the acting organization only for a session that acts in one. */
+const updateOf = (token: string, record: OIDCAuthCache): WrappedOIDCUpdate =>
+  record.acting != null && record.entity != null ? { token, entity: record.entity } : { token }
 
 export const makeOidcWrappingService = (): WrappedOIDCService => {
-  const service = createService<WrappedOIDCService>(WRAPPED_OIDC, {
+  const service: WrappedOIDCService = createService<WrappedOIDCService>(WRAPPED_OIDC, {
     update: async (token, thr) => {
       const ctx = service.assertCtx<Config, Context>()
+      const oidcCache = oidcCacheOf(ctx)
       token = typeof token === 'string' ? token : token?.token
       if (token == null) {
         throw new AuthorizationError('token')
@@ -29,20 +64,47 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
       const user = envelope.message()
 
       try {
-        const record = await cache(ctx).get(managedId(user.token))
+        const record = await oidcCache.resource().get(oidcCache.managedId(user.token))
         if (record == null || record.payload == null) {
           throw new AuthorizationError('record')
         }
+        const remainingTtl = oidcCache.sessionTtl(record.expiresAt)
 
-        if (record.validated != null && days(record.validated)
-          .add(OIDC_WRAP_FRESHNESS, 'milliseconds').isAfter()) {
-          return { token }
+        const manager = ctx.hasService(AUTH_SESSION_MANAGER)
+          ? ctx.service<AuthSessionManager>(AUTH_SESSION_MANAGER)
+          : null
+        let sessionDecision: AuthSessionDecision | null = null
+        if (manager != null) {
+          // Sessions issued before the registry rollout lack this id. Rejecting them makes the
+          // deployment boundary explicit instead of leaving untracked seven-day wrappers live.
+          if (user.sessionId == null) throw new AuthorizationError('session')
+          try {
+            sessionDecision = await manager.inspect(user.sessionId)
+          } catch {
+            throw new AuthUnavailable('session-registry')
+          }
+          if (sessionDecision.state !== 'active' && sessionDecision.state !== 'refresh') {
+            sessionFailure(sessionDecision)
+          }
+        }
+
+        const oidc = ctx.service<OidcClientService>(DEFAULT_ALIAS)
+        const configuredClientId = record.client ?? oidc.getDefault()
+        if (configuredClientId == null) {
+          throw new AuthUnavailable('oidc-client')
+        }
+        const client = await oidc.getClient(configuredClientId)
+        const validateEveryRequest = client.getConfig().sessionValidation === 'required'
+
+        if (!validateEveryRequest && record.validated != null && days(record.validated)
+          .add(OIDC_WRAP_FRESHNESS, 'milliseconds').isAfter() && sessionDecision?.state !== 'refresh') {
+          return updateOf(token, record)
         }
 
         record.validated = new Date()
 
         if (ctx.hasEntrypoint(authService.auth.update)) {
-          const [update] = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
+          const update = await ctx.entrypoint<ClientEntrypoint<OIDCTokenUpdate>>(authService.auth.update)
             .call({ body: { token, tokenSet: record.payload } })
 
           const updateEnvelope = makeEnvelopeModel<AuthCredentials>(update.token, EnvelopeKind.Token)
@@ -63,27 +125,39 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
           }
 
           if (updatedAuth.challenge !== user.token) {
-            await cache(ctx).delete(record)
+            await oidcCache.resource().delete(oidcCache.managedId(user.token))
             updatedUser.token = updatedAuth.challenge
-            record.id = managedId(updatedUser.token)
+            record.id = oidcCache.managedId(updatedUser.token)
+            updatedUser.sessionId = record.id
           }
 
+          if (manager != null && (sessionDecision?.state === 'refresh' || updatedUser.sessionId !== user.sessionId)) {
+            if (record.entityId == null || record.profileId == null || updatedUser.sessionId == null) {
+              throw new AuthorizationError('session')
+            }
+            let registered: AuthSessionDecision
+            try {
+              registered = await manager.register({
+                id: updatedUser.sessionId, kind: 'oidc-access', entityId: record.entityId,
+                profileId: record.profileId, issuedAt: user.createdAt?.getTime(), expiresAt: record.expiresAt,
+              })
+            } catch {
+              throw new AuthUnavailable('session-registry')
+            }
+            if (registered.state !== 'active') sessionFailure(registered)
+            else updatedUser.authorizationVersion = registered.version
+          }
 
-          const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
-          const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-            .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
+          const issued = await oidcWrappedOf(ctx).signWrapped(updatedUser)
 
           record.payload = update.tokenSet as OidcTokenSetParameters
 
-          await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
+          await oidcCache.resource().save(record, { ttl: remainingTtl })
 
-          return { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }
+          return updateOf(issued, record)
         } else if (record.payload != null) {
-          const oidc = ctx.service<OidcClientService>(DEFAULT_ALIAS)
-          const defaultClientId = oidc.getDefault()
-          if (defaultClientId != null) {
+          if (configuredClientId != null) {
             let tokenSet: CommonTokenSetParams = record.payload as CommonTokenSetParams
-            const client = await oidc.getClient(defaultClientId)
 
             // Revalidate using only what this session and this provider actually support.
             // `expires_at` is the token set's own absolute expiry; **absent is not expired** —
@@ -97,46 +171,124 @@ export const makeOidcWrappingService = (): WrappedOIDCService => {
                 // Expired with nothing to renew it — the user has to authenticate again.
                 throw new AuthorizationError('access-token')
               }
-              tokenSet = await client.refresh(tokenSet as OidcTokenSetParameters) as CommonTokenSetParams
+              try {
+                tokenSet = await client.refresh(tokenSet as OidcTokenSetParameters) as CommonTokenSetParams
+              } catch (error) {
+                if (isInvalidProviderToken(error)) throw new AuthorizationError('access-token')
+                if (validateEveryRequest) throw new AuthUnavailable('oidc-refresh')
+                throw error
+              }
             } else if (client.getMetadata().introspection_endpoint != null) {
               // Introspection is the only way to notice a revocation that happened before the
               // token's own expiry, so it stays the check of choice — but it is an optional
               // provider feature. Calling an endpoint the discovery document never advertised
               // throws, which would fail the session for the opposite reason to the one above.
-              const result = await client.introspect(tokenSet as OidcTokenSetParameters, 'access_token')
+              let result
+              try {
+                result = await client.introspect(tokenSet as OidcTokenSetParameters, 'access_token')
+              } catch (error) {
+                if (validateEveryRequest) throw new AuthUnavailable('oidc-introspection')
+                throw error
+              }
               if (!result.active) {
                 throw new AuthorizationError('access-token')
               }
+            } else if (validateEveryRequest) {
+              // A deployment that declares the provider authoritative cannot silently fall
+              // back to a signed, stale local claim when the required live check is absent.
+              throw new AuthUnavailable('oidc-introspection')
             }
 
-            const updatedUser: Auth = {
+            let updatedUser: Auth = {
               ...user,
               createdAt: new Date()
             }
 
-            // Keep integrated-IAM permission grants fresh across token refreshes
-            if (tokenSet.id_token != null) {
-              const permissions = extractPermissionSets(decodeJwt(tokenSet.id_token)[PERMISSIONS_CLAIM])
-              if (permissions != null) {
-                updatedUser.permissions = permissions
-                updatedUser.permissioned = true
+            // The provider's current word on the subject: userinfo where the provider is the
+            // authority on every request, the (possibly refreshed) id_token otherwise. Keeps
+            // integrated-IAM permission grants and organizations fresh across token refreshes.
+            let claims: Record<string, unknown> | undefined = tokenSet.id_token != null
+              ? decodeJwt(tokenSet.id_token)
+              : undefined
+
+            if (validateEveryRequest) {
+              let current: Record<string, unknown>
+              try {
+                current = await client.userinfo(tokenSet as OidcTokenSetParameters, user.userId)
+              } catch (error) {
+                // An active token that cannot be checked against the provider is an authority
+                // outage, but an `invalid_token` response is an explicit authorization refusal.
+                if (isInvalidProviderToken(error)) throw new AuthorizationError('access-token')
+                throw new AuthUnavailable('oidc-userinfo')
               }
+              if (extractPermissionSets(current[PERMISSIONS_CLAIM]) == null) {
+                throw new AuthorizationError('permissions')
+              }
+              claims = current
             }
 
-            const trusted = await trust<Config, Context>(ctx, TRUSTED, ctx.cfg.alias ?? ctx.cfg.service)
-            const authorization = await makeEnvelopeModel<Auth>(OIDC_WRAPPED_TOKEN)
-              .send(updatedUser, null).sign(trusted.key, EnvelopeKind.Token)
+            const sets = claims != null ? extractPermissionSets(claims[PERMISSIONS_CLAIM]) : undefined
+
+            if (record.acting != null) {
+              // A session that acts in an organization keeps exactly that one, followed by its
+              // frozen key across renames. Gone from the provider's answer means the subject left
+              // it — never a silent move into another organization.
+              const organizations = claims != null
+                ? oidcOrganizationHelper.extractOrganizations(claims[ORGANIZATIONS_CLAIM])
+                : record.organizations
+              const acting = organizations != null
+                ? oidcOrganizationHelper.pickOrganization(organizations, { entityKey: record.acting })
+                : undefined
+              if (acting == null) {
+                throw new AuthorizationError('entity')
+              }
+
+              record.organizations = organizations
+              record.sets = sets ?? record.sets
+              record.entity = oidcOrganizationHelper.resolvedEntityOf(acting)
+              updatedUser = oidcOrganizationHelper.actingAuth(updatedUser, acting, record.sets)
+            } else if (sets != null) {
+              updatedUser.permissions = oidcOrganizationHelper.actingPermissionSets(sets)
+              updatedUser.permissioned = true
+            }
+
+            if (manager != null && sessionDecision?.state === 'refresh') {
+              if (record.entityId == null || record.profileId == null || user.sessionId == null) {
+                throw new AuthorizationError('session')
+              }
+              let registered: AuthSessionDecision
+              try {
+                registered = await manager.register({
+                  id: user.sessionId, kind: 'oidc-access', entityId: record.entityId,
+                  profileId: record.profileId, issuedAt: user.createdAt?.getTime(), expiresAt: record.expiresAt,
+                })
+              } catch {
+                throw new AuthUnavailable('session-registry')
+              }
+              if (registered.state !== 'active') sessionFailure(registered)
+              else updatedUser.authorizationVersion = registered.version
+            }
+
+            const issued = await oidcWrappedOf(ctx).signWrapped(updatedUser)
 
             record.payload = tokenSet as OidcTokenSetParameters
 
-            await cache(ctx).save(record, { ttl: OIDC_AUTH_LIFTETIME / 1000 })
+            await oidcCache.resource().save(record, { ttl: remainingTtl })
 
-            return { token: `${OIDC_WRAPPED_TOKEN.toUpperCase()} ${authorization}` }
+            return updateOf(issued, record)
           }
         }
       } catch (err) {
-        console.error(err)
-        await cache(ctx).delete(managedId(user.token))
+        if (err instanceof AuthUnavailable) {
+          // Preserve the session record: this is a dependency outage, and clearing a valid
+          // browser session would turn a recoverable outage into forced reauthentication.
+          throw err
+        }
+        log.warn('OIDC session rejected; its record is dropped', {
+          reason: err instanceof AuthError ? err.message : 'revalidation-failed', userId: user.userId,
+          ...(err instanceof AuthError ? {} : { error: err }),
+        }, { event: 'auth.refused' })
+        await oidcCache.resource().delete(oidcCache.managedId(user.token))
         if (thr) {
           if (err instanceof AuthorizationError) {
             throw err

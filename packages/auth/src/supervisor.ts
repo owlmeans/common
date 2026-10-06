@@ -14,11 +14,3 @@ export const buildSupervisorPayload = (
   challenge: string, userId: string, salt: string
 ): { challenge: string, userId: string, salt: string } => ({ challenge, userId, salt })
 
-/**
- * Shape of the value packed into `AuthCredentials.credential` by the supervisor
- * web plugin: the client `salt` plus the `signature` over `buildSupervisorPayload`.
- */
-export interface SupervisorCredentialPayload {
-  salt: string
-  signature: string
-}

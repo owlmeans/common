@@ -1,5 +1,27 @@
-import { ResilientError } from './resilient.js'
+import { ResilientError } from './errors.js'
 import type { Converter, ResilientErrorConstructor } from './types.js'
+
+const unmarshal = <T extends ResilientError = ResilientError>(errorClass: ResilientErrorConstructor) =>
+  (err: Error): T => {
+    if (err instanceof errorClass) {
+      return err as T
+    }
+    const fields = err.message.split(ResilientError.separator, 4)
+    if (fields.length < 2) {
+      throw SyntaxError('Invalid marshaled error')
+    }
+    const [type, message, stack, incidentId] = fields
+    // The base constructor takes (type, message, stack); subclasses take (message, stack).
+    // Keeping the base's wire type in place avoids shifting a plain Error's message into `type`.
+    const error = errorClass === ResilientError
+      ? new errorClass(type, message, stack)
+      : new errorClass(message, stack)
+    error.type = type
+    error.message = message
+    error.incidentId = incidentId
+    error.finalizeUnmarshal()
+    return error as T
+  }
 
 export const createErrorConverter = (
   resilientErrorClass: ResilientErrorConstructor,
@@ -13,23 +35,3 @@ export const createErrorConverter = (
     unmarshal: unmarshal(resilientErrorClass)
   }
 }
-
-export const unmarshal = <T extends ResilientError = ResilientError>(errorClass: ResilientErrorConstructor) =>
-  (err: Error): T => {
-    if (err instanceof errorClass) {
-      return err as T
-    }
-    const args = err.message.split(ResilientError.separator, 3) as [string, string, string?]
-    if (args.length < 2) {
-      throw SyntaxError('Invalid marshaled error')
-    }
-
-    if (args[0] === errorClass.typeName) {
-      args.shift()
-    }
-
-    const error = new errorClass(...args)
-    error.message = args[0]
-    error.finalizeUnmarshal()
-    return error as T
-  }

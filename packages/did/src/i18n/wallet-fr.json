@@ -1,0 +1,99 @@
+{
+  "createKey": {
+    "title": "Créer une clé",
+    "description": "Une organisation ou un service vous demande de créer une nouvelle clé cryptographique",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi la création de cette clé vous est demandée.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "getEntityKey": {
+    "title": "Obtenir la clé publique d’une organisation",
+    "description": "Un service vous demande de fournir une clé publique et des données associées pour un profil d’organisation",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi cette clé vous est demandée.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "sign": {
+    "title": "Signer avec la clé",
+    "description": "Un service vous demande de signer un document avec votre clé",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi cette signature vous est demandée.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "masterSign": {
+    "title": "Signer avec la clé principale",
+    "description": "Un service vous demande de signer un document avec votre clé principale, qui devrait vraisemblablement être utilisée seulement avec les services OwlMeans",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi cette signature vous est demandée.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "getMasterDid": {
+    "title": "Obtenir votre DID principal",
+    "description": "Un service vous demande votre adresse décentralisée principale, qui devrait vraisemblablement être partagée seulement avec les services OwlMeans",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi le partage de votre DID principal vous est demandé.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "selectKey": {
+    "title": "Choisir une clé",
+    "description": "Un service vous demande de choisir une clé pour obtenir ses informations publiques",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi les informations publiques d’une de vos clés vous sont demandées.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "getPublicDetails": {
+    "title": "Obtenir la clé publique",
+    "description": "Un service vous demande une clé publique liée au profil de votre organisation",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi le partage de votre clé publique vous est demandé.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    }
+  },
+  "requestPermissions": {
+    "title": "Autorisations demandées",
+    "description": "Un service demande à effectuer une suite d’actions avec votre portefeuille",
+    "unknown-reason": "Soyez prudent : nous ne savons pas pourquoi ces actions vous sont demandées.",
+    "proceed": {
+      "label": "Confirmer"
+    },
+    "cancel": {
+      "label": "Annuler"
+    },
+    "method": {
+      "createKey": "Créer une clé cryptographique",
+      "getEntityKey": "Obtenir la clé publique d’une organisation",
+      "sign": "Signer des données avec votre clé",
+      "masterSign": "Signer des données avec votre clé principale",
+      "getMasterDid": "Obtenir votre identifiant principal",
+      "selectKey": "Obtenir une de vos clés publiques",
+      "getPublicDetails": "Obtenir votre clé publique"
+    }
+  }
+}

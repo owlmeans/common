@@ -1,7 +1,4 @@
-import {
-  adoptToken, clearSurrogate, isEmbedded, isSurrogate, markSurrogate,
-  LOGIN_TOKEN_MESSAGE,
-} from '@owlmeans/client-auth/login'
+import { loginEnvHelper, loginTokenOf, LOGIN_TOKEN_MESSAGE } from '@owlmeans/client-auth/login'
 import type { AppConfig, AppContext } from '@owlmeans/web-client'
 import { LoginOutcome } from '@owlmeans/client-auth/login'
 
@@ -19,25 +16,25 @@ import { LoginOutcome } from '@owlmeans/client-auth/login'
  */
 
 /** @deprecated Read `LoginEnv.embedded` from the login service, or let a plugin's `match` decide. */
-export const isFramed = isEmbedded
+export const isFramed = loginEnvHelper.isEmbedded
 
 /** @deprecated The surrogate plugin records this in its `enter` stage. */
-export const markOidcLoginPopup = markSurrogate
+export const markOidcLoginPopup = loginEnvHelper.markSurrogate
 
 /** @deprecated Read `LoginEnv.surrogate` from the login service. */
-export const isOidcLoginPopup = isSurrogate
+export const isOidcLoginPopup = loginEnvHelper.isSurrogate
 
 /** @deprecated Use `context.login().adopt(token)` — the single token-adoption path. */
 export const applyAuthToken = async <C extends AppConfig, T extends AppContext<C>>(
   context: T, token: string
-): Promise<void> => { await adoptToken(context, token) }
+): Promise<void> => { await loginTokenOf(context).adoptToken(token) }
 
 /** @deprecated Use `context.login().complete(token)`. */
 export const handBackOidcToken = (token: string | null | undefined): boolean => {
-  if (!isSurrogate() || window.opener == null || token == null || token === '') {
+  if (!loginEnvHelper.isSurrogate() || window.opener == null || token == null || token === '') {
     return false
   }
-  clearSurrogate()
+  loginEnvHelper.clearSurrogate()
   window.opener.postMessage({ type: LOGIN_TOKEN_MESSAGE, token }, window.location.origin)
   window.close()
 

@@ -1,0 +1,41 @@
+{
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Choose how you would like to continue.",
+    "busy": "Opening sign-in…",
+    "empty": "No sign-in method is configured for this application.",
+    "method": {
+      "google": "Continue with Google",
+      "oidc": "Continue with {{provider}}",
+      "oidc-default": "Sign in / Sign up",
+      "oidc-client": "Continue with {{provider}}",
+      "basic-ed25519": "Sign in with a key",
+      "pk-supervisor": "Secret key (operator)",
+      "wallet-consumer": "OwlMeans ID wallet",
+      "one-time-token": "Sign in with an email code",
+      "fallback": "Continue with {{method}}"
+    },
+    "terms": {
+      "accept": "I have read and agree to the {{documents}}.",
+      "terms": "Terms & Conditions",
+      "privacy": "Privacy Policy",
+      "cookies": "Cookie Policy",
+      "billing": "Billing Terms",
+      "product": "{{product}} Product Terms",
+      "notice": "How we handle your personal data: {{notices}}.",
+      "revised": "Last updated: {{date}}",
+      "required": "Please confirm the {{documents}} to continue."
+    },
+    "consent": {
+      "required": "Signing in stores a session cookie. Accept essential cookies to continue."
+    },
+    "credit": {
+      "powered": "Powered by OwlMeans"
+    },
+    "error": {
+      "failed": "Sign-in did not complete. Please try again.",
+      "blocked": "The sign-in window was blocked. Click the blocked pop-up icon in your browser's address bar to open it."
+    },
+    "orphaned": "Signed in. You can close this window and continue in the application."
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "@owlmeans/agent",
-  "version": "0.1.18-rc.11",
+  "version": "0.1.18-rc.49",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -40,33 +40,50 @@
       "default": "./build/stores/index.js",
       "module": "./build/stores/index.js",
       "types": "./build/stores/index.d.ts"
+    },
+    "./pipeline": {
+      "import": "./build/pipeline/index.js",
+      "require": "./build/pipeline/index.js",
+      "default": "./build/pipeline/index.js",
+      "module": "./build/pipeline/index.js",
+      "types": "./build/pipeline/index.d.ts"
+    },
+    "./checkpoint": {
+      "import": "./build/checkpoint/index.js",
+      "require": "./build/checkpoint/index.js",
+      "default": "./build/checkpoint/index.js",
+      "module": "./build/checkpoint/index.js",
+      "types": "./build/checkpoint/index.d.ts"
     }
   },
   "devDependencies": {
-    "@langchain/core": "^1.2.9",
-    "@langchain/langgraph": "^1.4.13",
+    "@langchain/core": "^1.2.14",
+    "@langchain/langgraph": "^1.4.19",
     "@owlmeans/dep-config": "workspace:*",
-    "@types/bun": "^1.3.14",
-    "@types/node": "^26.1.0",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.4",
     "nodemon": "^3.1.14",
     "typescript": "^7.0.2",
-    "zod": "^4.1.0"
+    "zod": "^4.6.5",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   },
   "dependencies": {
-    "@owlmeans/agent-common": "^0.1.18-rc.11",
-    "@owlmeans/basic-ids": "^0.1.18-rc.6",
-    "@owlmeans/context": "^0.1.18-rc.6",
-    "@owlmeans/error": "^0.1.18-rc.6",
-    "@owlmeans/flow": "^0.1.18-rc.9",
-    "@owlmeans/llm": "^0.1.18-rc.9",
-    "@owlmeans/llm-common": "^0.1.18-rc.8",
-    "ajv": "^8.17.1"
+    "@owlmeans/agent-common": "^0.1.18-rc.48",
+    "@owlmeans/basic-ids": "^0.1.18-rc.38",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/error": "^0.1.18-rc.38",
+    "@owlmeans/flow": "^0.1.18-rc.45",
+    "@owlmeans/llm": "^0.1.18-rc.46",
+    "@owlmeans/llm-common": "^0.1.18-rc.39",
+    "@owlmeans/log": "^0.1.18-rc.2",
+    "ajv": "^8.20.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "@langchain/core": "^1.2.9",
-    "@langchain/langgraph": "^1.4.13"
+    "@langchain/core": "^1.2.14",
+    "@langchain/langgraph": "^1.4.19",
+    "@langchain/langgraph-checkpoint": "^1.1.5"
   }
 }

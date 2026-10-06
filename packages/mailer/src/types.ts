@@ -16,3 +16,9 @@ export interface MailMessage {
 export interface MailerService extends InitializedService {
   send: (message: MailMessage) => Promise<void>
 }
+
+/** The dev/test transport: delivers by logging, and keeps what it sent for inspection. */
+export interface ConsoleMailerService extends MailerService {
+  /** Messages captured since the service was created (use in tests). */
+  captured: MailMessage[]
+}

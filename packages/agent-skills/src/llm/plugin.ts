@@ -1,14 +1,11 @@
 import { PromptBlock, resolveFileProvider } from '@owlmeans/llm-common'
-import { renderSkill } from '@owlmeans/llm/prompt'
 import type { LlmPromptPlugin, PromptContext } from '@owlmeans/llm'
 import { loadPackageSkills } from './resolve.js'
-import { OWLMEANS_SCOPE } from './types.js'
+import { OWLMEANS_SCOPE, PACKAGE_SKILLS_PLUGIN } from './consts.js'
 import type { PackageSkills, PackageSkillsOptions } from './types.js'
+import { DEFAULT_CATEGORIES, DEFAULT_MAX_PACKAGES } from './consts.local.js'
+import { promptRenderHelper } from '@owlmeans/llm'
 
-export const PACKAGE_SKILLS_PLUGIN = 'owlmeans-packages'
-
-const DEFAULT_MAX_PACKAGES = 5
-const DEFAULT_CATEGORIES = ['package-specific', 'multi-package'] as const
 
 const escape = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -125,7 +122,7 @@ export const owlmeansPackagesPlugin = (options: PackageSkillsOptions = {}): LlmP
           continue
         }
         for (const skill of found.skills) {
-          ctx.add(PromptBlock.Packages, renderSkill(skill))
+          ctx.add(PromptBlock.Packages, promptRenderHelper.renderSkill(skill))
         }
       }
     },

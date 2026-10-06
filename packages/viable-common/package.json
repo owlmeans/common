@@ -1,0 +1,90 @@
+{
+  "name": "@owlmeans/viable-common",
+  "version": "0.0.46",
+  "license": "MIT",
+  "description": "Runtime-free contracts of the OwlMeans Viable platform — the analysis, design and metadata shapes of a generated project, its target-shape manifest, the slot command vocabulary, the connector protocol and the conversion vocabulary, and the intent-first hand-off from the public site to the platform.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "nodemon -e ts,tsx,json --watch src --exec \"tsc -p ./tsconfig.json\"",
+    "watch": "tsc -b -w --preserveWatchOutput --pretty",
+    "test": "bun test ./tests"
+  },
+  "main": "build/index.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "require": "./build/index.js",
+      "default": "./build/index.js",
+      "module": "./build/index.js",
+      "types": "./build/index.d.ts"
+    },
+    "./slot": {
+      "import": "./build/slot/index.js",
+      "require": "./build/slot/index.js",
+      "default": "./build/slot/index.js",
+      "module": "./build/slot/index.js",
+      "types": "./build/slot/index.d.ts"
+    },
+    "./connect": {
+      "import": "./build/connect/index.js",
+      "require": "./build/connect/index.js",
+      "default": "./build/connect/index.js",
+      "module": "./build/connect/index.js",
+      "types": "./build/connect/index.d.ts"
+    },
+    "./convert": {
+      "import": "./build/convert/index.js",
+      "require": "./build/convert/index.js",
+      "default": "./build/convert/index.js",
+      "module": "./build/convert/index.js",
+      "types": "./build/convert/index.d.ts"
+    },
+    "./integrity": {
+      "import": "./build/integrity/index.js",
+      "require": "./build/integrity/index.js",
+      "default": "./build/integrity/index.js",
+      "module": "./build/integrity/index.js",
+      "types": "./build/integrity/index.d.ts"
+    },
+    "./legal": {
+      "import": "./build/legal/index.js",
+      "require": "./build/legal/index.js",
+      "default": "./build/legal/index.js",
+      "module": "./build/legal/index.js",
+      "types": "./build/legal/index.d.ts"
+    },
+    "./intent": {
+      "import": "./build/intent/index.js",
+      "require": "./build/intent/index.js",
+      "default": "./build/intent/index.js",
+      "module": "./build/intent/index.js",
+      "types": "./build/intent/index.d.ts"
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "^1.2.14",
+    "@owlmeans/dep-config": "workspace:*",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@owlmeans/agent-common": "^0.1.18-rc.48",
+    "@owlmeans/auth": "^0.1.18-rc.40",
+    "@owlmeans/context": "^0.1.18-rc.34",
+    "@owlmeans/entrypoint": "^0.1.18-rc.41",
+    "@owlmeans/error": "^0.1.18-rc.38",
+    "@owlmeans/flow": "^0.1.18-rc.45",
+    "@owlmeans/llm-common": "^0.1.18-rc.39",
+    "@owlmeans/planning": "^0.1.18-rc.20",
+    "@owlmeans/resource": "^0.1.18-rc.40",
+    "@owlmeans/route": "^0.1.18-rc.35"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

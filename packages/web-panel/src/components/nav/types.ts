@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react'
 import type { NavTranslate, PanelNavConfig, PanelNavLink } from '@owlmeans/client-panel'
+import type { FooterThemeToggle } from '../footer/types.js'
 import type { StyledProps } from '../types.js'
 
 interface NavCommonProps extends StyledProps {
@@ -19,6 +20,13 @@ export interface SideNavProps extends NavCommonProps {
   variant?: 'side' | 'bar'
 }
 
+/**
+ * `ariaLabel` names the navigation landmark INSIDE the sheet; `translate` also resolves the menu
+ * button's accessible name and the sheet's title (`shell.menu`, default "Menu") and its close
+ * button's (`shell.close`, default "Close"). `className` and `style` land on the trigger button.
+ */
+export interface MobileNavProps extends NavCommonProps { }
+
 export interface NavLayoutProps extends PropsWithChildren<StyledProps> {
   nav: PanelNavConfig
   translate?: NavTranslate
@@ -28,7 +36,37 @@ export interface NavLayoutProps extends PropsWithChildren<StyledProps> {
   home?: string
   /** Header right side — sign-in controls, a theme toggle, whatever the app puts there. */
   actions?: ReactNode
-  /** Links array renders the standard footer; a node replaces it entirely. */
+  /**
+   * Opt-in narrow-viewport menu. Below `md` (768px) the section menu is hidden and a menu button
+   * at the end of the header opens a sheet listing every section and its screens ({@link
+   * MobileNavProps}); `actions` stay in the header at every width. The screen strip the narrow
+   * viewport otherwise gets under the header is NOT rendered then — the sheet already lists the
+   * same screens, and two menus for one level is one too many. Off, the shell is exactly what it
+   * has always been.
+   */
+  mobileMenu?: boolean
+  /**
+   * The skip link rendered first in the page, ahead of the header, moving focus to the content
+   * (`<main id="main">`). Invisible until focused, then a pill in the top-left corner. Defaults to
+   * `translate('shell.skip', 'Skip to content')`; `false` renders no link AND leaves `main`
+   * without the `main` id, for an application that renders its own skip link and target.
+   */
+  skipLinkLabel?: string | false
+  /**
+   * The light/dark switcher in the footer's bottom row, beside the credit — forwarded to
+   * `Footer`, whether `footer` is links, a node or absent. The accessible names resolve
+   * `shell.toLight` / `shell.toDark` through `translate` unless `labels` gives them. Absent or
+   * `false`, the footer renders exactly as it does without one.
+   */
+  themeToggle?: FooterThemeToggle
+  /**
+   * An array renders the standard footer: a centred row of links above the credit line.
+   *
+   * A node is the application's OWN footer layout — brand, description, link columns — and is
+   * rendered as a full-width block (`w-full self-stretch`, start-aligned text) inside the footer's
+   * container, on the shell's rhythm, above the platform/owner credit line. It never replaces the
+   * credit: `ShellCredit` stays last in every footer, and nothing a caller passes here removes it.
+   */
   footer?: PanelNavLink[] | ReactNode
   /**
    * Styles the HEADER — the sticky bar carrying the brand, the section menu and `actions`.

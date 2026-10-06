@@ -5,7 +5,7 @@ import type { AuthenticationPlugin } from './types.js'
 import type { PinForm, TunnelAuthenticationRenderer } from './tunnel/types.js'
 import { useCallback, useEffect } from 'react'
 import type { Connection } from '@owlmeans/socket'
-import { isEventMessage, SocketTimeout } from '@owlmeans/socket'
+import { SocketTimeout, socketMessageHelper } from '@owlmeans/socket'
 import type { AuthenticationControl } from '../components/authentication/types.js'
 import { RELY_ACTION_TIMEOUT, RELY_PIN_PERFIX } from '@owlmeans/auth-common'
 import { createWalletFacade } from './tunnel/wallet.js'
@@ -13,12 +13,21 @@ import { createWalletFacade } from './tunnel/wallet.js'
 export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
   type: AuthenticationType.WalletConsumer,
 
+  method: { order: 400, icon: 'wallet' },
+
+  // The PIN form is a `Renderer` a panel package assigns; without one the Implementation throws on
+  // mount, so the method must not be offered.
+  requiresRenderer: true,
+
   Implementation: renderer => ({ type, stage, control, params }) => {
     type = type ?? AuthenticationType.WalletConsumer
     const Renderer: TunnelAuthenticationRenderer | undefined = renderer
       ?? tunnelConsumerUIPlugin.Renderer
 
-    const connection = useWs(AUTHEN_RELY)
+    // A wallet-tunnel handshake is one-shot and stateful in the browser tab that started it — a
+    // reconnect would dial a brand-new rely session the wallet was never asked to approve, so a
+    // drop here is a real failure (`SocketTimeout` below), never something to retry underneath.
+    const connection = useWs(AUTHEN_RELY, undefined, { reconnect: false })
 
     if (Renderer == null) {
       throw new SyntaxError('Renderer is not defined for WalletConsumer plugin')
@@ -53,7 +62,7 @@ export const tunnelConsumerUIPlugin: AuthenticationPlugin = {
         }
 
         return connection.listen(async message => {
-          if (isEventMessage(message) && message.event === 'close') {
+          if (socketMessageHelper.isEventMessage(message) && message.event === 'close') {
             await control.setError(new SocketTimeout('rely'))
           }
         })

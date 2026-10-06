@@ -1,6 +1,6 @@
 ---
 name: memory-promotion
-description: Transform procedure-shaped or repeatedly-used memory into skills and instructions — the procedure-shape test, the mandatory distillation rewrite, promote? repeated-touch flags, over-cap trigger, update-vs-create decision, and the post-promotion pointer state. Use when memory content reads as "how to", when a promote? flag is encountered again, when writing memory-derived content into a skill, or during recompaction.
+description: Transform procedure-shaped or repeatedly-used memory into skills — the procedure-shape test, the mandatory distillation rewrite, promote? repeated-touch flags, over-cap trigger, update-vs-create decision, and the post-promotion pointer state. Use when memory content reads as "how to", when a promote? flag is encountered again, when writing memory-derived content into a skill, or during recompaction.
 user-invocable: true
 metadata:
   scope: general
@@ -8,7 +8,7 @@ metadata:
 
 # Memory promotion
 
-Memory holds **facts**; **procedures** belong in skills/instructions, where they auto-invoke and
+Memory holds **facts**; **procedures** belong in skills, where they auto-invoke and
 stop consuming memory-read cycles. Promotion is how the store stays compact and the harness
 teaches itself.
 
@@ -78,8 +78,8 @@ Evaluable by reading the file alone — no tooling required.
 
 ## Update vs create
 
-**Default is update** — extend the existing skill/instruction whose scope covers the activity,
-even partially; keep both twins in sync. Create a NEW pair only when:
+**Default is update** — extend the existing skill whose scope covers the activity, even
+partially. Create a NEW skill only when:
 
 - (a) a new subsystem or technology entered the repo;
 - (b) an activity with no covering skill needed memory read/write more than once (a
@@ -88,6 +88,12 @@ even partially; keep both twins in sync. Create a NEW pair only when:
 
 New skills multiply lookup cost — compactness applies to the skill population *and* to each
 skill's body.
+
+The covering skill may be one this project does not own — a `.agents/linked-skills/<name>` entry
+symlinked into an upstream repo or installed package, or an installer-placed copy carrying the
+`AUTO-GENERATED` banner. Never write the promotion into either: put the distilled rule in a local
+skill and name it after the activity, because a local skill named after the upstream one shadows
+that skill for the whole project (`self-education` → Skills this project does not own).
 
 ## Procedure
 

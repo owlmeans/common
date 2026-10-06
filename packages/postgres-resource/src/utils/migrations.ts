@@ -1,9 +1,9 @@
 import type { Migration, MigrationStore } from '@owlmeans/resource'
 import type { PoolClient, QueryResultRow } from 'pg'
 
-import { pgErrorToResourceError } from '../errors.js'
+import { pgErrorHelper } from '../pg-error.js'
 import type { PostgresTx, TableSpec } from '../types.js'
-import { qualify, quoteIdent } from './name.js'
+import { pgNameHelper } from './name.js'
 
 /**
  * A transaction façade over a checked out client. `{{alias}}` resolution is injected so
@@ -11,44 +11,51 @@ import { qualify, quoteIdent } from './name.js'
  */
 export const makeTx = (
   client: PoolClient, resolve: (text: string) => string, ref: (alias?: string) => string
-): PostgresTx => ({
-  client,
+): PostgresTx => {
+  const { pgErrorToResourceError } = pgErrorHelper
 
-  query: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
-    try {
-      const result = await client.query<Row>(resolve(text), params as never[])
-      return result.rows
-    } catch (error) {
-      throw pgErrorToResourceError(error)
-    }
-  },
+  return {
+    client,
 
-  queryOne: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
-    try {
-      const result = await client.query<Row>(resolve(text), params as never[])
-      return result.rows[0] ?? null
-    } catch (error) {
-      throw pgErrorToResourceError(error)
-    }
-  },
+    query: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
+      const query = resolve(text)
+      try {
+        const result = await client.query<Row>(query, params as never[])
+        return result.rows
+      } catch (error) {
+        throw pgErrorToResourceError(error, query)
+      }
+    },
 
-  execute: async (text: string, params?: unknown[]) => {
-    try {
-      const result = await client.query(resolve(text), params as never[])
-      return result.rowCount ?? 0
-    } catch (error) {
-      throw pgErrorToResourceError(error)
-    }
-  },
+    queryOne: async <Row extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => {
+      const query = resolve(text)
+      try {
+        const result = await client.query<Row>(query, params as never[])
+        return result.rows[0] ?? null
+      } catch (error) {
+        throw pgErrorToResourceError(error, query)
+      }
+    },
 
-  ref
-})
+    execute: async (text: string, params?: unknown[]) => {
+      const query = resolve(text)
+      try {
+        const result = await client.query(query, params as never[])
+        return result.rowCount ?? 0
+      } catch (error) {
+        throw pgErrorToResourceError(error, query)
+      }
+    },
+
+    ref
+  }
+}
 
 /**
  * Migration ledger, one table per Postgres schema.
  *
- * It lives inside the resource's own schema, so an Entity layer schema carries its own
- * ledger — correct, because it also carries its own tables.
+ * It lives inside the resource's own schema, so every schema carries the ledger for the
+ * tables it holds — correct, because those tables are what the migrations changed.
  */
 export const makeMigrationStore = (
   client: PoolClient,
@@ -57,6 +64,8 @@ export const makeMigrationStore = (
   resolve: (text: string) => string,
   ref: (alias?: string) => string
 ): MigrationStore<PostgresTx> => {
+  const { pgErrorToResourceError } = pgErrorHelper
+  const { qualify, quoteIdent } = pgNameHelper
   const ledger = qualify(spec.schema, table)
 
   return {
