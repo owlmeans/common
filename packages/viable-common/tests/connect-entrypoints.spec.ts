@@ -21,8 +21,8 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
     expect(tree.convert.proceed.alias).toBe(connect.convert.proceed)
     expect(tree.inquiry.answer.alias).toBe(connect.inquiry.answer)
     expect(tree.files.list.alias).toBe(connect.files.list)
-    expect(protocols(tree)).toHaveLength(28)
-    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(28)
+    expect(protocols(tree)).toHaveLength(29)
+    expect(new Set(protocols(tree).map(protocol => protocol.alias)).size).toBe(29)
   })
 
   test('declares exactly the routes a connector calls — every alias, reference and path, and no socket', () => {
@@ -37,7 +37,7 @@ describe('@owlmeans/viable-common — connector protocol tree', () => {
       'POST /convert', 'POST /convert/:id/proceed', 'POST /convert/:id/purge', 'POST /convert/:id/start',
       'POST /pipeline/:id/:runId/resume', 'POST /project', 'POST /project/:id/branding',
       'POST /project/:id/confirm', 'POST /project/:id/inquiry/:inquiryId', 'POST /project/:id/kits', 'POST /project/:id/modify',
-      'POST /project/:id/reinit', 'POST /project/attach', 'POST /session', 'POST /session/:sessionId/close',
+      'POST /project/:id/reinit', 'POST /project/:id/rename', 'POST /project/attach', 'POST /session', 'POST /session/:sessionId/close',
       'POST /session/:sessionId/ops/:opId', 'POST /session/delegated',
     ])
     expect(declared.every(protocol => protocol.route.route.protocol !== RouteProtocols.SOCKET)).toBe(true)

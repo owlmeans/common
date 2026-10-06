@@ -67,6 +67,10 @@ export const makeRemoteConnectorApi = (context: Ctx): ConnectorApi => {
         await context.entrypoint(connectRef.project.modify).call({
           params: { id }, body: { prompt }, timeout: TOOL_DEADLINE_MS,
         }),
+      rename: async (id: string, name: string, description?: string) =>
+        await context.entrypoint(connectRef.project.rename).call({
+          params: { id }, body: { name, ...(description != null ? { description } : {}) }, timeout: TOOL_DEADLINE_MS,
+        }),
       kitDescribe: async (id: string): Promise<ConnectKitDescribe> => await context
         .entrypoint(connectRef.project.kit.describe).call({ params: { id }, timeout: TOOL_DEADLINE_MS }),
       kitApply: async (id: string, body: ConnectKitApplyBody): Promise<ConnectKitApplyResult> =>

@@ -373,6 +373,11 @@ export const connect = Object.freeze({
     reinit: 'viable:manager-api:connect:project:reinit',
     modify: 'viable:manager-api:connect:project:modify',
     /**
+     * Rename a project — its name, brief and what its code says it is called; never its address.
+     * A new name is an agent run paid like free flight.
+     */
+    rename: 'viable:manager-api:connect:project:rename',
+    /**
      * Planning kits — ready sets of card types and status flows the platform writes into a
      * target's common package (`describe` lists them, `apply` writes one and rebuilds the slot).
      */

@@ -8,7 +8,7 @@ import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } f
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody, ConnectProjectStatus,
   ConnectProjectSummary, ConnectStoryStatus
 } from './project/types.js'
 import type { ConnectReferences } from './references/types.js'
@@ -39,6 +39,7 @@ export const connectRef: ConnectReferences = {
     attach: entrypointRef<{ body: ConnectAttachBody }, ConnectProjectStatus>(connect.project.attach),
     reinit: entrypointRef<{ params: { id: string } }, ConnectProjectStatus>(connect.project.reinit),
     modify: entrypointRef<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>(connect.project.modify),
+    rename: entrypointRef<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>(connect.project.rename),
     kit: {
       describe: entrypointRef<{ params: { id: string } }, ConnectKitDescribe>(connect.project.kit.describe),
       apply: entrypointRef<{

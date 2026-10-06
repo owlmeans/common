@@ -6,7 +6,7 @@ import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } f
 import type { ConnectInquiryAnswerBody, ConnectOp, ConnectOpResult, ConnectOpSubmission } from '../ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from '../pipeline/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody, ConnectProjectStatus,
   ConnectProjectSummary, ConnectStoryStatus
 } from '../project/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams, ConnectSessionView } from '../session/types.js'
@@ -32,6 +32,7 @@ export interface ConnectReferences {
     attach: ConnectReference<{ body: ConnectAttachBody }, ConnectProjectStatus>
     reinit: ConnectReference<{ params: { id: string } }, ConnectProjectStatus>
     modify: ConnectReference<{ params: { id: string }, body: ConnectModifyBody }, ConnectProjectStatus>
+    rename: ConnectReference<{ params: { id: string }, body: ConnectRenameBody }, ConnectProjectStatus>
     kit: {
       describe: ConnectReference<{ params: { id: string } }, ConnectKitDescribe>
       apply: ConnectReference<{ params: { id: string }, body: ConnectKitApplyBody }, ConnectKitApplyResult>

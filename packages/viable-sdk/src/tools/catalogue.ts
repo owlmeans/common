@@ -1025,13 +1025,37 @@ export const catalogue: ToolDefinition[] = [
     title: 'Ask the agent for an open-ended change',
     description:
       'Describe a change in words and let the platform\'s own coding agent make it. For anything'
-      + ' that is not a user story: a rename, a fix, a styling change. Returns project status.',
+      + ' that is not a user story: a fix, a styling change. To rename the product, use'
+      + ' rename_project. Returns project status.',
     input: { prompt: z.string().min(1), projectId: z.string().optional() },
     availability: toolHostHelper.anyHost,
     run: async (args, deps) => {
       const project = projectOf(args, deps)
       await ensureSession(deps, project)
       return projectResult(await deps.api.project.modify(project, args.prompt as string))
+    },
+  },
+
+  {
+    name: 'rename_project',
+    title: 'Rename the project',
+    description:
+      'Give the product a new name. The platform renames the project record, restates the name in'
+      + ' its specification and vision, and its coding agent restates it through the app\'s code'
+      + ' (titles, copy, docs). The project\'s web address does not change. A new name is paid like'
+      + ' an open-ended change; a new description alone is free. Returns project status.',
+    input: {
+      name: z.string().min(1).max(128),
+      description: z.string().min(1).max(2048).optional(),
+      projectId: z.string().optional(),
+    },
+    availability: toolHostHelper.anyHost,
+    run: async (args, deps) => {
+      const project = projectOf(args, deps)
+      await ensureSession(deps, project)
+      return projectResult(await deps.api.project.rename(
+        project, args.name as string, args.description as string | undefined,
+      ))
     },
   },
 

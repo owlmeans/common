@@ -255,7 +255,7 @@ DEPLOYMENT's parts are injected: the guard alias, the ownership gate, and the pa
 |---|---|
 | `session` | `open` POST `/session`, `openDelegated` POST `/session/delegated`, `close` POST `/session/:sessionId/close` |
 | `op` | `pull` GET `/session/:sessionId/ops` (the long poll), `submit` POST `/session/:sessionId/ops/:opId` |
-| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify` under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `kit.describe` GET / `kit.apply` POST `/project/:id/kits` |
+| `project` | `create` POST / `list` GET `/project`, `attach` POST `/project/attach`, `confirm`, `status`, `reinit`, `modify`, `rename` (`ConnectRenameBody { name, description? }` — the name, brief and code, never the address) under `/project/:id/…`, `branding.get` GET / `.save` POST `/project/:id/branding`, `kit.describe` GET / `kit.apply` POST `/project/:id/kits` |
 | `story` | `status` GET `/project/:id/story/:storyId/status` |
 | `files` | `list` GET `/project/:id/files` |
 | `convert` | `create` POST `/convert`, `check` GET `/convert/:id/check`, `start`, `proceed`, `purge` POST `/convert/:id/…`, `status` GET `/convert/:id` |

@@ -125,3 +125,10 @@ export interface ConnectConfirmBody {
 export interface ConnectModifyBody {
   prompt: string
 }
+
+export interface ConnectRenameBody {
+  /** The new product name. */
+  name: string
+  /** A new one-line description, when the person gave one. */
+  description?: string
+}

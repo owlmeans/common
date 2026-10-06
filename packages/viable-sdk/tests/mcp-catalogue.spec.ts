@@ -226,3 +226,39 @@ describe('viable-sdk — planning kits, at the MCP boundary', () => {
     expect(logged.some(line => line.startsWith('apply_planning_kit refused:'))).toBe(true)
   })
 })
+
+describe('viable-sdk — rename_project', () => {
+  test('renames through the connector with the name and an optional description', async () => {
+    const calls: Array<[string, string, string | undefined]> = []
+    const deps: ToolDeps = {
+      host,
+      api: {
+        project: {
+          rename: async (id: string, name: string, description?: string) => {
+            calls.push([id, name, description])
+            return {
+              project: { id, name, alias: 'kilncue', status: 'confirmed', intrinsic: 'active' },
+              agent: { locked: true },
+            }
+          },
+        },
+      },
+      session: async () => ({} as never),
+      currentSession: () => null,
+      attached: () => null,
+      attach: () => undefined,
+      log: () => undefined,
+      notify: () => undefined,
+    } as unknown as ToolDeps
+
+    const { server, run } = fakeServer()
+    registerCatalogue(server, deps)
+
+    const result = await run('rename_project', { projectId: 'p1', name: 'Firing Ledger' }) as { isError?: boolean }
+    await run('rename_project', { projectId: 'p1', name: 'Firing Ledger', description: 'Book kilns.' })
+
+    expect(result.isError).not.toBe(true)
+    expect(JSON.stringify(result)).toContain('Firing Ledger')
+    expect(calls).toEqual([['p1', 'Firing Ledger', undefined], ['p1', 'Firing Ledger', 'Book kilns.']])
+  })
+})

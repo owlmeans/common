@@ -5,7 +5,7 @@ import {
   ConnectAttachBodySchema, ConnectConfirmBodySchema, ConnectConvertCreateBodySchema,
   ConnectConvertProceedBodySchema, ConnectConvertStartBodySchema, ConnectCreateBodySchema,
   ConnectInquiryParamsSchema, ConnectKitApplyBodySchema,
-  ConnectModifyBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
+  ConnectModifyBodySchema, ConnectRenameBodySchema, ConnectOpParamsSchema, ConnectOpResultSchema,
   ConnectPipelineParamsSchema, ConnectPipelineResumeBodySchema, ConnectProjectBrandingSaveSchema,
   ConnectProjectIdSchema, ConnectSessionOpenSchema, ConnectSessionParamsSchema, ConnectPullQuerySchema,
   ConnectStoryParamsSchema, InquiryAnswerSchema,
@@ -19,7 +19,7 @@ import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe } f
 import type { ConnectInquiryAnswerBody, ConnectOpResult } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody, ConnectPipelineState } from './pipeline/types.js'
 import type {
-  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectProjectStatus,
+  ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody, ConnectProjectStatus,
   ConnectStoryStatus
 } from './project/types.js'
 import type { ConnectPullQuery, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
@@ -123,6 +123,12 @@ export const connectProtocols = (opts: ConnectEntrypointOptions) => {
         parent: base, method: RouteMethod.POST
       }),
       contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectModifyBody>(ConnectModifyBodySchema) }, typed<ConnectProjectStatus>())
+    ),
+    rename: protocol(
+      route(connect.project.rename, '/project/:id/rename', {
+        parent: base, method: RouteMethod.POST
+      }),
+      contract.request({ params: typed<{ id: string }>(ConnectProjectIdSchema), body: typed<ConnectRenameBody>(ConnectRenameBodySchema) }, typed<ConnectProjectStatus>())
     ),
     // Planning kits: one path, read and applied under the owned base like every project route.
     kit: {

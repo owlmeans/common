@@ -46,6 +46,11 @@ export interface ConnectorApi {
     reinit: (projectId: string) => Promise<ConnectProjectStatus>
     modify: (projectId: string, prompt: string) => Promise<ConnectProjectStatus>
     /**
+     * Rename the project: its record, specification, vision and what its code calls it. The web
+     * address stays. A new name starts an agent run, paid like an open-ended change.
+     */
+    rename: (projectId: string, name: string, description?: string) => Promise<ConnectProjectStatus>
+    /**
      * The planning kits the project can take: ready sets of card types and status flows, each
      * for one kind of work-management product.
      */

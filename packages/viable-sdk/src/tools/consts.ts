@@ -60,9 +60,9 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
     {
       id: 'free flight',
       title: 'An open-ended change',
-      what: 'The platform\'s own coding agent makes a change described in words — a rename, a fix,'
-        + ' a styling pass. For anything that is not a user story.',
-      startedBy: ['modify_project'],
+      what: 'The platform\'s own coding agent makes a change described in words — a fix, a styling'
+        + ' pass, or restating a new name through the code. For anything that is not a user story.',
+      startedBy: ['modify_project', 'rename_project'],
       resumable: true,
       waitsFor: [ConnectWaitReason.ModelTask, ConnectWaitReason.LocalConnector],
     },
@@ -189,7 +189,7 @@ export const PLATFORM_CATALOGUE: PlatformCatalogue = {
         + ' connector at an existing one.',
       tools: [
         'describe_capabilities', 'create_project', 'confirm_project', 'project_status',
-        'list_projects', 'attach_project', 'reinitialize_project',
+        'list_projects', 'attach_project', 'reinitialize_project', 'rename_project',
       ],
       absent: 'no project tools are offered here',
     },

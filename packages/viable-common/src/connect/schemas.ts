@@ -11,7 +11,7 @@ import type { ConnectConvertCreateBody, ConnectConvertProceedBody, ConnectConver
 import type { ConnectKitApplyBody, ConnectKitApplyResult, ConnectKitDescribe, PlanningKitView } from './kit/types.js'
 import type { ConnectOpResult, InquiryAnswerPayload } from './ops/types.js'
 import type { ConnectPipelineParams, ConnectPipelineResumeBody } from './pipeline/types.js'
-import type { ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody } from './project/types.js'
+import type { ConnectAttachBody, ConnectConfirmBody, ConnectCreateBody, ConnectModifyBody, ConnectRenameBody } from './project/types.js'
 import type { ConnectPullQuery, ConnectSession, ConnectSessionOpen, ConnectSessionParams } from './session/types.js'
 import type { ConnectLlmBody, ConnectProjectLlmBody } from './settings/types.js'
 
@@ -202,6 +202,16 @@ export const ConnectModifyBodySchema = {
   required: ['prompt'],
   additionalProperties: false,
 } as JSONSchemaType<ConnectModifyBody>
+
+export const ConnectRenameBodySchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 128 },
+    description: { type: 'string', minLength: 1, maxLength: 2048, nullable: true },
+  },
+  required: ['name'],
+  additionalProperties: false,
+} as JSONSchemaType<ConnectRenameBody>
 
 const kitKey = { type: 'string', minLength: 1, maxLength: 128 } as const
 const kitText = { type: 'string', maxLength: 4096 } as const

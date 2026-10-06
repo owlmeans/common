@@ -120,7 +120,7 @@ opening one there would claim the project's single connector slot, **supersede t
 legitimately holding it**, and be abandoned before the first operation was delivered.
 
 So `ensureSession` — what `confirm_project`, `reinitialize_project`, `develop_story`,
-`modify_project` and `resume_pipeline` call before returning their job, and `apply_planning_kit`
+`modify_project`, `rename_project` and `resume_pipeline` call before returning their job, and `apply_planning_kit`
 before its write — opens one only on a
 `toolHostHelper.sessionCapable` host, and `next_task`/`submit_task_result` are available on `.performsModelTasks`
 (delegated **and** session-capable) rather than on the account setting alone. `serverInstructions`
